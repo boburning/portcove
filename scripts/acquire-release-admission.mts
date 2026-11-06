@@ -109,6 +109,7 @@ const qualifyingCollections = new WeakSet<object>();
 const nativePreparationCollections = new WeakSet<object>();
 const aggregateCollections = new WeakSet<object>();
 const publicationCompletionCollections = new WeakSet<object>();
+const scopedControlCollections = new WeakSet<object>();
 const aggregateReadbacks = new WeakSet<object>();
 const acquiredCandidates = new WeakMap<object, Readonly<Record<string, unknown>>>();
 export interface ActualCandidateBuildingEligibility {
@@ -395,6 +396,7 @@ export async function acquireReleaseAdmission(
   const nativePreparation = nativePreparationCollections.has(rawOptions);
   const aggregateResume = aggregateCollections.has(rawOptions);
   const allowPublicationCompletion = publicationCompletionCollections.has(rawOptions);
+  const scopedControls = scopedControlCollections.has(rawOptions);
   // Preserve actual/injected transport provenance and capability references
   // throughout asynchronous acquisition. A caller cannot clear an injected
   // option after collection to obtain a production context.
@@ -440,7 +442,7 @@ export async function acquireReleaseAdmission(
   try {
     const rawApi =
       options.api ??
-      (nativeSource
+      (nativeSource || scopedControls
         ? undefined
         : new GitHubApiClient((args, input) =>
             createGitHubRunner({ cwd: root, maxBuffer: 2 * 1024 * 1024, timeoutMs: 15000 })(
@@ -472,7 +474,7 @@ export async function acquireReleaseAdmission(
     const archiveLookup = () => ({
       deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
       reserve: reserveProviderRequest,
-      elapsed(milliseconds: number) {
+      elapsed: (milliseconds: number) => {
         apiMilliseconds += milliseconds;
       },
     });
@@ -531,7 +533,7 @@ export async function acquireReleaseAdmission(
           endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
         );
         assertAdmissionRestRead(method, url, body);
-        if (!rawApi) throw new Error("native admission has no synchronous provider");
+        if (!rawApi) throw new Error("admission has no synchronous provider");
         budget();
         const requestStarted = performance.now();
         const response = rawApi.request("GET", endpoint);
@@ -547,7 +549,7 @@ export async function acquireReleaseAdmission(
       graphql(query, variables) {
         if (query !== refsQuery && query !== releaseControlRefQuery)
           throw new Error("admission permits only the fixed read-only ref query");
-        if (!rawApi) throw new Error("native admission has no synchronous provider");
+        if (!rawApi) throw new Error("admission has no synchronous provider");
         budget();
         const requestStarted = performance.now();
         const response = rawApi.graphql(query, variables);
@@ -565,6 +567,20 @@ export async function acquireReleaseAdmission(
       nativeSource?.guard();
       if (performance.now() >= archiveLookup().deadline)
         throw new Error("admission API acquisition bound exhausted");
+    };
+    const readControls = async (
+      selected: AuthenticatedReleaseControlSource,
+      opportunity: unknown,
+    ) => {
+      if (!scopedControls) return selected.read(api, opportunity);
+      checkReadTime();
+      const { reserve, elapsed } = archiveLookup();
+      const facts = await selected.readSdkApplicationControls(opportunity, {
+        deadline: admissionDeadline,
+        admission: { reserve, elapsed, currentDeadline: () => archiveLookup().deadline },
+      });
+      checkReadTime();
+      return facts;
     };
     const publicationReader =
       inventoryToken === undefined
@@ -725,7 +741,7 @@ export async function acquireReleaseAdmission(
         frozenControlsOpportunity = structuredClone(frozen);
         if (controls) {
           phase = "authenticated-controls-before";
-          controlsBefore = controls.read(api, frozenControlsOpportunity);
+          controlsBefore = await readControls(controls, frozenControlsOpportunity);
         }
       }
     }
@@ -1144,7 +1160,7 @@ export async function acquireReleaseAdmission(
         );
         requireAuthenticatedReleaseControlSource(controls, controlPhase);
         phase = "authenticated-controls-before-final-readback";
-        controlsBefore = controls.read(api, frozenControlsOpportunity);
+        controlsBefore = await readControls(controls, frozenControlsOpportunity);
       }
     }
     phase = "freshness-bracket";
@@ -1171,7 +1187,7 @@ export async function acquireReleaseAdmission(
       throw new Error("coordinator checkpoint changed during admission");
     if (controls && controlsBefore) {
       phase = "authenticated-controls-after";
-      controlsAfter = controls.read(api, frozenControlsOpportunity);
+      controlsAfter = await readControls(controls, frozenControlsOpportunity);
       if (controlsBefore.facts_sha256 !== controlsAfter.facts_sha256)
         throw new Error("authenticated control inputs changed during admission");
     }
@@ -1450,6 +1466,15 @@ async function performAdmissionHandshake(
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
+  const controlReader = building
+    ? "admitted-aggregate"
+    : publicationCompletion
+      ? "publication-application"
+      : phase === "payload" && onAdmitted && compiler && establishNative && deadline !== undefined
+        ? "payload"
+        : undefined;
+  if (controlReader !== undefined && deadline === undefined)
+    throw new Error("fixed admission controls require the original deadline");
   const workflow = await readProductionControllerWorkflowBytes();
   const reader = await authenticateControlReaderJob(env, workflow, {
     phase,
@@ -1502,11 +1527,13 @@ async function performAdmissionHandshake(
       retained.controls = await authenticateReleaseControlSource(env, workflow, {
         phase,
         observedArtifact,
+        ...(controlReader === undefined ? {} : { controlReader }),
         ...(deadline === undefined ? {} : { deadline }),
       });
       return retained.controls;
     },
   };
+  if (controlReader !== undefined) scopedControlCollections.add(collection);
   if (building) {
     if (phase !== "admission" || onAdmitted)
       throw new Error("building eligibility is separate from payload/publication admission");
@@ -1876,15 +1903,15 @@ async function runBuildingCli() {
   const raw = process.env.PORTCOVE_FIXED_BUILDING_CONFIGURATION;
   if (!raw || Buffer.byteLength(raw) > 65536)
     throw new Error("bounded fixed building configuration required");
-  const { currentBuildingJobDeadline } = await import("./release-signing-job-budget.mts");
-  const deadline = currentBuildingJobDeadline(
+  const { currentControllerJobDeadline } = await import("./release-signing-job-budget.mts");
+  const deadline = await currentControllerJobDeadline(
+    "building",
     {
       run_id: process.env.GITHUB_RUN_ID ?? "",
       run_attempt: 1,
       controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION ?? "",
       controller_ref: process.env.PORTCOVE_CONTROLLER_REF ?? "",
     },
-    process.cwd(),
     performance.now() + 405000,
   );
   const selected: unknown = JSON.parse(raw);

@@ -325,7 +325,7 @@ async function authorizeRiskSubject706(
   const deadline = Math.min(phaseDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
   let legacyApi: GitHubApiClient | undefined;
   const readControls = async () => {
-    if (stage === "release-publication") {
+    if (stage === "release-publication" || stage === "payload") {
       if (!Number.isFinite(deadline))
         throw new Error("risk controls original deadline unavailable");
       return controls.readSdkApplicationControls(context.facts.opportunity, { deadline, reserve });

@@ -400,11 +400,8 @@ export function currentClassificationJobDeadline(
 export function buildingOriginalJobDeadline(...args: BudgetArguments) {
   return signingOriginalJobDeadline("candidate-building", ...args);
 }
-export function currentBuildingJobDeadline(...args: CurrentArguments) {
-  return currentSigningJobDeadline("candidate-building", ...args);
-}
 
-/** Resource clock for the closed job bootstrap only, never role authority. */
+/** Resource clock for fixed controller jobs, never role authority. */
 export async function currentControllerJobDeadline(
   operation: unknown,
   identity: JobIdentity,

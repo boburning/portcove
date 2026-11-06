@@ -3,6 +3,7 @@ import test from "node:test";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
+import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
 import { readFile, mkdir, writeFile, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -85,6 +86,64 @@ void test("actual report-only aggregate continuation refuses a missing original 
     (execute as () => Promise<unknown>)(),
     /readback-only aggregate proof cannot upload/u,
   );
+});
+
+void test("aggregate journal guard waits for SDK controls and refuses changed or expired evidence", async () => {
+  const source = await readFile(
+    new URL("./release-admitted-aggregate-controller.mts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /\b(?:GitHubApiClient|createGitHubRunner)\b/u);
+  const start = source.indexOf("      const readCurrentControls =");
+  const end = source.indexOf("      const fresh =", start);
+  assert.ok(start >= 0 && end > start);
+  const controls = {
+    classification: { commit: "a".repeat(40) },
+    pause: { publication_paused: false },
+    capacity: { document_sha256: "b".repeat(64) },
+    resource_policy_matches_controller: true,
+  };
+  const pending = Promise.withResolvers<typeof controls>();
+  let expired = false;
+  const currentSource = {
+    evidence_scope: "github.com",
+    readSdkApplicationControls: () => pending.promise,
+  };
+  const guard: unknown = runInNewContext(
+    stripTypeScriptTypes(`(()=>{${source.slice(start, end)}return requireCurrentControls;})()`),
+    {
+      active() {
+        if (expired) throw new Error("phase deadline exhausted");
+      },
+      admitted: { admission: { controls }, facts: { opportunity: {} } },
+      currentSource,
+      isDeepStrictEqual,
+    },
+  );
+  assert.ok(typeof guard === "function");
+  const runGuard = guard as () => Promise<void>;
+  let settled = false;
+  const checked = runGuard().finally(() => {
+    settled = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(settled, false);
+  pending.resolve(controls);
+  await checked;
+
+  currentSource.readSdkApplicationControls = async () => ({
+    ...controls,
+    classification: { commit: "c".repeat(40) },
+  });
+  await assert.rejects(runGuard(), /fresh aggregate controls differ/u);
+  currentSource.readSdkApplicationControls = async () => {
+    expired = true;
+    return controls;
+  };
+  await assert.rejects(runGuard(), /phase deadline exhausted/u);
+  expired = false;
+  currentSource.evidence_scope = "injected-provider";
+  await assert.rejects(runGuard(), /authenticated aggregate control round unavailable/u);
 });
 
 void test("trusted GH read calls inherit the captured job token while candidate children remain credential-free", async (t) => {

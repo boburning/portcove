@@ -1160,6 +1160,7 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
 }
 
 for (const controlReader of [
+  "admitted-aggregate",
   "site-maintenance",
   "metadata-maintenance",
   "payload",
@@ -1168,11 +1169,16 @@ for (const controlReader of [
   "publication-application",
 ] as const)
   void test(`fixed ${controlReader} joins locked SDK ref, file and original observer reads`, async (t) => {
+    const aggregate = controlReader === "admitted-aggregate";
     const publication = controlReader === "publication-application";
     const classification =
-      publication || controlReader === "payload" || controlReader === "tuf-application";
-    const phase =
-      controlReader === "site-maintenance"
+      aggregate ||
+      publication ||
+      controlReader === "payload" ||
+      controlReader === "tuf-application";
+    const phase = aggregate
+      ? "admission"
+      : controlReader === "site-maintenance"
         ? "site-publication"
         : controlReader === "metadata-maintenance"
           ? "coordinator"
@@ -1189,11 +1195,10 @@ for (const controlReader of [
     );
     if (classification)
       persistReviewedClassification(control.api, config, opportunity, 303, () => {});
-    const runtime = liveControlRuntimeFixture(
-      publication ? publicationProtection(control.head()) : protectionFixture(control.head()),
-      config,
-      phase,
-    );
+    const protection = publication
+      ? publicationProtection(control.head())
+      : protectionFixture(control.head());
+    const runtime = liveControlRuntimeFixture(protection, config, phase, aggregate);
     const { observerApi, ...options } = runtime.options;
     const before = await runtime.create();
     const expected = classification
@@ -1205,6 +1210,7 @@ for (const controlReader of [
     let riskScope = false;
     let expireOnObserver = false;
     let stallBody = false;
+    let oversizedBody = false;
     t.mock.method(
       globalThis,
       "fetch",
@@ -1251,7 +1257,11 @@ for (const controlReader of [
           /^\/repos\/boburning\/portcove(?:\/git\/(?:commits|trees|blobs)\/[a-f0-9]{40})?$/u,
         );
         const result = control.api.request("GET", endpoint.slice(1));
-        return Response.json(result.body, { status: result.status ?? 500 });
+        const body =
+          oversizedBody && endpoint === "/repos/boburning/portcove" && isRecord(result.body)
+            ? { ...result.body, padding: "x".repeat(256 * 1024) }
+            : result.body;
+        return Response.json(body, { status: result.status ?? 500 });
       },
     );
     const source = await authenticateReleaseControlSource(
@@ -1287,7 +1297,83 @@ for (const controlReader of [
     assert.match(reads[0] ?? "", /\/actions\/jobs\//u);
     assert.equal(reads.at(-1), reads[0]);
     assert.equal(control.mutations(), priorMutations);
-    if (publication) {
+    const callsPerObservation = reads.length - 1;
+    if (classification) {
+      const start = reads.length;
+      let charged = 0;
+      let elapsed = 0;
+      let measured = 0;
+      const accounting = {
+        reserve() {
+          return {
+            consumeBytes() {},
+            settle({ dispatched }: { dispatched: boolean }) {
+              if (dispatched) charged++;
+            },
+          };
+        },
+        elapsed(milliseconds: number) {
+          measured++;
+          elapsed += milliseconds;
+        },
+        currentDeadline: () => performance.now() + 1000 - elapsed,
+      };
+      assert.deepEqual(
+        await source.readSdkApplicationControls(opportunity, { admission: accounting }),
+        observed,
+      );
+      assert.equal(charged, reads.length - start - 1);
+      assert.equal(measured, charged);
+      assert.ok(elapsed > 0);
+      assert.equal(reads.at(-1), reads[0]);
+      if (aggregate) {
+        const beforeOversize = reads.length;
+        oversizedBody = true;
+        await assert.rejects(
+          source.readSdkApplicationControls(opportunity, { maxBytes: 256 * 1024 }),
+          /exceeds its byte limit/u,
+        );
+        assert.deepEqual(reads.slice(beforeOversize), ["/repos/boburning/portcove"]);
+        oversizedBody = false;
+        const beforeTimeout = reads.length;
+        await assert.rejects(
+          source.readSdkApplicationControls(opportunity, {
+            admission: { ...accounting, currentDeadline: () => performance.now() - 1 },
+          }),
+          /admission API acquisition bound/u,
+        );
+        assert.equal(reads.length, beforeTimeout);
+      }
+    }
+    if (aggregate) {
+      assert.equal(source.evidence_scope, "injected-provider");
+      for (let round = 0; round < 2; round++) {
+        const beforeRead = reads.length;
+        assert.deepEqual(await read(), observed);
+        assert.equal(reads.length - beforeRead, callsPerObservation);
+      }
+      const beforeRefusal = reads.length;
+      const originalProxy = process.env.NODE_USE_ENV_PROXY;
+      process.env.NODE_USE_ENV_PROXY = "1";
+      try {
+        await assert.rejects(read());
+      } finally {
+        if (originalProxy === undefined) delete process.env.NODE_USE_ENV_PROXY;
+        else process.env.NODE_USE_ENV_PROXY = originalProxy;
+      }
+      const readOnly = liveControlRuntimeFixture(protection, config, "admission");
+      const { observerApi: _observer, ...readOnlyOptions } = readOnly.options;
+      await assert.rejects(
+        authenticateReleaseControlSource(
+          { ...readOnly.environment, GH_TOKEN: "synthetic-site" },
+          readOnly.workflow,
+          { ...readOnlyOptions, deadline: performance.now() + 5000, controlReader },
+        ),
+        /protected application admission/u,
+      );
+      assert.equal(reads.length, beforeRefusal);
+    }
+    if (publication || controlReader === "payload") {
       const start = reads.length;
       let reserved = 0;
       let dispatched = 0;
