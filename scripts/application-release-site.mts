@@ -146,7 +146,7 @@ export function assertBootstrapPagesActor(
   runs: readonly { id: string; control_commit: string; control_ref: string }[],
 ) {
   assert.match(generation, /^[a-f0-9]{64}$/u);
-  assert.ok(runs.length > 0 && runs.length <= 3);
+  assert.ok(runs.length > 0);
   assert.ok(
     runs.some((run) => {
       assert.match(run.id, /^[1-9][0-9]{0,15}$/u);

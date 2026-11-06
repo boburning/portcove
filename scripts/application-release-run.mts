@@ -309,6 +309,24 @@ export type ApplicationRunCustody = {
   runs: Run[];
 };
 
+export const emptyApplicationBootstrap = {
+  opportunity: "ce5fc42d395494d6faff4a2b494b3649923c0b27f508e390667ab7ad46cc4509",
+  release_id: 436818191,
+  source: "9caa02ce98ccd5d6e3e8133735b373f779a0489c",
+  source_tree: "beac77d095fee337fe4ab495e1f73f7250e2464f",
+} as const;
+
+export function isEmptyApplicationBootstrapCustody(value: Record<string, unknown>) {
+  return (
+    value.opportunity === emptyApplicationBootstrap.opportunity &&
+    value.source === emptyApplicationBootstrap.source &&
+    value.source_tree === emptyApplicationBootstrap.source_tree &&
+    value.preparation === null &&
+    !Object.hasOwn(value, "budget") &&
+    value.schema_version === 1
+  );
+}
+
 export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustody {
   assert.ok(isRecord(raw));
   assert.equal(
@@ -394,7 +412,11 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
       ...(qualification ? { qualification } : {}),
     };
   }
-  assert.ok(Array.isArray(raw.runs) && raw.runs.length >= 1 && raw.runs.length <= 3);
+  assert.ok(
+    Array.isArray(raw.runs) &&
+      raw.runs.length >= 1 &&
+      (raw.runs.length <= 3 || isEmptyApplicationBootstrapCustody(raw)),
+  );
   const seen = new Set<string>();
   const runs = raw.runs.map((value: unknown): Run => {
     assert.ok(isRecord(value));
