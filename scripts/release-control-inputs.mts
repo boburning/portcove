@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import type { GitHubReservation } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
@@ -59,7 +60,9 @@ function releaseOpportunityDigest(value: unknown) {
     .update(canonical(validateOpportunity(value)))
     .digest("hex");
 }
-type ControlRead = { kind: "rest"; suffix: string } | { kind: "ref"; node: string; branch: string };
+type ControlRead =
+  | { kind: "rest"; suffix: string; missing: boolean }
+  | { kind: "ref"; node: string; branch: string };
 type ControlResponse = { status: number | undefined; body: unknown };
 type ControlReads<T> = Generator<ControlRead, T, ControlResponse>;
 type ControlSession = {
@@ -110,7 +113,7 @@ function* controlSession(): ControlReads<ControlSession> {
   };
   function* get(suffix: string, missing = false): ControlReads<unknown> {
     bound();
-    const response = yield { kind: "rest", suffix };
+    const response = yield { kind: "rest", suffix, missing };
     if (performance.now() - started > 120_000) throw new Error("release control response late");
     if (response.status === 404 && missing) return null;
     if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > maximumBytes)
@@ -605,18 +608,22 @@ export function readReviewedClassificationForRequest(
   rawConfig: unknown,
   rawRequest: unknown,
 ) {
+  return readWithLegacyApi(api, reviewedClassificationForRequest(rawConfig, rawRequest));
+}
+
+function* reviewedClassificationForRequest(rawConfig: unknown, rawRequest: unknown) {
   const config = configuration(rawConfig);
   const request = inspectReleaseReviewRequest(rawRequest);
   if (!request) throw new Error("classification extraction requires an exact neutral request");
-  const io = session(api);
-  const before = io.ref(classificationBranch);
-  const text = io.contents(
+  const io = yield* controlSession();
+  const before = yield* io.ref(classificationBranch);
+  const text = yield* io.contents(
     before,
     `classification/${request.source_commit}/${request.change_set_sha256}.json`,
     true,
   );
   if (text === null) {
-    if (io.ref(classificationBranch) !== before)
+    if ((yield* io.ref(classificationBranch)) !== before)
       throw new Error("classification ref changed while path was absent");
     return { status: "missing" as const, commit: before, authority: "none" as const };
   }
@@ -633,8 +640,8 @@ export function readReviewedClassificationForRequest(
     opportunity.classification.change_set_scope !== request.change_set_scope
   )
     throw new Error("persisted classification differs from exact neutral request");
-  const verified = readReviewedClassification(api, config, opportunity);
-  if (verified.commit !== before || io.ref(classificationBranch) !== before)
+  const verified = yield* reviewedClassification(config, opportunity);
+  if (verified.commit !== before || (yield* io.ref(classificationBranch)) !== before)
     throw new Error("request classification changed during independent reauthentication");
   return { ...verified, status: "reviewed" as const };
 }
@@ -770,10 +777,15 @@ async function controlSdkReader(
         throw new Error("maintenance control GraphQL response unavailable");
       return { status: response.status, body: envelope.data };
     }
-    const response = await client.request(`GET /repos/${repository}${effect.suffix}`, {
-      request: once(),
-    });
-    return { status: response.status, body: response.data };
+    try {
+      const response = await client.request(`GET /repos/${repository}${effect.suffix}`, {
+        request: once(),
+      });
+      return { status: response.status, body: response.data };
+    } catch (error) {
+      if (!(effect.missing && error instanceof GitHubApiError && error.status === 404)) throw error;
+      return { status: 404, body: null };
+    }
   };
   return async <T,>(sequence: ControlReads<T>) => {
     let step = sequence.next();
@@ -818,4 +830,13 @@ export async function readIndependentCatalogSemanticReviewWithSdk(
 ) {
   const run = await controlSdkReader(options, reserve);
   return run(catalogSemanticReview(rawConfig, rawOpportunity, checkId));
+}
+
+export async function readReviewedClassificationForRequestWithSdk(
+  options: ControlSdkOptions,
+  config: unknown,
+  request: unknown,
+) {
+  const run = await controlSdkReader(options);
+  return run(reviewedClassificationForRequest(config, request));
 }

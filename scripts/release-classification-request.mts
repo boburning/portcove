@@ -3,9 +3,11 @@ import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import {
   persistReviewedClassification,
   readReviewedClassificationForRequest,
+  readReviewedClassificationForRequestWithSdk,
 } from "./release-control-inputs.mts";
 import {
   readIndependentSemanticCheckInventory,
+  readIndependentSemanticCheckInventoryWithSdk,
   inspectSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
@@ -95,6 +97,34 @@ export function inspectClassificationRequestReadiness(
   const matches = inspectSemanticRequestCheckMatches(inventory.records, request);
   const current = readReviewedClassificationForRequest(api, producer, request);
   inventory.assertUnchanged();
+  return classificationReadiness(request, inventory, matches, current);
+}
+
+export async function inspectClassificationRequestReadinessWithSdk(
+  options: Parameters<typeof readIndependentSemanticCheckInventoryWithSdk>[0],
+  producer: unknown,
+  rawRequest: unknown,
+) {
+  const request = inspectReleaseReviewRequest(rawRequest);
+  if (!request)
+    return { eligible: false, reason: "no-outstanding-request", authority: "none" } as const;
+  const inventory = await readIndependentSemanticCheckInventoryWithSdk(
+    options,
+    producer,
+    request.source_commit,
+  );
+  const matches = inspectSemanticRequestCheckMatches(inventory.records, request);
+  const current = await readReviewedClassificationForRequestWithSdk(options, producer, request);
+  await inventory.assertUnchanged();
+  return classificationReadiness(request, inventory, matches, current);
+}
+
+function classificationReadiness(
+  request: NonNullable<ReturnType<typeof inspectReleaseReviewRequest>>,
+  inventory: { inventory_sha256: string },
+  matches: ReturnType<typeof inspectSemanticRequestCheckMatches>,
+  current: ReturnType<typeof readReviewedClassificationForRequest>,
+) {
   const eligible =
     matches.accepted.length === 1 && matches.negative.length === 0 && current.status === "missing";
   return {

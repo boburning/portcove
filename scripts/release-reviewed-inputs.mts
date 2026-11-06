@@ -478,15 +478,24 @@ async function runOperation(
       if (!classification)
         throw new Error("fixed classification source and original job budget unavailable");
       const { recoverRemoteCoordinator } = await import("./release-coordinator-recovery.mts");
-      const { inspectClassificationRequestReadiness } =
+      const { inspectClassificationRequestReadinessWithSdk } =
         await import("./release-classification-request.mts");
       const recovered = await recoverRemoteCoordinator(
         temp,
         { schema_version: 1, namespace: classification.namespace },
-        { transport: { cwd: process.cwd() } },
+        {
+          transport: {
+            credential: { token: classification.readerToken },
+            deadline: classification.deadline,
+          },
+        },
       );
-      result = inspectClassificationRequestReadiness(
-        api,
+      result = await inspectClassificationRequestReadinessWithSdk(
+        {
+          token: classification.readerToken,
+          deadline: classification.deadline,
+          guard: checkCoordinatorDeadline,
+        },
         classification.producer,
         recovered.input.review_request,
       );

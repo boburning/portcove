@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import {
   releaseControlInputsFixture,
   config,
@@ -10,6 +11,7 @@ import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
   persistReviewedClassificationForRequest,
   inspectClassificationRequestReadiness,
+  inspectClassificationRequestReadinessWithSdk,
 } from "./release-classification-request.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { prepareNegativeSemanticDispositionCheck } from "./release-semantic-disposition.mts";
@@ -143,5 +145,52 @@ void test("automatic classification routing is read-only, holds missing/conflict
       inspectClassificationRequestReadiness(drift.api, drift.producer, drift.request),
     );
     assert.equal(drift.mutations(), 0);
+  }
+});
+
+void test("fixed classification probes preserve exact readiness and absence through the locked SDK", async () => {
+  const read = (f: ReturnType<typeof fixture>, routes: string[]) =>
+    inspectClassificationRequestReadinessWithSdk(
+      {
+        token: "inert-classification-probe",
+        deadline: performance.now() + 5000,
+        guard() {},
+        fetch: async (input, init) => {
+          const request = new Request(input, init);
+          const url = new URL(request.url);
+          assert.equal(url.origin, "https://api.github.com");
+          assert.equal(request.headers.get("authorization"), "token inert-classification-probe");
+          routes.push(url.pathname);
+          if (url.pathname === "/graphql") {
+            assert.equal(request.method, "POST");
+            const wire: unknown = await request.json();
+            assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+            assert.equal(wire.variables.ref, "refs/heads/portcove-release-inputs");
+            return Response.json({ data: f.api.graphql(wire.query, wire.variables).data });
+          }
+          assert.equal(request.method, "GET");
+          const result = f.api.request("GET", url.pathname.slice(1) + url.search);
+          return Response.json(result.body, { status: result.status ?? 500 });
+        },
+      },
+      f.producer,
+      f.request,
+    );
+  for (const mode of ["valid", "missing", "persisted", "late-conflict"]) {
+    const f = fixture(mode);
+    const routes: string[] = [];
+    if (mode === "persisted")
+      persistReviewedClassificationForRequest(f.api, f.producer, f.request, () => {});
+    const writesBeforeProbe = f.mutations();
+    if (mode === "late-conflict") {
+      await assert.rejects(read(f, routes), /inventory changed/u);
+    } else {
+      const actual = await read(f, routes);
+      assert.deepEqual(actual, inspectClassificationRequestReadiness(f.api, f.producer, f.request));
+      assert.equal(actual.eligible, mode === "valid");
+      assert.equal(routes.filter((route) => route.endsWith("/check-suites")).length, 3);
+      assert.equal(routes.at(-1), "/repos/boburning/portcove");
+    }
+    assert.equal(f.mutations(), writesBeforeProbe);
   }
 });

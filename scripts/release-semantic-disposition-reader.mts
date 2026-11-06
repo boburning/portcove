@@ -15,7 +15,9 @@ import { inspectNegativeSemanticDisposition } from "./release-semantic-dispositi
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { inspectSemanticReviewEvidence } from "./release-semantic-review.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubMetadataResponse, GitHubRestReader } from "./github-operation.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** GET-only consistency evidence. This API accepts injected transports and
@@ -168,11 +170,93 @@ export function readIndependentCatalogSemanticDisposition(
  * the producer's local POST response. GitHub's ref/check-runs endpoint silently
  * limits coverage to the most recent 1000 suites, so enumerate suites first.
  * Missing, duplicated or excessive history stays Unknown; never re-POST here. */
+type CheckInventoryRead = { endpoint: string; remainingBytes: number };
+
 function readCheckInventory(
   api: GitHubRestReader,
   rawConfiguration: unknown,
   sourceCommit: string,
   catalog: boolean,
+) {
+  function run<T>(sequence: Generator<CheckInventoryRead, T, GitHubMetadataResponse>) {
+    let step = sequence.next();
+    while (!step.done) step = sequence.next(api.request("GET", step.value.endpoint));
+    return step.value;
+  }
+  const result = run(checkInventory(rawConfiguration, sourceCommit, catalog));
+  return { ...result, assertUnchanged: () => run(result.assertUnchanged()) };
+}
+
+export async function readIndependentSemanticCheckInventoryWithSdk(
+  options: { token: string; deadline: number; guard: () => void; fetch?: typeof globalThis.fetch },
+  configuration: unknown,
+  sourceCommit: string,
+) {
+  const deadline = Math.min(
+    options.deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
+  const inventory = checkInventory(configuration, sourceCommit, false, deadline);
+  let expectedUrl: string | undefined;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token: options.token },
+    deadline,
+    maxBytes: 2 * 1024 * 1024,
+    allowRequest(method, url) {
+      options.guard();
+      return method === "GET" && url.href === expectedUrl;
+    },
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+  });
+  async function run<T>(sequence: Generator<CheckInventoryRead, T, GitHubMetadataResponse>) {
+    let step = sequence.next();
+    while (!step.done) {
+      options.guard();
+      const endpoint = new URL(step.value.endpoint, "https://api.github.com/");
+      expectedUrl = endpoint.href;
+      let bodyBytes = 0;
+      let remainingBytes = step.value.remainingBytes;
+      const policy: GitHubRequestPolicy = {
+        replay: "once",
+        attempts: 0,
+        observe(observation) {
+          bodyBytes = observation.bytes;
+        },
+        reserve() {
+          return {
+            consumeBytes(bytes) {
+              remainingBytes -= bytes;
+              if (remainingBytes < 0)
+                throw new Error("semantic discovery aggregate byte bound exceeded");
+            },
+            settle() {},
+          };
+        },
+      };
+      const result = await client.request(`GET ${endpoint.pathname}${endpoint.search}`, {
+        request: { portcove: policy },
+      });
+      options.guard();
+      step = sequence.next({
+        status: result.status,
+        body: result.data as unknown,
+        headers: new Map(),
+        bodyBytes,
+      });
+    }
+    return step.value;
+  }
+  const result = await run(inventory);
+  return { ...result, assertUnchanged: () => run(result.assertUnchanged()) };
+}
+
+function* checkInventory(
+  rawConfiguration: unknown,
+  sourceCommit: string,
+  catalog: boolean,
+  parentDeadline = Infinity,
 ) {
   const config = (
     catalog
@@ -181,31 +265,30 @@ function readCheckInventory(
   )(structuredClone(rawConfiguration));
   if (!/^[a-f0-9]{40}$/u.test(sourceCommit) || config.review_check_name !== semanticReviewCheckName)
     throw new Error("negative semantic discovery requires fixed producer/request identity");
-  const start = performance.now();
+  const deadline = Math.min(parentDeadline, performance.now() + 120000);
+  const maxTotalBytes = 32 * 1024 * 1024;
   let requests = 0,
     bytes = 0;
-  const read = api.request.bind(api);
-  const bounded: GitHubRestReader = {
-    request(method, endpoint) {
-      if (method !== "GET" || ++requests > 40 || performance.now() - start > 120000)
-        throw new Error("negative semantic discovery request/duration bound exceeded");
-      const response = read("GET", endpoint);
-      const length = Buffer.byteLength(JSON.stringify(response.body));
-      bytes += length;
-      if (
-        response.status !== 200 ||
-        !isRecord(response.body) ||
-        length > 8 * 1024 * 1024 ||
-        bytes > 32 * 1024 * 1024 ||
-        performance.now() - start > 120000
-      )
-        throw new Error("negative semantic discovery provider/body bound exceeded");
-      return structuredClone(response);
-    },
-  };
-  const snapshot = () => {
-    const suitesResponse = bounded.request(
-      "GET",
+  function* get(
+    endpoint: string,
+  ): Generator<CheckInventoryRead, GitHubMetadataResponse, GitHubMetadataResponse> {
+    if (++requests > 40 || performance.now() >= deadline)
+      throw new Error("negative semantic discovery request/duration bound exceeded");
+    const response = yield { endpoint, remainingBytes: maxTotalBytes - bytes };
+    const length = response.bodyBytes ?? Buffer.byteLength(JSON.stringify(response.body));
+    bytes += length;
+    if (
+      response.status !== 200 ||
+      !isRecord(response.body) ||
+      length > 8 * 1024 * 1024 ||
+      bytes > maxTotalBytes ||
+      performance.now() >= deadline
+    )
+      throw new Error("negative semantic discovery provider/body bound exceeded");
+    return structuredClone(response);
+  }
+  function* snapshot() {
+    const suitesResponse = yield* get(
       `repos/boburning/portcove/commits/${sourceCommit}/check-suites?app_id=${config.review_app_id}&per_page=100&page=1`,
     );
     const body = suitesResponse.body;
@@ -242,8 +325,7 @@ function readCheckInventory(
       let total: number | null = null;
       const rows: Record<string, unknown>[] = [];
       for (let page = 1; page <= 10; page++) {
-        const response = bounded.request(
-          "GET",
+        const response = yield* get(
           `repos/boburning/portcove/check-suites/${suite.id}/check-runs?check_name=${encodeURIComponent(semanticReviewCheckName)}&filter=all&per_page=100&page=${page}`,
         );
         const runs = response.body;
@@ -301,9 +383,9 @@ function readCheckInventory(
       if (records.length > 1600) throw new Error("semantic check inventory record bound exceeded");
     }
     return { inventory, records };
-  };
-  const repository = () => {
-    const value = bounded.request("GET", "repos/boburning/portcove").body;
+  }
+  function* repository() {
+    const value = (yield* get("repos/boburning/portcove")).body;
     if (
       !isRecord(value) ||
       value.id !== 1354613114 ||
@@ -313,17 +395,17 @@ function readCheckInventory(
     )
       throw new Error("semantic inventory repository differs");
     return { id: value.id, name: value.full_name, node_id: value.node_id };
-  };
-  const originalRepository = repository();
-  const first = snapshot();
-  const assertUnchanged = () => {
+  }
+  const originalRepository = yield* repository();
+  const first = yield* snapshot();
+  function* assertUnchanged() {
     if (
-      capacityDigest(first) !== capacityDigest(snapshot()) ||
-      capacityDigest(repository()) !== capacityDigest(originalRepository)
+      capacityDigest(first) !== capacityDigest(yield* snapshot()) ||
+      capacityDigest(yield* repository()) !== capacityDigest(originalRepository)
     )
       throw new Error("semantic suite/run/repository inventory changed during readback");
-  };
-  assertUnchanged();
+  }
+  yield* assertUnchanged();
   return {
     records: structuredClone(first.records),
     inventory_sha256: capacityDigest(first.inventory),
