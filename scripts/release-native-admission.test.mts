@@ -86,6 +86,7 @@ void test("Windows first beta requires ratified profile and complete exact Windo
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
   deriveNativePublicationJourneys,
+  deriveNativePublicationJourneysWithSdk,
   deriveHostedNativePublicationJourneys,
   inspectNativeCompletionLineage,
   nativeCompletionUsesHistoricalLineage,
@@ -1323,6 +1324,12 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   const journeys = deriveNativePublicationJourneys(input);
   assert.equal(journeys.length, 2);
   assert.equal((journeys[0] as { kind: string }).kind, "initial-empty-feed");
+  assert.deepEqual(
+    await deriveNativePublicationJourneysWithSdk(input, async () =>
+      assert.fail("initial lineage has no predecessor metadata reads"),
+    ),
+    journeys,
+  );
   assert.equal(reads, 0);
   const locatorPins = {
     ...pins,

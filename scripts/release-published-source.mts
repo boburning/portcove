@@ -49,6 +49,8 @@ export async function inspectPublishedApplicationSourceWithSdk(
     requireDirect: boolean;
     guard: () => void;
     currentDeadline?: () => number;
+    maxBytes?: number;
+    beforeDispatch?: () => void;
     fetch?: typeof globalThis.fetch;
   },
   configuration: unknown,
@@ -66,12 +68,14 @@ export async function inspectPublishedApplicationSourceWithSdk(
   const client = await createGitHubClient({
     credential: { kind: "explicit", token: options.token },
     deadline,
-    maxBytes: maxResponseBytes,
+    maxBytes: Math.min(options.maxBytes ?? maxResponseBytes, maxResponseBytes),
     requestTimeoutMs: 15000,
     allowRequest(method, url) {
       options.guard();
       if (options.requireDirect) assertTrustedDirectNode("fixed published application source");
-      return method === "GET" && url.href === expectedUrl;
+      if (method !== "GET" || url.href !== expectedUrl) return false;
+      options.beforeDispatch?.();
+      return true;
     },
     ...(options.fetch ? { fetch: options.fetch } : {}),
   });

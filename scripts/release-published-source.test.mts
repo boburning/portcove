@@ -399,3 +399,50 @@ void test("published source proof aborts a stalled metadata body at the tighter 
   assert.equal(dispatches, 1);
   assert.equal(cancelled, true);
 });
+
+void test("native predecessor shares its dispatch owner across source proof and Check routes", async (t) => {
+  const { createNativePredecessorReader } =
+    await import("./release-native-publication-admission.mts");
+  const f = await fixture(t);
+  const routes: string[] = [];
+  let charges = 0;
+  let exhausted = false;
+  const read = await createNativePredecessorReader(
+    "inert-postsign-reader",
+    performance.now() + 5000,
+    () => {},
+    () => {
+      if (exhausted) throw new Error("fixture shared predecessor budget exhausted");
+      charges++;
+    },
+    async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-postsign-reader");
+      routes.push(url.pathname + url.search);
+      if (url.pathname === "/repos/boburning/portcove/check-runs/44")
+        return Response.json({ id: 44 });
+      const result = f.api.request(request.method, url.pathname.slice(1) + url.search);
+      return Response.json(result.body, { status: result.status });
+    },
+  );
+  assert.deepEqual(await read({ kind: "source", namespace: f.namespace, subject: f.publication }), {
+    status: 200,
+    body: f.source,
+  });
+  assert.ok(routes.length > 1);
+  assert.deepEqual(await read({ kind: "metadata", endpoint: "check-runs/44" }), {
+    status: 200,
+    body: { id: 44 },
+  });
+  assert.equal(charges, routes.length);
+  const before = routes.length;
+  exhausted = true;
+  await assert.rejects(
+    read({ kind: "metadata", endpoint: "check-runs/44" }),
+    /fixture shared predecessor budget exhausted/u,
+  );
+  assert.equal(routes.length, before);
+});

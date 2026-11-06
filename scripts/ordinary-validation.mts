@@ -1312,7 +1312,11 @@ for (const [file, tests] of [
   ["scripts/release-tuf-publication.mts", ["scripts/release-tuf-signing.test.mts"]],
   [
     "scripts/release-native-publication-admission.mts",
-    ["scripts/release-native-admission.test.mts", "scripts/release-hosted-native-history.test.mts"],
+    [
+      "scripts/release-native-admission.test.mts",
+      "scripts/release-hosted-native-history.test.mts",
+      "scripts/release-published-source.test.mts",
+    ],
   ],
   [
     "scripts/release-hosted-native-history.mts",

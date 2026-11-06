@@ -52,7 +52,12 @@ import {
   peelReleaseReference,
 } from "./release-publication-inventory.mts";
 import { selectCoordinatorPublicationBaseline } from "./release-coordinator-driver.mts";
-import { inspectPublishedApplicationSource } from "./release-published-source.mts";
+import {
+  inspectPublishedApplicationSource,
+  inspectPublishedApplicationSourceWithSdk,
+} from "./release-published-source.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   deriveHostedNativePayloadOpportunities,
@@ -197,10 +202,20 @@ type NativePublicationJourneyInput = {
   checkpointObjects?: (deadline: number) => Promise<CatalogAnchorMetadataProvider>;
 };
 
-function readLegacyNativePredecessor(
-  api: NativePublicationJourneyInput["api"],
+type NativePredecessorRead =
+  | { kind: "metadata"; endpoint: string }
+  | {
+      kind: "source";
+      namespace: string;
+      subject: Parameters<typeof inspectPublishedApplicationSource>[2];
+    };
+type NativePredecessorResponse = Pick<GitHubMetadataResponse, "status" | "body">;
+type NativeJourneyReads<T> = Generator<NativePredecessorRead, T, NativePredecessorResponse>;
+type ReadNativePredecessor = (effect: NativePredecessorRead) => Promise<NativePredecessorResponse>;
+
+function* readNativeCheckPredecessor(
   record: Record<string, unknown>,
-) {
+): NativeJourneyReads<ReturnType<typeof inspectNativePublicationPredecessor>> {
   if (!Array.isArray(record.evidence_ids))
     throw new Error("prior native evidence reference absent");
   const refs = record.evidence_ids.filter(
@@ -209,16 +224,58 @@ function readLegacyNativePredecessor(
   );
   if (refs.length !== 1 || typeof refs[0] !== "string")
     throw new Error("prior native evidence reference ambiguous");
-  const id = refs[0].split(":")[1],
-    check = api.request("GET", `repos/boburning/portcove/check-runs/${id}`);
+  const id = refs[0].split(":")[1];
+  const check = yield { kind: "metadata", endpoint: `check-runs/${id}` };
   if (check.status !== 200)
     throw new Error("authenticated historical native attribution unavailable");
   return inspectNativePublicationPredecessor(record, check.body);
 }
 
+function runLegacyJourney<T>(
+  input: NativePublicationJourneyInput,
+  sequence: NativeJourneyReads<T>,
+) {
+  let step = sequence.next();
+  while (!step.done) {
+    const effect = step.value;
+    const response =
+      effect.kind === "metadata"
+        ? input.api.request("GET", `repos/boburning/portcove/${effect.endpoint}`)
+        : {
+            status: 200,
+            body: inspectPublishedApplicationSource(
+              input.api,
+              { schema_version: 1, namespace: effect.namespace },
+              effect.subject,
+            ).source_baseline.commit,
+          };
+    step = sequence.next(response);
+  }
+  return step.value;
+}
+
+async function runSdkJourney<T>(read: ReadNativePredecessor, sequence: NativeJourneyReads<T>) {
+  let step = sequence.next();
+  while (!step.done) step = sequence.next(await read(step.value));
+  return step.value;
+}
+
 export function deriveNativePublicationJourneys(input: NativePublicationJourneyInput) {
-  return deriveNativePublicationJourneysWithRecords(input, (record) =>
-    readLegacyNativePredecessor(input.api, record),
+  return runLegacyJourney(
+    input,
+    deriveNativePublicationJourneysWithRecords(input, readNativeCheckPredecessor),
+  ).journeys;
+}
+
+export async function deriveNativePublicationJourneysWithSdk(
+  input: NativePublicationJourneyInput,
+  read: ReadNativePredecessor,
+) {
+  return (
+    await runSdkJourney(
+      read,
+      deriveNativePublicationJourneysWithRecords(input, readNativeCheckPredecessor),
+    )
   ).journeys;
 }
 
@@ -231,6 +288,7 @@ export async function deriveHostedNativePublicationJourneys(
   parent: string,
   deadline: number,
   nativeParentReceipt?: object,
+  readPredecessor?: ReadNativePredecessor,
 ) {
   if (raw.authority_schema_version !== 4) throw new Error("selected hosted native source required");
   const active = () => {
@@ -251,7 +309,7 @@ export async function deriveHostedNativePublicationJourneys(
     authority_schema_version: 2,
   };
   const records: Record<string, unknown>[] = [];
-  const prepared = deriveNativePublicationJourneysWithRecords(input, (record) => {
+  const sequence = deriveNativePublicationJourneysWithRecords(input, function* (record) {
     if (
       Array.isArray(record.evidence_ids) &&
       record.evidence_ids.some(
@@ -261,8 +319,11 @@ export async function deriveHostedNativePublicationJourneys(
       records.push(structuredClone(record));
       return null;
     }
-    return readLegacyNativePredecessor(input.api, record);
+    return yield* readNativeCheckPredecessor(record);
   });
+  const prepared = readPredecessor
+    ? await runSdkJourney(readPredecessor, sequence)
+    : runLegacyJourney(input, sequence);
   active();
   if (!records.length) return prepared.journeys;
   if (records.length !== prepared.journeys.length || ![1, 2].includes(prepared.journeys.length))
@@ -296,10 +357,10 @@ export async function deriveHostedNativePublicationJourneys(
   });
 }
 
-function deriveNativePublicationJourneysWithRecords(
+function* deriveNativePublicationJourneysWithRecords(
   input: NativePublicationJourneyInput,
-  resolveRecord: (record: Record<string, unknown>) => unknown,
-) {
+  resolveRecord: (record: Record<string, unknown>) => NativeJourneyReads<unknown>,
+): NativeJourneyReads<{ journeys: unknown[]; stable: () => void }> {
   const {
     files,
     manifest,
@@ -398,8 +459,8 @@ function deriveNativePublicationJourneysWithRecords(
       ),
       tag = tags.find((item) => item.name === `v${baseline.version}`);
     if (!tag) throw new Error("actual publication baseline tag absent");
-    const prepared = peelReleaseReference(tag),
-      response = api.request("GET", `repos/boburning/portcove/git/commits/${prepared}`);
+    const prepared = peelReleaseReference(tag);
+    const response = yield { kind: "metadata", endpoint: `git/commits/${prepared}` };
     if (
       response.status !== 200 ||
       !isRecord(response.body) ||
@@ -407,21 +468,22 @@ function deriveNativePublicationJourneysWithRecords(
       typeof response.body.tree.sha !== "string"
     )
       throw new Error("actual baseline source tree absent");
-    const source = inspectPublishedApplicationSource(
-      api,
-      { schema_version: 1, namespace: namespace },
-      {
+    const source = yield {
+      kind: "source",
+      namespace,
+      subject: {
         id: baseline.release.id,
         version: baseline.version,
         prepared_commit: prepared,
         prepared_tree: response.body.tree.sha,
       },
-    );
-    if (source.source_baseline.commit !== manifest.facts.opportunity.base_commit)
+    };
+    if (source.body !== manifest.facts.opportunity.base_commit)
       throw new Error(
         "native predecessor differs from independently established publication baseline",
       );
-    journeys = platform_labels.map((platform_label) => {
+    journeys = [];
+    for (const platform_label of platform_labels) {
       const records = [...priorRecords.values()].filter(
         (record) =>
           record.version === baseline.version &&
@@ -432,12 +494,12 @@ function deriveNativePublicationJourneysWithRecords(
       if (records.length !== 1)
         throw new Error("exact admitted predecessor package absent or ambiguous");
       const record = records[0]!;
-      return {
-        predecessor: resolveRecord(record),
+      journeys.push({
+        predecessor: yield* resolveRecord(record),
         signed_context_sha256: signedContext,
         signatures_sha256: binding.signatures_sha256,
-      };
-    });
+      });
+    }
     stable = () => {
       if (digest(reader.releases()) !== digest(releases) || digest(reader.tags()) !== digest(tags))
         throw new Error("publication baseline changed during native attribution");
@@ -445,6 +507,59 @@ function deriveNativePublicationJourneysWithRecords(
     stable();
   }
   return { journeys, stable };
+}
+
+export async function createNativePredecessorReader(
+  token: string,
+  deadline: number,
+  guard: () => void,
+  chargeRead: () => void,
+  fetch?: typeof globalThis.fetch,
+): Promise<ReadNativePredecessor> {
+  const { createGitHubClient } = await import("./github-client.mts");
+  let expected: string | undefined;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    maxBytes: 1024 ** 2,
+    requestTimeoutMs: 15000,
+    allowRequest(method, url) {
+      guard();
+      assertTrustedDirectNode("fixed native predecessor read");
+      if (method !== "GET" || url.href !== expected) return false;
+      chargeRead();
+      return true;
+    },
+    ...(fetch ? { fetch } : {}),
+  });
+  return async (effect) => {
+    guard();
+    if (effect.kind === "source") {
+      const proof = await inspectPublishedApplicationSourceWithSdk(
+        {
+          token,
+          deadline,
+          maxBytes: 1024 ** 2,
+          requireDirect: true,
+          guard,
+          beforeDispatch: chargeRead,
+          ...(fetch ? { fetch } : {}),
+        },
+        { schema_version: 1, namespace: effect.namespace },
+        effect.subject,
+      );
+      return { status: 200, body: proof.source_baseline.commit };
+    }
+    if (!/^(?:git\/commits\/[a-f0-9]{40}|check-runs\/[1-9][0-9]*)$/u.test(effect.endpoint))
+      throw new Error("native predecessor metadata route differs");
+    const endpoint = `/repos/boburning/portcove/${effect.endpoint}`;
+    expected = `https://api.github.com${endpoint}`;
+    const response = await client.request(`GET ${endpoint}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    guard();
+    return { status: response.status, body: response.data };
+  };
 }
 
 /** Select only the exact temporal branch; subsequent old/new repository checks
@@ -669,6 +784,12 @@ async function collectNativePublicationPair(
       if (++reads > 160) throw new Error(message);
       remaining();
     };
+    const readPredecessor = await createNativePredecessorReader(
+      token ?? "",
+      selectedHosted ? hostedDeadline : deadline,
+      remaining,
+      chargeRead,
+    );
     const checkpointObjects = (originalDeadline: number) =>
       createReleaseCustodyProvider({
         token: token ?? "",
@@ -766,8 +887,14 @@ async function collectNativePublicationPair(
       api,
     };
     const journeys = selectedHosted
-      ? await deriveHostedNativePublicationJourneys(journeyArguments, directory, hostedDeadline)
-      : deriveNativePublicationJourneys(journeyArguments);
+      ? await deriveHostedNativePublicationJourneys(
+          journeyArguments,
+          directory,
+          hostedDeadline,
+          undefined,
+          readPredecessor,
+        )
+      : await deriveNativePublicationJourneysWithSdk(journeyArguments, readPredecessor);
     const templates = selectedHosted
       ? null
       : expectedBefore.map((item, index) =>
