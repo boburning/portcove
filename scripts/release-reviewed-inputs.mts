@@ -620,8 +620,12 @@ async function runOperation(
         const { recoverRemoteCoordinator } = await import("./release-coordinator-recovery.mts");
         const { inspectReleaseReviewRequest } = await import("./release-review-request.mts");
         const { semanticReviewCheckName } = await import("./release-semantic-review.mts");
-        const { persistReviewedClassificationForRequest, requireCurrentClassificationRequest } =
-          await import("./release-classification-request.mts");
+        const {
+          createClassificationJournalGuard,
+          persistReviewedClassificationForRequest,
+          persistReviewedClassificationForRequestWithSdk,
+          requireCurrentClassificationRequest,
+        } = await import("./release-classification-request.mts");
         const authorities = classification ? null : await requireReviewedInputsReleaseAuthorities();
         const producer =
           classification?.producer ??
@@ -645,10 +649,20 @@ async function runOperation(
           parsed.review_check_name !== producer.review_check_name
         )
           throw new Error("writer producer roles differ from ratified release authority");
+        const sdkWriter =
+          mode === "persist-production-request" && classification?.selected ? classification : null;
         const recovered = await recoverRemoteCoordinator(
           temp,
           { schema_version: 1, namespace },
-          { transport: { cwd: process.cwd() } },
+          {
+            transport: sdkWriter
+              ? {
+                  credential: { token: sdkWriter.readerToken },
+                  deadline: sdkWriter.deadline,
+                  requireDirect: true,
+                }
+              : { cwd: process.cwd() },
+          },
         );
         const request = inspectReleaseReviewRequest(recovered.input.review_request);
         if (!request) throw new Error("no outstanding exact journal request for automatic writer");
@@ -665,16 +679,42 @@ async function runOperation(
             requireReleaseInputWriterPolicy(protection, producer.writer_app_id);
           }
         };
-        const beforeMutation = () =>
-          requireCurrentClassificationRequest(
-            readApi,
+        if (sdkWriter) {
+          if (!jobToken) throw new Error("isolated fixed classification job token unavailable");
+          const options = {
+            token: sdkWriter.readerToken,
+            deadline: sdkWriter.deadline,
+            guard() {
+              checkCoordinatorDeadline();
+              assertTrustedDirectNode("fixed classification persistence");
+            },
+          };
+          const beforeMutation = await createClassificationJournalGuard(
+            options,
             namespace,
             recovered.checkpoint,
             requireFreshWriter,
           );
-        beforeMutation();
-        result = persistReviewedClassificationForRequest(api, producer, request, beforeMutation);
-        beforeMutation();
+          await beforeMutation();
+          result = await persistReviewedClassificationForRequestWithSdk(
+            options,
+            { token: jobToken, beforeMutation, requireFresh: requireFreshWriter },
+            producer,
+            request,
+          );
+          await beforeMutation();
+        } else {
+          const beforeMutation = () =>
+            requireCurrentClassificationRequest(
+              readApi,
+              namespace,
+              recovered.checkpoint,
+              requireFreshWriter,
+            );
+          beforeMutation();
+          result = persistReviewedClassificationForRequest(api, producer, request, beforeMutation);
+          beforeMutation();
+        }
       } else if (mode === "persist") {
         const opportunity: unknown = JSON.parse(
           environment.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",

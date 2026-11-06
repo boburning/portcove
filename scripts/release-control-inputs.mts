@@ -62,7 +62,9 @@ function releaseOpportunityDigest(value: unknown) {
 }
 type ControlRead =
   | { kind: "rest"; suffix: string; missing: boolean }
-  | { kind: "ref"; node: string; branch: string };
+  | { kind: "ref"; node: string; branch: string }
+  | { kind: "before-classification-write" }
+  | { kind: "classification-write"; variables: Readonly<Record<string, unknown>> };
 type ControlResponse = { status: number | undefined; body: unknown };
 type ControlReads<T> = Generator<ControlRead, T, ControlResponse>;
 type ControlSession = {
@@ -73,20 +75,44 @@ type ControlSession = {
   refId(branch: string): string | undefined;
 };
 
-function readWithLegacyApi<T>(api: CoordinatorRemoteApi, sequence: ControlReads<T>): T {
+function readWithLegacyApi<T>(
+  api: CoordinatorRemoteApi,
+  sequence: ControlReads<T>,
+  beforeMutation?: () => void,
+): T {
   let step = sequence.next();
   while (!step.done) {
     const request = step.value;
-    if (request.kind === "rest") {
-      const response = api.request("GET", `repos/${repository}${request.suffix}`);
-      step = sequence.next({ status: response.status, body: response.body });
+    let result: ControlResponse;
+    if (request.kind === "before-classification-write") {
+      if (!beforeMutation) throw new Error("fresh protected caller guard unavailable");
+      beforeMutation();
+      result = { status: 200, body: null };
+    } else if (request.kind === "classification-write") {
+      try {
+        const response = api.graphql(releaseClassificationCommitMutation, request.variables);
+        result = { status: 200, body: response.data };
+      } catch {
+        result = { status: undefined, body: null };
+      }
     } else {
-      const response = api.graphql(releaseControlRefQuery, {
-        id: request.node,
-        ref: `refs/heads/${request.branch}`,
-      });
-      step = sequence.next({ status: 200, body: response.data });
+      try {
+        if (request.kind === "rest") {
+          const response = api.request("GET", `repos/${repository}${request.suffix}`);
+          result = { status: response.status, body: response.body };
+        } else {
+          const response = api.graphql(releaseControlRefQuery, {
+            id: request.node,
+            ref: `refs/heads/${request.branch}`,
+          });
+          result = { status: 200, body: response.data };
+        }
+      } catch (error) {
+        step = sequence.throw(error);
+        continue;
+      }
     }
+    step = sequence.next(result);
   }
   return step.value;
 }
@@ -471,62 +497,73 @@ export function persistReviewedClassification(
   checkId: number,
   beforeMutation: () => void,
 ) {
-  const config = configuration(rawConfig);
   if (typeof beforeMutation !== "function")
     throw new Error("fresh protected caller guard unavailable");
+  return readWithLegacyApi(
+    api,
+    persistClassification(rawConfig, rawOpportunity, checkId),
+    beforeMutation,
+  );
+}
+
+function* persistClassification(rawConfig: unknown, rawOpportunity: unknown, checkId: number) {
+  const config = configuration(rawConfig);
   numeric(checkId);
   const opportunity = validateOpportunity(rawOpportunity);
   const path = classificationPath(opportunity);
-  const io = session(api);
-  const before = io.ref(classificationBranch);
-  const proof = review(io.get, checkId, config, opportunity);
+  const io = yield* controlSession();
+  const check = function* () {
+    return inspectReview(yield* io.get(`/check-runs/${checkId}`), checkId, config, opportunity);
+  };
+  const before = yield* io.ref(classificationBranch);
+  const proof = yield* check();
   const text = `${canonical({ schema_version: 2, opportunity, review_check_id: checkId, review_app_id: config.review_app_id, review_sha256: createHash("sha256").update(proof).digest("hex"), opportunity_sha256: releaseOpportunityDigest(opportunity) })}\n`;
-  const existing = io.contents(before, path, true);
+  const existing = yield* io.contents(before, path, true);
   if (existing !== null && existing !== text)
     throw new Error("immutable classification conflicts; no overwrite permitted");
-  if (
-    review(io.get, checkId, config, opportunity) !== proof ||
-    io.ref(classificationBranch) !== before
-  )
+  if ((yield* check()) !== proof || (yield* io.ref(classificationBranch)) !== before)
     throw new Error("release review or input ref changed before persistence");
   if (existing !== null) return { changed: false, commit: before, path, authority: "none" };
   io.bound();
-  beforeMutation();
+  yield { kind: "before-classification-write" } as const;
   let ambiguous = false;
   let acknowledged: string | null = null;
   // expectedHeadOid is GitHub's single-branch exact-preimage CAS. Never retry.
   try {
-    const response = api.graphql(releaseClassificationCommitMutation, {
-      input: {
-        branch: { id: io.refId(classificationBranch) },
-        expectedHeadOid: before,
-        message: { headline: `Persist reviewed classification ${opportunity.source_commit}` },
-        fileChanges: { additions: [{ path, contents: Buffer.from(text).toString("base64") }] },
+    const response = yield {
+      kind: "classification-write",
+      variables: {
+        input: {
+          branch: { id: io.refId(classificationBranch) },
+          expectedHeadOid: before,
+          message: { headline: `Persist reviewed classification ${opportunity.source_commit}` },
+          fileChanges: { additions: [{ path, contents: Buffer.from(text).toString("base64") }] },
+        },
       },
-    });
+    } as const;
     if (
-      !isRecord(response.data) ||
-      !isRecord(response.data.createCommitOnBranch) ||
-      !isRecord(response.data.createCommitOnBranch.commit)
+      !isRecord(response.body) ||
+      !isRecord(response.body.createCommitOnBranch) ||
+      !isRecord(response.body.createCommitOnBranch.commit)
     )
       throw new Error("classification CAS acknowledgment unavailable");
-    oid(response.data.createCommitOnBranch.commit.oid);
-    acknowledged = response.data.createCommitOnBranch.commit.oid;
+    oid(response.body.createCommitOnBranch.commit.oid);
+    acknowledged = response.body.createCommitOnBranch.commit.oid;
   } catch {
     ambiguous = true;
   }
   let after: string | null = null;
   try {
-    after = io.ref(classificationBranch);
+    after = yield* io.ref(classificationBranch);
     if (
       after === before ||
       (acknowledged !== null && acknowledged !== after) ||
-      io.contents(after, path) !== text
+      (yield* io.contents(after, path)) !== text
     )
       throw new Error(
         "classification mutation outcome unknown or conflicting; retain evidence and do not retry",
       );
-    if (review(io.get, checkId, config, opportunity) !== proof)
+    if ((yield* check()) !== proof)
       throw new Error("review changed after persistence; classification cannot admit");
   } catch {
     throw new CoordinatorRemoteError(
@@ -741,9 +778,16 @@ export function createFixedControlReadAllowance() {
   };
 }
 
+type ClassificationSdkWriter = {
+  token: string;
+  beforeMutation: () => Promise<void>;
+  requireFresh: () => void;
+};
+
 async function controlSdkReader(
   options: ControlSdkOptions,
   reserve?: ReturnType<typeof createFixedControlReadAllowance>,
+  writer?: ClassificationSdkWriter,
 ) {
   const { token, guard, fetch, requestTimeoutMs } = options;
   const { createGitHubClient } = await import("./github-client.mts");
@@ -759,8 +803,25 @@ async function controlSdkReader(
     ...(reserve ? { reserve } : {}),
     ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
   });
+  const writerClient =
+    writer === undefined
+      ? undefined
+      : await createGitHubClient({
+          credential: { kind: "explicit", token: writer.token },
+          deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
+          maxBytes: 2 * 1024 ** 2,
+          allowRequest(method, url) {
+            guard();
+            writer.requireFresh();
+            return method === "POST" && url.href === "https://api.github.com/graphql";
+          },
+          ...(fetch ? { fetch } : {}),
+          ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
+        });
   const once = () => ({ portcove: { replay: "once" as const, attempts: 0 } });
-  const read = async (effect: ControlRead): Promise<ControlResponse> => {
+  const read = async (
+    effect: Extract<ControlRead, { kind: "rest" | "ref" }>,
+  ): Promise<ControlResponse> => {
     if (effect.kind === "ref") {
       const response = await client.request("POST /graphql", {
         query: releaseControlRefQuery,
@@ -790,9 +851,33 @@ async function controlSdkReader(
   return async <T,>(sequence: ControlReads<T>) => {
     let step = sequence.next();
     while (!step.done) {
-      guard();
-      const result = await read(step.value);
-      guard();
+      const effect = step.value;
+      if (effect.kind === "before-classification-write") {
+        if (!writer) throw new Error("fresh protected caller guard unavailable");
+        await writer.beforeMutation();
+        step = sequence.next({ status: 200, body: null });
+        continue;
+      }
+      let result: ControlResponse;
+      try {
+        guard();
+        if (effect.kind === "classification-write") {
+          if (!writerClient) throw new Error("fixed classification writer unavailable");
+          const response = await writerClient.request("POST /graphql", {
+            query: releaseClassificationCommitMutation,
+            variables: effect.variables,
+            request: once(),
+          });
+          const envelope: unknown = response.data;
+          result = { status: response.status, body: isRecord(envelope) ? envelope.data : null };
+        } else {
+          result = await read(effect);
+        }
+        guard();
+      } catch (error) {
+        step = sequence.throw(error);
+        continue;
+      }
       step = sequence.next(result);
     }
     return step.value;
@@ -839,4 +924,15 @@ export async function readReviewedClassificationForRequestWithSdk(
 ) {
   const run = await controlSdkReader(options);
   return run(reviewedClassificationForRequest(config, request));
+}
+
+export async function persistReviewedClassificationWithSdk(
+  options: ControlSdkOptions,
+  writer: ClassificationSdkWriter,
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+) {
+  const run = await controlSdkReader(options, undefined, writer);
+  return run(persistClassification(rawConfig, rawOpportunity, checkId));
 }
