@@ -160,6 +160,28 @@ fn historical_port_catalog(snapshot: &str) -> crate::Catalog {
     crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
+pub(crate) fn legacy_opentyrian_indexed_port(
+    port: &crate::PortDefinition,
+) -> crate::PortDefinition {
+    let mut port = port.clone();
+    for pattern in &mut port.persistent_file_patterns {
+        pattern.allow_empty_middle = false;
+    }
+    port
+}
+
+pub(crate) fn indexed_fixture_document(catalog: &crate::Catalog) -> crate::CatalogDocument {
+    let mut document = catalog.authoritative_document();
+    if let Some(port) = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "opentyrian-opentyrian")
+    {
+        *port = legacy_opentyrian_indexed_port(port);
+    }
+    document
+}
+
 /// Give synthetic installer fixtures the same complete retention input as a
 /// production catalog operation, with their explicitly modified port contract.
 pub(crate) fn retained_qualification(
@@ -221,7 +243,7 @@ pub(crate) fn indexed_catalog_bundle_at_revision(
 /// Immutable projection bytes shared only within one synthetic fixture lifetime.
 /// Each revision still receives a distinct entry/index and fresh authentication.
 pub(crate) struct IndexedCatalogFixture<'a> {
-    port: &'a crate::PortDefinition,
+    port: std::borrow::Cow<'a, crate::PortDefinition>,
     contract: Vec<u8>,
     contract_sha256: String,
 }
@@ -233,13 +255,18 @@ impl<'a> IndexedCatalogFixture<'a> {
         // repeating pretty-print whitespace throughout the complete projection.
         let mut contract = serde_json::to_vec(&serde_json::json!({
             "contract_schema":1,"representation":"catalog_projection",
-            "catalog":catalog.authoritative_document()
+            "catalog":indexed_fixture_document(catalog)
         }))
         .unwrap();
         contract.push(b'\n');
         let contract_sha256 = hex::encode(Sha256::digest(&contract));
+        let port = catalog.port(port_id).unwrap();
         Self {
-            port: catalog.port(port_id).unwrap(),
+            port: if port_id == "opentyrian-opentyrian" {
+                std::borrow::Cow::Owned(legacy_opentyrian_indexed_port(port))
+            } else {
+                std::borrow::Cow::Borrowed(port)
+            },
             contract,
             contract_sha256,
         }
@@ -250,7 +277,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         use sha2::{Digest, Sha256};
         let contract = &self.contract;
         let leaf = format!("sha256/{}.json", self.contract_sha256);
-        let port = self.port;
+        let port = self.port.as_ref();
         let port_id = &port.id;
         let capability_version = if crate::preparation::source::native(port) {
             6
@@ -428,7 +455,7 @@ fn indexed_fixture_revisions_preserve_full_catalog_projection() {
         assert_eq!(projection.entry().revision(), revision);
         assert_eq!(
             serde_json::to_value(projection.catalog().authoritative_document()).unwrap(),
-            serde_json::to_value(catalog.authoritative_document()).unwrap()
+            serde_json::to_value(indexed_fixture_document(&catalog)).unwrap()
         );
     }
 }

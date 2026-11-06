@@ -197,26 +197,36 @@ impl PersistentFilePattern {
             ));
         }
         crate::archive::validate_relative_path(&format!("{}x{}", self.prefix, self.suffix), false)?;
-        let suffix = self.suffix.to_ascii_lowercase();
-        if matches!(
-            suffix.rsplit('.').next(),
-            Some(
-                "exe"
-                    | "com"
-                    | "dll"
-                    | "so"
-                    | "dylib"
-                    | "appimage"
-                    | "jar"
-                    | "bat"
-                    | "cmd"
-                    | "ps1"
-                    | "sh"
-                    | "js"
-                    | "vbs"
-                    | "py"
-            )
-        ) {
+        let exact = self
+            .allow_empty_middle
+            .then(|| format!("{}{}", self.prefix, self.suffix));
+        if let Some(exact) = &exact {
+            crate::archive::validate_relative_path(exact, false)?;
+        }
+        if std::iter::once(self.suffix.as_str())
+            .chain(exact.as_deref())
+            .any(|name| {
+                matches!(
+                    name.to_ascii_lowercase().rsplit('.').next(),
+                    Some(
+                        "exe"
+                            | "com"
+                            | "dll"
+                            | "so"
+                            | "dylib"
+                            | "appimage"
+                            | "jar"
+                            | "bat"
+                            | "cmd"
+                            | "ps1"
+                            | "sh"
+                            | "js"
+                            | "vbs"
+                            | "py"
+                    )
+                )
+            })
+        {
             return Err(PortcoveError::usage(
                 "file patterns cannot select executable or script extensions",
             ));
@@ -225,8 +235,9 @@ impl PersistentFilePattern {
     }
 
     pub(crate) fn matches(&self, name: &str) -> bool {
+        let boundary = self.prefix.len() + self.suffix.len();
         !name.contains(['/', '\\'])
-            && name.len() > self.prefix.len() + self.suffix.len()
+            && (name.len() > boundary || (self.allow_empty_middle && name.len() == boundary))
             && name.starts_with(&self.prefix)
             && name.ends_with(&self.suffix)
     }
@@ -288,6 +299,23 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn empty_middle_requires_explicit_file_pattern_opt_in() {
+        let original = serde_json::json!({"prefix":"demorec.","suffix":"1"});
+        let mut pattern: PersistentFilePattern = serde_json::from_value(original.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&pattern).unwrap(), original);
+        assert!(!pattern.matches("demorec.1"));
+        assert!(pattern.matches("demorec.11"));
+        pattern.allow_empty_middle = true;
+        pattern.validate().unwrap();
+        assert!(pattern.matches("demorec.1"));
+        assert!(!pattern.matches("demorec.2"));
+        assert!(!pattern.matches("other/demorec.1"));
+        pattern.prefix = "unsafe.ex".into();
+        pattern.suffix = "e".into();
+        assert!(pattern.validate().is_err());
+    }
 
     #[test]
     fn empty_persistence_checks_preserve_files_directories_and_aliases() {
@@ -503,6 +531,7 @@ mod tests {
         port.runtime_mutable_file_patterns = vec![PersistentFilePattern {
             prefix: "psx_freeze_dump_".into(),
             suffix: ".json".into(),
+            allow_empty_middle: false,
         }];
         assert_eq!(entries(&port, &[root.path()]).unwrap(), ["tmc_test.sav"]);
         fs::create_dir(root.path().join("tmc_directory.sav")).unwrap();
@@ -528,7 +557,8 @@ mod tests {
             assert!(
                 PersistentFilePattern {
                     prefix: prefix.into(),
-                    suffix: suffix.into()
+                    suffix: suffix.into(),
+                    allow_empty_middle: false,
                 }
                 .validate()
                 .is_err()
@@ -538,10 +568,12 @@ mod tests {
             PersistentFilePattern {
                 prefix: "psx_freeze_dump_".into(),
                 suffix: ".json".into(),
+                allow_empty_middle: false,
             }
             .overlaps(&PersistentFilePattern {
                 prefix: "psx_freeze_dump_psx-runtime_".into(),
                 suffix: "_1.json".into(),
+                allow_empty_middle: false,
             })
         );
     }

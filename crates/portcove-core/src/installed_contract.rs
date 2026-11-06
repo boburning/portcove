@@ -706,7 +706,7 @@ mod tests {
         let restored = decoded.catalog("zelda64-recomp").unwrap();
         assert_eq!(
             serde_json::to_value(restored.authoritative_document()).unwrap(),
-            serde_json::to_value(original.authoritative_document()).unwrap()
+            serde_json::to_value(crate::test_fixture::indexed_fixture_document(&original)).unwrap()
         );
         assert_eq!(
             serde_json::to_vec(&InstalledContract::capture(&restored, "zelda64-recomp").unwrap())

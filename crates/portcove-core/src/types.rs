@@ -616,6 +616,9 @@ pub struct ReleaseSpec {
 pub struct PersistentFilePattern {
     pub prefix: String,
     pub suffix: String,
+    /// Match the concatenated prefix and suffix as well as names with an interior.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub allow_empty_middle: bool,
 }
 
 /// A declared upstream limitation, checked by Core rather than left to the game.

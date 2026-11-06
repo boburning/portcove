@@ -7,10 +7,26 @@ fn target(bytes: &[u8]) -> String {
 }
 
 fn projection() -> Value {
+    let catalog = crate::test_fixture::indexed_fixture_document(&Catalog::embedded().unwrap());
     json!({
         "contract_schema": 1, "representation": "catalog_projection",
-        "catalog": Catalog::embedded().unwrap().authoritative_document()
+        "catalog": catalog
     })
+}
+
+#[test]
+fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
+    let catalog = Catalog::embedded().unwrap();
+    let document = json!({
+        "contract_schema": 1, "representation": "catalog_projection",
+        "catalog": catalog.authoritative_document()
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let selected = entry(&document, &contract, 0);
+    assert_ne!(selected["stable_id"], "opentyrian-opentyrian");
+    let error = inspect(&selected, &contract).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(error.message.contains("embedded-only"));
 }
 
 // Malformed-contract checks need a complete source graph and two siblings,

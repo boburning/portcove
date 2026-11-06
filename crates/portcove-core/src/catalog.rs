@@ -208,6 +208,43 @@ impl Catalog {
         self.definition_snapshot = Some((snapshot, validated_revision));
     }
 
+    /// Preserve compiled flags in the effective catalog while leaving the
+    /// authenticated indexed snapshot bytes untouched.
+    pub(crate) fn retain_embedded_file_patterns(
+        &mut self,
+        baseline: &Self,
+        selected: &str,
+    ) -> Result<()> {
+        for compiled in baseline.ports().iter().filter(|port| {
+            port.persistent_file_patterns
+                .iter()
+                .any(|pattern| pattern.allow_empty_middle)
+        }) {
+            if compiled.id == selected {
+                return Err(PortcoveError::unsupported(
+                    "a definition with embedded-only file patterns cannot be replaced by an indexed entry",
+                ));
+            }
+            let Some(port) = Arc::make_mut(&mut self.document)
+                .ports
+                .iter_mut()
+                .find(|port| port.id == compiled.id)
+            else {
+                continue;
+            };
+            for (pattern, compiled) in port
+                .persistent_file_patterns
+                .iter_mut()
+                .zip(&compiled.persistent_file_patterns)
+            {
+                if pattern.prefix == compiled.prefix && pattern.suffix == compiled.suffix {
+                    pattern.allow_empty_middle = compiled.allow_empty_middle;
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn definition_snapshot(
         &self,
         port_id: &str,
@@ -1131,6 +1168,7 @@ impl Catalog {
                     .chain(generated_metadata.iter().map(String::as_str))
                     .any(|relative| pattern.matches(relative));
                 if !runtime_file_patterns_allowed
+                    || pattern.allow_empty_middle
                     || runtime_file_patterns
                         .iter()
                         .any(|existing: &&crate::PersistentFilePattern| existing.overlaps(pattern))
