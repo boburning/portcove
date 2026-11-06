@@ -7,13 +7,7 @@ fn target(bytes: &[u8]) -> String {
 }
 
 fn projection() -> Value {
-    let mut catalog = Catalog::embedded().unwrap().authoritative_document();
-    let opentyrian = catalog
-        .ports
-        .iter_mut()
-        .find(|port| port.id == "opentyrian-opentyrian")
-        .unwrap();
-    *opentyrian = crate::test_fixture::legacy_opentyrian_indexed_port(opentyrian);
+    let catalog = crate::test_fixture::indexed_fixture_document(&Catalog::embedded().unwrap());
     json!({
         "contract_schema": 1, "representation": "catalog_projection",
         "catalog": catalog
