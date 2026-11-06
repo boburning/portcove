@@ -53,6 +53,18 @@
       "managed_native": false
     },
     {
+      "port_id": "heroes-of-might-and-magic-ii-fheroes2",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual external fheroes2 profile and the original and custom resources of your prepared copy"
+        ],
+        "executable": "fheroes2.exe"
+      },
+      "managed_native": true
+    },
+    {
       "port_id": "mother-3-mother-3-recomp",
       "prepared_player": {
         "executable": "Mother3Recomp.exe",

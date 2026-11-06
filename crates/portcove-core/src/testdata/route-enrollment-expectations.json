@@ -71,6 +71,10 @@
     {
       "port_id": "dune-ii-dune-dynasty",
       "managed_native": true
+    },
+    {
+      "port_id": "heroes-of-might-and-magic-ii-fheroes2",
+      "managed_native": true
     }
   ]
 }

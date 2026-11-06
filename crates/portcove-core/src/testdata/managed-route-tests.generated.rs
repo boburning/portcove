@@ -4,6 +4,7 @@ const DECLARED_MANAGED_ROUTE_TEST_IDS: &[&str] = &[
     "body-harvest-recompiled",
     "doom-3-classic-dhewm3",
     "dune-ii-dune-dynasty",
+    "heroes-of-might-and-magic-ii-fheroes2",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
 ];
 
@@ -20,6 +21,11 @@ async fn managed_native_declared_doom_3_classic_dhewm3() {
 #[tokio::test]
 async fn managed_native_declared_dune_ii_dune_dynasty() {
     assert_declarative_managed_native_route("dune-ii-dune-dynasty").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_heroes_of_might_and_magic_ii_fheroes2() {
+    assert_declarative_managed_native_route("heroes-of-might-and-magic-ii-fheroes2").await;
 }
 
 #[tokio::test]
