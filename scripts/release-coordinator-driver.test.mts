@@ -956,7 +956,7 @@ void test("actual first bootstrap entry binds the preserved seed before local in
   const executor = {},
     tools = {},
     descriptor = {},
-    session = new WeakMap();
+    session = new WeakMap<object, { next_controls: (deadline: number) => Promise<unknown> }>();
   const events: string[] = [];
   const original = {
     repository: "/inert/state.git",
@@ -990,6 +990,8 @@ void test("actual first bootstrap entry binds the preserved seed before local in
     capacity_source: { capacity: { schema_version: 2 } },
   };
   const control = { evidence_scope: "github.com", readMaintenance: () => facts };
+  const controlReads: string[] = [];
+  const fenceReads: number[] = [];
   const publication = {
     public_source: { commit: revision, initial_site_preimage: { path: "historical.json" } },
     initial_site_preimage_sha256: "d".repeat(64),
@@ -1055,7 +1057,32 @@ void test("actual first bootstrap entry binds the preserved seed before local in
       assert.equal(provider, bootstrapProvider);
       return {};
     },
-    authenticateReleaseControlRound: async () => control,
+    authenticateReleaseControlRound: async (
+      _directory: string,
+      _digest: string,
+      phase: string,
+      _round: number,
+      options: { deadline: number; controlReader?: string },
+    ) => {
+      assert.equal(phase, "coordinator");
+      if (!options.controlReader)
+        return {
+          evidence_scope: "github.com",
+          readMaintenance() {
+            controlReads.push("legacy");
+            return facts;
+          },
+        };
+      assert.equal(options.controlReader, "metadata-maintenance");
+      return {
+        evidence_scope: "github.com",
+        async readSdkMaintenance(_allowance: undefined, request: { deadline: number }) {
+          assert.equal(request.deadline, options.deadline);
+          controlReads.push("sdk");
+          return facts;
+        },
+      };
+    },
     metadataContinuationApi: () => ({}),
     coordinatorContinuationDeadline,
     assessBoundedCapacity: () => ({ eligibility: "eligible" }),
@@ -1072,6 +1099,7 @@ void test("actual first bootstrap entry binds the preserved seed before local in
       assert.equal(repository, original.repository);
       assert.equal(checkpoint, prior);
       await guard();
+      fenceReads.push(controlReads.length);
       events.push("verify-original-history");
       if (refuseHistory) throw new Error("retained history refused");
       return true;
@@ -1089,6 +1117,7 @@ void test("actual first bootstrap entry binds the preserved seed before local in
         revision,
         "first authorized child records the actual repaired controller source",
       );
+      fenceReads.push(controlReads.length);
       events.push("local-intent");
       return { checkpoint: next };
     },
@@ -1103,6 +1132,7 @@ void test("actual first bootstrap entry binds the preserved seed before local in
       assert.equal(checkpoint, next);
       await guard();
       assert.equal(events.at(-1), "local-intent");
+      fenceReads.push(controlReads.length);
       events.push("signed-publication");
       return { checkpoint };
     },
@@ -1138,6 +1168,13 @@ void test("actual first bootstrap entry binds the preserved seed before local in
   assert.equal(result.checkpoint, next);
   assert.deepEqual(events, ["verify-original-history", "local-intent", "signed-publication"]);
   assert.deepEqual(original, immutableSeed, "the original seed remains unchanged");
+  const legacyReads = Array<string>(7).fill("legacy");
+  assert.deepEqual(controlReads, legacyReads);
+  assert.deepEqual(fenceReads, [5, 5, 7]);
+  const retained = session.get(result);
+  assert.ok(retained);
+  await retained.next_controls(budget.monotonicDeadline);
+  assert.deepEqual(controlReads, [...legacyReads, "sdk"]);
   events.length = 0;
   refuseHistory = true;
   await assert.rejects(

@@ -1035,6 +1035,7 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
 
 for (const controlReader of [
   "site-maintenance",
+  "metadata-maintenance",
   "payload",
   "tuf-maintenance",
   "tuf-application",
@@ -1044,9 +1045,11 @@ for (const controlReader of [
     const phase =
       controlReader === "site-maintenance"
         ? "site-publication"
-        : controlReader === "payload"
-          ? "payload"
-          : "tuf-preview";
+        : controlReader === "metadata-maintenance"
+          ? "coordinator"
+          : controlReader === "payload"
+            ? "payload"
+            : "tuf-preview";
     const control = releaseControlInputsFixture(
       capacityDocumentFixture(),
       opportunity,
@@ -1065,6 +1068,7 @@ for (const controlReader of [
     const base = "https://api.github.com";
     const reads: string[] = [];
     let expireOnObserver = false;
+    let stallBody = false;
     t.mock.method(
       globalThis,
       "fetch",
@@ -1088,6 +1092,10 @@ for (const controlReader of [
           return Response.json({ data: control.api.graphql(query, variables).data });
         }
         assert.equal(init?.method, "GET");
+        if (stallBody && endpoint === "/repos/boburning/portcove")
+          return new Response(new ReadableStream(), {
+            headers: { "content-type": "application/json" },
+          });
         if (endpoint.startsWith("/repos/boburning/portcove/actions/jobs/")) {
           if (expireOnObserver) runtime.advance(60001);
           const result = observerApi.request("GET", endpoint.slice(1));
@@ -1111,7 +1119,14 @@ for (const controlReader of [
       { ...options, deadline: performance.now() + 5000, controlReader },
     );
     const read = () =>
-      classification ? source.readSdkApplicationControls(opportunity) : source.readSdkMaintenance();
+      classification
+        ? source.readSdkApplicationControls(opportunity)
+        : controlReader === "metadata-maintenance"
+          ? source.readSdkMaintenance(undefined, {
+              deadline: performance.now() + 1000,
+              signingContext: true,
+            })
+          : source.readSdkMaintenance();
     const observed = await read();
     assert.deepEqual(observed.pause, expected.pause);
     assert.deepEqual(observed.capacity_source, expected.capacity_source);
@@ -1127,6 +1142,19 @@ for (const controlReader of [
     assert.match(reads[0] ?? "", /\/actions\/jobs\//u);
     assert.equal(reads.at(-1), reads[0]);
     assert.equal(control.mutations(), priorMutations);
+    if (controlReader === "metadata-maintenance") {
+      stallBody = true;
+      const beforeStall = reads.length;
+      await assert.rejects(
+        source.readSdkMaintenance(undefined, {
+          deadline: performance.now() + 150,
+          signingContext: true,
+        }),
+        /deadline|abort/u,
+      );
+      assert.deepEqual(reads.slice(beforeStall), ["/repos/boburning/portcove"]);
+      stallBody = false;
+    }
     expireOnObserver = true;
     await assert.rejects(read(), /fresh|expired/u);
   });

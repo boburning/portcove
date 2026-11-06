@@ -1,11 +1,11 @@
-import { createGitHubClient } from "./github-client.mts";
+import { createGitHubClient, type GitHubClientOptions } from "./github-client.mts";
 import { GitHubApiError, nextLink } from "./github-operation.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 
 export interface HistoricalJobProvider {
   attempt(run: string, attempt: number): Promise<unknown>;
   jobs(run: string, attempt: number, page: number): Promise<{ body: unknown; next: string | null }>;
-  job(id: number): Promise<unknown>;
+  job(id: number, deadline?: number): Promise<unknown>;
 }
 
 export interface CatalogAnchorMetadataProvider {
@@ -61,6 +61,7 @@ export async function createReleaseCustodyProvider(options: {
   maxBytes?: number;
   currentDeadline?: () => number;
   chargeRead?: () => void;
+  reserve?: GitHubClientOptions["reserve"];
   beforeDispatch?: () => void;
   afterRead?: () => void;
   fetch?: typeof globalThis.fetch;
@@ -72,6 +73,7 @@ export async function createReleaseCustodyProvider(options: {
     maxBytes = 2 * 1024 ** 2,
     currentDeadline,
     chargeRead,
+    reserve,
     beforeDispatch,
     afterRead,
     fetch,
@@ -90,6 +92,7 @@ export async function createReleaseCustodyProvider(options: {
     }),
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     ...(fetch ? { fetch } : {}),
+    ...(reserve ? { reserve } : {}),
   });
   const get = async (
     route: string,
@@ -196,8 +199,8 @@ export async function createReleaseCustodyProvider(options: {
         next: typeof link === "string" ? nextLink(new Map([["link", link]])) : null,
       };
     },
-    async job(id) {
-      return (await get("/repos/{owner}/{repo}/actions/jobs/{job_id}", { job_id: id }))
+    async job(id, limit) {
+      return (await get("/repos/{owner}/{repo}/actions/jobs/{job_id}", { job_id: id }, limit))
         .data as unknown;
     },
     async commit(sha) {

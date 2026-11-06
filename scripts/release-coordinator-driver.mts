@@ -434,9 +434,9 @@ export async function prepareActualCoordinatorCatalogSigning(
             controlDigest,
             "coordinator",
             round,
-            { deadline },
+            { deadline, controlReader: "catalog-maintenance" },
           );
-          const facts = control.readMaintenance(metadataContinuationApi(directory, () => deadline));
+          const facts = await control.readSdkMaintenance(undefined, { deadline });
           if (
             control.evidence_scope !== "github.com" ||
             facts.reader.job_id !== reader.identity.job_id ||
@@ -2121,11 +2121,11 @@ async function prepareTrustedCoordinatorRenewalAt(
           capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
           "coordinator",
           index,
-          { deadline: session.deadline },
+          { deadline: session.deadline, controlReader: "metadata-maintenance" },
         );
-        const fresh = next.readMaintenance(
-          metadataContinuationApi(recovered.repository, () => session.deadline),
-        );
+        const fresh = await next.readSdkMaintenance(undefined, {
+          deadline: session.deadline,
+        });
         if (
           next.evidence_scope !== "github.com" ||
           coordinatorMaintenanceIdentity(fresh) !== controlIdentity
@@ -2200,11 +2200,12 @@ export async function requireActualCoordinatorMetadataPreparation(
       coordinatorHasUnresolvedEffect(current.input)
     )
       throw new Error("coordinator metadata seed or checkpoint changed");
-    const api = metadataContinuationApi(retained.repository, () => retained.deadline);
     // The original observer may have aged while the authenticated feed/tool
     // custody was checked. Obtain a new fixed-job round before reading it.
     const controls = await retained.next_controls();
-    const fresh = controls.readMaintenance(api);
+    const readControls = () =>
+      controls.readSdkMaintenance(undefined, { deadline: retained.deadline });
+    const fresh = await readControls();
     if (coordinatorMaintenanceIdentity(fresh) !== retained.control_identity_sha256)
       throw new Error("coordinator maintenance controls changed before continuation");
     await readPublicApplicationSiteMarker(site.generation, retained.deadline);
@@ -2215,10 +2216,7 @@ export async function requireActualCoordinatorMetadataPreparation(
     );
     if (remote.checkpoint !== retained.checkpoint)
       throw new Error("remote coordinator metadata checkpoint changed");
-    if (
-      coordinatorMaintenanceIdentity(controls.readMaintenance(api)) !==
-      retained.control_identity_sha256
-    )
+    if (coordinatorMaintenanceIdentity(await readControls()) !== retained.control_identity_sha256)
       throw new Error("coordinator maintenance controls changed after readback");
     return Object.freeze({
       mode: "renewal" as const,
@@ -2477,7 +2475,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
   let refreshing = false,
     refused = false;
   let owned: BootstrapPreparation | undefined;
-  const controls = async (phaseDeadline?: number) => {
+  const controls = async (phaseDeadline?: number, controlReader?: "metadata-maintenance") => {
     const deadline = owned
       ? (owned.deadline = coordinatorContinuationDeadline(owned.deadline, phaseDeadline))
       : coordinatorContinuationDeadline(budget.monotonicDeadline, phaseDeadline);
@@ -2490,9 +2488,11 @@ async function prepareTrustedCoordinatorBootstrapAt(
         capacityDigest({ checkpoint: controlCheckpoint, descriptor }),
         "coordinator",
         round,
-        { deadline },
+        { deadline, ...(controlReader ? { controlReader } : {}) },
       );
-      const facts = control.readMaintenance(metadataContinuationApi(directory, () => deadline));
+      const facts = controlReader
+        ? await control.readSdkMaintenance(undefined, { deadline })
+        : control.readMaintenance(metadataContinuationApi(directory, () => deadline));
       if (
         control.evidence_scope !== "github.com" ||
         facts.reader.job_id !== reader.identity.job_id ||
@@ -2654,7 +2654,9 @@ async function prepareTrustedCoordinatorBootstrapAt(
     ...(catalogSite ? { catalog_site: catalogSite.receipt } : {}),
     fresh_configured_site: lateSite,
     site_observed_at: siteObservedAt,
-    next_controls: controls,
+    // Preparation and its synchronous CAS fence are complete. Later signing
+    // checks get their own scoped reader without changing the original writer.
+    next_controls: (phaseDeadline) => controls(phaseDeadline, "metadata-maintenance"),
   };
   bootstrapPreparations.set(result, owned);
   return result;
@@ -2692,8 +2694,8 @@ export async function requireActualCoordinatorBootstrapPreparation(
     )
       throw new Error("bootstrap descriptor or current effect differs");
     const controls = await owned.next_controls(owned.deadline);
-    const api = metadataContinuationApi(owned.directory, () => owned.deadline);
-    const facts = controls.readMaintenance(api);
+    const readControls = () => controls.readSdkMaintenance(undefined, { deadline: owned.deadline });
+    const facts = await readControls();
     if (facts.pause.publication_paused || !facts.resource_policy_matches_controller)
       throw new Error("bootstrap maintenance unavailable");
     const current = await readRemoteCoordinatorSnapshot(
@@ -2723,7 +2725,7 @@ export async function requireActualCoordinatorBootstrapPreparation(
         : await readConfiguredBootstrapSite(provider, deadline);
       owned.site_observed_at = performance.now();
     }
-    const late = controls.readMaintenance(api);
+    const late = await readControls();
     if (
       late.pause.publication_paused ||
       coordinatorMaintenanceIdentity(late) !== coordinatorMaintenanceIdentity(facts)
