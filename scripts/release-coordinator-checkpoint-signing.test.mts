@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign, verify } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -284,6 +284,13 @@ function producerFixture() {
     token = "",
     publicKey = "";
   const posts: string[] = [];
+  function identityResponse(endpoint: string | undefined) {
+    const job = { ...f.job, status: "in_progress", completed_at: null };
+    if (endpoint?.endsWith("/actions/runs/9988")) return { ...f.attempt, status: "in_progress" };
+    if (endpoint?.includes("/jobs?")) return { total_count: 1, jobs: [job] };
+    if (endpoint?.endsWith("/actions/jobs/501")) return job;
+    assert.fail(`unexpected inert provider route ${endpoint}`);
+  }
   const options: NonNullable<Parameters<typeof signCoordinatorCheckpointEvidence>[5]> = {
     environment: {
       ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/token",
@@ -311,13 +318,7 @@ function producerFixture() {
         cwd: os.tmpdir(),
         spawn(_cmd, args) {
           const endpoint = args.find((arg) => arg.startsWith("repos/"));
-          let body: unknown;
-          const job = { ...f.job, status: "in_progress", completed_at: null };
-          if (endpoint?.endsWith("/actions/runs/9988"))
-            body = { ...f.attempt, status: "in_progress" };
-          else if (endpoint?.includes("/jobs?")) body = { total_count: 1, jobs: [job] };
-          else if (endpoint?.endsWith("/actions/jobs/501")) body = job;
-          else assert.fail(`unexpected inert provider route ${endpoint}`);
+          const body = identityResponse(endpoint);
           return {
             status: 0,
             stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(body)}`,
@@ -385,6 +386,7 @@ function producerFixture() {
     ...f,
     ...memory,
     claims,
+    identityResponse,
     posts,
     options,
     token: () => token,
@@ -655,6 +657,106 @@ void test("actual official SDK produces an ephemeral signature and canonical con
     assert.equal(f.posts.length, 2);
   });
 });
+
+void test(
+  "default checkpoint signer binds scoped Octokit identity before both signing effects",
+  {
+    skip: process.platform !== "linux" || process.getuid?.() === 0,
+  },
+  async (t) => {
+    const directory = await mkdtemp(path.join(os.homedir(), ".portcove-checkpoint-sdk-inert-"));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const f = producerFixture();
+    const credentials = {
+      ...f.options.environment,
+      GH_TOKEN: "inert-captured-checkpoint-reader",
+    };
+    for (const [key, value] of Object.entries(credentials)) {
+      const original = process.env[key];
+      t.after(() => {
+        if (original === undefined) delete process.env[key];
+        else process.env[key] = original;
+      });
+      process.env[key] = value;
+    }
+    const keys = await f.options.identity!.readKeys!();
+    const identityReads: string[] = [];
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (url: Parameters<typeof fetch>[0], settings?: RequestInit) => {
+        const endpoint = new URL(fetchUrl(url));
+        const auth = new Headers(settings?.headers).get("authorization");
+        if (endpoint.origin === "https://api.github.com") {
+          assert.equal(settings?.method, "GET");
+          assert.equal(settings?.redirect, "manual");
+          assert.equal(auth, "token inert-captured-checkpoint-reader");
+          const route = endpoint.pathname + endpoint.search;
+          identityReads.push(route);
+          return json(f.identityResponse(route));
+        }
+        if (endpoint.href === "https://token.actions.githubusercontent.com/.well-known/jwks") {
+          assert.equal(auth, null);
+          return json(keys);
+        }
+        if (endpoint.origin === "https://fixture.actions.githubusercontent.com") {
+          assert.equal(auth, "Bearer inert-runner-bearer");
+          assert.equal(endpoint.searchParams.get("audience"), "sigstore");
+        } else {
+          assert.equal(auth, null);
+          assert.ok(endpoints.some((candidate) => candidate === endpoint.href));
+        }
+        return f.options.fetcher!(url, settings);
+      },
+    );
+    t.mock.method(childProcess, "spawnSync", () => {
+      throw new Error("Default checkpoint signer must not use a subprocess identity transport");
+    });
+    syncBuiltinESMExports();
+    t.after(() => {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
+    const stages: string[] = [];
+    const result = await withReadOnlyReleaseChildren(directory, () => {
+      process.env.GH_TOKEN = "inert-unadmitted-ambient-reader";
+      return signCoordinatorCheckpointEvidence(
+        directory,
+        f.checkpoint,
+        f.configuration,
+        f.expected,
+        performance.now() + 10000,
+        {
+          async beforePost(stage) {
+            assert.equal(identityReads.length, 4);
+            assert.equal(f.posts.length, stages.length);
+            stages.push(stage);
+          },
+        },
+      );
+    });
+    assert.deepEqual(identityReads, [
+      "/repos/boburning/portcove/actions/runs/9988",
+      `/repos/boburning/portcove/actions/runs/9988/attempts/${f.producer.run_attempt}/jobs?per_page=100&page=1`,
+      "/repos/boburning/portcove/actions/jobs/501",
+      "/repos/boburning/portcove/actions/runs/9988",
+    ]);
+    assert.deepEqual(stages, ["fulcio", "rekor"]);
+    assert.deepEqual(f.posts, endpoints);
+    assert.equal(result.evidence_scope, "github.com");
+    assert.equal(result.authority, "none");
+    inspectCoordinatorCheckpointEvidence(f.checkpoint, f.configuration, result.evidence);
+    const retained = Buffer.concat(
+      await Promise.all(
+        (await readdir(result.capture_directory)).map((file) =>
+          readFile(path.join(result.capture_directory, file)),
+        ),
+      ),
+    ).toString();
+    for (const value of [f.token(), "inert-runner-bearer", "inert-captured-checkpoint-reader"])
+      assert.ok(!retained.includes(value));
+  },
+);
 
 for (const wrong of ["issuer", "job", "check", "source"] as const) {
   void test(`live producer ${wrong} mismatch cannot reach Fulcio`, async (t) => {
