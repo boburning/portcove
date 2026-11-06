@@ -11,7 +11,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { nodeTestPath, parseNodeTestSuites } from "./node-test-suites.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateValidationPlan, validationOwnershipForPath } from "./validation-plan.mts";
+import {
+  routeEnrollmentInputs,
+  validateValidationPlan,
+  validationOwnershipForPath,
+} from "./validation-plan.mts";
 import { selectWorkspaceRustImpact } from "./rust-test-impact.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 import { hasNextestEquivalence } from "./nextest-equivalence.mts";
@@ -2423,6 +2427,12 @@ for (const file of [
     ...catalogGeneratorContractTests,
   ]);
 }
+
+for (const file of routeEnrollmentInputs)
+  explicitNodeTests.set(file, [
+    "scripts/catalog-route-facts.test.mts",
+    ...catalogGeneratorContractTests,
+  ]);
 
 explicitNodeTests.set("scripts/fixtures/coordinator-fixture-phases.mts", [
   "scripts/release-coordinator-state.test.mts",

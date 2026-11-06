@@ -13,6 +13,7 @@ import {
   collectHostedRequests,
 } from "./hosted-discovery-intake.mts";
 import { portFieldInitialization, validateConfig } from "./roadmap.mts";
+import { DiscoveryRepositoryUnavailable } from "./daily-discovery-sources.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { sdkRoadmap } from "./fixtures/roadmap-fixtures.mts";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
@@ -168,8 +169,8 @@ async function fixture(candidates = [candidate]) {
   }[] = [];
   const fields = { ...portFieldInitialization(null) };
   let normalizations = 0;
-  const snapshots: unknown[] = [];
-  let lastInventorySnapshot: unknown;
+  const snapshots: { delivery: { status: string }[] }[] = [];
+  let lastInventorySnapshot: { delivery: { status: string }[] } | undefined;
   const client = await sdkRoadmap(config, {
     graphql: async () => {
       throw new Error("Unexpected domain transport");
@@ -204,16 +205,26 @@ async function fixture(candidates = [candidate]) {
     };
     comments.set(id, c);
     if (target === "177")
-      snapshots.push(JSON.parse(value.body.match(/```json\n([\s\S]+)\n```$/u)![1]!));
+      snapshots.push(
+        JSON.parse(
+          value.body.match(/```json\n([\s\S]+)\n```$/u)![1]!,
+        ) as (typeof snapshots)[number],
+      );
     return structuredClone(c);
   });
   client.createPortIssue = async (input) => {
     if (input.inventory)
       requireRoadmapInventory(input.inventory, config.repository, client, "identity");
+    const checked = structuredClone(lastInventorySnapshot);
+    const attempt = snapshots.at(-1);
+    assert(checked && attempt);
+    const index = checked.delivery.findIndex((d) => d.status === "preflight");
+    assert(index >= 0);
+    checked.delivery[index]!.status = "create-attempted";
     assert.deepEqual(
-      lastInventorySnapshot,
-      snapshots.at(-1),
-      "canonical inventory must follow the last durable receipt write",
+      { ...checked, observed_at: undefined },
+      { ...attempt, observed_at: undefined },
+      "only the dispatch checkpoint may follow final negative inventory",
     );
     if (input.inventory) invalidateRoadmapInventory(input.inventory);
     creations++;
@@ -438,8 +449,7 @@ async function partialFixture(count = 3, stopIndex = count - 1) {
           }
         ).delivery
       : [];
-    if (d[stopIndex]?.status === "create-attempted")
-      throw new Error("Unstarted preflight exhausted");
+    if (d[stopIndex]?.status === "preflight") throw new Error("Unstarted preflight exhausted");
     return inventory(cache, full);
   };
   await assert.rejects(f.bridge.process(f.request, f.all()), /Unstarted preflight/u);
@@ -515,7 +525,7 @@ void test("a canonical owner appearing in the final pre-POST inventory is observ
       const raw = JSON.parse(receipt.body.match(/```json\n([\s\S]+)\n```/u)![1]!) as {
         delivery: { status: string }[];
       };
-      if (raw.delivery[0]?.status === "create-attempted") {
+      if (raw.delivery[0]?.status === "preflight") {
         const body = hostedBody(
           {
             ...candidate,
@@ -1569,15 +1579,185 @@ void test("warm admission charges bounded publications, preserves IDs and never 
         delivery: { status: string; created_issue?: number }[];
       };
       assert.equal(receipt.status, "incomplete");
-      assert.equal(receipt.delivery[2]!.status, "prepared");
+      assert.equal(receipt.delivery[2]!.status, "preflight");
       assert.equal(receipt.delivery[2]!.created_issue, undefined);
       await f.bridge.diagnostic(f.request, failure, f.all());
       assert(
         f.all().some((c) => c.body.startsWith("<!-- portcove-hosted-intake-diagnostic:100 -->")),
       );
       assert.equal(f.bridge.continuation(failure), "budget_exhausted");
-      assert.equal(attemptPublications, mode === "preflight recheck" ? 1 : 0);
+      assert.equal(attemptPublications, 0);
       assert(budget.usage.attempts.length > 0);
       assert(budget.usage.bytes + budget.usage.accounting_bytes <= budget.limits.bytes);
     });
+});
+
+void test("repository metadata holds park by default and resume without rechecking verified deliveries", async () => {
+  const other = {
+    ...candidate,
+    title: "Other native game",
+    game: "Other native game",
+    upstream: "https://github.com/other/game",
+    repository_id: candidate.repository_id + 1,
+    port_key: "other-native-game",
+  };
+  const f = await fixture([candidate, other]);
+  const primary = f.bridge.primary.bind(f.bridge);
+  let accessible = false;
+  const lookups: string[] = [];
+  f.bridge.primary = (c, request) => {
+    lookups.push(c.port_key);
+    if (!accessible && c.port_key === candidate.port_key)
+      throw new DiscoveryRepositoryUnavailable(
+        new URL(c.upstream).pathname.slice(1),
+        new GitHubApiError("http", "Not Found", { status: 404 }),
+      );
+    return primary(c, request);
+  };
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete_with_holds");
+  assert.equal(result.plan[0]!.primary, null);
+  assert.equal(result.delivery[0]!.hold?.repository_id, candidate.repository_id);
+  assert.equal(result.delivery[1]!.status, "delivered");
+  const observed = await f.bridge.status(f.request, f.all());
+  assert.equal(observed.status, "complete_with_holds");
+  assert.equal(observed.held, 1);
+  assert.equal(observed.pending, 1);
+  const parked = [...f.comments.values()].find((c) => c.body.includes("intake-receipt"))!;
+  const parkedBody = parked.body;
+  parked.body = parkedBody.replace('"status": "complete_with_holds"', '"status": "complete"');
+  await assert.rejects(f.bridge.process(f.request, f.all()), /lacks candidate-bound/u);
+  parked.body = parkedBody;
+  const retained = f.all();
+  accessible = true;
+  lookups.length = 0;
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete_with_holds");
+  assert.deepEqual(f.all(), retained);
+  assert.deepEqual(lookups, []);
+  assert.equal(
+    (await f.bridge.process(f.request, f.all(), { resumeHolds: true })).status,
+    "complete",
+  );
+  assert.deepEqual(lookups, [candidate.port_key]);
+  assert.equal(f.creations, 2);
+});
+
+void test("all-held intake records no canonical writes and a required evidence 404 stays fatal", async () => {
+  const f = await fixture();
+  const error = new GitHubApiError("http", "Not Found", { status: 404 });
+  f.bridge.primary = (c) => {
+    throw new DiscoveryRepositoryUnavailable(new URL(c.upstream).pathname.slice(1), error);
+  };
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete_with_holds");
+  assert.equal(f.creations, 0);
+  assert.equal(f.writes, 0);
+  f.bridge.primary = () => {
+    throw error;
+  };
+  await assert.rejects(
+    f.bridge.process(f.request, f.all(), { resumeHolds: true }),
+    (e) => e === error,
+  );
+  assert.equal((await f.bridge.status(f.request, f.all())).held, 1);
+});
+
+void test("a quota failure and failed receipt publication leave durable preflight resumable", async () => {
+  const f = await fixture();
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  const persist = f.bridge.persist.bind(f.bridge);
+  let interrupted = false;
+  f.bridge.inventory = (cache, full) => {
+    if (cache) {
+      interrupted = true;
+      throw new GitHubApiError("quota_unknown", "Provider quota refresh cannot be retried");
+    }
+    return inventory(cache, full);
+  };
+  f.bridge.persist = (...args) => {
+    if (interrupted) throw new Error("Cannot publish failure");
+    return persist(...args);
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /quota refresh/u);
+  assert.equal(f.creations, 0);
+  assert.match(
+    f.all().find((c) => c.body.includes("intake-receipt"))!.body,
+    /"status": "preflight"/u,
+  );
+  f.bridge.inventory = inventory;
+  f.bridge.persist = persist;
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 1);
+});
+
+void test("a held bound slot retains its binding and refuses changed evidence on dispatch", async () => {
+  const f = await fixture();
+  await f.prepare();
+  const primary = f.bridge.primary.bind(f.bridge);
+  const before = await primary(candidate, f.request.id);
+  f.bridge.primary = (c) => {
+    throw new DiscoveryRepositoryUnavailable(
+      new URL(c.upstream).pathname.slice(1),
+      new GitHubApiError("http", "Not Found", { status: 404 }),
+    );
+  };
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  assert.deepEqual(held.plan[0]!.primary, before.primary);
+  f.bridge.primary = primary;
+  f.changePrimary();
+  await assert.rejects(
+    f.bridge.process(f.request, f.all(), { resumeHolds: true }),
+    /Primary evidence changed/u,
+  );
+  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.status(f.request, f.all())).held, 1);
+});
+
+void test("a hold keeps the original logical size for final full doctor admission", async () => {
+  const candidates = Array.from({ length: 11 }, (_, i) => ({
+    ...candidate,
+    title: `Held game ${i}`,
+    game: `Held game ${i}`,
+    upstream: `${candidate.upstream}-${i}`,
+    repository_id: candidate.repository_id + i,
+    port_key: `held-game-${i}`,
+  }));
+  const f = await fixture(candidates);
+  const primary = f.bridge.primary.bind(f.bridge);
+  f.bridge.primary = (c) => {
+    throw new DiscoveryRepositoryUnavailable(
+      new URL(c.upstream).pathname.slice(1),
+      new GitHubApiError("http", "Not Found", { status: 404 }),
+    );
+  };
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  assert.equal((await f.bridge.status(f.request, f.all())).full_doctor_required, true);
+  f.bridge.primary = primary;
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  f.bridge.inventory = (cache, full) => {
+    if (full) throw new Error("Full doctor input unavailable");
+    return inventory(cache, full);
+  };
+  await assert.rejects(
+    f.bridge.process(f.request, f.all(), { resumeHolds: true }),
+    /Full doctor input unavailable/u,
+  );
+  assert.equal(f.creations, 11);
+});
+
+void test("an owner appearing between preflight passes receives an observation", async () => {
+  const f = await existingOwnerFixture([candidate]);
+  const owner = f.issues.pop()!;
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  f.bridge.inventory = (cache, full) => {
+    if (cache) throw new GitHubApiError("quota_unknown", "Preflight quota interrupted");
+    return inventory(cache, full);
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /quota interrupted/u);
+  f.issues.push(owner);
+  f.bridge.inventory = inventory;
+  const receipt = await f.bridge.process(f.request, f.all());
+  assert.equal(receipt.delivery[0]!.status, "existing");
+  assert.equal(f.creations, 0);
 });
