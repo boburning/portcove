@@ -74,13 +74,13 @@ import {
   assertMetadataRenewalPublication,
   inspectTufPublicationFacts,
 } from "./release-metadata-contract.mts";
-import { readGitHubReleaseAsset } from "./github-binary.mts";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import {
   readImmutableBootstrapFeed,
   readApplicationImmutableFeed,
   verifyApplicationPagesArtifact,
   discoverActualPublishedApplicationCohort,
+  createFixedApplicationReleaseAssetReader,
   readApplicationPriorPublication,
   readApplicationPendingLineage,
   assertApplicationForwardPreimage,
@@ -734,13 +734,7 @@ async function prepareDraftRecovery(
     metadata,
     retained.assets,
     {
-      async readAsset(id, maximum) {
-        return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-          cwd: process.cwd(),
-          maxBytes: maximum,
-          timeoutMs: 30000,
-        });
-      },
+      readAsset: createFixedApplicationReleaseAssetReader(),
       authenticateAssembly: authenticateDraftRecoveryAssembly,
     },
   );
@@ -1048,13 +1042,7 @@ async function prepareOrdinaryPublication() {
         },
       );
     },
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
+    readAsset: createFixedApplicationReleaseAssetReader(),
     async beforeDraftWrite() {
       await guard(source, false);
     },
@@ -1277,13 +1265,7 @@ async function publishBootstrapMetadata() {
         await guard(source);
         return assertProtectionWriteWindow;
       },
-      async readAsset(id, maximumBytes) {
-        return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-          cwd: process.cwd(),
-          maxBytes: maximumBytes,
-          timeoutMs: 30000,
-        });
-      },
+      readAsset: createFixedApplicationReleaseAssetReader(),
       async upload(releaseId, name, bytes) {
         // Fixed ID/name endpoint; no provider-supplied URL or credential redirect.
         const response = await fetch(
@@ -1343,13 +1325,7 @@ async function prepareOrdinaryFeed() {
       );
       inspectApplicationReleaseAttestation(verified, identity);
     },
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
+    readAsset: createFixedApplicationReleaseAssetReader(),
     async authenticateContents(files, inspected) {
       const { producer, producer_attempt: assemblyAttempt } = inspected.receipt;
       for (const name of bootstrapAssetNames)
@@ -2112,13 +2088,7 @@ export async function preparePublicWindowsCandidate(
       );
       inspectApplicationReleaseAttestation(verified, identity);
     },
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
+    readAsset: createFixedApplicationReleaseAssetReader(),
   };
   const checked = await readApplicationWindowsCandidateAssets(
     input.candidate,
@@ -2720,11 +2690,8 @@ async function materializePendingAuthority(
 ) {
   const archive = authority.assets.find((asset) => asset.name === bootstrapAssetNames[0]);
   assert.ok(archive);
-  const bytes = readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${archive.id}`, {
-    cwd: process.cwd(),
-    maxBytes: archive.bytes,
-    timeoutMs: 30000,
-  });
+  const readAsset = createFixedApplicationReleaseAssetReader(scratch);
+  const bytes = await readAsset(archive.id, archive.bytes);
   assert.equal(bytes.length, archive.bytes);
   assert.equal(sha256(bytes), archive.sha256);
   const decoded = readBootstrapSiteArchive(bytes, authority.receipt);

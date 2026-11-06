@@ -7,7 +7,7 @@ import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
-import type { GitHubRequestPolicy } from "./github-client.mts";
+import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import {
   coordinatorCommandDeadline,
@@ -610,6 +610,56 @@ function applicationMetadataAttestation(
   };
 }
 
+const applicationAssetFetch: typeof globalThis.fetch = (input, init) => {
+  assertTrustedDirectNode("fixed application Release asset");
+  return globalThis.fetch(input, init);
+};
+
+export function createFixedApplicationReleaseAssetReader(
+  scratch = process.env.RUNNER_TEMP,
+  deadline = performance.now() + 120000,
+) {
+  assert.ok(scratch && path.isAbsolute(scratch), "private application asset scratch required");
+  const credential = { kind: "explicit" as const, token: fixedReleaseReaderToken() };
+  const originalDeadline = Math.min(deadline, coordinatorCommandDeadline() ?? Infinity);
+  return (id: number, maxBytes: number) =>
+    readApplicationReleaseAssetFileBytes(id, maxBytes, scratch, credential, originalDeadline);
+}
+
+async function readApplicationReleaseAssetFileBytes(
+  id: number,
+  maxBytes: number,
+  scratch: string,
+  credential: GitHubCredential,
+  deadline: number,
+) {
+  const transferDeadline = Math.min(
+    deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 30000,
+  );
+  const { downloadGitHubReleaseAssetFile } = await import("./github-artifact-download.mts");
+  const directory = await mkdtemp(path.join(scratch, "immutable-feed-zip-"));
+  let bytes: Buffer;
+  try {
+    const filename = "archive.zip";
+    const downloaded = await downloadGitHubReleaseAssetFile(id, path.join(directory, filename), {
+      credential,
+      deadline: transferDeadline,
+      maxBytes,
+      fetch: applicationAssetFetch,
+    });
+    const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
+    bytes = await readBoundedPublicBuildInputFile(directory, filename, maxBytes);
+    assert.equal(bytes.length, downloaded.bytes);
+    assert.equal(sha256(bytes), downloaded.sha256);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+  assert.ok(performance.now() < transferDeadline, "application Release asset transfer was late");
+  return bytes;
+}
+
 async function applicationMetadataTransport(
   expected: { release_id: number; custody: ApplicationRunCustody },
   scratch: string,
@@ -634,8 +684,7 @@ async function applicationMetadataTransport(
     return globalThis.fetch(input, init);
   };
   const { createGitHubClient } = await import("./github-client.mts");
-  const { downloadGitHubReleaseAsset, downloadGitHubReleaseAssetFile } =
-    await import("./github-artifact-download.mts");
+  const { downloadGitHubReleaseAsset } = await import("./github-artifact-download.mts");
   const client = await createGitHubClient({
     credential,
     deadline,
@@ -670,33 +719,8 @@ async function applicationMetadataTransport(
         maxBytes: maximum,
         fetch,
       }),
-    async readArchive(id: number, maxBytes: number) {
-      const transferDeadline = Math.min(deadline, performance.now() + 30000);
-      const directory = await mkdtemp(path.join(scratch, "immutable-feed-zip-"));
-      let bytes: Buffer;
-      try {
-        const filename = "archive.zip";
-        const downloaded = await downloadGitHubReleaseAssetFile(
-          id,
-          path.join(directory, filename),
-          {
-            credential,
-            deadline: transferDeadline,
-            maxBytes,
-            fetch,
-          },
-        );
-        const { readBoundedPublicBuildInputFile } =
-          await import("./release-public-build-inputs.mts");
-        bytes = await readBoundedPublicBuildInputFile(directory, filename, maxBytes);
-        assert.equal(bytes.length, downloaded.bytes);
-        assert.equal(sha256(bytes), downloaded.sha256);
-      } finally {
-        await rm(directory, { recursive: true, force: true });
-      }
-      assert.ok(performance.now() < transferDeadline, "immutable feed archive transfer was late");
-      return bytes;
-    },
+    readArchive: (id: number, maxBytes: number) =>
+      readApplicationReleaseAssetFileBytes(id, maxBytes, scratch, credential, deadline),
     authenticateAssembly: (...args: Parameters<typeof authenticateAssembly>) =>
       withCoordinatorDeadline(deadline, () => authenticateAssembly(...args)),
   };

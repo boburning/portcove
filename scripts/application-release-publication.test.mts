@@ -58,6 +58,7 @@ import {
   discoverPublishedApplicationCohort,
   assertApplicationForwardPreimage,
   readApplicationPendingLineage,
+  createFixedApplicationReleaseAssetReader,
 } from "./application-release-feed.mts";
 
 // Inert release bytes and an injected provider: protocol tests, never native,
@@ -2793,4 +2794,53 @@ void test("actual pending lineage aborts stalled Release identity before acquiri
   assert.equal(calls, 1);
   assert.equal(cancelled, true);
   assert.deepEqual(await readdir(root), []);
+});
+
+void test("fixed application Release assets keep captured credentials and clean private file custody", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "fixed-app-release-asset-"));
+  const original = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-fixed-application-asset";
+  t.after(async () => {
+    if (original === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = original;
+    await rm(root, { recursive: true, force: true });
+  });
+  const read = createFixedApplicationReleaseAssetReader(root);
+  process.env.GH_TOKEN = "inert-other-scope";
+  const payload = Buffer.from("fixed public bytes");
+  let extra = false;
+  const calls: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      calls.push(url.origin + url.pathname);
+      assert.equal(request.method, "GET");
+      if (url.origin === "https://api.github.com") {
+        assert.equal(url.pathname, "/repos/boburning/portcove/releases/assets/10");
+        assert.equal(request.headers.get("authorization"), "token inert-fixed-application-asset");
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://release-assets.githubusercontent.com/exact?sig=inert" },
+        });
+      }
+      assert.equal(url.origin, "https://release-assets.githubusercontent.com");
+      assert.equal(request.credentials, "omit");
+      assert.equal(request.headers.has("authorization"), false);
+      return new Response(extra ? Buffer.concat([payload, Buffer.from(".")]) : payload);
+    },
+  );
+  assert.deepEqual(await read(10, payload.length), payload);
+  assert.deepEqual(await readdir(root), []);
+  extra = true;
+  await assert.rejects(read(10, payload.length));
+  assert.deepEqual(await readdir(root), []);
+  assert.deepEqual(calls, [
+    "https://api.github.com/repos/boburning/portcove/releases/assets/10",
+    "https://release-assets.githubusercontent.com/exact",
+    "https://api.github.com/repos/boburning/portcove/releases/assets/10",
+    "https://release-assets.githubusercontent.com/exact",
+  ]);
 });
