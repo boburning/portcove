@@ -103,7 +103,26 @@ void test("bootstrap cannot execute the ordinary preparation branch and each pat
     "metadata-bootstrap",
   );
   assert.equal(app.remaining_declared_minutes, 140);
-  assert.equal(bootstrap.remaining_declared_minutes, 139);
+  assert.equal(bootstrap.remaining_declared_minutes, 49);
+  for (const name of [
+    "package / package",
+    "protection_payload / execute",
+    "payload / execute",
+    "native / execute",
+    "public_installed",
+    "targets / execute",
+  ])
+    assert.throws(
+      () =>
+        inspectApplicationJobBudget(
+          [{ context: context(1), jobs: jobs([job(name, 0, 2)]) }],
+          source,
+          run,
+          true,
+          "metadata-bootstrap",
+        ),
+      /unknown executing release job/u,
+    );
 });
 
 void test("immutable recovery reserves only its remaining feed work, rejects payload work and preserves actual execution charges", () => {
