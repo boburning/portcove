@@ -1903,15 +1903,15 @@ async function runBuildingCli() {
   const raw = process.env.PORTCOVE_FIXED_BUILDING_CONFIGURATION;
   if (!raw || Buffer.byteLength(raw) > 65536)
     throw new Error("bounded fixed building configuration required");
-  const { currentBuildingJobDeadline } = await import("./release-signing-job-budget.mts");
-  const deadline = currentBuildingJobDeadline(
+  const { currentControllerJobDeadline } = await import("./release-signing-job-budget.mts");
+  const deadline = await currentControllerJobDeadline(
+    "building",
     {
       run_id: process.env.GITHUB_RUN_ID ?? "",
       run_attempt: 1,
       controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION ?? "",
       controller_ref: process.env.PORTCOVE_CONTROLLER_REF ?? "",
     },
-    process.cwd(),
     performance.now() + 405000,
   );
   const selected: unknown = JSON.parse(raw);
