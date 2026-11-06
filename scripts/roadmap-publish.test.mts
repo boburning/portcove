@@ -100,9 +100,29 @@ void test("production publisher maintains one comment for eight results and reje
   assert.match(comment?.body ?? "", /\*\*Unable to verify\*\*/u);
 });
 
+void test("publisher accepts GitHub's numeric repository links only for its paginated reads", async () => {
+  const { allowRoadmapPublicationRequest } = await import("./roadmap-publish.mts");
+  const allowed = (method: string, route: string) =>
+    allowRoadmapPublicationRequest(method, new URL(route, "https://api.github.com"));
+  const alias = "/repositories/1354613114";
+  for (const route of [
+    "/issues/2414/comments",
+    "/actions/runs/42/artifacts",
+    "/actions/workflows/roadmap-report.yml/runs",
+  ]) {
+    assert.equal(allowed("GET", alias + route + "?page=2"), true);
+    assert.equal(allowed("POST", alias + route), false);
+    assert.equal(allowed("GET", "/repositories/42" + route), false);
+  }
+  assert.equal(allowed("PATCH", alias + "/issues/comments/7"), false);
+  assert.equal(allowed("GET", alias + "/actions/runs/42"), false);
+  assert.equal(allowed("GET", alias + "/issues/2415/comments"), false);
+});
+
 void test("publisher SDK adapter traverses real pages, sends one mutation, then verifies readback", async () => {
   const { fixtureGitHub } = await import("./fixtures/github-sdk-fixtures.mts");
-  const { createPublicationApi } = await import("./roadmap-publish.mts");
+  const { allowRoadmapPublicationRequest, createPublicationApi } =
+    await import("./roadmap-publish.mts");
   const before = `${"<!-- portcove-roadmap-report:"}{} -->\nold`,
     after = before + "\nupdated";
   const row = (body: string) => ({
@@ -112,22 +132,28 @@ void test("publisher SDK adapter traverses real pages, sends one mutation, then 
   });
   const calls: string[] = [];
   let current = before;
-  const sdk = await fixtureGitHub(({ method, endpoint, body }) => {
-    calls.push(`${method} ${endpoint}`);
-    if (endpoint === "repos/boburning/portcove/issues/2414/comments?per_page=100")
-      return Response.json([{ id: 1, user: { type: "User", login: "person" }, body: "ordinary" }], {
-        headers: {
-          link: '<https://api.github.com/repos/boburning/portcove/issues/2414/comments?per_page=100&page=2>; rel="next"',
-        },
-      });
-    if (endpoint.endsWith("&page=2")) return [row(current)];
-    assert.equal(endpoint, "repos/boburning/portcove/issues/comments/7");
-    if (method === "PATCH") {
-      assert.deepEqual(body, { body: after });
-      current = after;
-    } else assert.equal(method, "GET");
-    return row(current);
-  });
+  const sdk = await fixtureGitHub(
+    ({ method, endpoint, body }) => {
+      calls.push(`${method} ${endpoint}`);
+      if (endpoint === "repos/boburning/portcove/issues/2414/comments?per_page=100")
+        return Response.json(
+          [{ id: 1, user: { type: "User", login: "person" }, body: "ordinary" }],
+          {
+            headers: {
+              link: '<https://api.github.com/repositories/1354613114/issues/2414/comments?per_page=100&page=2>; rel="next"',
+            },
+          },
+        );
+      if (endpoint.endsWith("&page=2")) return [row(current)];
+      assert.equal(endpoint, "repos/boburning/portcove/issues/comments/7");
+      if (method === "PATCH") {
+        assert.deepEqual(body, { body: after });
+        current = after;
+      } else assert.equal(method, "GET");
+      return row(current);
+    },
+    { allowRequest: allowRoadmapPublicationRequest },
+  );
   assert.equal(
     await writeMaintainedRoadmapReport(after, { id: 7, body: before }, createPublicationApi(sdk)),
     7,
