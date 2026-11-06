@@ -446,15 +446,20 @@ export async function prepareApplicationReleaseDraft(
   expected: ApplicationPublicationExpected,
   files: ReadonlyMap<string, Buffer>,
   transport: {
-    api: PublicationApi;
+    open: (deadline: number) => Promise<ApplicationDraftPreparationProvider>;
     upload: (id: number, name: string, bytes: Buffer) => Promise<void>;
-    readAsset: (id: number, maximum: number) => Promise<Buffer>;
+    readAsset: ApplicationPublicationReadTransport["readAsset"];
     beforeDraftWrite: () => Promise<void>;
     retainAssembly?: (assembly: ApplicationDraftAssembly) => Promise<unknown>;
   },
 ) {
   const inspected = inspectApplicationPublicationFiles(expected, files);
-  const remote = applicationPublicationReader(transport.api, expected, 180000);
+  const remote = await openApplicationPublicationRead(
+    expected,
+    (deadline) => transport.open(deadline),
+    Infinity,
+    180000,
+  );
   const compare = (assets: ApplicationAsset[]) => {
     for (const asset of assets) {
       const wanted = inspected.identities.find((file) => file.name === asset.name);
@@ -463,12 +468,13 @@ export async function prepareApplicationReleaseDraft(
       assert.equal(asset.sha256, wanted.sha256);
     }
   };
-  let initial = remote.release();
-  let assets = remote.assets();
+  let initial = await remote.release();
+  let assets = await remote.assets();
   compare(assets);
-  remote.inspectTag(initial.draft === true);
+  await remote.inspectTag(initial.draft === true);
   const commit = inspectRemoteCommitObject(
-    remote.get(`git/commits/${remote.preparation.prepared_commit}`).body,
+    (await remote.get(`repos/boburning/portcove/git/commits/${remote.preparation.prepared_commit}`))
+      .body,
     remote.preparation.prepared_commit,
   );
   assert.equal(commit.tree, remote.preparation.prepared_tree);
@@ -483,20 +489,20 @@ export async function prepareApplicationReleaseDraft(
           files,
         ),
       );
-      const retained = remote.release();
+      const retained = await remote.release();
       assert.deepEqual(
         applicationReleaseNotesPreimage(retained),
         applicationReleaseNotesPreimage(initial),
       );
-      assert.deepEqual(remote.assets(), assets);
+      assert.deepEqual(await remote.assets(), assets);
       initial = retained;
     }
     for (const [name, bytes] of files)
       if (!assets.some((asset) => asset.name === name)) {
-        const fresh = remote.release();
+        const fresh = await remote.release();
         assert.equal(fresh.draft, true);
         assert.equal(fresh.body, initial.body);
-        assets = remote.assets();
+        assets = await remote.assets();
         compare(assets);
         if (!assets.some((asset) => asset.name === name)) {
           await transport.beforeDraftWrite();
@@ -506,7 +512,7 @@ export async function prepareApplicationReleaseDraft(
           } catch {
             /* Exact provider readback decides; no second upload. */
           }
-          assets = remote.assets();
+          assets = await remote.assets();
           compare(assets);
           assert.ok(
             assets.some((asset) => asset.name === name),
@@ -515,30 +521,31 @@ export async function prepareApplicationReleaseDraft(
         }
       }
   }
-  assets = remote.assets();
+  assets = await remote.assets();
   compare(assets);
   assert.equal(assets.length, files.size);
   for (const asset of assets) {
-    const bytes = await transport.readAsset(asset.id, asset.bytes);
+    const bytes = await transport.readAsset(asset.id, asset.bytes, remote.deadline);
     remote.within();
     assert.equal(bytes.length, asset.bytes);
     assert.equal(sha256(bytes), asset.sha256);
   }
-  assert.deepEqual(remote.assets(), assets, "draft asset IDs changed during physical readback");
-  const settled = remote.release();
+  assert.deepEqual(
+    await remote.assets(),
+    assets,
+    "draft asset IDs changed during physical readback",
+  );
+  const settled = await remote.release();
   assert.equal(settled.body, initial.body);
-  if (!remote.inspectTag(settled.draft === true)) {
+  if (!(await remote.inspectTag(settled.draft === true))) {
     await transport.beforeDraftWrite();
-    remote.within();
+    remote.charge();
     try {
-      remote.request("POST", "git/refs", {
-        ref: `refs/tags/${remote.tag}`,
-        sha: remote.preparation.prepared_commit,
-      });
+      await remote.provider.createTag();
     } catch {
       /* Lost acknowledgement is resolved by one exact GET, never another POST. */
     }
-    remote.inspectTag(false);
+    await remote.inspectTag();
   }
   return {
     schema_version: 1,
@@ -625,12 +632,13 @@ async function openApplicationPublicationRead<
   expected: ApplicationPublicationExpected,
   open: (deadline: number) => Promise<T>,
   inheritedDeadline = Infinity,
+  milliseconds = 120000,
 ) {
   const identity = applicationPublicationIdentity(expected);
   const deadline = Math.min(
     inheritedDeadline,
     coordinatorCommandDeadline() ?? Infinity,
-    performance.now() + 120000,
+    performance.now() + milliseconds,
   );
   const root = `repos/boburning/portcove/releases/${expected.release_id}`;
   let requests = 0;
@@ -645,10 +653,14 @@ async function openApplicationPublicationRead<
       "application publication request bound exhausted",
     );
   };
-  const get = async (endpoint: string) => {
+  const read = async (endpoint: string) => {
     charge();
     const response = await provider.readMetadata(endpoint);
     within();
+    return response;
+  };
+  const get = async (endpoint: string) => {
+    const response = await read(endpoint);
     assert.equal(response.status, 200);
     return response;
   };
@@ -659,12 +671,19 @@ async function openApplicationPublicationRead<
       await get(`${root}/assets?per_page=100&page=1`),
       identity.names,
     );
-  const inspectTag = async () =>
-    inspectPublicationTag(
-      await get(`repos/boburning/portcove/git/ref/tags/${identity.tag}`),
-      identity,
-    );
-  return { ...identity, provider, release, assets, inspectTag, deadline, within, charge };
+  const inspectTag = async (pending = false) => {
+    let response;
+    try {
+      response = await read(`repos/boburning/portcove/git/ref/tags/${identity.tag}`);
+    } catch (error) {
+      if (!(error instanceof GitHubApiError && error.status === 404 && pending)) throw error;
+      return false;
+    }
+    if (response.status === 404 && pending) return false;
+    inspectPublicationTag(response, identity);
+    return true;
+  };
+  return { ...identity, provider, get, release, assets, inspectTag, deadline, within, charge };
 }
 
 /** The caller authenticates preparation first, then supplies current publication
@@ -2130,13 +2149,34 @@ export function createPreparedApplicationPublicationReader(
   return createApplicationPublicationProvider(token, expected.release_id, tag, undefined, deadline);
 }
 
+type ApplicationDraftPreparationProvider = Pick<PublicationMetadataProvider, "readMetadata"> & {
+  createTag: () => Promise<void>;
+};
+
+export function createApplicationDraftPreparationProvider(
+  token: string,
+  expected: ApplicationPublicationExpected,
+  deadline: number,
+): Promise<ApplicationDraftPreparationProvider> {
+  const { tag, preparation } = applicationPublicationIdentity(expected);
+  return createApplicationPublicationProvider(
+    token,
+    expected.release_id,
+    tag,
+    undefined,
+    deadline,
+    preparation.prepared_commit,
+  );
+}
+
 async function createApplicationPublicationProvider(
   token: string,
   releaseId: number,
   tag: string,
   assertWindow: (() => void) | undefined,
   deadline: number,
-): Promise<PublicationMetadataProvider> {
+  preparedCommit?: string,
+): Promise<PublicationMetadataProvider & ApplicationDraftPreparationProvider> {
   assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
   assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
   const root = `repos/boburning/portcove/releases/${releaseId}`;
@@ -2145,6 +2185,11 @@ async function createApplicationPublicationProvider(
     `${root}/assets?per_page=100&page=1`,
     `repos/boburning/portcove/git/ref/tags/${tag}`,
   ]);
+  if (preparedCommit !== undefined) {
+    assert.match(preparedCommit, /^[a-f0-9]{40}$/u);
+    readable.add(`repos/boburning/portcove/git/commits/${preparedCommit}`);
+  }
+  const tagCreationRoute = "repos/boburning/portcove/git/refs";
   const { createGitHubClient } = await import("./github-client.mts");
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
@@ -2156,6 +2201,7 @@ async function createApplicationPublicationProvider(
       if (url.origin !== "https://api.github.com") return false;
       const endpoint = url.pathname.slice(1) + url.search;
       if (method === "GET") return readable.has(endpoint);
+      if (method === "POST") return preparedCommit !== undefined && endpoint === tagCreationRoute;
       if (!assertWindow || method !== "PATCH" || endpoint !== root) return false;
       assertWindow();
       return true;
@@ -2173,6 +2219,15 @@ async function createApplicationPublicationProvider(
         body: response.data,
         headers: new Map(typeof link === "string" ? [["link", link]] : []),
       };
+    },
+    async createTag() {
+      assert.ok(preparedCommit);
+      const response = await client.request(`POST /${tagCreationRoute}`, {
+        ref: `refs/tags/${tag}`,
+        sha: preparedCommit,
+        request: options(),
+      });
+      assert.equal(response.status, 201);
     },
     async publish(body) {
       const response = await client.request(`PATCH /${root}`, { ...body, request: options() });

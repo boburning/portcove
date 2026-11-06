@@ -125,6 +125,7 @@ import {
   createApplicationMetadataPublicationProvider,
   createPreparedApplicationPublicationProvider,
   createPreparedApplicationPublicationReader,
+  createApplicationDraftPreparationProvider,
   verifyApplicationDraftRecoveryBackup,
   readStagedDraftRecoveryBackup,
   removeExpiredApplicationDraftAssets,
@@ -1006,7 +1007,8 @@ async function prepareOrdinaryPublication() {
     };
   });
   const result = await prepareApplicationReleaseDraft(expected, files, {
-    api: applicationApi,
+    open: (deadline) =>
+      createApplicationDraftPreparationProvider(fixedReleaseReaderToken(), expected, deadline),
     upload: await createApplicationAssetUploader(process.env.GH_TOKEN),
     retainAssembly(assembly) {
       return retainApplicationDraftAssembly(

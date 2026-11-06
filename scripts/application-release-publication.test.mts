@@ -41,6 +41,7 @@ import {
   createApplicationMetadataPublicationProvider,
   createPreparedApplicationPublicationProvider,
   createPreparedApplicationPublicationReader,
+  createApplicationDraftPreparationProvider,
   publishApplicationMetadataRelease,
   inspectApplicationMetadataPublicationReceipt,
 } from "./application-release-publication.mts";
@@ -273,6 +274,19 @@ function ordinaryFixture(mode = "valid") {
   };
   const prepareTransport = {
     api,
+    async open() {
+      return {
+        async readMetadata(endpoint: string) {
+          return api.request("GET", endpoint);
+        },
+        async createTag() {
+          api.request("POST", "repos/boburning/portcove/git/refs", {
+            ref: `refs/tags/v${version}`,
+            sha: prepared,
+          });
+        },
+      };
+    },
     async upload(id: number, name: string, value: Buffer) {
       assert.equal(id, 60);
       assert.ok(!assets.some((asset) => asset.name === name));
@@ -3033,4 +3047,43 @@ void test("ordinary publication retains the actual asset Link fence and reads ba
   assert.equal(calls.filter((request) => request.startsWith("PATCH ")).length, 1);
   assert.equal(f.writes.filter((write) => write === "publish").length, 1);
   assert.ok(calls.at(-1)?.endsWith("/git/ref/tags/v0.1.0-alpha.3"));
+});
+
+void test("draft preparation dispatches one exact SDK tag creation and reconciles a lost response", async (t) => {
+  const f = ordinaryFixture("tag-lost");
+  const fixtureProvider = await f.prepareTransport.open();
+  const observed: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-draft-preparation");
+      observed.push(request.method + " " + url.pathname + url.search);
+      if (request.method === "POST") {
+        assert.equal(url.pathname, "/repos/boburning/portcove/git/refs");
+        assert.deepEqual(await request.json(), {
+          ref: "refs/tags/v0.1.0-alpha.3",
+          sha: f.expected.custody.preparation?.prepared_commit,
+        });
+        await fixtureProvider.createTag();
+        return Response.json({}, { status: 201 });
+      }
+      assert.equal(request.method, "GET");
+      const response = await fixtureProvider.readMetadata(url.pathname.slice(1) + url.search);
+      return Response.json(response.body, { status: response.status ?? 200 });
+    },
+  );
+  const receipt = await prepareApplicationReleaseDraft(f.expected, f.files, {
+    ...f.prepareTransport,
+    open: (deadline) =>
+      createApplicationDraftPreparationProvider("inert-draft-preparation", f.expected, deadline),
+  });
+  assert.equal(receipt.tag, "v0.1.0-alpha.3");
+  assert.equal(f.release.draft, true);
+  assert.equal(f.writes.filter((entry) => entry === "tag").length, 1);
+  assert.equal(observed.filter((entry) => entry.startsWith("POST ")).length, 1);
+  assert.equal(observed.at(-1), "GET /repos/boburning/portcove/git/ref/tags/v0.1.0-alpha.3");
 });
