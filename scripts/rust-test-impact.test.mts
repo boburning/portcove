@@ -1289,6 +1289,35 @@ void test("an explicitly mapped addition uses its reviewed focused group", () =>
   assert.match(selected.reason, /added or modified Rust path/u);
 });
 
+void test("route fixture changes retain both enrollment inventories and release selection", () => {
+  const fixtures = [
+    "crates/portcove-core/catalog/route-enrollment.generated.json",
+    "crates/portcove-core/src/testdata/accepted-route-expectations.generated.json",
+    "crates/portcove-core/src/testdata/managed-route-tests.generated.rs",
+    "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
+    "crates/portcove-core/src/testdata/route-enrollment-expectations.json",
+  ];
+  const selection = "crates/portcove-core/src/testdata/windows-archive-release-selection.json";
+  for (const fixture of fixtures) {
+    const [group, ...rest] = selectWorkspaceRustImpact(workspacePlan([fixture, selection]));
+    assert.equal(group?.id, "portcove-core:route-enrollment-fixtures", fixture);
+    assert.match(group?.filter ?? "", /managed_native_\(declared_\|declaration_inventory/u);
+    assert.match(
+      group?.filter ?? "",
+      /prepared_guide_adoption_\(declared_\|declaration_inventory/u,
+    );
+    assert.deepEqual(
+      rest.map((entry) => entry.id),
+      ["portcove-core:windows-archive-selection-fixture"],
+    );
+  }
+  const authored = "crates/portcove-core/catalog/ports/body-harvest-recompiled.json";
+  assert.equal(
+    selectWorkspaceRustImpact(workspacePlan([...fixtures, selection, authored]))[0]?.filter,
+    "package(=portcove-core)",
+  );
+});
+
 void test("one unmapped path makes an otherwise focused mixed change broad", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
     modified("crates/portcove-core/src/source_report.rs"),
