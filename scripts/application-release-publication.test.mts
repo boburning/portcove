@@ -17,6 +17,7 @@ import { sha256 } from "./application-release-io.mts";
 import type { ReleaseSourceAttestationExpectation } from "./release-source-attestation.mts";
 import {
   bootstrapAssetNames,
+  createApplicationAssetUploader,
   applicationDraftProofBytes,
   applicationDraftProofName,
   inspectBootstrapPublicationReceipt,
@@ -2843,4 +2844,48 @@ void test("fixed application Release assets keep captured credentials and clean 
     "https://api.github.com/repos/boburning/portcove/releases/assets/10",
     "https://release-assets.githubusercontent.com/exact",
   ]);
+});
+
+void test("fixed application upload preserves opaque bytes and refuses replay or credential redirects", async (t) => {
+  const payload = Buffer.from([0, 255, 33, 9]);
+  let mode = "success";
+  let calls = 0;
+  const upload = await createApplicationAssetUploader("inert-fixed-upload", () => {
+    if (mode === "expired") throw new Error("fixture upload window expired");
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(
+        request.url,
+        "https://uploads.github.com/repos/boburning/portcove/releases/10/assets?name=example%2Btest.zip",
+      );
+      assert.equal(request.method, "POST");
+      assert.equal(request.headers.get("authorization"), "token inert-fixed-upload");
+      assert.equal(request.headers.get("content-type"), "application/zip");
+      assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
+      assert.deepEqual(Buffer.from(await request.arrayBuffer()), payload);
+      calls++;
+      if (mode === "lost") throw new TypeError("fixture upload acknowledgement lost");
+      if (mode === "redirect")
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://example.invalid/upload" },
+        });
+      return Response.json({ id: 24 }, { status: 201 });
+    },
+  );
+  await upload(10, "example+test.zip", payload);
+  assert.equal(calls, 1);
+  mode = "lost";
+  await assert.rejects(upload(10, "example+test.zip", payload));
+  assert.equal(calls, 2);
+  mode = "redirect";
+  await assert.rejects(upload(10, "example+test.zip", payload), { code: "redirect_refused" });
+  assert.equal(calls, 3);
+  mode = "expired";
+  await assert.rejects(upload(10, "example+test.zip", payload), /fixture upload window expired/u);
+  assert.equal(calls, 3);
 });

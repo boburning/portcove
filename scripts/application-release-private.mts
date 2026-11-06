@@ -121,6 +121,7 @@ import {
   applicationDraftProofName,
   readApplicationDraftRecoveryState,
   readExpiredApplicationDraftAssets,
+  createApplicationAssetUploader,
   verifyApplicationDraftRecoveryBackup,
   readStagedDraftRecoveryBackup,
   removeExpiredApplicationDraftAssets,
@@ -924,33 +925,6 @@ async function finishDraftRecovery(
   });
 }
 
-async function uploadApplicationReleaseAsset(releaseId: number, name: string, bytes: Buffer) {
-  assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
-  assert.match(name, /^[A-Za-z0-9][A-Za-z0-9._+-]{0,255}$/u);
-  const token = process.env.GH_TOKEN;
-  assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
-  const response = await fetch(
-    `https://uploads.github.com/repos/boburning/portcove/releases/${releaseId}/assets?name=${encodeURIComponent(name)}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": name.endsWith(".zip")
-          ? "application/zip"
-          : name.endsWith(".json")
-            ? "application/json"
-            : "application/octet-stream",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      body: new Uint8Array(bytes),
-      redirect: "error",
-      signal: AbortSignal.timeout(30000),
-    },
-  );
-  await response.body?.cancel();
-  assert.equal(response.status, 201);
-}
-
 async function prepareOrdinaryPublication() {
   assert.ok(!process.env.PORTCOVE_SIGNING_KEY && !process.env.PORTCOVE_OBSERVER_TOKEN);
   const current = execution(),
@@ -1030,7 +1004,7 @@ async function prepareOrdinaryPublication() {
   });
   const result = await prepareApplicationReleaseDraft(expected, files, {
     api: applicationApi,
-    upload: uploadApplicationReleaseAsset,
+    upload: await createApplicationAssetUploader(process.env.GH_TOKEN),
     retainAssembly(assembly) {
       return retainApplicationDraftAssembly(
         applicationApi,
@@ -1266,26 +1240,7 @@ async function publishBootstrapMetadata() {
         return assertProtectionWriteWindow;
       },
       readAsset: createFixedApplicationReleaseAssetReader(),
-      async upload(releaseId, name, bytes) {
-        // Fixed ID/name endpoint; no provider-supplied URL or credential redirect.
-        const response = await fetch(
-          `https://uploads.github.com/repos/boburning/portcove/releases/${releaseId}/assets?name=${name}`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": name.endsWith(".zip") ? "application/zip" : "application/json",
-              "X-GitHub-Api-Version": "2022-11-28",
-            },
-            body: new Uint8Array(bytes),
-            redirect: "error",
-            signal: AbortSignal.timeout(30000),
-          },
-        );
-        // The exact asset inventory/byte readback decides ambiguous outcomes.
-        await response.body?.cancel();
-        assert.equal(response.status, 201);
-      },
+      upload: await createApplicationAssetUploader(token, () => assertProtectionWriteWindow()),
     },
     expected,
     files.get(bootstrapAssetNames[1])!,
