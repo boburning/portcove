@@ -28,8 +28,9 @@ import {
   portablePreparationFeedback,
   downloadPreparationFeedback,
   canonicalPreparationFeedback,
+  declarativePreparationFeedback,
 } from "./prepare-port.mts";
-import { readCatalogSource } from "./catalog-authoring.mts";
+import { checkedAuthoredPort, readCatalogSource } from "./catalog-authoring.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import type { ListingReceipt } from "./catalog-authoring-inspector.mts";
@@ -2021,36 +2022,41 @@ void test("prepared observations bind the accepted observation preimage and cann
   }
 });
 
-void test("normal preparation feedback directs fitting declarations without inventing original-file authority", async () => {
-  const { declarativePreparationFeedback } = await import("./prepare-port.mts");
-  const { checkedAuthoredPort } = await import("./catalog-authoring.mts");
-  const record = checkedAuthoredPort(
-    JSON.parse(
-      readFileSync("crates/portcove-core/catalog/ports/nhl-94-genesis-ninety-four.json", "utf8"),
-    ),
+void test("preparation reports all declared route projections across the current catalog", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const routeRecords = records.filter((record) => record.route_facts_v1);
+  const gbaRecords = records.filter((record) => record.gba_staged_archive_v1);
+  assert.ok(routeRecords.some((record) => record.route_facts_v1?.managed_native));
+  assert.ok(
+    routeRecords.some((record) => record.integration?.adapter === "staged-source-portable"),
   );
-  assert.equal(declarativePreparationFeedback(record).status, "declared");
-  assert.match(declarativePreparationFeedback(record).original_files, /does not establish/);
-  const next = structuredClone(record);
-  delete next.route_facts_v1;
-  delete next.package_observation_v1;
-  assert.equal(
-    declarativePreparationFeedback(checkedAuthoredPort(next)).status,
-    "review-fitting-route",
-  );
-  const linux = structuredClone(next);
-  linux.listing.platforms = ["linux-x86-64"];
-  assert.equal(declarativePreparationFeedback(linux).status, "retain-existing-route");
-  const outside = {
-    ...record,
-    integration: {
-      adapter: "native-portable",
-      release: { provider: "github" },
-      source_profile: "required-original",
-      platforms: ["windows-x86-64"],
-    },
-  };
-  assert.equal(declarativePreparationFeedback(outside).status, "retain-existing-route");
+  assert.ok(routeRecords.some((record) => record.integration === undefined));
+  assert.ok(gbaRecords.length > 0);
+  for (const record of records) {
+    const id = record.listing.id;
+    const feedback = declarativePreparationFeedback(record);
+    const expected = [];
+    if (record.route_facts_v1) expected.push("route_facts_v1");
+    if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
+    assert.deepEqual(
+      feedback.projections.map(({ field }) => field),
+      expected,
+      id,
+    );
+    assert.equal(feedback.status, expected.length > 0 ? "declared" : "undeclared", id);
+    assert.match(feedback.original_files, /does not establish/, id);
+  }
+});
+
+void test("unsupported managed subshapes and contradictory GBA paths fail authoring validation", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const native = structuredClone(records.find((record) => record.route_facts_v1?.managed_native)!);
+  native.integration!.source_profile = "required-original";
+  assert.throws(() => checkedAuthoredPort(native), /without a Core source binding/);
+
+  const gba = structuredClone(records.find((record) => record.gba_staged_archive_v1)!);
+  gba.integration!.persistent_paths = ["contradictory"];
+  assert.throws(() => checkedAuthoredPort(gba), /already own persistent_paths/);
 });
 
 void test("settings qualification requests complete exact package facts and limits missing evidence to settings", async () => {

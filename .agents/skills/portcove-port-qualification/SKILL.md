@@ -16,14 +16,19 @@ aggregates are outputs. Reuse the checkpoint for unchanged observations, retry
 failed enrichment independently, and regenerate after reviewing the proposed
 record. Do not mutate sources or publish merely because preparation succeeded.
 
-For fitting ordinary work, prefer authoring-only `route_facts_v1`: a Windows
-prepared player basename, executable-parent working directory, literal arguments
-and actual external data locations. Source-free here means no Core source binding,
-not that the game requires no originals. Preserve upstream original-file setup,
-bespoke actions and immediate warnings. Managed facts currently cover only the
-existing NativePortable GitHub shape without a Core source binding. Other shapes
-keep their working route and specific limitation; do not infer operational facts
-from prose or expand the schema to fit them.
+Use `route_facts_v1` for a reviewed Windows prepared player basename,
+executable-parent working directory, literal arguments and external data
+locations. Prepared-player facts can also describe the independent external
+route of a staged-source archive. The optional `managed_native` subshape covers
+NativePortable GitHub integrations without a Core source binding. Keep upstream
+original-file setup, bespoke actions and immediate warnings explicit.
+
+Use `gba_staged_archive_v1` separately for the managed Windows staged GitHub
+archive with the reviewed GBA picker and writer layout. Supply the game code and
+versioned mod policy alongside the exact package selector, player, original and
+BIOS requirements, and external save locations. Reuse the matching staging and
+preservation evidence. A different writer layout needs an explicit integration
+and applicable qualification. See [catalog authoring](../../../docs/CATALOG.md#adding-or-changing-a-port).
 
 Use the existing `prepare-port.mts` feedback and reviewed per-ID record, followed
 by `generate-catalog.mts`; shared explanations and distinct lifecycle entrypoints

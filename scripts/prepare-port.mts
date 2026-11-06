@@ -141,27 +141,30 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
 
 /** Advice only: distinctive declarations never follow from arbitrary guide prose. */
 export function declarativePreparationFeedback(record: AuthoredPort) {
-  const integration = record.integration;
-  const fitting =
-    (!integration &&
-      (!Array.isArray(record.listing.platforms) ||
-        record.listing.platforms.includes("windows-x86-64"))) ||
-    (integration !== undefined &&
-      integration.adapter === "native-portable" &&
-      isRecord(integration.release) &&
-      integration.release.provider === "github" &&
-      integration.source_profile == null &&
-      Array.isArray(integration.platforms) &&
-      integration.platforms.includes("windows-x86-64"));
+  const projections = [];
+  if (record.route_facts_v1) {
+    projections.push({
+      field: "route_facts_v1",
+      scope: record.route_facts_v1.managed_native
+        ? "Prepared-player guide and managed NativePortable presentation."
+        : "Prepared-player guide for the independent external route.",
+      next: "Keep the reviewed executable, literal arguments and external data locations explicit. Preserve bespoke setup and warnings. Reuse applicable accepted package/player inspections via the paired package observation options and keep independent expected facts.",
+    });
+  }
+  if (record.gba_staged_archive_v1) {
+    projections.push({
+      field: "gba_staged_archive_v1",
+      scope: "Managed Windows GBA archive paths and versioned mod policy for the upstream picker.",
+      next: "Check the exact package, original edition, picker lifetime and writer differences against the reviewed layout. Reuse matching staging, preservation and rollback evidence. Keep repository, release selectors, executable and external saves explicit.",
+    });
+  }
   return {
-    status: !fitting
-      ? "retain-existing-route"
-      : record.route_facts_v1
-        ? "declared"
-        : "review-fitting-route",
-    next: fitting
-      ? "Use route_facts_v1 for a reviewed Windows basename, executable-parent folder, literal arguments and actual data locations. Preserve bespoke preparation/actions/warnings; do not infer facts from prose. Regenerate with generate-catalog.mts for shared explanations and distinct lifecycle tests. Feed accepted package/player inspections through --package-observation and --package-observation-reference where applicable; retain independent expected facts."
-      : "Keep this working route: its platform, adapter, source preparation or working-directory contract is outside the narrow declarative model. Do not force it into route_facts_v1.",
+    status: projections.length > 0 ? "declared" : "undeclared",
+    projections,
+    next:
+      projections.length > 0
+        ? "Regenerate with generate-catalog.mts and review the concrete output. Use the Core proposal inspection for operational declarations."
+        : "Review docs/CATALOG.md for an applicable authoring projection. Establish the required facts before adopting one; otherwise keep the explicit integration or guide. This report does not assess whether the runtime supports an operation.",
     original_files:
       "An absent Core source_profile does not establish that no originals are required. Keep upstream original-file preparation and its owner explicit.",
     release_progression:
