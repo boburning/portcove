@@ -409,3 +409,45 @@ void test("copied component/profile/context cannot authorize signing or publicat
     /authorizeActualLinuxRisk706\(admissionContext, controls, state.checkpoint, deadline\)/u,
   );
 });
+
+void test("risk asset readback follows only complete same-release pages through the locked SDK", async () => {
+  const { createGitHubClient } = await import("./github-client.mts");
+  const { readPublicationReleaseAssets } = await import("./release-publication-inventory.mts");
+  const origin = "https://api.github.com";
+  const canonical = "/repositories/1354613114/releases/81/assets?per_page=100&page=2";
+  const expected = [
+    `${origin}/repos/boburning/portcove/releases/81/assets?per_page=100`,
+    origin + canonical,
+  ];
+  for (const next of [canonical, canonical.replace("/81/", "/82/")]) {
+    const dispatched: string[] = [];
+    const client = await createGitHubClient({
+      deadline: performance.now() + 1000,
+      credential: { kind: "explicit", token: "synthetic-risk" },
+      fetch: async (input) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        dispatched.push(url);
+        const page = dispatched.length;
+        return Response.json([{ id: page, name: `asset-${page}` }], {
+          headers: page === 1 ? { link: `<${origin}${next}>; rel="next"` } : {},
+        });
+      },
+    });
+    const read = readPublicationReleaseAssets(81, (url) =>
+      client.request(`GET ${url.pathname}${url.search}`, {
+        request: { portcove: { replay: "once", attempts: 0 } },
+      }),
+    );
+    if (next === canonical) {
+      assert.deepEqual(await read, [
+        { id: 1, name: "asset-1" },
+        { id: 2, name: "asset-2" },
+      ]);
+      assert.deepEqual(dispatched, expected);
+    } else {
+      await assert.rejects(read, /pagination changed scope/u);
+      assert.deepEqual(dispatched, expected.slice(0, 1));
+    }
+  }
+});
