@@ -357,7 +357,13 @@ async function verifyJobIdentity(
       : claims.environment !== profile.environment
   )
     throw jobIdentityRefusal("claim-environment", "signed OIDC job environment differs");
-  if (Object.hasOwn(claims, "job_workflow_ref") || Object.hasOwn(claims, "job_workflow_sha"))
+  // A direct job may repeat the workflow identity in the executing-job claims.
+  // A partial pair or a different executing workflow cannot satisfy this profile.
+  if (
+    (Object.hasOwn(claims, "job_workflow_ref") || Object.hasOwn(claims, "job_workflow_sha")) &&
+    (claims.job_workflow_ref !== required.workflow_ref ||
+      claims.job_workflow_sha !== required.workflow_sha)
+  )
     throw jobIdentityRefusal("claim-reusable-workflow", "signed OIDC job is not direct");
   if (typeof claims.check_run_id !== "string" || !/^[1-9][0-9]{0,15}$/u.test(claims.check_run_id))
     throw jobIdentityRefusal("claim-check_run_id", "signed OIDC check-run ID is invalid");

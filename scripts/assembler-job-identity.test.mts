@@ -709,6 +709,29 @@ void test("production observer and reader profiles cannot reuse each other's job
   await assert.rejects(verifyProtectionObserverJobIdentity(observer.token, expected, observer));
 });
 
+void test("direct workflow identity accepts only a complete exact mirror of executing claims", async () => {
+  const mirror = {
+    job_workflow_ref: `boburning/portcove/${productionControllerWorkflow}@${expected.controller_ref}`,
+    job_workflow_sha: expected.controller_revision,
+  };
+  const direct = fixture(mirror);
+  assert.equal((await verifyAssemblerJobIdentity(direct.token, expected, direct)).job_id, 501);
+  for (const patch of [
+    { job_workflow_ref: mirror.job_workflow_ref },
+    { job_workflow_sha: mirror.job_workflow_sha },
+    { ...mirror, job_workflow_ref: mirror.job_workflow_ref + "-other" },
+    { ...mirror, job_workflow_sha: "b".repeat(40) },
+    { ...mirror, job_workflow_sha: null },
+  ]) {
+    const other = fixture(patch);
+    await assert.rejects(verifyAssemblerJobIdentity(other.token, expected, other), (error) => {
+      assert.equal(jobIdentityRefusalCode(error), "claim-reusable-workflow");
+      return true;
+    });
+    assert.equal(other.counts().requests, 0);
+  }
+});
+
 void test("signed identity refusals expose only verifier-selected codes", async () => {
   for (const [patch, code] of [
     [{ sub: "private wrong subject" }, "claim-sub"],
