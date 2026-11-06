@@ -940,6 +940,71 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
   );
 });
 
+void test("catalog coordinator reconstructs the appointed initial commit through the locked SDK", async (t) => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function verifyCatalogCoordinatorBaseline(");
+  const end = source.indexOf("const metadataPreparations", start);
+  assert.ok(start > 0 && end > start);
+  const { sourceFixtureCommit } = await import("./fixtures/release-source-fixture.mts");
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const { inspectRemoteCommitObject } = await import("./release-coordinator-recovery.mts");
+  const tree = "a".repeat(40);
+  const root = "b".repeat(64);
+  const record = sourceFixtureCommit(tree, [], "fixed catalog baseline");
+  let dispatches = 0;
+  let corrupt = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.method, "GET");
+      assert.equal(
+        request.url,
+        `https://api.github.com/repos/boburning/portcove/git/commits/${record.sha}`,
+      );
+      assert.equal(request.headers.get("authorization"), "token inert-catalog-source");
+      dispatches++;
+      return Response.json(corrupt ? { ...record, message: "different bytes" } : record);
+    },
+  );
+  const run = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "; verifyCatalogCoordinatorBaseline;",
+    {
+      createReleaseCustodyProvider,
+      inspectRemoteCommitObject,
+      inspectCatalogInitialization: () => null,
+      readOnlyReleaseChildEnvironment: () => undefined,
+      fixedReleaseReaderToken: () => "inert-catalog-source",
+      assertCatalogSemanticPublishedBaseline: (
+        _opportunity: unknown,
+        _published: unknown,
+        initial: unknown,
+      ) => initial,
+    },
+  ) as (...args: unknown[]) => Promise<{ commit: string; tree: string; root_sha256: string }>;
+  const deadline = performance.now() + 5000;
+  const invoke = () =>
+    run(
+      {},
+      { published_metadata: {} },
+      {
+        catalog: { public_source: { commit: record.sha, root: { sha256: root } } },
+      },
+      { deadline, currentDeadline: () => deadline, maxBytes: 256 * 1024, guard() {} },
+    );
+  const result = await invoke();
+  assert.equal(result.commit, record.sha);
+  assert.equal(result.tree, tree);
+  assert.equal(result.root_sha256, root);
+  corrupt = true;
+  await assert.rejects(invoke(), /identity|hash|commit object/u);
+  assert.equal(dispatches, 2);
+});
+
 void test("actual neutral review entry awaits fixed SDK source and complete inventory before unchanged decision", async (t) => {
   const sourceUrl = new URL("./release-coordinator-driver.mts", import.meta.url);
   const source = await readFile(sourceUrl, "utf8");

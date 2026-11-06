@@ -238,7 +238,12 @@ export async function prepareActualCoordinatorCatalogSigning(
       )
         throw new Error("catalog current coordinator reservation is not available");
       const api = coordinatorApi(directory, budget, 2 * 1024 ** 2);
-      verifyCatalogCoordinatorBaseline(api, inputs.opportunity, recovered.input, authorities);
+      await verifyCatalogCoordinatorBaseline(inputs.opportunity, recovered.input, authorities, {
+        deadline: budget.monotonicDeadline,
+        currentDeadline: () => performance.now() + budget.remaining(15000),
+        maxBytes: 2 * 1024 ** 2,
+        guard: () => budget.check(),
+      });
       const inspection = await requireActualCatalogInspection(
         inputs.inspection,
         budget.monotonicDeadline,
@@ -547,7 +552,14 @@ export async function requireActualCoordinatorCatalogPreparation(
       { schema_version: 1, namespace: owned.namespace },
       { transport: { cwd: owned.directory, deadline: owned.deadline } },
     );
-    verifyCatalogCoordinatorBaseline(api, owned.inputs.opportunity, current.input, authorities);
+    await verifyCatalogCoordinatorBaseline(owned.inputs.opportunity, current.input, authorities, {
+      deadline: owned.deadline,
+      currentDeadline: () => coordinatorContinuationDeadline(owned.deadline),
+      maxBytes: 256 * 1024,
+      guard: () => {
+        coordinatorContinuationDeadline(owned.deadline);
+      },
+    });
     if (
       current.checkpoint !== owned.checkpoint ||
       capacityDigest(
@@ -619,7 +631,14 @@ async function recheckActualCatalogReview(result: object, tighter?: number) {
         { schema_version: 1, namespace: owned.namespace },
         { transport: { cwd: owned.directory, deadline: owned.deadline } },
       );
-    verifyCatalogCoordinatorBaseline(api, owned.inputs.opportunity, current.input, authorities);
+    await verifyCatalogCoordinatorBaseline(owned.inputs.opportunity, current.input, authorities, {
+      deadline: owned.deadline,
+      currentDeadline: () => coordinatorContinuationDeadline(owned.deadline),
+      maxBytes: 256 * 1024,
+      guard: () => {
+        coordinatorContinuationDeadline(owned.deadline);
+      },
+    });
     const semantic = readCatalogCoordinatorReview(
       api,
       authorities,
@@ -638,8 +657,7 @@ async function recheckActualCatalogReview(result: object, tighter?: number) {
     return semantic;
   });
 }
-function verifyCatalogCoordinatorBaseline(
-  api: Parameters<typeof readIndependentCatalogSemanticReview>[0],
+async function verifyCatalogCoordinatorBaseline(
   opportunity: unknown,
   input: Record<string, unknown>,
   authorities: {
@@ -653,14 +671,27 @@ function verifyCatalogCoordinatorBaseline(
       };
     };
   },
+  options: { deadline: number; currentDeadline: () => number; maxBytes: number; guard: () => void },
 ) {
   const pins = authorities.catalog.public_source;
   const initialization = inspectCatalogInitialization(input.catalog_initialization);
   let initial: null | { commit: string; tree: string; root_sha256: string } = null;
   if (input.published_catalog_metadata == null || initialization) {
-    const response = api.request("GET", `repos/boburning/portcove/git/commits/${pins.commit}`);
-    if (response.status !== 200) throw new Error("catalog initial source Git object unavailable");
-    const commit = inspectRemoteCommitObject(response.body, pins.commit);
+    if (!/^[a-f0-9]{40}$/u.test(pins.commit))
+      throw new Error("catalog initial source Git object unavailable");
+    const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
+    const provider = await createReleaseCustodyProvider({
+      token: fixedReleaseReaderToken(),
+      deadline: options.deadline,
+      currentDeadline: options.currentDeadline,
+      maxBytes: options.maxBytes,
+      beforeDispatch() {
+        options.guard();
+        if (requireDirect) assertTrustedDirectNode("fixed catalog initial source");
+      },
+      afterRead: options.guard,
+    });
+    const commit = inspectRemoteCommitObject(await provider.commit(pins.commit), pins.commit);
     initial = { commit: pins.commit, tree: commit.tree, root_sha256: pins.root.sha256 };
     if (
       initialization &&
