@@ -457,6 +457,7 @@ function preparedRecordOutputs(
     const key = observationHash({
       input: createHash("sha256").update(bytes).digest("hex"),
       validator: validatorIdentity,
+      ...(kind === "core" ? { repositoryAuthoring: true } : {}),
     });
     let receipt = cachedValue(root, kind, key);
     if (receipt === undefined) {
@@ -466,7 +467,7 @@ function preparedRecordOutputs(
       );
       receipt =
         kind === "core"
-          ? inspector.inspect("proposal", bytes)
+          ? inspector.inspect("proposal", bytes, true)
           : inspector.inspectListings("listings", bytes);
       if (!isRecord(receipt) || receipt.validator_artifact_sha256 !== validatorIdentity)
         throw new Error(

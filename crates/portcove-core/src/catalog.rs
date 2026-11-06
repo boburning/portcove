@@ -54,10 +54,52 @@ pub(crate) fn observation_definition_sha256(port: &PortDefinition) -> Result<Str
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&canonical)?)))
 }
 
+fn check_repository_summary(port: &PortDefinition) -> Result<()> {
+    if !port.summary.ends_with('.') {
+        return Err(PortcoveError::verification(format!(
+            "{}: the catalog summary must end with a period",
+            port.id
+        )));
+    }
+    let summary = format!(" {} ", port.summary.to_ascii_lowercase());
+    if let Some(term) = [
+        "opt-in",
+        " beta ",
+        " rolling ",
+        " portable ",
+        " managed ",
+        " verified ",
+        " checksum",
+        " release",
+    ]
+    .into_iter()
+    .find(|term| summary.contains(term))
+    {
+        return Err(PortcoveError::verification(format!(
+            "{}: keep '{}' in the structured catalog fields and describe the player outcome in the summary",
+            port.id,
+            term.trim()
+        )));
+    }
+    Ok(())
+}
+
 impl Catalog {
     /// Reuse the ordinary validator on one bounded input, without opening a
     /// library, resolving releases, executing a template or establishing trust.
     pub fn inspect_proposal(path: &Path) -> Result<CatalogProposalInspection> {
+        Self::inspect_proposal_inner(path, false)
+    }
+
+    /// Also apply the repository's authored catalog summary convention.
+    pub fn inspect_repository_proposal(path: &Path) -> Result<CatalogProposalInspection> {
+        Self::inspect_proposal_inner(path, true)
+    }
+
+    fn inspect_proposal_inner(
+        path: &Path,
+        repository_authoring: bool,
+    ) -> Result<CatalogProposalInspection> {
         use sha2::{Digest, Sha256};
         let bytes = crate::path::read_bounded_regular(path, 4 * 1024 * 1024)?;
         let _: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
@@ -68,6 +110,9 @@ impl Catalog {
             .ports()
             .iter()
             .map(|port| {
+                if repository_authoring {
+                    check_repository_summary(port)?;
+                }
                 Ok(CatalogProposalPortInspection {
                     port_id: port.id.clone(),
                     definition_sha256: hex::encode(Sha256::digest(serde_json::to_vec(port)?)),
@@ -93,7 +138,11 @@ impl Catalog {
             input_bytes: bytes.len() as u64,
             catalog_schema: catalog.document().schema_version,
             ports,
-            scope: "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+            scope: if repository_authoring {
+                "inert-catalog-declarations; repository-summary-policy; no trust, acquisition, runtime or publication acceptance"
+            } else {
+                "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance"
+            },
         })
     }
 
@@ -3527,24 +3576,37 @@ mod tests {
     #[test]
     fn embedded_summaries_leave_structured_facts_to_structured_fields() {
         let catalog = Catalog::embedded().unwrap();
-        let structured_terms = [
-            "opt-in",
-            " beta ",
-            " rolling ",
-            " portable ",
-            " managed ",
-            " verified ",
-            " checksum",
-            " release",
-        ];
         for port in catalog.ports() {
-            let summary = format!(" {} ", port.summary.to_ascii_lowercase());
+            check_repository_summary(port).unwrap();
+        }
+    }
+
+    #[test]
+    fn repository_proposal_inspection_reports_summary_conventions_without_changing_declaration_validation()
+     {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("proposal.json");
+        let mut value: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(
+            Catalog::inspect_repository_proposal(&path)
+                .unwrap()
+                .scope
+                .contains("repository-summary-policy")
+        );
+        for (summary, expected) in [
+            ("Play with a portable player profile.", "'portable'"),
+            ("Play with smoother motion", "end with a period"),
+        ] {
+            value["ports"][0]["summary"] = summary.into();
+            std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+            assert!(Catalog::inspect_proposal(&path).is_ok());
+            let error = Catalog::inspect_repository_proposal(&path).unwrap_err();
+            assert!(error.message.contains(expected), "{error}");
             assert!(
-                port.summary.ends_with('.')
-                    && structured_terms.iter().all(|term| !summary.contains(term)),
-                "{} has a non-outcome summary: {}",
-                port.id,
-                port.summary
+                error
+                    .message
+                    .contains(value["ports"][0]["id"].as_str().unwrap())
             );
         }
     }

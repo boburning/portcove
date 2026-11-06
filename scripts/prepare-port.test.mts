@@ -33,7 +33,7 @@ import {
 import { checkedAuthoredPort, readCatalogSource } from "./catalog-authoring.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
-import type { ListingReceipt } from "./catalog-authoring-inspector.mts";
+import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
 void test("canonical preparation exposes the exact specification without deriving acquisition authority", () => {
@@ -947,6 +947,35 @@ void test("ordinary onboarding prefers attributable exact-port art and records m
       assert.equal(Boolean(authored.listing.artwork), outcome === "exact");
     }
   } finally {
+    f.clean();
+  }
+});
+
+void test("repository authoring surfaces the Core summary refusal and retains the process receipt", (context) => {
+  const f = fixture();
+  try {
+    const cli = join(f.root, "selected-cli");
+    writeFileSync(cli, "inert proposal validator");
+    const message = "spaceranger: keep 'portable' in the structured catalog fields";
+    context.mock.method(childProcess, "spawnSync", (_artifact: string, args: string[]) => {
+      assert.deepEqual(args.slice(-3, -1), ["inspect-proposal", "--repository-authoring"]);
+      const stdout = JSON.stringify({
+        ok: false,
+        command: "catalog.inspect-proposal",
+        error: { message },
+      });
+      return { status: 1, signal: null, stdout, stderr: "" };
+    });
+    syncBuiltinESMExports();
+    const inspector = coreProposalInspector(cli, f.root);
+    assert.throws(() => inspector.inspect("proposal", Buffer.from("{}"), true), /keep 'portable'/);
+    const receipt: unknown = JSON.parse(
+      readFileSync(join(f.root, "proposal-process.json"), "utf8"),
+    );
+    assert.partialDeepStrictEqual(receipt, { repository_authoring: true, status: 1 });
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
     f.clean();
   }
 });
