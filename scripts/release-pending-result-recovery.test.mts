@@ -9,11 +9,57 @@ import {
 } from "./release-report-repair-contract.mts";
 import { capacityDigest as digest, inspectCapacityOperation } from "./release-capacity.mts";
 import {
+  acquirePendingResultArchive,
   inspectPendingResultOperation,
   inspectPendingResultProvider,
   inspectPendingResultAssociation,
   readPendingResultArchive,
 } from "./release-pending-result-recovery.mts";
+void test("pending result SDK lookup charges once and transfers only the exact archive anonymously", async (t) => {
+  const f = fixture();
+  const provider = inspectPendingResultProvider(
+    f.run,
+    f.run,
+    f.job,
+    { total_count: 1, artifacts: f.rows },
+    f.operation,
+  );
+  const token = "ghs_pending_result_fixture";
+  const delivery =
+    "https://productionresultssa1.blob.core.windows.net/actions-results/example?sig=fixture";
+  let attempts = 0;
+  let charges = 0;
+  let changed = false;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    attempts++;
+    if (url.origin === "https://api.github.com") {
+      assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/700/zip");
+      assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+      return new Response(null, { status: 302, headers: { location: delivery } });
+    }
+    assert.equal(url.href, delivery);
+    assert.equal(new Headers(init?.headers).has("authorization"), false);
+    const archive = new Uint8Array(f.archive);
+    if (changed) archive[0] = 0;
+    return new Response(archive);
+  });
+  const read = () =>
+    acquirePendingResultArchive(provider, token, performance.now() + 5000, () => {
+      charges++;
+      return () => {
+        charges--;
+      };
+    });
+  assert.deepEqual(await read(), f.archive);
+  assert.equal(charges, 1);
+  assert.equal(attempts, 2);
+  changed = true;
+  await assert.rejects(read(), { code: "ERR_ASSERTION" });
+  assert.equal(charges, 2);
+  assert.equal(attempts, 4);
+});
+
 void test("exact terminal original report custody does not pretend failed publisher supplied an attestation", () => {
   const f = fixture();
   const projection = inspectPendingResultProvider(
@@ -198,7 +244,8 @@ void test("source-bound result continuation settles only the exact positive repo
     api: {},
     directory: "private",
     deadline: 170000,
-    environment: {},
+    environment: { GH_TOKEN: "fixture-token" },
+    chargeRead: () => () => {},
     base: "repos/boburning/portcove",
     executor: {},
     settled: (op: { outcome: string }) => ["succeeded", "recovered"].includes(op.outcome),
@@ -237,11 +284,19 @@ void test("source-bound result continuation settles only the exact positive repo
         return { total_count: 1, artifacts: f.rows };
       },
     },
-    readGitHubArtifactArchive: () => {
+    acquirePendingResultArchive: async (
+      provider: ReturnType<typeof inspectPendingResultProvider>,
+      token: string,
+      deadline: number,
+    ) => {
+      assert.equal(provider.artifact.id, 700);
+      assert.equal(token, "fixture-token");
+      assert.equal(deadline, 170000);
       calls.push("GET-original-archive");
       return f.archive;
     },
     signingContextRemaining: () => 15000,
+    readReleaseAsset: async () => Buffer.alloc(0),
     readPendingResultArchive: async () => {
       calls.push("actual-report-context-Release");
       observations++;

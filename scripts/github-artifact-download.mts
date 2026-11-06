@@ -51,8 +51,26 @@ async function transferGitHubArtifactArchive(
     allowRequest: (method, url) =>
       method === "GET" && url.pathname === `/${endpoint}` && !url.search,
   });
+  const policy = downloadRequestPolicy(options);
+  let lookup;
+  try {
+    lookup = await api.request(`GET /${endpoint}`, { request: { portcove: policy } });
+  } finally {
+    await policy.admissionSettled;
+  }
+  const delivery = signedDelivery(lookup.status, lookup.headers.location);
+  if (
+    !delivery ||
+    !/^productionresultssa[0-9]+\.blob\.core\.windows\.net$/u.test(delivery.hostname) ||
+    !delivery.pathname.startsWith("/actions-results/")
+  )
+    throw new GitHubApiError("redirect_refused", "GitHub artifact delivery address refused");
+  return transferSignedDelivery(delivery, { ...options, fetch: fetcher }, receive);
+}
+
+function downloadRequestPolicy(options: ArtifactDownloadOptions): GitHubRequestPolicy {
   const { deadline: lookupDeadline, reserve, elapsed } = options.lookup ?? {};
-  const policy: GitHubRequestPolicy = {
+  return {
     ...(lookupDeadline === undefined ? {} : { deadline: lookupDeadline }),
     ...(reserve
       ? {
@@ -75,34 +93,34 @@ async function transferGitHubArtifactArchive(
     attempts: 0,
     readRedirectBodyFor: [],
   };
-  let lookup;
-  try {
-    lookup = await api.request(`GET /${endpoint}`, { request: { portcove: policy } });
-  } finally {
-    await policy.admissionSettled;
-  }
-  const location = lookup.headers.location;
-  let delivery: URL | undefined;
-  if (lookup.status === 302 && typeof location === "string" && location.length <= 8192) {
+}
+
+function signedDelivery(status: number, location: unknown) {
+  let url: URL | undefined;
+  if (status === 302 && typeof location === "string" && location.length <= 8192) {
     try {
-      delivery = new URL(location);
+      url = new URL(location);
     } catch {
       // The URL may contain a signed credential.
     }
   }
-  if (
-    !delivery ||
-    delivery.protocol !== "https:" ||
-    delivery.port ||
-    delivery.username ||
-    delivery.password ||
-    delivery.hash ||
-    !/^productionresultssa[0-9]+\.blob\.core\.windows\.net$/u.test(delivery.hostname) ||
-    !delivery.pathname.startsWith("/actions-results/") ||
-    !delivery.search
-  )
-    throw new GitHubApiError("redirect_refused", "GitHub artifact delivery address refused");
+  return url &&
+    url.protocol === "https:" &&
+    !url.port &&
+    !url.username &&
+    !url.password &&
+    !url.hash &&
+    url.search
+    ? url
+    : undefined;
+}
 
+async function transferSignedDelivery(
+  delivery: URL,
+  options: ArtifactDownloadOptions,
+  receive: (chunk: Uint8Array) => void | Promise<void>,
+) {
+  const { deadline, maxBytes, fetch: fetcher = globalThis.fetch } = options;
   const remaining = Math.ceil(deadline - performance.now());
   if (remaining < 1)
     throw new GitHubApiError("deadline_exceeded", "GitHub artifact deadline exhausted");
@@ -167,6 +185,68 @@ export async function downloadGitHubArtifactArchive(
     chunks.push(chunk);
   });
   return Buffer.concat(chunks, bytes);
+}
+
+/** Exact numeric Release asset lookup for bounded documents such as the SBOM. */
+export async function downloadGitHubReleaseAsset(id: number, options: ArtifactDownloadOptions) {
+  const { credential, deadline, maxBytes, fetch, signal } = options;
+  if (
+    !Number.isSafeInteger(id) ||
+    id < 1 ||
+    !Number.isSafeInteger(maxBytes) ||
+    maxBytes < 1 ||
+    maxBytes > 16 * 1024 * 1024 ||
+    !Number.isFinite(deadline) ||
+    deadline - performance.now() > 120000
+  )
+    throw new GitHubApiError(
+      "invalid_configuration",
+      "Bounded exact GitHub release asset required",
+    );
+  const pathname = `/repos/boburning/portcove/releases/assets/${id}`;
+  const api = await createGitHubClient({
+    credential,
+    deadline,
+    requestTimeoutMs: 120000,
+    maxBytes: 128 * 1024,
+    observeRedirects: true,
+    headers: { accept: "application/octet-stream" },
+    allowRequest: (method, url) => method === "GET" && url.pathname === pathname && !url.search,
+    ...(fetch ? { fetch } : {}),
+    ...(signal ? { signal } : {}),
+  });
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  const receive = (chunk: Uint8Array) => {
+    chunks.push(chunk);
+    bytes += chunk.byteLength;
+  };
+  const policy = downloadRequestPolicy(options);
+  policy.binaryResponse = { maxBytes, receive };
+  let lookup;
+  try {
+    lookup = await api.request(`GET ${pathname}`, { request: { portcove: policy } });
+  } finally {
+    await policy.admissionSettled;
+  }
+  if (lookup.status !== 200) {
+    const delivery = signedDelivery(lookup.status, lookup.headers.location);
+    if (
+      !delivery ||
+      !["release-assets.githubusercontent.com", "objects.githubusercontent.com"].includes(
+        delivery.hostname,
+      )
+    )
+      throw new GitHubApiError("redirect_refused", "GitHub release asset delivery address refused");
+    await transferSignedDelivery(delivery, options, receive);
+  }
+  if (bytes !== maxBytes)
+    throw new GitHubApiError("invalid_response", "GitHub release asset byte count differs");
+  const body = Buffer.concat(chunks, bytes);
+  if (signal?.aborted) throw new GitHubApiError("cancelled", "GitHub release asset cancelled");
+  if (performance.now() >= deadline)
+    throw new GitHubApiError("deadline_exceeded", "GitHub release asset deadline exhausted");
+  return body;
 }
 
 /** Stream an exact admitted archive into an exclusively owned scratch file.
