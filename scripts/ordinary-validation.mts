@@ -2576,9 +2576,24 @@ explicitNodeTests.set("scripts/application-release-site.mts", [
   "scripts/application-release-feed.test.mts",
 ]);
 
+for (const file of [
+  "package.json",
+  "pnpm-lock.yaml",
+  "scripts/github-client.mts",
+  "scripts/release-control-inputs.mts",
+  "scripts/release-semantic-disposition-reader.mts",
+  "scripts/release-reviewed-inputs.mts",
+  ".github/workflows/application-update-production.yml",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-classification-request.test.mts",
+  ]);
+
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/application-release-feed.test.mts",
   "scripts/application-release-site.test.mts",
+  "scripts/release-classification-request.test.mts",
   "scripts/release-catalog-authorities.test.mts",
   "scripts/release-catalog-signing.test.mts",
   "scripts/release-live-control-admission.test.mts",

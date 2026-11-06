@@ -2284,7 +2284,10 @@ async function observe() {
       spawn: (command, args, options) => spawnSync(command, args, { ...options, env: environment }),
     }),
   );
-  const observation = observeReleaseInputProtections(observer, { releasePublication: true });
+  const observation = await observeReleaseInputProtections(
+    (endpoint) => observer.request("GET", endpoint),
+    { releasePublication: true },
+  );
   const interpreted = requireReleaseImmutabilityPolicy(observation);
   assert.equal(
     interpreted.inventory_sha256,

@@ -140,7 +140,7 @@ void test("observer output transport refuses expiry after every awaited write an
   }
 });
 
-void test("production protection observer entry uses the captured job credential for the scoped SDK lookup", async () => {
+void test("production protection observer entry uses separate captured job and protection App credentials through the SDK", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-protection-observer-entry-"));
   try {
     const phase = "coordinator";
@@ -182,14 +182,20 @@ void test("production protection observer entry uses the captured job credential
           assert.equal(request.headers.get("authorization"), null);
           return Response.json({ keys: [jwk] });
         }
-        dispatches.push([request.method, url.href, request.headers.get("authorization")]);
+        const authorization = request.headers.get("authorization");
+        dispatches.push([request.method, url.href, authorization]);
+        if (authorization === "token original-job-token")
+          return Response.json(provider.metadata(url.pathname + url.search));
+        assert.equal(authorization, "token different-protection-app-token");
+        assert.equal(url.href, "https://api.github.com/repos/boburning/portcove");
         return Response.json({}, { status: 503 });
       };
       process.on("beforeExit", () => {
-        assert.deepEqual(dispatches, [[
-          "GET", "https://api.github.com/repos/boburning/portcove/actions/runs/9988",
-          "token original-job-token",
-        ]]);
+        assert.deepEqual(dispatches.map(row => row[2]), [
+          ...Array(5).fill("token original-job-token"),
+          "token different-protection-app-token",
+        ]);
+        assert.ok(dispatches.every(row => row[0] === "GET"));
       });
       process.argv = [process.execPath, fileURLToPath(${JSON.stringify(command.href)}), "observe-production-coordinator"];
       await import(${JSON.stringify(command.href)});
@@ -212,6 +218,7 @@ void test("production protection observer entry uses the captured job credential
           PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
           PORTCOVE_EXPECTED_PROTECTION_APP_ID: String(observer.app_id),
           PORTCOVE_EXPECTED_INSTALLATION_ID: String(observer.installation_id),
+          PORTCOVE_OBSERVED_INSTALLATION_ID: String(observer.installation_id),
           PORTCOVE_CONTROL_APP_TOKEN: "different-protection-app-token",
           PORTCOVE_STORAGE_APP_TOKEN: undefined,
           NODE_OPTIONS: undefined,
@@ -232,6 +239,125 @@ void test("production protection observer entry uses the captured job credential
     await rm(root, { recursive: true, force: true });
   }
 });
+
+for (const role of ["observer", "writer"] as const) {
+  void test(`fixed classification ${role} entry reads the original clock and OIDC identity through locked Octokit`, async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-classification-entry-"));
+    try {
+      const writer = role === "writer";
+      const configuration = selectedPublicationAuthoritiesFixture("application");
+      const runtime = liveControlRuntimeFixture(
+        protectionFixture("a".repeat(40)),
+        config,
+        "coordinator",
+        true,
+      );
+      const workflow = await readFile(
+        new URL(`../${productionControllerWorkflow}`, import.meta.url),
+      );
+      const observer = configuration.journal.apps.protection_observer;
+      const command = new URL("./release-reviewed-inputs.mts", import.meta.url);
+      const fixture = new URL("./fixtures/assembler-identity-fixture.mts", import.meta.url);
+      const name = writer
+        ? "Persist independently reviewed classification"
+        : "Observe release input protections";
+      const oidcEnvironment = writer
+        ? "production-release-classification"
+        : "production-release-protection-observer";
+      const audience = writer
+        ? "portcove-release-classification-v1"
+        : "portcove-release-classification-protection-v1";
+      const program = `
+        import assert from "node:assert/strict";
+        import { fileURLToPath } from "node:url";
+        import { assemblerIdentityFixture, jwk } from ${JSON.stringify(fixture.href)};
+        const provider = assemblerIdentityFixture({
+          aud: ${JSON.stringify(audience)},
+          sub: ${JSON.stringify(controllerOidcSubject(runtime.policy.execution_ref, oidcEnvironment))},
+          environment: ${JSON.stringify(oidcEnvironment)},
+        }, {}, {
+          workflow: ${JSON.stringify(productionControllerWorkflow)},
+          job: ${JSON.stringify(name)},
+          runAttempt: 1,
+        });
+        const calls = [];
+        globalThis.fetch = async (input, init) => {
+          const request = new Request(input, init);
+          const url = new URL(request.url);
+          assert.equal(request.method, "GET");
+          if (url.origin === "https://fixture.actions.githubusercontent.com") {
+            calls.push("oidc");
+            assert.equal(url.searchParams.get("audience"), ${JSON.stringify(audience)});
+            assert.equal(request.headers.get("authorization"), "Bearer fixture-oidc");
+            return Response.json({ value: provider.token });
+          }
+          if (url.origin === "https://token.actions.githubusercontent.com") {
+            calls.push("keys");
+            assert.equal(request.headers.get("authorization"), null);
+            return Response.json({ keys: [jwk] });
+          }
+          assert.equal(url.origin, "https://api.github.com");
+          assert.equal(request.headers.get("authorization"), "token original-classification-job-reader");
+          calls.push(url.pathname + url.search);
+          if (url.pathname.endsWith("/attempts/1/jobs")) {
+            process.env.GH_TOKEN = "unrelated-late-ambient-token";
+            return Response.json({total_count:1,jobs:[{
+              id:501, name:${JSON.stringify(name)}, run_id:9988, run_attempt:1,
+              head_sha:${JSON.stringify(runtime.policy.revision)}, status:"in_progress",
+              started_at:new Date(Date.now()-1000).toISOString(),
+            }]});
+          }
+          return Response.json({}, { status: 503 });
+        };
+        process.on("beforeExit", () => assert.deepEqual(calls, [
+          "/repos/boburning/portcove/actions/runs/9988/attempts/1/jobs?page=1&per_page=100",
+          "oidc",
+          "keys",
+          "/repos/boburning/portcove/actions/runs/9988",
+        ]));
+        process.argv = [process.execPath, fileURLToPath(${JSON.stringify(command.href)}), ${JSON.stringify(writer ? "persist-production-request" : "observe-production-classification")}];
+        await import(${JSON.stringify(command.href)});
+      `;
+      const result = childProcess.spawnSync(
+        process.execPath,
+        ["--input-type=module", "--eval", program],
+        {
+          env: {
+            ...process.env,
+            ...runtime.environment,
+            GITHUB_JOB: writer ? "classification_writer" : "classification_protection_observation",
+            RUNNER_TEMP: root,
+            PORTCOVE_EXECUTION_PURPOSE: "application",
+            PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+              ...runtime.policy,
+              workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+              authority_configuration_sha256: capacityDigest(configuration),
+            }),
+            PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
+            PORTCOVE_EXPECTED_PROTECTION_APP_ID: String(observer.app_id),
+            PORTCOVE_EXPECTED_INSTALLATION_ID: String(observer.installation_id),
+            PORTCOVE_OBSERVED_INSTALLATION_ID: String(observer.installation_id),
+            PORTCOVE_CONTROL_APP_TOKEN: writer ? undefined : "unrelated-protection-app-token",
+            PORTCOVE_STORAGE_APP_TOKEN: writer ? "unrelated-storage-app-token" : undefined,
+            NODE_OPTIONS: undefined,
+            NODE_PATH: undefined,
+            GH_TOKEN: "original-classification-job-reader",
+            ACTIONS_ID_TOKEN_REQUEST_URL:
+              "https://fixture.actions.githubusercontent.com/token?fixture=1",
+            ACTIONS_ID_TOKEN_REQUEST_TOKEN: "fixture-oidc",
+          },
+          encoding: "utf8",
+          timeout: 15_000,
+        },
+      );
+      assert.ifError(result.error);
+      assert.equal(result.status, 1);
+      assert.equal(result.stderr.trim(), "reviewed input operation refused");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
 
 void test("production observer joins original named source/OIDC and appointed mint output for both purposes, refusing copies, drift and expiry", async (t) => {
   let provider: ReturnType<typeof assemblerIdentityFixture>;

@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
-import type { GitHubReservation } from "./github-client.mts";
+import type { GitHubRequestPolicy, GitHubReservation } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
@@ -59,7 +60,11 @@ function releaseOpportunityDigest(value: unknown) {
     .update(canonical(validateOpportunity(value)))
     .digest("hex");
 }
-type ControlRead = { kind: "rest"; suffix: string } | { kind: "ref"; node: string; branch: string };
+type ControlRead =
+  | { kind: "rest"; suffix: string; missing: boolean }
+  | { kind: "ref"; node: string; branch: string }
+  | { kind: "before-classification-write" }
+  | { kind: "classification-write"; variables: Readonly<Record<string, unknown>> };
 type ControlResponse = { status: number | undefined; body: unknown };
 type ControlReads<T> = Generator<ControlRead, T, ControlResponse>;
 type ControlSession = {
@@ -70,20 +75,44 @@ type ControlSession = {
   refId(branch: string): string | undefined;
 };
 
-function readWithLegacyApi<T>(api: CoordinatorRemoteApi, sequence: ControlReads<T>): T {
+function readWithLegacyApi<T>(
+  api: CoordinatorRemoteApi,
+  sequence: ControlReads<T>,
+  beforeMutation?: () => void,
+): T {
   let step = sequence.next();
   while (!step.done) {
     const request = step.value;
-    if (request.kind === "rest") {
-      const response = api.request("GET", `repos/${repository}${request.suffix}`);
-      step = sequence.next({ status: response.status, body: response.body });
+    let result: ControlResponse;
+    if (request.kind === "before-classification-write") {
+      if (!beforeMutation) throw new Error("fresh protected caller guard unavailable");
+      beforeMutation();
+      result = { status: 200, body: null };
+    } else if (request.kind === "classification-write") {
+      try {
+        const response = api.graphql(releaseClassificationCommitMutation, request.variables);
+        result = { status: 200, body: response.data };
+      } catch {
+        result = { status: undefined, body: null };
+      }
     } else {
-      const response = api.graphql(releaseControlRefQuery, {
-        id: request.node,
-        ref: `refs/heads/${request.branch}`,
-      });
-      step = sequence.next({ status: 200, body: response.data });
+      try {
+        if (request.kind === "rest") {
+          const response = api.request("GET", `repos/${repository}${request.suffix}`);
+          result = { status: response.status, body: response.body };
+        } else {
+          const response = api.graphql(releaseControlRefQuery, {
+            id: request.node,
+            ref: `refs/heads/${request.branch}`,
+          });
+          result = { status: 200, body: response.data };
+        }
+      } catch (error) {
+        step = sequence.throw(error);
+        continue;
+      }
     }
+    step = sequence.next(result);
   }
   return step.value;
 }
@@ -110,7 +139,7 @@ function* controlSession(): ControlReads<ControlSession> {
   };
   function* get(suffix: string, missing = false): ControlReads<unknown> {
     bound();
-    const response = yield { kind: "rest", suffix };
+    const response = yield { kind: "rest", suffix, missing };
     if (performance.now() - started > 120_000) throw new Error("release control response late");
     if (response.status === 404 && missing) return null;
     if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > maximumBytes)
@@ -468,62 +497,83 @@ export function persistReviewedClassification(
   checkId: number,
   beforeMutation: () => void,
 ) {
-  const config = configuration(rawConfig);
   if (typeof beforeMutation !== "function")
     throw new Error("fresh protected caller guard unavailable");
+  return readWithLegacyApi(
+    api,
+    persistClassification(rawConfig, rawOpportunity, checkId),
+    beforeMutation,
+  );
+}
+
+function* persistClassification(
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+): ControlReads<{
+  changed: boolean;
+  commit: string | null;
+  path: string;
+  recovered?: boolean;
+  authority: "none";
+}> {
+  const config = configuration(rawConfig);
   numeric(checkId);
   const opportunity = validateOpportunity(rawOpportunity);
   const path = classificationPath(opportunity);
-  const io = session(api);
-  const before = io.ref(classificationBranch);
-  const proof = review(io.get, checkId, config, opportunity);
+  const io = yield* controlSession();
+  const check = function* () {
+    return inspectReview(yield* io.get(`/check-runs/${checkId}`), checkId, config, opportunity);
+  };
+  const before = yield* io.ref(classificationBranch);
+  const proof = yield* check();
   const text = `${canonical({ schema_version: 2, opportunity, review_check_id: checkId, review_app_id: config.review_app_id, review_sha256: createHash("sha256").update(proof).digest("hex"), opportunity_sha256: releaseOpportunityDigest(opportunity) })}\n`;
-  const existing = io.contents(before, path, true);
+  const existing = yield* io.contents(before, path, true);
   if (existing !== null && existing !== text)
     throw new Error("immutable classification conflicts; no overwrite permitted");
-  if (
-    review(io.get, checkId, config, opportunity) !== proof ||
-    io.ref(classificationBranch) !== before
-  )
+  if ((yield* check()) !== proof || (yield* io.ref(classificationBranch)) !== before)
     throw new Error("release review or input ref changed before persistence");
   if (existing !== null) return { changed: false, commit: before, path, authority: "none" };
   io.bound();
-  beforeMutation();
+  yield { kind: "before-classification-write" } as const;
   let ambiguous = false;
   let acknowledged: string | null = null;
   // expectedHeadOid is GitHub's single-branch exact-preimage CAS. Never retry.
   try {
-    const response = api.graphql(releaseClassificationCommitMutation, {
-      input: {
-        branch: { id: io.refId(classificationBranch) },
-        expectedHeadOid: before,
-        message: { headline: `Persist reviewed classification ${opportunity.source_commit}` },
-        fileChanges: { additions: [{ path, contents: Buffer.from(text).toString("base64") }] },
+    const response = yield {
+      kind: "classification-write",
+      variables: {
+        input: {
+          branch: { id: io.refId(classificationBranch) },
+          expectedHeadOid: before,
+          message: { headline: `Persist reviewed classification ${opportunity.source_commit}` },
+          fileChanges: { additions: [{ path, contents: Buffer.from(text).toString("base64") }] },
+        },
       },
-    });
+    } as const;
     if (
-      !isRecord(response.data) ||
-      !isRecord(response.data.createCommitOnBranch) ||
-      !isRecord(response.data.createCommitOnBranch.commit)
+      !isRecord(response.body) ||
+      !isRecord(response.body.createCommitOnBranch) ||
+      !isRecord(response.body.createCommitOnBranch.commit)
     )
       throw new Error("classification CAS acknowledgment unavailable");
-    oid(response.data.createCommitOnBranch.commit.oid);
-    acknowledged = response.data.createCommitOnBranch.commit.oid;
+    oid(response.body.createCommitOnBranch.commit.oid);
+    acknowledged = response.body.createCommitOnBranch.commit.oid;
   } catch {
     ambiguous = true;
   }
   let after: string | null = null;
   try {
-    after = io.ref(classificationBranch);
+    after = yield* io.ref(classificationBranch);
     if (
       after === before ||
       (acknowledged !== null && acknowledged !== after) ||
-      io.contents(after, path) !== text
+      (yield* io.contents(after, path)) !== text
     )
       throw new Error(
         "classification mutation outcome unknown or conflicting; retain evidence and do not retry",
       );
-    if (review(io.get, checkId, config, opportunity) !== proof)
+    if ((yield* check()) !== proof)
       throw new Error("review changed after persistence; classification cannot admit");
   } catch {
     throw new CoordinatorRemoteError(
@@ -605,18 +655,22 @@ export function readReviewedClassificationForRequest(
   rawConfig: unknown,
   rawRequest: unknown,
 ) {
+  return readWithLegacyApi(api, reviewedClassificationForRequest(rawConfig, rawRequest));
+}
+
+function* reviewedClassificationForRequest(rawConfig: unknown, rawRequest: unknown) {
   const config = configuration(rawConfig);
   const request = inspectReleaseReviewRequest(rawRequest);
   if (!request) throw new Error("classification extraction requires an exact neutral request");
-  const io = session(api);
-  const before = io.ref(classificationBranch);
-  const text = io.contents(
+  const io = yield* controlSession();
+  const before = yield* io.ref(classificationBranch);
+  const text = yield* io.contents(
     before,
     `classification/${request.source_commit}/${request.change_set_sha256}.json`,
     true,
   );
   if (text === null) {
-    if (io.ref(classificationBranch) !== before)
+    if ((yield* io.ref(classificationBranch)) !== before)
       throw new Error("classification ref changed while path was absent");
     return { status: "missing" as const, commit: before, authority: "none" as const };
   }
@@ -633,8 +687,8 @@ export function readReviewedClassificationForRequest(
     opportunity.classification.change_set_scope !== request.change_set_scope
   )
     throw new Error("persisted classification differs from exact neutral request");
-  const verified = readReviewedClassification(api, config, opportunity);
-  if (verified.commit !== before || io.ref(classificationBranch) !== before)
+  const verified = yield* reviewedClassification(config, opportunity);
+  if (verified.commit !== before || (yield* io.ref(classificationBranch)) !== before)
     throw new Error("request classification changed during independent reauthentication");
   return { ...verified, status: "reviewed" as const };
 }
@@ -713,6 +767,7 @@ function* ratifiedCapacityConfiguration(guard: () => void) {
 
 type ControlSdkOptions = {
   token: string;
+  checkToken?: string;
   deadline: number;
   guard: () => void;
   requestTimeoutMs?: number;
@@ -734,26 +789,54 @@ export function createFixedControlReadAllowance() {
   };
 }
 
+type ClassificationSdkWriter = {
+  token: string;
+  beforeMutation: () => Promise<void>;
+  requireFresh: () => void;
+};
+
 async function controlSdkReader(
   options: ControlSdkOptions,
   reserve?: ReturnType<typeof createFixedControlReadAllowance>,
+  writer?: ClassificationSdkWriter,
 ) {
-  const { token, guard, fetch, requestTimeoutMs } = options;
+  const { token, checkToken, guard, fetch, requestTimeoutMs } = options;
   const { createGitHubClient } = await import("./github-client.mts");
-  const client = await createGitHubClient({
-    credential: { kind: "explicit", token },
-    deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
-    maxBytes: options.maxBytes ?? 2 * 1024 ** 2,
-    allowRequest() {
-      guard();
-      return true;
-    },
-    ...(fetch ? { fetch } : {}),
-    ...(reserve ? { reserve } : {}),
-    ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
-  });
+  const createReader = (readerToken: string) =>
+    createGitHubClient({
+      credential: { kind: "explicit", token: readerToken },
+      deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
+      maxBytes: options.maxBytes ?? 2 * 1024 ** 2,
+      allowRequest() {
+        guard();
+        return true;
+      },
+      ...(fetch ? { fetch } : {}),
+      ...(reserve ? { reserve } : {}),
+      ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
+    });
+  const client = await createReader(token);
+  const checks =
+    checkToken === undefined || checkToken === token ? client : await createReader(checkToken);
+  const writerClient =
+    writer === undefined
+      ? undefined
+      : await createGitHubClient({
+          credential: { kind: "explicit", token: writer.token },
+          deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
+          maxBytes: 2 * 1024 ** 2,
+          allowRequest(method, url) {
+            guard();
+            writer.requireFresh();
+            return method === "POST" && url.href === "https://api.github.com/graphql";
+          },
+          ...(fetch ? { fetch } : {}),
+          ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
+        });
   const once = () => ({ portcove: { replay: "once" as const, attempts: 0 } });
-  const read = async (effect: ControlRead): Promise<ControlResponse> => {
+  const read = async (
+    effect: Extract<ControlRead, { kind: "rest" | "ref" }>,
+  ): Promise<ControlResponse> => {
     if (effect.kind === "ref") {
       const response = await client.request("POST /graphql", {
         query: releaseControlRefQuery,
@@ -770,17 +853,56 @@ async function controlSdkReader(
         throw new Error("maintenance control GraphQL response unavailable");
       return { status: response.status, body: envelope.data };
     }
-    const response = await client.request(`GET /repos/${repository}${effect.suffix}`, {
-      request: once(),
-    });
-    return { status: response.status, body: response.data };
+    try {
+      const reader = effect.suffix.startsWith("/check-runs/") ? checks : client;
+      const response = await reader.request(`GET /repos/${repository}${effect.suffix}`, {
+        request: once(),
+      });
+      return { status: response.status, body: response.data };
+    } catch (error) {
+      if (!(effect.missing && error instanceof GitHubApiError && error.status === 404)) throw error;
+      return { status: 404, body: null };
+    }
   };
   return async <T,>(sequence: ControlReads<T>) => {
     let step = sequence.next();
     while (!step.done) {
-      guard();
-      const result = await read(step.value);
-      guard();
+      const effect = step.value;
+      if (effect.kind === "before-classification-write") {
+        if (!writer) throw new Error("fresh protected caller guard unavailable");
+        await writer.beforeMutation();
+        step = sequence.next({ status: 200, body: null });
+        continue;
+      }
+      let result: ControlResponse;
+      let dispatched = false;
+      try {
+        guard();
+        if (effect.kind === "classification-write") {
+          if (!writerClient) throw new Error("fixed classification writer unavailable");
+          const policy: GitHubRequestPolicy = {
+            replay: "once",
+            attempts: 0,
+            observe(observation) {
+              dispatched = observation.dispatched;
+            },
+          };
+          const response = await writerClient.request("POST /graphql", {
+            query: releaseClassificationCommitMutation,
+            variables: effect.variables,
+            request: { portcove: policy },
+          });
+          const envelope: unknown = response.data;
+          result = { status: response.status, body: isRecord(envelope) ? envelope.data : null };
+        } else {
+          result = await read(effect);
+        }
+        guard();
+      } catch (error) {
+        if (effect.kind === "classification-write" && !dispatched) throw error;
+        step = sequence.throw(error);
+        continue;
+      }
       step = sequence.next(result);
     }
     return step.value;
@@ -818,4 +940,24 @@ export async function readIndependentCatalogSemanticReviewWithSdk(
 ) {
   const run = await controlSdkReader(options, reserve);
   return run(catalogSemanticReview(rawConfig, rawOpportunity, checkId));
+}
+
+export async function readReviewedClassificationForRequestWithSdk(
+  options: ControlSdkOptions,
+  config: unknown,
+  request: unknown,
+) {
+  const run = await controlSdkReader(options);
+  return run(reviewedClassificationForRequest(config, request));
+}
+
+export async function persistReviewedClassificationWithSdk(
+  options: ControlSdkOptions,
+  writer: ClassificationSdkWriter,
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+) {
+  const run = await controlSdkReader(options, undefined, writer);
+  return run(persistClassification(rawConfig, rawOpportunity, checkId));
 }
