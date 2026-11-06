@@ -263,7 +263,7 @@ export async function runMetadataSitePublicationController(
       };
       let controls = await fresh();
       const checkpointControls = async () => {
-        const observed = await controls.readSiteMaintenance();
+        const observed = await controls.readSdkMaintenance();
         if (observed.pause.publication_paused || !observed.resource_policy_matches_controller)
           throw new Error("metadata publication held by current maintenance controls");
         remaining(deadline);
@@ -275,7 +275,7 @@ export async function runMetadataSitePublicationController(
         const current = inspectMetadataSiteReservation(state.input, tuf.context.manifest);
         if (current.candidate_sha256 !== selected.candidate_sha256)
           throw new Error("metadata renewal cannot change the active release candidate");
-        const observed = await controls.readSiteMaintenance();
+        const observed = await controls.readSdkMaintenance();
         if (observed.pause.publication_paused || !observed.resource_policy_matches_controller)
           throw new Error("metadata publication held by current maintenance controls");
         remaining(deadline);

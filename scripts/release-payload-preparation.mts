@@ -703,7 +703,7 @@ export async function runPayloadSigningController(
           round,
           { deadline, controlReader: "payload" },
         );
-        const current = await source.readPayloadControls(context.facts.opportunity);
+        const current = await source.readSdkApplicationControls(context.facts.opportunity);
         if (
           current.pause.publication_paused ||
           !current.resource_policy_matches_controller ||

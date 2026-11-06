@@ -88,7 +88,7 @@ export async function runPayloadSigningAndContextController(
     );
     if (source.evidence_scope !== "github.com")
       throw new Error("actual payload context controls required");
-    const current = await source.readPayloadControls(context.opportunity);
+    const current = await source.readSdkApplicationControls(context.opportunity);
     if (
       current.pause.publication_paused ||
       !current.resource_policy_matches_controller ||

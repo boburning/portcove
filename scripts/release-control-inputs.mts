@@ -724,7 +724,7 @@ async function controlSdkReader(options: ControlSdkOptions, maximumDispatches?: 
       : {
           reserve() {
             if (dispatches >= maximumDispatches)
-              throw new Error("payload control read bound exhausted");
+              throw new Error("fixed control read bound exhausted");
             dispatches++;
             return {
               consumeBytes() {},
@@ -770,14 +770,17 @@ async function controlSdkReader(options: ControlSdkOptions, maximumDispatches?: 
   };
 }
 
-export async function readMaintenanceControlsWithSdk(options: ControlSdkOptions) {
-  const run = await controlSdkReader(options);
+export async function readMaintenanceControlsWithSdk(
+  options: ControlSdkOptions,
+  maximumDispatches?: 32,
+) {
+  const run = await controlSdkReader(options, maximumDispatches);
   const pause = await run(publicationPause());
   const capacity = await run(ratifiedCapacityConfiguration(options.guard));
   return { pause, capacity };
 }
 
-export async function readPayloadControlsWithSdk(
+export async function readApplicationControlsWithSdk(
   options: ControlSdkOptions,
   configuration: unknown,
   opportunity: unknown,

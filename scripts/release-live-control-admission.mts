@@ -25,7 +25,7 @@ import {
   inspectCatalogReviewProducerConfiguration,
   readPublicationPause,
   readMaintenanceControlsWithSdk,
-  readPayloadControlsWithSdk,
+  readApplicationControlsWithSdk,
   readRatifiedCapacityConfiguration,
   readReviewedClassification,
   readReviewedClassificationForRequest,
@@ -93,6 +93,7 @@ function json(raw: string | undefined, maximum: number) {
   return JSON.parse(raw) as unknown;
 }
 
+type SdkControlReader = "site-maintenance" | "payload" | "tuf-maintenance" | "tuf-application";
 type ReaderIdentityOptions = Parameters<typeof verifyReleaseControlReaderJobIdentity>[3];
 type ReaderOptions = {
   phase?: ReleaseControlPhase;
@@ -195,7 +196,7 @@ async function authenticateControlSource(
     identity?: ReaderIdentityOptions;
     requestToken?: typeof requestAssemblerToken;
     observerApi?: GitHubRestReader;
-    controlReader?: "site-maintenance" | "payload";
+    controlReader?: SdkControlReader;
     observerTransport?: Pick<NonNullable<Parameters<typeof createGitHubRunner>[0]>, "spawn">;
     now?: () => number;
     observedArtifact?: ObservedControlArtifact;
@@ -217,10 +218,14 @@ async function authenticateControlSource(
   const controlReader = options.controlReader;
   const sdkReaderToken = controlReader === undefined ? undefined : fixedReleaseReaderToken(env);
   const direct = readOnlyReleaseChildEnvironment() !== undefined;
+  const matchesSdkRole =
+    controlReader === "site-maintenance"
+      ? phase === "site-publication"
+      : purpose === "application" &&
+        (controlReader === "payload" ? phase === "payload" : phase.startsWith("tuf-"));
   if (
     sdkReaderToken !== undefined &&
-    ((controlReader === "site-maintenance" ? phase !== "site-publication" : phase !== "payload") ||
-      (controlReader === "payload" && purpose !== "application") ||
+    (!matchesSdkRole ||
       phaseDeadline === undefined ||
       options.observerApi ||
       options.observerTransport)
@@ -591,21 +596,19 @@ async function authenticateControlSource(
         throw new Error("observer job changed during maintenance acquisition");
       return maintenanceFacts(protection, pause, capacity);
     },
-    async readSiteMaintenance() {
+    async readSdkMaintenance() {
       if (
-        controlReader !== "site-maintenance" ||
+        (controlReader !== "site-maintenance" && controlReader !== "tuf-maintenance") ||
         sdkReaderToken === undefined ||
         sdkDeadline === undefined ||
         !readSdkProducer
       )
-        throw new Error("actual site maintenance reader unavailable");
+        throw new Error("actual scoped maintenance reader unavailable");
       const protection = beginMaintenance();
-      const { pause, capacity } = await readMaintenanceControlsWithSdk({
-        token: sdkReaderToken,
-        deadline: sdkDeadline,
-        guard,
-        fetch: fixedFetch,
-      });
+      const { pause, capacity } = await readMaintenanceControlsWithSdk(
+        { token: sdkReaderToken, deadline: sdkDeadline, guard, fetch: fixedFetch },
+        controlReader === "tuf-maintenance" ? 32 : undefined,
+      );
       guard();
       if ((await readSdkProducer()) !== producerIdentity)
         throw new Error("observer job changed during maintenance acquisition");
@@ -687,16 +690,16 @@ async function authenticateControlSource(
         throw new Error("observer job changed during source acquisition");
       return applicationFacts(protection, classification, pause, capacity);
     },
-    async readPayloadControls(opportunity: unknown) {
+    async readSdkApplicationControls(opportunity: unknown) {
       if (
-        controlReader !== "payload" ||
+        (controlReader !== "payload" && controlReader !== "tuf-application") ||
         sdkReaderToken === undefined ||
         sdkDeadline === undefined ||
         !readSdkProducer
       )
-        throw new Error("actual payload controls reader unavailable");
+        throw new Error("actual scoped application reader unavailable");
       const protection = guard();
-      const { classification, pause, capacity } = await readPayloadControlsWithSdk(
+      const { classification, pause, capacity } = await readApplicationControlsWithSdk(
         { token: sdkReaderToken, deadline: sdkDeadline, guard, fetch: fixedFetch },
         config,
         opportunity,
@@ -738,7 +741,7 @@ async function authenticateControlRoundForPurpose(
   factsSha256: string,
   rawPhase: unknown,
   index: number,
-  options: { deadline?: number; controlReader?: "site-maintenance" | "payload" } = {},
+  options: { deadline?: number; controlReader?: SdkControlReader } = {},
 ) {
   const { deadline, controlReader } = options;
   const phase = inspectReleaseControlPhase(rawPhase);
@@ -789,7 +792,7 @@ export function authenticateReleaseControlRound(
   factsSha256: string,
   rawPhase: unknown,
   index: number,
-  options: { deadline?: number; controlReader?: "site-maintenance" | "payload" } = {},
+  options: { deadline?: number; controlReader?: SdkControlReader } = {},
 ) {
   return authenticateControlRoundForPurpose(
     "application",
@@ -805,7 +808,7 @@ export function authenticateCatalogReleaseControlRound(
   factsSha256: string,
   rawPhase: unknown,
   index: number,
-  options: { deadline?: number; controlReader?: "site-maintenance" | "payload" } = {},
+  options: { deadline?: number; controlReader?: SdkControlReader } = {},
 ) {
   return authenticateControlRoundForPurpose(
     "catalog-publication",

@@ -271,7 +271,7 @@ export async function runCatalogSitePublicationController(
       let controls = await fresh();
       const checkpointControls = async () => {
         remaining(deadline);
-        const facts = await controls.readSiteMaintenance();
+        const facts = await controls.readSdkMaintenance();
         if (
           facts.purpose !== "catalog-site-publication-controls" ||
           facts.pause.publication_paused ||
@@ -288,7 +288,7 @@ export async function runCatalogSitePublicationController(
           ? requireOwnedCapacityPendingBoundary(executor, pendingReceipt)
           : undefined;
         inspectCatalogSiteReservation(snapshot, checkpoint, actual.descriptor, pending);
-        const facts = await controls.readSiteMaintenance();
+        const facts = await controls.readSdkMaintenance();
         if (
           facts.purpose !== "catalog-site-publication-controls" ||
           facts.pause.publication_paused ||

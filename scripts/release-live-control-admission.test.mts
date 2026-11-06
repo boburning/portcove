@@ -1033,27 +1033,34 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
   return { control, runtime };
 }
 
-for (const controlReader of ["site-maintenance", "payload"] as const)
+for (const controlReader of [
+  "site-maintenance",
+  "payload",
+  "tuf-maintenance",
+  "tuf-application",
+] as const)
   void test(`fixed ${controlReader} joins locked SDK ref, file and original observer reads`, async (t) => {
+    const classification = controlReader === "payload" || controlReader === "tuf-application";
+    const phase =
+      controlReader === "site-maintenance"
+        ? "site-publication"
+        : controlReader === "payload"
+          ? "payload"
+          : "tuf-preview";
     const control = releaseControlInputsFixture(
       capacityDocumentFixture(),
       opportunity,
       config,
       true,
     );
-    if (controlReader === "payload")
+    if (classification)
       persistReviewedClassification(control.api, config, opportunity, 303, () => {});
-    const runtime = liveControlRuntimeFixture(
-      protectionFixture(control.head()),
-      config,
-      controlReader === "payload" ? "payload" : "site-publication",
-    );
+    const runtime = liveControlRuntimeFixture(protectionFixture(control.head()), config, phase);
     const { observerApi, ...options } = runtime.options;
     const before = await runtime.create();
-    const expected =
-      controlReader === "payload"
-        ? before.read(control.api, opportunity)
-        : before.readMaintenance(control.api);
+    const expected = classification
+      ? before.read(control.api, opportunity)
+      : before.readMaintenance(control.api);
     const priorMutations = control.mutations();
     const base = "https://api.github.com";
     const reads: string[] = [];
@@ -1076,8 +1083,7 @@ for (const controlReader of ["site-maintenance", "payload"] as const)
           const { query, variables } = wire;
           assert.ok(
             variables.ref === "refs/heads/portcove-release-pause" ||
-              (controlReader === "payload" &&
-                variables.ref === "refs/heads/portcove-release-inputs"),
+              (classification && variables.ref === "refs/heads/portcove-release-inputs"),
           );
           return Response.json({ data: control.api.graphql(query, variables).data });
         }
@@ -1087,10 +1093,7 @@ for (const controlReader of ["site-maintenance", "payload"] as const)
           const result = observerApi.request("GET", endpoint.slice(1));
           return Response.json(result.body, { status: result.status ?? 500 });
         }
-        if (
-          controlReader === "payload" &&
-          endpoint === "/repos/boburning/portcove/check-runs/303"
-        ) {
+        if (classification && endpoint === "/repos/boburning/portcove/check-runs/303") {
           const check = control.api.request("GET", endpoint.slice(1));
           return Response.json(check.body, { status: check.status ?? 500 });
         }
@@ -1108,20 +1111,18 @@ for (const controlReader of ["site-maintenance", "payload"] as const)
       { ...options, deadline: performance.now() + 5000, controlReader },
     );
     const read = () =>
-      controlReader === "payload"
-        ? source.readPayloadControls(opportunity)
-        : source.readSiteMaintenance();
+      classification ? source.readSdkApplicationControls(opportunity) : source.readSdkMaintenance();
     const observed = await read();
     assert.deepEqual(observed.pause, expected.pause);
     assert.deepEqual(observed.capacity_source, expected.capacity_source);
     assert.equal(observed.facts_sha256, expected.facts_sha256);
     assert.equal(
       reads.filter((endpoint) => endpoint === "/graphql").length,
-      controlReader === "payload" ? 6 : 4,
+      classification ? 6 : 4,
     );
     assert.equal(
       reads.filter((endpoint) => endpoint === "/repos/boburning/portcove").length,
-      controlReader === "payload" ? 3 : 2,
+      classification ? 3 : 2,
     );
     assert.match(reads[0] ?? "", /\/actions\/jobs\//u);
     assert.equal(reads.at(-1), reads[0]);
