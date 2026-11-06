@@ -1021,6 +1021,34 @@ void test("the configured source gets an early bounded turn without starving unt
   assert.ok(next.report.requests <= 2);
 });
 
+void test("the configured first turn admits a page set while other sources retain capacity", async () => {
+  const h = harness(8);
+  for (const name of ["extra-one", "extra-two"]) {
+    h.input.ports.push({
+      id: name,
+      channels: ["stable"],
+      release: { repository: `owner/${name}` },
+    });
+  }
+  const options = {
+    ...h.options,
+    config: validateObserverConfig({
+      ...h.options.config,
+      port_id: "stable-port",
+      repository: "owner/shared",
+      repository_id: 7,
+    }),
+    prioritizeConfigured: true,
+  };
+  const result = await advanceCatalogObservations(h.input, null, options);
+  assert.equal(
+    h.network.findIndex((request) => !request.includes("owner/shared")),
+    4,
+  );
+  assert.ok(result.report.attempted_source_keys.length > 1);
+  assert.ok(result.report.requests <= 8);
+});
+
 void test("provider reserve stops work and later quota recovery resumes exact retained pages", async () => {
   const h = harness();
   h.setQuota(0);

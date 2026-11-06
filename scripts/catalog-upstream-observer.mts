@@ -687,6 +687,7 @@ export async function advanceCatalogObservations(
       !freshOfflineCandidate
     )
       continue;
+    const firstConfiguredTurn = index === 0 && configuredTurn(source);
     operationBytes = 0;
     const progress = state.sources[source.key] ?? {
       provider: source.provider ?? "github",
@@ -1041,9 +1042,17 @@ export async function advanceCatalogObservations(
         return policies[source.ports.findIndex((port) => port.id === config.port_id)];
       };
       let sourceRequests = 0;
+      const available = capacity();
+      const fairShare = Math.floor(available / (pending.length - index));
+      // Give the configured source room to collect or revalidate a page set
+      // on its first turn, while reserving at least half the estimated capacity
+      // for other sources. Every request still passes the shared admission.
+      const collectionShare = firstConfiguredTurn
+        ? Math.min(template.budget.pages_per_collection, Math.floor(available / 2))
+        : 0;
       const quantum = Math.max(
         1,
-        Math.min(template.budget.requests, Math.floor(capacity() / (pending.length - index))),
+        Math.min(template.budget.requests, Math.max(fairShare, collectionShare)),
       );
       const selectAssetReleases = async (headers: ProviderObservation) => {
         if (
