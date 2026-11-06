@@ -189,7 +189,7 @@ overrides:
 patchedDependencies:
   '@sigstore/sign@5.0.0': fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713
   '@tauri-apps/api@2.12.4': a3d8fac0475d7cd95ac99b94014545bbd4a9e24155c5077fa018c6ccc5f7978a
-  i18next-cli@1.84.0: 8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f
+  i18next-cli@>=1.82.4 <2: 8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f
 
 importers:
 
