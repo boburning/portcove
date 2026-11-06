@@ -1725,6 +1725,34 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
   }
 });
 
+void test("metadata jobs explicitly require each direct producer despite optional skipped ancestors", async () => {
+  const workflow: unknown = parse(
+    await readFile(".github/workflows/application-release.yml", "utf8"),
+  );
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs));
+  for (const name of [
+    "protection_metadata",
+    "releases",
+    "preview",
+    "stable",
+    "protection_snapshot",
+    "snapshot",
+    "protection_timestamp",
+    "timestamp",
+    "assemble",
+    "draft_recovery",
+  ]) {
+    const job: unknown = workflow.jobs[name];
+    assert.ok(isRecord(job) && Array.isArray(job.needs) && typeof job.if === "string", name);
+    assert.ok(job.if.includes("always() && !cancelled()"), name);
+    assert.ok(job.if.includes("vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true'"), name);
+    for (const dependency of job.needs as unknown[]) {
+      assert.ok(typeof dependency === "string");
+      assert.ok(job.if.includes("needs." + dependency + ".result == 'success'"), name);
+    }
+  }
+});
+
 void test("metadata renewal traverses existing protected metadata jobs while excluding payload work and retaining its bounded publisher", async () => {
   const workflow: unknown = parse(
     await readFile(".github/workflows/application-release.yml", "utf8"),

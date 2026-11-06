@@ -747,6 +747,7 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
   });
   let drift = false;
   let currentSourceDone = false;
+  let unexpectedContextOnlyJob = false;
   const charged = new Set<number>();
   t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
     assert.equal(init.method, "GET");
@@ -795,6 +796,17 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
           observedJob("source", 0, 26, "success"),
           observedJob("tools", 26, 154, "success"),
           observedJob("context / execute", 180, 21),
+        ]),
+      );
+    if (id === 42301931007)
+      return Response.json(
+        jobs([
+          observedJob("source", 0, 28, "success"),
+          observedJob("tools", 28, 110, "success"),
+          observedJob("context / execute", 138, 24, "success"),
+          ...(unexpectedContextOnlyJob
+            ? [observedJob("releases / execute", 162, 1, "success")]
+            : []),
         ]),
       );
     if (row.head_branch === tag(13)) return Response.json(jobs([observedJob("tools", 0, 6000)]));
@@ -891,6 +903,35 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
     () => readApplicationJobBudget(known, "metadata-bootstrap", "ordinary", overBudget),
     /all actual opportunity executions plus remaining tail exceed application140/u,
   );
+  runs[4] = {
+    id: 42301931007,
+    head_sha: "9754d288e74eae61915086522d9aa49adbd59d55",
+    head_branch: tag(13),
+    status: "completed",
+    conclusion: "success",
+    run_attempt: 1,
+  };
+  const reconciled = {
+    ...overBudget,
+    custody: inspectApplicationRunCustody({
+      ...overBudget.custody,
+      runs: runs.slice(1).map((row) => ({
+        id: String(row.id),
+        control_commit: row.head_sha,
+        control_ref: "refs/tags/" + row.head_branch,
+      })),
+    }),
+  };
+  const inspectReconciled = () =>
+    readApplicationJobBudget(
+      reconciled.custody.runs.map((row) => row.id),
+      "metadata-bootstrap",
+      "ordinary",
+      reconciled,
+    );
+  assert.equal((await inspectReconciled()).actual_milliseconds, 593_000);
+  unexpectedContextOnlyJob = true;
+  await assert.rejects(inspectReconciled, /releases \/ execute/u);
 });
 
 void test("budgeted bootstrap binds every successor to complete failed history without a run-count ceiling", () => {
