@@ -2389,13 +2389,13 @@ void test("two fixed worker process entries on one runner each create a private 
   const parent = await mkdtemp(path.join(tmpdir(), "application-sequential-entry-"));
   try {
     for (let index = 0; index < 2; index++) {
-      // Unknown operation reaches the actual private CLI scope without invoking
-      // execution, providers, artifacts or keys. Both entries must get that far.
+      // Both commands reach the private reader scope and refuse before any
+      // provider request. The observer may log its fixed stage only.
       const result = spawnSync(
         process.execPath,
         [
           fileURLToPath(new URL("./application-release-private.mts", import.meta.url)),
-          "inert-invalid-operation",
+          index === 0 ? "observe" : "inert-invalid-operation",
         ],
         {
           cwd: fileURLToPath(new URL("../", import.meta.url)),
@@ -2410,6 +2410,11 @@ void test("two fixed worker process entries on one runner each create a private 
       );
       assert.equal(result.status, 1);
       assert.match(result.stderr, /Fixed application role failed/u);
+      if (index === 0)
+        assert.equal(
+          result.stderr.trim(),
+          "Application protection observation refused at source.\nFixed application role failed; private subprocess output is not retained.",
+        );
     }
     const entries = await readdir(parent);
     assert.equal(entries.length, 2);

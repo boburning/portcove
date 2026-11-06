@@ -1,3 +1,4 @@
+import { GitHubApiError } from "./github-operation.mts";
 import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
@@ -33,7 +34,7 @@ import {
 } from "./release-semantic-disposition-reader.mts";
 import {
   observeReleaseInputProtections,
-  createProtectionObservationReader,
+  createApplicationProtectionObservationReader,
   requireApplicationReleaseProtectionDigest,
 } from "./release-input-protections.mts";
 import {
@@ -2266,47 +2267,72 @@ async function verifyPublicWindowsInstalled() {
 }
 
 async function observe() {
-  const current = execution();
-  const source = await readNativeApplicationSource();
-  await guard(source, false);
-  // This process alone has the existing Administration-write App token. The
-  // collector issues GETs only; no signing or publication key is present here.
-  assert.equal(process.env.PORTCOVE_OBSERVER_INSTALLATION_ID, "177226788");
-  const phase = process.env.PORTCOVE_PROTECTION_PHASE ?? "";
-  assert.ok(
-    [
-      "payload",
-      "metadata",
-      "snapshot",
-      "timestamp",
-      "draft-recovery",
-      "publication",
-      "feed",
-    ].includes(phase),
-  );
-  const token = process.env.PORTCOVE_OBSERVER_TOKEN;
-  assert.ok(token && !/[\r\n\0]/u.test(token) && token.length <= 16384);
-  const observer = await createProtectionObservationReader({
-    token,
-    deadline: performance.now() + 120000,
-    maxBytes: 4 * 1024 ** 2,
-    requestTimeoutMs: 30000,
-    guard: () => assertTrustedDirectNode("fixed application protection observer"),
-  });
-  const observation = await observeReleaseInputProtections(observer, { releasePublication: true });
-  assert.equal(
-    requireApplicationReleaseProtectionDigest(observation, source.purpose === "metadata-bootstrap"),
-    process.env.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256,
-  );
-  await writeApplicationJson("work/application-protection/protection.json", {
-    schema_version: 1,
-    phase,
-    source: current.source,
-    run_id: current.run_id,
-    attempt: current.run_attempt,
-    observation,
-  });
-  await applicationOutput("attempt", current.run_attempt);
+  let stage = "source";
+  try {
+    const current = execution();
+    const source = await readNativeApplicationSource();
+    stage = "release-guard";
+    await guard(source, false);
+    // This process alone has the existing Administration-write App token. The
+    // collector issues GETs only; no signing or publication key is present here.
+    assert.equal(process.env.PORTCOVE_OBSERVER_INSTALLATION_ID, "177226788");
+    const phase = process.env.PORTCOVE_PROTECTION_PHASE ?? "";
+    assert.ok(
+      [
+        "payload",
+        "metadata",
+        "snapshot",
+        "timestamp",
+        "draft-recovery",
+        "publication",
+        "feed",
+      ].includes(phase),
+    );
+    const token = process.env.PORTCOVE_OBSERVER_TOKEN;
+    assert.ok(token && !/[\r\n\0]/u.test(token) && token.length <= 16384);
+    stage = "reader-setup";
+    const observer = await createApplicationProtectionObservationReader({
+      refToken: fixedReleaseReaderToken(),
+      token,
+      deadline: performance.now() + 120000,
+      maxBytes: 4 * 1024 ** 2,
+      requestTimeoutMs: 30000,
+      guard: () => assertTrustedDirectNode("fixed application protection observer"),
+    });
+    stage = "inventory-read";
+    const observation = await observeReleaseInputProtections(observer, {
+      releasePublication: true,
+    });
+    stage = "protection-digest";
+    assert.equal(
+      requireApplicationReleaseProtectionDigest(
+        observation,
+        source.purpose === "metadata-bootstrap",
+      ),
+      process.env.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256,
+    );
+    stage = "receipt-write";
+    await writeApplicationJson("work/application-protection/protection.json", {
+      schema_version: 1,
+      phase,
+      source: current.source,
+      run_id: current.run_id,
+      attempt: current.run_attempt,
+      observation,
+    });
+    await applicationOutput("attempt", current.run_attempt);
+  } catch (error) {
+    const status =
+      error instanceof GitHubApiError &&
+      typeof error.status === "number" &&
+      Number.isInteger(error.status) &&
+      error.status >= 400 &&
+      error.status <= 599
+        ? ` (HTTP ${error.status})`
+        : "";
+    console.error(`Application protection observation refused at ${stage}${status}.`);
+    throw error;
+  }
 }
 
 export async function receiveNativePackages(

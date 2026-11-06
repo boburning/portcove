@@ -23,6 +23,7 @@ import {
 import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
   observeReleaseInputProtections,
+  createApplicationProtectionObservationReader,
   createProtectionObservationReader,
   requireReleaseInputWriterPolicy,
   requireApplicationReleaseProtectionDigest,
@@ -255,6 +256,59 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
       } else assert.throws(() => requireReleaseImmutabilityPolicy(result));
     }
   }
+});
+
+void test("application publication reads both protection inventories while isolating Contents ref credentials", async (t) => {
+  const rules = Array.from({ length: 34 }, (_, index) => ({
+    id: index + 1,
+    source_type: "Repository",
+    source: "boburning/portcove",
+    enforcement: "active",
+    conditions: {},
+    bypass_actors: [],
+    rules: [],
+  }));
+  const counts = { ref: 0, protection: 0 };
+  t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
+    assert.equal(init.method, "GET");
+    assert.equal(typeof input, "string");
+    const url = new URL(String(input));
+    assert.equal(url.origin, "https://api.github.com");
+    const endpoint = url.pathname;
+    const branch =
+      /^\/repos\/boburning\/portcove\/git\/ref\/heads\/(portcove-release-inputs|portcove-release-pause)$/u.exec(
+        endpoint,
+      )?.[1];
+    const credential = new Headers(init.headers).get("authorization");
+    if (branch) {
+      assert.equal(credential, "token inert-contents-reader");
+      counts.ref++;
+      return Response.json({
+        ref: "refs/heads/" + branch,
+        object: { type: "commit", sha: "a".repeat(40) },
+      });
+    }
+    assert.equal(credential, "token inert-protection-reader");
+    counts.protection++;
+    if (endpoint.endsWith("/portcove"))
+      return Response.json({ id: 1354613114, full_name: "boburning/portcove" });
+    if (endpoint.endsWith("/rulesets")) return Response.json(rules);
+    const rule = /\/rulesets\/(\d+)$/u.exec(endpoint)?.[1];
+    if (rule) return Response.json(rules[Number(rule) - 1]);
+    if (endpoint.includes("/rules/branches/")) return Response.json([]);
+    assert.ok(endpoint.endsWith("/immutable-releases"));
+    return Response.json({ enabled: true, enforced_by_owner: false });
+  });
+  const read = await createApplicationProtectionObservationReader({
+    token: "inert-protection-reader",
+    refToken: "inert-contents-reader",
+    deadline: performance.now() + 10_000,
+    maxBytes: 4 * 1024 ** 2,
+    guard() {},
+  });
+  const result = await observeReleaseInputProtections(read, { releasePublication: true });
+  assert.equal(result.inventory.rulesets.length, 34);
+  assert.deepEqual(counts, { ref: 4, protection: 77 });
 });
 
 void test("release immutability requires fresh complete isolated setting, not an imported enabled flag", () => {
