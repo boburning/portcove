@@ -940,6 +940,127 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
   );
 });
 
+void test("actual neutral review entry awaits fixed SDK source and complete inventory before unchanged decision", async (t) => {
+  const sourceUrl = new URL("./release-coordinator-driver.mts", import.meta.url);
+  const source = await readFile(sourceUrl, "utf8");
+  const start = source.indexOf("async function requestTrustedSemanticReviewAt(");
+  const end = source.indexOf("/** Resolve the exact outstanding request", start);
+  assert.ok(start > 0 && end > start);
+  const commit = "a".repeat(40);
+  const tree = "b".repeat(40);
+  const calls: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-neutral-source");
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      calls.push(url.pathname);
+      if (url.pathname.endsWith("/ref/heads/main"))
+        return Response.json({ ref: "refs/heads/main", object: { type: "commit", sha: commit } });
+      assert.ok(url.pathname.endsWith(`/commits/${commit}`));
+      return Response.json({ tree: { sha: tree } });
+    },
+  );
+  const tags = [{ name: "v1.2.3" }];
+  const releases = [{ id: 7 }];
+  const deadline = performance.now() + 15000;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const run = runInNewContext(
+    stripTypeScriptTypes(
+      source.slice(start, end).replace('await import("./github-client.mts")', "sdkModule"),
+    ) + "; requestTrustedSemanticReviewAt;",
+    {
+      structuredClone,
+      project: "/test",
+      assertOwnedUnlinkedPath: async () => {},
+      mkdtemp: async () => "/test/neutral",
+      path,
+      performance,
+      inspectCoordinatorRemoteNamespace: () => "fixed",
+      recoverRemoteCoordinator: async () => ({ checkpoint: commit, input: {} }),
+      selectCoordinatorPendingContextRecovery: () => null,
+      selectCoordinatorPendingPagesRecovery: () => null,
+      inspectSettledPagesMetadataHandoff: () => null,
+      selectCoordinatorMetadataBootstrap: () => "closed",
+      selectCoordinatorMetadataRenewal: () => "closed",
+      selectCoordinatorCandidateSigningRecovery: () => null,
+      inspectReleaseReviewRequest: () => null,
+      isRecord: (value: unknown) => typeof value === "object" && value !== null,
+      fixedReleaseReaderToken: () => "inert-neutral-source",
+      readOnlyReleaseChildEnvironment: () => ({}),
+      assertTrustedDirectNode() {
+        calls.push("direct");
+      },
+      sdkModule: { createGitHubClient },
+      CoordinatorRemoteError: Error,
+      createPublicationInventoryWithSdk: async (options: {
+        deadline: number;
+        maxBytes: number;
+        currentDeadline(): number;
+      }) => {
+        assert.equal(options.deadline, deadline);
+        assert.equal(options.maxBytes, 16 * 1024 ** 2);
+        assert.ok(options.currentDeadline() < deadline);
+        return {
+          async tags() {
+            calls.push("tags");
+            return tags;
+          },
+          async releases() {
+            calls.push("releases");
+            return releases;
+          },
+          async readAllocations(rows: unknown, namespace: string) {
+            assert.equal(rows, tags);
+            assert.equal(namespace, "fixed");
+            calls.push("allocations");
+            return { allocations: [] };
+          },
+        };
+      },
+      deriveCoordinatorPublication: () => ({ published_versions: ["1.2.3"] }),
+      selectCoordinatorPublicationBaseline: () => ({ release: releases[0], version: "1.2.3" }),
+      peelReleaseReference: () => commit,
+      inspectPublishedApplicationSourceWithSdk: async (
+        options: { requireDirect: boolean; deadline: number },
+        _configuration: unknown,
+        identity: { prepared_tree: string },
+      ) => {
+        assert.equal(options.requireDirect, true);
+        assert.equal(options.deadline, deadline);
+        assert.equal(identity.prepared_tree, tree);
+        calls.push("source-proof");
+        return { source_baseline: { commit } };
+      },
+    },
+  ) as (...args: unknown[]) => Promise<{ decision: string; authority: string }>;
+  const result = await run(
+    "/test",
+    { remote_configuration: {} },
+    {
+      monotonicDeadline: deadline,
+      remaining: () => 2000,
+      check() {},
+    },
+  );
+  assert.equal(result.decision, "unchanged-published-source");
+  assert.equal(result.authority, "none");
+  assert.deepEqual(calls, [
+    "direct",
+    "/repos/boburning/portcove/git/ref/heads/main",
+    "tags",
+    "releases",
+    "allocations",
+    "direct",
+    `/repos/boburning/portcove/git/commits/${commit}`,
+    "source-proof",
+  ]);
+});
+
 void test("actual first bootstrap entry binds the preserved seed before local intent and publishes only through the owned signed session", async () => {
   const text = await readFile(new URL("./release-coordinator-driver.mts", import.meta.url), "utf8");
   const start = text.indexOf("async function prepareTrustedCoordinatorBootstrapAt("),

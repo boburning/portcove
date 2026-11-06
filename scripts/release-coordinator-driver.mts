@@ -41,6 +41,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
+  createPublicationInventoryWithSdk,
   createReleasePublicationReader,
   peelReleaseReference,
 } from "./release-publication-inventory.mts";
@@ -61,7 +62,12 @@ import {
   createCoordinatorJournalApi,
   createPreparedCheckpointObjectApi,
 } from "./release-coordinator-journal-api.mts";
-import { collectReleaseSourceChanges, netTreeDeltaScope } from "./release-source-changes.mts";
+import {
+  collectReleaseSourceChanges,
+  collectReleaseSourceChangesWithSdk,
+  netTreeDeltaScope,
+} from "./release-source-changes.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { hydrateReleasePreparationSource } from "./release-preparation-source.mts";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import {
@@ -3535,12 +3541,50 @@ async function requestTrustedSemanticReviewAt(
         { directory, budget, recovered },
       );
     }
-    const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
-    const mainHead = () => {
-      const response = api.request("GET", "repos/boburning/portcove/git/ref/heads/main");
-      const value = response.body;
+    const token = fixedReleaseReaderToken();
+    const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
+    const guard = () => {
+      budget.check();
+      if (requireDirect) assertTrustedDirectNode("fixed neutral review source");
+    };
+    const sourceOptions = {
+      token,
+      deadline: budget.monotonicDeadline,
+      maxBytes: 16 * 1024 ** 2,
+      requestTimeoutMs: 15000,
+      currentDeadline: () => performance.now() + budget.remaining(15000),
+      guard,
+    };
+    const { createGitHubClient } = await import("./github-client.mts");
+    const client = await createGitHubClient({
+      credential: { kind: "explicit", token },
+      deadline: sourceOptions.deadline,
+      maxBytes: sourceOptions.maxBytes,
+      requestTimeoutMs: sourceOptions.requestTimeoutMs,
+      allowRequest(method, url) {
+        guard();
+        return (
+          method === "GET" &&
+          /^\/repos\/boburning\/portcove\/git\/(?:ref\/heads\/main|commits\/[a-f0-9]{40})$/u.test(
+            url.pathname,
+          ) &&
+          !url.search
+        );
+      },
+    });
+    const readSource = async (route: string): Promise<unknown> => {
+      const response = await client.request(`GET /repos/boburning/portcove/git/${route}`, {
+        request: {
+          portcove: { replay: "once", attempts: 0, deadline: sourceOptions.currentDeadline() },
+        },
+      });
+      budget.check();
+      if (response.status !== 200) throw new Error("fixed neutral review source unavailable");
+      return response.data;
+    };
+    const mainHead = async () => {
+      const value = await readSource("ref/heads/main");
       if (
-        response.status !== 200 ||
         !isRecord(value) ||
         value.ref !== "refs/heads/main" ||
         !isRecord(value.object) ||
@@ -3551,12 +3595,16 @@ async function requestTrustedSemanticReviewAt(
         throw new Error("fixed current main source identity unavailable");
       return value.object.sha;
     };
-    const source = mainHead();
+    const source = await mainHead();
     phase = "complete-publication-baseline-and-source";
-    const inventory = createReleasePublicationReader(api);
-    const tags = inventory.tags();
-    const releases = inventory.releases();
-    const { allocations } = inventory.readAllocations(tags, namespace);
+    const inventory = await createPublicationInventoryWithSdk({
+      ...sourceOptions,
+      beforeDispatch: guard,
+      recheck: async () => budget.check(),
+    });
+    const tags = await inventory.tags();
+    const releases = await inventory.releases();
+    const { allocations } = await inventory.readAllocations(tags, namespace);
     const now = new Date().toISOString();
     const publication = deriveCoordinatorPublication(tags, releases, allocations, now);
     const { release: baselineRelease, version: baseVersion } = selectCoordinatorPublicationBaseline(
@@ -3566,31 +3614,21 @@ async function requestTrustedSemanticReviewAt(
     const baseline = tags.find((ref) => ref.name === `v${baseVersion}`);
     if (!baseline) throw new Error("published baseline tag absent");
     const baselinePrepared = peelReleaseReference(baseline);
-    const publishedCommit = api.request(
-      "GET",
-      `repos/boburning/portcove/git/commits/${baselinePrepared}`,
-    );
+    const publishedCommit = await readSource(`commits/${baselinePrepared}`);
     if (
-      publishedCommit.status !== 200 ||
-      !isRecord(publishedCommit.body) ||
-      !isRecord(publishedCommit.body.tree) ||
-      typeof publishedCommit.body.tree.sha !== "string"
+      !isRecord(publishedCommit) ||
+      !isRecord(publishedCommit.tree) ||
+      typeof publishedCommit.tree.sha !== "string"
     )
       throw new Error("published baseline tree unavailable");
     const sourceProof = await inspectPublishedApplicationSourceWithSdk(
-      {
-        token: fixedReleaseReaderToken(),
-        deadline: budget.monotonicDeadline,
-        requireDirect: readOnlyReleaseChildEnvironment() !== undefined,
-        guard: () => budget.check(),
-        currentDeadline: () => performance.now() + budget.remaining(15000),
-      },
+      { ...sourceOptions, requireDirect },
       selected.remote_configuration,
       {
         id: baselineRelease.id,
         version: baseVersion,
         prepared_commit: baselinePrepared,
-        prepared_tree: publishedCommit.body.tree.sha,
+        prepared_tree: publishedCommit.tree.sha,
       },
     );
     const base = sourceProof.source_baseline.commit;
@@ -3603,10 +3641,8 @@ async function requestTrustedSemanticReviewAt(
         authority: "none",
       };
     }
-    const sourceResponse = api.request("GET", `repos/boburning/portcove/git/commits/${source}`);
-    if (sourceResponse.status !== 200) throw new Error("current main raw Git identity unavailable");
-    const sourceObject = inspectRemoteCommitObject(sourceResponse.body, source);
-    const changes = collectReleaseSourceChanges(api, {
+    const sourceObject = inspectRemoteCommitObject(await readSource(`commits/${source}`), source);
+    const changes = await collectReleaseSourceChangesWithSdk(sourceOptions, {
       base_commit: base,
       source_commit: source,
       source_tree: sourceObject.tree,
@@ -3652,6 +3688,7 @@ async function requestTrustedSemanticReviewAt(
       deadline: budget.monotonicDeadline,
       observedArtifact: artifact,
     });
+    const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
     const observed = controls.readMaintenance(api);
     if (
       !observed.resource_policy_matches_controller ||
@@ -3693,12 +3730,12 @@ async function requestTrustedSemanticReviewAt(
       transport: journalTransport,
     });
     if (
-      mainHead() !== source ||
+      (await mainHead()) !== source ||
       remote.checkpoint !== checkpoint ||
       fresh.pause.publication_paused ||
       capacityDigest(fresh.pause) !== capacityDigest(observed.pause) ||
       capacityDigest(fresh.capacity) !== capacityDigest(observed.capacity) ||
-      capacityDigest({ tags: inventory.tags(), releases: inventory.releases() }) !==
+      capacityDigest({ tags: await inventory.tags(), releases: await inventory.releases() }) !==
         capacityDigest({ tags, releases })
     )
       throw new Error("neutral request provider/control snapshot changed before durable intent");
