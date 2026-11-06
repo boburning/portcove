@@ -2016,7 +2016,7 @@ export function createContainerHost(profile: string) {
     const state = runState(json(file));
     if (state.tool !== tool || state.workspace !== workspace || state.run !== run)
       throw new Error("Recovery ownership mismatch");
-    const recoveryHost = await doctor({ networkRequired: false });
+    const recoveryHost = await doctor({ networkRequired: false, cacheRequired: false });
     if (state.capacity && !state.capacity_released) {
       state.capacity_recovery_journal = await reconcileExternalCapacity(
         state.capacity,
