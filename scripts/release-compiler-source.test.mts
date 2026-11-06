@@ -9,6 +9,8 @@ import {
   prepareReleaseCompilerSourceClosure,
   inspectReleaseCompilerSourceClosure,
   inspectPreparedCompilerSource,
+  inspectPreparedCompilerSourceAsync,
+  createCompilerSourceReader,
 } from "./release-compiler-source.mts";
 import { reproducePreparedReleaseVersionFiles } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { sourceFixtureCommit } from "./fixtures/release-source-fixture.mts";
@@ -58,31 +60,27 @@ async function fixture(t: test.TestContext) {
       }) => void)
     | undefined;
   let requests = 0;
-  const api = {
-    request(method: string, endpoint: string) {
-      requests++;
-      assert.equal(method, "GET");
-      const match = /^repos\/boburning\/portcove\/git\/trees\/([a-f0-9]{40})$/u.exec(endpoint);
-      assert.ok(match);
-      const tree = git(["ls-tree", "-z", match[1]!])
-        .split("\0")
-        .filter(Boolean)
-        .map((entry) => {
-          const parsed = /^(\d+) (\w+) ([a-f0-9]{40})\t(.+)$/u.exec(entry);
-          assert.ok(parsed);
-          return { mode: parsed[1]!, type: parsed[2]!, sha: parsed[3]!, path: parsed[4]! };
-        });
-      const body = { sha: match[1]!, truncated: false, tree };
-      mutate?.(body);
-      return { status: 200, headers: new Map<string, string>(), body };
-    },
+  const readTree = async (sha: string) => {
+    requests++;
+    assert.match(sha, /^[a-f0-9]{40}$/u);
+    const tree = git(["ls-tree", "-z", sha])
+      .split("\0")
+      .filter(Boolean)
+      .map((entry) => {
+        const parsed = /^(\d+) (\w+) ([a-f0-9]{40})\t(.+)$/u.exec(entry);
+        assert.ok(parsed);
+        return { mode: parsed[1]!, type: parsed[2]!, sha: parsed[3]!, path: parsed[4]! };
+      });
+    const body = { sha, truncated: false, tree };
+    mutate?.(body);
+    return body;
   };
   return {
     root,
     git,
     commit,
     trusted,
-    api,
+    readTree,
     setMutation(value: typeof mutate) {
       mutate = value;
     },
@@ -95,12 +93,55 @@ void test("complete fixed helper/action/workflow tree matches while unrelated ca
   f.commit();
   const tree = f.git(["rev-parse", "HEAD^{tree}"]);
   f.git(["checkout", "--quiet", f.trusted]);
-  const result = await compareReleaseCompilerSource(f.root, tree, { api: f.api });
+  const result = await compareReleaseCompilerSource(f.root, tree, { readTree: f.readTree });
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(result.authority, "none");
   assert.equal(result.controller_commit, f.trusted);
   assert.ok(f.requests() < 16);
   assert.ok(result.paths.some((entry) => entry.path === ".cargo" && "absent" in entry));
+});
+void test("default compiler comparison uses the locked SDK for exact one-shot tree reads", async (t) => {
+  const f = await fixture(t);
+  const tree = f.git(["rev-parse", "HEAD^{tree}"]);
+  const originalToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "fixture-compiler-tree-reader";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+  });
+  const dispatches: string[] = [];
+  let status = 200;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token fixture-compiler-tree-reader");
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(url.search, "");
+      const match = /^\/repos\/boburning\/portcove\/git\/trees\/([a-f0-9]{40})$/u.exec(
+        url.pathname,
+      );
+      assert.ok(match);
+      dispatches.push(match[1]!);
+      return Response.json(status < 300 ? await f.readTree(match[1]!) : {}, { status });
+    },
+  );
+  const result = await compareReleaseCompilerSource(f.root, tree);
+  assert.equal(result.evidence_scope, "github.com");
+  assert.equal(dispatches[0], tree);
+  assert.ok(dispatches.length > 1);
+  assert.equal(new Set(dispatches).size, dispatches.length);
+  for (status of [201, 503]) {
+    dispatches.length = 0;
+    await assert.rejects(
+      compareReleaseCompilerSource(f.root, tree),
+      status === 201 ? /unexpected HTTP status 201/u : { status: 503 },
+    );
+    assert.deepEqual(dispatches, [tree]);
+  }
 });
 void test("indirect helper, action, workflow and previously absent Cargo configuration changes refuse", async (t) => {
   const f = await fixture(t);
@@ -116,7 +157,10 @@ void test("indirect helper, action, workflow and previously absent Cargo configu
     f.commit();
     const tree = f.git(["rev-parse", "HEAD^{tree}"]);
     f.git(["checkout", "--quiet", f.trusted]);
-    await assert.rejects(compareReleaseCompilerSource(f.root, tree, { api: f.api }), /differs/);
+    await assert.rejects(
+      compareReleaseCompilerSource(f.root, tree, { readTree: f.readTree }),
+      /differs/,
+    );
   }
 });
 void test("truncated, duplicate, wrong-object and malformed authenticated tree responses refuse", async (t) => {
@@ -138,7 +182,7 @@ void test("truncated, duplicate, wrong-object and malformed authenticated tree r
   ]) {
     f.setMutation(mutation);
     await assert.rejects(
-      compareReleaseCompilerSource(f.root, tree, { api: f.api }),
+      compareReleaseCompilerSource(f.root, tree, { readTree: f.readTree }),
       /unavailable|malformed/,
     );
   }
@@ -192,7 +236,20 @@ void test("actual deterministic four version edits pass while dependencies and e
     { base_version: "0.1.0", version: "0.2.0" },
   );
   const response = (body: unknown) => ({ status: 200, body, headers: new Map<string, string>() });
-  const run = (preparedTree: string) => {
+  const requests: string[] = [];
+  let sdkReply: ((method: string, endpoint: string) => { body: unknown }) | undefined;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.headers.get("authorization"), "token pinned-compiler-fixture");
+      assert.ok(sdkReply);
+      requests.push(new URL(request.url).pathname);
+      return Response.json(sdkReply(request.method, request.url).body);
+    },
+  );
+  const run = async (preparedTree: string, compareLegacy = false) => {
     const prepared = sourceFixtureCommit(preparedTree, [source.sha], "prepared\n");
     const api = {
       request(method: string, endpoint: string) {
@@ -245,24 +302,44 @@ void test("actual deterministic four version edits pass while dependencies and e
         throw new Error(`unexpected route ${route}`);
       },
     };
-    return inspectPreparedCompilerSource(api, {
+    const candidate = {
       source_commit: source.sha,
       source_tree: sourceTree,
       prepared_commit: prepared.sha,
       prepared_tree: preparedTree,
       version: "0.2.0",
+    };
+    const deadline = performance.now() + 5_000;
+    const read = await createCompilerSourceReader({
+      credential: { kind: "explicit", token: "pinned-compiler-fixture" },
+      deadline,
+      maxBytes: 4 * 1024 * 1024,
     });
+    sdkReply = api.request;
+    const result = await inspectPreparedCompilerSourceAsync(read, candidate, deadline);
+    if (compareLegacy) assert.deepEqual(result, inspectPreparedCompilerSource(api, candidate));
+    return result;
   };
   for (const [filename, content] of expected) await writeFile(path.join(f.root, filename), content);
   f.commit();
-  assert.equal(run(f.git(["rev-parse", "HEAD^{tree}"])).authority, "none");
+  assert.equal((await run(f.git(["rev-parse", "HEAD^{tree}"]), true)).authority, "none");
+  assert.deepEqual(
+    requests.filter((route) => route.includes("/contents/")),
+    [
+      "/repos/boburning/portcove/contents/Cargo.toml",
+      "/repos/boburning/portcove/contents/crates/example/Cargo.toml",
+      "/repos/boburning/portcove/contents/Cargo.lock",
+      "/repos/boburning/portcove/contents/apps/desktop/package.json",
+      "/repos/boburning/portcove/contents/apps/desktop/src-tauri/tauri.conf.json",
+    ],
+  );
   await writeFile(
     path.join(f.root, "apps/desktop/package.json"),
     expected.get("apps/desktop/package.json")!.replace('"fixed"', '"changed"'),
   );
   f.commit();
-  assert.throws(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /version bytes differ/);
+  await assert.rejects(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /version bytes differ/);
   await writeFile(path.join(f.root, "extra-source.rs"), "unapproved preparation change\n");
   f.commit();
-  assert.throws(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /more than exact/);
+  await assert.rejects(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /more than exact/);
 });
