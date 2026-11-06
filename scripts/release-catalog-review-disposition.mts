@@ -408,30 +408,16 @@ async function actualInputs(owned: {
     owned.request,
   );
   // LAST provider validation before returning: original observation must still be fresh.
-  const { createGitHubRunner, GitHubApiClient } = await import("./github-api.mts");
-  const client = new GitHubApiClient((args, input) => {
-    bounded(owned.deadline);
-    const result = createGitHubRunner({
-      cwd: owned.parent,
-      maxBuffer: 2 * 1024 ** 2,
-      timeoutMs: coordinatorCommandTimeout(
-        Math.max(1, Math.floor(Math.min(15000, owned.deadline - performance.now()))),
-      ),
-    })([...args, "--hostname", "github.com"], input);
-    bounded(owned.deadline);
-    return result;
-  });
-  const api = {
-    request(method: string, endpoint: string, body?: unknown) {
-      if (method !== "GET") throw new Error("catalog disposition transport is GET only");
-      return client.request(method, endpoint, body);
-    },
-    graphql() {
-      throw new Error("catalog disposition has no mutation transport");
-    },
+  const controls = owned.controls as {
+    readSdkMaintenance(
+      reserve: undefined,
+      bounds: { deadline: number; maxBytes: number },
+    ): Promise<unknown>;
   };
-  const controls = owned.controls as { readMaintenance: (reader: typeof api) => unknown };
-  const facts = controls.readMaintenance(api);
+  const facts = await controls.readSdkMaintenance(undefined, {
+    deadline: owned.deadline,
+    maxBytes: 2 * 1024 ** 2,
+  });
   if (
     !isRecord(facts) ||
     !isRecord(facts.pause) ||

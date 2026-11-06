@@ -266,10 +266,11 @@ async function createSemanticSdkReader(options: SemanticSdkOptions, deadline: nu
   return run;
 }
 
-export async function readIndependentSemanticCheckInventoryWithSdk(
+async function readCheckInventoryWithSdk(
   options: SemanticSdkOptions,
   configuration: unknown,
   sourceCommit: string,
+  catalog: boolean,
 ) {
   const deadline = Math.min(
     options.deadline,
@@ -277,8 +278,24 @@ export async function readIndependentSemanticCheckInventoryWithSdk(
     performance.now() + 120000,
   );
   const run = await createSemanticSdkReader(options, deadline);
-  const result = await run(checkInventory(configuration, sourceCommit, false, deadline));
+  const result = await run(checkInventory(configuration, sourceCommit, catalog, deadline));
   return { ...result, assertUnchanged: () => run(result.assertUnchanged()) };
+}
+
+export function readIndependentSemanticCheckInventoryWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  sourceCommit: string,
+) {
+  return readCheckInventoryWithSdk(options, configuration, sourceCommit, false);
+}
+
+export function readIndependentCatalogSemanticCheckInventoryWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  sourceCommit: string,
+) {
+  return readCheckInventoryWithSdk(options, configuration, sourceCommit, true);
 }
 
 function* checkInventory(
