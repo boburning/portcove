@@ -11,7 +11,7 @@ import {
   inspectPublicImmutableReleaseAsset,
 } from "./release-native-candidate.mts";
 import { remainingNativeParentBudget } from "./release-native-parent.mts";
-import { createReleasePublicationReader } from "./release-publication-inventory.mts";
+import type { readPublicationAllocationsWithSdk } from "./release-publication-inventory.mts";
 import {
   materializePublishedCompleteSite,
   requirePublishedCompleteSite,
@@ -30,8 +30,8 @@ import { hashNativeCapturedFile } from "./release-native-capture-files.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-type Allocation = ReturnType<
-  ReturnType<typeof createReleasePublicationReader>["readAllocations"]
+type Allocation = Awaited<
+  ReturnType<typeof readPublicationAllocationsWithSdk>
 >["allocations"][number];
 function record(raw: unknown) {
   assert.ok(isRecord(raw), "public journey source record absent");
@@ -348,11 +348,7 @@ async function acquirePublicSnapshot(parentReceipt: object) {
     sha(preparedFiles.get("payload.json")!),
     publication.public_source.payload_key_registry.sha256,
   );
-  const reader = createReleasePublicationReader(source.api);
-  const allocations = reader.readAllocations(
-    reader.tags(),
-    parent.descriptor.namespace,
-  ).allocations;
+  const { allocations } = await source.readPublicAllocations(parent.descriptor.namespace, deadline);
   return {
     session,
     site: site.receipt,
@@ -443,11 +439,10 @@ export async function requireActualPublicJourneyPair(receipt: object) {
     inspectPublishedMetadata(record(current.input).published_metadata),
     new Date().toISOString(),
   );
-  const reader = createReleasePublicationReader(retained.session.source.api);
-  const allocations = reader.readAllocations(
-    reader.tags(),
+  const { allocations } = await retained.session.source.readPublicAllocations(
     retained.session.parent.descriptor.namespace,
-  ).allocations;
+    retained.deadline,
+  );
   const files = await readBoundedReleaseContextFiles(prepared.prepared_root);
   const historical = retained.historical
     ? await (

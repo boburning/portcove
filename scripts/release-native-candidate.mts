@@ -630,6 +630,11 @@ async function sourceTransport(parent: Parent, directory: string) {
     metadata,
     declarations,
     download,
+    readPublicAllocations: async (namespace: string, deadline: number) =>
+      (await import("./release-publication-inventory.mts")).readPublicationAllocationsWithSdk(
+        namespace,
+        { token, deadline, fetch: fixedFetch, recheck },
+      ),
     readPublicRelease: (version: string, deadline: number) =>
       readNativeImmutableReleaseSnapshot(
         version,
