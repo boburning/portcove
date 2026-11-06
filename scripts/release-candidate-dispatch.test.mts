@@ -95,7 +95,7 @@ function provider(mode = "success") {
     const body: unknown = init?.body ? JSON.parse(init.body) : null;
     calls.push({ url, method, body });
     assert.equal(new Headers(init?.headers).get("x-github-api-version"), "2026-03-10");
-    assert.equal(init?.redirect, "error");
+    assert.equal(init?.redirect, "manual");
     if (url.endsWith("/release.yml"))
       return Response.json({ id: 999, path: ".github/workflows/release.yml", state: "active" });
     if (url.endsWith("/dispatches")) {
@@ -166,6 +166,49 @@ void test("dispatch never retries lost acknowledgment, unsupported status or mis
     assert.equal(fixture.calls.filter((call) => call.method === "POST").length, 1);
   }
 });
+void test("an inherited deadline cancels a partial POST response without replay or accepted acknowledgment", async () => {
+  const fixture = provider();
+  let posts = 0;
+  let cancelled = false;
+  const transport: typeof fetch = async (raw, init) => {
+    if (init?.method !== "POST") return fixture.transport(raw, init);
+    posts++;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(Buffer.from('{"workflow_run_id":42'));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    return new Response(body, { headers: { "content-type": "application/json" } });
+  };
+  const keepAlive = setInterval(() => {}, 1000);
+  try {
+    await assert.rejects(
+      dispatchPreparedReleaseCandidate(
+        input,
+        "fixture-token",
+        async () => {},
+        transport,
+        performance.now() + 250,
+      ),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError);
+        assert.ok(isRecord(error.evidence));
+        assert.equal(error.evidence.mutation_attempted, true);
+        assert.equal(error.evidence.acknowledged_run_id, null);
+        assert.equal(error.evidence.automatic_retry, false);
+        return true;
+      },
+    );
+    assert.equal(posts, 1);
+    assert.equal(cancelled, true);
+  } finally {
+    clearInterval(keepAlive);
+  }
+});
+
 void test("late control refusal performs zero POST and reports refusal before effect", async () => {
   const fixture = provider();
   await assert.rejects(
