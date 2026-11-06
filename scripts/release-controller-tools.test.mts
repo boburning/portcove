@@ -1971,10 +1971,33 @@ void test("held Windows producer joins the exact platform artifact to an isolate
     record(bind.env).PORTCOVE_TOOL_ARTIFACT_ID,
     "${{ steps.upload.outputs.artifact-id }}",
   );
-  const diagnostics = record(record(producerSteps.at(-1)).with);
-  assert.ok(typeof diagnostics.path === "string");
-  assert.match(diagnostics.path, /~\/\.pct-\*\/ct-\*\/failure\.json/u);
-  assert.match(diagnostics.path, /controller-tools-windows-predicate\.json/u);
+  const diagnostics = producerSteps.slice(producerSteps.indexOf(bind) + 1);
+  assert.deepEqual(
+    diagnostics.map((step, index) => {
+      const options = record(step.with);
+      assert.equal(step.if, "${{ always() }}");
+      assert.equal(options["if-no-files-found"], "warn");
+      assert.equal(options.overwrite, false);
+      assert.equal(options["retention-days"], 7);
+      assert.equal(options["include-hidden-files"], index === 1 ? true : undefined);
+      assert.equal(typeof options.path, "string");
+      return String(options.path).trim().split("\n");
+    }),
+    [
+      [
+        "work/hosted-continuity-evidence/windows-runtime.json",
+        "work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json",
+        "work/hosted-continuity-evidence/windows-runtime-incomplete.json",
+      ],
+      ["~/.pct-*/ct-*/failure.json", "~/.pct-*/ct-*/tools/manifest.json"],
+      [
+        "${{ runner.temp }}/controller-tools-windows-predicate.json",
+        "${{ runner.temp }}/controller-tool-binding-*/expected.json",
+        "${{ runner.temp }}/controller-tool-binding-*/provider-before.json",
+        "${{ runner.temp }}/controller-tool-binding-*/refusal.json",
+      ],
+    ],
+  );
   assert.deepEqual(attester.needs, ["admission", "tool_bootstrap", "tool_bootstrap_windows"]);
   assert.ok(typeof attester.if === "string");
   for (const [purpose, windows, linux, admission, cancelled, expected, paused = "false"] of [
