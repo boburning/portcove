@@ -843,9 +843,12 @@ facts and evidence before writing the player text. Follow the
 [Content design](CONTENT-DESIGN.md) standard for summaries, warnings, actions
 and references.
 
-The scheduler prompt should identify repo, this skill and durable checkpoint
+The scheduler prompt should identify the repository, this skill, checkpoint
 path, daily metadata-write authority, approved model policy and result location.
-Keep the detailed specification here. Do not launch a second product writer.
+At each run, load this contract and the linked
+[work selection policy](PROJECT-GOVERNANCE.md#selecting-approved-work) from
+current remote `main`. Keep one investigator and one product writer per
+existing ownership boundary.
 
 Primary research retains exact successful GET positions and collection links in
 `active-run.json` under `research_progress`, with a 32 MiB physical envelope.
