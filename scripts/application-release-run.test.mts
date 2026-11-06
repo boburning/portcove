@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   inspectApplicationRunCustody,
   readApplicationRunNotes,
+  createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
   retainApplicationPreparation,
   readRegisteredApplicationRuns,
@@ -83,7 +84,21 @@ function fixture(mode = "valid") {
   const guard = async (known: readonly string[]) => {
     guards.push([...known]);
   };
-  return { api, releases, mutations, guards, guard };
+  const registration = {
+    async releaseNotes() {
+      return structuredClone(releases);
+    },
+    async release(id: number) {
+      return api.request("GET", `repos/boburning/portcove/releases/${id}`);
+    },
+    async createDraft(body: Record<string, unknown>) {
+      return api.request("POST", "repos/boburning/portcove/releases", body);
+    },
+    async appendNotes(id: number, body: string) {
+      return api.request("PATCH", `repos/boburning/portcove/releases/${id}`, { body });
+    },
+  };
+  return { api, releases, mutations, guards, guard, registration };
 }
 
 void test("immutable metadata recovery appends only its existing cohort and never creates or adopts a draft", async () => {
@@ -91,7 +106,7 @@ void test("immutable metadata recovery appends only its existing cohort and neve
   const f = fixture();
   const register = (id: string, mode: "create-or-resume" | "immutable-metadata-only") =>
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       { ...execution, run_id: id },
       source,
       tree,
@@ -130,7 +145,7 @@ void test("immutable metadata recovery appends only its existing cohort and neve
 void test("native draft registration precedes private work and a same-run retry preserves its single record", async () => {
   const f = fixture();
   const first = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -141,7 +156,7 @@ void test("native draft registration precedes private work and a same-run retry 
   assert.equal(first.authority, "none");
   assert.deepEqual(f.guards, [[]]);
   const retry = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_attempt: 2 },
     source,
     tree,
@@ -168,7 +183,7 @@ void test("native draft registration precedes private work and a same-run retry 
 
 void test("recovery appends a bounded native run after immutable publication without changing assets or notes", async () => {
   const f = fixture("patch-lost");
-  await registerApplicationReleaseRun(f.api, execution, source, tree, source, f.guard);
+  await registerApplicationReleaseRun(f.registration, execution, source, tree, source, f.guard);
   Object.assign(f.releases[0]!, {
     tag_name: "v0.1.0-alpha.3",
     target_commitish: source,
@@ -178,7 +193,7 @@ void test("recovery appends a bounded native run after immutable publication wit
   });
   const prior = structuredClone(f.releases[0]);
   const second = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_id: "124" },
     source,
     tree,
@@ -192,7 +207,7 @@ void test("recovery appends a bounded native run after immutable publication wit
     ["POST", "PATCH"],
   );
   await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_id: "125" },
     source,
     tree,
@@ -201,7 +216,7 @@ void test("recovery appends a bounded native run after immutable publication wit
   );
   await assert.rejects(
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       { ...execution, run_id: "126" },
       source,
       tree,
@@ -211,7 +226,7 @@ void test("recovery appends a bounded native run after immutable publication wit
   );
   await assert.rejects(
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       { ...execution, source: "f".repeat(40) },
       source,
       tree,
@@ -224,7 +239,14 @@ void test("recovery appends a bounded native run after immutable publication wit
 void test("ambiguous POST is reconciled once; absent, duplicate, damaged or refused custody never resets", async () => {
   for (const mode of ["lost-after-create", "lost-before-create"]) {
     const f = fixture(mode);
-    const pending = registerApplicationReleaseRun(f.api, execution, source, tree, source, f.guard);
+    const pending = registerApplicationReleaseRun(
+      f.registration,
+      execution,
+      source,
+      tree,
+      source,
+      f.guard,
+    );
     if (mode === "lost-after-create") assert.equal((await pending).release_id, 10);
     else await assert.rejects(pending);
     assert.equal(f.mutations.length, 1);
@@ -238,7 +260,7 @@ void test("ambiguous POST is reconciled once; absent, duplicate, damaged or refu
     "patch-refused",
   ]) {
     const f = fixture(mode);
-    await registerApplicationReleaseRun(f.api, execution, source, tree, source, f.guard);
+    await registerApplicationReleaseRun(f.registration, execution, source, tree, source, f.guard);
     if (mode === "duplicate") f.releases.push(structuredClone(f.releases[0]!));
     if (mode === "damaged") f.releases[0]!.body = "lost record";
     if (mode === "damaged-published")
@@ -252,7 +274,7 @@ void test("ambiguous POST is reconciled once; absent, duplicate, damaged or refu
     const before = f.mutations.length;
     await assert.rejects(
       registerApplicationReleaseRun(
-        f.api,
+        f.registration,
         { ...execution, run_id: "124" },
         source,
         tree,
@@ -271,7 +293,7 @@ void test("ambiguous POST is reconciled once; absent, duplicate, damaged or refu
 void test("one mechanical preparation is retained exactly and cannot be silently reallocated", async () => {
   const f = fixture("patch-lost");
   const registered = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -345,7 +367,7 @@ void test("one mechanical preparation is retained exactly and cannot be silently
   Object.assign(value, { draft: false, immutable: true, tag_name: `v${preparation.version}` });
   const immutable = structuredClone(value);
   const recovered = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_id: "124" },
     source,
     tree,
@@ -362,7 +384,7 @@ void test("one mechanical preparation is retained exactly and cannot be silently
     Object.assign(value, change);
     await assert.rejects(
       registerApplicationReleaseRun(
-        f.api,
+        f.registration,
         { ...execution, run_id: "125" },
         source,
         tree,
@@ -380,7 +402,7 @@ void test("immutable-only recovery never creates a missing cohort or adopts an u
   const f = fixture();
   await assert.rejects(
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       execution,
       source,
       tree,
@@ -391,11 +413,11 @@ void test("immutable-only recovery never creates a missing cohort or adopts an u
   );
   assert.equal(f.mutations.length, 0);
   assert.equal(f.guards.length, 0);
-  await registerApplicationReleaseRun(f.api, execution, source, tree, source, f.guard);
+  await registerApplicationReleaseRun(f.registration, execution, source, tree, source, f.guard);
   const writes = f.mutations.length;
   await assert.rejects(
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       { ...execution, run_id: "124" },
       source,
       tree,
@@ -410,7 +432,7 @@ void test("immutable-only recovery never creates a missing cohort or adopts an u
 void test("forward renewal shares one native cost owner, preserves release bytes and cannot drop or duplicate earlier runs", async () => {
   const f = fixture("patch-lost");
   const initial = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -507,7 +529,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
 void test("interrupted owner-before-member registration preserves every cost ID and completes only the authorized member append", async () => {
   const f = fixture();
   const owner = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -523,7 +545,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
     async () => {},
   );
   const member = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_id: "124" },
     source,
     tree,
@@ -549,7 +571,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   await assert.rejects(
     () =>
       registerApplicationReleaseRun(
-        f.api,
+        f.registration,
         recovery,
         source,
         tree,
@@ -575,7 +597,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   assert.deepEqual(retry, linked);
   assert.equal(f.mutations.length, writes, "owner retry cannot repeat or erase accounting");
   const completed = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     recovery,
     source,
     tree,
@@ -617,7 +639,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
 void test("unknown native cost registration keeps the old owner and never retries its PATCH", async () => {
   const f = fixture("patch-refused");
   const initial = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -676,7 +698,7 @@ void test("native context reservations freeze full bytes and burn versions under
   const f = fixture(),
     opportunity = "d".repeat(64);
   const registered = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -764,7 +786,7 @@ void test("native context reservations freeze full bytes and burn versions under
 void test("related metadata contexts retain the original owner history and every registered run", async () => {
   const f = fixture("patch-clock");
   const owner = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -788,7 +810,7 @@ void test("related metadata contexts retain the original owner history and every
   );
   assert.deepEqual(linked.owner.custody.metadata_contexts, [first]);
   const member = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     memberActor,
     source,
     tree,
@@ -966,7 +988,7 @@ void test("ambiguous native reservation PATCH is read back once and never reissu
     const f = fixture(mode),
       opportunity = "d".repeat(64);
     const registered = await registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       execution,
       source,
       tree,
@@ -990,5 +1012,81 @@ void test("ambiguous native reservation PATCH is read back once and never reissu
       readApplicationRunNotes(f.releases[0]!.body)!.custody.runs,
       registered.custody.runs,
     );
+  }
+});
+
+void test("fixed run registration uses the locked SDK for one-attempt drafts and exact recovery", async (t) => {
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-run-registration";
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  for (const mode of [
+    "valid",
+    "lost-after-create",
+    "lost-before-create",
+    "refused-guard",
+    "patch-lost",
+  ]) {
+    const f = fixture(mode);
+    const calls: string[] = [];
+    const mockedFetch = t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), "token inert-run-registration");
+        calls.push(request.method + " " + url.pathname + url.search);
+        const data: unknown = request.method === "GET" ? undefined : await request.json();
+        const response = f.api.request(request.method, url.pathname.slice(1) + url.search, data);
+        return Response.json(response.body, { status: response.status ?? 500 });
+      },
+    );
+    try {
+      const provider = await createApplicationRunRegistrationProvider();
+      const run = registerApplicationReleaseRun(
+        provider,
+        execution,
+        source,
+        tree,
+        source,
+        async (known) => {
+          assert.deepEqual(known, []);
+          if (mode === "refused-guard") throw new Error("fixture refused registration guard");
+        },
+      );
+      if (mode === "lost-before-create" || mode === "refused-guard") await assert.rejects(run);
+      else assert.equal((await run).release_id, 10);
+      assert.equal(
+        calls.filter((call) => call.startsWith("POST ")).length,
+        mode === "refused-guard" ? 0 : 1,
+      );
+      if (mode === "patch-lost") {
+        calls.length = 0;
+        const second = await registerApplicationReleaseRun(
+          await createApplicationRunRegistrationProvider(),
+          { ...execution, run_id: "124" },
+          source,
+          tree,
+          source,
+          async (known) => assert.deepEqual(known, ["123"]),
+        );
+        assert.deepEqual(second.known_run_ids, ["123", "124"]);
+        assert.equal(
+          calls.filter((call) => call === "PATCH /repos/boburning/portcove/releases/10").length,
+          1,
+        );
+        assert.equal(calls.at(-1), "GET /repos/boburning/portcove/releases/10");
+      }
+      if (mode === "lost-after-create") {
+        assert.equal(calls.filter((call) => call.includes("/releases?per_page=100")).length, 3);
+        assert.equal(calls.at(-1), "GET /repos/boburning/portcove/releases/10");
+      }
+    } finally {
+      mockedFetch.mock.restore();
+    }
   }
 });

@@ -255,8 +255,7 @@ export function createReleasePublicationReader(rawApi: Api) {
 
     return { allocations, intents };
   };
-  const releaseNotes = () => page("releases?per_page=100").map(inspectReleaseNotes);
-  return { tags, releases, releaseNotes, readAllocations };
+  return { tags, releases, readAllocations };
 }
 function inspectReleaseNotes(r: Record<string, unknown>) {
   integer(r.id);
