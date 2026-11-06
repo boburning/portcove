@@ -3,6 +3,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { nextLink } from "./github-operation.mts";
 import type { GitHubMetadataResponse, GitHubRestReader } from "./github-operation.mts";
+import type { GitHubClientOptions } from "./github-client.mts";
 import {
   inspectRemoteCommitObject,
   inspectRemoteGitObject,
@@ -47,6 +48,9 @@ export async function collectReleaseSourceChangesWithSdk(
     token: string;
     deadline: number;
     guard: () => void;
+    checkRoute?: (url: URL) => void;
+    reserve?: NonNullable<GitHubClientOptions["reserve"]>;
+    elapsed?: (milliseconds: number) => void;
     currentDeadline?: () => number;
     maxBytes?: number;
     requestTimeoutMs?: number;
@@ -62,8 +66,11 @@ export async function collectReleaseSourceChangesWithSdk(
     deadline: options.deadline,
     maxBytes: options.maxBytes ?? 8 * 1024 ** 2,
     requestTimeoutMs: options.requestTimeoutMs ?? 30000,
+    ...(options.reserve ? { reserve: options.reserve } : {}),
+    ...(options.elapsed ? { observe: ({ elapsedMs }) => options.elapsed?.(elapsedMs) } : {}),
     allowRequest(method, url) {
       options.guard();
+      options.checkRoute?.(url);
       return method === "GET" && url.href === expected;
     },
   });

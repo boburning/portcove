@@ -783,6 +783,7 @@ for (const [file, tests] of [
   [
     "scripts/release-coordinator-recovery.mts",
     [
+      "scripts/acquire-release-admission.test.mts",
       "scripts/release-native-admission.test.mts",
       "scripts/release-catalog-continuation.test.mts",
       "scripts/release-metadata-context-recovery.test.mts",
@@ -845,6 +846,7 @@ for (const [file, tests] of [
   [
     "scripts/release-source-changes.mts",
     [
+      "scripts/acquire-release-admission.test.mts",
       "scripts/release-source-changes.test.mts",
       "scripts/release-compiler-source.test.mts",
       "scripts/release-compiler-source-admission.test.mts",

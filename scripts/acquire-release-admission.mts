@@ -66,7 +66,11 @@ import {
   classifyApplicationVersion,
   parseVersionClassification,
 } from "../apps/desktop/scripts/release-version-policy.mts";
-import { collectReleaseSourceChanges, netTreeDeltaScope } from "./release-source-changes.mts";
+import {
+  collectReleaseSourceChanges,
+  collectReleaseSourceChangesWithSdk,
+  netTreeDeltaScope,
+} from "./release-source-changes.mts";
 import { isRecord } from "./runtime-values.mts";
 import { isDeepStrictEqual } from "node:util";
 import { retainAggregateStepReceipt } from "./production-aggregate-steps.mts";
@@ -450,58 +454,61 @@ export async function acquireReleaseAdmission(
         apiMilliseconds += milliseconds;
       },
     });
+    const assertAdmissionRestRead = (method: string, url: URL, body?: unknown) => {
+      const route = url.pathname.slice(`/repos/${repository}`.length);
+      const comparison = /^\/compare\/[a-f0-9]{40}\.\.\.[a-f0-9]{40}$/u.test(route);
+      const tree = /^\/git\/trees\/[a-f0-9]{40}$/u.test(route);
+      const collection =
+        comparison ||
+        /^(?:\/releases|\/actions\/runs\/[1-9][0-9]*\/(?:artifacts|attempts\/[1-9][0-9]*\/jobs)|\/commits\/[a-f0-9]{40}\/(?:check-runs|status))$/u.test(
+          route,
+        );
+      const contents = route === "/contents/.github/workflows/release.yml";
+      const single =
+        route === "" ||
+        /^\/(?:git\/(?:commits|blobs)\/[a-f0-9]{40}|check-runs\/[1-9][0-9]*|actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?)$/u.test(
+          route,
+        );
+      const keys = [...url.searchParams.keys()];
+      if (
+        method !== "GET" ||
+        body != null ||
+        url.origin !== "https://api.github.com" ||
+        url.username ||
+        url.password ||
+        url.hash ||
+        (url.pathname !== `/repos/${repository}` &&
+          !url.pathname.startsWith(`/repos/${repository}/`)) ||
+        (!collection && !contents && !single && !tree) ||
+        new Set(keys).size !== keys.length ||
+        keys.some(
+          (key) =>
+            !(
+              collection
+                ? ["per_page", "page", ...(route.endsWith("/check-runs") ? ["filter"] : [])]
+                : tree
+                  ? ["recursive"]
+                  : contents
+                    ? ["ref"]
+                    : []
+            ).includes(key),
+        ) ||
+        (collection &&
+          (url.searchParams.get("per_page") !== "100" ||
+            (url.searchParams.has("page") &&
+              !/^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? "")))) ||
+        (route.endsWith("/check-runs") && url.searchParams.get("filter") !== "latest") ||
+        (tree && keys.length !== 0 && url.searchParams.get("recursive") !== "1") ||
+        (contents && !/^[a-f0-9]{40}$/u.test(url.searchParams.get("ref") ?? ""))
+      )
+        throw new Error("admission traversal escaped its remote-read-only repository");
+    };
     const api: Api = {
       request(method, endpoint, body) {
         const url = new URL(
           endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
         );
-        const route = url.pathname.slice(`/repos/${repository}`.length);
-        const comparison = /^\/compare\/[a-f0-9]{40}\.\.\.[a-f0-9]{40}$/u.test(route);
-        const tree = /^\/git\/trees\/[a-f0-9]{40}$/u.test(route);
-        const collection =
-          comparison ||
-          /^(?:\/releases|\/actions\/runs\/[1-9][0-9]*\/(?:artifacts|attempts\/[1-9][0-9]*\/jobs)|\/commits\/[a-f0-9]{40}\/(?:check-runs|status))$/u.test(
-            route,
-          );
-        const contents = route === "/contents/.github/workflows/release.yml";
-        const single =
-          route === "" ||
-          /^\/(?:git\/(?:commits|blobs)\/[a-f0-9]{40}|check-runs\/[1-9][0-9]*|actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?)$/u.test(
-            route,
-          );
-        const keys = [...url.searchParams.keys()];
-        if (
-          method !== "GET" ||
-          body != null ||
-          url.origin !== "https://api.github.com" ||
-          url.username ||
-          url.password ||
-          url.hash ||
-          (url.pathname !== `/repos/${repository}` &&
-            !url.pathname.startsWith(`/repos/${repository}/`)) ||
-          (!collection && !contents && !single && !tree) ||
-          new Set(keys).size !== keys.length ||
-          keys.some(
-            (key) =>
-              !(
-                collection
-                  ? ["per_page", "page", ...(route.endsWith("/check-runs") ? ["filter"] : [])]
-                  : tree
-                    ? ["recursive"]
-                    : contents
-                      ? ["ref"]
-                      : []
-              ).includes(key),
-          ) ||
-          (collection &&
-            (url.searchParams.get("per_page") !== "100" ||
-              (url.searchParams.has("page") &&
-                !/^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? "")))) ||
-          (route.endsWith("/check-runs") && url.searchParams.get("filter") !== "latest") ||
-          (tree && keys.length !== 0 && url.searchParams.get("recursive") !== "1") ||
-          (contents && !/^[a-f0-9]{40}$/u.test(url.searchParams.get("ref") ?? ""))
-        )
-          throw new Error("admission traversal escaped its remote-read-only repository");
+        assertAdmissionRestRead(method, url, body);
         budget();
         const requestStarted = performance.now();
         const response = rawApi.request("GET", endpoint);
@@ -528,7 +535,7 @@ export async function acquireReleaseAdmission(
     };
     phase = "repository-and-reservation";
     const inventoryToken = inventoryEnvironment && fixedReleaseReaderToken(inventoryEnvironment);
-    const checkInventory = () => {
+    const checkReadTime = () => {
       if (performance.now() >= archiveLookup().deadline)
         throw new Error("admission API acquisition bound exhausted");
     };
@@ -543,10 +550,10 @@ export async function acquireReleaseAdmission(
               currentDeadline: () => archiveLookup().deadline,
             },
             async recheck() {
-              checkInventory();
+              checkReadTime();
             },
             beforeDispatch() {
-              checkInventory();
+              checkReadTime();
               assertTrustedDirectNode("fixed release admission inventory");
             },
           });
@@ -554,7 +561,16 @@ export async function acquireReleaseAdmission(
       (options.recover ?? recoverRemoteCoordinator)(
         root,
         { schema_version: 1, namespace: config.namespace },
-        { transport: { cwd: root } },
+        {
+          transport:
+            inventoryToken === undefined || options.recover
+              ? { cwd: root }
+              : {
+                  credential: { token: inventoryToken },
+                  deadline: admissionDeadline,
+                  requireDirect: true,
+                },
+        },
       );
     const before = record(structuredClone(await recover()));
     oid(before.checkpoint);
@@ -633,7 +649,24 @@ export async function acquireReleaseAdmission(
       if (classification.change_set_scope !== netTreeDeltaScope) {
         holds.add("frozen-change-set-scope-unsupported-no-legacy-hash-reinterpretation");
       } else {
-        sourceChanges = collectReleaseSourceChanges(api, frozen);
+        sourceChanges =
+          inventoryToken === undefined
+            ? collectReleaseSourceChanges(api, frozen)
+            : await collectReleaseSourceChangesWithSdk(
+                {
+                  ...archiveLookup(),
+                  token: inventoryToken,
+                  currentDeadline: () => archiveLookup().deadline,
+                  maxBytes: 2 * 1024 * 1024,
+                  requestTimeoutMs: 15000,
+                  guard() {
+                    checkReadTime();
+                    assertTrustedDirectNode("fixed release admission source comparison");
+                  },
+                  checkRoute: (url) => assertAdmissionRestRead("GET", url),
+                },
+                frozen,
+              );
         if (
           sourceChanges.change_set_sha256 !== frozen.change_set_sha256 ||
           sourceChanges.change_set_sha256 !== classification.change_set_sha256
@@ -1695,6 +1728,7 @@ export async function runFixedBuildingConfiguration(raw: unknown, root: string, 
       !path.isAbsolute(root)
     )
       throw new Error("fixed building admission caller fields differ");
+    const readToken = fixedReleaseReaderToken();
     await requireControllerApplicationJobAuthorities("admission");
     const { receiveControllerTools } = await import("./release-controller-tool-admission.mts");
     const tools = await receiveControllerTools(
@@ -1731,7 +1765,7 @@ export async function runFixedBuildingConfiguration(raw: unknown, root: string, 
     await requireReservedAggregate(
       encoded,
       await readRemoteCoordinatorSnapshot(root, descriptor.coordinator, {
-        transport: { cwd: root, deadline },
+        transport: { credential: { token: readToken }, deadline, requireDirect: true },
       }),
     );
     if (Buffer.byteLength(encoded) > 65536)

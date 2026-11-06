@@ -1200,62 +1200,134 @@ void test("source publication inventory keeps ordered short pages, exact repo al
   }
 });
 
-void test("default admission reaches the locked publication inventory before provider failure", async (t) => {
+for (const failure of ["releases", "comparison"] as const)
+  void test(`default admission uses locked publication and frozen source readers before ${failure} failure`, async (t) => {
+    const f = await fixture(t);
+    f.input.opportunity.change_set_sha256 = f.sourceFacts.expectedHash;
+    Object.assign(f.input.opportunity.classification, {
+      change_set_sha256: f.sourceFacts.expectedHash,
+      change_set_scope: "portcove-release-net-tree-delta-v1",
+    });
+    Object.assign(f.input.active_candidate, {
+      frozen_opportunity: structuredClone(f.input.opportunity),
+    });
+    const { api, recover } = f.options;
+    assert.ok(api && recover);
+    const token = "inert-fixed-admission-inventory";
+    const previous = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = token;
+    t.after(() => {
+      if (previous === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previous;
+    });
+    const events: string[] = [];
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), `token ${token}`);
+        events.push(url.pathname);
+        if (url.pathname === "/graphql") {
+          const raw: unknown = await request.json();
+          assert.ok(
+            isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+          );
+          return Response.json({
+            data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+          });
+        }
+        if (
+          failure === "releases"
+            ? url.pathname.endsWith("/releases")
+            : url.pathname.includes("/compare/")
+        )
+          return Response.json({ message: "transient provider refusal" }, { status: 503 });
+        return Response.json(api.request("GET", url.pathname.slice(1)).body);
+      },
+    );
+    await assert.rejects(
+      acquireReleaseAdmission(f.root, f.config, {
+        deadline: performance.now() + 5000,
+        recover: async (...args) => {
+          events.push("recover");
+          return recover(...args);
+        },
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+        assert.equal(
+          error.evidence.phase,
+          failure === "releases" ? "repository-and-reservation" : "source-consistency",
+        );
+        assert.equal(
+          error.evidence.api_requests,
+          events.filter((event) => event !== "recover").length,
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(events.slice(0, 4), [
+      "/repos/boburning/portcove",
+      "recover",
+      "/graphql",
+      "/repos/boburning/portcove/releases",
+    ]);
+    if (failure === "comparison") {
+      assert.match(events.at(-1) ?? "", /^\/repos\/boburning\/portcove\/compare\//u);
+      assert.equal(events.filter((event) => event.includes("/compare/")).length, 1);
+    } else assert.equal(events.length, 4);
+  });
+
+void test("default admission journal uses a separate scoped SDK read through a stalled body", async (t) => {
   const f = await fixture(t);
-  const { api, recover } = f.options;
-  assert.ok(api && recover);
-  const token = "inert-fixed-admission-inventory";
+  const token = "inert-fixed-admission-journal";
   const previous = process.env.GH_TOKEN;
   process.env.GH_TOKEN = token;
   t.after(() => {
     if (previous === undefined) delete process.env.GH_TOKEN;
     else process.env.GH_TOKEN = previous;
   });
-  const events: string[] = [];
+  const routes: string[] = [];
+  let cancelled = false;
   t.mock.method(
     globalThis,
     "fetch",
     async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
       const request = new Request(input, init);
-      const url = new URL(request.url);
-      assert.equal(url.origin, "https://api.github.com");
       assert.equal(request.headers.get("authorization"), `token ${token}`);
-      events.push(url.pathname);
-      if (url.pathname === "/graphql") {
-        const raw: unknown = await request.json();
-        assert.ok(
-          isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
-        );
+      routes.push(new URL(request.url).pathname);
+      if (routes.length === 1)
         return Response.json({
-          data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+          id: 1354613114,
+          full_name: "boburning/portcove",
+          node_id: "R_fixture",
         });
-      }
-      if (url.pathname.endsWith("/releases"))
-        return Response.json({ message: "transient provider refusal" }, { status: 503 });
-      return Response.json(api.request("GET", url.pathname.slice(1)).body);
+      return new Response(
+        new ReadableStream({
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        {
+          headers: { "content-type": "application/json" },
+        },
+      );
     },
   );
   await assert.rejects(
-    acquireReleaseAdmission(f.root, f.config, {
-      deadline: performance.now() + 5000,
-      recover: async (...args) => {
-        events.push("recover");
-        return recover(...args);
-      },
-    }),
+    acquireReleaseAdmission(f.root, f.config, { deadline: performance.now() + 250 }),
     (error: unknown) => {
       assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
       assert.equal(error.evidence.phase, "repository-and-reservation");
-      assert.equal(error.evidence.api_requests, 3);
+      assert.equal(error.evidence.api_requests, 1);
       return true;
     },
   );
-  assert.deepEqual(events, [
-    "/repos/boburning/portcove",
-    "recover",
-    "/graphql",
-    "/repos/boburning/portcove/releases",
-  ]);
+  assert.deepEqual(routes, ["/repos/boburning/portcove", "/repos/boburning/portcove"]);
+  assert.equal(cancelled, true);
 });
 
 void test("locked publication inventory uses the operation's existing exhausted reservation", async () => {
