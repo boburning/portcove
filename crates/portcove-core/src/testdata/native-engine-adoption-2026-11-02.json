@@ -1204,6 +1204,60 @@
           }
         ]
       }
+    },
+    {
+      "issue": 2618,
+      "port_id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+      "repository": "woodys-workshop/SpaceRanger",
+      "channel": "beta",
+      "runtime_folder": "SpaceRanger/",
+      "selected_executable": "SpaceRanger.exe",
+      "selected_asset": "SpaceRanger-v0.1.0-windows-x64.zip",
+      "archive_sha256": "bfe1a4f5eadcea9c3bd1b134857756150037369c29f993108cae88c5f394ca7b",
+      "immutable_members": [
+        "dxcompiler.dll",
+        "dxil.dll",
+        "freetype.dll",
+        "LICENSE.txt",
+        "README.txt",
+        "SDL2.dll",
+        "SpaceRanger.exe",
+        "THIRD-PARTY-NOTICES.txt",
+        "assets/InterVariable.ttf",
+        "assets/launcher-background.svg",
+        "assets/launcher-logo.svg",
+        "assets/launcher-moon.svg",
+        "assets/launcher-rocket.svg",
+        "assets/NotoEmoji-Regular.ttf",
+        "assets/OFL-fonts.txt",
+        "assets/recomp.rcss",
+        "assets/TS2Menu-Fredoka.ttf",
+        "assets/promptfont/promptfont.ttf"
+      ],
+      "persistent_probes": [
+        "spaceranger-config/spaceranger.z64",
+        "spaceranger-config/saves/spaceranger.controller-1.pak",
+        "spaceranger-config/saves/spaceranger.controller-1.pak.bak",
+        "spaceranger-config/saves/spaceranger.controller-1.pak.temp"
+      ],
+      "exercise_restore": true,
+      "scope": "Observed official Windows prerelease member names and tagged profile coordinates. Controlled lifecycle uses inert member, original and Pak bytes.",
+      "release": {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/woodys-workshop/SpaceRanger/releases/download/v0.1.0/SpaceRanger-v0.1.0-windows-x64.zip",
+            "digest": "sha256:bfe1a4f5eadcea9c3bd1b134857756150037369c29f993108cae88c5f394ca7b",
+            "id": 633915777,
+            "name": "SpaceRanger-v0.1.0-windows-x64.zip",
+            "size": 15997071
+          }
+        ],
+        "draft": false,
+        "id": 410583338,
+        "prerelease": true,
+        "published_at": "2026-10-12T13:48:42Z",
+        "tag_name": "v0.1.0"
+      }
     }
   ]
 }

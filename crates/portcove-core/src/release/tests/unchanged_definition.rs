@@ -2135,6 +2135,7 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
     struct Case {
         inventory: String,
         selected_assets: Vec<String>,
+        channel: Option<ReleaseChannel>,
     }
 
     #[derive(serde::Deserialize)]
@@ -2164,6 +2165,8 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
     let mut enrolled = std::collections::BTreeSet::new();
     for (id, case) in cases {
         let port = catalog.port(&id).unwrap();
+        let channel = case.channel.unwrap_or(ReleaseChannel::Stable);
+        assert!(port.channels.contains(&channel), "{id}: enrolled channel");
         let definition = serde_json::to_value(port).unwrap();
         let observed = &inventories[&case.inventory];
         assert!(observed.len() >= 2, "{id}");
@@ -2182,7 +2185,7 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
             let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
             let selected = GithubReleaseProvider::with_api_root(root)
                 .unwrap()
-                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .resolve(port, channel, Platform::WindowsX86_64)
                 .await
                 .unwrap();
             assert_eq!(selected.version, tag, "{id}");
