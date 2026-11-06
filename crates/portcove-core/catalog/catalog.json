@@ -28335,6 +28335,92 @@
       "windows_temp_directory": "temp"
     },
     {
+      "id": "dune-ii-dune-dynasty",
+      "name": "Dune II (Dune Dynasty)",
+      "summary": "Play Dune II with enhanced controls, widescreen rendering and skirmish battles.",
+      "project_url": "https://github.com/gameflorist/dunedynasty",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "gameflorist/dunedynasty",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dunedynasty-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "dunedynasty.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Follow upstream’s FILELIST.TXT and place the original files in %APPDATA%/Dune Dynasty/data. Keep the managed game folder clear of original files and executable-side dunedynasty.cfg so the player uses the external profile. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The managed route covers Windows x86-64. Back up the external Dune Dynasty profile separately. Keep using an independent upstream copy for executable-side profiles and other packages. Real saves across versions remain unverified.",
+        "original_game_title": "Dune II",
+        "manual_setup": {
+          "help_url": "https://github.com/gameflorist/dunedynasty/blob/v1.6.4/README.md#installation",
+          "steps": [
+            {
+              "title": "Put your own European Dune II v1.07 PAKs in the personal data folder before Play",
+              "instruction": "Follow upstream’s FILELIST.TXT and place the original files in %APPDATA%/Dune Dynasty/data. Keep the managed game folder clear of original files and executable-side dunedynasty.cfg so the player uses the external profile."
+            },
+            {
+              "title": "Finish setup before registering a prepared copy",
+              "instruction": "Use a permitted complete Windows Dune Dynasty copy with your own European Dune II 1.07 PAK files, following upstream’s FILELIST.TXT. Keep those data files in the prepared data directory or the actual personal Dune Dynasty/data directory used by the copy. Missing original data makes normal startup fail; attaching the engine alone does not prepare it. Optional music, soundfonts and enhancements have separate requirements and rights. The ordinary launch uses no arguments. Retain any supported arguments your prepared copy already needs and review its actual working directory."
+            },
+            {
+              "title": "Select the prepared Windows player",
+              "instruction": "Select dunedynasty.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+            "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+            "Do not create an executable-side config merely to register the game. Preserve that whole actual profile, its save directory, configuration, original data, custom campaigns/music and the old creating runtime before replacement. Original-format save reading is not a promise that every newer save works in an older engine.",
+            "The managed route covers Windows x86-64. Back up the external Dune Dynasty profile separately. Keep using an independent upstream copy for executable-side profiles and other packages. Real saves across versions remain unverified."
+          ],
+          "references": [
+            {
+              "title": "Dune Dynasty profile and compatibility notes",
+              "instruction": "Keep dunedynasty.cfg: an existing executable-side config selects portable state; otherwise Windows normally uses the current account’s roaming AppData/Dune Dynasty profile. Do not create an executable-side config merely to register the game. Preserve that whole actual profile, its save directory, configuration, original data, custom campaigns/music and the old creating runtime before replacement. Original-format save reading is not a promise that every newer save works in an older engine."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the complete personal Dune Dynasty profile or the actual executable-side data and configuration of your prepared copy. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 86,
+          "cover_id": 227952,
+          "image_id": "co4vw0",
+          "image_sha256": "cb25d42a8639c7aacaa27f3d6da453412e74f9dccda5df71123b5cb1b44c09f9",
+          "game_slug": "dune-ii-the-building-of-a-dynasty",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "elasota-aerofoil",
       "name": "Glider PRO / Aerofoil (elasota)",
       "summary": "Fly through Glider PRO’s houses with Aerofoil’s gamepad support and built-in house editor.",

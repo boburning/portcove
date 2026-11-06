@@ -39,6 +39,13 @@
         "SpaceRanger-v0.1.0-windows-x64.zip",
         "SpaceRanger-v0.1.1-windows-x64.zip"
       ]
+    },
+    "dune-ii-dune-dynasty": {
+      "inventory": "dune_dynasty",
+      "selected_assets": [
+        "dunedynasty-v1.6.4-windows-x64.zip",
+        "dunedynasty-v1.6.5-windows-x64.zip"
+      ]
     }
   },
   "inventories": {
@@ -289,6 +296,152 @@
         "published_at": "2026-10-25T00:00:00Z",
         "tag_name": "v0.1.1"
       }
+    ],
+    "dune_dynasty": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-linux-amd64-flatpak.zip",
+            "digest": "sha256:537402b9b8c89fb806ee76a3a39e21a052604dcf2485db1fdf2bb3c47c08ecdd",
+            "id": 259739491,
+            "name": "dunedynasty-v1.6.4-linux-amd64-flatpak.zip",
+            "size": 1178414
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-linux-arm64-flatpak.zip",
+            "digest": "sha256:2ba9c111c77904a90a24142cc44211bcf394567599072e702c1a413ea463da0e",
+            "id": 259739496,
+            "name": "dunedynasty-v1.6.4-linux-arm64-flatpak.zip",
+            "size": 1082785
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-linux-arm64.zip",
+            "digest": "sha256:bcf351c8bf09171034203ec796aa787a0eac8cce69b2054ec40ed84febfcdae7",
+            "id": 259739493,
+            "name": "dunedynasty-v1.6.4-linux-arm64.zip",
+            "size": 819630
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-linux-x86-64.zip",
+            "digest": "sha256:176b390bbe7592a420b9ef706dbeaf63abcad5087ad56e33db247fa858aca707",
+            "id": 259739498,
+            "name": "dunedynasty-v1.6.4-linux-x86-64.zip",
+            "size": 825359
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-macos-arm64.zip",
+            "digest": "sha256:bb03b8adc8a51bdcd4b60f386c5d5e6fea9c41e498687ad1b11032260a83ba3f",
+            "id": 259739501,
+            "name": "dunedynasty-v1.6.4-macos-arm64.zip",
+            "size": 4255585
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-macos-x86-64.zip",
+            "digest": "sha256:01a747f436c809311cde79e07e0c0bd6167f17d25543ceb28105f7cdca6628ca",
+            "id": 259739515,
+            "name": "dunedynasty-v1.6.4-macos-x86-64.zip",
+            "size": 4556960
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-windows-arm64.zip",
+            "digest": "sha256:71f74647e3c10360f129bdb310624d5d843b6b01add04148bdfa8271aeb18ce0",
+            "id": 259739527,
+            "name": "dunedynasty-v1.6.4-windows-arm64.zip",
+            "size": 8554018
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-windows-x64.zip",
+            "digest": "sha256:621477a987f63d95782c4d072bfd0ac93682ac8f005c7d1701bbeff84b2456fb",
+            "id": 259739559,
+            "name": "dunedynasty-v1.6.4-windows-x64.zip",
+            "size": 9717226
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-windows-x86.zip",
+            "digest": "sha256:0c890db36f531256beefd0687d6c5206f9198c3081768b71605c222401aafcc5",
+            "id": 259739589,
+            "name": "dunedynasty-v1.6.4-windows-x86.zip",
+            "size": 9927362
+          }
+        ],
+        "draft": false,
+        "id": 196776191,
+        "prerelease": false,
+        "published_at": "2025-05-31T17:22:36Z",
+        "tag_name": "v1.6.4"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-linux-amd64-flatpak.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000010",
+            "id": 900000110,
+            "name": "dunedynasty-v1.6.5-linux-amd64-flatpak.zip",
+            "size": 1178414
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-linux-arm64-flatpak.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000011",
+            "id": 900000111,
+            "name": "dunedynasty-v1.6.5-linux-arm64-flatpak.zip",
+            "size": 1082785
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-linux-arm64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000012",
+            "id": 900000112,
+            "name": "dunedynasty-v1.6.5-linux-arm64.zip",
+            "size": 819630
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-linux-x86-64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000013",
+            "id": 900000113,
+            "name": "dunedynasty-v1.6.5-linux-x86-64.zip",
+            "size": 825359
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-macos-arm64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000014",
+            "id": 900000114,
+            "name": "dunedynasty-v1.6.5-macos-arm64.zip",
+            "size": 4255585
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-macos-x86-64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000015",
+            "id": 900000115,
+            "name": "dunedynasty-v1.6.5-macos-x86-64.zip",
+            "size": 4556960
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-windows-arm64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000016",
+            "id": 900000116,
+            "name": "dunedynasty-v1.6.5-windows-arm64.zip",
+            "size": 8554018
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-windows-x64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000017",
+            "id": 900000117,
+            "name": "dunedynasty-v1.6.5-windows-x64.zip",
+            "size": 9717226
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-windows-x86.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000018",
+            "id": 900000118,
+            "name": "dunedynasty-v1.6.5-windows-x86.zip",
+            "size": 9927362
+          }
+        ],
+        "draft": false,
+        "id": 900000100,
+        "prerelease": false,
+        "published_at": "2026-11-04T00:00:00Z",
+        "tag_name": "v1.6.5"
+      }
     ]
   },
   "other_zip_assets": [
@@ -296,6 +449,86 @@
       "inventory": "body_harvest",
       "release_index": 0,
       "asset": "BodyHarvestRecompiled-v1.0.0-macOS.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-linux-amd64-flatpak.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-linux-arm64-flatpak.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-linux-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-linux-x86-64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-macos-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-macos-x86-64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-windows-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-windows-x86.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-linux-amd64-flatpak.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-linux-arm64-flatpak.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-linux-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-linux-x86-64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-macos-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-macos-x86-64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-windows-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-windows-x86.zip"
     }
   ]
 }

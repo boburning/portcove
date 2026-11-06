@@ -2907,7 +2907,7 @@ mod tests {
 
     #[test]
     fn dune_ii_dune_dynasty_prepared_player_route_2569() {
-        assert_listing_only_player_route("dune-ii-dune-dynasty", Some(false));
+        assert_native_portable_with_independent_prepared_route("dune-ii-dune-dynasty");
     }
 
     #[test]
@@ -3143,7 +3143,10 @@ mod tests {
 
     #[test]
     fn body_harvest_recompiled_frontend_license_player_route_1448() {
-        let id = "body-harvest-recompiled";
+        assert_native_portable_with_independent_prepared_route("body-harvest-recompiled");
+    }
+
+    fn assert_native_portable_with_independent_prepared_route(id: &str) {
         let (temporary, mut service, executable, working) = fixture(id);
         service.catalog = Catalog::embedded().unwrap();
         assert_eq!(
