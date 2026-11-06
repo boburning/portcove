@@ -1581,17 +1581,8 @@ export async function observeOwnedImmutableReleaseCompletion(
   );
   await requireVerifiedReleaseSbomDocument(admission.sbom_receipt);
   requireAuthenticatedReleaseControlSource(controls, "release-publication");
-  const api = new GitHubApiClient((args, input) => {
-    const result = createGitHubRunner({
-      cwd: state.session.directory,
-      timeoutMs: publicationRemaining(deadline),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], input);
-    publicationRemaining(deadline);
-    return result;
-  });
-  const fresh = () => {
-    const current = controls.read(api, admission.facts.opportunity);
+  const fresh = async () => {
+    const current = await controls.readSdkApplicationControls(admission.facts.opportunity);
     const original = admission.admission.controls!;
     if (
       current.reader.job_id !== identity.job_id ||
@@ -1609,7 +1600,7 @@ export async function observeOwnedImmutableReleaseCompletion(
       throw new Error("owned publication completion controls changed or remain held");
     publicationRemaining(deadline);
   };
-  fresh();
+  await fresh();
   const namespace = admission.facts.configuration.namespace;
   const token = fixedReleaseReaderToken();
   const evidenceDeadline = Math.min(deadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
@@ -1712,7 +1703,7 @@ export async function observeOwnedImmutableReleaseCompletion(
   const after = await readSnapshot();
   if (after.checkpoint !== snapshot.checkpoint)
     throw new Error("publisher settlement changed during independent completion readback");
-  fresh();
+  await fresh();
   publicationRemaining(deadline);
   const receipt = Object.freeze({
     kind: "actual-owned-immutable-release-completion",

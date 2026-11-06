@@ -542,7 +542,7 @@ export async function runReleasePublicationController(
                   initialState.input.active_candidate,
                 );
           stage = "actual-immutable-completion";
-          await fresh(usedRound + 1);
+          await fresh(usedRound + 1, "publication-application");
           let completion = await observeOwnedImmutableReleaseCompletion(
             prepared,
             executor,
@@ -560,7 +560,7 @@ export async function runReleasePublicationController(
             // verified above before even advancing the repair's journal phase.
             const phase = await advanceActualCandidateToPublishing(actual, { deadline, executor });
             await rebindPreparedImmutableReleaseAfterPhase(prepared, phase, deadline);
-            await fresh(usedRound + 1);
+            await fresh(usedRound + 1, "publication-application");
             completion = await observeOwnedImmutableReleaseCompletion(
               prepared,
               executor,
