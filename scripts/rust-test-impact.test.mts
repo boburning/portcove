@@ -1331,6 +1331,29 @@ void test("route fixture changes retain both enrollment inventories and release 
   );
 });
 
+void test("native adoption observations select every direct Rust consumer", () => {
+  const fixture = "crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json";
+  const groups = selectWorkspaceRustImpact(workspacePlan([fixture]));
+  assert.deepEqual(
+    groups.map((group) => group.id),
+    ["portcove-core:native-engine-adoption-fixture"],
+  );
+  const filter = groups[0]?.filter ?? "";
+  for (const family of [
+    "release::tests::unchanged_definition::native_engine_selection_",
+    "service::native_portable::tests::native_engine_adoption_",
+    "service::native_portable::tests::managed_native_(declared_|declaration_inventory$)",
+  ]) {
+    assert.ok(filter.includes(family), family);
+  }
+  const catalogRecord =
+    "crates/portcove-core/catalog/ports/heroes-of-might-and-magic-ii-fheroes2.json";
+  assert.equal(
+    selectWorkspaceRustImpact(workspacePlan([fixture, catalogRecord]))[0]?.filter,
+    "package(=portcove-core)",
+  );
+});
+
 void test("one unmapped path makes an otherwise focused mixed change broad", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
     modified("crates/portcove-core/src/source_report.rs"),

@@ -2058,7 +2058,10 @@ the package before generating the entrypoint.
 
 Fixture-only enrollment edits select both route inventories and every generated
 managed and prepared lifecycle case. The independent Windows archive inventory
-selects its shared release-selection case. Changes to authored title records
+selects its shared release-selection case. A change limited to the native
+lifecycle corpus selects the retained native release-selection cases, retained
+and generated managed lifecycle cases, and managed enrollment inventory.
+Changes to authored title records
 still select the full Core inventory.
 
 Optional authoring-only `gba_staged_archive_v1` expands the reviewed Windows
