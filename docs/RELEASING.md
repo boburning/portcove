@@ -2607,8 +2607,16 @@ its new complete hosted artifact and consolidated job wiring remain pending.
 Secret jobs must launch the authenticated bundle rather than install checkout
 dependencies or execute the unbundled entry. No role settings are activated.
 
-The dependency-free `release-controller-tool-launch.mts` implements that initial
-payload entry. It authenticates the tool artifact with the existing receiver,
+The current fixed workflow provisions the locked clock dependency before
+role credentials and obtains the original job deadline through the scoped SDK.
+Protected jobs then invoke their authenticated tool bundle. The
+[SDK source inventory](evidence/github-sdk-source-inventory-2026-11-04.md)
+tracks retained runtime and launcher retirement with #534.
+
+The earlier payload launcher contract remains in
+`release-controller-tool-launch.mts`. Its early clock is dependency-free.
+The current tool receiver uses the SDK for positive artifact acquisition.
+The launcher authenticates the tool artifact with the existing receiver,
 requires the running Node bytes to match the authenticated executable and imports
 only the fixed manifest-owned signing-controller bundle. That bundle performs
 its own actual receiver check to establish its module-private custody; no brand

@@ -23,7 +23,7 @@ import {
   productionControllerWorkflow,
 } from "./production-controller-admission.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import type { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import timers from "node:timers/promises";
 
@@ -279,7 +279,7 @@ async function verifyWakeIntentUpload(
   intent: unknown,
   options: {
     artifact: { id: number; sha256: string };
-    download?: typeof readGitHubArtifactArchive;
+    download?: SigningArchiveDownload;
     directory: string;
     deadline?: number;
     approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
@@ -323,7 +323,7 @@ async function verifyWakeIntentUpload(
   if (!options.download && !api.intentArchive)
     throw new Error("wake intent archive reader unavailable");
   const archive = options.download
-    ? options.download(`${prefix}/actions/artifacts/${item.id}/zip`, {
+    ? await options.download(`${prefix}/actions/artifacts/${item.id}/zip`, {
         cwd: options.directory,
         maxBytes: before.bytes,
         timeoutMs,
@@ -410,7 +410,7 @@ export async function reconcilePreviousWakes(
   api: Api,
   record: (phase: string, evidence: unknown) => Promise<void>,
   options: {
-    download?: typeof readGitHubArtifactArchive;
+    download?: SigningArchiveDownload;
     directory?: string;
     predecessor?: WakePredecessor;
     deadline?: number;
@@ -790,7 +790,7 @@ export async function wakeRatifiedController(
   options:
     | {
         mode: "prepare";
-        download?: typeof readGitHubArtifactArchive;
+        download?: SigningArchiveDownload;
         deadline?: number;
         predecessor?: WakePredecessor;
         approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
@@ -798,7 +798,7 @@ export async function wakeRatifiedController(
     | {
         mode: "dispatch";
         artifact: { id: number; sha256: string };
-        download?: typeof readGitHubArtifactArchive;
+        download?: SigningArchiveDownload;
         directory: string;
         deadline?: number;
         predecessor?: WakePredecessor;

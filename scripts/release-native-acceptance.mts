@@ -3,7 +3,7 @@ import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isDeepStrictEqual } from "node:util";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { globSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import {
@@ -10,6 +12,63 @@ import {
 } from "./github-cli.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { verifyControllerArtifactVerification } from "./github-controller-attestation.mts";
+
+void test("maintained sources do not add GitHub CLI API bypasses outside recorded retirement residue", () => {
+  const root = new URL("../", import.meta.url);
+  // These known legacy owners remain subject to #4319. This list prevents new
+  // consumers while appointed runtime, held source and test seams are resolved.
+  const remainingLegacy = new Map([
+    ["scripts/assembler-job-identity.mts", 5],
+    ["scripts/github-api.mts", 3],
+    ["scripts/github-binary.mts", 1],
+    ["scripts/release-coordinator-recovery.mts", 7],
+    ["scripts/release-live-control-admission.mts", 5],
+    ["scripts/release-publication-inventory.mts", 2],
+    ["scripts/release-reviewed-inputs.mts", 6],
+    ["scripts/release-semantic-inputs.mts", 2],
+    ["scripts/release-semantic-worker.mts", 4],
+    ["scripts/release-signing-job-budget.mts", 4],
+    ["scripts/upstream-release-rehearsal.mts", 1],
+    ["scripts/upstream-release-transfer.mts", 1],
+  ]);
+  const sources = globSync(
+    [
+      "scripts/**/*.{mts,cts,ts,mjs,cjs,js,sh,ps1,psm1,py}",
+      "apps/desktop/scripts/**/*.{mts,cts,ts,mjs,cjs,js,sh,ps1,psm1,py}",
+      ".github/{workflows,actions}/**/*.{yml,yaml,mts,cts,ts,mjs,cjs,js,sh,ps1,psm1}",
+      "tools/**/*.{sh,ps1,psm1,py}",
+    ],
+    {
+      cwd: fileURLToPath(root),
+      exclude: [
+        "**/*.test.*",
+        "**/fixtures/**",
+        "**/testdata/**",
+        "**/__pycache__/**",
+        "**/node_modules/**",
+      ],
+    },
+  );
+  const bypasses: string[] = [];
+  for (const file of sources) {
+    const relative = file.replaceAll("\\", "/");
+    const source = readFileSync(new URL(relative, root), "utf8");
+    const legacyReferences = [
+      ...source.matchAll(
+        /\b(?:createGitHubRunner|GitHubApiClient)\b|\b(?:(?:(?:execFile|spawn)(?:Sync)?|command)\(\s*["']gh(?:\.exe)?["']\s*,|gh\()\s*\[\s*["'](?:api["']|run["']\s*,\s*["']download["'])/gu,
+      ),
+    ].length;
+    if (
+      legacyReferences > (remainingLegacy.get(relative) ?? 0) ||
+      /\bgh(?:\.exe)?[ \t]+(?:api\b|release[ \t]+(?:view|create|edit|upload|download|delete-asset)\b|(?:pr|issue|run)[ \t]+(?:view|edit|merge|list)\b|run[ \t]+download\b)/u.test(
+        source,
+      )
+    )
+      bypasses.push(relative);
+  }
+  assert.ok(sources.length > 0);
+  assert.deepEqual(bypasses.sort(), []);
+});
 
 const once = (): GitHubRequestPolicy => ({ replay: "once", attempts: 0 });
 const read = (): GitHubRequestPolicy => ({ replay: "safe-read", attempts: 0 });

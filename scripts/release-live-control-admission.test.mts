@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile, mkdtemp, rm, appendFile, writeFile } from "node:fs/promises";
+import { readFile, mkdtemp, readdir, rm, appendFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
 import { parse } from "yaml";
@@ -138,6 +139,29 @@ void test("observer output transport refuses expiry after every awaited write an
       }
     });
   }
+});
+
+void test("retired reviewed-input read command refuses before credential scratch or receipt", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retired-reviewed-input-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const result = childProcess.spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL("./release-reviewed-inputs.mts", import.meta.url)), "read"],
+    {
+      encoding: "utf8",
+      timeout: 10000,
+      env: {
+        ...process.env,
+        RUNNER_TEMP: root,
+        GH_TOKEN: "inert-reader",
+        PORTCOVE_STORAGE_APP_TOKEN: "inert-storage",
+      },
+    },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 1);
+  assert.equal(result.stderr.trim(), "reviewed input operation refused");
+  assert.deepEqual(await readdir(root), []);
 });
 
 void test("production protection observer entry uses separate captured job and protection App credentials through the SDK", async () => {

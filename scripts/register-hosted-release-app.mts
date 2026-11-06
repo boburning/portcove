@@ -13,6 +13,7 @@ import {
   createAppRegistrationCapture,
   createAppRegistrationStore,
   inspectAppRegistrationCallback,
+  preflightHostedAppSetupSdk,
   syncRegistrationDirectory,
 } from "./release-app-registration-capture.mts";
 
@@ -163,6 +164,7 @@ async function main() {
     throw new Error("fixed App setup role and source required");
   const source = args[3]!;
   requireOrdinaryHostedAppSetupSource(source);
+  if (!(await preflightHostedAppSetupSdk())) return;
   const role = args[1] as HostedReleaseAppRole;
   const state = randomBytes(32).toString("hex");
   const deadline = Date.now() + 600000;
