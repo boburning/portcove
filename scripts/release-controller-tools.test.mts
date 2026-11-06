@@ -2602,7 +2602,19 @@ void test(
     const env = { RUNNER_TEMP: os.tmpdir(), PORTCOVE_EXECUTION_PURPOSE: "application" };
     for (const [mode, additions, boundary] of [
       ["private-invalid-mode", {}, "operation"],
-      ["build", { AZURE_PRIVATE_FIXTURE: "private-fixture-value" }, "credential-boundary"],
+      [
+        "build",
+        { AZURE_EXTENSION_DIR: "/runner/extensions", AZURE_CONFIG_DIR: "/runner/config" },
+        "source-revision",
+      ],
+      [
+        "build",
+        {
+          AZURE_EXTENSION_DIR: "/runner/extensions",
+          AZURE_PRIVATE_FIXTURE: "private-fixture-value",
+        },
+        "credential-boundary",
+      ],
       ["build", { PORTCOVE_CONTROLLER_REVISION: "private-invalid-revision" }, "source-revision"],
       [
         "build",

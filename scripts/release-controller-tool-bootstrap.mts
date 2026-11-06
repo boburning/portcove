@@ -43,6 +43,10 @@ try {
   )
     throw new Error("fixed bootstrap operation required");
   boundary = "credential-boundary";
+  // Hosted runner images set these Azure CLI directory paths globally.
+  // The controller never invokes Azure CLI or passes its configuration onward.
+  delete process.env.AZURE_CONFIG_DIR;
+  delete process.env.AZURE_EXTENSION_DIR;
   for (const key of Object.keys(process.env))
     if (
       /^PORTCOVE_CATALOG_(?:DEFINITIONS|POLICY|SNAPSHOT|TIMESTAMP)_KEY$/u.test(key) ||
