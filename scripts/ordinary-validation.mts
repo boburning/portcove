@@ -2672,6 +2672,7 @@ for (const file of ["package.json", "pnpm-lock.yaml", "scripts/github-client.mts
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/release-native-public-pair.test.mts",
     "scripts/release-semantic-disposition.test.mts",
+    "scripts/roadmap-publish.test.mts",
   ]);
 
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [

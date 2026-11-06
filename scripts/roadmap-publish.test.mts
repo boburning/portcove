@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -243,13 +244,18 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
   const oversizedName = createAuditZip([["roadmap-health/publication.json", diagnostic]]);
   const central = oversizedName.readUInt32LE(oversizedName.length - 6);
   oversizedName.writeUInt16LE(129, central + 28);
+  const valid = createAuditZip([
+    ["roadmap-health/publication.json", diagnostic],
+    [companion, diagnostic, { descriptor: true }],
+    [`roadmap-doctor/${uuid}.json`, diagnostic],
+    [`roadmap-diagnostics/membership-${uuid}/report.json`, diagnostic],
+  ]);
+  const different = Buffer.from(valid);
+  // Change only the ZIP timestamp. Length, selected member, and member CRC still match.
+  different.writeUInt16LE(2, 10);
   const archives = {
-    valid: createAuditZip([
-      ["roadmap-health/publication.json", diagnostic],
-      [companion, diagnostic, { descriptor: true }],
-      [`roadmap-doctor/${uuid}.json`, diagnostic],
-      [`roadmap-diagnostics/membership-${uuid}/report.json`, diagnostic],
-    ]),
+    valid,
+    "digest-mismatch": different,
     unknown: createAuditZip([
       ["roadmap-health/publication.json", diagnostic],
       ["roadmap-health/unknown.json", "{}"],
@@ -262,11 +268,16 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
   };
   const run = async (
     operation: "prepare" | "publish",
-    variant: keyof typeof archives | "size" = "valid",
+    variant: keyof typeof archives | "size" | "historical" | "malformed-digest" = "valid",
   ) => {
     const trace = path.join(root, `${operation}-${variant}.log`);
+    const archive =
+      variant === "size" || variant === "historical" || variant === "malformed-digest"
+        ? valid
+        : archives[variant];
     const preload = `
       import assert from "node:assert/strict";
+      import { createHash } from "node:crypto";
       import { registerHooks } from "node:module";
       import { appendFileSync, readFileSync } from "node:fs";
       import { createAuditZip } from ${JSON.stringify(new URL("./fixtures/audit-zip-fixture.mts", import.meta.url).href)};
@@ -280,19 +291,28 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
           ? { url: urlModule, shortCircuit: true } : next(specifier, context);
       } });
       const state = Buffer.from(${JSON.stringify(state.toString("base64"))}, "base64");
-      const diagnostics = Buffer.from(${JSON.stringify(archives[variant === "size" ? "valid" : variant].toString("base64"))}, "base64");
+      const diagnostics = Buffer.from(${JSON.stringify(archive.toString("base64"))}, "base64");
       let current = ${JSON.stringify(body)};
       const zip = { 400: state, 450: diagnostics };
       if (${JSON.stringify(operation)} === "publish")
         zip[500] = createAuditZip([["state.json", readFileSync(${JSON.stringify(path.join(output, "state.json"))})]]);
       const publication = { path: ".github/workflows/roadmap-report.yml", head_branch: "main" };
       const row = () => ({ id: 7, body: current, user: { type: "Bot", login: "github-actions[bot]" } });
-      const artifact = (id, name, run) => ({
-        id, name, expired: false,
-        size_in_bytes: zip[id].length + (id === 450 && ${variant === "size"} ? 1 : 0),
-        workflow_run: { id: run, repository_id: 1354613114 },
-        archive_download_url: "https://example.invalid/unadmitted",
-      });
+      const variant = ${JSON.stringify(variant)};
+      const artifact = (id, name, run) => {
+        const info = {
+          id, name, expired: false,
+          size_in_bytes: zip[id].length + (id === 450 && variant === "size" ? 1 : 0),
+          workflow_run: { id: run, repository_id: 1354613114 },
+          archive_download_url: "https://example.invalid/unadmitted",
+        };
+        if (variant === "historical") return id === 400 ? info : { ...info, digest: null };
+        let digest = "sha256:" + createHash("sha256").update(zip[id]).digest("hex");
+        if (id === 450 && variant === "digest-mismatch")
+          digest = ${JSON.stringify(`sha256:${createHash("sha256").update(valid).digest("hex")}`)};
+        if (id === 450 && variant === "malformed-digest") digest = "sha256:invalid";
+        return { ...info, digest };
+      };
       globalThis.fetch = async (input, init) => {
         const url = new URL(input instanceof Request ? input.url : input);
         const route = url.pathname.replace(/^\\/(?:repos\\/boburning\\/portcove|repositories\\/1354613114)/, "");
@@ -384,13 +404,20 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
     "PATCH /issues/comments/7",
     "GET /issues/comments/7",
   ]);
+  await run("prepare", "historical");
+  const historical = JSON.parse(await readFile(stateFile, "utf8")) as RoadmapReportState;
+  assert.deepEqual(historical.observations, selected.observations);
+  assert.deepEqual(historical.publication_gaps, []);
   for (const [variant, refusal] of [
     ["unknown", /path or collision/u],
     ["symlink", /nonregular entry/u],
     ["metadata", /name or metadata limit/u],
     ["size", /byte count differs/u],
+    ["digest-mismatch", /provider digest differs/u],
+    ["malformed-digest", /provider digest is invalid/u],
   ] as const) {
-    await run("prepare", variant);
+    const calls = await run("prepare", variant);
+    assert.equal(calls.includes("GET /actions/artifacts/450/zip"), variant !== "malformed-digest");
     const rejected = JSON.parse(await readFile(stateFile, "utf8")) as RoadmapReportState;
     assert.deepEqual(rejected.observations, {});
     assert.match(rejected.publication_gaps[0] ?? "", refusal);

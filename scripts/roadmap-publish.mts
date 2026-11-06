@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   readFileSync,
   writeFileSync,
@@ -273,6 +274,11 @@ async function downloadReportMember(
     size > maximumArchiveBytes
   )
     throw new Error(`Missing, expired, mismatched or oversized retained artifact: ${name}`);
+  const digest = artifact.digest;
+  // GitHub's artifact digest is optional. A retained artifact without it still
+  // requires the original run, attempt, artifact, size and report-member checks.
+  if (digest != null && (typeof digest !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(digest)))
+    throw new Error("Retained artifact provider digest is invalid");
   const destination = mkdtempSync(path.join(directory, "download-"));
   const filename = path.join(destination, "artifact.zip");
   const deadline = performance.now() + 60_000;
@@ -283,6 +289,8 @@ async function downloadReportMember(
       { credential, deadline, maxBytes: size, lookup: { requestTimeoutMs: 60_000 } },
     );
     const archive = readFileSync(filename);
+    if (digest != null && `sha256:${createHash("sha256").update(archive).digest("hex")}` !== digest)
+      throw new Error("Retained artifact provider digest differs");
     const { entries } = inspectBoundedZip(
       archive,
       {
