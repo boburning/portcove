@@ -1368,3 +1368,78 @@ void test("locked publication inventory uses the operation's existing exhausted 
   assert.equal(occupied, 160);
   assert.ok(observed >= 1);
 });
+
+void test("default admission brackets exact SDK check pages and statuses across archive acquisition", async (t) => {
+  const token = "inert-fixed-admission-qualification";
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  for (const drift of [null, "status-drift", "issuer-drift"]) {
+    const f = await fixture(t);
+    const { api, recover, download } = f.options;
+    assert.ok(api && recover && download);
+    if (drift) f.faults.value = drift;
+    const qualification: string[] = [];
+    const mocked = t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), `token ${token}`);
+        if (url.pathname === "/graphql") {
+          const raw: unknown = await request.json();
+          assert.ok(
+            isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+          );
+          return Response.json({
+            data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+          });
+        }
+        const raw = api.request("GET", url.href);
+        const headers = new Headers(Object.fromEntries(raw.headers));
+        if (url.pathname.endsWith("/check-runs")) {
+          assert.equal(url.searchParams.get("filter"), "latest");
+          assert.match(url.pathname, new RegExp(f.prepared.sha, "u"));
+          const page = url.searchParams.get("page") ?? "1";
+          qualification.push(`checks-${page}`);
+          assert.ok(isRecord(raw.body) && Array.isArray(raw.body.check_runs));
+          const first = page === "1";
+          if (first) {
+            url.searchParams.set("page", "2");
+            headers.set("link", `<${url.href}>; rel="next"`);
+          }
+          return Response.json(
+            {
+              ...raw.body,
+              check_runs: raw.body.check_runs.slice(first ? 0 : 1, first ? 1 : undefined),
+            },
+            { headers },
+          );
+        }
+        if (url.pathname.endsWith("/status")) {
+          assert.match(url.pathname, new RegExp(f.prepared.sha, "u"));
+          qualification.push("status");
+        }
+        return Response.json(raw.body, { headers });
+      },
+    );
+    try {
+      const result = acquireReleaseAdmission(f.root, f.config, { recover, download });
+      if (drift) await assert.rejects(result, /freshness-bracket/u);
+      else assert.equal((await result).decision, "hold");
+      assert.deepEqual(
+        qualification,
+        drift === "issuer-drift"
+          ? ["checks-1", "checks-2", "status", "checks-1"]
+          : ["checks-1", "checks-2", "status", "checks-1", "checks-2", "status"],
+      );
+    } finally {
+      mocked.mock.restore();
+    }
+  }
+});

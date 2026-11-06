@@ -18,6 +18,8 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { nextLink } from "./github-operation.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
 import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
@@ -781,58 +783,113 @@ export async function acquireReleaseAdmission(
       JSON.parse(await readFile(path.join(project, ".github/repository-ruleset.json"), "utf8")),
       JSON.parse(await readFile(path.join(project, ".github/qualification-coverage.json"), "utf8")),
     );
-    const checkApi = {
-      ...api,
-      request: (method: string, endpoint: string, body?: unknown) => {
-        const response = api.request(method, endpoint, body);
-        const url = new URL(
-          endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
-        );
-        if (url.pathname.endsWith("/check-runs")) {
-          const runs = record(response.body).check_runs;
-          if (!Array.isArray(runs)) throw new Error("qualification check inventory missing");
-          for (const raw of runs) {
-            const run = record(raw);
-            if (run.head_sha !== active.prepared_commit)
-              throw new Error("qualification check source differs");
-            if (required.includes(String(run.name)) && record(run.app).id !== 15368)
+    function* qualificationPages(
+      head: string,
+      kind: "check-runs" | "status",
+    ): Generator<string, unknown[], GitHubMetadataResponse> {
+      const pathname = `/${base}/commits/${head}/${kind}`;
+      const key = kind === "check-runs" ? "check_runs" : "statuses";
+      const records: unknown[] = [];
+      const identities = new Set<number>();
+      const pages = new Set<string>();
+      let total: number | undefined;
+      let endpoint: string | null =
+        `${pathname.slice(1)}?${kind === "check-runs" ? "filter=latest&" : ""}per_page=100`;
+      while (endpoint) {
+        const url = new URL(endpoint, "https://api.github.com/");
+        assertAdmissionRestRead("GET", url);
+        url.searchParams.sort();
+        if (url.pathname !== pathname || pages.has(url.href))
+          throw new Error("qualification pagination changed scope or did not advance");
+        pages.add(url.href);
+        const response = yield endpoint;
+        if (response.status !== 200) throw new Error("qualification provider unavailable");
+        const body = record(response.body);
+        const rows = body[key];
+        const count = body.total_count;
+        if (!Array.isArray(rows)) throw new Error("qualification inventory missing");
+        if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0)
+          throw new Error("qualification total is invalid");
+        total ??= count;
+        if (total !== count) throw new Error("qualification total changed during pagination");
+        if (kind === "status" && body.sha !== head)
+          throw new Error("qualification status source differs");
+        for (const raw of rows as readonly unknown[]) {
+          const item = record(raw);
+          if (kind === "check-runs") {
+            if (item.head_sha !== head) throw new Error("qualification check source differs");
+            if (required.includes(String(item.name)) && record(item.app).id !== 15368)
               throw new Error("required qualification check issuer differs");
           }
-        } else if (
-          url.pathname.endsWith("/status") &&
-          record(response.body).sha !== active.prepared_commit
-        )
-          throw new Error("qualification status source differs");
-        return response;
-      },
+          const id = item.id;
+          if (typeof id !== "number" || !Number.isSafeInteger(id) || identities.has(id))
+            throw new Error("qualification contains a missing or duplicate ID");
+          identities.add(id);
+          records.push(raw);
+        }
+        if (records.length > total) throw new Error("qualification count exceeds reported total");
+        endpoint = nextLink(response.headers);
+      }
+      if (records.length !== total)
+        throw new Error("qualification count does not match reported total");
+      return records;
+    }
+
+    let qualificationUrl: string | undefined;
+    const qualificationClient =
+      inventoryToken === undefined
+        ? undefined
+        : await (
+            await import("./github-client.mts")
+          ).createGitHubClient({
+            credential: { kind: "explicit", token: inventoryToken },
+            deadline: admissionDeadline,
+            maxBytes: 2 * 1024 * 1024,
+            requestTimeoutMs: 15000,
+            reserve: reserveProviderRequest,
+            observe: ({ elapsedMs }) => {
+              apiMilliseconds += elapsedMs;
+            },
+            allowRequest(method, url) {
+              checkReadTime();
+              assertTrustedDirectNode("fixed release admission qualification");
+              return method === "GET" && url.href === qualificationUrl;
+            },
+          });
+    const readQualificationRecords = async (kind: "check-runs" | "status") => {
+      const pages = qualificationPages(active.prepared_commit, kind);
+      let step = pages.next();
+      while (!step.done) {
+        if (!qualificationClient) {
+          step = pages.next(api.request("GET", step.value));
+          continue;
+        }
+        const url = new URL(step.value, "https://api.github.com/");
+        qualificationUrl = url.href;
+        const response = await qualificationClient.request(`GET ${url.pathname}${url.search}`, {
+          request: {
+            portcove: { replay: "once", attempts: 0, deadline: archiveLookup().deadline },
+          },
+        });
+        checkReadTime();
+        const link: unknown = response.headers.link;
+        if (link !== undefined && typeof link !== "string")
+          throw new Error("qualification pagination unavailable");
+        step = pages.next({
+          status: response.status,
+          body: response.data,
+          headers: new Map(typeof link === "string" ? [["link", link]] : []),
+        });
+      }
+      return step.value;
     };
-    // This release acquisition family retains its existing bounded source API
-    // until its approved SDK slice; consume pure delivery metadata validation.
-    const qualificationRecords = (suffix: string, key: string) =>
-      GitHubApiClient.prototype.paginateRest.call(
-        checkApi,
-        `repos/boburning/portcove/commits/${active.prepared_commit}/${suffix}${suffix === "check-runs" ? "?filter=latest&per_page=100" : "?per_page=100"}`,
-        {
-          select: (body) => record(body)[key],
-          totalCount: (body) => {
-            const count = record(body).total_count;
-            if (typeof count !== "number") throw new Error("qualification total is invalid");
-            return count;
-          },
-          identity: (value) => {
-            const id = record(value).id;
-            return typeof id === "number" && Number.isSafeInteger(id) ? String(id) : null;
-          },
-          label: key,
-        },
-      );
-    const readQualification = () =>
+    const readQualification = async () =>
       requiredCheckContexts(
-        qualificationRecords("check-runs", "check_runs").map(checkMetadata),
-        qualificationRecords("status", "statuses").map(statusMetadata),
+        (await readQualificationRecords("check-runs")).map(checkMetadata),
+        (await readQualificationRecords("status")).map(statusMetadata),
         required,
       );
-    const contexts = readQualification();
+    const contexts = await readQualification();
     if (contexts.some((context) => context.outcome !== "success" || context.source !== "check-run"))
       holds.add("exact-prepared-head-required-contexts-not-successful");
     const policy = selectReleasePackagePolicy(
@@ -1075,7 +1132,7 @@ export async function acquireReleaseAdmission(
       throw new Error(
         "Release run, jobs or complete artifact inventory changed during acquisition",
       );
-    if (!isDeepStrictEqual(contexts, readQualification()))
+    if (!isDeepStrictEqual(contexts, await readQualification()))
       throw new Error("required qualification changed during acquisition");
     if (
       !isDeepStrictEqual(initialTags, await publicationReader.tags()) ||
