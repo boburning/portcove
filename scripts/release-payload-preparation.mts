@@ -50,10 +50,12 @@ import {
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import { orderedJsonValue } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 import {
   requestAssemblerToken,
   inspectAssemblerIdentityExpectation,
@@ -646,6 +648,8 @@ export async function runPayloadSigningController(
     {},
     async (context, prepared, directory) => {
       requireActualReleaseAdmissionContext(context, "payload-signing");
+      const reader = { token: fixedReleaseReaderToken() };
+      const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
       const risk = await (
         await import("./linux-beta-risk-706-controller.mts")
       ).authorizeActualLinuxRisk706(context, undefined, context.checkpoint, deadline);
@@ -656,7 +660,7 @@ export async function runPayloadSigningController(
         deadline,
       );
       const identity = await verifyPayloadSignerJobIdentity(token, identityExpected, {
-        transport: { cwd: directory, deadline },
+        transport: { sdkToken: reader.token, requireDirect, deadline },
       });
       if (identity.evidence_scope !== "github.com")
         throw new Error("actual payload signer required");
@@ -697,43 +701,9 @@ export async function runPayloadSigningController(
           factsDigest,
           "payload",
           round,
-          { deadline },
+          { deadline, controlReader: "payload" },
         );
-        const api = new GitHubApiClient((args, input) => {
-          withinBudget();
-          const response = createGitHubRunner({
-            cwd: directory,
-            maxBuffer: 2 * 1024 ** 2,
-            timeoutMs: Math.max(1, Math.floor(Math.min(15000, deadline - performance.now()))),
-          })([...args, "--hostname", "github.com"], input);
-          withinBudget();
-          return response;
-        });
-        let requests = 0;
-        const bound = () => {
-          if (++requests > 32) throw new Error("payload control read bound exhausted");
-        };
-        const current = source.read(
-          {
-            request(method, endpoint, body) {
-              bound();
-              if (
-                method !== "GET" ||
-                body !== undefined ||
-                !endpoint.startsWith("repos/boburning/portcove/")
-              )
-                throw new Error("payload controls permit only fixed repository reads");
-              return api.request(method, endpoint);
-            },
-            graphql(query, variables) {
-              bound();
-              if (query !== releaseControlRefQuery)
-                throw new Error("payload control query differs");
-              return api.graphql(query, variables);
-            },
-          },
-          context.facts.opportunity,
-        );
+        const current = await source.readSdkApplicationControls(context.facts.opportunity);
         if (
           current.pause.publication_paused ||
           !current.resource_policy_matches_controller ||
@@ -758,7 +728,7 @@ export async function runPayloadSigningController(
         await requireVerifiedReleaseSbomDocument(context.sbom_receipt);
         const coordinator = { schema_version: 1, namespace: authorities.namespace };
         const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-          transport: { cwd: directory, deadline },
+          transport: { credential: reader, deadline },
         });
         await requireReservedAggregate(
           JSON.stringify({

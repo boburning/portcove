@@ -313,6 +313,8 @@ function observeProtections(
     authority: "none",
   };
 }
+export const inputProtectionFreshnessMilliseconds = 60_000;
+
 /** Interpret only the selected narrow policy. Additional/unknown restrictions
  * may refuse availability; no fallback broadens the authorized writer. This
  * requires the isolated observer's result through trusted same-workflow needs,
@@ -464,7 +466,7 @@ function requireInputPolicy(
     typeof raw.observed_at !== "string" ||
     !Number.isFinite(Date.parse(raw.observed_at)) ||
     now - Date.parse(raw.observed_at) < 0 ||
-    now - Date.parse(raw.observed_at) > 60_000 ||
+    now - Date.parse(raw.observed_at) > inputProtectionFreshnessMilliseconds ||
     !isRecord(raw.inventory) ||
     !Array.isArray(raw.inventory.rulesets) ||
     !Array.isArray(raw.inventory.branches) ||
@@ -579,7 +581,7 @@ export function requireReleaseImmutabilityPolicy(raw: unknown, now = Date.now())
     typeof raw.observed_at !== "string" ||
     !Number.isFinite(Date.parse(raw.observed_at)) ||
     now - Date.parse(raw.observed_at) < 0 ||
-    now - Date.parse(raw.observed_at) > 60_000 ||
+    now - Date.parse(raw.observed_at) > inputProtectionFreshnessMilliseconds ||
     !isRecord(raw.inventory) ||
     !isRecord(raw.inventory.immutable_releases) ||
     Object.keys(raw.inventory.immutable_releases).sort().join(",") !==

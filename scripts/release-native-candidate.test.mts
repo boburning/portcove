@@ -12,6 +12,7 @@ import {
   readdir,
   rename,
   rm,
+  utimes,
 } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { disposableTufWorkerFixture } from "./fixtures/tuf-worker-fixture.mts";
@@ -726,6 +727,10 @@ void test("predecessor custody requires exact immutable Release and streams veri
               const file = path.join(root, scratch, "asset");
               if (fault === "replace") await rename(file, `${file}.original`);
               await writeFile(file, Buffer.alloc(payload.length, 1));
+              if (fault === "rewrite") {
+                // Make this metadata check independent of filesystem timestamp granularity.
+                await utimes(file, 1, 1);
+              }
             }
             return Response.json(release);
           case "/repos/boburning/portcove/releases/1/assets":

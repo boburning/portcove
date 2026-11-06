@@ -139,26 +139,28 @@ dependency("release-capacity-executor", {
   },
 });
 dependency("release-live-control-admission", {
-  authenticateReleaseControlRound: () => ({
-    evidence_scope: "github.com",
-    read: () => {
-      events.push(`controls:${clock}`);
-      const current = {
-        pause: { publication_paused: mode === "stale-controls" && clock >= 60000 },
-        resource_policy_matches_controller: true,
-        capacity,
-        classification: manifest.control_facts.classification,
-      };
-      if (mode === "expired-after-controls") clock = 116000;
-      return current;
-    },
-  }),
-});
-dependency("github-api", {
-  createGitHubRunner: forbidden,
-  GitHubApiClient: class {
-    request = forbidden;
-    graphql = forbidden;
+  authenticateReleaseControlRound: async (
+    _path: string,
+    _digest: string,
+    _phase: string,
+    _round: number,
+    options: unknown,
+  ) => {
+    assert.deepEqual(options, { deadline: 115000, controlReader: "tuf-application" });
+    return {
+      evidence_scope: "github.com",
+      async readSdkApplicationControls() {
+        events.push(`controls:${clock}`);
+        const current = {
+          pause: { publication_paused: mode === "stale-controls" && clock >= 60000 },
+          resource_policy_matches_controller: true,
+          capacity,
+          classification: manifest.control_facts.classification,
+        };
+        if (mode === "expired-after-controls") clock = 116000;
+        return current;
+      },
+    };
   },
 });
 dependency("release-coordinator-recovery", {

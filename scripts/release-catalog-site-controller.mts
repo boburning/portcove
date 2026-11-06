@@ -33,7 +33,6 @@ import {
 import { assertCatalogPublicationBaseline } from "./release-catalog-metadata-contract.mts";
 import { inspectCatalogPublicationDescriptor } from "./release-catalog-publication-contract.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import {
   authenticateCapacityExecutor,
   capacityExecutorIdentity,
@@ -253,16 +252,6 @@ export async function runCatalogSitePublicationController(
         deadline,
       );
       const producer = capacityExecutorIdentity(executor);
-      const api = new GitHubApiClient((args, body) => {
-        remaining(deadline);
-        const result = createGitHubRunner({
-          cwd: directory,
-          timeoutMs: remaining(deadline),
-          maxBuffer: 2 * 1024 ** 2,
-        })([...args, "--hostname", "github.com"], body);
-        remaining(deadline);
-        return result;
-      });
       let round = 0;
       const fresh = async () => {
         remaining(deadline);
@@ -273,7 +262,7 @@ export async function runCatalogSitePublicationController(
           digest({ descriptor: actual.descriptor, generation: prepared.generation.generation }),
           "site-publication",
           round,
-          { deadline },
+          { deadline, controlReader: "site-maintenance" },
         );
         if (controls.evidence_scope !== "github.com")
           throw new Error("actual catalog site controls required");
@@ -282,7 +271,7 @@ export async function runCatalogSitePublicationController(
       let controls = await fresh();
       const checkpointControls = async () => {
         remaining(deadline);
-        const facts = controls.readMaintenance(api);
+        const facts = await controls.readSdkMaintenance();
         if (
           facts.purpose !== "catalog-site-publication-controls" ||
           facts.pause.publication_paused ||
@@ -299,7 +288,7 @@ export async function runCatalogSitePublicationController(
           ? requireOwnedCapacityPendingBoundary(executor, pendingReceipt)
           : undefined;
         inspectCatalogSiteReservation(snapshot, checkpoint, actual.descriptor, pending);
-        const facts = controls.readMaintenance(api);
+        const facts = await controls.readSdkMaintenance();
         if (
           facts.purpose !== "catalog-site-publication-controls" ||
           facts.pause.publication_paused ||
