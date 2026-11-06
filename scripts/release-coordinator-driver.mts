@@ -1383,13 +1383,20 @@ async function coordinateTrustedReleaseAt(
       (await authenticateReleaseControlSource(process.env, workflow, {
         phase: "coordinator",
         deadline: budget.monotonicDeadline,
+        controlReader: "coordinator-application",
         ...(artifact ? { observedArtifact: artifact } : {}),
       }));
-    const initial = controls.read(api, opportunity);
+    const readLiveControls = async (selectedOpportunity: typeof opportunity) => {
+      budget.check();
+      const observed = await controls.readSdkApplicationControls(selectedOpportunity);
+      budget.check();
+      return observed;
+    };
+    const initial = await readLiveControls(opportunity);
     const original =
       activeOpportunity.source_commit === opportunity.source_commit
         ? initial
-        : controls.read(api, activeOpportunity);
+        : await readLiveControls(activeOpportunity);
     const recoveredController = recovered.input.controller;
     const priorOperation = inspectCapacityOperation(
       isRecord(recoveredController) && isRecord(recoveredController.capacity_attempt)
@@ -1474,8 +1481,7 @@ async function coordinateTrustedReleaseAt(
         },
         undefined,
         async () => {
-          budget.check();
-          const fresh = controls.read(api, activeOpportunity);
+          const fresh = await readLiveControls(activeOpportunity);
           if (
             fresh.pause.publication_paused ||
             !fresh.resource_policy_matches_controller ||
@@ -1557,21 +1563,22 @@ async function coordinateTrustedReleaseAt(
         authority: "none",
         automatic_retry: false,
       };
-    const readSynchronousBoundary = () => {
+    const readBoundary = async () => {
       budget.check();
       if (round?.admission) {
-        const exact = controls.readRequest(api, round.admission.request).classification;
+        const exact = (await controls.readSdkRequest(round.admission.request, "effect"))
+          .classification;
         if (
           exact.status !== "reviewed" ||
           capacityDigest(exact.opportunity) !== capacityDigest(opportunity)
         )
           throw new Error("accepted request changed or acquired contradictory disposition");
       }
-      const fresh = controls.read(api, opportunity);
+      const fresh = await readLiveControls(opportunity);
       const frozen =
         activeOpportunity.source_commit === opportunity.source_commit
           ? fresh
-          : controls.read(api, activeOpportunity);
+          : await readLiveControls(activeOpportunity);
       if (
         fresh.pause.publication_paused ||
         !fresh.resource_policy_matches_controller ||
@@ -1586,7 +1593,6 @@ async function coordinateTrustedReleaseAt(
         throw new Error("fresh coordinator control sources changed or remain held");
       return structuredClone(fresh.capacity_source.capacity.boundary);
     };
-    const readBoundary = async () => readSynchronousBoundary();
     await readBoundary();
     await assertInventory();
     const checkpointControls = async () => {
@@ -1601,7 +1607,7 @@ async function coordinateTrustedReleaseAt(
     );
     const legacyJournal = signedJournal
       ? undefined
-      : guardedCoordinatorJournal(directory, budget, readSynchronousBoundary);
+      : guardedCoordinatorJournal(directory, budget, { readCurrent: checkpointControls });
     const publishCheckpoint = async (next: string) => {
       if (signedJournal)
         return publishOwnedSignedCoordinatorCheckpoint(
@@ -3871,7 +3877,6 @@ async function continueTrustedSemanticReview(
   try {
     const request = inspectReleaseReviewRequest(recovered.input.review_request);
     if (!request) throw new Error("no outstanding exact semantic request to retire");
-    const api = coordinatorApi(directory, budget, 2 * 1024 * 1024);
     const workflow = await readProductionControllerWorkflowBytes();
     const reader = await authenticateControlReaderJob(process.env, workflow, {
       phase: "coordinator",
@@ -3901,9 +3906,11 @@ async function continueTrustedSemanticReview(
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
       deadline: budget.monotonicDeadline,
+      controlReader: "coordinator-application",
       observedArtifact: artifact,
     });
-    const reviewed = controls.readRequest(api, request);
+    const reviewed = await controls.readSdkRequest(request);
+    budget.check();
     if (reviewed.classification.status === "reviewed") {
       const authorities = await requireControllerApplicationCoordinatorAuthorities();
       if (
@@ -3922,7 +3929,8 @@ async function continueTrustedSemanticReview(
         { directory, budget, recovered, admission: { workflow, reader, controls, request } },
       );
     }
-    const observed = controls.readDisposition(api, request);
+    const observed = await controls.readSdkDisposition(request);
+    budget.check();
     if (
       observed.pause.publication_paused ||
       !observed.resource_policy_matches_controller ||
@@ -3953,7 +3961,7 @@ async function continueTrustedSemanticReview(
         prior_operations: structuredClone(priorCapacity.prior_operations),
       },
     };
-    const fresh = controls.readDisposition(api, request);
+    const fresh = await controls.readSdkDisposition(request);
     const current = await readRemoteCoordinatorSnapshot(directory, remoteConfiguration, {
       transport: budget.journalTransport(),
     });
@@ -3961,10 +3969,13 @@ async function continueTrustedSemanticReview(
     if (fresh.facts_sha256 !== observed.facts_sha256 || current.checkpoint !== checkpoint)
       throw new Error("negative semantic/control/checkpoint identity changed before retirement");
     phase = "durable-negative-semantic-retirement";
-    const checkpointControls = () => {
-      budget.check();
-      if (controls.readDisposition(api, request).facts_sha256 !== observed.facts_sha256)
-        throw new Error("semantic disposition/controls changed immediately before journal CAS");
+    const checkpointControls = {
+      async readCurrent() {
+        budget.check();
+        if ((await controls.readSdkDisposition(request)).facts_sha256 !== observed.facts_sha256)
+          throw new Error("semantic disposition/controls changed immediately before journal CAS");
+        budget.check();
+      },
     };
     const publishCheckpoint = await coordinatorCheckpointPublisher(
       directory,

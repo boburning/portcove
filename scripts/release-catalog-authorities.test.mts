@@ -293,8 +293,8 @@ void test("catalog OIDC control source is purpose-separated and retains existing
   assert.equal(controls.capacity_source.report.headroom, "unknown");
   assert.equal(controls.capacity_source.report.reservation, "none");
   assert.throws(() => source.read(f.control.api, {}), /application classification/);
-  assert.throws(() => source.readRequest(f.control.api, {}), /application request/);
-  assert.throws(() => source.readDisposition(f.control.api, {}), /application disposition/);
+  await assert.rejects(source.readSdkRequest({}), /scoped coordinator application/);
+  await assert.rejects(source.readSdkDisposition({}), /scoped coordinator application/);
   await assert.rejects(
     authenticateControlReaderJob(f.environment, f.actual.workflow, f.actual.options),
     /missing/,

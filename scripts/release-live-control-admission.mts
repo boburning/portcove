@@ -29,7 +29,7 @@ import {
   readApplicationControlsWithSdk,
   readRatifiedCapacityConfiguration,
   readReviewedClassification,
-  readReviewedClassificationForRequest,
+  readReviewedClassificationForRequestWithSdk,
 } from "./release-control-inputs.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
@@ -62,8 +62,8 @@ import {
   inspectBoundControllerAuthorities,
 } from "./release-authority-configuration.mts";
 import {
-  discoverIndependentSemanticDisposition,
-  readIndependentSemanticCheckInventory,
+  discoverIndependentSemanticDispositionWithSdk,
+  readIndependentSemanticCheckInventoryWithSdk,
   inspectSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
@@ -96,6 +96,7 @@ function json(raw: string | undefined, maximum: number) {
 
 type SdkControlReader =
   | "admitted-aggregate"
+  | "coordinator-application"
   | "site-application"
   | "site-maintenance"
   | "payload"
@@ -241,6 +242,7 @@ async function authenticateControlSource(
   const sdkObserverToken = catalogRecoveryObserver ? fixedReleaseReaderToken(env) : sdkReaderToken;
 
   const catalogCoordinator = controlReader === "catalog-maintenance" && phase === "coordinator";
+  const coordinatorApplication = controlReader === "coordinator-application";
   const coordinatorMaintenance = catalogCoordinator || controlReader === "metadata-maintenance";
   const direct =
     aggregateAdmission ||
@@ -251,7 +253,7 @@ async function authenticateControlSource(
     controlReader === "site-maintenance" || controlReader === "site-application"
       ? phase === "site-publication" &&
         (controlReader === "site-maintenance" || purpose === "application")
-      : controlReader === "metadata-maintenance"
+      : controlReader === "metadata-maintenance" || coordinatorApplication
         ? purpose === "application" && phase === "coordinator"
         : controlReader === "catalog-maintenance"
           ? purpose === "catalog-publication" &&
@@ -622,6 +624,28 @@ async function authenticateControlSource(
       authority: "none",
     };
   };
+  const readCoordinatorMaintenance = async (maxBytes: number) => {
+    const readProducer = readSdkProducer;
+    if (!coordinatorApplication || !sdkReaderToken || sdkDeadline === undefined || !readProducer)
+      throw new Error("actual scoped coordinator application reader unavailable");
+    const options = {
+      token: sdkReaderToken,
+      deadline: sdkDeadline,
+      guard,
+      maxBytes,
+      fetch: fixedFetch,
+    };
+    const verifyProducer = async () => {
+      guard();
+      if ((await readProducer()) !== producerIdentity)
+        throw new Error("observer changed during coordinator semantic readback");
+      guard();
+    };
+    const protection = beginMaintenance();
+    const { pause, capacity } = await readMaintenanceControlsWithSdk(options);
+    await verifyProducer();
+    return { options, maintenance: maintenanceFacts(protection, pause, capacity), verifyProducer };
+  };
   const source = Object.freeze({
     phase,
     evidence_scope:
@@ -730,36 +754,19 @@ async function authenticateControlSource(
       guard();
       return maintenanceFacts(protection, pause, capacity);
     },
-    readDisposition(api: CoordinatorRemoteApi, request: unknown) {
-      if (purpose !== "application")
-        throw new Error("catalog controls cannot persist application disposition");
-      if (phase !== "coordinator")
-        throw new Error("semantic retirement requires the fixed coordinator controls");
-      const maintenance = source.readMaintenance(api);
-      const disposition = discoverIndependentSemanticDisposition(api, config, request);
-      guard();
-      if (producerReadback() !== producerIdentity)
-        throw new Error("observer job changed during semantic disposition readback");
-      return {
-        ...maintenance,
-        disposition,
-        facts_sha256: capacityDigest({
-          control_facts_sha256: maintenance.facts_sha256,
-          disposition,
-        }),
-      };
-    },
-    readRequest(api: CoordinatorRemoteApi, request: unknown) {
-      if (purpose !== "application")
-        throw new Error("catalog controls cannot classify application request");
-      if (phase !== "coordinator")
-        throw new Error("request classification requires fixed coordinator controls");
-      const maintenance = source.readMaintenance(api);
-      const classification = readReviewedClassificationForRequest(api, config, request);
+    async readSdkRequest(request: unknown, use: "admission" | "effect" = "admission") {
+      const { options, maintenance, verifyProducer } = await readCoordinatorMaintenance(
+        (use === "effect" ? 16 : 2) * 1024 ** 2,
+      );
+      const classification = await readReviewedClassificationForRequestWithSdk(
+        options,
+        config,
+        request,
+      );
       requireObservedRefs([["portcove-release-inputs", classification.commit]]);
       if (classification.status === "reviewed") {
-        const checks = readIndependentSemanticCheckInventory(
-          api,
+        const checks = await readIndependentSemanticCheckInventoryWithSdk(
+          options,
           config,
           classification.opportunity.source_commit,
         );
@@ -772,11 +779,9 @@ async function authenticateControlSource(
           throw new Error(
             "persisted request classification conflicts with complete independent Check inventory",
           );
-        checks.assertUnchanged();
+        await checks.assertUnchanged();
       }
-      guard();
-      if (producerReadback() !== producerIdentity)
-        throw new Error("observer changed during request classification read");
+      await verifyProducer();
       return {
         ...maintenance,
         classification,
@@ -785,12 +790,31 @@ async function authenticateControlSource(
           classification:
             classification.status === "reviewed"
               ? {
-                  status: classification.status,
+                  status: "reviewed",
                   commit: classification.commit,
                   opportunity: classification.opportunity,
                   review_check_id: classification.review_check_id,
                 }
               : classification,
+        }),
+      };
+    },
+    async readSdkDisposition(request: unknown) {
+      const { options, maintenance, verifyProducer } = await readCoordinatorMaintenance(
+        2 * 1024 ** 2,
+      );
+      const disposition = await discoverIndependentSemanticDispositionWithSdk(
+        options,
+        config,
+        request,
+      );
+      await verifyProducer();
+      return {
+        ...maintenance,
+        disposition,
+        facts_sha256: capacityDigest({
+          control_facts_sha256: maintenance.facts_sha256,
+          disposition,
         }),
       };
     },
@@ -827,7 +851,9 @@ async function authenticateControlSource(
           controlReader !== "payload" &&
           controlReader !== "tuf-application" &&
           controlReader !== "publication-application" &&
-          controlReader !== "site-application") ||
+          controlReader !== "site-application" &&
+          !coordinatorApplication) ||
+        (coordinatorApplication && accounting !== undefined) ||
         sdkReaderToken === undefined ||
         sdkDeadline === undefined ||
         !readSdkProducer
@@ -864,6 +890,7 @@ async function authenticateControlSource(
           },
           fetch,
           ...(limits.admission && { accounting: limits.admission }),
+          ...(coordinatorApplication ? { maxBytes: 16 * 1024 ** 2 } : {}),
         },
         config,
         opportunity,

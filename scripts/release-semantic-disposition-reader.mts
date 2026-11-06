@@ -616,6 +616,32 @@ export function discoverIndependentSemanticDisposition(
   return result;
 }
 
+export async function discoverIndependentSemanticDispositionWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  rawRequest: unknown,
+) {
+  const request = inspectReleaseReviewRequest(rawRequest);
+  if (!request) throw new Error("negative semantic discovery requires exact request");
+  const deadline = Math.min(
+    options.deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
+  const run = await createSemanticSdkReader(options, deadline);
+  const inventory = await run(
+    checkInventory(configuration, request.source_commit, false, deadline),
+  );
+  const matches = inspectSemanticRequestCheckMatches(inventory.records, request);
+  if (matches.negative.length !== 1 || matches.accepted.length !== 0)
+    throw new Error(
+      "negative semantic disposition absent or ambiguous; retain request without POST",
+    );
+  const result = await run(dispositionRead(configuration, request, matches.negative[0]!, false));
+  await run(inventory.assertUnchanged());
+  return { ...result, wire: inspectNegativeSemanticDisposition(result.wire) };
+}
+
 /** Compact declared custody only. Call this on a direct, freshly authenticated
  * consumer result inside the fixed coordinator; it does not turn imported JSON
  * into producer proof. The journal independently validates the transition. */

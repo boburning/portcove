@@ -1008,7 +1008,7 @@ void test("selected full application control drift cannot hide behind an unchang
   );
 });
 
-void test("coordinator exact request reader accepts persisted independent proof and refuses conflicting outcomes", async () => {
+void test("scoped coordinator request reader accepts persisted proof and distinguishes negative or conflicting outcomes", async (t) => {
   const selected = { ...config, review_check_name: semanticReviewCheckName };
   const request = createReleaseReviewRequest({
     before_checkpoint: "e".repeat(40),
@@ -1036,6 +1036,13 @@ void test("coordinator exact request reader accepts persisted independent proof 
       opportunity_sha256: capacityDigest(opportunity),
       review: { ...full.review, completed_at: "2026-01-01T00:00:00Z" },
     }).proposed_request.body;
+    const negativeCheck = {
+      ...negative,
+      id: 505,
+      app: { id: selected.review_app_id },
+      check_suite: { id: 404 },
+      output: { ...negative.output, annotations_count: 0, text: "" },
+    };
     const accepted = () => {
       const value = control.api.request("GET", "repos/boburning/portcove/check-runs/303").body;
       assert.ok(isRecord(value));
@@ -1066,14 +1073,7 @@ void test("coordinator exact request reader accepts persisted independent proof 
           };
         if (endpoint.includes("/check-suites/404/check-runs?")) {
           const records: Record<string, unknown>[] = persisted ? [accepted()] : [];
-          if (conflict)
-            records.push({
-              ...negative,
-              id: 505,
-              app: { id: selected.review_app_id },
-              check_suite: { id: 404 },
-              output: { ...negative.output, annotations_count: 0, text: "" },
-            });
+          if (conflict) records.push(negativeCheck);
           return {
             status: 200,
             headers: new Map<string, string>(),
@@ -1082,6 +1082,8 @@ void test("coordinator exact request reader accepts persisted independent proof 
         }
         if (endpoint.endsWith("/check-runs/303"))
           return { status: 200, headers: new Map<string, string>(), body: accepted() };
+        if (conflict && endpoint.endsWith("/check-runs/505"))
+          return { status: 200, headers: new Map<string, string>(), body: negativeCheck };
         return control.api.request(method, endpoint, body);
       },
     };
@@ -1091,22 +1093,65 @@ void test("coordinator exact request reader accepts persisted independent proof 
       selected,
       "coordinator",
     );
-    const source = await runtime.create();
-    const result = source.readRequest(api, request);
+    const { observerApi, ...options } = runtime.options;
+    let observerReads = 0;
+    const fetcher = t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string, init?: RequestInit) => {
+        const url = new URL(input);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token synthetic-coordinator",
+        );
+        if (url.pathname === "/graphql") {
+          assert.equal(init?.method, "POST");
+          assert.ok(typeof init.body === "string");
+          const wire: unknown = JSON.parse(init.body);
+          assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+          assert.match(wire.query, /^query\b/u);
+          return Response.json({ data: api.graphql(wire.query, wire.variables).data });
+        }
+        assert.equal(init?.method, "GET");
+        const endpoint = url.pathname.slice(1) + url.search;
+        if (endpoint.includes("/actions/jobs/")) {
+          observerReads++;
+          const response = observerApi.request("GET", endpoint);
+          return Response.json(response.body, { status: response.status ?? 500 });
+        }
+        const response = api.request("GET", endpoint);
+        return Response.json(response.body ?? null, { status: response.status ?? 500 });
+      },
+    );
+    const source = await authenticateReleaseControlSource(
+      { ...runtime.environment, GH_TOKEN: "synthetic-coordinator" },
+      runtime.workflow,
+      { ...options, deadline: performance.now() + 10000, controlReader: "coordinator-application" },
+    );
+    const result = await source.readSdkRequest(request);
+    assert.equal(observerReads, 3);
     assert.equal(result.classification.status, persisted ? "reviewed" : "missing");
     if (persisted) {
       assert.equal(result.classification.status, "reviewed");
       if (result.classification.status === "reviewed")
         assert.deepEqual(result.classification.opportunity, opportunity);
       conflict = true;
-      assert.throws(() => source.readRequest(api, request), /conflict/);
+      await assert.rejects(source.readSdkRequest(request, "effect"), /conflict/);
       conflict = false;
       control.conflicting();
-      assert.throws(() => source.readRequest(api, request));
+      await assert.rejects(source.readSdkRequest(request));
+    } else {
+      await assert.rejects(source.readSdkDisposition(request), /absent or ambiguous/u);
+      conflict = true;
+      const disposition = await source.readSdkDisposition(request);
+      assert.equal(disposition.disposition.check_run_id, 505);
+      assert.equal(disposition.disposition.wire.request.request_id, request.request_id);
     }
     runtime.advance(60001);
-    assert.throws(() => source.readRequest(api, request), /fresh/);
+    await assert.rejects(source.readSdkRequest(request), /fresh/u);
     assert.equal(control.mutations(), persisted ? 1 : 0);
+    fetcher.mock.restore();
   }
 });
 
@@ -1174,6 +1219,7 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
 
 for (const controlReader of [
   "admitted-aggregate",
+  "coordinator-application",
   "site-application",
   "site-maintenance",
   "metadata-maintenance",
@@ -1188,6 +1234,7 @@ for (const controlReader of [
     const classification =
       aggregate ||
       publication ||
+      controlReader === "coordinator-application" ||
       controlReader === "payload" ||
       controlReader === "tuf-application" ||
       controlReader === "site-application";
@@ -1195,7 +1242,7 @@ for (const controlReader of [
       ? "admission"
       : controlReader === "site-maintenance" || controlReader === "site-application"
         ? "site-publication"
-        : controlReader === "metadata-maintenance"
+        : controlReader === "metadata-maintenance" || controlReader === "coordinator-application"
           ? "coordinator"
           : controlReader === "payload"
             ? "payload"
