@@ -2043,7 +2043,7 @@ export async function preparePublicWindowsCandidate(
       );
       inspectApplicationReleaseAttestation(verified, identity);
     },
-    readAsset: createFixedApplicationReleaseAssetReader(),
+    readAsset: createFixedApplicationReleaseAssetReader(undefined, deadline),
   };
   const checked = await readApplicationWindowsCandidateAssets(
     input.candidate,

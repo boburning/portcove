@@ -2838,6 +2838,9 @@ void test("fixed application Release assets keep captured credentials and clean 
   extra = true;
   await assert.rejects(read(10, payload.length));
   assert.deepEqual(await readdir(root), []);
+  const expired = createFixedApplicationReleaseAssetReader(root, performance.now() - 1);
+  await assert.rejects(expired(10, payload.length));
+  assert.deepEqual(await readdir(root), []);
   assert.deepEqual(calls, [
     "https://api.github.com/repos/boburning/portcove/releases/assets/10",
     "https://release-assets.githubusercontent.com/exact",
