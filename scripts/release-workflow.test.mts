@@ -692,6 +692,43 @@ void test("publisher rejects incomplete asset pages and rechecks expiry before m
   assert.deepEqual(fixture.effects, []);
 });
 
+void test("publisher verifies draft state after asset pagination before delete and upload", async (t) => {
+  for (const mutation of ["delete", "upload"]) {
+    await t.test(mutation, async (caseContext) => {
+      const fixture = await publisherFixture(caseContext);
+      assert.deepEqual(await fixture.review(), []);
+      assert.deepEqual(await fixture.run("publish"), []);
+      assert.deepEqual(await fixture.review(), []);
+      fixture.effects.length = 0;
+      if (mutation === "delete") {
+        fixture.state.assets.push(fixtureAsset(995, "old asset.zip", "old"));
+      } else {
+        fixture.state.assets.pop();
+      }
+      const draft = fixture.state.draft;
+      assert.ok(draft);
+      const inventoryPath = `${releasePath}/assets`;
+      let firstPages = 0;
+      fixture.state.before = ({ path: route, query }) => {
+        if (route !== inventoryPath) return;
+        if (query.get("page") === "1" && ++firstPages === 2) {
+          const page = [...fixture.state.assets];
+          while (page.length < 100) {
+            page.push(fixtureAsset(3000 + page.length, `fixture-${page.length}.zip`, "fixture"));
+          }
+          return Response.json(page);
+        }
+        if (query.get("page") === "2") draft.draft = false;
+        return undefined;
+      };
+      assert.deepEqual(await fixture.run("publish"), ["Refusing to modify non-draft release"]);
+      assert.deepEqual(fixture.effects, []);
+      assert.equal(fixture.requests.at(-2)?.query.get("page"), "2");
+      assert.equal(fixture.requests.at(-1)?.path, releasePath);
+    });
+  }
+});
+
 void test("read-only lookup rejects upstream errors and publisher refuses unreviewed or published state", async (t) => {
   const fixture = await publisherFixture(t);
   let transient = true;

@@ -978,11 +978,14 @@ jobs:
               }
               const id = draft.id
               const releasePath = `${repository}/releases/${id}`
-              const observe = async () => {
+              const requireCurrentDraft = async () => {
                 const { data: current } = await read('GET', releasePath)
                 requireDraft(current, id)
                 requireState(current.body === draft.body && current.name === draft.name &&
                   current.prerelease === draft.prerelease, 'Release draft metadata changed')
+              }
+              const observe = async () => {
+                await requireCurrentDraft()
                 const assets = new Map()
                 const ids = new Set()
                 // Advance a fixed endpoint even when GitHub supplies a pagination URL.
@@ -1007,6 +1010,9 @@ jobs:
               const matches = (remote, local) => remote?.state === 'uploaded' &&
                 remote.size === local.info.size && remote.digest === local.digest && !remote.label
               const reconcile = async (effect, name, verify) => {
+                // Asset pagination can outlast draft state. Recheck immediately before writing.
+                await requireCurrentDraft()
+                guard()
                 try {
                   await effect()
                 } catch {
