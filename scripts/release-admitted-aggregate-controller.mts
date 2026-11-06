@@ -1,5 +1,6 @@
 import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import {
+  fixedReleaseReaderToken,
   readOnlyReleaseChildEnvironment,
   withReadOnlyReleaseChildren,
 } from "./release-readonly-child-environment.mts";
@@ -174,6 +175,11 @@ export async function runFixedAdmittedAggregateConfiguration(
         checkpoint = (await requireActualCandidatePhaseAdvance(advanced, "building")).checkpoint;
       }
       const coordinator = { schema_version: 1, namespace: authorities.namespace };
+      const journalTransport = {
+        credential: { token: fixedReleaseReaderToken() },
+        deadline,
+        requireDirect: true as const,
+      };
       const descriptor = {
         schema_version: 1,
         checkpoint,
@@ -258,7 +264,7 @@ export async function runFixedAdmittedAggregateConfiguration(
         await requireVerifiedReleaseSbomDocument(admitted.sbom_receipt);
         await requireVerifiedReleasePublicBuildInputs(admitted.public_build_inputs_receipt);
         const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-          transport: { cwd: directory, deadline },
+          transport: journalTransport,
         });
         if (snapshot.checkpoint !== checkpoint)
           throw new Error("aggregate current checkpoint changed");
@@ -331,10 +337,8 @@ export async function runFixedAdmittedAggregateConfiguration(
           old = attempts[0]!;
         }
       }
-      const metadata = await createReleaseCustodyProvider({
-        token: readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "",
-        deadline,
-      });
+      const token = readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "";
+      const metadata = await createReleaseCustodyProvider({ token, deadline });
       let observed: Awaited<ReturnType<typeof readAdmittedAggregateUpload>> | undefined;
       let settlement: { checkpoint: string; operation_id: unknown };
       const finishBinding = async (
@@ -453,6 +457,7 @@ export async function runFixedAdmittedAggregateConfiguration(
                 admitted.facts.assembly,
                 directory,
                 deadline,
+                { token },
               );
               await fresh();
               return {
@@ -484,6 +489,7 @@ export async function runFixedAdmittedAggregateConfiguration(
             admitted.facts.assembly,
             directory,
             deadline,
+            { token },
           );
           if (
             old.completed_effects[0]!.remote_identity !==
@@ -552,7 +558,7 @@ export async function runFixedAdmittedAggregateConfiguration(
             descriptor.assembly,
             directory,
             deadline,
-            locator,
+            { token, locator },
           );
           await fresh();
           return {
