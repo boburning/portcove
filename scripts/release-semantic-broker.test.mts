@@ -465,6 +465,26 @@ void test("App registration refuses a conversion redirect and retains no redirec
   assert.equal(requests, 1);
 });
 
+void test("registration retains exact provider status 300 body before refusing", async () => {
+  const f = appRegistrationFixture();
+  const body = Buffer.from(' {"message":"Multiple Choices"}\n');
+  let requests = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async (_input, init) => {
+      requests++;
+      assert.equal(init?.redirect, "error");
+      return new Response(body, { status: 300 });
+    },
+  });
+  await assert.rejects(capture(appCallback), /registration response incomplete or refused/u);
+  assert.equal(requests, 1);
+  assert.deepEqual(f.privateFiles.get("conversion.body"), body);
+  assert.equal(f.record("conversion-response.json").status, 300);
+  assert.equal(f.record("conversion-response.json").complete, true);
+  assert.equal(f.privateFiles.has("result.json"), false);
+});
+
 void test("App conversion retains wrong-owner or expanded-permission effects without installing or retrying", async () => {
   for (const change of [
     { owner: { id: 1, login: "other" } },
@@ -502,6 +522,54 @@ void test("ambiguous conversion preserves pending intent and refuses a second PO
   assert.equal(f.record("conversion-transport.json").effect, "unknown");
   await assert.rejects(capture(appCallback), /already consumed/u);
   assert.equal(posts, 1);
+});
+
+void test("registration timeout retains a partial body without certifying EOF", async (t) => {
+  const f = appRegistrationFixture();
+  const prefix = Buffer.from('{"id":123');
+  const now = Date.now.bind(Date);
+  const deadline = now() + 30000;
+  let offset = 0;
+  t.mock.method(Date, "now", () => now() + offset);
+  let calls = 0,
+    cancelled = false;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    deadline,
+    store: {
+      ...f.options.store,
+      async write(name, bytes) {
+        await f.options.store.write(name, bytes);
+        if (name === "conversion-intent.json") offset = deadline - now() - 250;
+      },
+    },
+    transport: async () => {
+      calls++;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(prefix);
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { status: 201 },
+      );
+    },
+  });
+  const keepAlive = setTimeout(() => {}, 5000);
+  try {
+    await assert.rejects(capture(appCallback), /deadline expired|response incomplete/u);
+  } finally {
+    clearTimeout(keepAlive);
+  }
+  assert.equal(calls, 1);
+  assert.equal(cancelled, true);
+  assert.deepEqual(f.privateFiles.get("conversion.body"), prefix);
+  assert.equal(f.record("conversion-response.json").status, 201);
+  assert.equal(f.record("conversion-response.json").complete, false);
+  assert.equal(f.privateFiles.has("result.json"), false);
 });
 
 void test("registration preserves incomplete and oversized private response prefixes and stops", async () => {

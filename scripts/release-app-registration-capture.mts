@@ -92,6 +92,9 @@ export async function readPrivateAppSetupResponse(options: {
     deadline: performance.now() + timeout,
     requestTimeoutMs: timeout,
     maxBytes,
+    // The underlying fetch refuses redirects. Preserve non-redirect provider
+    // statuses in the 3xx range, such as 300, as private custody evidence.
+    observeRedirects: true,
     headers: {
       accept: "application/vnd.github+json",
       "x-github-api-version": version,
@@ -115,11 +118,14 @@ export async function readPrivateAppSetupResponse(options: {
         failed = true;
         return response;
       }
+      let cancelled = false;
+      const cancelledOrAborted = () => cancelled || init?.signal?.aborted;
       const stream = new ReadableStream<Uint8Array>(
         {
           async pull(controller) {
             try {
               const part = await reader.read();
+              if (cancelledOrAborted()) return;
               if (part.done) {
                 complete = true;
                 controller.close();
@@ -132,12 +138,14 @@ export async function readPrivateAppSetupResponse(options: {
               length += retained.byteLength;
               controller.enqueue(part.value);
             } catch (error) {
+              if (cancelledOrAborted()) return;
               failed = true;
               controller.error(error);
               await reader.cancel().catch(() => {});
             }
           },
           cancel(reason) {
+            cancelled = true;
             return reader.cancel(reason);
           },
         },
