@@ -1,3 +1,4 @@
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { requireStorageAppToken } from "./release-storage-credential.mts";
@@ -487,6 +488,7 @@ async function runOperation(
           transport: {
             credential: { token: classification.readerToken },
             deadline: classification.deadline,
+            requireDirect: true,
           },
         },
       );
@@ -494,7 +496,10 @@ async function runOperation(
         {
           token: classification.readerToken,
           deadline: classification.deadline,
-          guard: checkCoordinatorDeadline,
+          guard() {
+            checkCoordinatorDeadline();
+            assertTrustedDirectNode("fixed classification readiness");
+          },
         },
         classification.producer,
         recovered.input.review_request,

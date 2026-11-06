@@ -376,7 +376,13 @@ export async function readRemoteCoordinatorSnapshot(
   options: {
     transport?:
       | { cwd: string; spawn?: Spawn; deadline?: number; credential?: never }
-      | { credential: { token: string }; deadline: number; cwd?: never; spawn?: never };
+      | {
+          credential: { token: string };
+          deadline: number;
+          requireDirect?: true;
+          cwd?: never;
+          spawn?: never;
+        };
   } = {},
 ) {
   if (
@@ -421,7 +427,8 @@ export async function readRemoteCoordinatorSnapshot(
       };
     }
     const token = transport.credential.token;
-    const direct = readOnlyReleaseChildEnvironment() !== undefined;
+    const direct =
+      transport.requireDirect === true || readOnlyReleaseChildEnvironment() !== undefined;
     const { createGitHubClient } = await import("./github-client.mts");
     const client = await createGitHubClient({
       credential: { kind: "explicit", token },

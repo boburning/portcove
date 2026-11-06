@@ -2593,6 +2593,7 @@ for (const file of [
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/application-release-feed.test.mts",
   "scripts/application-release-site.test.mts",
+  "scripts/release-classification-request.test.mts",
   "scripts/release-catalog-authorities.test.mts",
   "scripts/release-catalog-signing.test.mts",
   "scripts/release-live-control-admission.test.mts",
