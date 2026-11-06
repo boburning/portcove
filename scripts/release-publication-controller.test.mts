@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -736,4 +738,78 @@ void test("fixed publication source function freezes caller locators before the 
   );
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+void test("actual publication result upload awaits its fixed scoped control round and mutation fence", async () => {
+  const text = await readFile(
+    new URL("./release-publication-controller.mts", import.meta.url),
+    "utf8",
+  );
+  const start = text.indexOf('stage = "owned-result-upload";');
+  const end = text.indexOf("if (!handoff)", start);
+  assert.ok(start > 0 && end > start);
+  const code = stripTypeScriptTypes(text.slice(start, end));
+  const calls: string[] = [];
+  let drift = false;
+  const identity = {
+    job_id: 7,
+    controller_revision: "fixed",
+    execution_ref: "refs/tags/fixed",
+    run_id: "8",
+    run_attempt: 1,
+  };
+  const original = {
+    reader: { ...identity, controller_ref: identity.execution_ref, run_id: 8 },
+    pause: { publication_paused: false },
+    resource_policy_matches_controller: true,
+    protection: { release_immutability: { enabled: true } },
+    classification: { exact: "source" },
+    capacity: { exact: "budget" },
+    capacity_source: { capacity: { boundary: "fixed boundary" } },
+  };
+  const run = () =>
+    runInNewContext(`(async () => { let stage; ${code} return settlement; })()`, {
+      usedRound: 3,
+      fresh: async (round: number, reader: string) => {
+        assert.equal(round, 4);
+        assert.equal(reader, "publication-application");
+        calls.push("round");
+        return {
+          async readSdkApplicationControls(opportunity: unknown) {
+            assert.equal(opportunity, "fixed opportunity");
+            calls.push("sdk");
+            return { ...original, classification: drift ? {} : original.classification };
+          },
+        };
+      },
+      checkCoordinatorDeadline() {},
+      refreshCapacityExecutor: async () => identity,
+      admitted: { admission: { controls: original }, facts: { opportunity: "fixed opportunity" } },
+      digest: JSON.stringify,
+      isRecord,
+      executor: {},
+      checkpoint: "fixed",
+      coordinator: {},
+      currentCandidate: {},
+      publicationResultDestination: () => "fixed destination",
+      executeOwnedCapacityEffect: async (
+        _executor: unknown,
+        _request: unknown,
+        boundary: () => Promise<unknown>,
+        _handoff: unknown,
+        beforeMutation: () => Promise<void>,
+      ) => {
+        assert.equal(await boundary(), "fixed boundary");
+        calls.push("boundary");
+        await beforeMutation();
+        calls.push("write-ready");
+        return "settled";
+      },
+    }) as Promise<string>;
+  assert.equal(await run(), "settled");
+  assert.deepEqual(calls, ["round", "sdk", "boundary", "sdk", "write-ready"]);
+  calls.length = 0;
+  drift = true;
+  await assert.rejects(run(), /publication result controls held/u);
+  assert.deepEqual(calls, ["round", "sdk"]);
 });
