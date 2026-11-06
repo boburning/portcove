@@ -1,3 +1,4 @@
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { applicationPublicBuildInputs } from "./release-authority-configuration-contract.mts";
 import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
@@ -17,7 +18,6 @@ import { readFile, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { nextLink } from "./github-operation.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
 import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
@@ -145,7 +145,7 @@ export function inspectAdmissionNativeStage(
     return "release-publication";
   throw new Error("actual admission context cannot appoint another execution stage");
 }
-type Api = Pick<GitHubApiClient, "request" | "graphql">;
+type Api = CoordinatorRemoteApi;
 type Recover = (...args: Parameters<typeof recoverRemoteCoordinator>) => Promise<unknown>;
 export interface PreparedReleaseAdmissionFacts {
   checkpoint: string;
@@ -440,16 +440,7 @@ export async function acquireReleaseAdmission(
   let checkpoint: string | null = null;
   let requests = 0;
   try {
-    const rawApi =
-      options.api ??
-      (nativeSource || scopedControls
-        ? undefined
-        : new GitHubApiClient((args, input) =>
-            createGitHubRunner({ cwd: root, maxBuffer: 2 * 1024 * 1024, timeoutMs: 15000 })(
-              [...args, "--hostname", "github.com"],
-              input,
-            ),
-          ));
+    const rawApi = options.api;
     let apiMilliseconds = 0;
     const admissionDeadline = Math.min(
       started + 15 * 60 * 1000,
@@ -1472,8 +1463,14 @@ async function performAdmissionHandshake(
       ? "publication-application"
       : phase === "payload" && onAdmitted && compiler && establishNative && deadline !== undefined
         ? "payload"
-        : undefined;
-  if (controlReader !== undefined && deadline === undefined)
+        : phase === "admission" && !onAdmitted
+          ? "diagnostic-admission"
+          : undefined;
+  if (
+    controlReader !== undefined &&
+    controlReader !== "diagnostic-admission" &&
+    deadline === undefined
+  )
     throw new Error("fixed admission controls require the original deadline");
   const workflow = await readProductionControllerWorkflowBytes();
   const reader = await authenticateControlReaderJob(env, workflow, {
@@ -1528,7 +1525,11 @@ async function performAdmissionHandshake(
         phase,
         observedArtifact,
         ...(controlReader === undefined ? {} : { controlReader }),
-        ...(deadline === undefined ? {} : { deadline }),
+        ...(deadline !== undefined
+          ? { deadline }
+          : controlReader === "diagnostic-admission"
+            ? { deadline: performance.now() + 120000 }
+            : {}),
       });
       return retained.controls;
     },
@@ -1955,8 +1956,13 @@ async function main() {
           result = await acquireReleaseAdmissionWithControlHandshake(root, JSON.parse(raw));
         } else {
           const workflow = await readProductionControllerWorkflowBytes();
-          const controls = await authenticateReleaseControlSource(process.env, workflow);
-          result = await acquireReleaseAdmission(root, JSON.parse(raw), { controls });
+          const controls = await authenticateReleaseControlSource(process.env, workflow, {
+            controlReader: "diagnostic-admission",
+            deadline: performance.now() + 120000,
+          });
+          const collection = { controls };
+          scopedControlCollections.add(collection);
+          result = await acquireReleaseAdmission(root, JSON.parse(raw), collection);
         }
       } catch (error) {
         if (error instanceof CoordinatorRemoteError)
