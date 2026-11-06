@@ -56,7 +56,7 @@ import {
   inspectApplicationRunCustody,
   readApplicationRunNotes,
 } from "./application-release-run.mts";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { applicationPackageNames } from "./application-release-artifacts.mts";
 import {
   readImmutableBootstrapFeed,
