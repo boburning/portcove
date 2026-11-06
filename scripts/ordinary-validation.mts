@@ -302,17 +302,11 @@ for (const [file, tests] of [
     ["scripts/run-rscheck.test.mts"],
   ],
   ["scripts/ci-job-timeout-probe.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
-  [
-    ".github/workflows/job-timeout-rehearsal.yml",
-    ["scripts/ci-job-timeout-probe.test.mts", "scripts/workflow-job-evidence.test.mts"],
-  ],
-  [
-    "scripts/workflow-job-evidence.mts",
-    ["scripts/workflow-job-evidence.test.mts", "scripts/ci-job-timeout-probe.test.mts"],
-  ],
+  [".github/workflows/job-timeout-rehearsal.yml", ["scripts/ci-job-timeout-probe.test.mts"]],
+  ["scripts/workflow-job-evidence.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
   [
     ".github/workflows/browser-artifact-custody.yml",
-    ["scripts/ci-frontend-workflow.test.mts", "scripts/workflow-job-evidence.test.mts"],
+    ["scripts/ci-frontend-workflow.test.mts", "scripts/ci-job-timeout-probe.test.mts"],
   ],
   ...[
     ".github/actions/retain-browser-diagnostics/action.yml",
@@ -2118,12 +2112,12 @@ for (const [file, tests] of [
       "scripts/dependency-automation.test.mts",
       "scripts/dev-storage.test.mts",
       "scripts/local-validation.test.mts",
-      "scripts/workflow-job-evidence.test.mts",
+      "scripts/ci-job-timeout-probe.test.mts",
     ],
   ],
   [
     "pnpm-lock.yaml",
-    ["scripts/dependency-automation.test.mts", "scripts/workflow-job-evidence.test.mts"],
+    ["scripts/dependency-automation.test.mts", "scripts/ci-job-timeout-probe.test.mts"],
   ],
   ["pnpm-workspace.yaml", ["scripts/dependency-automation.test.mts"]],
   ["apps/desktop/pnpm-lock.yaml", ["scripts/dependency-automation.test.mts"]],
