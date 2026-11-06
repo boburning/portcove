@@ -191,16 +191,11 @@ export function inspectNativeSourceCommand(args: readonly string[], input?: unkn
   let endpoint: string | null = null,
     method: string | null = null,
     host: string | null = null,
-    stdin = false,
-    octetStream = false;
+    stdin = false;
   for (let index = 1; index < args.length; index++) {
     const item = args[index];
     if (item === "--include") continue;
-    if (item === "-H" && !octetStream) {
-      if (args[++index] !== "Accept: application/octet-stream")
-        throw new Error("native source header differs");
-      octetStream = true;
-    } else if (item === "--hostname" && host === null) host = args[++index] ?? null;
+    if (item === "--hostname" && host === null) host = args[++index] ?? null;
     else if (item === "--method" && method === null) method = args[++index] ?? null;
     else if (item === "--input" && !stdin) {
       if (args[++index] !== "-") throw new Error("native source forbids body files");
@@ -210,11 +205,6 @@ export function inspectNativeSourceCommand(args: readonly string[], input?: unkn
     else throw new Error("native source command shape differs");
   }
   if (host !== "github.com" || !endpoint) throw new Error("native source host/route differs");
-  if (
-    octetStream &&
-    !/^repos\/boburning\/portcove\/releases\/assets\/[1-9][0-9]{0,15}$/u.test(endpoint)
-  )
-    throw new Error("native binary transport requires an exact Release asset");
   if (endpoint === "graphql") {
     if (!stdin || input === undefined || (method !== null && method !== "POST"))
       throw new Error("native source GraphQL body required");
