@@ -44,28 +44,16 @@ type Manifest = {
 function identity() {
   return rehearsalOrigin();
 }
-function gh(args: string[], input?: unknown) {
+function gh(args: string[]) {
   return execFileSync("gh", args, {
     encoding: "utf8",
     timeout: 120000,
     maxBuffer: 2 * 1024 ** 2,
-    input: input === undefined ? undefined : JSON.stringify(input),
     env: { ...process.env, GH_HOST: "github.com" },
   });
 }
-function api(endpoint: string, method = "GET", input?: unknown): unknown {
-  return JSON.parse(
-    gh(
-      [
-        "api",
-        `repos/${repository}/${endpoint}`,
-        "--method",
-        method,
-        ...(input === undefined ? [] : ["--input", "-"]),
-      ],
-      input,
-    ),
-  );
+function api(endpoint: string): unknown {
+  return JSON.parse(gh(["api", `repos/${repository}/${endpoint}`, "--method", "GET"]));
 }
 async function entry(directory: string, name: string): Promise<Entry> {
   if (!/^[A-Za-z0-9_.-]{1,160}$/u.test(name)) throw new Error("unsafe rehearsal filename");
