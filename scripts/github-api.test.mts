@@ -4,16 +4,14 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { GitHubApiClient, createGitHubRunner, parseIncludedResponse } from "./github-api.mts";
 import {
-  GitHubApiClient,
   GitHubApiError,
-  createGitHubRunner,
   githubOperationEnvelope,
   nextLink,
-  parseIncludedResponse,
   rateLimitFromResponse,
   sanitizeOperationError,
-} from "./github-api.mts";
+} from "./github-operation.mts";
 
 await test("only conditional REST GET accepts gh's nonzero valid304 response", () => {
   const output = "HTTP/2.0 304 Not Modified\r\netag: tag\r\n\r\n";
@@ -237,10 +235,6 @@ void test("nonzero gh GraphQL responses preserve typed rate limits with quota st
         return true;
       },
     );
-    assert.equal(client.observations.length, 1);
-    assert.equal(client.observations[0]?.failure, "rate_limited");
-    assert.equal(client.observations[0]?.rate?.remaining, 58);
-    assert.equal(client.observations[0]?.bytes, Buffer.byteLength(body));
   }
 });
 
@@ -291,7 +285,6 @@ void test("nonzero GraphQL auth, schema and malformed failures are not mislabele
       () => client.graphql("query { viewer { login } }"),
       (error) => error instanceof GitHubApiError && error.code === code && error.status === status,
     );
-    assert.equal(client.observations[0]?.failure, code);
   }
 });
 

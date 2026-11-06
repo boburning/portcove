@@ -19,7 +19,7 @@ void test("maintained sources do not add GitHub CLI API bypasses outside recorde
   // consumers while appointed runtime, held source and test seams are resolved.
   const remainingLegacy = new Map([
     ["scripts/assembler-job-identity.mts", 5],
-    ["scripts/github-api.mts", 3],
+    ["scripts/github-api.mts", 2],
     ["scripts/github-binary.mts", 1],
     ["scripts/release-coordinator-recovery.mts", 7],
     ["scripts/release-live-control-admission.mts", 5],

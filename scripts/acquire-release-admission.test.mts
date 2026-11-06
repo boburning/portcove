@@ -18,8 +18,8 @@ import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts"
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import { releasePublicBuildArtifactName } from "./release-public-build-provenance.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
-import type { IncludedResponse } from "./github-api.mts";
-import { rateLimitFromResponse } from "./github-api.mts";
+import type { IncludedResponse } from "./github-operation.mts";
+import { rateLimitFromResponse } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
