@@ -11349,9 +11349,21 @@ mod tests {
         artifact: ArtifactIdentity,
         active: bool,
     ) -> InstallRecord {
-        let id = Uuid::new_v4().to_string();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port(port_id).unwrap();
+        register_existing_test_artifact_with_port(library, port, version, path, artifact, active)
+    }
+
+    fn register_existing_test_artifact_with_port(
+        library: &Library,
+        port: &PortDefinition,
+        version: &str,
+        path: &Path,
+        artifact: ArtifactIdentity,
+        active: bool,
+    ) -> InstallRecord {
+        let id = Uuid::new_v4().to_string();
+        let port_id = &port.id;
         let qualification =
             crate::test_fixture::retained_qualification(port, Platform::current().unwrap())
                 .unwrap();
@@ -16053,6 +16065,60 @@ fn main() {
             .unwrap(),
             b"ready"
         );
+    }
+
+    #[test]
+    fn portable_empty_middle_transition_requires_empty_added_coordinates() {
+        const PORT: &str = "opentyrian-opentyrian";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let current = service.catalog().port(PORT).unwrap();
+        let mut legacy = current.clone();
+        for pattern in &mut legacy.persistent_file_patterns {
+            pattern.allow_empty_middle = false;
+        }
+        let register = |port: &PortDefinition, version: &str, active| {
+            let artifact = ArtifactIdentity {
+                asset_name: format!("opentyrian-{version}.zip"),
+                sha256: hex::encode(Sha256::digest(version)),
+                size: 4,
+            };
+            let root = library.versions_dir().join(PORT).join(&artifact.sha256);
+            fs::create_dir_all(&root).unwrap();
+            write_host_test_executable_with_contents(&root, PORT, b"inert OpenTyrian fixture");
+            register_existing_test_artifact_with_port(
+                &library, port, version, &root, artifact, active,
+            )
+        };
+        let old = register(&legacy, "v1", true);
+        let next = register(current, "v2", false);
+        service.require_portable_transition(&old, current).unwrap();
+        service
+            .require_portable_target_transition(&old, &next)
+            .unwrap();
+
+        let user_root = library.user_dir(PORT);
+        fs::create_dir_all(&user_root).unwrap();
+        for root in [&old.path, &next.path, &user_root] {
+            let recording = root.join("demorec.1");
+            fs::write(&recording, b"keep this recording").unwrap();
+            assert!(
+                service
+                    .require_portable_target_transition(&old, &next)
+                    .is_err()
+            );
+            assert_eq!(fs::read(&recording).unwrap(), b"keep this recording");
+            fs::remove_file(recording).unwrap();
+        }
+        assert!(service.require_portable_transition(&next, &legacy).is_err());
+        assert_eq!(service.activate_staged(PORT).unwrap().id, next.id);
+        let recording = next.path.join("demorec.1");
+        fs::write(&recording, b"new recording").unwrap();
+        assert!(service.rollback(PORT).is_err());
+        assert_eq!(fs::read(&recording).unwrap(), b"new recording");
+        fs::remove_file(recording).unwrap();
+        assert_eq!(service.rollback(PORT).unwrap().id, old.id);
     }
 
     #[test]
