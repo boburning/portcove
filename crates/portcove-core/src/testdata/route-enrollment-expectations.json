@@ -90,6 +90,13 @@
       "arguments": [],
       "managed_arguments": [],
       "managed_native": true
+    },
+    {
+      "port_id": "quake-ironwail",
+      "executable": "ironwail.exe",
+      "arguments": [],
+      "managed_arguments": ["-basedir", ".", "-noaddons"],
+      "managed_native": true
     }
   ]
 }
