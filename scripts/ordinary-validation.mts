@@ -1464,6 +1464,11 @@ for (const [file, tests] of [
     "scripts/fixtures/rust-action-fixture.mts",
     ["scripts/rust-validation-setup.test.mts", "scripts/updater-artifact-inventory.test.mts"],
   ],
+  ...[
+    "scripts/qualification/linux-reboot/acquire.mts",
+    "scripts/qualification/linux-reboot/cohort.json",
+    "scripts/qualification/linux-reboot/prepare.py",
+  ].map((file): [string, string[]] => [file, ["scripts/updater-artifact-inventory.test.mts"]]),
   [
     "scripts/fixtures/updater-workflow-fixture.mts",
     ["scripts/updater-artifact-inventory.test.mts"],
@@ -2113,11 +2118,16 @@ for (const [file, tests] of [
       "scripts/dev-storage.test.mts",
       "scripts/local-validation.test.mts",
       "scripts/ci-job-timeout-probe.test.mts",
+      "scripts/updater-artifact-inventory.test.mts",
     ],
   ],
   [
     "pnpm-lock.yaml",
-    ["scripts/dependency-automation.test.mts", "scripts/ci-job-timeout-probe.test.mts"],
+    [
+      "scripts/dependency-automation.test.mts",
+      "scripts/ci-job-timeout-probe.test.mts",
+      "scripts/updater-artifact-inventory.test.mts",
+    ],
   ],
   ["pnpm-workspace.yaml", ["scripts/dependency-automation.test.mts"]],
   ["apps/desktop/pnpm-lock.yaml", ["scripts/dependency-automation.test.mts"]],
@@ -2679,6 +2689,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 ]);
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
+  "scripts/updater-artifact-inventory.test.mts",
   "scripts/application-release-feed.test.mts",
   "scripts/application-release-publication.test.mts",
   "scripts/acquire-release-admission.test.mts",
