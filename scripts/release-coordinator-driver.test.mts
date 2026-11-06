@@ -812,6 +812,7 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
     end = source.indexOf("/** A durable expected Pages generation", start);
   assert.ok(start > 0 && end > start);
   const calls: string[] = [];
+  const reads: number[] = [];
   let now = 10,
     drift = false;
   const deadline = 170000;
@@ -833,7 +834,13 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
   };
   const controls = {
     evidence_scope: "github.com",
-    readMaintenance: () => ({ reader: reader.identity, stable: drift ? 2 : 1 }),
+    async readSdkMaintenance(allowance: unknown, options: { deadline: number; maxBytes: number }) {
+      assert.equal(allowance, undefined);
+      assert.equal(options.deadline, Math.min(deadline, now + 120000));
+      assert.equal(options.maxBytes, 2 * 1024 ** 2);
+      reads.push(options.deadline);
+      return { reader: reader.identity, stable: drift ? 2 : 1 };
+    },
   };
   const context = {
     selectCoordinatorCandidateSigningRecovery,
@@ -848,15 +855,18 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
     readProductionControllerWorkflowBytes: async () => Buffer.from("fixed"),
     authenticateControlReaderJob: async () => reader,
     capacityDigest: JSON.stringify,
-    coordinatorApi: () => ({}),
-    authenticateCoordinatorInitialControls: async () => {
+    authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
       calls.push("initial0");
+      assert.deepEqual(args.slice(5), ["application", "metadata-maintenance"]);
       return controls;
     },
     coordinatorMaintenanceIdentity: (value: unknown) => JSON.stringify(value),
     authenticateReleaseControlRound: async (...args: unknown[]) => {
       calls.push(`round${String(args[3])}`);
-      assert.equal((args[4] as { deadline: number }).deadline, deadline);
+      assert.deepEqual(
+        { ...(args[4] as object) },
+        { deadline, controlReader: "metadata-maintenance" },
+      );
       return controls;
     },
     authenticateCapacityExecutor: async () => {
@@ -895,7 +905,11 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
     checkpoint: "old",
     input: { active_candidate: { phase: "publishing" } },
   };
-  const budget = { monotonicDeadline: deadline, check: () => assert.ok(now < deadline) };
+  const budget = {
+    monotonicDeadline: deadline,
+    remaining: (maximum: number) => Math.min(maximum, deadline - now),
+    check: () => assert.ok(now < deadline),
+  };
   const held = await run("private", {}, recovered, budget);
   assert.equal(held.decision, "held-candidate-signing-tools");
   assert.deepEqual(calls, []);
@@ -909,6 +923,7 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
     "actual-receivers-and-Tough",
     "round1",
   ]);
+  assert.deepEqual(reads, [120010, 120010, 120010, 160020, 160020]);
   drift = true;
   // A changed maintenance observation during the same acquired source cannot be substituted.
   now = 10;

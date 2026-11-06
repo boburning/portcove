@@ -616,7 +616,7 @@ async function authenticateControlSource(
     },
     async readSdkMaintenance(
       catalogAllowance?: ReturnType<typeof createFixedControlReadAllowance>,
-      coordinator?: { deadline: number; signingContext?: true },
+      coordinator?: { deadline: number; signingContext?: true; maxBytes?: number },
     ) {
       if (
         (controlReader !== "site-maintenance" &&
@@ -642,6 +642,7 @@ async function authenticateControlSource(
           ...(coordinator
             ? {
                 maxBytes:
+                  coordinator.maxBytes ??
                   (coordinator.signingContext ? (catalogCoordinator ? 2048 : 512) : 256) * 1024,
               }
             : {}),

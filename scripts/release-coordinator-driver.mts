@@ -2311,6 +2311,7 @@ async function authenticateCoordinatorInitialControls(
   workflow: Buffer,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   purpose: "application" | "catalog" = "application",
+  controlReader?: "metadata-maintenance",
 ) {
   budget.check();
   const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
@@ -2342,6 +2343,7 @@ async function authenticateCoordinatorInitialControls(
     phase: "coordinator",
     deadline: budget.monotonicDeadline,
     observedArtifact: artifact,
+    ...(controlReader ? { controlReader } : {}),
   });
   budget.check();
   return controls;
@@ -2854,17 +2856,23 @@ async function recoverTrustedCoordinatorCandidateSigning(
     candidate: recovered.input.active_candidate,
     purpose: "original-signing-custody-readback",
   });
-  const api = coordinatorApi(directory, budget, 2 * 1024 ** 2);
   let controls = await authenticateCoordinatorInitialControls(
       directory,
       factsSha,
       reader,
       workflow,
       budget,
+      "application",
+      "metadata-maintenance",
     ),
     ordinal = 0,
     observed = performance.now();
-  const initial = coordinatorMaintenanceIdentity(controls.readMaintenance(api));
+  const readMaintenance = () =>
+    controls.readSdkMaintenance(undefined, {
+      deadline: Math.min(budget.monotonicDeadline, performance.now() + budget.remaining(120000)),
+      maxBytes: 2 * 1024 ** 2,
+    });
+  const initial = coordinatorMaintenanceIdentity(await readMaintenance());
   const freshBoundary = async () => {
     budget.check();
     if (performance.now() - observed >= 40000) {
@@ -2874,11 +2882,11 @@ async function recoverTrustedCoordinatorCandidateSigning(
         factsSha,
         "coordinator",
         ordinal,
-        { deadline: budget.monotonicDeadline },
+        { deadline: budget.monotonicDeadline, controlReader: "metadata-maintenance" },
       );
       observed = performance.now();
     }
-    const current = controls.readMaintenance(api);
+    const current = await readMaintenance();
     if (
       controls.evidence_scope !== "github.com" ||
       current.reader.job_id !== reader.identity.job_id ||
