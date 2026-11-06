@@ -3167,7 +3167,7 @@ mod tests {
 
     #[test]
     fn cbfd_recompiled_sciaschi_frontend_license_player_route_1216() {
-        assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(false));
+        assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(true));
     }
 
     #[test]

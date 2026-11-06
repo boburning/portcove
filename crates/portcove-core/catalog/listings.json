@@ -13340,6 +13340,7 @@
         "match_kind": "underlying-game"
       },
       "release_url": "https://github.com/sciaschi/CBFD-Recompiled/releases",
+      "download_block_reason": "The released player is built with original Conker machine-code segments. Portcove package downloads are paused until an attributable grant or reviewed basis covers acquisition of those segments, or an upstream package derives them locally from the player's own ROM.",
       "original_game_title": "Conker's Bad Fur Day",
       "download_asset_hints": {
         "windows-x86-64": [
