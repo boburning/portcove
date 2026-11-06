@@ -438,7 +438,7 @@ for (const phase of ["catalog-timestamp", "coordinator"] as const)
         /catalog continuation read budget exhausted/u,
       );
       assert.equal(routes.length, beforeExhaustion);
-      assert.equal(mixed.readMaintenance(f.control.api).facts_sha256, expected.facts_sha256);
+      assert.throws(() => mixed.readMaintenance(f.control.api), /requires awaited readback/u);
       jobToken = "inert-catalog-controls";
       assert.equal(f.control.mutations(), 0);
       const shared = createFixedControlReadAllowance();

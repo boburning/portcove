@@ -517,12 +517,12 @@ async function catalogContinuationBehavior(
         _receipt: object,
         _executor: object,
         raw: { checkpoint: string },
-        guards: { refresh: () => Promise<void>; beforeMutation: () => void },
+        guards: { refresh: () => Promise<void>; beforeMutation: () => Promise<void> },
       ) => {
         assert.equal(raw.checkpoint, checkpoint);
         await guards.refresh();
         if (mutateEnvironment) executionEnvironment.PORTCOVE_CATALOG_AUTHORITIES = "changed";
-        guards.beforeMutation();
+        await guards.beforeMutation();
         calls.push("exact-handoff");
         return { checkpoint: "next" };
       },
