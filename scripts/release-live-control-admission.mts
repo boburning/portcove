@@ -95,6 +95,7 @@ function json(raw: string | undefined, maximum: number) {
 }
 
 type SdkControlReader =
+  | "admitted-aggregate"
   | "site-maintenance"
   | "payload"
   | "tuf-maintenance"
@@ -225,9 +226,11 @@ async function authenticateControlSource(
   const phase = inspectReleaseControlPhase(options.phase);
   const controlReader = options.controlReader;
   const sdkReaderToken = controlReader === undefined ? undefined : fixedReleaseReaderToken(env);
+  const aggregateAdmission = controlReader === "admitted-aggregate";
   const catalogCoordinator = controlReader === "catalog-maintenance" && phase === "coordinator";
   const coordinatorMaintenance = catalogCoordinator || controlReader === "metadata-maintenance";
-  const direct = coordinatorMaintenance || readOnlyReleaseChildEnvironment() !== undefined;
+  const direct =
+    aggregateAdmission || coordinatorMaintenance || readOnlyReleaseChildEnvironment() !== undefined;
   const matchesSdkRole =
     controlReader === "site-maintenance"
       ? phase === "site-publication"
@@ -241,10 +244,12 @@ async function authenticateControlSource(
               phase === "catalog-snapshot" ||
               phase === "catalog-timestamp")
           : purpose === "application" &&
-            (controlReader === "payload"
-              ? phase === "payload"
-              : controlReader === "publication-application"
-                ? phase === "release-publication"
+            (aggregateAdmission
+              ? phase === "admission"
+              : controlReader === "payload"
+                ? phase === "payload"
+                : controlReader === "publication-application"
+                  ? phase === "release-publication"
                 : phase.startsWith("tuf-"));
   if (
     sdkReaderToken !== undefined &&
@@ -264,6 +269,8 @@ async function authenticateControlSource(
     workflowBytes,
     options,
   );
+  if (aggregateAdmission && admitted.mode !== "bounded-application-release")
+    throw new Error("aggregate controls require protected application admission");
   const applicationAuthorities = (() => {
     if (purpose !== "application" || admitted.mode === "admission-only") return null;
     const raw = json(env.PORTCOVE_RELEASE_AUTHORITIES, 32768);
@@ -747,7 +754,8 @@ async function authenticateControlSource(
       },
     ) {
       if (
-        (controlReader !== "payload" &&
+        (controlReader !== "admitted-aggregate" &&
+          controlReader !== "payload" &&
           controlReader !== "tuf-application" &&
           controlReader !== "publication-application") ||
         sdkReaderToken === undefined ||

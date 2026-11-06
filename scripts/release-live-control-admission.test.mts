@@ -1160,6 +1160,7 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
 }
 
 for (const controlReader of [
+  "admitted-aggregate",
   "site-maintenance",
   "metadata-maintenance",
   "payload",
@@ -1168,11 +1169,13 @@ for (const controlReader of [
   "publication-application",
 ] as const)
   void test(`fixed ${controlReader} joins locked SDK ref, file and original observer reads`, async (t) => {
+    const aggregate = controlReader === "admitted-aggregate";
     const publication = controlReader === "publication-application";
     const classification =
-      publication || controlReader === "payload" || controlReader === "tuf-application";
-    const phase =
-      controlReader === "site-maintenance"
+      aggregate || publication || controlReader === "payload" || controlReader === "tuf-application";
+    const phase = aggregate
+      ? "admission"
+      : controlReader === "site-maintenance"
         ? "site-publication"
         : controlReader === "metadata-maintenance"
           ? "coordinator"
@@ -1189,11 +1192,10 @@ for (const controlReader of [
     );
     if (classification)
       persistReviewedClassification(control.api, config, opportunity, 303, () => {});
-    const runtime = liveControlRuntimeFixture(
-      publication ? publicationProtection(control.head()) : protectionFixture(control.head()),
-      config,
-      phase,
-    );
+    const protection = publication
+      ? publicationProtection(control.head())
+      : protectionFixture(control.head());
+    const runtime = liveControlRuntimeFixture(protection, config, phase, aggregate);
     const { observerApi, ...options } = runtime.options;
     const before = await runtime.create();
     const expected = classification
@@ -1287,6 +1289,35 @@ for (const controlReader of [
     assert.match(reads[0] ?? "", /\/actions\/jobs\//u);
     assert.equal(reads.at(-1), reads[0]);
     assert.equal(control.mutations(), priorMutations);
+    if (aggregate) {
+      assert.equal(source.evidence_scope, "injected-provider");
+      const callsPerObservation = reads.length - 1;
+      for (let round = 0; round < 2; round++) {
+        const beforeRead = reads.length;
+        assert.deepEqual(await read(), observed);
+        assert.equal(reads.length - beforeRead, callsPerObservation);
+      }
+      const beforeRefusal = reads.length;
+      const originalProxy = process.env.NODE_USE_ENV_PROXY;
+      process.env.NODE_USE_ENV_PROXY = "1";
+      try {
+        await assert.rejects(read());
+      } finally {
+        if (originalProxy === undefined) delete process.env.NODE_USE_ENV_PROXY;
+        else process.env.NODE_USE_ENV_PROXY = originalProxy;
+      }
+      const readOnly = liveControlRuntimeFixture(protection, config, "admission");
+      const { observerApi: _observer, ...readOnlyOptions } = readOnly.options;
+      await assert.rejects(
+        authenticateReleaseControlSource(
+          { ...readOnly.environment, GH_TOKEN: "synthetic-site" },
+          readOnly.workflow,
+          { ...readOnlyOptions, deadline: performance.now() + 5000, controlReader },
+        ),
+        /protected application admission/u,
+      );
+      assert.equal(reads.length, beforeRefusal);
+    }
     if (publication) {
       const start = reads.length;
       let reserved = 0;
