@@ -2584,6 +2584,15 @@ impl PortcoveService {
             remove_external,
             update,
         ];
+        if crate::managed_runtime_policy::acquisition_hold(&status.port_id).is_some() {
+            for assessment in &mut status.port_actions {
+                if matches!(assessment.action, Action::Install | Action::Update) {
+                    assessment.availability = Availability::Held;
+                    assessment.reason = Reason::RouteNotOffered;
+                    assessment.definition = None;
+                }
+            }
+        }
         let pending: bool = self.library.connection()?.query_row(
             "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
             [&status.port_id],
@@ -2647,6 +2656,7 @@ impl PortcoveService {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<crate::ScopedResolvedRelease> {
+        crate::managed_runtime_policy::require_acquisition_available(&port.id)?;
         let scope = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &self.catalog,
@@ -3163,6 +3173,7 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        crate::managed_runtime_policy::require_acquisition_available(&port.id)?;
         let ReleaseIntent {
             activate,
             shared_preferences,
@@ -3895,6 +3906,7 @@ impl PortcoveService {
         let staged = status
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
+        crate::managed_runtime_policy::require_managed_activation_available(&staged)?;
         self.require_ghostship_install_data_compatibility(
             &staged,
             status
@@ -4132,6 +4144,7 @@ impl PortcoveService {
             let qualification =
                 InstallQualification::from_catalog(&self.catalog, &port_id, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
+            crate::managed_runtime_policy::require_acquisition_available(&port.id)?;
             self.require_definition_adoption(&self.catalog, port)?;
             if let Some(active) = self.status(&port_id)?.active {
                 self.require_portable_transition(&active, port)?;
@@ -6764,6 +6777,91 @@ mod tests {
     };
 
     use super::*;
+
+    #[tokio::test]
+    async fn open_nectar_holds_managed_acquisition_and_keeps_its_source_definition() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        let id = "open-nectar-pikmin";
+        let port = service.catalog.port(id).unwrap();
+        let profile = service
+            .catalog
+            .source_profile("open-nectar-pikmin-disc")
+            .unwrap();
+        assert_eq!(port.source_profile.as_deref(), Some(profile.id.as_str()));
+        assert_eq!(port.persistent_paths, ["save", "pikmin_settings.conf"]);
+        let status = service.status(id).unwrap();
+        for action in [PortAction::Install, PortAction::Update] {
+            assert_eq!(
+                status
+                    .port_actions
+                    .iter()
+                    .find(|item| item.action == action)
+                    .unwrap()
+                    .availability,
+                PortActionAvailability::Held
+            );
+        }
+
+        let install = service.install(id, None, None, None, true, |_| {}).await;
+        assert_eq!(install.unwrap_err().code, crate::ErrorCode::Unsupported);
+        let release = service
+            .resolve_release(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await;
+        assert_eq!(release.unwrap_err().code, crate::ErrorCode::Unsupported);
+        let options = service
+            .catalog_download_options(id, None, ReleaseChannel::Stable)
+            .await
+            .unwrap();
+        assert!(!options.allowed);
+        assert_eq!(
+            options.reason.as_deref(),
+            crate::managed_runtime_policy::acquisition_hold(id)
+        );
+    }
+
+    #[test]
+    fn open_nectar_refuses_activation_of_an_unreviewed_staged_archive() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let id = "open-nectar-pikmin";
+        let mut install = InstallRecord {
+            id: "staged-nectar".into(),
+            port_id: id.into(),
+            version: "1.1.1".into(),
+            path: library.versions_dir().join(id).join("staged-nectar"),
+            channel: ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: true,
+            artifact: ArtifactIdentity {
+                asset_name: "nectar-windows.zip".into(),
+                sha256: "3f59071cb609c9a38ed052d4f26731d65705f520052d303980c0c654613d6ed2".into(),
+                size: 25_244_959,
+            },
+            manifest_sha256: "a".repeat(64),
+            selected_executable: "nectar-windows/nectar-launcher.exe".into(),
+            runtime: None,
+        };
+        library.register_install(&install, false).unwrap();
+        let error = service.activate_staged(id).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        let status = library.status(id, ReleaseChannel::Stable).unwrap();
+        assert!(status.active.is_none());
+        assert_eq!(status.staged.unwrap().id, install.id);
+
+        install.version = "0.8.5".into();
+        assert!(
+            crate::managed_runtime_policy::require_managed_activation_available(&install).is_err()
+        );
+        install.artifact.sha256 =
+            "0e3ca0fddc6410747d735d98e0e515f534143417319af3f1c666c9b71b932d29".into();
+        assert!(
+            crate::managed_runtime_policy::require_managed_activation_available(&install).is_ok()
+        );
+    }
 
     fn retained_cartridge_install_fixture() -> (tempfile::TempDir, Library, Catalog, InstallRecord)
     {

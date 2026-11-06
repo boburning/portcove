@@ -91,3 +91,13 @@ The following remain unknown or untested:
 The catalog therefore declares only Windows x86-64 availability, retains an
 empty Portcove-tested-platform list and no gameplay qualification records, and
 states that gameplay has not been tested by Portcove.
+
+## 2026-11-06 compatibility finding
+
+The Windows 1.1.1 launcher can replace the runtime and migrates settings to a
+new directory. Its archive still matches the original Windows asset selector.
+Those changes invalidate the earlier launcher ownership and settings evidence
+for 1.1.1. The earlier observations remain specific to the reviewed 0.8.5
+archive. Reopening managed acquisition requires checking replacement ownership,
+setup and launch writes, and preservation of data from the earlier layout.
+[Source and archive inspection](https://github.com/boburning/portcove/issues/742#issuecomment-6697776905).

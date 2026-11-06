@@ -2,6 +2,34 @@
 //! provider. Offline checks bind the hashed manifest to its registered artifact.
 use crate::{ArtifactIdentity, Platform, PortDefinition, PortcoveError, Result};
 
+/// Temporary containment for the incompatible Open Nectar launcher and data layout
+/// observed in #742. The current definition remains available to installed copies.
+pub(crate) fn acquisition_hold(port_id: &str) -> Option<&'static str> {
+    (port_id == "open-nectar-pikmin").then_some(
+        "Open Nectar managed acquisition is on hold while upstream launcher updates and settings storage are reviewed.",
+    )
+}
+
+pub(crate) fn require_acquisition_available(port_id: &str) -> Result<()> {
+    match acquisition_hold(port_id) {
+        Some(reason) => Err(PortcoveError::unsupported(reason)),
+        None => Ok(()),
+    }
+}
+
+pub(crate) fn require_managed_activation_available(install: &crate::InstallRecord) -> Result<()> {
+    if acquisition_hold(&install.port_id).is_some()
+        && (install.version != "0.8.5"
+            || install.artifact.sha256
+                != "0e3ca0fddc6410747d735d98e0e515f534143417319af3f1c666c9b71b932d29")
+    {
+        return Err(PortcoveError::unsupported(
+            "This staged Open Nectar package lacks reviewed launcher and settings compatibility. Keep the existing active copy.",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
     port.release.provider == crate::ReleaseSource::Github
         && (port.managed_initialization

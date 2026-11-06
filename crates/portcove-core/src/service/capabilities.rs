@@ -90,10 +90,18 @@ fn action_feature(
         }
         None => CapabilityMode::Unknown,
     };
+    let hold = match action {
+        PortAction::Install | PortAction::Update => {
+            crate::managed_runtime_policy::acquisition_hold(&status.port_id)
+        }
+        _ => None,
+    };
     PortCapabilityFeature {
         feature,
         mode,
-        explanation: "Current operation assessment; execution rechecks its requirements.".into(),
+        explanation: hold
+            .unwrap_or("Current operation assessment; execution rechecks its requirements.")
+            .into(),
         next_step: "Review this operation's requirements and any current refusal.".into(),
         action: assessment,
         listing_action: None,
