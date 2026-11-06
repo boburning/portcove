@@ -370,10 +370,33 @@ void test("unrelated pins preserve the Aqua root while invalidating checkout sta
   }
 });
 
+void test("Aqua version changes require a coordinated archive ledger and invalidate the root", (t) => {
+  const item = pinnedCheckoutFixture(t);
+  const versionFile = path.join(item.paths.projectRoot, ".aqua-version");
+  const bootstrapFile = path.join(item.paths.projectRoot, ".config/tool-bootstrap.json");
+  writeFileSync(versionFile, "v99.0.0\n");
+  assert.throws(() => readToolPins(item.paths.projectRoot), /archive version must match/u);
+  writeFileSync(
+    bootstrapFile,
+    changeJson(readFileSync(bootstrapFile, "utf8"), (value) => {
+      object(value.aqua).version = "v99.0.0";
+    }),
+  );
+  const pins = readToolPins(item.paths.projectRoot);
+  const paths = toolCachePaths({
+    projectRoot: item.paths.projectRoot,
+    environment: { PORTCOVE_SHARED_TOOL_CACHE: item.paths.sharedRoot },
+    platform: "win32",
+    architecture: "x64",
+    pins,
+  });
+  assert.notEqual(pins.aquaFingerprint, item.paths.pins.aquaFingerprint);
+  assert.notEqual(paths.aquaRoot, item.paths.aquaRoot);
+});
+
 void test("every Aqua manifest and bootstrap integrity input invalidates its root", (t) => {
   const item = pinnedCheckoutFixture(t);
   const changes: Change[] = [
-    [".aqua-version", () => "v99.0.0\n"],
     ["aqua.yaml", (text: string) => text.replace(/ref: v\S+/u, "ref: v99.0.0")],
     ...["astral-sh/ruff", "rhysd/actionlint", "koalaman/shellcheck"].map((name): Change => [
       "aqua.yaml",
