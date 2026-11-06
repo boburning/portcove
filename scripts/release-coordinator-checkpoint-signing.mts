@@ -29,7 +29,10 @@ import type { CheckpointProducerExpectation } from "./release-coordinator-checkp
 import { createCheckpointSigningStore } from "./release-app-registration-capture.mts";
 import { requirePreparedHostedNativeCustody } from "./release-hosted-native-acceptance.mts";
 import type { AppRegistrationStore } from "./release-app-registration-capture.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 import { createCheckpointSigningTransport } from "./release-checkpoint-signing-transport.mts";
 
 type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
@@ -158,7 +161,10 @@ export async function signCoordinatorCheckpointEvidence(
       },
       {
         ...selected.identity,
-        transport: { ...selected.identity?.transport, cwd: directory, deadline },
+        transport:
+          identityTransport && "cwd" in identityTransport
+            ? { ...identityTransport, cwd: directory, deadline }
+            : { sdkToken: fixedReleaseReaderToken(), requireDirect: true, deadline },
       },
     );
     if (

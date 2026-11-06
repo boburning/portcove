@@ -309,6 +309,16 @@ void test("hosted native parent default path retains original source and issuer 
         assert.equal(init?.method, "GET");
         const headers = new Headers(init?.headers);
         assert.equal(headers.get("authorization"), "token inert-reader-only");
+        if (url.pathname.startsWith("/repos/boburning/portcove/actions/")) {
+          assert.equal(init?.redirect, "manual");
+          const captured = readOnlyReleaseChildEnvironment();
+          assert.equal(captured?.GH_TOKEN, "inert-reader-only");
+          assert.equal(captured?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+          assert.equal(captured?.PORTCOVE_SEMANTIC_APP_KEY, undefined);
+          metadataCalls++;
+          return Response.json(good.metadata(url.pathname + url.search));
+        }
+
         assert.equal(headers.get("x-github-api-version"), "2022-11-28");
         if (url.pathname === `/repos/boburning/portcove/git/blobs/${catalogBlob}`) {
           assert.equal(url.search, "");
@@ -353,23 +363,9 @@ void test("hosted native parent default path retains original source and issuer 
       return new Response(JSON.stringify({ value: good.token }));
     },
   );
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (
-      command: string,
-      args: readonly string[],
-      options: Parameters<typeof good.transport.spawn>[2],
-    ) => {
-      metadataCalls++;
-      assert.equal(options?.env?.GH_TOKEN, "inert-reader-only");
-      for (const key of ["ACTIONS_ID_TOKEN_REQUEST_TOKEN", "PORTCOVE_SEMANTIC_APP_KEY"])
-        assert.equal(options?.env?.[key], undefined);
-      return good.transport.spawn(command, args, options) as ReturnType<
-        typeof childProcess.spawnSync
-      >;
-    },
-  );
+  t.mock.method(childProcess, "spawnSync", () => {
+    throw new Error("Hosted native parent identity must use the scoped SDK");
+  });
   syncBuiltinESMExports();
   const configured = JSON.stringify(configuration);
   const pending = createActualHostedNativeParentSource(
@@ -384,6 +380,23 @@ void test("hosted native parent default path retains original source and issuer 
   assert.equal(metadataCalls, 0);
   assert.deepEqual(await readdir(parent), []);
   process.env.PORTCOVE_RELEASE_AUTHORITIES = configured;
+  process.env.NODE_USE_ENV_PROXY = "1";
+  try {
+    await assert.rejects(
+      createActualHostedNativeParentSource(
+        parent,
+        "linux-x86_64",
+        "payload-signing",
+        performance.now() + 10000,
+      ),
+      /hosted native parent source refused/u,
+    );
+    assert.equal(tokenCalls, 1);
+    assert.equal(metadataCalls, 0);
+  } finally {
+    if (before.NODE_USE_ENV_PROXY === undefined) delete process.env.NODE_USE_ENV_PROXY;
+    else process.env.NODE_USE_ENV_PROXY = before.NODE_USE_ENV_PROXY;
+  }
   const receipt = await createActualHostedNativeParentSource(
     parent,
     "linux-x86_64",
@@ -391,6 +404,8 @@ void test("hosted native parent default path retains original source and issuer 
     performance.now() + 10000,
   );
   const actual = await requireActualHostedNativeParentSource(receipt);
+  assert.equal(tokenCalls, 2);
+  assert.equal(metadataCalls, 5);
   assert.equal(actual.producer.run_id, nativeIdentityExpected.run_id);
   assert.equal(actual.producer.run_attempt, 1);
   assert.equal(actual.producer.configuration_sha256, releaseCanonicalDigest(configuration));

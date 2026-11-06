@@ -1219,6 +1219,7 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
 
 for (const controlReader of [
   "admitted-aggregate",
+  "diagnostic-admission",
   "coordinator-application",
   "site-application",
   "site-maintenance",
@@ -1229,7 +1230,8 @@ for (const controlReader of [
   "publication-application",
 ] as const)
   void test(`fixed ${controlReader} joins locked SDK ref, file and original observer reads`, async (t) => {
-    const aggregate = controlReader === "admitted-aggregate";
+    const aggregate =
+      controlReader === "admitted-aggregate" || controlReader === "diagnostic-admission";
     const publication = controlReader === "publication-application";
     const classification =
       aggregate ||
@@ -1425,15 +1427,20 @@ for (const controlReader of [
       }
       const readOnly = liveControlRuntimeFixture(protection, config, "admission");
       const { observerApi: _observer, ...readOnlyOptions } = readOnly.options;
-      await assert.rejects(
+      const authenticateReadOnly = () =>
         authenticateReleaseControlSource(
           { ...readOnly.environment, GH_TOKEN: "synthetic-site" },
           readOnly.workflow,
           { ...readOnlyOptions, deadline: performance.now() + 5000, controlReader },
-        ),
-        /protected application admission/u,
-      );
-      assert.equal(reads.length, beforeRefusal);
+        );
+      if (controlReader === "admitted-aggregate") {
+        await assert.rejects(authenticateReadOnly(), /protected application admission/u);
+        assert.equal(reads.length, beforeRefusal);
+      } else {
+        const diagnostic = await authenticateReadOnly();
+        assert.equal(diagnostic.phase, "admission");
+        assert.deepEqual(reads.slice(beforeRefusal), [reads[0]]);
+      }
     }
     if (publication || controlReader === "payload") {
       const start = reads.length;

@@ -96,6 +96,7 @@ function json(raw: string | undefined, maximum: number) {
 
 type SdkControlReader =
   | "admitted-aggregate"
+  | "diagnostic-admission"
   | "coordinator-application"
   | "site-application"
   | "site-maintenance"
@@ -230,6 +231,7 @@ async function authenticateControlSource(
   const controlReader = options.controlReader;
   const sdkReaderToken = controlReader === undefined ? undefined : fixedReleaseReaderToken(env);
   const aggregateAdmission = controlReader === "admitted-aggregate";
+  const admissionReader = aggregateAdmission || controlReader === "diagnostic-admission";
   const catalogRecoveryObserver = options.catalogRecoveryObserver === true;
   if (
     catalogRecoveryObserver &&
@@ -245,7 +247,7 @@ async function authenticateControlSource(
   const coordinatorApplication = controlReader === "coordinator-application";
   const coordinatorMaintenance = catalogCoordinator || controlReader === "metadata-maintenance";
   const direct =
-    aggregateAdmission ||
+    admissionReader ||
     catalogRecoveryObserver ||
     coordinatorMaintenance ||
     readOnlyReleaseChildEnvironment() !== undefined;
@@ -263,7 +265,7 @@ async function authenticateControlSource(
               phase === "catalog-snapshot" ||
               phase === "catalog-timestamp")
           : purpose === "application" &&
-            (aggregateAdmission
+            (admissionReader
               ? phase === "admission"
               : controlReader === "payload"
                 ? phase === "payload"
@@ -847,7 +849,7 @@ async function authenticateControlSource(
           } = {},
     ) {
       if (
-        (controlReader !== "admitted-aggregate" &&
+        (!admissionReader &&
           controlReader !== "payload" &&
           controlReader !== "tuf-application" &&
           controlReader !== "publication-application" &&
