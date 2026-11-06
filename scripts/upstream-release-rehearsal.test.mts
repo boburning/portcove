@@ -15,7 +15,6 @@ import {
   inspectRehearsalManifest,
   inspectRehearsalReleaseReadback,
   rehearsalVersions,
-  rehearsalPackageConfiguration,
 } from "./upstream-release-rehearsal.mts";
 import {
   rehearsalConcurrency,
@@ -42,8 +41,11 @@ import { inspectRehearsalAcceptance } from "./upstream-release-acceptance.mts";
 
 const expected = { source: "a".repeat(40), run_id: "12345", run_attempt: 2 };
 
-void test("the recovery-only rehearsal refuses retired publication and Pages commands", () => {
-  for (const [script, mode, argument, expected] of [
+void test("the recovery-only rehearsal refuses retired producer and publication commands", () => {
+  for (const [script, mode, argument, refusal] of [
+    ["upstream-release-rehearsal.mts", "prepare-candidate", "unused", /expected inspect\|verify/u],
+    ["upstream-release-rehearsal.mts", "stage", "unused", /expected inspect\|verify/u],
+    ["upstream-release-rehearsal.mts", "sign", "unused", /expected inspect\|verify/u],
     ["upstream-release-publication.mts", "draft", "unused", /expected verify-immutable/u],
     ["upstream-release-publication.mts", "publish", "unused", /expected verify-immutable/u],
     ["upstream-release-pages.mts", "prepare", "candidate", /expected observe baseline\|candidate/u],
@@ -51,12 +53,21 @@ void test("the recovery-only rehearsal refuses retired publication and Pages com
     const filename = fileURLToPath(new URL(script, import.meta.url));
     const result = spawnSync(process.execPath, [filename, mode, argument], {
       encoding: "utf8",
-      env: {},
+      env: {
+        GITHUB_REPOSITORY: "boburning/portcove",
+        GITHUB_REPOSITORY_ID: "1354613114",
+        GITHUB_REF: rehearsalExecutionRef,
+        GITHUB_REF_PROTECTED: "true",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_SHA: expected.source,
+        GITHUB_RUN_ID: expected.run_id,
+        GITHUB_RUN_ATTEMPT: "1",
+      },
       timeout: 10000,
     });
     assert.ifError(result.error);
     assert.equal(result.status, 1);
-    assert.match(result.stderr, expected);
+    assert.match(result.stderr, refusal);
   }
 });
 
@@ -273,10 +284,6 @@ void test("native workflow preserves credential separation, exact producer ident
         !/cargo |pnpm [^\n]*\binstall\b|\.exe\s/u.test(step.run ?? ""),
     ),
   );
-
-  assert.deepEqual(rehearsalPackageConfiguration(), {
-    bundle: { createUpdaterArtifacts: false, windows: { nsis: { installMode: "currentUser" } } },
-  });
 });
 
 void test("public feed transfer refuses traversal, links-by-shape, duplicates and excessive data before writes", () => {
