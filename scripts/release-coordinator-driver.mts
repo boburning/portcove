@@ -879,6 +879,9 @@ async function coordinatorDeadline(phaseDeadline?: number) {
     throw new Error("coordinator inherited deadline exhausted");
   const inherited = Math.min(phaseDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
   const lookupDeadline = Math.min(monotonicStart + 10000, inherited);
+  if (lookupDeadline <= performance.now())
+    throw new Error("coordinator inherited deadline exhausted");
+  const readerToken = fixedReleaseReaderToken();
   const monotonicDeadline = Math.min(
     monotonicStart + 170000,
     inherited,
@@ -890,6 +893,9 @@ async function coordinatorDeadline(phaseDeadline?: number) {
   return {
     deadline,
     monotonicDeadline,
+    journalTransport() {
+      return { credential: { token: readerToken }, deadline: monotonicDeadline };
+    },
     remaining(maximum = 170000) {
       const left = Math.floor(
         Math.min(deadline - Date.now(), monotonicDeadline - performance.now(), maximum),
@@ -3439,11 +3445,12 @@ async function requestTrustedSemanticReviewAt(
     "review request coordinator private parent",
   );
   const directory = await mkdtemp(path.join(privateParent, "coordinator-review-"));
+  const journalTransport = budget.journalTransport();
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
     const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-      transport: { cwd: directory, deadline: budget.monotonicDeadline },
+      transport: journalTransport,
     });
     checkpoint = recovered.checkpoint;
     if (selectCoordinatorPendingContextRecovery(recovered.input)) {
@@ -3683,7 +3690,7 @@ async function requestTrustedSemanticReviewAt(
       return { decision: "held", directory, checkpoint, plan, authority: "none" };
     const fresh = controls.readMaintenance(api);
     const remote = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
-      transport: { cwd: directory, deadline: budget.monotonicDeadline },
+      transport: journalTransport,
     });
     if (
       mainHead() !== source ||

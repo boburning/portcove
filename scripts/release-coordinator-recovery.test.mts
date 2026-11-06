@@ -266,6 +266,41 @@ void test("configured SDK recovers the exact bracketed snapshot and refuses a Gr
   ]);
 });
 
+void test("scoped SDK snapshot rechecks source custody after the original response", async (t) => {
+  const f = await recoveryFixture(t, false, true);
+  let reads = 0;
+  let checks = 0;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.href, "https://api.github.com/repos/boburning/portcove");
+    assert.equal(
+      new Headers(init?.headers).get("authorization"),
+      "token ghs_native_journal_fixture",
+    );
+    reads++;
+    return Response.json(f.readRepository());
+  });
+  await assert.rejects(
+    readRemoteCoordinatorSnapshot(
+      f.parent,
+      { schema_version: 1, namespace: "portcove-fixture" },
+      {
+        transport: {
+          credential: { token: "ghs_native_journal_fixture" },
+          deadline: performance.now() + 15000,
+          checkSource() {
+            checks++;
+            if (reads) throw new Error("native original source changed during response");
+          },
+        },
+      },
+    ),
+    /native original source changed during response/u,
+  );
+  assert.equal(reads, 1);
+  assert.equal(checks, 2);
+});
+
 void test("isolated SDK coordinator snapshot refuses a late proxy override before dispatch", async (t) => {
   const f = await recoveryFixture(t, false, true);
   const originalToken = process.env.GH_TOKEN;
@@ -349,6 +384,34 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
         async (input: URL | Request | string, init?: RequestInit) => {
           const url = new URL(input instanceof Request ? input.url : input);
           assert.equal(url.origin, "https://api.github.com");
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            `token ${jobEnvironment.GH_TOKEN}`,
+          );
+          if (url.pathname === "/graphql") {
+            assert.equal(init?.method, "POST");
+            const payload: unknown = JSON.parse(typeof init.body === "string" ? init.body : "");
+            assert.ok(
+              isRecord(payload) &&
+                typeof payload.query === "string" &&
+                payload.query.startsWith("query("),
+            );
+            assert.ok(
+              isRecord(payload.variables) &&
+                typeof payload.variables.id === "string" &&
+                typeof payload.variables.ref === "string",
+            );
+            return Response.json(f.readRef(payload.variables.id, payload.variables.ref));
+          }
+          if (!url.pathname.endsWith("/actions/runs/12345/jobs")) {
+            assert.equal(init?.method, "GET");
+            assert.equal(url.search, "");
+            return Response.json(
+              url.pathname === "/repos/boburning/portcove"
+                ? f.readRepository()
+                : f.readObject(url.pathname),
+            );
+          }
           assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/12345/jobs");
           assert.deepEqual(Object.fromEntries(url.searchParams), {
             filter: "all",
@@ -361,6 +424,7 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
             `token ${jobEnvironment.GH_TOKEN}`,
           );
           assert.equal(f.reads(), 0, "original job budget precedes recovery reads");
+          process.env.GH_TOKEN = "ghs_rotated_after_original_clock";
           jobReads++;
           return Response.json({
             total_count: 1,

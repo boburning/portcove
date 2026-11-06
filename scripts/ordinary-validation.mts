@@ -783,6 +783,7 @@ for (const [file, tests] of [
   [
     "scripts/release-coordinator-recovery.mts",
     [
+      "scripts/release-native-admission.test.mts",
       "scripts/release-catalog-continuation.test.mts",
       "scripts/release-metadata-context-recovery.test.mts",
       "scripts/release-site-controller.test.mts",

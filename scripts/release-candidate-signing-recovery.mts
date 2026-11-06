@@ -3,7 +3,7 @@
  * established by this module, a journal summary, or copied result JSON. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
@@ -539,24 +539,8 @@ export async function recoverCandidateSigningCustody(
       /^[a-f0-9]{40}$/u.test(input.checkpoint),
   );
   return withCoordinatorDeadline(deadline, async () => {
+    const token = process.env.GH_TOKEN ?? "";
     const directory = await mkdtemp(path.join(parent, "candidate-signing-recovery-"));
-    const home = path.join(directory, "reader-home");
-    await mkdir(home, { mode: 0o700 });
-    const environment = Object.fromEntries(
-      Object.entries(process.env).filter(([key]) =>
-        ["PATH", "Path", "SystemRoot", "WINDIR", "GH_TOKEN"].includes(key),
-      ),
-    );
-    Object.assign(environment, {
-      HOME: home,
-      USERPROFILE: home,
-      TMP: home,
-      TEMP: home,
-      GH_CONFIG_DIR: home,
-      XDG_CONFIG_HOME: home,
-      GH_HOST: "github.com",
-      GH_PROMPT_DISABLED: "1",
-    });
     let checkpoint = input.checkpoint,
       phase = "current-coordinator";
     let requests = 0;
@@ -569,7 +553,7 @@ export async function recoverCandidateSigningCustody(
     };
     const readReleaseAsset = (id: number, bytes: number) =>
       downloadGitHubReleaseAsset(id, {
-        credential: { kind: "explicit", token: environment.GH_TOKEN ?? "" },
+        credential: { kind: "explicit", token },
         deadline: Math.min(
           deadline,
           coordinatorCommandDeadline() ?? Infinity,
@@ -610,7 +594,7 @@ export async function recoverCandidateSigningCustody(
         const snapshot = await readRemoteCoordinatorSnapshot(
           directory,
           input.remote_configuration,
-          { transport: { credential: { token: environment.GH_TOKEN ?? "" }, deadline } },
+          { transport: { credential: { token }, deadline } },
         );
         assert.equal(snapshot.checkpoint, checkpoint, "signing custody journal changed");
         assert.equal(
@@ -634,7 +618,7 @@ export async function recoverCandidateSigningCustody(
           ? inspectPendingCandidateReleaseOperation(currentOperation, active)
           : undefined;
       const metadata = await createReleaseCustodyProvider({
-        token: environment.GH_TOKEN ?? "",
+        token,
         deadline,
         chargeRead,
         afterRead: () => {
@@ -711,7 +695,7 @@ export async function recoverCandidateSigningCustody(
       const contextOperation = operations.get("context")!;
       const contextBefore = await observe(contextOperation, "context");
       const bytes = await acquireSigningContextArchive(directory, contextBefore.artifact, {
-        token: environment.GH_TOKEN ?? "",
+        token,
         deadline: deadline,
         charge: chargeRead,
       });
@@ -851,7 +835,7 @@ export async function recoverCandidateSigningCustody(
         const providerBefore = await observeProvider();
         const archive = await acquirePendingResultArchive(
           providerBefore,
-          environment.GH_TOKEN ?? "",
+          token,
           deadline,
           chargeRead,
         );

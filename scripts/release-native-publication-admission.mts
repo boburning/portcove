@@ -32,6 +32,7 @@ import {
   inspectPublishedMetadata,
   inspectTufPublicationFacts,
 } from "./release-metadata-contract.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { inspectCompactCapacityOperations } from "./release-capacity.mts";
 import {
@@ -712,6 +713,7 @@ async function collectNativePublicationPair(
     return Math.min(left, 15000);
   };
   remaining();
+  const snapshotToken = (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN;
   // One bounded verification subphase within the caller's original job clock;
   // historical predecessor and current proof collection share this deadline.
   const hostedDeadline = Math.min(deadline, performance.now() + 120000);
@@ -762,11 +764,12 @@ async function collectNativePublicationPair(
   const directory = await mkdtemp(path.join(parent, "native-publication-inputs-"));
   let phase = "current-reservation";
   try {
+    const snapshotTransport = { credential: { token: snapshotToken ?? "" }, deadline };
     const snapshot = () =>
       readRemoteCoordinatorSnapshot(
         directory,
         { schema_version: 1, namespace: authorityView.namespace },
-        { transport: { cwd: directory, deadline } },
+        { transport: snapshotTransport },
       );
     const before = await snapshot();
     const descriptor = JSON.stringify({

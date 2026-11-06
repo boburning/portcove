@@ -380,6 +380,7 @@ export async function readRemoteCoordinatorSnapshot(
           credential: { token: string };
           deadline: number;
           requireDirect?: true;
+          checkSource?: () => void;
           cwd?: never;
           spawn?: never;
         };
@@ -429,6 +430,7 @@ export async function readRemoteCoordinatorSnapshot(
     const token = transport.credential.token;
     const direct =
       transport.requireDirect === true || readOnlyReleaseChildEnvironment() !== undefined;
+    const checkSource = transport.checkSource;
     const { createGitHubClient } = await import("./github-client.mts");
     const client = await createGitHubClient({
       credential: { kind: "explicit", token },
@@ -438,26 +440,33 @@ export async function readRemoteCoordinatorSnapshot(
         coordinatorCommandDeadline() ?? Infinity,
       ),
       maxBytes: maximumResponseBytes,
-      ...(direct && {
+      ...((direct || checkSource) && {
         allowRequest() {
-          assertTrustedDirectNode("isolated coordinator snapshot");
+          if (direct) assertTrustedDirectNode("isolated coordinator snapshot");
+          checkSource?.();
           return true;
         },
       }),
       headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     });
     return {
-      get(route: string) {
-        return client.request(`GET ${route}`, {
-          request: { portcove: { replay: "once", attempts: 0 } },
-        });
+      async get(route: string) {
+        try {
+          return await client.request(`GET ${route}`, {
+            request: { portcove: { replay: "once", attempts: 0 } },
+          });
+        } finally {
+          checkSource?.();
+        }
       },
       async ref(variables: { id: string; ref: string }): Promise<unknown> {
-        const response = await client.request("POST /graphql", {
-          query: recoveryRefQuery,
-          variables,
-          request: { portcove: { replay: "once", attempts: 0 } },
-        });
+        const response = await client
+          .request("POST /graphql", {
+            query: recoveryRefQuery,
+            variables,
+            request: { portcove: { replay: "once", attempts: 0 } },
+          })
+          .finally(() => checkSource?.());
         const envelope: unknown = response.data;
         if (
           response.status !== 200 ||

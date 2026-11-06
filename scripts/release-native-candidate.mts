@@ -528,7 +528,19 @@ async function sourceTransport(parent: Parent, directory: string) {
     recoverRemoteCoordinator(
       directory,
       { schema_version: 1, namespace: parent.descriptor.namespace },
-      { transport: { cwd: directory, spawn: textSpawn } },
+      {
+        transport: {
+          credential: { token },
+          deadline: Math.min(
+            coordinatorCommandDeadline() ?? Infinity,
+            performance.now() + remainingNativeParentBudget(120000),
+          ),
+          checkSource() {
+            checkToolIdentity();
+            assertTrustedDirectNode("installed native journal");
+          },
+        },
+      },
     );
   const recheck = async () => {
     await parent.recheck();
