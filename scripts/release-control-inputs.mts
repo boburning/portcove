@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
-import type { GitHubReservation } from "./github-client.mts";
+import type { GitHubRequestPolicy, GitHubReservation } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
@@ -880,17 +880,17 @@ async function controlSdkReader(
         guard();
         if (effect.kind === "classification-write") {
           if (!writerClient) throw new Error("fixed classification writer unavailable");
+          const policy: GitHubRequestPolicy = {
+            replay: "once",
+            attempts: 0,
+            observe(observation) {
+              dispatched = observation.dispatched;
+            },
+          };
           const response = await writerClient.request("POST /graphql", {
             query: releaseClassificationCommitMutation,
             variables: effect.variables,
-            request: {
-              portcove: {
-                ...once().portcove,
-                observe(observation) {
-                  dispatched = observation.dispatched;
-                },
-              },
-            },
+            request: { portcove: policy },
           });
           const envelope: unknown = response.data;
           result = { status: response.status, body: isRecord(envelope) ? envelope.data : null };
