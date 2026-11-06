@@ -315,6 +315,7 @@ export async function createPublicationInventoryWithSdk(options: {
   fetch?: typeof globalThis.fetch;
   recheck: () => Promise<void>;
   beforeDispatch?: () => void;
+  currentDeadline?: () => number;
   maxBytes?: number;
   requestTimeoutMs?: number;
 }) {
@@ -367,7 +368,11 @@ export async function createPublicationInventoryWithSdk(options: {
         portcove: {
           replay: "once",
           attempts: 0,
-          deadline: Math.min(deadline, performance.now() + remaining()),
+          deadline: Math.min(
+            deadline,
+            options.currentDeadline?.() ?? Infinity,
+            performance.now() + remaining(),
+          ),
         },
       },
     });

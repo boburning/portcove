@@ -43,7 +43,14 @@ export function collectReleaseSourceChanges(
 }
 
 export async function collectReleaseSourceChangesWithSdk(
-  options: { token: string; deadline: number; guard: () => void },
+  options: {
+    token: string;
+    deadline: number;
+    guard: () => void;
+    currentDeadline?: () => number;
+    maxBytes?: number;
+    requestTimeoutMs?: number;
+  },
   rawOpportunity: unknown,
 ) {
   const collection = releaseSourceChangeRequests(rawOpportunity, { deadline: options.deadline });
@@ -53,8 +60,8 @@ export async function collectReleaseSourceChangesWithSdk(
   const client = await createGitHubClient({
     credential: { kind: "explicit", token: options.token },
     deadline: options.deadline,
-    maxBytes: 8 * 1024 ** 2,
-    requestTimeoutMs: 30000,
+    maxBytes: options.maxBytes ?? 8 * 1024 ** 2,
+    requestTimeoutMs: options.requestTimeoutMs ?? 30000,
     allowRequest(method, url) {
       options.guard();
       return method === "GET" && url.href === expected;
@@ -64,7 +71,13 @@ export async function collectReleaseSourceChangesWithSdk(
     const url = new URL(step.value.endpoint, "https://api.github.com/");
     expected = url.href;
     const response = await client.request(`GET ${url.pathname}${url.search}`, {
-      request: { portcove: { replay: "once", attempts: 0, deadline: step.value.deadline } },
+      request: {
+        portcove: {
+          replay: "once",
+          attempts: 0,
+          deadline: Math.min(step.value.deadline, options.currentDeadline?.() ?? Infinity),
+        },
+      },
     });
     options.guard();
     const link: unknown = response.headers.link;
