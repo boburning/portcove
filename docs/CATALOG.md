@@ -1754,6 +1754,12 @@ publication are unclaimed. Exact identities and boundaries are recorded in the
 
 ## Adding or changing a port
 
+On an integrated record, `integration.platforms` owns managed platform
+eligibility. Use `listing.platforms` only for additional platforms where
+independent upstream package evidence applies. Declare each platform once.
+The discovery directory reports both sets. The managed definition and its
+selected release retain their own platform checks.
+
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's
 toolchain download fallback. Builder PATH contains only the owned toolchain and

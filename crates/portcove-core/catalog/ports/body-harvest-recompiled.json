@@ -6,6 +6,7 @@
     "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows copy or launch a copy you prepared.",
     "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
     "issue_number": 1448,
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
     "artwork": {

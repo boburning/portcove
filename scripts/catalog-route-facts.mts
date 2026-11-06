@@ -153,7 +153,10 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
     throw new Error("Route facts require a concrete bespoke guide envelope.");
   const player = resolvedPlayer(facts, record.integration);
   const selector: Step = {
-    title: "Select the prepared player",
+    title:
+      facts.managed_native && record.listing.platforms?.length
+        ? "Select the prepared Windows player"
+        : "Select the prepared player",
     instruction: selectionInstruction(player.executable, player.arguments),
   };
   const steps: unknown[] = guide.steps;

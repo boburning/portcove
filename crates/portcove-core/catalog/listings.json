@@ -11731,6 +11731,12 @@
       "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows copy or launch a copy you prepared.",
       "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
       "issue_number": 1448,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
       "artwork": {
@@ -11768,7 +11774,7 @@
             "instruction": "For an existing permitted Flatpak installation, follow upstream preparation and preserve the complete ~/.var/app/io.github.bodyharvestrecomp.bodyharvestrecomp folder alongside the actual profile. Its writable app area and normal/custom/portable profile can be different. Keep the working installation until its replacement is ready."
           },
           {
-            "title": "Select the prepared player",
+            "title": "Select the prepared Windows player",
             "instruction": "Select BodyHarvestRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
@@ -11795,10 +11801,7 @@
             "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "bof4-recomp-plaught-armor-breath-of-fire-iv",
