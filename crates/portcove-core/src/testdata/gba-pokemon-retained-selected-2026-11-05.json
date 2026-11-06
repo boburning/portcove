@@ -7,12 +7,8 @@
       "summary": "Use the upstream FireRedRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "support_tier": "beta",
-      "channels": [
-        "stable"
-      ],
-      "platforms": [
-        "windows-x86-64"
-      ],
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -79,12 +75,8 @@
       "summary": "Use the upstream LeafGreenRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "support_tier": "beta",
-      "channels": [
-        "stable"
-      ],
-      "platforms": [
-        "windows-x86-64"
-      ],
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
