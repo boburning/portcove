@@ -55,8 +55,18 @@ export function applicationReleaseBudgetMinutes(purpose: unknown) {
     jobs["protection_draft_recovery / execute"] = 1;
   } else delete jobs.publication_prepare;
   if (purpose === "metadata-bootstrap") {
-    delete jobs.draft_recovery;
-    jobs["targets / execute"] = 2;
+    // The empty bootstrap never builds, signs, or installs an executable.
+    for (const name of [
+      "package / package",
+      "package / provenance",
+      "protection_payload / execute",
+      "payload / execute",
+      "native / execute",
+      "native / attest",
+      "draft_recovery",
+      "public_installed",
+    ])
+      delete jobs[name];
   }
   return Object.freeze(jobs);
 }

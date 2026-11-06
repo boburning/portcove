@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import {
   inspectApplicationRunCustody,
   readApplicationRunNotes,
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
+  resumeEmptyApplicationBootstrap,
   retainApplicationPreparation,
   readRegisteredApplicationRuns,
   registerApplicationBudgetRun,
@@ -141,6 +143,87 @@ void test("immutable metadata recovery appends only its existing cohort and neve
   release.tag_name = "v0.1.0-alpha.3";
   await assert.rejects(() => register("125", "immutable-metadata-only"));
   assert.equal(f.mutations.length, 2);
+});
+
+void test("bootstrap successor retains the appointed empty draft and its original source", async () => {
+  const opportunity = "d".repeat(64);
+  const next = { ...execution, source: "e".repeat(40), run_id: "124" };
+  for (const fault of [
+    null,
+    "assets",
+    "notes",
+    "drift",
+    "missing-inventory",
+    "inventory-drift",
+  ] as const) {
+    const f = fixture();
+    const first = await registerApplicationReleaseRun(
+      f.registration,
+      execution,
+      source,
+      tree,
+      opportunity,
+      f.guard,
+    );
+    const draft = f.releases[0]!;
+    assert.equal(typeof draft.body, "string");
+    draft.assets = fault === "assets" ? [{ id: 21 }] : [];
+    const appointment = {
+      release_id: first.release_id,
+      notes_sha256: createHash("sha256").update(String(draft.body)).digest("hex"),
+    };
+    if (fault === "notes") draft.body = String(draft.body) + "changed";
+    if (fault === "missing-inventory") f.registration.releaseNotes = async () => [];
+    if (fault === "inventory-drift") {
+      f.registration.releaseNotes = async () => {
+        const original = String(draft.body);
+        draft.body = original.replace(
+          JSON.stringify(first.custody),
+          JSON.stringify({
+            ...first.custody,
+            runs: [
+              ...first.custody.runs,
+              {
+                id: next.run_id,
+                control_commit: next.source,
+                control_ref: next.ref,
+              },
+            ],
+          }),
+        );
+        assert.notEqual(draft.body, original);
+        return structuredClone(f.releases);
+      };
+    }
+    const recovery = resumeEmptyApplicationBootstrap(
+      f.registration,
+      next,
+      opportunity,
+      appointment,
+      async (known) => {
+        assert.deepEqual(known, [execution.run_id]);
+        if (fault === "drift") draft.assets = [{ id: 21 }];
+      },
+    );
+    if (fault) {
+      await assert.rejects(recovery);
+      assert.equal(f.mutations.length, 1);
+    } else {
+      const resumed = await recovery;
+      assert.equal(resumed.release_id, first.release_id);
+      assert.equal(resumed.custody.source, source);
+      assert.equal(resumed.custody.source_tree, tree);
+      assert.equal(draft.target_commitish, source);
+      assert.deepEqual(resumed.custody.runs, [
+        ...first.custody.runs,
+        { id: next.run_id, control_commit: next.source, control_ref: next.ref },
+      ]);
+      assert.deepEqual(
+        f.mutations.map(({ method }) => method),
+        ["POST", "PATCH"],
+      );
+    }
+  }
 });
 
 void test("native draft registration precedes private work and a same-run retry preserves its single record", async () => {

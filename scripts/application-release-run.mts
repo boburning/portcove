@@ -1,6 +1,7 @@
 /** Native Release run custody. This records bounded execution identities in the
  * product draft/notes; it grants no qualification, signing or publication. */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
   metadataInstant,
   inspectMetadataRoleVersions,
@@ -576,6 +577,70 @@ export async function createApplicationRunRegistrationProvider(): Promise<Applic
   };
 }
 
+type EmptyBootstrapDraft = { release_id: number; notes_sha256: string };
+
+function requireEmptyBootstrapDraft(raw: unknown, expected: EmptyBootstrapDraft) {
+  assert.ok(
+    isRecord(raw) &&
+      raw.id === expected.release_id &&
+      raw.draft === true &&
+      raw.prerelease === true &&
+      raw.immutable === false &&
+      Array.isArray(raw.assets) &&
+      raw.assets.length === 0 &&
+      typeof raw.body === "string",
+    "appointed bootstrap recovery requires the exact empty draft",
+  );
+  assert.equal(createHash("sha256").update(raw.body).digest("hex"), expected.notes_sha256);
+}
+
+export async function resumeEmptyApplicationBootstrap(
+  provider: ApplicationRunRegistrationProvider,
+  execution: Execution,
+  opportunity: string,
+  raw: unknown,
+  beforeWrite: Parameters<typeof registerApplicationReleaseRun>[5],
+) {
+  assert.ok(
+    isRecord(raw) &&
+      Object.keys(raw).sort().join(",") === "notes_sha256,release_id" &&
+      typeof raw.release_id === "number" &&
+      Number.isSafeInteger(raw.release_id) &&
+      raw.release_id > 0 &&
+      typeof raw.notes_sha256 === "string" &&
+      /^[a-f0-9]{64}$/u.test(raw.notes_sha256),
+    "invalid empty bootstrap recovery appointment",
+  );
+  const expected = { release_id: raw.release_id, notes_sha256: raw.notes_sha256 };
+  const response = await provider.release(expected.release_id);
+  assert.equal(response.status, 200);
+  const draft = response.body;
+  requireEmptyBootstrapDraft(draft, expected);
+  assert.ok(isRecord(draft));
+  const parsed = readApplicationRunNotes(draft.body);
+  assert.ok(
+    parsed &&
+      parsed.custody.preparation === null &&
+      parsed.custody.budget === undefined &&
+      parsed.custody.metadata_contexts === undefined,
+    "bootstrap draft already has later custody",
+  );
+  assert.equal(parsed.custody.opportunity, opportunity);
+  assert.equal(draft.tag_name, `portcove-production-candidate-${opportunity}`);
+  assert.equal(draft.target_commitish, parsed.custody.source);
+  return registerApplicationReleaseRun(
+    provider,
+    execution,
+    parsed.custody.source,
+    parsed.custody.source_tree,
+    opportunity,
+    beforeWrite,
+    "create-or-resume",
+    undefined,
+    expected,
+  );
+}
+
 /** The fixed caller owns actual global Actions concurrency and current guards.
  * After an ambiguous mutation, read back the exact existing release; never
  * retry a POST, delete a draft, replace assets or reset a registered run list. */
@@ -591,6 +656,7 @@ export async function registerApplicationReleaseRun(
   ) => Promise<void>,
   mode: "create-or-resume" | "immutable-only" | "immutable-metadata-only" = "create-or-resume",
   budget?: ApplicationRunBudget,
+  emptyBootstrapDraft?: EmptyBootstrapDraft,
 ) {
   const current: Run = {
     id: execution.run_id,
@@ -644,6 +710,17 @@ export async function registerApplicationReleaseRun(
     return matches[0];
   };
   const existing = await find();
+  if (emptyBootstrapDraft) {
+    assert.ok(
+      existing &&
+        existing.id === emptyBootstrapDraft.release_id &&
+        typeof existing.body === "string",
+    );
+    assert.equal(
+      createHash("sha256").update(existing.body).digest("hex"),
+      emptyBootstrapDraft.notes_sha256,
+    );
+  }
   const parsed = existing ? readApplicationRunNotes(existing.body ?? "") : null;
   assert.ok(
     mode === "create-or-resume" || mode === "immutable-only" || mode === "immutable-metadata-only",
@@ -698,6 +775,7 @@ export async function registerApplicationReleaseRun(
       const fresh = await request(() => provider.release(Number(existing.id)));
       assert.equal(fresh.status, 200);
       assert.ok(isRecord(fresh.body));
+      if (emptyBootstrapDraft) requireEmptyBootstrapDraft(fresh.body, emptyBootstrapDraft);
       for (const key of [
         "id",
         "body",
@@ -743,6 +821,9 @@ export async function registerApplicationReleaseRun(
   assert.equal(readback.status, 200);
   assert.ok(isRecord(readback.body));
   assert.equal(readback.body.body, body, "native run custody readback differs; no retry or reset");
+  if (emptyBootstrapDraft) {
+    assert.ok(Array.isArray(readback.body.assets) && readback.body.assets.length === 0);
+  }
   if (existing) {
     for (const key of ["id", "tag_name", "target_commitish", "draft", "immutable", "prerelease"])
       assert.equal(readback.body[key], existing[key], `registration changed release ${key}`);
