@@ -858,7 +858,8 @@ async function assertReviewedLinkRefusals({
       args: { url: "https://unreviewed.portcove.invalid/boundary" },
       expected: {
         code: "usage",
-        message: "only reviewed project, artwork source and GitHub sign-in links may be opened",
+        message:
+          "only reviewed project, setup, upgrade, release, artwork and GitHub sign-in links may be opened",
       },
     },
     {

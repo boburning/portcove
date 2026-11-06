@@ -1689,7 +1689,7 @@ void test("owned frame CSP requires a trusted enforced event and removes its fra
             code: command === "open_external_url" ? "usage" : "not_found",
             message:
               command === "open_external_url"
-                ? "only reviewed project, artwork source and GitHub sign-in links may be opened"
+                ? "only reviewed project, setup, upgrade, release, artwork and GitHub sign-in links may be opened"
                 : "unknown source evidence id: portcove-boundary-unknown-evidence",
           },
         };
@@ -1905,7 +1905,7 @@ void test("reviewed link refusals require guard errors and preserve the ready na
             code: command === "open_external_url" ? "usage" : "not_found",
             message:
               command === "open_external_url"
-                ? "only reviewed project, artwork source and GitHub sign-in links may be opened"
+                ? "only reviewed project, setup, upgrade, release, artwork and GitHub sign-in links may be opened"
                 : "unknown source evidence id: portcove-boundary-unknown-evidence",
           },
         }
@@ -2060,7 +2060,8 @@ void test("shipping secondary creation requires ACL refusal and preserves native
           ok: false,
           error: {
             code: "usage",
-            message: "only reviewed project, artwork source and GitHub sign-in links may be opened",
+            message:
+              "only reviewed project, setup, upgrade, release, artwork and GitHub sign-in links may be opened",
           },
         },
         open_source_evidence: {
