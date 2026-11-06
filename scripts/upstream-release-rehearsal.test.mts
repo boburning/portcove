@@ -4,8 +4,10 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { access, mkdtemp, rm } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import {
   inspectRehearsalDraftReadback,
@@ -37,12 +39,26 @@ import {
   rehearsalTransferFiles,
 } from "./upstream-release-transfer.mts";
 import { inspectRehearsalAcceptance } from "./upstream-release-acceptance.mts";
-import {
-  rehearsalFeedTransition,
-  hasPriorRehearsalInterruption,
-} from "./upstream-release-pages.mts";
 
 const expected = { source: "a".repeat(40), run_id: "12345", run_attempt: 2 };
+
+void test("the recovery-only rehearsal refuses retired publication and Pages commands", () => {
+  for (const [script, mode, argument, expected] of [
+    ["upstream-release-publication.mts", "draft", "unused", /expected verify-immutable/u],
+    ["upstream-release-publication.mts", "publish", "unused", /expected verify-immutable/u],
+    ["upstream-release-pages.mts", "prepare", "candidate", /expected observe baseline\|candidate/u],
+  ] as const) {
+    const filename = fileURLToPath(new URL(script, import.meta.url));
+    const result = spawnSync(process.execPath, [filename, mode, argument], {
+      encoding: "utf8",
+      env: {},
+      timeout: 10000,
+    });
+    assert.ifError(result.error);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, expected);
+  }
+});
 
 void test("native retry copies are charged once only with matching prior execution and attempt context", () => {
   const at = (minutes: number) =>
@@ -614,49 +630,6 @@ void test("protection observer preserves unknown bypass visibility without grant
       conditions: { ref_name: { exclude: [], include: ["refs/heads/main"] } },
     }),
   );
-});
-
-void test("feed transition requires the usable baseline and never rolls a completed feed back", () => {
-  assert.deepEqual(rehearsalFeedTransition("baseline", null, "base", "next"), {
-    deploy: true,
-    state: "baseline",
-  });
-  assert.deepEqual(rehearsalFeedTransition("baseline", "next", "base", "next"), {
-    deploy: false,
-    state: "candidate",
-  });
-  assert.deepEqual(rehearsalFeedTransition("candidate", "base", "base", "next"), {
-    deploy: true,
-    state: "candidate",
-  });
-  assert.deepEqual(rehearsalFeedTransition("candidate", "next", "base", "next"), {
-    deploy: false,
-    state: "candidate",
-  });
-  assert.throws(() => rehearsalFeedTransition("candidate", null, "base", "next"));
-  assert.throws(() => rehearsalFeedTransition("candidate", "foreign", "base", "next"));
-});
-
-void test("native prior-attempt step result controls the single deliberate interruption without a proof adapter", () => {
-  const feed = {
-    name: "feed",
-    status: "completed",
-    conclusion: "failure",
-    steps: [{ name: "Inject controlled post-publication interruption", conclusion: "failure" }],
-  };
-  assert.equal(hasPriorRehearsalInterruption([{ total_count: 1, jobs: [feed] }]), true);
-  assert.equal(
-    hasPriorRehearsalInterruption([
-      {
-        total_count: 1,
-        jobs: [{ ...feed, steps: [{ name: "unrelated failure", conclusion: "failure" }] }],
-      },
-    ]),
-    false,
-  );
-  assert.equal(hasPriorRehearsalInterruption([{ total_count: 0, jobs: [] }]), false);
-  assert.throws(() => hasPriorRehearsalInterruption([{ total_count: 2, jobs: [feed] }]));
-  assert.throws(() => hasPriorRehearsalInterruption([{ total_count: 2, jobs: [feed, feed] }]));
 });
 
 function nativeFixture() {
