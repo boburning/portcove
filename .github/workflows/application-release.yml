@@ -371,8 +371,127 @@ jobs:
           echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
           echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Verify fixed tools and provenance before execution
-        run: node scripts/application-release-tools.mts receive
+      - &acquire_application_tools
+        name: Acquire the exact application tools archive
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ github.token }}
+          retries: 0
+          debug: false
+          script: |
+            const assert = require('node:assert/strict')
+            const { createHash } = require('node:crypto')
+            const { createWriteStream } = require('node:fs')
+            const { mkdir, rm, writeFile } = require('node:fs/promises')
+            const path = require('node:path')
+            const { Transform } = require('node:stream')
+            const { pipeline } = require('node:stream/promises')
+            const number = (value) => {
+              assert.match(value ?? '', /^[1-9][0-9]{0,15}$/u)
+              const result = Number(value)
+              assert.ok(Number.isSafeInteger(result))
+              return result
+            }
+            let owned
+            try {
+              const id = number(process.env.PORTCOVE_TOOLS_ARTIFACT)
+              const attempt = number(process.env.PORTCOVE_TOOLS_ATTEMPT)
+              const run = number(process.env.GITHUB_RUN_ID)
+              assert.ok(attempt <= number(process.env.GITHUB_RUN_ATTEMPT))
+              assert.equal(run, context.runId)
+              assert.equal(context.repo.owner, 'boburning')
+              assert.equal(context.repo.repo, 'portcove')
+              assert.match(context.sha, /^[a-f0-9]{40}$/u)
+              assert.equal(context.sha, process.env.PORTCOVE_APPLICATION_RELEASE_REVISION)
+              assert.equal(context.ref, process.env.PORTCOVE_APPLICATION_RELEASE_REF)
+              const scratch = process.env.RUNNER_TEMP
+              assert.ok(scratch && path.isAbsolute(scratch))
+              const directory = path.join(scratch, 'portcove-native-attester-tools')
+              const overall = AbortSignal.timeout(120000)
+              const route = `/repos/boburning/portcove/actions/artifacts/${id}`
+              let signed
+              const read = (suffix, signal) => github.request(`GET ${route}${suffix}`, {
+                headers: { 'x-github-api-version': '2022-11-28' },
+                request: { fetch: async (input, init) => {
+                  const request = new Request(input, init)
+                  assert.equal(request.url, `https://api.github.com${route}${suffix}`)
+                  assert.equal(request.method, 'GET')
+                  assert.ok(request.headers.has('authorization'))
+                  signal.throwIfAborted()
+                  const response = await fetch(request, { redirect: 'manual', signal })
+                  if (suffix === '/zip') {
+                    signed = response.headers.get('location')
+                    await response.body?.cancel()
+                    assert.equal(response.status, 302)
+                    return new Response(null, { status: 204 })
+                  }
+                  if (response.status !== 200 || !response.body) {
+                    await response.body?.cancel()
+                    throw new Error('Metadata unavailable')
+                  }
+                  const chunks = []
+                  let length = 0
+                  for await (const chunk of response.body) {
+                    signal.throwIfAborted()
+                    length += chunk.byteLength
+                    assert.ok(length <= 8 * 1024 ** 2)
+                    chunks.push(chunk)
+                  }
+                  signal.throwIfAborted()
+                  return new Response(Buffer.concat(chunks, length), {
+                    headers: { 'content-type': 'application/json' }
+                  })
+                } },
+              })
+              const { data: metadata } = await read('', AbortSignal.any([overall, AbortSignal.timeout(30000)]))
+              const name = `application-tools-${run}-${attempt}`
+              assert.equal(metadata.id, id)
+              assert.equal(metadata.name, name)
+              assert.equal(metadata.expired, false)
+              const bytes = metadata.size_in_bytes
+              assert.ok(Number.isSafeInteger(bytes) && bytes >= 22 && bytes <= 320 * 1024 ** 2)
+              assert.match(metadata.digest, /^sha256:[a-f0-9]{64}$/u)
+              assert.equal(metadata.workflow_run.id, run)
+              assert.equal(metadata.workflow_run.head_sha, context.sha)
+              assert.equal(metadata.workflow_run.repository_id, 1354613114)
+              await read('/zip', overall)
+              assert.ok(typeof signed === 'string' && signed.length <= 8192)
+              const url = new URL(signed)
+              assert.ok(url.protocol === 'https:' && !url.port && !url.username && !url.password && !url.hash && url.search)
+              assert.match(url.hostname, /^productionresultssa[0-9]+\.blob\.core\.windows\.net$/u)
+              assert.ok(url.pathname.startsWith('/actions-results/'))
+              await mkdir(directory, { mode: 0o700 })
+              owned = directory
+              overall.throwIfAborted()
+              const response = await fetch(url, { credentials: 'omit', redirect: 'manual', signal: overall })
+              if (response.status !== 200 || !response.body) {
+                await response.body?.cancel()
+                throw new Error('Archive unavailable')
+              }
+              const digest = createHash('sha256')
+              let count = 0
+              await pipeline(response.body, new Transform({
+                transform(chunk, _encoding, done) {
+                  count += chunk.length
+                  if (count > bytes) return done(new Error('Archive size exceeds metadata'))
+                  digest.update(chunk)
+                  done(null, chunk)
+                }
+              }), createWriteStream(path.join(directory, 'archive.zip'), { flags: 'wx', mode: 0o600 }), { signal: overall })
+              assert.equal(count, bytes)
+              assert.equal(`sha256:${digest.digest('hex')}`, metadata.digest)
+              overall.throwIfAborted()
+              await writeFile(path.join(directory, 'metadata.json'), JSON.stringify({
+                id, name, expired: false, size_in_bytes: bytes, digest: metadata.digest,
+                workflow_run: { id: run, head_sha: context.sha, repository_id: 1354613114 }
+              }), { flag: 'wx', mode: 0o600, signal: overall })
+            } catch {
+              if (owned) await rm(owned, { recursive: true, force: true }).catch(() => {})
+              throw new Error('Application tools acquisition refused')
+            }
+      - &verify_application_tools
+        name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive-file
       - name: Prepare and retain the exact native metadata context reservation
         run: node scripts/application-release-private.bundle.mjs context
       - id: context_producer
@@ -629,8 +748,8 @@ jobs:
           echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
           echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Verify fixed tools and provenance before execution
-        run: node scripts/application-release-tools.mts receive
+      - *acquire_application_tools
+      - *verify_application_tools
       - id: stage
         name: Verify both assemblies and stage the original draft bytes
         run: node scripts/application-release-private.bundle.mjs draft-recovery-stage
@@ -751,8 +870,8 @@ jobs:
           echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
           echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Verify fixed tools and provenance before execution
-        run: node scripts/application-release-tools.mts receive
+      - *acquire_application_tools
+      - *verify_application_tools
       - id: worker
         name: Verify actual inputs and every draft asset byte before final protection
         run: node scripts/application-release-private.bundle.mjs publication-prepare
@@ -844,8 +963,8 @@ jobs:
           echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
           echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Verify fixed tools and provenance before execution
-        run: node scripts/application-release-tools.mts receive
+      - *acquire_application_tools
+      - *verify_application_tools
       - id: worker
         name: Authenticate completed byte preparation and publish once behind fresh protection
         run: node scripts/application-release-private.bundle.mjs publication
@@ -942,8 +1061,8 @@ jobs:
           echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
           echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Verify fixed tools and provenance before execution
-        run: node scripts/application-release-tools.mts receive
+      - *acquire_application_tools
+      - *verify_application_tools
       - id: ordinary_feed
         if: inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')
         name: Verify all immutable public assets and authenticated assembly before feed staging
@@ -1049,8 +1168,8 @@ jobs:
           echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
           echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Verify fixed tools and provenance before execution
-        run: node scripts/application-release-tools.mts receive
+      - *acquire_application_tools
+      - *verify_application_tools
       - id: worker
         name: Deploy once behind post-OIDC fresh guards and verify exact public bytes
         run: node scripts/application-release-private.bundle.mjs feed
@@ -1116,8 +1235,8 @@ jobs:
           echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
           echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Verify fixed tools and provenance before execution
-        run: node scripts/application-release-tools.mts receive
+      - *acquire_application_tools
+      - *verify_application_tools
       - id: worker
         name: Independently read back qualified Pages actor and complete public bytes
         run: node scripts/application-release-private.bundle.mjs site-readback
@@ -1278,8 +1397,8 @@ jobs:
           echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
           echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Verify fixed tools and provenance before execution
-        run: node scripts/application-release-tools.mts receive
+      - *acquire_application_tools
+      - *verify_application_tools
       - name: Independently verify the exact installed Windows proof and current public release
         run: node scripts/application-release-private.bundle.mjs windows-proof
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

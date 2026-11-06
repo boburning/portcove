@@ -9,8 +9,6 @@ import os from "node:os";
 import { performance } from "node:perf_hooks";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { releasePathContains } from "./release-path-safety.mts";
 import {
@@ -20,15 +18,7 @@ import {
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 export const applicationRepository = "repos/boburning/portcove";
-const preToolApplicationApi = new GitHubApiClient(
-  createGitHubRunner({ timeoutMs: 30000, maxBuffer: 8 * 1024 ** 2 }),
-);
 export const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-const readPreToolApplicationMetadata = (suffix: string) => {
-  const response = preToolApplicationApi.request("GET", `${applicationRepository}/${suffix}`);
-  assert.equal(response.status, 200);
-  return response.body;
-};
 export async function writeApplicationJson(filename: string, value: unknown) {
   await mkdir(path.dirname(filename), { recursive: true });
   await writeFile(filename, `${JSON.stringify(value)}\n`, { flag: "wx", mode: 0o600 });
@@ -71,24 +61,69 @@ type ApplicationDataExpectation = {
   retain_archive?: string;
 };
 
-export function receiveApplicationData(directory: string, expected: ApplicationDataExpectation) {
-  return receiveApplicationDataFrom(directory, expected, false);
-}
-
-/** The unbundled receiver runs before the attested tool bundle is available. */
-export function receiveApplicationToolData(
-  directory: string,
-  expected: ApplicationDataExpectation,
-) {
-  return receiveApplicationDataFrom(directory, expected, true);
-}
-
-async function receiveApplicationDataFrom(
+export async function receiveApplicationData(
   directory: string,
   rawExpected: ApplicationDataExpectation,
-  preTool: boolean,
 ) {
   const expected = structuredClone(rawExpected);
+  const maximum = validateDataExpectation(expected);
+  const originalDeadline = coordinatorCommandDeadline() ?? Infinity;
+  const fetchDirect: typeof globalThis.fetch = (input, init) => {
+    assertTrustedDirectNode("fixed application artifact receiver");
+    return globalThis.fetch(input, init);
+  };
+  const token = fixedReleaseReaderToken();
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline: Math.min(originalDeadline, performance.now() + 30000),
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    fetch: fetchDirect,
+  });
+  const metadata = await provider.artifact(expected.id);
+  const identity = inspectDataArchiveMetadata(metadata, expected, maximum);
+  const endpoint = `${applicationRepository}/actions/artifacts/${expected.id}/zip`;
+  const deadline = Math.min(originalDeadline, performance.now() + 120000);
+  const scratch = await mkdtemp(path.join(os.tmpdir(), "application-data-archive-"));
+  let archive: Buffer;
+  try {
+    const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
+    const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
+    const filename = "archive.zip";
+    const maxBytes = identity.bytes;
+    await downloadGitHubArtifactArchiveFile(endpoint, path.join(scratch, filename), {
+      credential: { kind: "explicit", token },
+      deadline,
+      maxBytes,
+      fetch: fetchDirect,
+    });
+    archive = await readBoundedPublicBuildInputFile(scratch, filename, maxBytes);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+  if (performance.now() >= deadline)
+    throw new Error("application artifact transfer deadline exhausted");
+  return extractApplicationArchive(directory, expected, maximum, identity, archive);
+}
+
+/** Verify a staged provider archive without opening a network transport. */
+export async function receiveStagedApplicationToolData(
+  directory: string,
+  rawExpected: ApplicationDataExpectation,
+  scratch: string,
+) {
+  const expected = structuredClone(rawExpected);
+  const maximum = validateDataExpectation(expected);
+  const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
+  const raw = await readBoundedPublicBuildInputFile(scratch, "metadata.json", 4096);
+  const metadata: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+  const identity = inspectDataArchiveMetadata(metadata, expected, maximum);
+  const archive = await readBoundedPublicBuildInputFile(scratch, "archive.zip", identity.bytes);
+  return extractApplicationArchive(directory, expected, maximum, identity, archive);
+}
+
+function validateDataExpectation(expected: ApplicationDataExpectation) {
   assert.ok(Number.isSafeInteger(expected.id) && expected.id > 0);
   assert.match(expected.source, /^[a-f0-9]{40}$/u);
   assert.match(expected.run_id, /^[1-9][0-9]{0,15}$/u);
@@ -101,27 +136,14 @@ async function receiveApplicationDataFrom(
   );
   const maximum = expected.maximum_archive_bytes ?? 512 * 1024 ** 2;
   assert.ok(maximum > 0 && maximum <= 512 * 1024 ** 2);
-  const originalDeadline = coordinatorCommandDeadline() ?? Infinity;
-  const fetchDirect: typeof globalThis.fetch = (input, init) => {
-    assertTrustedDirectNode("fixed application artifact receiver");
-    return globalThis.fetch(input, init);
-  };
-  const token = preTool ? undefined : fixedReleaseReaderToken();
-  const metadataDeadline = Math.min(originalDeadline, performance.now() + 30000);
-  let metadata: unknown;
-  if (token === undefined) {
-    metadata = readPreToolApplicationMetadata(`actions/artifacts/${expected.id}`);
-  } else {
-    const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
-    const provider = await createReleaseCustodyProvider({
-      token,
-      deadline: metadataDeadline,
-      requestTimeoutMs: 30000,
-      maxBytes: 8 * 1024 ** 2,
-      fetch: fetchDirect,
-    });
-    metadata = await provider.artifact(expected.id);
-  }
+  return maximum;
+}
+
+function inspectDataArchiveMetadata(
+  metadata: unknown,
+  expected: ApplicationDataExpectation,
+  maximum: number,
+) {
   assert.ok(
     isRecord(metadata) &&
       metadata.expired === false &&
@@ -140,37 +162,18 @@ async function receiveApplicationDataFrom(
       metadata.workflow_run.head_sha === expected.source &&
       metadata.workflow_run.repository_id === 1354613114,
   );
-  const endpoint = `${applicationRepository}/actions/artifacts/${expected.id}/zip`;
-  let archive: Buffer;
-  if (token === undefined) {
-    archive = readGitHubArtifactArchive(endpoint, {
-      cwd: process.cwd(),
-      maxBytes: maximum,
-      timeoutMs: 120000,
-    });
-  } else {
-    const deadline = Math.min(originalDeadline, performance.now() + 120000);
-    const scratch = await mkdtemp(path.join(os.tmpdir(), "application-data-archive-"));
-    try {
-      const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
-      const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
-      const filename = "archive.zip";
-      const maxBytes = Number(metadata.size_in_bytes);
-      await downloadGitHubArtifactArchiveFile(endpoint, path.join(scratch, filename), {
-        credential: { kind: "explicit", token },
-        deadline,
-        maxBytes,
-        fetch: fetchDirect,
-      });
-      archive = await readBoundedPublicBuildInputFile(scratch, filename, maxBytes);
-    } finally {
-      await rm(scratch, { recursive: true, force: true });
-    }
-    if (performance.now() >= deadline)
-      throw new Error("application artifact transfer deadline exhausted");
-  }
-  assert.equal(archive.length, metadata.size_in_bytes);
-  assert.equal(sha256(archive), metadata.digest.slice(7));
+  return { bytes: Number(metadata.size_in_bytes), sha256: metadata.digest.slice(7) };
+}
+
+async function extractApplicationArchive(
+  directory: string,
+  expected: ApplicationDataExpectation,
+  maximum: number,
+  identity: { bytes: number; sha256: string },
+  archive: Buffer,
+) {
+  assert.equal(archive.length, identity.bytes);
+  assert.equal(sha256(archive), identity.sha256);
   const parsed = inspectBoundedZip(
     archive,
     {
@@ -208,7 +211,7 @@ async function receiveApplicationDataFrom(
     await mkdir(path.dirname(expected.retain_archive), { recursive: true });
     await writeFile(expected.retain_archive, archive, { flag: "wx", mode: 0o600 });
   }
-  return { id: expected.id, bytes: archive.length, sha256: metadata.digest.slice(7) };
+  return { id: expected.id, bytes: archive.length, sha256: identity.sha256 };
 }
 export async function applicationFileIdentity(filename: string) {
   const bytes = await readFile(filename);

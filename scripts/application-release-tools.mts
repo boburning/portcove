@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   applicationFileIdentity,
   readApplicationJson,
-  receiveApplicationToolData,
+  receiveStagedApplicationToolData,
   writeApplicationJson,
 } from "./application-release-io.mts";
 import { inspectApplicationReleaseExecution } from "./application-release-policy.mts";
@@ -62,11 +62,11 @@ async function build() {
   });
 }
 
-export async function receiveApplicationTools(id: number, attempt: number) {
+async function receiveApplicationTools(id: number, attempt: number) {
   const execution = inspectApplicationReleaseExecution(process.env);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= execution.run_attempt);
   const directory = path.resolve("work/application-tools");
-  await receiveApplicationToolData(directory, {
+  const expected = {
     id,
     name: `application-tools-${execution.run_id}-${attempt}`,
     run_id: execution.run_id,
@@ -74,7 +74,15 @@ export async function receiveApplicationTools(id: number, attempt: number) {
     files: [...applicationToolFiles, "tools.json"],
     maximum_file_bytes: 128 * 1024 ** 2,
     maximum_archive_bytes: 320 * 1024 ** 2,
-  });
+  };
+  const parent = process.env.RUNNER_TEMP;
+  assert.ok(parent && path.isAbsolute(parent));
+  const scratch = path.join(parent, "portcove-native-attester-tools");
+  try {
+    await receiveStagedApplicationToolData(directory, expected, scratch);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
   const manifest = await readApplicationJson(path.join(directory, "tools.json"), 65536);
   assert.ok(isRecord(manifest));
   assert.deepEqual(
@@ -114,7 +122,7 @@ export async function receiveApplicationTools(id: number, attempt: number) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === "build") await build();
-  else if (process.argv[2] === "receive")
+  else if (process.argv[2] === "receive-file")
     await receiveApplicationTools(
       Number(process.env.PORTCOVE_TOOLS_ARTIFACT),
       Number(process.env.PORTCOVE_TOOLS_ATTEMPT),

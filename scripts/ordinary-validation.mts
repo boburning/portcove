@@ -2287,6 +2287,7 @@ const applicationReleaseTests = ordinaryFamily("application-release-contract-tes
 for (const file of [
   "scripts/application-release-build-inputs.mts",
   "scripts/application-release-io.mts",
+  "scripts/application-release-tools.mts",
   "scripts/application-release-feed.mts",
   "scripts/application-release-run-title.mts",
   "scripts/application-release-transfer.mts",
