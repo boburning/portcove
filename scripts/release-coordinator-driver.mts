@@ -3202,19 +3202,25 @@ async function recoverTrustedCoordinatorContext(
       checkpoint: recovered.checkpoint,
       operation_id: selected.operation.id,
     }),
-    contextReadMaximum = 2 * 1024 ** 2,
-    api = coordinatorApi(directory, budget, contextReadMaximum);
+    contextReadMaximum = 2 * 1024 ** 2;
   let controls = await authenticateCoordinatorInitialControls(
       directory,
       factsSha,
       reader,
       workflow,
       budget,
+      "application",
+      "metadata-maintenance",
     ),
     ordinal = 0,
     observed = performance.now();
   let contextBinding: { facts: unknown; binding: unknown; pins: unknown } | undefined;
-  const initial = coordinatorMaintenanceIdentity(controls.readMaintenance(api));
+  const readMaintenance = () =>
+    controls.readSdkMaintenance(undefined, {
+      deadline: Math.min(budget.monotonicDeadline, performance.now() + budget.remaining(120000)),
+      maxBytes: contextReadMaximum,
+    });
+  const initial = coordinatorMaintenanceIdentity(await readMaintenance());
   const guard = async () => {
     budget.check();
     if (performance.now() - observed >= 40000) {
@@ -3224,11 +3230,11 @@ async function recoverTrustedCoordinatorContext(
         factsSha,
         "coordinator",
         ordinal,
-        { deadline: budget.monotonicDeadline },
+        { deadline: budget.monotonicDeadline, controlReader: "metadata-maintenance" },
       );
       observed = performance.now();
     }
-    const current = controls.readMaintenance(api);
+    const current = await readMaintenance();
     if (
       controls.evidence_scope !== "github.com" ||
       current.pause.publication_paused ||

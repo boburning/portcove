@@ -955,6 +955,95 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
   );
 });
 
+void test("actual context recovery awaits scoped maintenance through a refreshed round", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function recoverTrustedCoordinatorContext(");
+  const end = source.indexOf("export async function requestTrustedSemanticReview(", start);
+  assert.ok(start > 0 && end > start);
+  const reachedVerifier = new Error("reached the existing tool verifier");
+  const calls: string[] = [];
+  const selected = { operation: { id: "context" } };
+  const authorities = { namespace: "fixed" };
+  const admitted = { revision: "a", execution_ref: "refs/tags/fixed", run_id: 8, run_attempt: 1 };
+  const identity = { job_id: 9, check_run_id: "10" };
+  let now = 1000;
+  const controls = {
+    evidence_scope: "github.com",
+    async readSdkMaintenance(allowance: unknown, options: { deadline: number; maxBytes: number }) {
+      assert.equal(allowance, undefined);
+      assert.equal(options.deadline, 68000);
+      assert.equal(options.maxBytes, 2 * 1024 ** 2);
+      calls.push("sdk");
+      now = 41000;
+      return {
+        reader: identity,
+        pause: { publication_paused: false },
+        resource_policy_matches_controller: true,
+      };
+    },
+  };
+  const run = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "; recoverTrustedCoordinatorContext;",
+    {
+      selectCoordinatorPendingContextRecovery: () => selected,
+      requireControllerApplicationCoordinatorPublicationAuthorities: async () => authorities,
+      inspectCoordinatorRemoteNamespace: () => "fixed",
+      receiveControllerTools: async () => ({}),
+      verifiedControllerToolPaths: async () => ({
+        identity: {
+          controller_revision: "a",
+          controller_ref: "refs/tags/fixed",
+          run_id: "8",
+          run_attempt: 1,
+        },
+      }),
+      readProductionControllerWorkflowBytes: async () => Buffer.from("fixed"),
+      authenticateControlReaderJob: async () => ({ admitted, identity }),
+      authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
+        assert.deepEqual(args.slice(5), ["application", "metadata-maintenance"]);
+        calls.push("initial");
+        return controls;
+      },
+      authenticateReleaseControlRound: async (...args: unknown[]) => {
+        assert.equal(args[3], 1);
+        assert.deepEqual(
+          { ...(args[4] as object) },
+          { deadline: 70000, controlReader: "metadata-maintenance" },
+        );
+        calls.push("refresh");
+        return controls;
+      },
+      readRemoteCoordinatorSnapshot: async () => ({ checkpoint: "same", input: {} }),
+      coordinatorMaintenanceIdentity: JSON.stringify,
+      capacityDigest: JSON.stringify,
+      createHash() {
+        throw reachedVerifier;
+      },
+      path,
+      process: { env: {} },
+      performance: { now: () => now },
+    },
+  ) as (...args: unknown[]) => Promise<unknown>;
+  await assert.rejects(
+    run(
+      "/test",
+      {},
+      { checkpoint: "same", input: {} },
+      {
+        monotonicDeadline: 70000,
+        remaining: () => 68000 - now,
+        check() {},
+      },
+      {},
+    ),
+    reachedVerifier,
+  );
+  assert.deepEqual(calls, ["initial", "sdk", "refresh", "sdk"]);
+});
+
 void test("catalog coordinator reconstructs the appointed initial commit through the locked SDK", async (t) => {
   const source = await readFile(
     new URL("./release-coordinator-driver.mts", import.meta.url),
