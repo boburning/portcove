@@ -426,6 +426,18 @@ void test("Aqua cache identity preserves official-origin and bootstrap pin rejec
   const invalidChanges: [(value: Record<string, unknown>) => void, RegExp][] = [
     [
       (value) => {
+        object(value.aqua).version = "v0.0.0";
+      },
+      /archive version must match/u,
+    ],
+    [
+      (value) => {
+        delete object(value.aqua).version;
+      },
+      /archive version must match/u,
+    ],
+    [
+      (value) => {
         object(value.aqua).release_base = "https://example.invalid/aqua";
       },
       /official release origin/u,
