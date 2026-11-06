@@ -272,6 +272,7 @@ async function assertCurrentApplicationSemantic(original: string, semantic: unkn
 async function guard(
   source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
   protection = true,
+  markStage?: (stage: "pause-read" | "custody-read" | "budget-read") => void,
 ) {
   const current = execution();
   await verifyApplicationReleaseTrust();
@@ -285,6 +286,7 @@ async function guard(
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
   const spending = inspectApplicationSpendingAppointment(process.env);
+  markStage?.("pause-read");
   const pause = await readPublicationPauseWithSdk(applicationWorkerControlOptions());
   assert.equal(pause.publication_paused, false, "publication paused");
   if (source.purpose === "application-release") {
@@ -367,6 +369,7 @@ async function guard(
     for (const key of ["version", "prepared_commit", "prepared_tree", "intent_sha256"] as const)
       assert.equal(expected.preparation[key], source.prepared[key]);
   }
+  markStage?.("custody-read");
   const registered = await readRegisteredApplicationRuns(
     await createApplicationRunRegistrationProvider(),
     Number(source.run_custody.release_id),
@@ -392,6 +395,7 @@ async function guard(
   }
   const known = registered.runs.map((run) => run.id);
   assert.deepEqual(JSON.parse(process.env.PORTCOVE_KNOWN_RELEASE_RUNS ?? "null"), known);
+  markStage?.("budget-read");
   const budget = await readApplicationJobBudget(
     known,
     source.purpose,
@@ -2272,7 +2276,10 @@ async function observe() {
     const current = execution();
     const source = await readNativeApplicationSource();
     stage = "release-guard";
-    await guard(source, false);
+    await guard(source, false, (next) => {
+      stage = next;
+    });
+    stage = "reader-setup";
     // This process alone has the existing Administration-write App token. The
     // collector issues GETs only; no signing or publication key is present here.
     assert.equal(process.env.PORTCOVE_OBSERVER_INSTALLATION_ID, "177226788");
@@ -2290,7 +2297,6 @@ async function observe() {
     );
     const token = process.env.PORTCOVE_OBSERVER_TOKEN;
     assert.ok(token && !/[\r\n\0]/u.test(token) && token.length <= 16384);
-    stage = "reader-setup";
     const observer = await createApplicationProtectionObservationReader({
       refToken: fixedReleaseReaderToken(),
       token,
@@ -2330,7 +2336,9 @@ async function observe() {
       error.status <= 599
         ? ` (HTTP ${error.status})`
         : "";
-    console.error(`Application protection observation refused at ${stage}${status}.`);
+    const limited =
+      error instanceof GitHubApiError && error.code === "rate_limited" ? " (rate limited)" : "";
+    console.error(`Application protection observation refused at ${stage}${status}${limited}.`);
     throw error;
   }
 }
