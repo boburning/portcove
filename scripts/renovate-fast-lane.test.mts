@@ -234,6 +234,44 @@ void test("identity and exact-head violations reject or leave the fast lane", ()
   assert.equal(classify({ pull: { base: { sha: base, ref: "release" } } }).verdict, "reject");
 });
 
+void test("CLI tools stay controlled while runtime and type libraries retain eligibility", () => {
+  const files = [
+    { filename: "apps/desktop/package.json", status: "modified" },
+    { filename: "pnpm-lock.yaml", status: "modified" },
+  ];
+  for (const [currentVersion, newVersion, updateType] of [
+    ["1.84.0", "1.84.1", "patch"],
+    ["1.84.0", "1.85.0", "minor"],
+  ] as const) {
+    const result = classify({
+      files,
+      pull: {
+        body: body({
+          packageName: "i18next-cli",
+          dependencyType: "devDependencies",
+          currentVersion,
+          newVersion,
+          updateType,
+        }),
+      },
+    });
+    assert.equal(result.verdict, "manual-review-required");
+    assert.equal(result.reason, "executable tool updates require controlled review");
+  }
+  for (const [packageName, dependencyType, currentVersion, newVersion] of [
+    ["i18next", "dependencies", "26.7.1", "26.7.2"],
+    ["@types/react", "devDependencies", "19.3.0", "19.3.1"],
+  ] as const) {
+    assert.equal(
+      classify({
+        files,
+        pull: { body: body({ packageName, dependencyType, currentVersion, newVersion }) },
+      }).verdict,
+      "metadata-required",
+    );
+  }
+});
+
 void test("grouped security pre-1.0 major and configured ecosystem updates stay manual", () => {
   const second = body({ packageName: "other", currentVersion: "2.0.0", newVersion: "2.0.1" })
     .split("\n")

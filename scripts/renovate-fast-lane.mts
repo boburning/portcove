@@ -78,6 +78,8 @@ const controlledDependencies = new Set([
   "rustix",
   "tempfile",
 ]);
+// Executable repository tools retain the owning controlled-maintenance route.
+const controlledTools = new Set(["i18next-cli"]);
 const requiredPolicy = Object.freeze({
   automerge: false,
   internalChecksFilter: "strict",
@@ -382,6 +384,10 @@ export function classifyRenovateSnapshot({
       "manual-review-required",
       `${update.updateType || "unknown"} updates stay outside the fast lane`,
     );
+  if (controlledTools.has(update.packageName))
+    return verdict("manual-review-required", "executable tool updates require controlled review", {
+      package: update.packageName,
+    });
   if (controlledDependencies.has(update.packageName))
     return verdict(
       "manual-review-required",
