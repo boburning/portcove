@@ -8,7 +8,7 @@ import {
   retainApplicationPreparation,
   readRegisteredApplicationRuns,
   registerApplicationBudgetRun,
-  readApplicationBudgetOwner,
+  readApplicationBudgetOwnerAsync,
   readApplicationMetadataContextPlan,
   retainApplicationDraftAssembly,
   retainApplicationDraftRecovery,
@@ -98,7 +98,8 @@ function fixture(mode = "valid") {
       return api.request("PATCH", `repos/boburning/portcove/releases/${id}`, { body });
     },
   };
-  return { api, releases, mutations, guards, guard, registration };
+  const readRelease = async (id: number) => (await registration.release(id)).body;
+  return { api, releases, mutations, guards, guard, registration, readRelease };
 }
 
 void test("immutable metadata recovery appends only its existing cohort and never creates or adopts a draft", async () => {
@@ -477,7 +478,10 @@ void test("forward renewal shares one native cost owner, preserves release bytes
     budget: linked.membership,
   });
   assert.deepEqual(
-    readApplicationBudgetOwner(f.api, { release_id: 11, custody: member }),
+    await readApplicationBudgetOwnerAsync(f.readRelease, {
+      release_id: 11,
+      custody: member,
+    }),
     linked.owner,
   );
   const writes = f.mutations.length;
@@ -496,9 +500,14 @@ void test("forward renewal shares one native cost owner, preserves release bytes
       budget: { kind: "owner", scopes: [{ opportunity: memberOpportunity, run_ids: ["123"] }] },
     }),
   );
-  assert.throws(() => readApplicationBudgetOwner(f.api, { release_id: 10, custody: member }));
-  assert.throws(() =>
-    readApplicationBudgetOwner(f.api, {
+  await assert.rejects(() =>
+    readApplicationBudgetOwnerAsync(f.readRelease, {
+      release_id: 10,
+      custody: member,
+    }),
+  );
+  await assert.rejects(() =>
+    readApplicationBudgetOwnerAsync(f.readRelease, {
       release_id: 11,
       custody: inspectApplicationRunCustody({
         ...member,
@@ -585,7 +594,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
     /pause changed/u,
   );
   assert.deepEqual(f.releases[1], beforeMember);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, member), linked.owner);
+  assert.deepEqual(await readApplicationBudgetOwnerAsync(f.readRelease, member), linked.owner);
   const writes = f.mutations.length;
   const retry = await registerApplicationBudgetRun(
     f.registration,
@@ -604,18 +613,18 @@ void test("interrupted owner-before-member registration preserves every cost ID 
     opportunity,
     async (_known, context) => {
       assert.ok(context);
-      assert.deepEqual(readApplicationBudgetOwner(f.api, context), linked.owner);
+      assert.deepEqual(await readApplicationBudgetOwnerAsync(f.readRelease, context), linked.owner);
     },
     "immutable-metadata-only",
     firstLink.membership,
   );
   assert.deepEqual(completed.known_run_ids, ["124", "125"]);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, completed), linked.owner);
+  assert.deepEqual(await readApplicationBudgetOwnerAsync(f.readRelease, completed), linked.owner);
   assert.equal(f.mutations.length, writes + 1);
   assert.deepEqual({ ...f.releases[1], body: beforeMember?.body }, beforeMember);
-  assert.throws(
+  await assert.rejects(
     () =>
-      readApplicationBudgetOwner(f.api, {
+      readApplicationBudgetOwnerAsync(f.readRelease, {
         ...member,
         custody: inspectApplicationRunCustody({
           ...member.custody,
@@ -705,11 +714,11 @@ void test("native context reservations freeze full bytes and burn versions under
     opportunity,
     async () => {},
   );
-  const plan = readApplicationMetadataContextPlan(f.api, registered, execution);
+  const plan = await readApplicationMetadataContextPlan(f.registration, registered, execution);
   assert.equal(plan.existing, undefined);
   const first = metadataReservation(opportunity, plan.generated_at, "2");
   const retained = await retainApplicationMetadataContext(
-    f.api,
+    f.registration,
     registered,
     execution,
     first,
@@ -733,12 +742,18 @@ void test("native context reservations freeze full bytes and burn versions under
     }),
   );
   const mutations = f.mutations.length;
-  await retainApplicationMetadataContext(f.api, registered, execution, first, async () => {});
+  await retainApplicationMetadataContext(
+    f.registration,
+    registered,
+    execution,
+    first,
+    async () => {},
+  );
   assert.equal(f.mutations.length, mutations, "exact producer reuse must not rewrite notes");
   // The context JSON can be identical while its referenced record bytes differ.
   await assert.rejects(
     retainApplicationMetadataContext(
-      f.api,
+      f.registration,
       registered,
       execution,
       { ...first, context_inventory_sha256: "f".repeat(64) },
@@ -748,7 +763,11 @@ void test("native context reservations freeze full bytes and burn versions under
   );
   assert.equal(f.mutations.length, mutations);
   const secondActor = { ...execution, run_attempt: 2 };
-  const secondPlan = readApplicationMetadataContextPlan(f.api, registered, secondActor);
+  const secondPlan = await readApplicationMetadataContextPlan(
+    f.registration,
+    registered,
+    secondActor,
+  );
   assert.deepEqual(secondPlan.previous_reserved_versions, first.versions);
   const second = metadataReservation(
     opportunity,
@@ -758,7 +777,7 @@ void test("native context reservations freeze full bytes and burn versions under
     "a".repeat(64),
   );
   const secondRetained = await retainApplicationMetadataContext(
-    f.api,
+    f.registration,
     registered,
     secondActor,
     second,
@@ -766,13 +785,13 @@ void test("native context reservations freeze full bytes and burn versions under
   );
   assert.deepEqual(secondRetained.custody.metadata_contexts, [first, second]);
   assert.deepEqual(secondRetained.custody.runs, registered.custody.runs);
-  assert.throws(
-    () => readApplicationMetadataContextPlan(f.api, registered, execution),
+  await assert.rejects(
+    () => readApplicationMetadataContextPlan(f.registration, registered, execution),
     /superseded/,
   );
   await assert.rejects(
     retainApplicationMetadataContext(
-      f.api,
+      f.registration,
       registered,
       { ...execution, run_attempt: 3 },
       { ...second, run_attempt: 3 },
@@ -793,9 +812,9 @@ void test("related metadata contexts retain the original owner history and every
     source,
     async () => {},
   );
-  const firstPlan = readApplicationMetadataContextPlan(f.api, owner, execution);
+  const firstPlan = await readApplicationMetadataContextPlan(f.registration, owner, execution);
   const first = metadataReservation(source, firstPlan.generated_at, "2");
-  await retainApplicationMetadataContext(f.api, owner, execution, first, async () => {});
+  await retainApplicationMetadataContext(f.registration, owner, execution, first, async () => {});
   const memberActor = { ...execution, run_id: "124" },
     opportunity = "d".repeat(64);
   const linked = await registerApplicationBudgetRun(
@@ -819,7 +838,7 @@ void test("related metadata contexts retain the original owner history and every
     "create-or-resume",
     linked.membership,
   );
-  const plan = readApplicationMetadataContextPlan(f.api, member, memberActor);
+  const plan = await readApplicationMetadataContextPlan(f.registration, member, memberActor);
   assert.deepEqual(plan.previous_reserved_versions, first.versions);
   const second = metadataReservation(
     opportunity,
@@ -829,7 +848,7 @@ void test("related metadata contexts retain the original owner history and every
     "a".repeat(64),
   );
   const retained = await retainApplicationMetadataContext(
-    f.api,
+    f.registration,
     member,
     memberActor,
     second,
@@ -838,10 +857,10 @@ void test("related metadata contexts retain the original owner history and every
   assert.equal(retained.release_id, owner.release_id);
   assert.deepEqual(retained.custody.metadata_contexts, [first, second]);
   assert.equal(readApplicationRunNotes(f.releases[1]!.body)!.custody.metadata_contexts, undefined);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, member).custody.metadata_contexts, [
-    first,
-    second,
-  ]);
+  assert.deepEqual(
+    (await readApplicationBudgetOwnerAsync(f.readRelease, member)).custody.metadata_contexts,
+    [first, second],
+  );
   const expires = Object.fromEntries(
     Object.keys(second.versions).map((role) => [role, "2027-01-01T00:00:00Z"]),
   ) as Record<keyof typeof second.versions, string>;
@@ -872,7 +891,7 @@ void test("related metadata contexts retain the original owner history and every
   const beforeAssembly = f.mutations.length;
   const previousEdit = f.releases[0]!.updated_at;
   const stored = await retainApplicationDraftAssembly(
-    f.api,
+    f.registration,
     member,
     memberActor,
     assembly,
@@ -880,13 +899,22 @@ void test("related metadata contexts retain the original owner history and every
   );
   assert.notEqual(f.releases[0]!.updated_at, previousEdit);
   assert.deepEqual(stored.custody.draft_assemblies, [assembly]);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, member).custody, stored.custody);
+  assert.deepEqual(
+    (await readApplicationBudgetOwnerAsync(f.readRelease, member)).custody,
+    stored.custody,
+  );
   assert.equal(readApplicationRunNotes(f.releases[1]!.body)!.custody.draft_assemblies, undefined);
-  await retainApplicationDraftAssembly(f.api, member, memberActor, assembly, async () => {});
+  await retainApplicationDraftAssembly(
+    f.registration,
+    member,
+    memberActor,
+    assembly,
+    async () => {},
+  );
   assert.equal(f.mutations.length, beforeAssembly + 1);
   await assert.rejects(
     retainApplicationDraftAssembly(
-      f.api,
+      f.registration,
       member,
       memberActor,
       {
@@ -900,7 +928,7 @@ void test("related metadata contexts retain the original owner history and every
   assert.throws(() => assertApplicationCustodyMetadataExtension(stored.custody, retained.custody));
   assert.equal(f.mutations.length, beforeAssembly + 1);
   const nextActor = { ...memberActor, run_attempt: 2 };
-  const nextPlan = readApplicationMetadataContextPlan(f.api, member, nextActor);
+  const nextPlan = await readApplicationMetadataContextPlan(f.registration, member, nextActor);
   const replacement = metadataReservation(
     opportunity,
     nextPlan.generated_at,
@@ -908,9 +936,15 @@ void test("related metadata contexts retain the original owner history and every
     nextActor,
     "b".repeat(64),
   );
-  await retainApplicationMetadataContext(f.api, member, nextActor, replacement, async () => {});
+  await retainApplicationMetadataContext(
+    f.registration,
+    member,
+    nextActor,
+    replacement,
+    async () => {},
+  );
   const both = await retainApplicationDraftAssembly(
-    f.api,
+    f.registration,
     member,
     nextActor,
     {
@@ -931,28 +965,31 @@ void test("related metadata contexts retain the original owner history and every
   };
   const beforeRecovery = f.mutations.length;
   await assert.rejects(
-    retainApplicationDraftRecovery(f.api, member, nextActor, recovery, async () => {
+    retainApplicationDraftRecovery(f.registration, member, nextActor, recovery, async () => {
       throw new Error("backup or live draft guard failed");
     }),
     /guard failed/,
   );
   assert.equal(f.mutations.length, beforeRecovery);
   const committed = await retainApplicationDraftRecovery(
-    f.api,
+    f.registration,
     member,
     nextActor,
     recovery,
     async () => {},
   );
   assert.deepEqual(committed.custody.draft_recoveries, [recovery]);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, member).custody, committed.custody);
+  assert.deepEqual(
+    (await readApplicationBudgetOwnerAsync(f.readRelease, member)).custody,
+    committed.custody,
+  );
   assertApplicationCustodyMetadataExtension(both.custody, committed.custody);
   assert.throws(() => assertApplicationCustodyMetadataExtension(committed.custody, both.custody));
-  await retainApplicationDraftRecovery(f.api, member, nextActor, recovery, async () => {});
+  await retainApplicationDraftRecovery(f.registration, member, nextActor, recovery, async () => {});
   assert.equal(f.mutations.length, beforeRecovery + 1);
   await assert.rejects(
     retainApplicationDraftRecovery(
-      f.api,
+      f.registration,
       member,
       nextActor,
       {
@@ -965,14 +1002,21 @@ void test("related metadata contexts retain the original owner history and every
   );
   assert.equal(f.mutations.length, beforeRecovery + 1);
   const claim = () =>
-    claimApplicationDraftAssetRemoval(f.api, member, nextActor, recovery, 29, async () => {});
+    claimApplicationDraftAssetRemoval(
+      f.registration,
+      member,
+      nextActor,
+      recovery,
+      29,
+      async () => {},
+    );
   assert.deepEqual(await claim(), {
     release_id: owner.release_id,
     notes: f.releases[0]!.body,
   });
   assert.equal(await claim(), undefined);
   assert.equal(f.mutations.length, beforeRecovery + 2);
-  const ownerWithClaim = readApplicationBudgetOwner(f.api, member).custody;
+  const ownerWithClaim = (await readApplicationBudgetOwnerAsync(f.readRelease, member)).custody;
   assert.deepEqual(ownerWithClaim.draft_removal_claims, [
     {
       asset_id: 29,
@@ -995,10 +1039,10 @@ void test("ambiguous native reservation PATCH is read back once and never reissu
       opportunity,
       async () => {},
     );
-    const plan = readApplicationMetadataContextPlan(f.api, registered, execution);
+    const plan = await readApplicationMetadataContextPlan(f.registration, registered, execution);
     const reservation = metadataReservation(opportunity, plan.generated_at, "2");
     const pending = retainApplicationMetadataContext(
-      f.api,
+      f.registration,
       registered,
       execution,
       reservation,
@@ -1080,6 +1124,26 @@ void test("fixed run registration uses the locked SDK for one-attempt drafts and
           1,
         );
         assert.equal(calls.at(-1), "GET /repos/boburning/portcove/releases/10");
+        const actor = { ...execution, run_id: "124" };
+        const plan = await readApplicationMetadataContextPlan(provider, second, actor);
+        const reservation = metadataReservation(source, plan.generated_at, "2", actor);
+        calls.length = 0;
+        const retained = await retainApplicationMetadataContext(
+          provider,
+          second,
+          actor,
+          reservation,
+          async () => {},
+        );
+        assert.deepEqual(retained.custody.metadata_contexts, [reservation]);
+        const route = "/repos/boburning/portcove/releases/10";
+        assert.deepEqual(calls, [
+          `GET ${route}`,
+          `GET ${route}`,
+          `GET ${route}`,
+          `PATCH ${route}`,
+          `GET ${route}`,
+        ]);
       }
       if (mode === "lost-after-create") {
         assert.equal(calls.filter((call) => call.includes("/releases?per_page=100")).length, 3);

@@ -9,7 +9,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import {
-  applicationApi,
   applicationOutput,
   readApplicationJson,
   applicationGh,
@@ -722,7 +721,7 @@ async function prepareDraftRecovery(
     assert.deepEqual(await inspect(), initial, "draft changed before retaining replacement");
   };
   const owner = await retainApplicationDraftAssembly(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     expected,
     current,
     replacement,
@@ -804,7 +803,11 @@ async function retainDraftRecoveryBackup() {
   const draft = await inspect();
   assert.ok(draft);
   assert.equal(releaseCanonicalDigest(draft), process.env.PORTCOVE_DRAFT_BACKUP_DRAFT_SHA256);
-  const { owner } = readApplicationMetadataContextPlan(applicationApi, expected, current);
+  const { owner } = await readApplicationMetadataContextPlan(
+    await createApplicationRunRegistrationProvider(),
+    expected,
+    current,
+  );
   assert.equal(releaseCanonicalDigest(owner), process.env.PORTCOVE_DRAFT_BACKUP_OWNER_SHA256);
   const staged = readStagedDraftRecoveryBackup(
     draft,
@@ -818,20 +821,32 @@ async function retainDraftRecoveryBackup() {
     current,
     receiveDraftRecoveryBackup,
   );
-  await retainApplicationDraftRecovery(applicationApi, expected, current, recovery, async () => {
-    await guard(source, false);
-    assert.deepEqual(
-      readApplicationMetadataContextPlan(applicationApi, expected, current).owner,
-      owner,
-      "recovery owner changed during backup readback",
-    );
-    assert.deepEqual(await inspect(), draft, "draft changed during backup readback");
-  });
+  await retainApplicationDraftRecovery(
+    await createApplicationRunRegistrationProvider(),
+    expected,
+    current,
+    recovery,
+    async () => {
+      await guard(source, false);
+      assert.deepEqual(
+        (
+          await readApplicationMetadataContextPlan(
+            await createApplicationRunRegistrationProvider(),
+            expected,
+            current,
+          )
+        ).owner,
+        owner,
+        "recovery owner changed during backup readback",
+      );
+      assert.deepEqual(await inspect(), draft, "draft changed during backup readback");
+    },
+  );
 }
 
 async function verifyRetainedDraftRecovery(
   expected: Parameters<typeof readApplicationDraftRecoveryState>[1],
-  owner: ReturnType<typeof readApplicationMetadataContextPlan>["owner"],
+  owner: Awaited<ReturnType<typeof readApplicationMetadataContextPlan>>["owner"],
   replacement: ReturnType<typeof applicationDraftAssembly>,
   metadata: Buffer,
   initial: NonNullable<Awaited<ReturnType<typeof readApplicationDraftRecoveryState>>>,
@@ -897,7 +912,11 @@ async function finishDraftRecovery(
   const initial = await inspect();
   if (!initial) return;
   const replacement = applicationDraftAssembly(expected.release_id, raw, publication, files);
-  const { owner } = readApplicationMetadataContextPlan(applicationApi, expected, current);
+  const { owner } = await readApplicationMetadataContextPlan(
+    await createApplicationRunRegistrationProvider(),
+    expected,
+    current,
+  );
   const recovery = owner.custody.draft_recoveries?.find(
     (entry) => entry.replacement_context_sha256 === replacement.context_sha256,
   );
@@ -932,9 +951,9 @@ async function finishDraftRecovery(
       assert.ok(draft && draft.direct === initial.direct);
       return draft;
     },
-    claim(assetId, beforeClaim) {
+    async claim(assetId, beforeClaim) {
       return claimApplicationDraftAssetRemoval(
-        applicationApi,
+        await createApplicationRunRegistrationProvider(),
         expected,
         current,
         recovery,
@@ -1027,9 +1046,9 @@ async function prepareOrdinaryPublication() {
     open: (deadline) =>
       createApplicationDraftPreparationProvider(fixedReleaseReaderToken(), expected, deadline),
     upload: await createApplicationAssetUploader(process.env.GH_TOKEN),
-    retainAssembly(assembly) {
+    async retainAssembly(assembly) {
       return retainApplicationDraftAssembly(
-        applicationApi,
+        await createApplicationRunRegistrationProvider(),
         expected,
         current,
         assembly,
@@ -1268,9 +1287,9 @@ async function publishBootstrapMetadata() {
         () => assertProtectionWriteWindow(),
         deadline,
       )),
-      retainAssembly(assembly) {
+      async retainAssembly(assembly) {
         return retainApplicationDraftAssembly(
-          applicationApi,
+          await createApplicationRunRegistrationProvider(),
           expected,
           current,
           assembly,
@@ -2757,8 +2776,8 @@ async function prepareApplicationPrior(
       );
   assert.ok(isRecord(source.run_custody));
   const custody = inspectApplicationRunCustody(source.run_custody.custody);
-  const plan = readApplicationMetadataContextPlan(
-    applicationApi,
+  const plan = await readApplicationMetadataContextPlan(
+    await createApplicationRunRegistrationProvider(),
     { release_id: Number(source.run_custody.release_id), custody },
     execution(),
   );
@@ -2980,7 +2999,7 @@ async function prepareContext() {
       await readBoundedReleaseContextFiles(context),
     );
     await retainApplicationMetadataContext(
-      applicationApi,
+      await createApplicationRunRegistrationProvider(),
       {
         release_id: Number(source.run_custody.release_id),
         custody: inspectApplicationRunCustody(source.run_custody.custody),
@@ -3013,8 +3032,8 @@ async function assertReservedApplicationContext(
     attempt = Number(process.env.PORTCOVE_CONTEXT_ATTEMPT);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
   assert.ok(isRecord(source.run_custody));
-  const plan = readApplicationMetadataContextPlan(
-    applicationApi,
+  const plan = await readApplicationMetadataContextPlan(
+    await createApplicationRunRegistrationProvider(),
     {
       release_id: Number(source.run_custody.release_id),
       custody: inspectApplicationRunCustody(source.run_custody.custody),
