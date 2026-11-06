@@ -5,10 +5,14 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire, isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
+import {
+  readReleaseToolDependencies,
+  verifyInstalledReleasePackage,
+} from "./release-tool-dependencies.mts";
 import { isRecord } from "./runtime-values.mts";
 import { acquireWindowsWebviewDriver } from "./release-windows-webview-driver.mts";
 import { captureSupportedHostedWindowsRuntimeInput } from "./hosted-windows-runtime-input.mts";
-import { acquireNativePnpm, nativePnpmVersion } from "./release-pnpm-runtime.mts";
+import { acquireNativePnpm, nativePnpmPackageProfile } from "./release-pnpm-runtime.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
@@ -24,7 +28,6 @@ import {
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 import {
-  controllerToolBundler,
   controllerToolEntries,
   readControllerToolFile,
   inspectControllerToolManifest,
@@ -41,15 +44,21 @@ export async function bundleControllerEntries(
   sourceRoot: string,
   outputRoot: string,
   platform: ControllerToolPlatform = "linux-x86_64",
+  dependencies?: ReturnType<typeof readReleaseToolDependencies>,
 ) {
   const profile = controllerToolPlatformProfile(platform);
-  return bundleFixedControllerEntries(sourceRoot, outputRoot, [
-    ...controllerToolEntries.map((name) => ({
-      source: `scripts/${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
-      output: `${name}.bundle.mjs`,
-    })),
-    ...profile.children.map((source) => ({ source, output: path.posix.basename(source) })),
-  ]);
+  return bundleFixedControllerEntries(
+    sourceRoot,
+    outputRoot,
+    [
+      ...controllerToolEntries.map((name) => ({
+        source: `scripts/${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
+        output: `${name}.bundle.mjs`,
+      })),
+      ...profile.children.map((source) => ({ source, output: path.posix.basename(source) })),
+    ],
+    dependencies,
+  );
 }
 
 /** Fixed unbranded source-preparation CLI only; no controller admission export. */
@@ -77,21 +86,16 @@ async function bundleFixedControllerEntries(
   sourceRoot: string,
   outputRoot: string,
   entries: readonly { source: string; output: string }[],
+  dependencies = readReleaseToolDependencies(fileURLToPath(new URL("../", import.meta.url))),
 ) {
   const installed = await realpath(fileURLToPath(import.meta.resolve("vite-plus/pack")));
-  const pack = (await import(pathToFileURL(installed).href)) as typeof import("vite-plus/pack");
   const packageFile = await realpath(fileURLToPath(import.meta.resolve("vite-plus/package.json")));
-  const version: unknown = JSON.parse(
-    (await readControllerToolFile(packageFile, 64 * 1024)).toString("utf8"),
+  verifyInstalledReleasePackage(
+    packageFile,
+    "vite-plus",
+    dependencies.bundler.slice("vite-plus@".length),
   );
-  if (
-    !version ||
-    typeof version !== "object" ||
-    !("version" in version) ||
-    typeof version.version !== "string" ||
-    `vite-plus@${version.version}` !== controllerToolBundler
-  )
-    throw new Error("repository-pinned pack version differs");
+  const pack = (await import(pathToFileURL(installed).href)) as typeof import("vite-plus/pack");
   await mkdir(path.join(outputRoot, "scripts"), { recursive: true, mode: 0o700 });
   for (const definition of entries) {
     const entry = path.join(sourceRoot, definition.source);
@@ -121,6 +125,36 @@ async function bundleFixedControllerEntries(
       inputOptions: commandOnly ? { preserveEntrySignatures: false } : {},
       outputOptions: { entryFileNames: definition.output, codeSplitting: false },
       plugins: [
+        {
+          name: "portcove-fixed-release-dependency-selection",
+          resolveId(specifier, importer) {
+            if (
+              importer &&
+              !importer.startsWith("\0") &&
+              (specifier === "@sigstore/sign" || specifier.startsWith("@sigstore/sign/"))
+            ) {
+              const fromImporter = createRequire(importer);
+              verifyInstalledReleasePackage(
+                fromImporter.resolve("@sigstore/sign/package.json"),
+                "@sigstore/sign",
+                dependencies.sigstoreSign,
+              );
+            }
+
+            if (
+              specifier === "./release-tool-dependency-selection.mts" &&
+              importer &&
+              path.dirname(path.resolve(importer)) === path.join(sourceRoot, "scripts")
+            )
+              return "\0portcove-release-dependency-selection";
+            return null;
+          },
+          load(id) {
+            if (id !== "\0portcove-release-dependency-selection") return null;
+            return `export function fixedReleaseToolDependencies() { return ${JSON.stringify(dependencies)}; }`;
+          },
+        },
+
         {
           name: "portcove-bundled-version-runtime",
           resolveId(specifier, importer) {
@@ -336,17 +370,34 @@ export async function buildControllerTools(
         path.join(sourceRoot, name),
         controllerToolSourceAssetMaximumBytes,
       );
+    const dependencies = readReleaseToolDependencies(sourceRoot);
+    const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
+    const cliPackage = desktop.resolve("@tauri-apps/cli/package.json");
+    const cli = createRequire(cliPackage);
+    const addon = await realpath(
+      cli.resolve(
+        platform === "linux-x86_64"
+          ? "@tauri-apps/cli-linux-x64-gnu"
+          : "@tauri-apps/cli-win32-x64-msvc",
+      ),
+    );
+    verifyInstalledReleasePackage(cliPackage, "@tauri-apps/cli", dependencies.tauri);
+    const nativeName =
+      platform === "linux-x86_64"
+        ? "@tauri-apps/cli-linux-x64-gnu"
+        : "@tauri-apps/cli-win32-x64-msvc";
+    verifyInstalledReleasePackage(
+      cli.resolve(nativeName + "/package.json"),
+      nativeName,
+      dependencies.tauri,
+    );
+
     await mkdir(tools, { mode: 0o700 });
     mark("fixed-native-package-manager");
-    const packageMetadata: unknown = JSON.parse(
-      (await readControllerToolFile(path.join(sourceRoot, "package.json"), 65536)).toString("utf8"),
+    const pnpm = await acquireNativePnpm(
+      platform,
+      nativePnpmPackageProfile(platform, dependencies.pnpm),
     );
-    if (
-      !isRecord(packageMetadata) ||
-      packageMetadata.packageManager !== `pnpm@${nativePnpmVersion}`
-    )
-      throw new Error("maintained package-manager pin differs");
-    const pnpm = await acquireNativePnpm(platform);
     await mkdir(path.join(tools, "bin"), { mode: 0o700 });
     for (const [name, bytes] of [
       [`bin/pnpm${profile.suffix}`, pnpm.binary],
@@ -371,7 +422,7 @@ export async function buildControllerTools(
       guard();
     }
     mark("fixed-node-bundles");
-    await bundleControllerEntries(sourceRoot, tools, platform);
+    await bundleControllerEntries(sourceRoot, tools, platform, dependencies);
     mark("fixed-rust-build");
     const status = await runResourceCommand(
       "rust",
@@ -437,23 +488,6 @@ export async function buildControllerTools(
       throw new Error(`fixed native driver build refused; retain ${directory}`);
     guard();
     mark("tool-inventory");
-    const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
-    const cliPackage = desktop.resolve("@tauri-apps/cli/package.json");
-    const cli = createRequire(cliPackage);
-    const addon = await realpath(
-      cli.resolve(
-        platform === "linux-x86_64"
-          ? "@tauri-apps/cli-linux-x64-gnu"
-          : "@tauri-apps/cli-win32-x64-msvc",
-      ),
-    );
-    for (const filename of [cliPackage, path.join(path.dirname(addon), "package.json")]) {
-      const metadata: unknown = JSON.parse(
-        (await readControllerToolFile(filename, 65536)).toString("utf8"),
-      );
-      if (!isRecord(metadata) || metadata.version !== "2.12.2")
-        throw new Error("fixed maintained Tauri CLI version differs");
-    }
     for (const [name, filename] of [
       [`node${profile.suffix}`, process.execPath],
       [
@@ -521,8 +555,8 @@ export async function buildControllerTools(
         source_tree: expected.tree,
         platform,
         node_version: controllerNodeVersion,
-        bundler: controllerToolBundler,
-        tauri_cli_version: "2.12.2",
+        bundler: dependencies.bundler,
+        tauri_cli_version: dependencies.tauri,
         files,
       },
       platform,

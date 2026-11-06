@@ -1,3 +1,4 @@
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -89,7 +90,7 @@ async function fixture(t: test.TestContext) {
       },
       node: { version: `v${controllerNodeVersion}` },
       tauri: {
-        version: "2.12.2",
+        version: fixedReleaseToolDependencies().tauri,
         native_package: platform.startsWith("windows")
           ? "@tauri-apps/cli-win32-x64-msvc"
           : "@tauri-apps/cli-linux-x64-gnu",
@@ -174,6 +175,7 @@ async function fixture(t: test.TestContext) {
           interface: inter,
           source_commit: f.request.source_commit,
           source_tree: f.request.source_tree,
+          tauri_cli_version: fixedReleaseToolDependencies().tauri,
           run_id: "12345",
           run_attempt: 1,
           job,
@@ -506,6 +508,20 @@ void test("changed inputs/job/source/refusal/target/tool/invocation and report l
   const f = await fixture(t);
   for (const item of f.reports)
     assert.equal(inspectReleaseCompilerReport(item.raw, item.expected).authority, "none");
+  const frozen = f.reports[0]!;
+  const alternate = frozen.expected.tauri_cli_version === "2.88.91" ? "2.88.92" : "2.88.91";
+  const alternateReport = { ...frozen.raw, tauri: { ...frozen.raw.tauri, version: alternate } };
+  assert.throws(
+    () => inspectReleaseCompilerReport(alternateReport, frozen.expected),
+    /pinned toolchain/u,
+  );
+  assert.equal(
+    inspectReleaseCompilerReport(alternateReport, {
+      ...frozen.expected,
+      tauri_cli_version: alternate,
+    }).authority,
+    "none",
+  );
   for (const change of [
     (raw: (typeof f.reports)[number]["raw"]) => {
       raw.node.version = `v${controllerNodeVersion.replace(/\d+$/u, (patch) => String(Number(patch) + 1))}`;

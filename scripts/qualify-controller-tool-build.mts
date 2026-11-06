@@ -3,11 +3,17 @@ import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { lstat, mkdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  applicationToolFiles,
+  receiveApplicationToolArchive,
+  stageApplicationTools,
+} from "./application-release-tools.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { buildControllerTools } from "./release-controller-tool-build.mts";
 import {
   controllerToolEntries,
@@ -384,6 +390,64 @@ async function main() {
     buildMilliseconds = Math.ceil(performance.now() - buildStarted);
     builtDirectory = built.directory;
     await record("manifest.json", built.manifest);
+    const applicationExecution = {
+      source: expected.commit,
+      ref: "refs/tags/portcove-production-controller-windows-fixture",
+      run_id: process.env.GITHUB_RUN_ID ?? "1",
+      run_attempt: 1,
+    };
+    const applicationTools = path.join(built.directory, "application-fixture-produced");
+    await stageApplicationTools(
+      applicationExecution,
+      applicationTools,
+      path.join(built.tools, "bin/portcove-release-tools"),
+    );
+    const members = await Promise.all(
+      [...applicationToolFiles, "tools.json"].map(
+        async (name) => [name, await readFile(path.join(applicationTools, name))] as const,
+      ),
+    );
+    const applicationArchive = createAuditZip(members);
+    const applicationScratch = path.join(built.directory, "application-fixture-scratch");
+    await mkdir(applicationScratch);
+    await writeFile(path.join(applicationScratch, "archive.zip"), applicationArchive);
+    await writeFile(
+      path.join(applicationScratch, "metadata.json"),
+      JSON.stringify({
+        id: 1,
+        expired: false,
+        name: `application-tools-${applicationExecution.run_id}-1`,
+        size_in_bytes: applicationArchive.length,
+        digest: "sha256:" + createHash("sha256").update(applicationArchive).digest("hex"),
+        workflow_run: {
+          id: Number(applicationExecution.run_id),
+          head_sha: expected.commit,
+          repository_id: 1354613114,
+        },
+      }),
+    );
+    const applicationReceived = path.join(built.directory, "application-fixture-received");
+    const received = await receiveApplicationToolArchive(
+      applicationReceived,
+      applicationExecution,
+      1,
+      applicationScratch,
+    );
+    const receivedCliVersion = spawnSync(
+      process.execPath,
+      [path.join(applicationReceived, "tauri.js"), "--version"],
+      { encoding: "utf8", env: {}, timeout: 10_000 },
+    );
+    assert.equal(receivedCliVersion.status, 0);
+    assert.equal(receivedCliVersion.stdout.trim(), `tauri-cli ${built.manifest.tauri_cli_version}`);
+    await record("application-tools.json", {
+      status: "pass",
+      source: expected,
+      tauri: built.manifest.tauri_cli_version,
+      files: received,
+      authority: "none",
+    });
+
     phase = "opaque-tool-readback";
     for (const file of built.manifest.files) {
       const bytes = await readControllerToolFile(
@@ -614,7 +678,7 @@ async function main() {
     const version = tauri(["--version"]);
     assert.equal(version.error, undefined);
     assert.equal(version.status, 0);
-    assert.equal(version.stdout.trim(), "tauri-cli 2.12.2");
+    assert.equal(version.stdout.trim(), `tauri-cli ${built.manifest.tauri_cli_version}`);
     const signHelp = tauri(["signer", "sign", "--help"]);
     assert.equal(signHelp.error, undefined);
     assert.equal(signHelp.status, 0);

@@ -748,7 +748,7 @@ async function main() {
       path.join(built.tools, "bin/tauri-addon.node"),
     ]);
     assert.equal(addon.status, 0, addon.stderr);
-    assert.equal(addon.stdout.trim(), "tauri-cli 2.12.2");
+    assert.equal(addon.stdout.trim(), `tauri-cli ${built.manifest.tauri_cli_version}`);
     phase = "actual-offline-package-manager";
     const pnpm = await qualifyNativePnpmRuntime(
       path.join(built.tools, "bin/pnpm.exe"),

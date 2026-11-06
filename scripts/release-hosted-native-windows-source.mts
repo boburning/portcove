@@ -681,7 +681,7 @@ async function acquireDependencies(planFile: string) {
   created = true;
   phase("private-directory");
   const pnpmBefore = hash(await readControllerToolFile(plan.pnpm));
-  assert.equal((await command(plan.pnpm, ["--version"])).toString().trim(), nativePnpmVersion);
+  assert.equal((await command(plan.pnpm, ["--version"])).toString().trim(), nativePnpmVersion());
   phase("package-manager-version");
   await command(plan.pnpm, [
     "--dir",

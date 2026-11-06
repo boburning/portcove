@@ -1,6 +1,7 @@
 /** Producer preparation inside the existing trusted controller. The owning
  * driver must establish its ratified history/current controls and durable remote
  * pending intent before invoking this adapter. There is no CLI or activation. */
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import path from "node:path";
@@ -133,7 +134,7 @@ export async function signCoordinatorCheckpointEvidence(
           checkpoint: checkpoint.checkpoint,
           subject_sha256: hash(input.subject),
           producer: expected.producer,
-          sdk: "@sigstore/sign@5.1.0",
+          sdk: `@sigstore/sign@${fixedReleaseToolDependencies().sigstoreSign}`,
           automatic_retry: false,
           signature_verification: "not-performed",
           authority: "none",

@@ -51,8 +51,8 @@ export async function inspectWindowsNativeDependencyInputs(
     assert.ok(
       directory
         ? manifest.packageManager === undefined ||
-            manifest.packageManager === `pnpm@${nativePnpmVersion}`
-        : manifest.packageManager === `pnpm@${nativePnpmVersion}`,
+            manifest.packageManager === `pnpm@${nativePnpmVersion()}`
+        : manifest.packageManager === `pnpm@${nativePnpmVersion()}`,
     );
     for (const kind of ["dependencies", "devDependencies", "optionalDependencies"]) {
       const dependencies: unknown = manifest[kind] ?? {};

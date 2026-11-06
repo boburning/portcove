@@ -290,6 +290,7 @@ jobs:
           package_json_file: package.json
       - uses: ./.github/actions/setup-rust
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: node scripts/application-release-tools.mts check
       - run: cargo build --locked --release -p portcove-release-tools
       - name: Stage only fixed signing tools and the maintained dependency-free worker
         env:

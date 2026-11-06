@@ -1,3 +1,4 @@
+import { readReleaseToolDependencies } from "./release-tool-dependencies.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -481,5 +482,8 @@ void test("Release beta wiring pins public inputs outside candidate content, ret
   const packageJson = jsonRecord(
     await readFile(path.join(project, "apps/desktop/package.json"), "utf8"),
   );
-  assert.equal(record(packageJson.devDependencies)["@tauri-apps/cli"], "2.12.2");
+  assert.equal(
+    record(packageJson.devDependencies)["@tauri-apps/cli"],
+    readReleaseToolDependencies(project).tauri,
+  );
 });

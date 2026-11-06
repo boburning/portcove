@@ -1,3 +1,4 @@
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 /** Fixed trusted role commands, bundled on a separate secret-free runner.
@@ -2390,7 +2391,10 @@ async function payload() {
         stdio: "pipe",
         maxBuffer: 65536,
       });
-    assert.equal(invoke(["--version"]).toString().trim(), "tauri-cli 2.12.2");
+    assert.equal(
+      invoke(["--version"]).toString().trim(),
+      `tauri-cli ${fixedReleaseToolDependencies().tauri}`,
+    );
     invoke([
       "signer",
       "sign",
