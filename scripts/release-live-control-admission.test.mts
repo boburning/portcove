@@ -1165,9 +1165,12 @@ for (const controlReader of [
   "payload",
   "tuf-maintenance",
   "tuf-application",
+  "publication-application",
 ] as const)
   void test(`fixed ${controlReader} joins locked SDK ref, file and original observer reads`, async (t) => {
-    const classification = controlReader === "payload" || controlReader === "tuf-application";
+    const publication = controlReader === "publication-application";
+    const classification =
+      publication || controlReader === "payload" || controlReader === "tuf-application";
     const phase =
       controlReader === "site-maintenance"
         ? "site-publication"
@@ -1175,7 +1178,9 @@ for (const controlReader of [
           ? "coordinator"
           : controlReader === "payload"
             ? "payload"
-            : "tuf-preview";
+            : publication
+              ? "release-publication"
+              : "tuf-preview";
     const control = releaseControlInputsFixture(
       capacityDocumentFixture(),
       opportunity,
@@ -1184,7 +1189,11 @@ for (const controlReader of [
     );
     if (classification)
       persistReviewedClassification(control.api, config, opportunity, 303, () => {});
-    const runtime = liveControlRuntimeFixture(protectionFixture(control.head()), config, phase);
+    const runtime = liveControlRuntimeFixture(
+      publication ? publicationProtection(control.head()) : protectionFixture(control.head()),
+      config,
+      phase,
+    );
     const { observerApi, ...options } = runtime.options;
     const before = await runtime.create();
     const expected = classification

@@ -99,6 +99,7 @@ type SdkControlReader =
   | "payload"
   | "tuf-maintenance"
   | "tuf-application"
+  | "publication-application"
   | "catalog-maintenance"
   | "metadata-maintenance";
 type ReaderIdentityOptions = Parameters<typeof verifyReleaseControlReaderJobIdentity>[3];
@@ -240,7 +241,11 @@ async function authenticateControlSource(
               phase === "catalog-snapshot" ||
               phase === "catalog-timestamp")
           : purpose === "application" &&
-            (controlReader === "payload" ? phase === "payload" : phase.startsWith("tuf-"));
+            (controlReader === "payload"
+              ? phase === "payload"
+              : controlReader === "publication-application"
+                ? phase === "release-publication"
+                : phase.startsWith("tuf-"));
   if (
     sdkReaderToken !== undefined &&
     (!matchesSdkRole ||
@@ -736,7 +741,9 @@ async function authenticateControlSource(
     },
     async readSdkApplicationControls(opportunity: unknown) {
       if (
-        (controlReader !== "payload" && controlReader !== "tuf-application") ||
+        (controlReader !== "payload" &&
+          controlReader !== "tuf-application" &&
+          controlReader !== "publication-application") ||
         sdkReaderToken === undefined ||
         sdkDeadline === undefined ||
         !readSdkProducer
