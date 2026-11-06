@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { readFile, mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -1811,4 +1813,103 @@ void test("context reservations keep write credentials in the key-free job and p
     assert.ok(isRecord(job) && isRecord(job.permissions));
     assert.equal(job.permissions.contents, "read", name);
   }
+});
+
+void test("actual qualification selection reads the locked SDK inventory without an inherited deadline", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "application-source-inventory-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = "a".repeat(40),
+    tree = "b".repeat(40),
+    baseline = "c".repeat(40);
+  const output = path.join(root, "outputs");
+  const repo = "/repos/boburning/portcove";
+  const metadata = { id: 1354613114, full_name: "boburning/portcove", node_id: "R_fixture" };
+  const pages = {
+    [`GET ${repo}/git/commits/${source}`]: { sha: source, tree: { sha: tree } },
+    [`GET ${repo}`]: metadata,
+    [`GET ${repo}/releases?per_page=100`]: [
+      {
+        id: 1,
+        tag_name: "v0.1.0-alpha.1",
+        draft: false,
+        prerelease: true,
+        published_at: "2026-11-04T00:00:00Z",
+        updated_at: "2026-11-04T00:00:00Z",
+      },
+    ],
+    "POST /graphql": {
+      data: {
+        repository: {
+          id: metadata.node_id,
+          databaseId: metadata.id,
+          nameWithOwner: metadata.full_name,
+          refs: {
+            totalCount: 1,
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [
+              {
+                id: "ref-1",
+                name: "v0.1.0-alpha.1",
+                prefix: "refs/tags/",
+                target: { __typename: "Commit", oid: baseline },
+              },
+            ],
+          },
+        },
+      },
+    },
+    [`GET ${repo}/releases/1`]: { immutable: true, tag_name: "v0.1.0-alpha.1", draft: false },
+  };
+  const fixture = path.join(root, "provider.mjs");
+  await writeFile(
+    fixture,
+    `
+    import assert from "node:assert/strict";
+    const steps = Object.entries(${JSON.stringify(pages)});
+    globalThis.fetch = async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-qualification");
+      const [route, body] = steps.shift();
+      assert.equal(request.method + " " + url.pathname + url.search, route);
+      return Response.json(body);
+    };
+    process.on("beforeExit", () => assert.equal(steps.length, 0));
+  `,
+  );
+  await mkdir(path.join(root, "scripts"));
+  await writeFile(
+    path.join(root, "scripts/check-release-metadata.mts"),
+    'console.log("0.1.0-alpha.2");',
+  );
+  execFileSync(
+    process.execPath,
+    [
+      "--import",
+      fixture,
+      fileURLToPath(new URL("./application-release-source.mts", import.meta.url)),
+      "select",
+    ],
+    {
+      cwd: root,
+      env: {
+        PATH: process.env.PATH,
+        SystemRoot: process.env.SystemRoot,
+        GH_TOKEN: "inert-qualification",
+        GITHUB_REPOSITORY: "boburning/portcove",
+        GITHUB_REPOSITORY_ID: "1354613114",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_REF: "refs/heads/main",
+        GITHUB_SHA: source,
+        GITHUB_OUTPUT: output,
+      },
+      timeout: 30000,
+      stdio: "pipe",
+    },
+  );
+  assert.equal(
+    await readFile(output, "utf8"),
+    `source=${source}\ntree=${tree}\nversion=0.1.0-alpha.2\nbase=${baseline}\n`,
+  );
 });

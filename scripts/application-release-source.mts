@@ -234,7 +234,7 @@ function openApplicationSourcePublicationInventory(token = fixedReleaseReaderTok
   const guard = () => assertTrustedDirectNode("fixed application source publication inventory");
   return createPublicationInventoryWithSdk({
     token,
-    deadline: Number.POSITIVE_INFINITY,
+    deadline: performance.now() + 120000,
     maxBytes: 8 * 1024 ** 2,
     requestTimeoutMs: 30000,
     beforeDispatch: guard,
