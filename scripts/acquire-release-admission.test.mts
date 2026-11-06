@@ -23,6 +23,10 @@ import { rateLimitFromResponse } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
+import {
+  readPublicationAllocationsWithSdk,
+  releasePublicationRefsQuery,
+} from "./release-publication-inventory.mts";
 
 void test("qualifying continuation consumes pre-sign native stage without claiming payload admission", () => {
   assert.equal(inspectAdmissionNativeStage("admission", "candidate-building"), "payload-signing");
@@ -623,6 +627,56 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
         : { schema_version: 2, namespace: "portcove-fixture", release_profile: profile },
   };
 }
+
+void test("locked allocation reader joins the exact raw prepared and source commits", async (t) => {
+  const f = await fixture(t);
+  const api = f.options.api;
+  assert.ok(api);
+  const paths: string[] = [];
+  const result = await readPublicationAllocationsWithSdk(f.config.namespace, {
+    token: "synthetic-native-reader",
+    deadline: performance.now() + 5000,
+    recheck: async () => {},
+    async fetch(input, init) {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      const { pathname, origin } = new URL(url);
+      assert.equal(origin, "https://api.github.com");
+      paths.push(pathname);
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token synthetic-native-reader",
+      );
+      if (pathname === "/graphql") {
+        assert.ok(typeof init?.body === "string");
+        const raw: unknown = JSON.parse(init.body);
+        assert.ok(
+          isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+        );
+        return Response.json({
+          data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+        });
+      }
+      return Response.json(api.request("GET", pathname.slice(1)).body);
+    },
+  });
+  const candidate = f.input.active_candidate;
+  assert.deepEqual(result.allocations, [
+    {
+      version: candidate.version,
+      source_commit: candidate.source_commit,
+      source_tree: candidate.source_tree,
+      prepared_commit: candidate.prepared_commit,
+      prepared_tree: candidate.prepared_tree,
+      intent_sha256: candidate.intent_sha256,
+    },
+  ]);
+  assert.deepEqual(paths, [
+    "/repos/boburning/portcove",
+    "/graphql",
+    `/repos/boburning/portcove/git/commits/${f.prepared.sha}`,
+    `/repos/boburning/portcove/git/commits/${f.original.sha}`,
+  ]);
+});
 
 void test("actual admission package transfer uses the scoped SDK with signed delivery before final readback", async (t) => {
   const f = await fixture(t);
