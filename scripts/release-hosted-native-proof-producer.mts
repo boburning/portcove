@@ -32,7 +32,10 @@ import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.m
 import { createHostedNativeProofStore } from "./release-owned-capture-store.mts";
 import { createHostedWindowsNativeProofStore } from "./release-owned-windows-proof-store.mts";
 import { createCheckpointSigningTransport } from "./release-checkpoint-signing-transport.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -240,7 +243,7 @@ async function signHostedNativeProof(reportReceipt: object, platform: Platform) 
           run_id: producer.run_id,
           run_attempt: producer.run_attempt,
         },
-        { transport: { cwd: directory, deadline } },
+        { transport: { sdkToken: fixedReleaseReaderToken(), requireDirect: true, deadline } },
       );
       assert.equal(identity.evidence_scope, "github.com");
       assert.equal(identity.job_id, producer.job_id);

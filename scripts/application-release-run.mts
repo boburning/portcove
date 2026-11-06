@@ -8,8 +8,11 @@ import {
 } from "./release-metadata-contract.mts";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
-import { createReleasePublicationReader } from "./release-publication-inventory.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import { readReleaseNotesWithSdk } from "./release-publication-inventory.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
 import type { inspectApplicationReleaseExecution } from "./application-release-policy.mts";
 import {
   parseVersionClassification,
@@ -525,11 +528,59 @@ function notes(value: ApplicationRunCustody, before: string, after: string) {
   return result;
 }
 
+type RegistrationResponse = Pick<GitHubMetadataResponse, "status" | "body">;
+type ApplicationRunRegistrationProvider = {
+  releaseNotes: () => Promise<Record<string, unknown>[]>;
+  release: (id: number) => Promise<RegistrationResponse>;
+  createDraft: (body: Record<string, unknown>) => Promise<RegistrationResponse>;
+  appendNotes: (id: number, body: string) => Promise<RegistrationResponse>;
+};
+
+export async function createApplicationRunRegistrationProvider(): Promise<ApplicationRunRegistrationProvider> {
+  const token = fixedReleaseReaderToken();
+  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
+  const guard = () => assertTrustedDirectNode("fixed application run registration");
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    allowRequest(method, url) {
+      guard();
+      return (
+        url.origin === "https://api.github.com" &&
+        !url.search &&
+        ((method === "POST" && url.pathname === `/${prefix}/releases`) ||
+          ((method === "GET" || method === "PATCH") &&
+            /^\/repos\/boburning\/portcove\/releases\/[1-9][0-9]*$/u.test(url.pathname)))
+      );
+    },
+  });
+  const request = async (route: string, body?: Record<string, unknown>) => {
+    const response = await client.request(route, {
+      ...body,
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    return { status: response.status, body: response.data as unknown };
+  };
+  const exactRelease = (id: number) => {
+    assert.ok(Number.isSafeInteger(id) && id > 0);
+    return `/${prefix}/releases/${id}`;
+  };
+  return {
+    releaseNotes: () => readReleaseNotesWithSdk({ token, deadline, guard }),
+    release: (id) => request(`GET ${exactRelease(id)}`),
+    createDraft: (body) => request(`POST /${prefix}/releases`, body),
+    appendNotes: (id, body) => request(`PATCH ${exactRelease(id)}`, { body }),
+  };
+}
+
 /** The fixed caller owns actual global Actions concurrency and current guards.
  * After an ambiguous mutation, read back the exact existing release; never
  * retry a POST, delete a draft, replace assets or reset a registered run list. */
 export async function registerApplicationReleaseRun(
-  api: CoordinatorRemoteApi,
+  provider: ApplicationRunRegistrationProvider,
   execution: Execution,
   source: string,
   tree: string,
@@ -559,40 +610,40 @@ export async function registerApplicationReleaseRun(
   const candidateTag = `portcove-production-candidate-${opportunity}`;
   const started = performance.now();
   let calls = 0;
-  const request = (method: string, suffix: string, body?: unknown) => {
+  const request = async (dispatch: () => Promise<RegistrationResponse>) => {
     assert.ok(++calls <= 6 && performance.now() - started < 120000);
-    const response = api.request(method, `${prefix}/${suffix}`, body);
+    const response = await dispatch();
     assert.ok(performance.now() - started < 120000);
     return response;
   };
-  const find = () => {
-    const matches = createReleasePublicationReader(api)
-      .releaseNotes()
-      .filter((release) => {
-        const parsed = readApplicationRunNotes(release.body ?? "");
-        // Keep the original source SHA as this native metadata anchor even when
-        // publishing an already-created version tag at the prepared child. Git
-        // tag identity is separately verified; target_commitish is not proof of
-        // the tag's commit. Missing notes must never erase registered costs.
-        if (parsed)
-          assert.equal(
-            release.target_commitish,
-            parsed.custody.source,
-            "native release source anchor changed",
-          );
-        if (!parsed && release.target_commitish === source)
-          throw new Error("existing source release lost its native run custody; hold");
-        if (release.tag_name === candidateTag)
-          assert.ok(
-            parsed && parsed.custody.opportunity === opportunity,
-            "candidate draft lost its run custody; hold",
-          );
-        return parsed?.custody.opportunity === opportunity;
-      });
+  const find = async () => {
+    const releases = await provider.releaseNotes();
+    assert.ok(performance.now() - started < 120000);
+    const matches = releases.filter((release) => {
+      const parsed = readApplicationRunNotes(release.body ?? "");
+      // Keep the original source SHA as this native metadata anchor even when
+      // publishing an already-created version tag at the prepared child. Git
+      // tag identity is separately verified; target_commitish is not proof of
+      // the tag's commit. Missing notes must never erase registered costs.
+      if (parsed)
+        assert.equal(
+          release.target_commitish,
+          parsed.custody.source,
+          "native release source anchor changed",
+        );
+      if (!parsed && release.target_commitish === source)
+        throw new Error("existing source release lost its native run custody; hold");
+      if (release.tag_name === candidateTag)
+        assert.ok(
+          parsed && parsed.custody.opportunity === opportunity,
+          "candidate draft lost its run custody; hold",
+        );
+      return parsed?.custody.opportunity === opportunity;
+    });
     assert.ok(matches.length <= 1, "duplicate native release source reservation");
     return matches[0];
   };
-  const existing = find();
+  const existing = await find();
   const parsed = existing ? readApplicationRunNotes(existing.body ?? "") : null;
   assert.ok(
     mode === "create-or-resume" || mode === "immutable-only" || mode === "immutable-metadata-only",
@@ -644,7 +695,7 @@ export async function registerApplicationReleaseRun(
   if (!existing || !already) {
     // Recheck the full preimage after the caller's fresh protection/cost reads.
     if (existing) {
-      const fresh = request("GET", `releases/${Number(existing.id)}`);
+      const fresh = await request(() => provider.release(Number(existing.id)));
       assert.equal(fresh.status, 200);
       assert.ok(isRecord(fresh.body));
       for (const key of [
@@ -662,30 +713,33 @@ export async function registerApplicationReleaseRun(
           existing[key],
           `release ${key} changed before native run registration`,
         );
-    } else assert.equal(find(), undefined, "release appeared before native draft creation");
+    } else assert.equal(await find(), undefined, "release appeared before native draft creation");
     try {
-      const response = existing
-        ? request("PATCH", `releases/${Number(existing.id)}`, { body })
-        : request("POST", "releases", {
-            tag_name: candidateTag,
-            target_commitish: source,
-            name: `Portcove application preparation ${source.slice(0, 12)}`,
-            body,
-            draft: true,
-            prerelease: true,
-            make_latest: "false",
-          });
+      const response = await request(() =>
+        existing
+          ? provider.appendNotes(Number(existing.id), body)
+          : provider.createDraft({
+              tag_name: candidateTag,
+              target_commitish: source,
+              name: `Portcove application preparation ${source.slice(0, 12)}`,
+              body,
+              draft: true,
+              prerelease: true,
+              make_latest: "false",
+            }),
+      );
       assert.equal(response.status, existing ? 200 : 201);
       release = response.body;
     } catch {
-      release = existing ?? find();
+      release = existing ?? (await find());
     }
   }
   assert.ok(
     isRecord(release) && Number.isSafeInteger(release.id) && Number(release.id) > 0,
     "native draft mutation outcome unknown; hold without another POST",
   );
-  const readback = request("GET", `releases/${Number(release.id)}`);
+  const releaseId = Number(release.id);
+  const readback = await request(() => provider.release(releaseId));
   assert.equal(readback.status, 200);
   assert.ok(isRecord(readback.body));
   assert.equal(readback.body.body, body, "native run custody readback differs; no retry or reset");
@@ -707,8 +761,8 @@ export async function registerApplicationReleaseRun(
   };
 }
 
-export function readRegisteredApplicationRuns(
-  api: CoordinatorRemoteApi,
+export async function readRegisteredApplicationRuns(
+  provider: Pick<ApplicationRunRegistrationProvider, "release">,
   releaseId: number,
   opportunity: string,
   source: string,
@@ -716,7 +770,7 @@ export function readRegisteredApplicationRuns(
   execution: Execution,
 ) {
   assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
-  const response = api.request("GET", `${prefix}/releases/${releaseId}`);
+  const response = await provider.release(releaseId);
   assert.equal(response.status, 200);
   assert.ok(isRecord(response.body) && response.body.id === releaseId);
   assert.equal(response.body.target_commitish, source, "native release source anchor changed");
@@ -734,8 +788,13 @@ export function readRegisteredApplicationRuns(
   return parsed.custody;
 }
 
+type ApplicationReleaseNotesProvider = Pick<
+  ApplicationRunRegistrationProvider,
+  "release" | "appendNotes"
+>;
+
 export async function retainApplicationPreparation(
-  api: CoordinatorRemoteApi,
+  provider: ApplicationReleaseNotesProvider,
   releaseId: number,
   expected: ApplicationRunCustody,
   preparation: Preparation,
@@ -756,7 +815,7 @@ export async function retainApplicationPreparation(
     expected.runs.map((run) => run.id),
     { release_id: releaseId, custody: expected },
   );
-  const before = api.request("GET", `${prefix}/releases/${releaseId}`);
+  const before = await provider.release(releaseId);
   assert.equal(before.status, 200);
   assert.ok(isRecord(before.body) && before.body.id === releaseId);
   const parsed = readApplicationRunNotes(before.body.body);
@@ -775,11 +834,11 @@ export async function retainApplicationPreparation(
     assert.equal(before.body.immutable, false);
     const body = notes(next, parsed.before, parsed.after);
     try {
-      api.request("PATCH", `${prefix}/releases/${releaseId}`, { body });
+      await provider.appendNotes(releaseId, body);
     } catch {
       /* Readback decides; no repeated mutation. */
     }
-    const after = api.request("GET", `${prefix}/releases/${releaseId}`);
+    const after = await provider.release(releaseId);
     assert.equal(after.status, 200);
     assert.ok(isRecord(after.body) && after.body.id === releaseId);
     assert.equal(after.body.body, body, "preparation custody outcome unknown; no retry or reset");
@@ -791,20 +850,52 @@ export async function retainApplicationPreparation(
 
 /** Resolve the one native cost owner. Membership is a reference, never a copy
  * of another cost ledger, and owner chains/cycles are not accepted. */
-export function readApplicationBudgetOwner(
-  api: Pick<CoordinatorRemoteApi, "request">,
+export async function readApplicationBudgetOwnerAsync(
+  readRelease: (id: number) => Promise<unknown>,
   context: ApplicationBudgetContext,
-): ApplicationBudgetContext {
+): Promise<ApplicationBudgetContext> {
   const custody = inspectApplicationRunCustody(context.custody);
   if (custody.budget?.kind !== "member") return { ...context, custody };
   const link = custody.budget;
   assert.notEqual(context.release_id, link.owner_release_id);
-  const response = api.request("GET", `${prefix}/releases/${link.owner_release_id}`);
-  assert.equal(response.status, 200);
-  assert.ok(isRecord(response.body) && response.body.id === link.owner_release_id);
-  const parsed = readApplicationRunNotes(response.body.body);
+  return inspectApplicationBudgetOwner(await readRelease(link.owner_release_id), link, custody);
+}
+
+export async function createApplicationReleaseMetadataReader(deadline: number) {
+  const token = fixedReleaseReaderToken();
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    fetch: (input, init) => {
+      assertTrustedDirectNode("fixed application Release metadata");
+      return globalThis.fetch(input, init);
+    },
+  });
+  return (id: number) => provider.release(id);
+}
+
+export function readActualApplicationBudgetOwner(
+  context: ApplicationBudgetContext,
+  deadline = performance.now() + 120000,
+) {
+  return readApplicationBudgetOwnerAsync(async (id) => {
+    const read = await createApplicationReleaseMetadataReader(deadline);
+    return read(id);
+  }, context);
+}
+
+function inspectApplicationBudgetOwner(
+  release: unknown,
+  link: { owner_release_id: number; owner_opportunity: string },
+  custody: ApplicationRunCustody,
+): ApplicationBudgetContext {
+  assert.ok(isRecord(release) && release.id === link.owner_release_id);
+  const parsed = readApplicationRunNotes(release.body);
   assert.ok(parsed?.custody.budget?.kind === "owner", "native cost owner is missing or chained");
-  assert.equal(response.body.target_commitish, parsed.custody.source);
+  assert.equal(release.target_commitish, parsed.custody.source);
   assert.equal(parsed.custody.opportunity, link.owner_opportunity);
   const scope = parsed.custody.budget.scopes.find(
     (scope) => scope.opportunity === custody.opportunity,
@@ -826,19 +917,20 @@ export function readApplicationBudgetOwner(
  * This accounting write grants no private work. Older code rejects schema2 rather than
  * silently dropping related costs. A failed/lost PATCH is read back once. */
 export async function registerApplicationBudgetRun(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   opportunity: string,
   execution: Execution,
   beforeRecord: () => Promise<void>,
 ) {
   assert.match(opportunity, /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u);
-  const owner = readApplicationBudgetOwner(api, context);
-  assert.ok(
-    typeof owner.release_id === "number" &&
-      Number.isSafeInteger(owner.release_id) &&
-      owner.release_id > 0,
-  );
+  const owner = await readApplicationBudgetOwnerAsync(async (id) => {
+    const response = await provider.release(id);
+    assert.equal(response.status, 200);
+    return response.body;
+  }, context);
+  const releaseId = owner.release_id;
+  assert.ok(typeof releaseId === "number" && Number.isSafeInteger(releaseId) && releaseId > 0);
   assert.notEqual(opportunity, owner.custody.opportunity);
   const budget = owner.custody.budget;
   assert.ok(budget === undefined || budget.kind === "owner");
@@ -856,30 +948,29 @@ export async function registerApplicationBudgetRun(
     schema_version: owner.custody.metadata_contexts ? 3 : 2,
     budget: { kind: "owner", scopes: nextScopes },
   });
-  const endpoint = `${prefix}/releases/${owner.release_id}`;
-  const get = () => {
-    const response = api.request("GET", endpoint);
+  const get = async () => {
+    const response = await provider.release(releaseId);
     assert.equal(response.status, 200);
-    assert.ok(isRecord(response.body) && response.body.id === owner.release_id);
+    assert.ok(isRecord(response.body) && response.body.id === releaseId);
     assert.equal(response.body.target_commitish, owner.custody.source);
     return response.body;
   };
-  const before = get();
+  const before = await get();
   const parsed = readApplicationRunNotes(before.body);
   assert.ok(parsed);
   assert.deepEqual(parsed.custody, owner.custody, "native cost owner changed before linking");
   const body = notes(next, parsed.before, parsed.after);
   await beforeRecord();
   if (body !== before.body) {
-    assert.deepEqual(get(), before, "native cost owner preimage changed");
+    assert.deepEqual(await get(), before, "native cost owner preimage changed");
     try {
-      const result = api.request("PATCH", endpoint, { body });
+      const result = await provider.appendNotes(releaseId, body);
       assert.equal(result.status, 200);
     } catch {
       /* Readback alone resolves an ambiguous note update. */
     }
   }
-  const after = get();
+  const after = await get();
   assert.equal(after.body, body, "native cost registration unknown; no retry/reset");
   assert.deepEqual(
     applicationReleaseNotesPreimage(after),
@@ -887,10 +978,10 @@ export async function registerApplicationBudgetRun(
     "cost registration changed another release field",
   );
   return {
-    owner: { release_id: owner.release_id, custody: next },
+    owner: { release_id: releaseId, custody: next },
     membership: {
       kind: "member" as const,
-      owner_release_id: owner.release_id,
+      owner_release_id: releaseId,
       owner_opportunity: owner.custody.opportunity,
     },
     authority: "none" as const,
@@ -1062,14 +1153,18 @@ export function assertApplicationCustodyMetadataExtension(
 
 /** Read the original native owner before preparing bytes. Callers cannot appoint
  * a clock or version floor; only preserved producer reservations select reuse. */
-export function readApplicationMetadataContextPlan(
-  api: Pick<CoordinatorRemoteApi, "request">,
+export async function readApplicationMetadataContextPlan(
+  provider: Pick<ApplicationReleaseNotesProvider, "release">,
   context: ApplicationBudgetContext,
   execution: Execution,
 ) {
-  const original = readApplicationBudgetOwner(api, context);
+  const original = await readApplicationBudgetOwnerAsync(async (id) => {
+    const response = await provider.release(id);
+    assert.equal(response.status, 200);
+    return response.body;
+  }, context);
   assert.ok(typeof original.release_id === "number" && original.release_id > 0);
-  const response = api.request("GET", `${prefix}/releases/${original.release_id}`);
+  const response = await provider.release(original.release_id);
   assert.equal(response.status, 200);
   assert.ok(
     isRecord(response.body) &&
@@ -1114,13 +1209,13 @@ export function readApplicationMetadataContextPlan(
 /** One guarded notes append BEFORE context upload/key access. Ambiguity is read
  * back once; neither a POST, version reuse, nor another writer is retried. */
 export async function retainApplicationMetadataContext(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   execution: Execution,
   reservation: ApplicationMetadataContextReservation,
   beforeWrite: () => Promise<void>,
 ) {
-  const plan = readApplicationMetadataContextPlan(api, context, execution);
+  const plan = await readApplicationMetadataContextPlan(provider, context, execution);
   assert.equal(reservation.opportunity, context.custody.opportunity);
   assert.equal(reservation.run_id, execution.run_id);
   assert.equal(reservation.run_attempt, execution.run_attempt);
@@ -1135,18 +1230,18 @@ export async function retainApplicationMetadataContext(
       ? plan.owner.custody.metadata_contexts
       : [...(plan.owner.custody.metadata_contexts ?? []), reservation],
   });
-  return writeApplicationMetadataNotes(api, plan.owner, next, beforeWrite);
+  return writeApplicationMetadataNotes(provider, plan.owner, next, beforeWrite);
 }
 
 /** Retain the exact attested pair before either asset can be staged. */
 export async function retainApplicationDraftAssembly(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   execution: Execution,
   assembly: ApplicationDraftAssembly,
   beforeWrite: () => Promise<void>,
 ) {
-  const { owner } = readApplicationMetadataContextPlan(api, context, execution);
+  const { owner } = await readApplicationMetadataContextPlan(provider, context, execution);
   const reservation = owner.custody.metadata_contexts?.at(-1);
   assert.ok(reservation);
   assert.equal(reservation.context_sha256, assembly.context_sha256);
@@ -1164,19 +1259,19 @@ export async function retainApplicationDraftAssembly(
     ...owner.custody,
     draft_assemblies: existing ? history : [...history, assembly],
   });
-  return writeApplicationMetadataNotes(api, owner, next, beforeWrite);
+  return writeApplicationMetadataNotes(provider, owner, next, beforeWrite);
 }
 
 /** Reuse the original cost owner and the guarded, read-back notes writer.
  * The fixed caller verifies the provider artifact bytes and current draft before writing. */
 export async function retainApplicationDraftRecovery(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   execution: Execution,
   recovery: ApplicationDraftRecovery,
   beforeWrite: () => Promise<void>,
 ) {
-  const { owner } = readApplicationMetadataContextPlan(api, context, execution);
+  const { owner } = await readApplicationMetadataContextPlan(provider, context, execution);
   const reservation = owner.custody.metadata_contexts?.at(-1);
   assert.ok(reservation);
   assert.equal(reservation.context_sha256, recovery.replacement_context_sha256);
@@ -1195,20 +1290,20 @@ export async function retainApplicationDraftRecovery(
     ...owner.custody,
     draft_recoveries: existing ? history : [...history, recovery],
   });
-  return writeApplicationMetadataNotes(api, owner, next, beforeWrite);
+  return writeApplicationMetadataNotes(provider, owner, next, beforeWrite);
 }
 
 /** The fixed workflow serializes release actors. A read-back claim is spent
  * even if the worker is interrupted before requesting DELETE. */
 export async function claimApplicationDraftAssetRemoval(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   execution: Execution,
   recovery: ApplicationDraftRecovery,
   assetId: number,
   beforeWrite: () => Promise<void>,
 ) {
-  const { owner } = readApplicationMetadataContextPlan(api, context, execution);
+  const { owner } = await readApplicationMetadataContextPlan(provider, context, execution);
   const reservation = owner.custody.metadata_contexts?.at(-1);
   assert.ok(reservation);
   assert.equal(reservation.context_sha256, recovery.replacement_context_sha256);
@@ -1236,7 +1331,7 @@ export async function claimApplicationDraftAssetRemoval(
       },
     ],
   });
-  const written = await writeApplicationMetadataNotes(api, owner, next, beforeWrite);
+  const written = await writeApplicationMetadataNotes(provider, owner, next, beforeWrite);
   return { release_id: written.release_id, notes: written.notes };
 }
 
@@ -1247,36 +1342,35 @@ export function applicationReleaseNotesPreimage(release: Record<string, unknown>
 }
 
 async function writeApplicationMetadataNotes(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   owner: { release_id: number; custody: ApplicationRunCustody },
   next: ApplicationRunCustody,
   beforeWrite: () => Promise<void>,
 ) {
   const started = performance.now();
-  const endpoint = `${prefix}/releases/${owner.release_id}`;
-  const get = () => {
-    const result = api.request("GET", endpoint);
+  const get = async () => {
+    const result = await provider.release(owner.release_id);
     assert.equal(result.status, 200);
     assert.ok(performance.now() - started < 120000);
     assert.ok(isRecord(result.body) && result.body.id === owner.release_id);
     return result.body;
   };
-  const before = get(),
+  const before = await get(),
     parsed = readApplicationRunNotes(before.body);
   assert.ok(parsed);
   assert.deepEqual(parsed.custody, owner.custody, "metadata owner preimage changed");
   const body = notes(next, parsed.before, parsed.after);
   await beforeWrite();
-  assert.deepEqual(get(), before, "metadata owner changed during admission");
+  assert.deepEqual(await get(), before, "metadata owner changed during admission");
   if (body !== before.body) {
     try {
-      const result = api.request("PATCH", endpoint, { body });
+      const result = await provider.appendNotes(owner.release_id, body);
       assert.equal(result.status, 200);
     } catch {
       /* Exact readback resolves an ambiguous write; no repeated PATCH. */
     }
   }
-  const after = get();
+  const after = await get();
   assert.equal(after.body, body, "metadata reservation outcome unknown; retain versions and hold");
   assert.deepEqual(
     applicationReleaseNotesPreimage(after),

@@ -566,6 +566,16 @@ Only verification accepts `--version` to check a historical fixture explicitly.
 Inventories are evidence, not trust roots or executable feeds. Altered/rebuilt
 packages require new verification and cannot inherit previous package evidence.
 
+When changing the release-tools CLI grammar or error output, run
+`just test-rust -p portcove-release-tools --test cli` against the built binary.
+The [CLI contract tests](../crates/portcove-release-tools/tests/cli.rs) cover
+help, argument refusal, and the lowercase `usage: portcove-release-tools`
+marker expected by the no-argument controller probes. Review output and exit
+status against the [Linux probe](../scripts/qualify-controller-tool-build.mts)
+and [Windows probe](../scripts/qualify-controller-tools-windows.mts). The
+[controller tool build fixture](../.github/workflows/controller-tool-build-fixture.yml)
+exercises the packaged binary on both platforms.
+
 `scripts/reconstruct-application-update-records.mts` is the offline bridge from
 those verified inventories to the application record schema. It accepts a bounded
 source descriptor, a separate reviewed eligibility map and an output directory:
@@ -2597,8 +2607,16 @@ its new complete hosted artifact and consolidated job wiring remain pending.
 Secret jobs must launch the authenticated bundle rather than install checkout
 dependencies or execute the unbundled entry. No role settings are activated.
 
-The dependency-free `release-controller-tool-launch.mts` implements that initial
-payload entry. It authenticates the tool artifact with the existing receiver,
+The current fixed workflow provisions the locked clock dependency before
+role credentials and obtains the original job deadline through the scoped SDK.
+Protected jobs then invoke their authenticated tool bundle. The
+[SDK source inventory](evidence/github-sdk-source-inventory-2026-11-04.md)
+tracks retained runtime and launcher retirement with #534.
+
+The earlier payload launcher contract remains in
+`release-controller-tool-launch.mts`. Its early clock is dependency-free.
+The current tool receiver uses the SDK for positive artifact acquisition.
+The launcher authenticates the tool artifact with the existing receiver,
 requires the running Node bytes to match the authenticated executable and imports
 only the fixed manifest-owned signing-controller bundle. That bundle performs
 its own actual receiver check to establish its module-private custody; no brand

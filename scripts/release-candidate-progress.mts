@@ -12,7 +12,6 @@ import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
 import { requireVerifiedReleaseSbomDocument } from "./release-acceptance-evidence.mts";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
   checkpointReleaseOpportunity,
   recoverReleaseOpportunity,
@@ -26,6 +25,7 @@ import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 
 type Phase = "building" | "publishing" | "promoting";
 type PhaseOptions = {
@@ -151,7 +151,7 @@ const advances = new WeakMap<
     candidate: Record<string, unknown>;
     evidence_sha256: string;
     recheck: () => Promise<void>;
-    fresh: () => unknown;
+    fresh: () => Promise<unknown>;
     deadline: number | undefined;
   }
 >();
@@ -188,15 +188,14 @@ async function advance(receipt: object, target: Phase, options: PhaseOptions) {
 }
 async function advanceWithinDeadline(receipt: object, target: Phase, options: PhaseOptions) {
   const deadline = options.deadline;
-  const remaining = () => {
+  const active = () => {
     const left = deadline === undefined ? 15000 : Math.floor(deadline - performance.now());
     if (!Number.isFinite(left) || left < 1 || left > 600000)
       throw new Error("candidate phase deadline exhausted");
-    return Math.min(15000, left);
   };
-  remaining();
+  active();
   const proof = await actualProof(receipt, target);
-  remaining();
+  active();
   requireAuthenticatedReleaseControlSource(proof.controls, proof.control_phase);
   const preceding = { building: "qualifying", publishing: "building", promoting: "publishing" };
   if (proof.candidate.phase !== preceding[target])
@@ -210,20 +209,19 @@ async function advanceWithinDeadline(receipt: object, target: Phase, options: Ph
   )
     throw new Error("qualifying reservation changed or has unresolved/ineligible capacity");
   const candidate = structuredClone(proof.candidate);
-  const api = new GitHubApiClient((args, input) => {
-    const result = createGitHubRunner({
-      cwd: proof.repository,
-      maxBuffer: 256 * 1024,
-      timeoutMs: remaining(),
-    })([...args, "--hostname", "github.com"], input);
-    remaining();
-    return result;
-  });
-  const initial = proof.controls.read(api, proof.facts.opportunity);
-  const fresh = () => {
-    remaining();
+  const readControls = async () => {
+    active();
     requireAuthenticatedReleaseControlSource(proof.controls, proof.control_phase);
-    const observed = proof.controls.read(api, proof.facts.opportunity);
+    const current = await proof.controls.readSdkApplicationControls(proof.facts.opportunity, {
+      maxBytes: 256 * 1024,
+      ...(deadline === undefined ? {} : { deadline }),
+    });
+    active();
+    return current;
+  };
+  const initial = await readControls();
+  const fresh = async () => {
+    const observed = await readControls();
     if (
       observed.pause.publication_paused ||
       !observed.resource_policy_matches_controller ||
@@ -235,7 +233,7 @@ async function advanceWithinDeadline(receipt: object, target: Phase, options: Ph
       throw new Error("candidate building controls changed or paused");
     return observed;
   };
-  fresh();
+  await fresh();
   const native = await requireNativeReleaseQualificationPair(
     proof.native_qualifications,
     proof.facts.assembly,
@@ -244,7 +242,7 @@ async function advanceWithinDeadline(receipt: object, target: Phase, options: Ph
   );
   const sbom = await requireVerifiedReleaseSbomDocument(proof.sbom_receipt);
   await proof.recheck();
-  const observed = fresh();
+  const observed = await fresh();
   const hosted = native.filter((report) => report.hosted_job);
   let custody: { sha256: string; bytes: number } | null = null;
   if (hosted.length) {
@@ -262,10 +260,10 @@ async function advanceWithinDeadline(receipt: object, target: Phase, options: Ph
       proof.checkpoint,
       prepared,
       async () => {
-        fresh();
+        await fresh();
       },
     );
-    remaining();
+    active();
   }
   const locators = [
     ...native.map((report) =>
@@ -342,7 +340,7 @@ async function advanceWithinDeadline(receipt: object, target: Phase, options: Ph
   };
   // Local intent is retained on any ambiguous remote handoff. A fresh acquisition
   // must reconcile the existing checkpoint; this function never loops or re-POSTs.
-  fresh();
+  await fresh();
   const saved = await checkpointReleaseOpportunity(proof.repository, proof.checkpoint, next);
   const publishLegacy = async () => {
     const journal = createCoordinatorJournalApi(proof.repository, deadline);
@@ -353,8 +351,8 @@ async function advanceWithinDeadline(receipt: object, target: Phase, options: Ph
       {
         api: {
           request: journal.request.bind(journal),
-          graphql(query, variables) {
-            if (/^\s*mutation\b/u.test(query)) fresh();
+          async graphql(query, variables) {
+            if (/^\s*mutation\b/u.test(query)) await fresh();
             return journal.graphql(query, variables);
           },
         },
@@ -370,13 +368,13 @@ async function advanceWithinDeadline(receipt: object, target: Phase, options: Ph
           proof.repository,
           saved.checkpoint,
           async () => {
-            fresh();
+            await fresh();
           },
           custody,
         )
       : await publishLegacy();
   await recoverReleaseOpportunity(proof.repository, saved.checkpoint);
-  remaining();
+  active();
   const result = Object.freeze({
     checkpoint: saved.checkpoint,
     previous: proof.checkpoint,
@@ -415,7 +413,7 @@ async function requirePhaseAdvanceWithinDeadline(
   value: NonNullable<ReturnType<typeof advances.get>>,
 ) {
   await value.recheck();
-  value.fresh();
+  await value.fresh();
   const current = await recoverReleaseOpportunity(value.repository, value.checkpoint);
   if (
     releaseCanonicalDigest(current.input.active_candidate) !==
@@ -427,14 +425,14 @@ async function requirePhaseAdvanceWithinDeadline(
     { schema_version: 1, namespace: value.namespace },
     {
       transport: {
-        cwd: value.repository,
-        ...(value.deadline === undefined ? {} : { deadline: value.deadline }),
+        credential: { token: fixedReleaseReaderToken() },
+        deadline: value.deadline ?? performance.now() + 120000,
       },
     },
   );
   if (snapshot.checkpoint !== value.checkpoint)
     throw new Error("remote phase checkpoint changed before handoff");
-  value.fresh();
+  await value.fresh();
   return Object.freeze({
     original_context: value.original_context,
     phase: value.phase,

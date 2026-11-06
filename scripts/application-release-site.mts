@@ -3,21 +3,98 @@
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectSiteGeneration } from "./release-site-generation.mts";
 import { isTerminalPagesFailure } from "./release-pages-provider.mts";
 import type { createPagesProviderTransport } from "./release-pages-provider.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
+
+export async function createApplicationFeedReader(token: string, originalDeadline: number) {
+  const deadline = Math.min(originalDeadline, coordinatorCommandDeadline() ?? Infinity);
+  const base = "/repos/boburning/portcove/";
+  const allowed = (url: URL) => {
+    const suffix = url.pathname.slice(base.length);
+    if (suffix === "deployments") return url.search === "?environment=github-pages&per_page=1";
+    if (/^deployments\/[1-9][0-9]*\/statuses$/u.test(suffix)) return url.search === "?per_page=1";
+    return (
+      !url.search &&
+      (suffix === "pages" ||
+        /^deployments\/[1-9][0-9]*$/u.test(suffix) ||
+        /^actions\/(?:jobs\/[1-9][0-9]*|runs\/[1-9][0-9]*\/attempts\/[1-3])$/u.test(suffix) ||
+        /^git\/ref\/tags\/(?:portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})|v[0-9][A-Za-z0-9.+-]{1,127})$/u.test(
+          suffix,
+        ))
+    );
+  };
+  const { createGitHubClient } = await import("./github-client.mts");
+  let expected: string | undefined;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    allowRequest(method, url) {
+      assertTrustedDirectNode("fixed application Pages observation");
+      return method === "GET" && url.href === expected;
+    },
+  });
+  return async (endpoint: string): Promise<GitHubMetadataResponse> => {
+    const url = new URL(endpoint, "https://api.github.com/");
+    if (
+      url.origin !== "https://api.github.com" ||
+      !url.pathname.startsWith(base) ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      !allowed(url)
+    )
+      throw new Error("application feed observation route differs");
+    expected = url.href;
+    const response = await client.request(`GET ${url.pathname}${url.search}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    return { status: response.status, headers: new Map(), body: response.data as unknown };
+  };
+}
+
+export async function readActualApplicationPagesState(deadline = performance.now() + 120000) {
+  const read = await createApplicationFeedReader(fixedReleaseReaderToken(), deadline);
+  return readApplicationPagesStateAsync(read);
+}
+
+type PagesRead<T> = Generator<string, T, GitHubMetadataResponse>;
+
+function* readPagesResponse(suffix: string): PagesRead<GitHubMetadataResponse> {
+  return yield `repos/boburning/portcove/${suffix}`;
+}
+
+async function readPagesAsync<T>(
+  read: (endpoint: string) => Promise<GitHubMetadataResponse>,
+  requests: PagesRead<T>,
+) {
+  let step = requests.next();
+  while (!step.done) step = requests.next(await read(step.value));
+  return step.value;
+}
 
 /** Same narrow provider projection used by the independently appointed initial
  * preimage. A generation marker alone cannot identify the deployment actor. */
-export function readApplicationPagesState(api: GitHubRestReader) {
-  const get = (suffix: string) => {
-    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
+export function readApplicationPagesStateAsync(
+  read: (endpoint: string) => Promise<GitHubMetadataResponse>,
+) {
+  return readPagesAsync(read, applicationPagesState());
+}
+
+function* applicationPagesState() {
+  function* get(suffix: string): PagesRead<unknown> {
+    const result = yield* readPagesResponse(suffix);
     assert.equal(result.status, 200);
     return result.body;
-  };
-  const pages = get("pages");
+  }
+  const pages = yield* get("pages");
   assert.ok(
     isRecord(pages) &&
       pages.html_url === "https://boburning.github.io/portcove/" &&
@@ -25,7 +102,7 @@ export function readApplicationPagesState(api: GitHubRestReader) {
       pages.cname === null &&
       pages.https_enforced === true,
   );
-  const deployments = get("deployments?environment=github-pages&per_page=1");
+  const deployments = yield* get("deployments?environment=github-pages&per_page=1");
   assert.ok(Array.isArray(deployments) && deployments.length === 1);
   const deployment: unknown = deployments[0];
   assert.ok(
@@ -36,7 +113,7 @@ export function readApplicationPagesState(api: GitHubRestReader) {
   );
   assert.equal(deployment.environment, "github-pages");
   assert.ok(typeof deployment.sha === "string" && typeof deployment.ref === "string");
-  const statuses = get(`deployments/${deployment.id}/statuses?per_page=1`);
+  const statuses = yield* get(`deployments/${deployment.id}/statuses?per_page=1`);
   assert.ok(Array.isArray(statuses) && statuses.length === 1);
   const status: unknown = statuses[0];
   assert.ok(
@@ -64,7 +141,7 @@ export function readApplicationPagesState(api: GitHubRestReader) {
 }
 
 export function assertBootstrapPagesActor(
-  state: ReturnType<typeof readApplicationPagesState>,
+  state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
   generation: string,
   runs: readonly { id: string; control_commit: string; control_ref: string }[],
 ) {
@@ -95,8 +172,14 @@ export function assertBootstrapPagesActor(
  * is replayable: a later deployment must not borrow an older successful job.
  * Facts only; the caller must still authenticate immutable assembly and TUF. */
 export function readApplicationPagesExecution(
-  api: GitHubRestReader,
-  state: ReturnType<typeof readApplicationPagesState>,
+  read: (endpoint: string) => Promise<GitHubMetadataResponse>,
+  state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
+) {
+  return readPagesAsync(read, applicationPagesExecution(state));
+}
+
+function* applicationPagesExecution(
+  state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
 ) {
   const match = state.log_url.match(
     /^https:\/\/github\.com\/boburning\/portcove\/actions\/runs\/([1-9][0-9]*)\/job\/([1-9][0-9]*)$/u,
@@ -105,12 +188,12 @@ export function readApplicationPagesExecution(
   const runId = Number(match[1]),
     jobId = Number(match[2]);
   assert.ok(Number.isSafeInteger(runId) && Number.isSafeInteger(jobId));
-  const get = (suffix: string) => {
-    const response = api.request("GET", `repos/boburning/portcove/${suffix}`);
+  function* get(suffix: string): PagesRead<Record<string, unknown>> {
+    const response = yield* readPagesResponse(suffix);
     assert.equal(response.status, 200);
     assert.ok(isRecord(response.body));
     return response.body;
-  };
+  }
   const instant = (raw: unknown) => {
     assert.ok(
       typeof raw === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/u.test(raw),
@@ -119,7 +202,7 @@ export function readApplicationPagesExecution(
     assert.ok(Number.isFinite(value));
     return value;
   };
-  const job = get(`actions/jobs/${jobId}`);
+  const job = yield* get(`actions/jobs/${jobId}`);
   assert.equal(job.id, jobId);
   assert.equal(job.run_id, runId);
   assert.equal(job.name, "feed");
@@ -139,7 +222,7 @@ export function readApplicationPagesExecution(
     end = instant(job.completed_at);
   assert.ok(start <= end && end - start <= 2 * 60000, "prior feed exceeded its fixed job budget");
   // Read the original attempt, not a mutable latest rerun projection.
-  const run = get(`actions/runs/${runId}/attempts/${job.run_attempt}`);
+  const run = yield* get(`actions/runs/${runId}/attempts/${job.run_attempt}`);
   assert.equal(run.id, runId);
   assert.equal(run.run_attempt, job.run_attempt);
   assert.equal(run.head_sha, job.head_sha);
@@ -163,14 +246,13 @@ export function readApplicationPagesExecution(
   );
   assert.ok([controlRef, run.head_branch].includes(state.ref));
   assert.ok(state.source_commit === job.head_sha || /^[a-f0-9]{64}$/u.test(state.source_commit));
-  const deployment = get(`deployments/${state.deployment_id}`);
+  const deployment = yield* get(`deployments/${state.deployment_id}`);
   assert.equal(deployment.id, state.deployment_id);
   assert.equal(deployment.environment, "github-pages");
   assert.equal(deployment.sha, state.source_commit);
   assert.equal(deployment.ref, state.ref);
-  const statuses = api.request(
-    "GET",
-    `repos/boburning/portcove/deployments/${state.deployment_id}/statuses?per_page=1`,
+  const statuses = yield* readPagesResponse(
+    `deployments/${state.deployment_id}/statuses?per_page=1`,
   );
   assert.equal(statuses.status, 200);
   assert.ok(
@@ -187,7 +269,7 @@ export function readApplicationPagesExecution(
     "Pages deployment is outside its claimed original feed job",
   );
   assert.deepEqual(
-    readApplicationPagesState(api),
+    yield* applicationPagesState(),
     state,
     "prior Pages actor changed during discovery",
   );

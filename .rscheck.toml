@@ -389,3 +389,10 @@ include = ["**/apps/desktop/src-tauri/examples/prepare_installed_update.rs"]
 
 [scope.rules."portability.absolute_literal_paths"]
 allow_regex = ['^/portcove/rehearsal/$', '^/application/metadata/$']
+
+# GitHub OAuth web routes and their exact HTTP request fixture expectations.
+[[scope]]
+include = ["**/crates/portcove-core/src/release.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ['^/login/device/code$', '^/login/oauth/access_token$']

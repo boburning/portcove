@@ -1,3 +1,5 @@
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { requireStorageAppToken } from "./release-storage-credential.mts";
 import { spawnSync } from "node:child_process";
@@ -33,6 +35,7 @@ import {
 } from "./release-control-phases.mts";
 import {
   observeReleaseInputProtections,
+  createProtectionObservationReader,
   observeCatalogMaintenanceProtections,
   requireReleaseInputWriterPolicy,
   prepareProductionProtectionHandoff,
@@ -40,6 +43,7 @@ import {
 
 import {
   coordinatorCommandTimeout,
+  coordinatorCommandDeadline,
   checkCoordinatorDeadline,
   withCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
@@ -96,24 +100,7 @@ export async function retainProtectionObservationOutputs(
   requireFresh();
 }
 
-async function runOperation(
-  classification?: {
-    namespace: string;
-    producer: ReturnType<typeof inspectApplicationReviewProducerConfiguration>;
-    selected?: Awaited<ReturnType<typeof requireSelectedProductionClassificationAuthorities>>;
-    environment: NodeJS.ProcessEnv;
-    deadline: number;
-    observerSource?: ReturnType<typeof admitProductionClassificationObserver>;
-  },
-  sharedObserver?: {
-    environment: NodeJS.ProcessEnv;
-    deadline: number;
-    source: ReturnType<typeof admitProductionProtectionObserver>;
-  },
-) {
-  const environment = classification?.environment ??
-    sharedObserver?.environment ?? { ...process.env };
-  const originalDeadline = classification?.deadline ?? sharedObserver?.deadline;
+function requireReviewedInputInvocation() {
   const mode = process.argv[2];
   if (
     (process.argv.length !== 3 &&
@@ -131,11 +118,32 @@ async function runOperation(
       "probe-production-classification-observer",
       "persist-production-request",
       "observe-production-classification",
-      "read",
     ].includes(mode ?? "") &&
       !mode?.startsWith("observe-production-"))
   )
     throw new Error("fixed reviewed-input operation required");
+}
+
+async function runOperation(
+  classification?: {
+    namespace: string;
+    producer: ReturnType<typeof inspectApplicationReviewProducerConfiguration>;
+    selected?: Awaited<ReturnType<typeof requireSelectedProductionClassificationAuthorities>>;
+    environment: NodeJS.ProcessEnv;
+    readerToken: string;
+    deadline: number;
+    observerSource?: ReturnType<typeof admitProductionClassificationObserver>;
+  },
+  sharedObserver?: {
+    environment: NodeJS.ProcessEnv;
+    deadline: number;
+    source: ReturnType<typeof admitProductionProtectionObserver>;
+  },
+) {
+  const environment = classification?.environment ??
+    sharedObserver?.environment ?? { ...process.env };
+  const originalDeadline = classification?.deadline ?? sharedObserver?.deadline;
+  const mode = process.argv[2];
   if (mode === "admission") {
     const handle = await open(
       new URL("../.github/workflows/release-reviewed-inputs.yml", import.meta.url),
@@ -415,15 +423,21 @@ async function runOperation(
         token,
         expected,
         {
-          transport: productionObservation
+          transport: classification
             ? {
-                sdkToken: environment.GH_TOKEN ?? "",
-                deadline: originalDeadline ?? performance.now() + 120_000,
+                sdkToken: classification.readerToken,
+                requireDirect: true,
+                deadline: classification.deadline,
               }
-            : {
-                cwd: process.cwd(),
-                ...(originalDeadline === undefined ? {} : { deadline: originalDeadline }),
-              },
+            : productionObservation
+              ? {
+                  sdkToken: environment.GH_TOKEN ?? "",
+                  deadline: originalDeadline ?? performance.now() + 120_000,
+                }
+              : {
+                  cwd: process.cwd(),
+                  ...(originalDeadline === undefined ? {} : { deadline: originalDeadline }),
+                },
         },
         phase,
         productionObservation ? observerSource : undefined,
@@ -469,15 +483,28 @@ async function runOperation(
       if (!classification)
         throw new Error("fixed classification source and original job budget unavailable");
       const { recoverRemoteCoordinator } = await import("./release-coordinator-recovery.mts");
-      const { inspectClassificationRequestReadiness } =
+      const { inspectClassificationRequestReadinessWithSdk } =
         await import("./release-classification-request.mts");
       const recovered = await recoverRemoteCoordinator(
         temp,
         { schema_version: 1, namespace: classification.namespace },
-        { transport: { cwd: process.cwd() } },
+        {
+          transport: {
+            credential: { token: classification.readerToken },
+            deadline: classification.deadline,
+            requireDirect: true,
+          },
+        },
       );
-      result = inspectClassificationRequestReadiness(
-        api,
+      result = await inspectClassificationRequestReadinessWithSdk(
+        {
+          token: classification.readerToken,
+          deadline: classification.deadline,
+          guard() {
+            checkCoordinatorDeadline();
+            assertTrustedDirectNode("fixed classification readiness");
+          },
+        },
         classification.producer,
         recovered.input.review_request,
       );
@@ -492,11 +519,32 @@ async function runOperation(
       );
     } else if (observing) {
       requireObserver();
+      let readProtection: Parameters<typeof observeReleaseInputProtections>[0] = (endpoint) =>
+        api.request("GET", endpoint);
+      if (productionObservation || classificationObserver) {
+        if (
+          !appToken ||
+          !isRecord(observerIdentity) ||
+          typeof observerIdentity.expires_at !== "string"
+        )
+          throw new Error("fixed protection credential or lifetime unavailable");
+        const deadline = Math.min(
+          originalDeadline ?? Infinity,
+          coordinatorCommandDeadline() ?? Infinity,
+          performance.now() + Date.parse(observerIdentity.expires_at) - Date.now(),
+        );
+        readProtection = await createProtectionObservationReader({
+          token: appToken,
+          deadline,
+          maxBytes: 2 * 1024 ** 2,
+          guard: requireObserver,
+        });
+      }
       result = catalogPurpose
-        ? observeCatalogMaintenanceProtections(api, {
+        ? await observeCatalogMaintenanceProtections(readProtection, {
             journalNamespace: observerRoles?.storage_journal?.namespace,
           })
-        : observeReleaseInputProtections(api, {
+        : await observeReleaseInputProtections(readProtection, {
             releasePublication: phase === "release-publication",
             journalNamespace: observerRoles?.storage_journal?.namespace,
           });
@@ -554,8 +602,7 @@ async function runOperation(
         requireObserver,
       );
     } else {
-      const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =
-        await import("./release-control-inputs.mts");
+      const { persistReviewedClassification } = await import("./release-control-inputs.mts");
       const config: unknown = JSON.parse(environment.PORTCOVE_REVIEW_PRODUCER ?? "null");
       if (mode === "persist-request" || mode === "persist-production-request") {
         const { requireReviewedInputsReleaseAuthorities } =
@@ -563,8 +610,12 @@ async function runOperation(
         const { recoverRemoteCoordinator } = await import("./release-coordinator-recovery.mts");
         const { inspectReleaseReviewRequest } = await import("./release-review-request.mts");
         const { semanticReviewCheckName } = await import("./release-semantic-review.mts");
-        const { persistReviewedClassificationForRequest, requireCurrentClassificationRequest } =
-          await import("./release-classification-request.mts");
+        const {
+          createClassificationJournalGuard,
+          persistReviewedClassificationForRequest,
+          persistReviewedClassificationForRequestWithSdk,
+          requireCurrentClassificationRequest,
+        } = await import("./release-classification-request.mts");
         const authorities = classification ? null : await requireReviewedInputsReleaseAuthorities();
         const producer =
           classification?.producer ??
@@ -588,10 +639,19 @@ async function runOperation(
           parsed.review_check_name !== producer.review_check_name
         )
           throw new Error("writer producer roles differ from ratified release authority");
+        const sdkWriter = mode === "persist-production-request" ? classification : undefined;
         const recovered = await recoverRemoteCoordinator(
           temp,
           { schema_version: 1, namespace },
-          { transport: { cwd: process.cwd() } },
+          {
+            transport: sdkWriter
+              ? {
+                  credential: { token: sdkWriter.readerToken },
+                  deadline: sdkWriter.deadline,
+                  requireDirect: true,
+                }
+              : { cwd: process.cwd() },
+          },
         );
         const request = inspectReleaseReviewRequest(recovered.input.review_request);
         if (!request) throw new Error("no outstanding exact journal request for automatic writer");
@@ -608,16 +668,48 @@ async function runOperation(
             requireReleaseInputWriterPolicy(protection, producer.writer_app_id);
           }
         };
-        const beforeMutation = () =>
-          requireCurrentClassificationRequest(
-            readApi,
+        if (sdkWriter) {
+          const writeToken = selectedWriter ? jobToken : appToken;
+          if (!writeToken) throw new Error("appointed classification writer token unavailable");
+          const options = {
+            token: sdkWriter.readerToken,
+            deadline: sdkWriter.deadline,
+            guard() {
+              checkCoordinatorDeadline();
+              assertTrustedDirectNode("fixed classification persistence");
+            },
+          };
+          const beforeMutation = await createClassificationJournalGuard(
+            options,
             namespace,
             recovered.checkpoint,
             requireFreshWriter,
           );
-        beforeMutation();
-        result = persistReviewedClassificationForRequest(api, producer, request, beforeMutation);
-        beforeMutation();
+          await beforeMutation();
+          // The legacy App still owns non-Check reads on its production path.
+          // Checks and the journal guard retain the fixed job read credential.
+          const readOptions = selectedWriter
+            ? options
+            : { ...options, token: writeToken, checkToken: options.token };
+          result = await persistReviewedClassificationForRequestWithSdk(
+            readOptions,
+            { token: writeToken, beforeMutation, requireFresh: requireFreshWriter },
+            producer,
+            request,
+          );
+          await beforeMutation();
+        } else {
+          const beforeMutation = () =>
+            requireCurrentClassificationRequest(
+              readApi,
+              namespace,
+              recovered.checkpoint,
+              requireFreshWriter,
+            );
+          beforeMutation();
+          result = persistReviewedClassificationForRequest(api, producer, request, beforeMutation);
+          beforeMutation();
+        }
       } else if (mode === "persist") {
         const opportunity: unknown = JSON.parse(
           environment.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",
@@ -640,17 +732,6 @@ async function runOperation(
             config.writer_app_id as number,
           );
         });
-      } else {
-        const opportunity: unknown = JSON.parse(
-          environment.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",
-        );
-        result = {
-          classification: readReviewedClassification(api, config, opportunity),
-          pause: readPublicationPause(api),
-          admission: "hold",
-          capacity: "unconfigured",
-          protection_handoff: "unconfigured",
-        };
       }
     }
     if (!observing)
@@ -724,6 +805,7 @@ async function main() {
     return runOperation();
   }
   if (process.argv.length !== 3) throw new Error("fixed classification operation required");
+  const readerToken = fixedReleaseReaderToken();
   const { inspectApplicationReviewProducerConfiguration } =
     await import("./release-control-inputs.mts");
   const environment = { ...process.env };
@@ -752,7 +834,7 @@ async function main() {
   if (!namespace) throw new Error("classification namespace unavailable");
   const policy: unknown = JSON.parse(environment.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
   if (!isRecord(policy)) throw new Error("ratified classification source unavailable");
-  const deadline = currentClassificationJobDeadline(
+  const deadline = await currentClassificationJobDeadline(
     role,
     {
       run_id: environment.GITHUB_RUN_ID ?? "",
@@ -760,8 +842,8 @@ async function main() {
       controller_revision: String(policy.revision),
       controller_ref: String(policy.execution_ref),
     },
-    process.cwd(),
     performance.now() + 115000,
+    readerToken,
   );
   const observerSource =
     role === "observer"
@@ -778,6 +860,7 @@ async function main() {
       producer,
       ...(selected ? { selected } : {}),
       environment,
+      readerToken,
       deadline,
       ...(observerSource ? { observerSource } : {}),
     }),
@@ -786,6 +869,7 @@ async function main() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const run = async () => {
+    requireReviewedInputInvocation();
     if (!process.env.PORTCOVE_STORAGE_APP_TOKEN) return main();
     const directory = process.env.RUNNER_TEMP;
     if (!directory || !path.isAbsolute(directory))

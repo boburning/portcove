@@ -10,6 +10,7 @@ import { withReadOnlyReleaseChildren } from "./release-readonly-child-environmen
 import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
+  jobIdentityRefusalCode,
   controllerToolBootstrapProfile,
   verifyControllerToolBootstrapJobIdentity,
   verifyHostedNativeJobIdentity,
@@ -706,6 +707,48 @@ void test("production observer and reader profiles cannot reuse each other's job
     verifyProductionProtectionObserverJobIdentity(reader.token, expected, reader),
   );
   await assert.rejects(verifyProtectionObserverJobIdentity(observer.token, expected, observer));
+});
+
+void test("direct workflow identity accepts only a complete exact mirror of executing claims", async () => {
+  const mirror = {
+    job_workflow_ref: `boburning/portcove/${productionControllerWorkflow}@${expected.controller_ref}`,
+    job_workflow_sha: expected.controller_revision,
+  };
+  const direct = fixture(mirror);
+  assert.equal((await verifyAssemblerJobIdentity(direct.token, expected, direct)).job_id, 501);
+  for (const patch of [
+    { job_workflow_ref: mirror.job_workflow_ref },
+    { job_workflow_sha: mirror.job_workflow_sha },
+    { ...mirror, job_workflow_ref: mirror.job_workflow_ref + "-other" },
+    { ...mirror, job_workflow_sha: "b".repeat(40) },
+    { ...mirror, job_workflow_sha: null },
+  ]) {
+    const other = fixture(patch);
+    await assert.rejects(verifyAssemblerJobIdentity(other.token, expected, other), (error) => {
+      assert.equal(jobIdentityRefusalCode(error), "claim-reusable-workflow");
+      return true;
+    });
+    assert.equal(other.counts().requests, 0);
+  }
+});
+
+void test("signed identity refusals expose only verifier-selected codes", async () => {
+  for (const [patch, code] of [
+    [{ sub: "private wrong subject" }, "claim-sub"],
+    [{ check_run_id: 501 }, "claim-check_run_id"],
+    [{ job_workflow_ref: "private reusable workflow" }, "claim-reusable-workflow"],
+  ] as const) {
+    const bad = fixture(patch);
+    await assert.rejects(verifyAssemblerJobIdentity(bad.token, expected, bad), (error) => {
+      assert.equal(jobIdentityRefusalCode(error), code);
+      return true;
+    });
+    assert.equal(bad.counts().requests, 0);
+  }
+  assert.equal(
+    jobIdentityRefusalCode(Object.assign(new Error("private"), { code: "claim-sub" })),
+    undefined,
+  );
 });
 
 void test("immutable owner/repository subjects and exact environment profiles refuse legacy and cross-role claims", async () => {

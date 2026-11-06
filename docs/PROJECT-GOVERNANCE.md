@@ -226,6 +226,23 @@ retained diagnostics. The continuation adds no daemon, hosted queue, credential
 or Project permission. Cancellation while waiting leaves durable progress; resume
 the same specification rather than editing away completed rows.
 
+For an ambiguous field batch, run
+`node scripts/roadmap.mts set-many --spec-file <original-spec> --recover`.
+This reads the applied journal and observes the bound Project fields without
+changing GitHub or the journal. The JSON classifies each assignment as
+`desired`, `original`, `conflicting` or `unreadable`. Review the evidence and
+the proposed `residual_spec` before saving it to a new file for guarded
+`set-many --apply`. The residual pins exact Project, item, content, field and option identities. It
+contains only original values on assignments without prior verified writes.
+Reversals and unreadable values require separate reconciliation. The observation
+does not run doctor or grant authority for another attempt.
+
+Before posting issue-body history, run
+`node scripts/roadmap-edit.mts --spec-file <path> --check`. This checks the
+proposed durable bodies and preserved markers against local preimages without
+credentials, a lock or a journal. Apply checks fresh live preimages and
+Project state.
+
 Issue-body batches use the same common Roadmap lock and bounded atomic journal
 publication, with an additional specification lock for same-operation ownership.
 An 8 MiB specification references lazily read bounded regular UTF-8 body files;
@@ -415,6 +432,17 @@ Use targeted existing checks for ordinary maintenance; complete inventories and
 readiness analysis serve migrations and release declarations, not every PR.
 
 ## Selecting approved work
+
+For persistent runner prompts, keep the role, repository and operating boundaries
+in the prompt and point to this section on current `main`.
+
+> At pickup or resume, read Selecting approved work in
+> docs/PROJECT-GOVERNANCE.md from current remote main. Use the live Roadmap and
+> owning issue to select and verify the scope.
+
+When reconciling an installed prompt, read back its exact task ID, prompt,
+enabled state and cadence through the task's configuration interface. A card
+without configuration text establishes no prompt readback.
 
 Required determines release readiness. Planned is approved non-gating work that
 runners are expected to execute by Priority, Horizon, readiness and Project order.

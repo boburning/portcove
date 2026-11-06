@@ -2,13 +2,11 @@
  * provider projections remain inert until the maintained private receivers and
  * coordinator executor independently authenticate them. No signing is retried. */
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 import {
   capacityDigest as digest,
@@ -30,10 +28,7 @@ import {
 } from "./release-coordinator-recovery.mts";
 import { readRetainedCapacityOperation } from "./release-coordinator-state.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
-import {
-  withCoordinatorDeadline,
-  coordinatorCommandTimeout,
-} from "./release-coordinator-deadline.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { requireControllerCatalogJobAuthorities } from "./release-authority-configuration.mts";
 import {
@@ -275,33 +270,12 @@ export async function continueActualCatalogPublication(
     namespace: inspectCoordinatorRemoteNamespace(remoteConfiguration),
   };
   return withCoordinatorDeadline(originalDeadline, async () => {
-    const directory = await mkdtemp(path.join(parent, "catalog-continuation-")),
-      home = path.join(directory, "reader-home");
-    await mkdir(home, { mode: 0o700 });
-    const environment = Object.fromEntries(
-      Object.entries(process.env).filter(([key]) =>
-        ["PATH", "Path", "SystemRoot", "WINDIR", "GH_TOKEN"].includes(key),
-      ),
-    );
-    Object.assign(environment, {
-      HOME: home,
-      USERPROFILE: home,
-      TMP: home,
-      TEMP: home,
-      GH_CONFIG_DIR: home,
-      XDG_CONFIG_HOME: home,
-      GH_HOST: "github.com",
-      GH_PROMPT_DISABLED: "1",
-    });
+    const directory = await mkdtemp(path.join(parent, "catalog-continuation-"));
+    const readerToken = process.env.GH_TOKEN ?? "";
     const recoveryTransport = {
-      credential: { token: environment.GH_TOKEN ?? "" },
+      credential: { token: readerToken },
       deadline: originalDeadline,
     };
-    const spawn: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"] = (
-      command,
-      args,
-      settings,
-    ) => spawnSync(command, args, { ...settings, env: environment });
     let reads = 0;
     const chargeRead = () => {
       if (reads >= 160) throw new Error("catalog continuation read budget exhausted");
@@ -310,20 +284,15 @@ export async function continueActualCatalogPublication(
         reads--;
       };
     };
-    const api = new GitHubApiClient((args, body) => {
-      chargeRead();
-      const response = createGitHubRunner({
-        cwd: directory,
-        maxBuffer: 4 * 1024 ** 2,
-        timeoutMs: Math.min(
-          coordinatorCommandTimeout(15000),
-          signingContextRemaining(originalDeadline, 15000),
-        ),
-        spawn,
-      })([...args, "--hostname", "github.com"], body);
-      signingContextRemaining(originalDeadline, 15000);
-      return response;
-    });
+    const reserve = () => {
+      const release = chargeRead();
+      return {
+        consumeBytes() {},
+        settle(observation: { dispatched: boolean }) {
+          if (!observation.dispatched) release();
+        },
+      };
+    };
     let phase = "actual-coordinator";
     try {
       const authorities = await requireControllerCatalogJobAuthorities("coordinator");
@@ -427,12 +396,15 @@ export async function continueActualCatalogPublication(
           phase: "coordinator",
           deadline: originalDeadline,
           observedArtifact: observation,
+          catalogRecoveryObserver: true,
         }),
         observed = performance.now(),
         round = 0;
       if (controls.evidence_scope !== "github.com")
         throw new Error("actual catalog maintenance controls required");
-      const stable = catalogCoordinatorMaintenanceIdentity(controls.readMaintenance(api));
+      const stable = catalogCoordinatorMaintenanceIdentity(
+        await controls.readCatalogRecoveryMaintenance(readerToken, reserve),
+      );
       const executor = await authenticateCapacityExecutor(
         "coordinator",
         {
@@ -470,33 +442,39 @@ export async function continueActualCatalogPublication(
             digest({ descriptor }),
             "coordinator",
             round,
-            { deadline: originalDeadline },
+            { deadline: originalDeadline, catalogRecoveryObserver: true },
           );
           observed = performance.now();
         }
         if (
           controls.evidence_scope !== "github.com" ||
-          catalogCoordinatorMaintenanceIdentity(controls.readMaintenance(api)) !== stable
+          catalogCoordinatorMaintenanceIdentity(
+            await controls.readCatalogRecoveryMaintenance(readerToken, reserve),
+          ) !== stable
         )
           throw new Error("catalog continuation controls changed");
         signingContextRemaining(originalDeadline, 15000);
       };
-      const beforeMutation = () => {
-        signingContextRemaining(originalDeadline, 15000);
+      const requireSelectedEnvironment = () => {
         for (const [name, value] of Object.entries(protectedEnvironment))
           if (process.env[name] !== value)
             throw new Error("catalog protected mutation configuration changed");
+      };
+      const beforeMutation = async () => {
+        signingContextRemaining(originalDeadline, 15000);
+        requireSelectedEnvironment();
         if (
           controls.evidence_scope !== "github.com" ||
-          catalogCoordinatorMaintenanceIdentity(controls.readMaintenance(api)) !== stable
+          catalogCoordinatorMaintenanceIdentity(
+            await controls.readCatalogRecoveryMaintenance(readerToken, reserve),
+          ) !== stable
         )
           throw new Error("catalog final mutation controls changed");
+        requireSelectedEnvironment();
         signingContextRemaining(originalDeadline, 15000);
       };
+      const checkpointControls = beforeMutation;
       await guard();
-      const checkpointControls = async () => {
-        beforeMutation();
-      };
       const signedJournal = await ensureOwnedCheckpointJournalHistory(
         executor,
         state.repository,
@@ -505,7 +483,7 @@ export async function continueActualCatalogPublication(
       );
       phase = "original-attested-context-and-four-roles";
       const metadata = await createReleaseCustodyProvider({
-        token: environment.GH_TOKEN ?? "",
+        token: readerToken,
         deadline: originalDeadline,
         maxBytes: 4 * 1024 ** 2,
         chargeRead,
@@ -539,7 +517,7 @@ export async function continueActualCatalogPublication(
       const contextOp = operations.get("context")!,
         before = await observe(contextOp, "context");
       const archive = await acquireSigningContextArchive(directory, before.artifact, {
-        token: environment.GH_TOKEN ?? "",
+        token: readerToken,
         deadline: originalDeadline,
         charge: chargeRead,
       });
@@ -682,7 +660,7 @@ export async function continueActualCatalogPublication(
               throw new Error("different original Pages intent");
             return readback();
           },
-          signedJournal ? undefined : beforeMutation,
+          signedJournal ? undefined : { readCurrent: beforeMutation },
           signedJournal ? checkpointControls : undefined,
         );
         checkpoint = recovered.checkpoint;

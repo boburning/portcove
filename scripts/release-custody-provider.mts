@@ -1,11 +1,11 @@
-import { createGitHubClient } from "./github-client.mts";
+import { createGitHubClient, type GitHubClientOptions } from "./github-client.mts";
 import { GitHubApiError, nextLink } from "./github-operation.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 
 export interface HistoricalJobProvider {
   attempt(run: string, attempt: number): Promise<unknown>;
   jobs(run: string, attempt: number, page: number): Promise<{ body: unknown; next: string | null }>;
-  job(id: number): Promise<unknown>;
+  job(id: number, deadline?: number): Promise<unknown>;
 }
 
 export interface CatalogAnchorMetadataProvider {
@@ -39,6 +39,8 @@ type ReleaseCustodyProvider = HistoricalJobProvider &
   ImmutableReleaseMetadataProvider & {
     run(id: string): Promise<unknown>;
     artifact(id: number): Promise<unknown>;
+    releaseByTag(tag: string): Promise<unknown>;
+    mainRef(): Promise<unknown>;
     runArtifacts(id: string, page: number): Promise<unknown>;
   };
 export type RunArtifactInventoryProvider = Pick<ReleaseCustodyProvider, "runArtifacts">;
@@ -61,6 +63,8 @@ export async function createReleaseCustodyProvider(options: {
   maxBytes?: number;
   currentDeadline?: () => number;
   chargeRead?: () => void;
+  reserve?: GitHubClientOptions["reserve"];
+  beforeDispatch?: () => void;
   afterRead?: () => void;
   fetch?: typeof globalThis.fetch;
 }): Promise<ReleaseCustodyProvider> {
@@ -71,6 +75,8 @@ export async function createReleaseCustodyProvider(options: {
     maxBytes = 2 * 1024 ** 2,
     currentDeadline,
     chargeRead,
+    reserve,
+    beforeDispatch,
     afterRead,
     fetch,
   } = options;
@@ -80,8 +86,15 @@ export async function createReleaseCustodyProvider(options: {
     deadline,
     maxBytes,
     requestTimeoutMs,
+    ...(beforeDispatch && {
+      allowRequest() {
+        beforeDispatch();
+        return true;
+      },
+    }),
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     ...(fetch ? { fetch } : {}),
+    ...(reserve ? { reserve } : {}),
   });
   const get = async (
     route: string,
@@ -146,6 +159,12 @@ export async function createReleaseCustodyProvider(options: {
       return (await get("/repos/{owner}/{repo}/releases/{release_id}", { release_id: id }))
         .data as unknown;
     },
+    async releaseByTag(tag) {
+      return (await get("/repos/{owner}/{repo}/releases/tags/{tag}", { tag })).data as unknown;
+    },
+    async mainRef() {
+      return (await get("/repos/{owner}/{repo}/git/ref/heads/main", {})).data as unknown;
+    },
     async run(id) {
       return (await get("/repos/{owner}/{repo}/actions/runs/{run_id}", { run_id: id }))
         .data as unknown;
@@ -188,8 +207,8 @@ export async function createReleaseCustodyProvider(options: {
         next: typeof link === "string" ? nextLink(new Map([["link", link]])) : null,
       };
     },
-    async job(id) {
-      return (await get("/repos/{owner}/{repo}/actions/jobs/{job_id}", { job_id: id }))
+    async job(id, limit) {
+      return (await get("/repos/{owner}/{repo}/actions/jobs/{job_id}", { job_id: id }, limit))
         .data as unknown;
     },
     async commit(sha) {

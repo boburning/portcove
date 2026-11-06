@@ -6,11 +6,11 @@ import {
   applicationNativeJobMinutes,
   readApplicationJobBudget,
 } from "./application-release-budget.mts";
-import { applicationApi } from "./application-release-io.mts";
 import {
   inspectApplicationRunCustody,
   readApplicationRunNotes,
   registerApplicationBudgetRun,
+  createApplicationRunRegistrationProvider,
 } from "./application-release-run.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
@@ -439,48 +439,49 @@ void test("forward metadata maintenance counts original executions, refuses miss
   let mode = "valid",
     recordWrites = 0;
   let ownerState = owner;
-  const pause = releaseControlInputsFixture(undefined, undefined, undefined, false);
-  t.mock.method(applicationApi, "graphql", pause.api.graphql.bind(pause.api));
-  t.mock.method(applicationApi, "request", (method: string, endpoint: string, input?: unknown) => {
-    if (method === "PATCH") {
-      assert.equal(endpoint, "repos/boburning/portcove/releases/10");
-      assert.ok(isRecord(input));
-      assert.deepEqual(Object.keys(input), ["body"]);
-      const parsed = readApplicationRunNotes(input.body);
+  const ownerRelease = () => ({
+    id: 10,
+    target_commitish: source,
+    body: `<!-- portcove-application-runs-v1\n${JSON.stringify(ownerState)}\n-->`,
+  });
+  let pause = releaseControlInputsFixture(undefined, undefined, undefined, false);
+  t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
+    assert.ok(typeof input === "string");
+    const url = new URL(input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(new Headers(init.headers).get("authorization"), "token synthetic-budget-reader");
+    if (init.method === "PATCH") {
+      assert.equal(url.pathname, "/repos/boburning/portcove/releases/10");
+      assert.ok(typeof init.body === "string");
+      const body: unknown = JSON.parse(init.body);
+      assert.ok(isRecord(body));
+      assert.deepEqual(Object.keys(body), ["body"]);
+      const parsed = readApplicationRunNotes(body.body);
       assert.ok(parsed);
       ownerState = parsed.custody;
       recordWrites++;
-      return { status: 200, headers: new Map<string, string>(), body: {} };
+      throw new TypeError("fixture lost the cost-owner PATCH acknowledgement");
     }
-    assert.equal(method, "GET");
-    const suffix = endpoint.replace(/^repos\/boburning\/portcove\//u, "");
+    if (url.pathname === "/graphql") {
+      assert.equal(init.method, "POST");
+      assert.ok(typeof init.body === "string");
+      const body: unknown = JSON.parse(init.body);
+      assert.ok(isRecord(body) && typeof body.query === "string" && isRecord(body.variables));
+      return Response.json(pause.api.graphql(body.query, body.variables));
+    }
+    assert.equal(init.method, "GET");
+    if (url.pathname === "/repos/boburning/portcove" || url.pathname.includes("/git/"))
+      return Response.json(pause.api.request("GET", url.pathname.slice(1)).body);
+    const suffix = (url.pathname + url.search).replace(/^\/repos\/boburning\/portcove\//u, "");
     let body: unknown;
-    if (endpoint === "repos/boburning/portcove" || suffix.startsWith("git/"))
-      return pause.api.request(method, endpoint, input);
-    if (suffix === "releases/11")
+    if (suffix === "releases/10") body = ownerRelease();
+    else if (suffix === "releases/11")
       body = {
         id: 11,
         target_commitish: source,
         body: `<!-- portcove-application-runs-v1\n${JSON.stringify(member)}\n-->`,
       };
-    else if (suffix === "releases/10")
-      body = {
-        id: 10,
-        target_commitish: source,
-        body: `<!-- portcove-application-runs-v1\n${JSON.stringify(ownerState)}\n-->`,
-      };
-    else throw new Error(`unexpected legacy request: ${suffix}`);
-    return { status: 200, headers: new Map<string, string>(), body };
-  });
-  t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
-    assert.ok(typeof input === "string");
-    const url = new URL(input);
-    assert.equal(url.origin, "https://api.github.com");
-    assert.equal(init.method, "GET");
-    assert.equal(new Headers(init.headers).get("authorization"), "token synthetic-budget-reader");
-    const suffix = (url.pathname + url.search).replace(/^\/repos\/boburning\/portcove\//u, "");
-    let body: unknown;
-    if (suffix === "actions/workflows/application-release.yml")
+    else if (suffix === "actions/workflows/application-release.yml")
       body = { id: 7, path: ".github/workflows/application-release.yml" };
     else if (
       suffix ===
@@ -578,6 +579,11 @@ void test("forward metadata maintenance counts original executions, refuses miss
   assert.equal(recovered.budget.actual_milliseconds, 1800000);
   assert.equal(recovered.budget.remaining_declared_minutes, 38);
   assert.equal(recovered.budget.attempts, 2);
+  pause = releaseControlInputsFixture(undefined, undefined, undefined, false);
+  pause.faults.value = "pause-drift";
+  await assert.rejects(roleGuard, /publication pause changed during read/u);
+  pause.faults.value = "";
+
   ownerState = inspectApplicationRunCustody({
     ...owner,
     budget: { kind: "owner", scopes: [{ opportunity: child, run_ids: ["124", "125"] }] },
@@ -614,7 +620,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   ownerState = inspectApplicationRunCustody({ ...legacyOwner, schema_version: 1 });
   mode = "over-cap";
   await registerApplicationBudgetRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     { release_id: 10, custody: ownerState },
     child,
     { source, ref, run_id: "124", run_attempt: 1 },

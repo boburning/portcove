@@ -651,9 +651,11 @@ impl Library {
         if validate_transition {
             let (baseline, _) =
                 crate::catalog_store::CatalogState::read(&transaction)?.resolve(Self::now())?;
+            let mut catalog = candidate.projection.catalog().clone();
+            catalog.retain_embedded_file_patterns(&baseline, candidate.publisher.stable_id())?;
             crate::definition_loader::validate_definition_transition(
                 &baseline,
-                candidate.projection.catalog(),
+                &catalog,
                 candidate.publisher.stable_id(),
             )?;
         }
@@ -896,6 +898,7 @@ pub(crate) fn load_selected_definition_catalog(
         expiration = expiration.min(policy_expiration);
     }
     let mut catalog = projection.catalog().clone();
+    catalog.retain_embedded_file_patterns(baseline, &selection.stable_id)?;
     crate::definition_loader::validate_definition_transition(
         baseline,
         &catalog,

@@ -248,6 +248,21 @@ void test("per-port source projects all accepted operations unchanged and listin
   );
 });
 
+void test("upstream package platforms extend only the descriptive listing", () => {
+  const { records, catalog, directory } = readCatalogSource(catalogRoot);
+  const id = "body-harvest-recompiled";
+  assert.deepEqual(catalog.ports.find((port) => port.id === id)?.platforms, ["windows-x86-64"]);
+  assert.deepEqual(directory.listings.find((port) => port.id === id)?.platforms, [
+    "windows-x86-64",
+    "linux-x86-64",
+    "macos-x86-64",
+    "macos-aarch64",
+  ]);
+  const duplicate = structuredClone(records.find((record) => record.listing.id === id)!);
+  duplicate.listing.platforms = ["windows-x86-64"];
+  assert.throws(() => checkedAuthoredPort(duplicate), /platform must be declared once/);
+});
+
 void test("authored JSON refuses duplicate decoded keys while retaining nested data and native grammar", () => {
   assert.throws(() => parseCatalogSource('{"id":"first","id":"second"}'), /duplicate JSON key/);
   assert.throws(

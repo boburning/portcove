@@ -1038,6 +1038,7 @@ fn native6_adoption_refuses_populated_empty_and_pattern_player_data_before_copyi
         .push(crate::PersistentFilePattern {
             prefix: "screenshot-".into(),
             suffix: ".png".into(),
+            allow_empty_middle: false,
         });
     for relative in [
         "profile/",

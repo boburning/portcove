@@ -3,16 +3,15 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 /** Fixed trusted role commands, bundled on a separate secret-free runner.
  * Candidate packages remain data here. Only native acceptance jobs launch them. */
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, lstat, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import {
-  applicationApi,
   applicationOutput,
   readApplicationJson,
-  applicationGh,
+  verifyApplicationRelease,
   receiveApplicationData,
   writeApplicationJson,
   sha256,
@@ -25,17 +24,19 @@ import {
   verifyApplicationReleaseTrust,
 } from "./application-release-policy.mts";
 import { readApplicationJobBudget } from "./application-release-budget.mts";
-import { readPublicationPause } from "./release-control-inputs.mts";
+import { readPublicationPauseWithSdk } from "./release-control-inputs.mts";
 import { semanticReviewCheckName } from "./release-control-phases.mts";
 import {
-  readIndependentSemanticCheckInventory,
+  readIndependentSemanticCheckInventoryWithSdk,
   selectLatestApplicationSemanticCheck,
 } from "./release-semantic-disposition-reader.mts";
 import {
   observeReleaseInputProtections,
+  createProtectionObservationReader,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import {
+  fixedReleaseReaderToken,
   readOnlyReleaseChildEnvironment,
   withReadOnlyReleaseChildren,
 } from "./release-readonly-child-environment.mts";
@@ -43,7 +44,6 @@ import { payloadSigningEnvironment } from "./release-payload-signing.mts";
 import { receiveApplicationPackages } from "./application-release-transfer.mts";
 import { createApplicationUpdaterInventory } from "./application-release-artifacts.mts";
 import { loadPackagePolicy } from "./release-package-policy.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
   receiveApplicationContext,
   inspectApplicationContextBeforeKey,
@@ -73,13 +73,13 @@ import {
   assertMetadataRenewalPublication,
   inspectTufPublicationFacts,
 } from "./release-metadata-contract.mts";
-import { readGitHubReleaseAsset, readGitHubArtifactArchive } from "./github-binary.mts";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import {
   readImmutableBootstrapFeed,
-  readImmutableApplicationMetadataFeed,
-  verifyBootstrapPagesArtifact,
-  discoverPublishedApplicationCohort,
+  readApplicationImmutableFeed,
+  verifyApplicationPagesArtifact,
+  discoverActualPublishedApplicationCohort,
+  createFixedApplicationReleaseAssetReader,
   readApplicationPriorPublication,
   readApplicationPendingLineage,
   assertApplicationForwardPreimage,
@@ -87,13 +87,15 @@ import {
 import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import {
-  readApplicationPagesState,
+  readActualApplicationPagesState,
   assertBootstrapPagesActor,
   executeBootstrapPages,
 } from "./application-release-site.mts";
 import { inspectSiteGeneration } from "./release-site-generation.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import { performance } from "node:perf_hooks";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { setTimeout as pause } from "node:timers/promises";
 import {
   applicationNativeHarness,
@@ -117,6 +119,13 @@ import {
   applicationDraftProofName,
   readApplicationDraftRecoveryState,
   readExpiredApplicationDraftAssets,
+  createApplicationAssetUploader,
+  createApplicationMetadataPublicationProvider,
+  createPreparedApplicationPublicationProvider,
+  createPreparedApplicationPublicationReader,
+  createApplicationDraftPreparationProvider,
+  createApplicationDraftRecoveryReader,
+  removeFixedApplicationDraftAsset,
   verifyApplicationDraftRecoveryBackup,
   readStagedDraftRecoveryBackup,
   removeExpiredApplicationDraftAssets,
@@ -140,8 +149,9 @@ import type { ApplicationMetadataPublicationBinding } from "./application-releas
 import {
   inspectApplicationRunCustody,
   readRegisteredApplicationRuns,
+  createApplicationRunRegistrationProvider,
   inspectApplicationReleaseReference,
-  readApplicationBudgetOwner,
+  readActualApplicationBudgetOwner,
   assertApplicationCustodyMetadataExtension,
   readApplicationMetadataContextPlan,
   retainApplicationDraftAssembly,
@@ -225,14 +235,28 @@ export async function readNativeApplicationSource(directory = sourceDirectory) {
   return source;
 }
 
-function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
+function applicationWorkerControlOptions() {
+  return {
+    token: fixedReleaseReaderToken(),
+    deadline: Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000),
+    guard: () => assertTrustedDirectNode("fixed application worker controls"),
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+  };
+}
+
+async function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
   const producer = {
     schema_version: 2,
     purpose: "application",
     review_app_id: 5555053,
     review_check_name: semanticReviewCheckName,
   };
-  const records = readIndependentSemanticCheckInventory(applicationApi, producer, original);
+  const records = await readIndependentSemanticCheckInventoryWithSdk(
+    applicationWorkerControlOptions(),
+    producer,
+    original,
+  );
   const latest = selectLatestApplicationSemanticCheck(records.records);
   assert.ok(latest && isRecord(semantic));
   assert.equal(latest.id, semantic.check_id);
@@ -240,7 +264,7 @@ function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
   assert.equal(latest.conclusion, "success");
   assert.ok(isRecord(latest.output) && typeof latest.output.summary === "string");
   assert.equal(sha256(Buffer.from(latest.output.summary)), semantic.summary_sha256);
-  records.assertUnchanged();
+  await records.assertUnchanged();
 }
 
 async function guard(
@@ -259,11 +283,11 @@ async function guard(
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
   const spending = inspectApplicationSpendingAppointment(process.env);
-  const pause = readPublicationPause(applicationApi);
+  const pause = await readPublicationPauseWithSdk(applicationWorkerControlOptions());
   assert.equal(pause.publication_paused, false, "publication paused");
   if (source.purpose === "application-release") {
     assert.ok(typeof source.original_source === "string");
-    assertCurrentApplicationSemantic(source.original_source, source.semantic);
+    await assertCurrentApplicationSemantic(source.original_source, source.semantic);
   }
   if (source.purpose === "metadata-bootstrap")
     inspectApplicationBootstrapSource(source, bootstrapAppointment());
@@ -336,8 +360,8 @@ async function guard(
     for (const key of ["version", "prepared_commit", "prepared_tree", "intent_sha256"] as const)
       assert.equal(expected.preparation[key], source.prepared[key]);
   }
-  const registered = readRegisteredApplicationRuns(
-    applicationApi,
+  const registered = await readRegisteredApplicationRuns(
+    await createApplicationRunRegistrationProvider(),
     Number(source.run_custody.release_id),
     expected.opportunity,
     expected.source,
@@ -352,12 +376,12 @@ async function guard(
       "member",
       "forward renewal must retain its original cost owner",
     );
-    const owner = readApplicationBudgetOwner(applicationApi, {
+    const owner = await readActualApplicationBudgetOwner({
       release_id: Number(source.run_custody.release_id),
       custody: registered,
     });
     if (owner.custody.preparation)
-      assertCurrentApplicationSemantic(owner.custody.source, source.renewal_semantic);
+      await assertCurrentApplicationSemantic(owner.custody.source, source.renewal_semantic);
   }
   const known = registered.runs.map((run) => run.id);
   assert.deepEqual(JSON.parse(process.env.PORTCOVE_KNOWN_RELEASE_RUNS ?? "null"), known);
@@ -610,6 +634,17 @@ async function receiveDraftRecoveryBackup(expected: Parameters<typeof receiveApp
   return { ...identity, files };
 }
 
+function applicationDraftRecoveryObservation(
+  expected: Parameters<typeof readApplicationDraftRecoveryState>[1],
+) {
+  const token = fixedReleaseReaderToken();
+  return () =>
+    readApplicationDraftRecoveryState(
+      (deadline) => createApplicationDraftRecoveryReader(token, expected, deadline),
+      expected,
+    );
+}
+
 async function prepareDraftRecovery(
   source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
   assemblyDirectory: string,
@@ -629,8 +664,8 @@ async function prepareDraftRecovery(
       attempt: current.run_attempt,
     },
   };
-  const inspect = () => readApplicationDraftRecoveryState(applicationApi, expected);
-  const initial = inspect();
+  const inspect = applicationDraftRecoveryObservation(expected);
+  const initial = await inspect();
   if (
     !initial ||
     !initial.assets.some((asset) => bootstrapAssetNames.some((name) => name === asset.name))
@@ -683,16 +718,16 @@ async function prepareDraftRecovery(
     return;
   const before = async () => {
     await guard(source, false);
-    assert.deepEqual(inspect(), initial, "draft changed before retaining replacement");
+    assert.deepEqual(await inspect(), initial, "draft changed before retaining replacement");
   };
   const owner = await retainApplicationDraftAssembly(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     expected,
     current,
     replacement,
     before,
   );
-  const retained = inspect();
+  const retained = await inspect();
   assert.ok(retained);
   assert.deepEqual(retained, {
     ...initial,
@@ -704,7 +739,7 @@ async function prepareDraftRecovery(
   if (existing) {
     await verifyRetainedDraftRecovery(expected, owner, replacement, metadata, retained, existing);
     await guard(source, false);
-    assert.deepEqual(inspect(), retained, "draft changed during backup reuse");
+    assert.deepEqual(await inspect(), retained, "draft changed during backup reuse");
     await applicationOutput("recovery_needed", true);
     return;
   }
@@ -715,17 +750,11 @@ async function prepareDraftRecovery(
     metadata,
     retained.assets,
     {
-      async readAsset(id, maximum) {
-        return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-          cwd: process.cwd(),
-          maxBytes: maximum,
-          timeoutMs: 30000,
-        });
-      },
+      readAsset: createFixedApplicationReleaseAssetReader(),
       authenticateAssembly: authenticateDraftRecoveryAssembly,
     },
   );
-  assert.deepEqual(inspect(), retained, "draft changed during backup preparation");
+  assert.deepEqual(await inspect(), retained, "draft changed during backup preparation");
   return { owner: { release_id: owner.release_id, custody: owner.custody }, retained, verified };
 }
 
@@ -770,11 +799,15 @@ async function retainDraftRecoveryBackup() {
       attempt: current.run_attempt,
     },
   };
-  const inspect = () => readApplicationDraftRecoveryState(applicationApi, expected);
-  const draft = inspect();
+  const inspect = applicationDraftRecoveryObservation(expected);
+  const draft = await inspect();
   assert.ok(draft);
   assert.equal(releaseCanonicalDigest(draft), process.env.PORTCOVE_DRAFT_BACKUP_DRAFT_SHA256);
-  const { owner } = readApplicationMetadataContextPlan(applicationApi, expected, current);
+  const { owner } = await readApplicationMetadataContextPlan(
+    await createApplicationRunRegistrationProvider(),
+    expected,
+    current,
+  );
   assert.equal(releaseCanonicalDigest(owner), process.env.PORTCOVE_DRAFT_BACKUP_OWNER_SHA256);
   const staged = readStagedDraftRecoveryBackup(
     draft,
@@ -788,23 +821,35 @@ async function retainDraftRecoveryBackup() {
     current,
     receiveDraftRecoveryBackup,
   );
-  await retainApplicationDraftRecovery(applicationApi, expected, current, recovery, async () => {
-    await guard(source, false);
-    assert.deepEqual(
-      readApplicationMetadataContextPlan(applicationApi, expected, current).owner,
-      owner,
-      "recovery owner changed during backup readback",
-    );
-    assert.deepEqual(inspect(), draft, "draft changed during backup readback");
-  });
+  await retainApplicationDraftRecovery(
+    await createApplicationRunRegistrationProvider(),
+    expected,
+    current,
+    recovery,
+    async () => {
+      await guard(source, false);
+      assert.deepEqual(
+        (
+          await readApplicationMetadataContextPlan(
+            await createApplicationRunRegistrationProvider(),
+            expected,
+            current,
+          )
+        ).owner,
+        owner,
+        "recovery owner changed during backup readback",
+      );
+      assert.deepEqual(await inspect(), draft, "draft changed during backup readback");
+    },
+  );
 }
 
 async function verifyRetainedDraftRecovery(
   expected: Parameters<typeof readApplicationDraftRecoveryState>[1],
-  owner: ReturnType<typeof readApplicationMetadataContextPlan>["owner"],
+  owner: Awaited<ReturnType<typeof readApplicationMetadataContextPlan>>["owner"],
   replacement: ReturnType<typeof applicationDraftAssembly>,
   metadata: Buffer,
-  initial: NonNullable<ReturnType<typeof readApplicationDraftRecoveryState>>,
+  initial: NonNullable<Awaited<ReturnType<typeof readApplicationDraftRecoveryState>>>,
   recovery: ApplicationDraftRecovery,
 ) {
   const current = execution();
@@ -860,14 +905,18 @@ async function finishDraftRecovery(
   raw: Record<string, unknown>,
   publication: Parameters<typeof applicationDraftAssembly>[2],
   files: ReadonlyMap<string, Buffer>,
-  beforeWrite: () => Promise<() => void>,
+  beforeWrite: () => Promise<() => void | Promise<void>>,
 ) {
   const current = execution();
-  const inspect = () => readApplicationDraftRecoveryState(applicationApi, expected);
-  const initial = inspect();
+  const inspect = applicationDraftRecoveryObservation(expected);
+  const initial = await inspect();
   if (!initial) return;
   const replacement = applicationDraftAssembly(expected.release_id, raw, publication, files);
-  const { owner } = readApplicationMetadataContextPlan(applicationApi, expected, current);
+  const { owner } = await readApplicationMetadataContextPlan(
+    await createApplicationRunRegistrationProvider(),
+    expected,
+    current,
+  );
   const recovery = owner.custody.draft_recoveries?.find(
     (entry) => entry.replacement_context_sha256 === replacement.context_sha256,
   );
@@ -889,17 +938,22 @@ async function finishDraftRecovery(
     initial,
     recovery,
   );
-  assert.deepEqual(inspect(), initial, "draft changed while authenticating recovery backup");
+  assert.deepEqual(await inspect(), initial, "draft changed while authenticating recovery backup");
+  const token = fixedReleaseReaderToken();
   await removeExpiredApplicationDraftAssets(recovery, old, replacement, {
-    api: applicationApi,
-    inspectDraft() {
-      const draft = inspect();
+    removeAsset: (id, assertFresh) =>
+      removeFixedApplicationDraftAsset(token, id, () => {
+        assertProtectionWriteWindow();
+        assertFresh();
+      }),
+    async inspectDraft() {
+      const draft = await inspect();
       assert.ok(draft && draft.direct === initial.direct);
       return draft;
     },
-    claim(assetId, beforeClaim) {
+    async claim(assetId, beforeClaim) {
       return claimApplicationDraftAssetRemoval(
-        applicationApi,
+        await createApplicationRunRegistrationProvider(),
         expected,
         current,
         recovery,
@@ -909,33 +963,6 @@ async function finishDraftRecovery(
     },
     beforeWrite,
   });
-}
-
-async function uploadApplicationReleaseAsset(releaseId: number, name: string, bytes: Buffer) {
-  assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
-  assert.match(name, /^[A-Za-z0-9][A-Za-z0-9._+-]{0,255}$/u);
-  const token = process.env.GH_TOKEN;
-  assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
-  const response = await fetch(
-    `https://uploads.github.com/repos/boburning/portcove/releases/${releaseId}/assets?name=${encodeURIComponent(name)}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": name.endsWith(".zip")
-          ? "application/zip"
-          : name.endsWith(".json")
-            ? "application/json"
-            : "application/octet-stream",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      body: new Uint8Array(bytes),
-      redirect: "error",
-      signal: AbortSignal.timeout(30000),
-    },
-  );
-  await response.body?.cancel();
-  assert.equal(response.status, 201);
 }
 
 async function prepareOrdinaryPublication() {
@@ -987,7 +1014,7 @@ async function prepareOrdinaryPublication() {
   );
   await readPublicApplicationSiteMarker(prior.receipt.site);
   assert.deepEqual(
-    readApplicationPagesState(applicationApi),
+    await readActualApplicationPagesState(),
     discovered.state,
     "prior Pages actor changed before draft preparation",
   );
@@ -1008,19 +1035,20 @@ async function prepareOrdinaryPublication() {
   const receipt = inspectHistoricalApplicationPublication(metadata, expected.custody);
   await finishDraftRecovery(expected, metadata, receipt.publication, files, async () => {
     await readPublicApplicationSiteMarker(prior.receipt.site);
-    assert.deepEqual(discoverPublishedApplicationCohort(applicationApi), discovered);
+    assert.deepEqual(await discoverActualPublishedApplicationCohort(), discovered);
     await guard(source);
-    return () => {
-      assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+    return async () => {
+      assert.deepEqual(await readActualApplicationPagesState(), discovered.state);
       assertProtectionWriteWindow();
     };
   });
   const result = await prepareApplicationReleaseDraft(expected, files, {
-    api: applicationApi,
-    upload: uploadApplicationReleaseAsset,
-    retainAssembly(assembly) {
+    open: (deadline) =>
+      createApplicationDraftPreparationProvider(fixedReleaseReaderToken(), expected, deadline),
+    upload: await createApplicationAssetUploader(process.env.GH_TOKEN),
+    async retainAssembly(assembly) {
       return retainApplicationDraftAssembly(
-        applicationApi,
+        await createApplicationRunRegistrationProvider(),
         expected,
         current,
         assembly,
@@ -1029,19 +1057,13 @@ async function prepareOrdinaryPublication() {
         },
       );
     },
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
+    readAsset: createFixedApplicationReleaseAssetReader(),
     async beforeDraftWrite() {
       await guard(source, false);
     },
   });
   assert.deepEqual(
-    discoverPublishedApplicationCohort(applicationApi),
+    await discoverActualPublishedApplicationCohort(),
     discovered,
     "public prior changed during draft preparation",
   );
@@ -1108,7 +1130,13 @@ async function publishOrdinaryMetadata() {
   const received = await receiveOrdinaryPreparation(source);
   const { expected, directory, preparation } = received;
   const result = await publishPreparedApplicationRelease(expected, preparation, {
-    api: applicationApi,
+    open: (deadline) =>
+      createPreparedApplicationPublicationProvider(
+        fixedReleaseReaderToken(),
+        expected,
+        () => assertProtectionWriteWindow(),
+        deadline,
+      ),
     authenticatePreparation: received.authenticatePreparation,
     async beforeWrite() {
       const prepared = await readApplicationJson(path.join(directory, "prepared.json"), 128 * 1024);
@@ -1122,7 +1150,7 @@ async function publishOrdinaryMetadata() {
           isRecord(prior.provider),
       );
       assert.equal(prior.site.generation, prepared.prior_generation);
-      const discovered = discoverPublishedApplicationCohort(applicationApi);
+      const discovered = await discoverActualPublishedApplicationCohort();
       assert.deepEqual(
         discovered.state,
         prior.provider,
@@ -1130,7 +1158,7 @@ async function publishOrdinaryMetadata() {
       );
       await readPublicApplicationSiteMarker(prior.site);
       assert.deepEqual(
-        readApplicationPagesState(applicationApi),
+        await readActualApplicationPagesState(),
         prior.provider,
         "prior Pages actor changed during final marker bracket",
       );
@@ -1166,7 +1194,7 @@ async function publishBootstrapMetadata() {
       ),
     ),
   );
-  let verifyPreimage: () => Promise<() => void>;
+  let verifyPreimage: () => Promise<() => Promise<void>>;
   if (source.purpose === "metadata-renewal") {
     const raw: unknown = JSON.parse(
       new TextDecoder("utf-8", { fatal: true }).decode(files.get(bootstrapAssetNames[1])),
@@ -1182,7 +1210,7 @@ async function publishBootstrapMetadata() {
     );
     let publicPrior: Awaited<ReturnType<typeof readApplicationPriorPublication>> | undefined;
     let lineage: Awaited<ReturnType<typeof readForwardRenewalPreimage>>["lineage"] | undefined;
-    verifyPreimage = async () => {
+    const verifyRenewalPreimage = async () => {
       if (!publicPrior) {
         if (source.renewal_parent === undefined)
           publicPrior = await readApplicationPriorPublication(scratch);
@@ -1196,10 +1224,14 @@ async function publishBootstrapMetadata() {
       assert.equal(raw.prior_generation, prior.receipt.site.generation);
       assert.equal(raw.prior_repository_sha256, prior.receipt.publication.repository_sha256);
       await readPublicApplicationSiteMarker(prior.receipt.site);
-      assert.deepEqual(discoverPublishedApplicationCohort(applicationApi, lineage), discovered);
+      assert.deepEqual(await discoverActualPublishedApplicationCohort(lineage), discovered);
       await guard(source);
-      return () => {
-        assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+      return discovered.state;
+    };
+    verifyPreimage = async () => {
+      const state = await verifyRenewalPreimage();
+      return async () => {
+        assert.deepEqual(await readActualApplicationPagesState(deadline), state);
         assertProtectionWriteWindow();
       };
     };
@@ -1216,7 +1248,13 @@ async function publishBootstrapMetadata() {
       raw,
       receipt.publication,
       files,
-      verifyPreimage,
+      async () => {
+        const state = await verifyRenewalPreimage();
+        return async () => {
+          assert.deepEqual(await readActualApplicationPagesState(), state);
+          assertProtectionWriteWindow();
+        };
+      },
     );
   } else {
     verifyPreimage = async () => {
@@ -1233,18 +1271,25 @@ async function publishBootstrapMetadata() {
         scratch,
       );
       await guard(source);
-      return () => {
-        assert.deepEqual(readApplicationPagesState(applicationApi), descriptor.provider);
+      return async () => {
+        assert.deepEqual(await readActualApplicationPagesState(deadline), descriptor.provider);
         assertProtectionWriteWindow();
       };
     };
   }
+  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
   const result = await publishApplicationMetadataRelease(
     {
-      api: applicationApi,
-      retainAssembly(assembly) {
+      ...(await createApplicationMetadataPublicationProvider(
+        token,
+        expected.release_id,
+        expected.custody.opportunity,
+        () => assertProtectionWriteWindow(),
+        deadline,
+      )),
+      async retainAssembly(assembly) {
         return retainApplicationDraftAssembly(
-          applicationApi,
+          await createApplicationRunRegistrationProvider(),
           expected,
           current,
           assembly,
@@ -1258,33 +1303,12 @@ async function publishBootstrapMetadata() {
         await guard(source);
         return assertProtectionWriteWindow;
       },
-      async readAsset(id, maximumBytes) {
-        return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-          cwd: process.cwd(),
-          maxBytes: maximumBytes,
-          timeoutMs: 30000,
-        });
-      },
-      async upload(releaseId, name, bytes) {
-        // Fixed ID/name endpoint; no provider-supplied URL or credential redirect.
-        const response = await fetch(
-          `https://uploads.github.com/repos/boburning/portcove/releases/${releaseId}/assets?name=${name}`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": name.endsWith(".zip") ? "application/zip" : "application/json",
-              "X-GitHub-Api-Version": "2022-11-28",
-            },
-            body: new Uint8Array(bytes),
-            redirect: "error",
-            signal: AbortSignal.timeout(30000),
-          },
-        );
-        // The exact asset inventory/byte readback decides ambiguous outcomes.
-        await response.body?.cancel();
-        assert.equal(response.status, 201);
-      },
+      readAsset: createFixedApplicationReleaseAssetReader(undefined, deadline),
+      upload: await createApplicationAssetUploader(
+        token,
+        () => assertProtectionWriteWindow(),
+        deadline,
+      ),
     },
     expected,
     files.get(bootstrapAssetNames[1])!,
@@ -1309,28 +1333,13 @@ async function prepareOrdinaryFeed() {
   let predecessor: ReturnType<typeof selectApplicationWindowsPredecessor> | undefined;
   let recordSha: string | undefined;
   const input = await readImmutableApplicationRelease(expected, {
-    api: applicationApi,
-    async authenticateRelease(identity) {
-      const verified: unknown = JSON.parse(
-        applicationGh([
-          "release",
-          "verify",
-          identity.tag,
-          "--repo",
-          "boburning/portcove",
-          "--format",
-          "json",
-        ]),
-      );
+    open: (expected, deadline) =>
+      createPreparedApplicationPublicationReader(fixedReleaseReaderToken(), expected, deadline),
+    async authenticateRelease(identity, deadline) {
+      const verified: unknown = JSON.parse(verifyApplicationRelease(identity.tag, deadline));
       inspectApplicationReleaseAttestation(verified, identity);
     },
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
+    readAsset: createFixedApplicationReleaseAssetReader(),
     async authenticateContents(files, inspected) {
       const { producer, producer_attempt: assemblyAttempt } = inspected.receipt;
       for (const name of bootstrapAssetNames)
@@ -1420,11 +1429,11 @@ async function prepareOrdinaryFeed() {
       await inspectPreparedMetadataRenewal(authenticated);
     },
   });
-  const before = readApplicationPagesState(applicationApi);
+  const before = await readActualApplicationPagesState();
   try {
     assertBootstrapPagesActor(before, input.site.generation, expected.custody.runs);
     await readPublicApplicationSite(input.site);
-    assert.deepEqual(readApplicationPagesState(applicationApi), before);
+    assert.deepEqual(await readActualApplicationPagesState(), before);
     // Desired bytes are already public. Preflight repeats the read-only bracket;
     // any later drift has no missing/initial preimage fallback.
   } catch {
@@ -1440,7 +1449,7 @@ async function prepareOrdinaryFeed() {
       input.metadata.prior_repository_sha256,
     );
     await readPublicApplicationSite(prior.receipt.site);
-    assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+    assert.deepEqual(await readActualApplicationPagesState(), discovered.state);
     await writeApplicationJson(path.join(directory, "prior-site.json"), {
       schema_version: 1,
       authority: "none",
@@ -1583,42 +1592,33 @@ async function prepareBootstrapFeed() {
               }),
         }
       : declared;
-  const input = await readImmutableApplicationMetadataFeed(
+  const input = await readApplicationImmutableFeed(
     {
       release_id: Number(source.run_custody.release_id),
       custody: inspectApplicationRunCustody(source.run_custody.custody),
       binding,
     },
-    {
-      api: applicationApi,
-      async readAsset(id, maximum) {
-        return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-          cwd: process.cwd(),
-          maxBytes: maximum,
-          timeoutMs: 30000,
-        });
-      },
-      async authenticateAssembly(assets, producer, assemblyAttempt) {
-        for (const [name, bytes] of assets)
-          await writeFile(path.join(verifier, name), bytes, { flag: "wx", mode: 0o600 });
-        await verifyReleaseSourceAttestation(
-          verifier,
-          bootstrapAssetNames[1],
-          {
-            source_commit: producer.control_commit,
-            ref: producer.control_ref,
-            run_id: producer.id,
-            run_attempt: assemblyAttempt,
-            subjects: [...assets].map(([filename, bytes]) => ({ filename, sha256: sha256(bytes) })),
-          },
-          { scope: "application-assembly" },
-        );
-      },
+    verifier,
+    async (assets, producer, assemblyAttempt) => {
+      for (const [name, bytes] of assets)
+        await writeFile(path.join(verifier, name), bytes, { flag: "wx", mode: 0o600 });
+      await verifyReleaseSourceAttestation(
+        verifier,
+        bootstrapAssetNames[1],
+        {
+          source_commit: producer.control_commit,
+          ref: producer.control_ref,
+          run_id: producer.id,
+          run_attempt: assemblyAttempt,
+          subjects: [...assets].map(([filename, bytes]) => ({ filename, sha256: sha256(bytes) })),
+        },
+        { scope: "application-assembly" },
+      );
     },
   );
   if (source.purpose === "metadata-renewal") {
     await authenticateApplicationPublicRepository(input.files, input.publication, verifier);
-    const before = readApplicationPagesState(applicationApi);
+    const before = await readActualApplicationPagesState();
     try {
       assertBootstrapPagesActor(
         before,
@@ -1626,7 +1626,7 @@ async function prepareBootstrapFeed() {
         inspectApplicationRunCustody(source.run_custody.custody).runs,
       );
       await readPublicApplicationSite(input.site);
-      assert.deepEqual(readApplicationPagesState(applicationApi), before);
+      assert.deepEqual(await readActualApplicationPagesState(), before);
     } catch {
       const lineageDirectory = path.join(verifier, "pending-lineage");
       await mkdir(lineageDirectory);
@@ -1657,7 +1657,7 @@ async function prepareBootstrapFeed() {
         prior.receipt.publication,
       );
       await readPublicApplicationSite(prior.receipt.site);
-      assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+      assert.deepEqual(await readActualApplicationPagesState(), discovered.state);
       await writeApplicationJson(path.join(directory, "prior-site.json"), {
         schema_version: 1,
         authority: "none",
@@ -1696,25 +1696,13 @@ async function captureBootstrapPagesArchive() {
     "artifact.tar",
     info.size,
   );
-  const receipt = await verifyBootstrapPagesArtifact(
-    {
-      artifact_id: Number(process.env.PORTCOVE_PAGES_ARTIFACT),
-      control_commit: current.source,
-      run_id: current.run_id,
-      producer_attempt: current.run_attempt,
-      tar: { bytes: tar.length, sha256: sha256(tar) },
-    },
-    {
-      api: applicationApi,
-      async readArchive(id, maximum) {
-        return readGitHubArtifactArchive(`repos/boburning/portcove/actions/artifacts/${id}/zip`, {
-          cwd: process.cwd(),
-          maxBytes: maximum,
-          timeoutMs: 30000,
-        });
-      },
-    },
-  );
+  const receipt = await verifyApplicationPagesArtifact({
+    artifact_id: Number(process.env.PORTCOVE_PAGES_ARTIFACT),
+    control_commit: current.source,
+    run_id: current.run_id,
+    producer_attempt: current.run_attempt,
+    tar: { bytes: tar.length, sha256: sha256(tar) },
+  });
   await writeApplicationJson("work/application-feed/pages.json", {
     ...receipt,
     site_generation: site.site_generation,
@@ -1762,25 +1750,13 @@ async function preflightBootstrapSite() {
   assert.equal(captured.site_generation, feed.site_generation);
   assert.equal(captured.artifact.id, Number(process.env.PORTCOVE_PAGES_ARTIFACT));
   assert.ok(typeof captured.tar.bytes === "number" && typeof captured.tar.sha256 === "string");
-  const pages = await verifyBootstrapPagesArtifact(
-    {
-      artifact_id: Number(process.env.PORTCOVE_PAGES_ARTIFACT),
-      control_commit: current.source,
-      run_id: current.run_id,
-      producer_attempt: attempt,
-      tar: { bytes: captured.tar.bytes, sha256: captured.tar.sha256 },
-    },
-    {
-      api: applicationApi,
-      async readArchive(id, maximum) {
-        return readGitHubArtifactArchive(`repos/boburning/portcove/actions/artifacts/${id}/zip`, {
-          cwd: process.cwd(),
-          maxBytes: maximum,
-          timeoutMs: 30000,
-        });
-      },
-    },
-  );
+  const pages = await verifyApplicationPagesArtifact({
+    artifact_id: Number(process.env.PORTCOVE_PAGES_ARTIFACT),
+    control_commit: current.source,
+    run_id: current.run_id,
+    producer_attempt: attempt,
+    tar: { bytes: captured.tar.bytes, sha256: captured.tar.sha256 },
+  });
   const { site_generation: capturedGeneration, ...captureBody } = captured;
   assert.equal(capturedGeneration, feed.site_generation);
   assert.deepEqual(pages, captureBody);
@@ -1798,10 +1774,10 @@ async function preflightBootstrapSite() {
       : undefined;
   let preimage;
   try {
-    const before = readApplicationPagesState(applicationApi);
+    const before = await readActualApplicationPagesState();
     assertBootstrapPagesActor(before, site.generation, custody.runs);
     await readPublicApplicationSite(site);
-    assert.deepEqual(readApplicationPagesState(applicationApi), before);
+    assert.deepEqual(await readActualApplicationPagesState(), before);
     preimage = { kind: "desired", provider: before };
   } catch {
     if (hasPrior) {
@@ -1809,10 +1785,10 @@ async function preflightBootstrapSite() {
       assert.ok(isRecord(prior) && isRecord(prior.site) && isRecord(prior.provider));
       assert.equal(prior.site.generation, site.previous_generation);
       const previous = inspectSiteGeneration(prior.site, site.previous_generation!);
-      assert.deepEqual(readApplicationPagesState(applicationApi), prior.provider);
+      assert.deepEqual(await readActualApplicationPagesState(), prior.provider);
       await readPublicApplicationSite(previous);
       assert.deepEqual(
-        readApplicationPagesState(applicationApi),
+        await readActualApplicationPagesState(),
         prior.provider,
         "prior site actor changed during ordinary preflight",
       );
@@ -1827,7 +1803,7 @@ async function preflightBootstrapSite() {
         bootstrapAppointment().site_preimage_sha256,
         path.resolve(process.env.RUNNER_TEMP ?? ""),
       );
-      const provider = readApplicationPagesState(applicationApi);
+      const provider = await readActualApplicationPagesState();
       assert.deepEqual(provider, descriptor.provider);
       preimage = { kind: "initial", provider };
     }
@@ -1954,32 +1930,33 @@ async function deployBootstrapSite(readOnly = false) {
       },
       async assertPreimage() {
         assert.deepEqual(
-          readApplicationPagesState(applicationApi),
+          await readActualApplicationPagesState(deadline),
           preimage.provider,
           "public deployment changed after preflight",
         );
-        const response = applicationApi.request(
-          "GET",
-          `repos/boburning/portcove/actions/artifacts/${artifactId}`,
-        );
-        assert.equal(response.status, 200);
+        const provider = await createReleaseCustodyProvider({
+          token: fixedReleaseReaderToken(),
+          deadline,
+          requestTimeoutMs: 30000,
+          maxBytes: 8 * 1024 ** 2,
+          beforeDispatch: () => assertTrustedDirectNode("fixed application Pages artifact read"),
+        });
+        const observed = await provider.artifact(artifactId);
         assert.ok(
-          isRecord(response.body) &&
-            response.body.expired === false &&
-            isRecord(response.body.workflow_run),
+          isRecord(observed) && observed.expired === false && isRecord(observed.workflow_run),
         );
-        assert.equal(response.body.id, artifact.id);
-        assert.equal(response.body.name, artifact.name);
-        assert.equal(response.body.size_in_bytes, artifact.bytes);
-        assert.equal(response.body.digest, `sha256:${String(artifact.sha256)}`);
-        assert.equal(response.body.workflow_run.head_sha, current.source);
-        assert.equal(response.body.workflow_run.id, Number(current.run_id));
+        assert.equal(observed.id, artifact.id);
+        assert.equal(observed.name, artifact.name);
+        assert.equal(observed.size_in_bytes, artifact.bytes);
+        assert.equal(observed.digest, `sha256:${String(artifact.sha256)}`);
+        assert.equal(observed.workflow_run.head_sha, current.source);
+        assert.equal(observed.workflow_run.id, Number(current.run_id));
         if (preimageKind === "prior") {
           assert.ok(isRecord(preimage.site));
           const previous = inspectSiteGeneration(preimage.site, site.previous_generation!);
           await readPublicApplicationSite(previous, deadline);
           assert.deepEqual(
-            readApplicationPagesState(applicationApi),
+            await readActualApplicationPagesState(deadline),
             preimage.provider,
             "prior site actor changed before ordinary deployment",
           );
@@ -1997,7 +1974,7 @@ async function deployBootstrapSite(readOnly = false) {
         assert.equal(missing.status, 404, "bootstrap marker appeared after initial preflight");
       },
       async providerReadback() {
-        const state = readApplicationPagesState(applicationApi);
+        const state = await readActualApplicationPagesState(deadline);
         assertBootstrapPagesActor(state, site.generation, custody.runs);
         return state;
       },
@@ -2110,28 +2087,28 @@ export async function preparePublicWindowsCandidate(
   assert.deepEqual(readback.provider, discovered.state);
   assert.equal(input.public_readback_sha256, readback.evidence_sha256);
   const transport: Parameters<typeof readApplicationWindowsCandidateAssets>[3] = {
-    api: applicationApi,
-    async authenticateRelease(identity) {
-      const verified: unknown = JSON.parse(
-        applicationGh([
-          "release",
-          "verify",
-          identity.tag,
-          "--repo",
-          "boburning/portcove",
-          "--format",
-          "json",
-        ]),
-      );
+    deadline: deadline ?? Infinity,
+    open: (expected, phaseDeadline) =>
+      createPreparedApplicationPublicationReader(
+        fixedReleaseReaderToken(),
+        expected,
+        phaseDeadline,
+      ),
+    async readReleaseByTag(tag, phaseDeadline) {
+      const provider = await createReleaseCustodyProvider({
+        token: fixedReleaseReaderToken(),
+        deadline: phaseDeadline,
+        maxBytes: 8 * 1024 ** 2,
+        requestTimeoutMs: 30000,
+        beforeDispatch: () => assertTrustedDirectNode("fixed application predecessor Release"),
+      });
+      return provider.releaseByTag(tag);
+    },
+    async authenticateRelease(identity, deadline) {
+      const verified: unknown = JSON.parse(verifyApplicationRelease(identity.tag, deadline));
       inspectApplicationReleaseAttestation(verified, identity);
     },
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
+    readAsset: createFixedApplicationReleaseAssetReader(undefined, deadline),
   };
   const checked = await readApplicationWindowsCandidateAssets(
     input.candidate,
@@ -2193,7 +2170,7 @@ export async function preparePublicWindowsCandidate(
   const assertCurrentSite = async () => {
     await guard(source, false);
     await readPublicApplicationSiteMarker(site);
-    assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+    assert.deepEqual(await readActualApplicationPagesState(), discovered.state);
     assertCurrentApplicationPublication(prior.receipt.publication);
   };
   await assertCurrentSite();
@@ -2303,20 +2280,14 @@ async function observe() {
   );
   const token = process.env.PORTCOVE_OBSERVER_TOKEN;
   assert.ok(token && !/[\r\n\0]/u.test(token) && token.length <= 16384);
-  const environment = {
-    ...payloadSigningEnvironment(path.resolve("work/observer-cli")),
-    PATH: process.env.PATH,
-    GH_HOST: "github.com",
-    GH_TOKEN: token,
-  };
-  const observer = new GitHubApiClient(
-    createGitHubRunner({
-      timeoutMs: 30000,
-      maxBuffer: 4 * 1024 ** 2,
-      spawn: (command, args, options) => spawnSync(command, args, { ...options, env: environment }),
-    }),
-  );
-  const observation = observeReleaseInputProtections(observer, { releasePublication: true });
+  const observer = await createProtectionObservationReader({
+    token,
+    deadline: performance.now() + 120000,
+    maxBytes: 4 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    guard: () => assertTrustedDirectNode("fixed application protection observer"),
+  });
+  const observation = await observeReleaseInputProtections(observer, { releasePublication: true });
   const interpreted = requireReleaseImmutabilityPolicy(observation);
   assert.equal(
     interpreted.inventory_sha256,
@@ -2700,11 +2671,11 @@ async function readForwardRenewalPreimage(
   assert.ok(isRecord(source.run_custody));
   const custody = inspectApplicationRunCustody(source.run_custody.custody);
   assert.equal(custody.budget?.kind, "member");
-  const owner = readApplicationBudgetOwner(applicationApi, {
+  const owner = await readActualApplicationBudgetOwner({
     release_id: Number(source.run_custody.release_id),
     custody,
   });
-  const original = readApplicationBudgetOwner(applicationApi, authority);
+  const original = await readActualApplicationBudgetOwner(authority);
   assert.equal(
     owner.release_id,
     original.release_id,
@@ -2730,11 +2701,8 @@ async function materializePendingAuthority(
 ) {
   const archive = authority.assets.find((asset) => asset.name === bootstrapAssetNames[0]);
   assert.ok(archive);
-  const bytes = readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${archive.id}`, {
-    cwd: process.cwd(),
-    maxBytes: archive.bytes,
-    timeoutMs: 30000,
-  });
+  const readAsset = createFixedApplicationReleaseAssetReader(scratch);
+  const bytes = await readAsset(archive.id, archive.bytes);
   assert.equal(bytes.length, archive.bytes);
   assert.equal(sha256(bytes), archive.sha256);
   const decoded = readBootstrapSiteArchive(bytes, authority.receipt);
@@ -2779,8 +2747,8 @@ async function prepareApplicationPrior(
       );
   assert.ok(isRecord(source.run_custody));
   const custody = inspectApplicationRunCustody(source.run_custody.custody);
-  const plan = readApplicationMetadataContextPlan(
-    applicationApi,
+  const plan = await readApplicationMetadataContextPlan(
+    await createApplicationRunRegistrationProvider(),
     { release_id: Number(source.run_custody.release_id), custody },
     execution(),
   );
@@ -2812,7 +2780,7 @@ async function prepareApplicationPrior(
     output_parent: renewalOutput,
   });
   assert.deepEqual(
-    discoverPublishedApplicationCohort(applicationApi, forward?.lineage),
+    await discoverActualPublishedApplicationCohort(forward?.lineage),
     discovered,
     "prior cohort changed during actual authentication",
   );
@@ -3002,7 +2970,7 @@ async function prepareContext() {
       await readBoundedReleaseContextFiles(context),
     );
     await retainApplicationMetadataContext(
-      applicationApi,
+      await createApplicationRunRegistrationProvider(),
       {
         release_id: Number(source.run_custody.release_id),
         custody: inspectApplicationRunCustody(source.run_custody.custody),
@@ -3035,8 +3003,8 @@ async function assertReservedApplicationContext(
     attempt = Number(process.env.PORTCOVE_CONTEXT_ATTEMPT);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
   assert.ok(isRecord(source.run_custody));
-  const plan = readApplicationMetadataContextPlan(
-    applicationApi,
+  const plan = await readApplicationMetadataContextPlan(
+    await createApplicationRunRegistrationProvider(),
     {
       release_id: Number(source.run_custody.release_id),
       custody: inspectApplicationRunCustody(source.run_custody.custody),
@@ -3263,7 +3231,7 @@ async function assembleMetadata() {
       output_parent: output,
     });
     assert.deepEqual(
-      discoverPublishedApplicationCohort(applicationApi, forward?.lineage),
+      await discoverActualPublishedApplicationCohort(forward?.lineage),
       discovered,
       "prior cohort changed during actual site assembly",
     );

@@ -20,8 +20,7 @@ import {
   requireActualNativeParent,
   remainingNativeParentBudget,
 } from "./release-native-parent.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
 import {
   downloadGitHubArtifactArchiveFile,
   downloadGitHubReleaseAssetFile,
@@ -68,7 +67,10 @@ import {
   prepareNativeQualificationCheck,
   collectNativeReleaseQualification,
 } from "./release-native-acceptance.mts";
-import { deriveNativePublicationJourneys } from "./release-native-publication-admission.mts";
+import {
+  createNativePredecessorReader,
+  deriveNativePublicationJourneysWithSdk,
+} from "./release-native-publication-admission.mts";
 import { inspectNativeQualificationCandidate } from "./release-native-qualification-contract.mts";
 import { nativeQualificationCheckName } from "./release-native-qualification-contract.mts";
 
@@ -183,85 +185,6 @@ function toolBytes(file: string, expected: string) {
   )
     throw new Error("native fixed source tool changed");
   return { dev: after.dev, ino: after.ino, size: after.size, mtimeMs: after.mtimeMs };
-}
-
-/** Data-only route guard used immediately before every credentialled child. */
-export function inspectNativeSourceCommand(args: readonly string[], input?: unknown) {
-  if (args[0] !== "api" || args.length > 16)
-    throw new Error("native source admits fixed read-only GitHub API operations only");
-  let endpoint: string | null = null,
-    method: string | null = null,
-    host: string | null = null,
-    stdin = false,
-    octetStream = false;
-  for (let index = 1; index < args.length; index++) {
-    const item = args[index];
-    if (item === "--include") continue;
-    if (item === "-H" && !octetStream) {
-      if (args[++index] !== "Accept: application/octet-stream")
-        throw new Error("native source header differs");
-      octetStream = true;
-    } else if (item === "--hostname" && host === null) host = args[++index] ?? null;
-    else if (item === "--method" && method === null) method = args[++index] ?? null;
-    else if (item === "--input" && !stdin) {
-      if (args[++index] !== "-") throw new Error("native source forbids body files");
-      stdin = true;
-    } else if (typeof item === "string" && !item.startsWith("-") && endpoint === null)
-      endpoint = item;
-    else throw new Error("native source command shape differs");
-  }
-  if (host !== "github.com" || !endpoint) throw new Error("native source host/route differs");
-  if (
-    octetStream &&
-    !/^repos\/boburning\/portcove\/releases\/assets\/[1-9][0-9]{0,15}$/u.test(endpoint)
-  )
-    throw new Error("native binary transport requires an exact Release asset");
-  if (endpoint === "graphql") {
-    if (!stdin || input === undefined || (method !== null && method !== "POST"))
-      throw new Error("native source GraphQL body required");
-    const text = Buffer.isBuffer(input) ? input.toString("utf8") : input;
-    if (typeof text !== "string") throw new Error("native source query must be UTF-8 text");
-    if (Buffer.byteLength(text) > 128 * 1024) throw new Error("native source query bound exceeded");
-    const body: unknown = JSON.parse(text);
-    if (
-      !isRecord(body) ||
-      typeof body.query !== "string" ||
-      !/^\s*query(?:\s|\()/u.test(body.query) ||
-      /\bmutation\b/u.test(body.query)
-    )
-      throw new Error("native source GraphQL mutation refused");
-  } else if (
-    !/^repos\/boburning\/portcove(?:\/[A-Za-z0-9_./?=&%+-]+)?$/u.test(endpoint) ||
-    decodeURIComponent(endpoint.split("?")[0]!)
-      .split("/")
-      .some((part) => part === "." || part === ".." || !part) ||
-    (method !== null && method !== "GET") ||
-    stdin ||
-    input !== undefined
-  )
-    throw new Error("native source repository mutation/foreign route refused");
-  return { scope: "read-only-route-integrity", authority: "none" } as const;
-}
-
-/** Passive, read-only source transport; callers retain credential/tool custody. */
-export function createNativeSourceApiReader(
-  cwd: string,
-  spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>,
-) {
-  return new GitHubApiClient((args, input) => {
-    const command = [...args, "--hostname", "github.com"];
-    inspectNativeSourceCommand(command, input);
-    // A 4 MiB catalog needs base64 plus JSON framing. Only an immutable source
-    // blob gets this allowance; all unrelated metadata retains its 2 MiB bound.
-    const blob = command.some((item) =>
-      /^repos\/boburning\/portcove\/git\/blobs\/[a-f0-9]{40}$/u.test(item),
-    );
-    return createGitHubRunner({
-      cwd,
-      maxBuffer: (blob ? 8 : 2) * 1024 * 1024,
-      spawn,
-    })(command, input);
-  });
 }
 
 /** Only the existing fixed GitHub/Sigstore verifier over retained public files.
@@ -430,35 +353,6 @@ async function sourceTransport(parent: Parent, directory: string) {
     GH_PROMPT_DISABLED: "1",
     GH_NO_UPDATE_NOTIFIER: "1",
   });
-  // The closure is never passed to candidate code or exported as a provenance
-  // constructor. Only maintained read-only collectors below receive adapters.
-  const textSpawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-    command,
-    args,
-    options,
-  ) => {
-    if (command !== "gh") throw new Error("native source executable selection refused");
-    inspectNativeSourceCommand(args, options.input);
-    checkToolIdentity();
-    const result = spawnSync(fixed.github_cli.path, args, { ...options, env });
-    checkToolIdentity();
-    return result;
-  };
-  const api = createNativeSourceApiReader(directory, textSpawn);
-  const opaque =
-    (reader: typeof readGitHubArtifactArchive): typeof readGitHubArtifactArchive =>
-    (endpoint, options) =>
-      reader(endpoint, {
-        ...options,
-        spawn: (command, args, spawnOptions) => {
-          if (command !== "gh") throw new Error("native source executable selection refused");
-          inspectNativeSourceCommand(args);
-          checkToolIdentity();
-          const result = spawnSync(fixed.github_cli.path, args, { ...spawnOptions, env });
-          checkToolIdentity();
-          return result;
-        },
-      });
   const credential = { kind: "explicit" as const, token };
   const fixedFetch: typeof globalThis.fetch = (input, init) => {
     checkToolIdentity();
@@ -504,40 +398,68 @@ async function sourceTransport(parent: Parent, directory: string) {
       throw new Error("native signed platform archive identity unavailable");
     return readPostSignMetadata(`/repos/boburning/portcove/actions/artifacts/${id}`, deadline);
   };
+  const download = async (
+    endpoint: string,
+    { cwd, maxBytes, timeoutMs, lookup }: Parameters<SigningArchiveDownload>[1],
+    phaseDeadline = Infinity,
+  ) => {
+    if (!/^repos\/boburning\/portcove\/actions\/artifacts\/[1-9][0-9]{0,15}\/zip$/u.test(endpoint))
+      throw new Error("fixed installed native archive route refused");
+    const deadline = postSignDeadline(phaseDeadline, timeoutMs);
+    await recheck();
+    const scratch = await mkdtemp(path.join(cwd, "native-proof-archive-"));
+    let bytes: Buffer;
+    try {
+      const filename = path.join(scratch, "archive.zip");
+      await downloadGitHubArtifactArchiveFile(endpoint, filename, {
+        credential,
+        deadline,
+        maxBytes,
+        fetch: fixedFetch,
+        ...(lookup ? { lookup } : {}),
+      });
+      checkToolIdentity();
+      if (performance.now() >= deadline) throw new Error("native proof archive deadline exhausted");
+      bytes = await readControllerToolFile(filename, maxBytes);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    await recheck();
+    if (performance.now() >= deadline || bytes.length !== maxBytes)
+      throw new Error("native proof archive differs or exceeded its deadline");
+    return bytes;
+  };
   const downloadPostSignArchive = async (
     item: { id: number; bytes: number; sha256: string },
     root: string,
     cap: number,
     phaseDeadline: number,
   ) => {
-    const deadline = postSignDeadline(phaseDeadline, cap);
-    await recheck();
-    const scratch = await mkdtemp(path.join(root, "native-proof-archive-"));
-    let bytes: Buffer;
-    try {
-      const filename = path.join(scratch, "archive.zip");
-      await downloadGitHubArtifactArchiveFile(
-        `repos/boburning/portcove/actions/artifacts/${item.id}/zip`,
-        filename,
-        { credential, deadline, maxBytes: item.bytes, fetch: fixedFetch },
-      );
-      checkToolIdentity();
-      if (performance.now() >= deadline) throw new Error("native proof archive deadline exhausted");
-      bytes = await readControllerToolFile(filename, item.bytes);
-    } finally {
-      await rm(scratch, { recursive: true, force: true });
-    }
-    await recheck();
-    if (performance.now() >= deadline || bytes.length !== item.bytes || hash(bytes) !== item.sha256)
-      throw new Error("native proof archive differs or exceeded its deadline");
+    const bytes = await download(
+      `repos/boburning/portcove/actions/artifacts/${item.id}/zip`,
+      { cwd: root, maxBytes: item.bytes, timeoutMs: cap },
+      phaseDeadline,
+    );
+    if (hash(bytes) !== item.sha256) throw new Error("native proof archive digest differs");
     return bytes;
   };
-  const download = opaque(readGitHubArtifactArchive);
   const recover = () =>
     recoverRemoteCoordinator(
       directory,
       { schema_version: 1, namespace: parent.descriptor.namespace },
-      { transport: { cwd: directory, spawn: textSpawn } },
+      {
+        transport: {
+          credential: { token },
+          deadline: Math.min(
+            coordinatorCommandDeadline() ?? Infinity,
+            performance.now() + remainingNativeParentBudget(120000),
+          ),
+          checkSource() {
+            checkToolIdentity();
+            assertTrustedDirectNode("installed native journal");
+          },
+        },
+      },
     );
   const recheck = async () => {
     await parent.recheck();
@@ -546,11 +468,7 @@ async function sourceTransport(parent: Parent, directory: string) {
   };
   const verifier = (controller: { controller_revision: string; controller_ref: string }) => {
     const expected = Object.freeze({ ...controller });
-    const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-      command,
-      args,
-      options,
-    ) => {
+    const spawn: RetainedGitHubSpawn = (command, args, options) => {
       if (command !== "gh") throw new Error("native verifier executable selection refused");
       inspectNativeControllerVerificationCommand(args, directory, expected);
       checkToolIdentity();
@@ -564,11 +482,7 @@ async function sourceTransport(parent: Parent, directory: string) {
     const expected = Object.freeze({ ...identity });
     if (!expected.ref.startsWith(`refs/tags/${parent.descriptor.namespace}-prepared/v`))
       throw new Error("public compiler source escaped installed namespace");
-    const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-      command,
-      args,
-      options,
-    ) => {
+    const spawn: RetainedGitHubSpawn = (command, args, options) => {
       if (command !== "gh") throw new Error("native public verifier executable selection refused");
       inspectNativeReleaseVerificationCommand(args, directory, expected);
       checkToolIdentity();
@@ -634,11 +548,32 @@ async function sourceTransport(parent: Parent, directory: string) {
     };
   };
   return {
-    api,
+    async compilerSourceReader(phaseDeadline: number) {
+      await recheck();
+      const { createCompilerSourceReader } = await import("./release-compiler-source.mts");
+      const deadline = postSignDeadline(phaseDeadline, 15 * 60 * 1000);
+      const read = await createCompilerSourceReader({
+        credential,
+        deadline,
+        maxBytes: 2 * 1024 * 1024,
+        fixedReader: true,
+        checkSource(url) {
+          if (url.pathname.startsWith("/repositories/"))
+            throw new Error("native source repository route refused");
+          checkToolIdentity();
+        },
+      });
+      return { read, deadline };
+    },
     collectEvidence,
     metadata,
     declarations,
     download,
+    readPublicAllocations: async (namespace: string, deadline: number) =>
+      (await import("./release-publication-inventory.mts")).readPublicationAllocationsWithSdk(
+        namespace,
+        { token, deadline, fetch: fixedFetch, recheck },
+      ),
     readPublicRelease: (version: string, deadline: number) =>
       readNativeImmutableReleaseSnapshot(
         version,
@@ -659,6 +594,63 @@ async function sourceTransport(parent: Parent, directory: string) {
         { credential, deadline, fetch: fixedFetch, recheck },
         assertUnchanged,
       ),
+    async readPublicationJourneys(
+      input: Parameters<typeof deriveNativePublicationJourneysWithSdk>[0],
+    ) {
+      await recheck();
+      const deadline = Math.min(
+        coordinatorCommandDeadline() ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      );
+      const predecessor = await createNativePredecessorReader(
+        token,
+        deadline,
+        checkToolIdentity,
+        undefined,
+        fixedFetch,
+        2 * 1024 ** 2,
+      );
+      const journeys = await deriveNativePublicationJourneysWithSdk(input, predecessor);
+      await recheck();
+      return journeys;
+    },
+    async checkpointObjects() {
+      const deadline = Math.min(
+        coordinatorCommandDeadline() ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      );
+      const scoped = (maxBytes: number) =>
+        createReleaseCustodyProvider({
+          token,
+          deadline,
+          maxBytes,
+          fetch: fixedFetch,
+          afterRead: checkToolIdentity,
+        });
+      const objects = await scoped(2 * 1024 ** 2);
+      let blobs: ReturnType<typeof scoped> | undefined;
+      return {
+        commit: (sha: string) => objects.commit(sha),
+        tree: (sha: string, recursive?: boolean) => objects.tree(sha, recursive),
+        async blob(sha: string) {
+          blobs ??= scoped(8 * 1024 ** 2);
+          return (await blobs).blob(sha);
+        },
+      };
+    },
+    readCheckMetadata: (route: string) =>
+      readPostSignMetadata(
+        `/repos/boburning/portcove/${route}`,
+        performance.now() + remainingNativeParentBudget(),
+      ),
+    admissionSource: () => ({
+      token,
+      deadline: postSignDeadline(Infinity, 15 * 60 * 1000),
+      guard() {
+        checkToolIdentity();
+        assertTrustedDirectNode("installed native admission");
+      },
+    }),
     readPostSignInventory,
     readPostSignArtifact,
     downloadPostSignArchive,
@@ -736,7 +728,7 @@ const selections = new WeakMap<
     recovery: ReturnType<typeof nativeInvocationIdentity>["counters"];
     recover: Awaited<ReturnType<typeof sourceTransport>>["recover"];
     recheckSource: Awaited<ReturnType<typeof sourceTransport>>["recheck"];
-    api: GitHubApiClient;
+    readCheckMetadata: Awaited<ReturnType<typeof sourceTransport>>["readCheckMetadata"];
     declarations: Awaited<ReturnType<typeof sourceTransport>>["declarations"];
   }
 >();
@@ -834,10 +826,12 @@ export async function readActualNativePostSignController(parentReceipt: object) 
           `github-actions:boburning/portcove:${String(candidate.version)}:tuf-timestamp-envelope`,
         ),
   );
+  let checkpointObjects: Awaited<ReturnType<typeof source.checkpointObjects>> | undefined;
   for (const group of groups) {
     for (const proof of group.attempts) {
+      checkpointObjects ??= await source.checkpointObjects();
       const operation = await hydrateRetainedCoordinatorOperation(before.repository, proof, {
-        api: source.api,
+        provider: checkpointObjects,
       });
       raws.push({ checkpoint: proof.checkpoint, operation });
     }
@@ -1319,7 +1313,7 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
   if (digest(fileInventory) !== digest(manifest.files))
     throw new Error("native context files changed after authenticated keyless assembly");
-  const journeys = deriveNativePublicationJourneys({
+  const journeys = await original.source.readPublicationJourneys({
     files,
     coordinator_input: current.input,
     manifest,
@@ -1328,7 +1322,6 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     platform_labels: [selected.parent.descriptor.platform_label],
     public_pins: inspectPublicationAuthorities(authorities.publication, authorities.schema_version),
     authority_schema_version: authorities.schema_version,
-    api: original.source.api,
   });
   const journey = journeys[0];
   let predecessorRecord: Record<string, unknown> | null = null;
@@ -2012,7 +2005,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
       if (digest(inventory) !== verified.publication.repository_sha256)
         throw new Error("native signed repository changed after package selection");
     },
-    api: original.source.api,
+    readCheckMetadata: original.source.readCheckMetadata,
     declarations: original.source.declarations,
   });
   await requireActualNativeCandidate(receipt);
@@ -2120,7 +2113,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
         release_profile: "initial-beta-win-linux",
       },
       {
-        api: source.api,
+        nativeSource: source.admissionSource(),
         collectEvidence: source.collectEvidence,
         download: source.download,
         recover: source.recover,
@@ -2223,7 +2216,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
     recovery: invocation.counters,
     recover: source.recover,
     recheckSource: source.recheck,
-    api: source.api,
+    readCheckMetadata: source.readCheckMetadata,
     declarations: source.declarations,
   });
   packages.clear();
@@ -2308,21 +2301,20 @@ export async function reconcileActualNativeCheck(
     value.parent.authority_configuration,
   );
   const { report } = plan.wire;
-  const endpoint = `repos/boburning/portcove/commits/${report.candidate.source_commit}/check-runs?check_name=${encodeURIComponent(nativeQualificationCheckName)}&filter=all&per_page=100`;
-  const response = retained.api.request("GET", endpoint);
+  const endpoint = `commits/${report.candidate.source_commit}/check-runs?check_name=${encodeURIComponent(nativeQualificationCheckName)}&filter=all&per_page=100`;
+  const response = await retained.readCheckMetadata(endpoint);
   if (
-    response.status !== 200 ||
-    !isRecord(response.body) ||
-    !Number.isSafeInteger(response.body.total_count) ||
-    typeof response.body.total_count !== "number" ||
-    response.body.total_count < 0 ||
-    response.body.total_count > 100 ||
-    !Array.isArray(response.body.check_runs) ||
-    response.body.check_runs.length !== response.body.total_count
+    !isRecord(response) ||
+    !Number.isSafeInteger(response.total_count) ||
+    typeof response.total_count !== "number" ||
+    response.total_count < 0 ||
+    response.total_count > 100 ||
+    !Array.isArray(response.check_runs) ||
+    response.check_runs.length !== response.total_count
   )
     throw new Error("native Check readback inventory is incomplete; preserve original attempt");
   const issuer = value.parent.authority_configuration.apps.native_qualification.app_id;
-  const matches = response.body.check_runs.filter(
+  const matches = response.check_runs.filter(
     (raw: unknown) =>
       isRecord(raw) &&
       isRecord(raw.app) &&
@@ -2358,7 +2350,7 @@ export async function reconcileActualNativeCheck(
       compatibility: fixed.compatibility,
       journey: plan.prepared.request.journey,
     },
-    { api: retained.api },
+    { read: retained.readCheckMetadata },
   );
   await retained.recheckSource();
   return Object.freeze({

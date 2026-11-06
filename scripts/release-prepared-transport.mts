@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { exportPreparedReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
@@ -8,7 +9,9 @@ import {
 } from "./release-coordinator-remote.mts";
 import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
-import { sanitizeOperationError } from "./github-api.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const base = "repos/boburning/portcove";
@@ -86,15 +89,64 @@ export async function publishPreparedCoordinatorCheckpoint(
   }
 }
 
+type PreparedObjectTransport = {
+  request: (
+    method: "GET" | "POST",
+    endpoint: string,
+    body: unknown,
+    deadline: number,
+  ) => ReturnType<CoordinatorCheckpointApi["request"]>;
+};
+
+export async function createNativePreparedObjectTransport(
+  token: string,
+  deadline: number,
+): Promise<PreparedObjectTransport> {
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    allowRequest(method, url) {
+      assertTrustedDirectNode("fixed application prepared objects");
+      if (url.origin !== "https://api.github.com" || url.search) return false;
+      return method === "GET"
+        ? url.pathname === `/${base}` ||
+            /^\/repos\/boburning\/portcove\/git\/(?:blobs|trees|commits)\/[a-f0-9]{40}$/u.test(
+              url.pathname,
+            )
+        : method === "POST" &&
+            /^\/repos\/boburning\/portcove\/git\/(?:blobs|trees|commits)$/u.test(url.pathname);
+    },
+  });
+  return {
+    async request(method, endpoint, body, requestDeadline) {
+      assert.ok(body === undefined || isRecord(body));
+      try {
+        const response = await client.request(`${method} /${endpoint}`, {
+          ...(isRecord(body) ? body : {}),
+          request: { portcove: { replay: "once", attempts: 0, deadline: requestDeadline } },
+        });
+        return { status: response.status, body: response.data as unknown, headers: new Map() };
+      } catch (error) {
+        if (!(method === "GET" && error instanceof GitHubApiError && error.status === 404))
+          throw error;
+        return { status: 404, body: null, headers: new Map() };
+      }
+    },
+  };
+}
+
 /** Bounded inert Git-object transport shared by native Releases and the retained
  * coordinator. It never creates a ref, release, journal, or execution grant. */
 async function publishPreparedGitObjects(
   prepared: ReturnType<typeof exportPreparedReleaseVersion>,
-  api: Pick<CoordinatorCheckpointApi, "request">,
+  api: PreparedObjectTransport,
   observations: { kind: string; oid: string; mutation_error: unknown }[],
   expected: string | null,
+  started = performance.now(),
 ) {
-  const started = performance.now();
   let requests = 0;
   const request = async (
     method: "GET" | "POST",
@@ -102,15 +154,19 @@ async function publishPreparedGitObjects(
     body?: unknown,
     collecting = false,
   ) => {
-    if (++requests > 32 || performance.now() - started > (collecting ? 150000 : 120000))
+    const deadline = Math.min(
+      coordinatorCommandDeadline() ?? Infinity,
+      started + (collecting ? 150000 : 120000),
+    );
+    if (++requests > 32 || performance.now() >= deadline)
       throw new Error("prepared object request or duration bound exceeded");
     const result = await api.request(
       method,
       endpoint ? `${base}/${endpoint}` : base,
       body === undefined ? undefined : structuredClone(body),
+      deadline,
     );
-    if (performance.now() - started > (collecting ? 150000 : 120000))
-      throw new Error("prepared object response was late");
+    if (performance.now() >= deadline) throw new Error("prepared object response was late");
     return result;
   };
   const inspectCommit = (value: unknown) =>
@@ -215,13 +271,20 @@ async function publishPreparedGitObjects(
 export async function publishPreparedReleaseObjects(
   repository: string,
   candidate: Parameters<typeof exportPreparedReleaseVersion>[1],
-  options: { api: Pick<CoordinatorCheckpointApi, "request">; beforeWrite: () => Promise<void> },
+  options: {
+    open: (deadline: number) => Promise<PreparedObjectTransport>;
+    beforeWrite: () => Promise<void>;
+  },
 ) {
   await options.beforeWrite();
   const prepared = exportPreparedReleaseVersion(repository, candidate);
   const observations: { kind: string; oid: string; mutation_error: unknown }[] = [];
   try {
-    await publishPreparedGitObjects(prepared, options.api, observations, null);
+    const started = performance.now();
+    const api = await options.open(
+      Math.min(coordinatorCommandDeadline() ?? Infinity, started + 150000),
+    );
+    await publishPreparedGitObjects(prepared, api, observations, null, started);
     return {
       prepared_commit: prepared.prepared_commit,
       prepared_tree: prepared.prepared_tree,

@@ -353,6 +353,7 @@ void test("scheduled observation keeps the configured cadence, read-only authori
     /pull_request_target|contents: write|id-token: write|actions: write|secrets\.(?!GITHUB_TOKEN\b)/,
   );
   assert.match(workflow, /timeout-minutes: 10/);
+  assert.match(workflow, /shared-key: upstream-observer-cli\s+cache-on-failure: true/);
   assert.match(workflow, /cancel-in-progress: false/);
   assert.match(
     workflow,

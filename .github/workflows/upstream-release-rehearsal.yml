@@ -27,10 +27,15 @@ jobs:
           persist-credentials: false
       - name: Fetch only the immutable original source for its retained harness binding
         run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+          run_install: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
+      - run: pnpm --filter portcove-repository install --frozen-lockfile --prod --ignore-scripts --ignore-pnpmfile
       - name: Bound all five actual execution exposures without recounting copied history
         env:
           GH_TOKEN: ${{ github.token }}
@@ -83,10 +88,15 @@ jobs:
           persist-credentials: false
       - name: Fetch only the immutable original source for its retained harness binding
         run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+          run_install: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
       - name: Bound actual cumulative runtime and remaining native jobs
         env:
           GH_TOKEN: ${{ github.token }}
@@ -94,9 +104,6 @@ jobs:
       - id: producer
         name: Retain this actual producer attempt
         run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT,'attempt='+process.env.GITHUB_RUN_ATTEMPT+String.fromCharCode(10))"
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        with:
-          package_json_file: package.json
       - uses: ./.github/actions/setup-rust
       - name: Install the existing Windows GitHub verifier pin
         shell: pwsh
@@ -110,7 +117,6 @@ jobs:
           $bin = Join-Path $destination 'bin'
           if (-not (Test-Path (Join-Path $bin 'gh.exe'))) { throw 'Pinned GitHub verifier layout differs' }
           $bin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-      - run: pnpm install --frozen-lockfile
       - name: Provision only the existing native driver profile
         shell: pwsh
         run: ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
@@ -206,10 +212,15 @@ jobs:
           persist-credentials: false
       - name: Fetch only the immutable original source for its retained harness binding
         run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+          run_install: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
+      - run: pnpm --filter portcove-repository install --frozen-lockfile --prod --ignore-scripts --ignore-pnpmfile
       - name: Bound actual cumulative runtime and remaining native jobs
         env:
           GH_TOKEN: ${{ github.token }}

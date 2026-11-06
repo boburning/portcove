@@ -23,6 +23,7 @@ import {
 import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
   observeReleaseInputProtections,
+  createProtectionObservationReader,
   requireReleaseInputWriterPolicy,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
@@ -188,7 +189,7 @@ void test("immutable conflicts, CAS refusal and ambiguous acknowledgment never o
   );
   assert.equal(recovered.mutations(), 1);
 });
-void test("isolated observer only GETs and refuses hidden bypass, inherited coverage and drift", () => {
+void test("isolated observer only GETs and refuses hidden bypass, inherited coverage and drift", async () => {
   for (const fault of [
     "",
     "bypass",
@@ -201,49 +202,50 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
     let refReads = 0;
     let settingReads = 0;
     const publication = fault.startsWith("release-");
-    const api = {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        let body: unknown;
-        const rule = {
-          id: 1,
-          source_type: fault === "inherited" ? "Organization" : "Repository",
-          source: "boburning/portcove",
-          enforcement: "active",
-          conditions: {
-            ref_name: { include: ["refs/heads/portcove-release-inputs"], exclude: [] },
-          },
-          bypass_actors: [],
-          rules: [{ type: "update" }],
+    const read = async (endpoint: string) => {
+      let body: unknown;
+      const rule = {
+        id: 1,
+        source_type: fault === "inherited" ? "Organization" : "Repository",
+        source: "boburning/portcove",
+        enforcement: "active",
+        conditions: {
+          ref_name: { include: ["refs/heads/portcove-release-inputs"], exclude: [] },
+        },
+        bypass_actors: [],
+        rules: [{ type: "update" }],
+      };
+      if (endpoint === "repos/boburning/portcove")
+        body = { id: 1354613114, full_name: "boburning/portcove" };
+      else if (endpoint.endsWith("/immutable-releases")) {
+        settingReads++;
+        body = {
+          enabled:
+            fault !== "release-disabled" && !(fault === "release-drift" && settingReads === 2),
+          enforced_by_owner: false,
         };
-        if (endpoint === "repos/boburning/portcove")
-          body = { id: 1354613114, full_name: "boburning/portcove" };
-        else if (endpoint.endsWith("/immutable-releases")) {
-          settingReads++;
-          body = {
-            enabled:
-              fault !== "release-disabled" && !(fault === "release-drift" && settingReads === 2),
-            enforced_by_owner: false,
-          };
-        } else if (endpoint.includes("/rulesets?")) body = [rule];
-        else if (endpoint.includes("/rulesets/1?"))
-          body = fault === "bypass" ? { ...rule, bypass_actors: undefined } : rule;
-        else if (endpoint.includes("/git/ref/heads/")) {
-          refReads++;
-          body = {
-            ref: `refs/heads/${endpoint.split("/").at(-1)}`,
-            object: { type: "commit", sha: fault === "drift" && refReads > 2 ? after : before },
-          };
-        } else if (endpoint.includes("/rules/branches/")) body = [{ type: "update" }];
-        else if (endpoint.includes("/protection")) body = { enforce_admins: { enabled: true } };
-        else throw new Error("unexpected observer route");
-        return { status: 200, headers: new Map<string, string>(), body };
-      },
+      } else if (endpoint.includes("/rulesets?")) body = [rule];
+      else if (endpoint.includes("/rulesets/1?"))
+        body = fault === "bypass" ? { ...rule, bypass_actors: undefined } : rule;
+      else if (endpoint.includes("/git/ref/heads/")) {
+        refReads++;
+        body = {
+          ref: `refs/heads/${endpoint.split("/").at(-1)}`,
+          object: { type: "commit", sha: fault === "drift" && refReads > 2 ? after : before },
+        };
+      } else if (endpoint.includes("/rules/branches/")) body = [{ type: "update" }];
+      else if (endpoint.includes("/protection")) body = { enforce_admins: { enabled: true } };
+      else throw new Error("unexpected observer route");
+      return { status: 200, body };
     };
     if ((fault && !publication) || fault === "release-drift")
-      assert.throws(() => observeReleaseInputProtections(api, { releasePublication: publication }));
+      await assert.rejects(
+        observeReleaseInputProtections(read, { releasePublication: publication }),
+      );
     else {
-      const result = observeReleaseInputProtections(api, { releasePublication: publication });
+      const result = await observeReleaseInputProtections(read, {
+        releasePublication: publication,
+      });
       assert.equal(result.admission, "hold");
       assert.equal(result.enforcement, "uninterpreted");
       if (fault === "release-ok") {
@@ -548,4 +550,40 @@ void test("legacy persisted classification refuses consumption and is never over
   assert.throws(() => readReviewedClassification(f.api, config, opportunity));
   assert.throws(() => persistReviewedClassification(f.api, config, opportunity, 303, () => {}));
   assert.equal(f.mutations(), 1);
+});
+
+void test("fixed protection reader uses the explicit observer credential and exact GET scope", async (t) => {
+  let dispatches = 0;
+  let guards = 0;
+  const deadline = performance.now() + 5000;
+  const read = await createProtectionObservationReader({
+    token: "inert-protection-observer",
+    deadline,
+    maxBytes: 4 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    guard: () => {
+      guards++;
+    },
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      dispatches++;
+      assert.equal(request.url, "https://api.github.com/repos/boburning/portcove");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-protection-observer");
+      assert.equal(guards, 1);
+      return Response.json({ id: 1354613114 });
+    },
+  );
+  await assert.rejects(async () => read("repos/boburning/elsewhere", deadline), /unscoped route/u);
+  assert.equal(dispatches, 0);
+  assert.deepEqual(await read("repos/boburning/portcove", deadline), {
+    status: 200,
+    body: { id: 1354613114 },
+  });
+  assert.equal(dispatches, 1);
+  assert.equal(guards, 2);
 });

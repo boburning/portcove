@@ -1,11 +1,73 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { globSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
-import { localDeveloperCredential, verifyGitHubAttestation } from "./github-cli.mts";
+import {
+  localDeveloperCredential,
+  verifyGitHubAttestation,
+  verifyGitHubRelease,
+} from "./github-cli.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { verifyControllerArtifactVerification } from "./github-controller-attestation.mts";
+
+void test("maintained sources do not add GitHub CLI API bypasses outside recorded retirement residue", () => {
+  const root = new URL("../", import.meta.url);
+  // These known legacy owners remain subject to #4319. This list prevents new
+  // consumers while appointed runtime, held source and test seams are resolved.
+  const remainingLegacy = new Map([
+    ["scripts/assembler-job-identity.mts", 5],
+    ["scripts/github-api.mts", 2],
+    ["scripts/github-binary.mts", 1],
+    ["scripts/release-coordinator-recovery.mts", 7],
+    ["scripts/release-live-control-admission.mts", 5],
+    ["scripts/release-publication-inventory.mts", 2],
+    ["scripts/release-reviewed-inputs.mts", 6],
+    ["scripts/release-semantic-inputs.mts", 2],
+    ["scripts/release-semantic-worker.mts", 4],
+    ["scripts/release-signing-job-budget.mts", 4],
+    ["scripts/upstream-release-rehearsal.mts", 1],
+  ]);
+  const sources = globSync(
+    [
+      "scripts/**/*.{mts,cts,ts,mjs,cjs,js,sh,ps1,psm1,py}",
+      "apps/desktop/scripts/**/*.{mts,cts,ts,mjs,cjs,js,sh,ps1,psm1,py}",
+      ".github/{workflows,actions}/**/*.{yml,yaml,mts,cts,ts,mjs,cjs,js,sh,ps1,psm1}",
+      "tools/**/*.{sh,ps1,psm1,py}",
+    ],
+    {
+      cwd: fileURLToPath(root),
+      exclude: [
+        "**/*.test.*",
+        "**/fixtures/**",
+        "**/testdata/**",
+        "**/__pycache__/**",
+        "**/node_modules/**",
+      ],
+    },
+  );
+  const bypasses: string[] = [];
+  for (const file of sources) {
+    const relative = file.replaceAll("\\", "/");
+    const source = readFileSync(new URL(relative, root), "utf8");
+    const legacyReferences = [
+      ...source.matchAll(
+        /\b(?:createGitHubRunner|GitHubApiClient)\b|\b(?:(?:(?:execFile|spawn)(?:Sync)?|command)\(\s*["']gh(?:\.exe)?["']\s*,|gh\()\s*\[\s*["'](?:api["']|run["']\s*,\s*["']download["'])/gu,
+      ),
+    ].length;
+    if (
+      legacyReferences > (remainingLegacy.get(relative) ?? 0) ||
+      /\bgh(?:\.exe)?[ \t]+(?:api\b|release[ \t]+(?:view|create|edit|upload|download|delete-asset)\b|(?:pr|issue|run)[ \t]+(?:view|edit|merge|list)\b|run[ \t]+download\b)/u.test(
+        source,
+      )
+    )
+      bypasses.push(relative);
+  }
+  assert.ok(sources.length > 0);
+  assert.deepEqual(bypasses.sort(), []);
+});
 
 const once = (): GitHubRequestPolicy => ({ replay: "once", attempts: 0 });
 const read = (): GitHubRequestPolicy => ({ replay: "safe-read", attempts: 0 });
@@ -964,6 +1026,42 @@ void test("uncooperative admission cannot extend SDK cancellation or its origina
   }
 });
 
+void test("an expired monotonic deadline settles the reservation before actual dispatch", async () => {
+  let clock = 1000;
+  let sends = 0;
+  const settled: GitHubAttemptObservation[] = [];
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: 2000,
+    now: () => clock,
+    reserve() {
+      clock = 2001;
+      return {
+        consumeBytes() {},
+        settle(observation) {
+          settled.push(observation);
+        },
+      };
+    },
+    fetch: async () => {
+      sends++;
+      return Response.json({});
+    },
+  });
+  await assert.rejects(
+    client.request("POST /repos/example/repo/issues", {
+      data: { title: "fixture" },
+      request: { portcove: once() },
+    }),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(sends, 0);
+  assert.deepEqual(
+    settled.map(({ dispatched, bytes }) => ({ dispatched, bytes })),
+    [{ dispatched: false, bytes: 0 }],
+  );
+});
+
 void test("late unused-reservation cleanup retains its failure without replacing cancellation or leaking the credential", async () => {
   const token = "prefixless-synthetic-cleanup-secret";
   let entered!: () => void, release!: () => void;
@@ -1404,4 +1502,54 @@ void test("controller verifier redacts the actual custom child credential and re
       return true;
     },
   );
+});
+
+void test("retained Release verifier fixes its command and rejects unscoped arguments", () => {
+  const environment = { GH_TOKEN: "ghs_SYNTHETIC_TEST_ONLY" };
+  const options = {
+    cwd: process.cwd(),
+    timeoutMs: 1000,
+    maxBytes: 1024,
+    environment,
+  };
+  let calls = 0;
+  assert.throws(
+    () =>
+      verifyGitHubRelease("boburning/portcove", "--help", {
+        ...options,
+        spawn() {
+          calls++;
+          assert.fail("invalid Release target cannot reach the verifier");
+        },
+      }),
+    /verification target/u,
+  );
+  assert.throws(
+    () =>
+      verifyGitHubRelease("boburning/portcove", "v0.1.0-RC.2", {
+        ...options,
+        spawn(command, args, settings) {
+          calls++;
+          assert.equal(command, "gh");
+          assert.deepEqual(args, [
+            "release",
+            "verify",
+            "v0.1.0-RC.2",
+            "--repo",
+            "boburning/portcove",
+            "--format",
+            "json",
+          ]);
+          assert.equal(settings.timeout, 1000);
+          assert.equal(settings.maxBuffer, 1024);
+          assert.deepEqual(settings.env, environment);
+          return { status: 1, stdout: "", stderr: `Authorization: Bearer ${environment.GH_TOKEN}` };
+        },
+      }),
+    (error: unknown) =>
+      error instanceof GitHubApiError &&
+      error.code === "command_failed" &&
+      !error.message.includes(environment.GH_TOKEN),
+  );
+  assert.equal(calls, 1);
 });

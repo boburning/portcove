@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import {
   releaseControlInputsFixture,
   config,
@@ -8,13 +9,17 @@ import {
 import { negativeSemanticDispositionFixture } from "./fixtures/release-semantic-disposition-fixture.mts";
 import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
+  createClassificationJournalGuard,
   persistReviewedClassificationForRequest,
+  persistReviewedClassificationForRequestWithSdk,
   inspectClassificationRequestReadiness,
+  inspectClassificationRequestReadinessWithSdk,
 } from "./release-classification-request.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { prepareNegativeSemanticDispositionCheck } from "./release-semantic-disposition.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 function fixture(mode = "valid") {
   const producer = { ...config, review_check_name: semanticReviewCheckName };
@@ -143,5 +148,168 @@ void test("automatic classification routing is read-only, holds missing/conflict
       inspectClassificationRequestReadiness(drift.api, drift.producer, drift.request),
     );
     assert.equal(drift.mutations(), 0);
+  }
+});
+
+void test("fixed classification probes preserve exact readiness and absence through the locked SDK", async () => {
+  const read = (f: ReturnType<typeof fixture>, routes: string[]) =>
+    inspectClassificationRequestReadinessWithSdk(
+      {
+        token: "inert-classification-probe",
+        deadline: performance.now() + 5000,
+        guard() {},
+        fetch: async (input, init) => {
+          const request = new Request(input, init);
+          const url = new URL(request.url);
+          assert.equal(url.origin, "https://api.github.com");
+          assert.equal(request.headers.get("authorization"), "token inert-classification-probe");
+          routes.push(url.pathname);
+          if (url.pathname === "/graphql") {
+            assert.equal(request.method, "POST");
+            const wire: unknown = await request.json();
+            assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+            assert.equal(wire.variables.ref, "refs/heads/portcove-release-inputs");
+            return Response.json({ data: f.api.graphql(wire.query, wire.variables).data });
+          }
+          assert.equal(request.method, "GET");
+          const result = f.api.request("GET", url.pathname.slice(1) + url.search);
+          return Response.json(result.body, { status: result.status ?? 500 });
+        },
+      },
+      f.producer,
+      f.request,
+    );
+  for (const mode of ["valid", "missing", "persisted", "late-conflict"]) {
+    const f = fixture(mode);
+    const routes: string[] = [];
+    if (mode === "persisted")
+      persistReviewedClassificationForRequest(f.api, f.producer, f.request, () => {});
+    const writesBeforeProbe = f.mutations();
+    if (mode === "late-conflict") {
+      await assert.rejects(read(f, routes), /inventory changed/u);
+    } else {
+      const actual = await read(f, routes);
+      assert.deepEqual(actual, inspectClassificationRequestReadiness(f.api, f.producer, f.request));
+      assert.equal(actual.eligible, mode === "valid");
+      assert.equal(routes.filter((route) => route.endsWith("/check-suites")).length, 3);
+      assert.equal(routes.at(-1), "/repos/boburning/portcove");
+    }
+    assert.equal(f.mutations(), writesBeforeProbe);
+  }
+});
+
+void test("fixed classification SDK routes a single CAS and reconciles only its authoritative tuple", async () => {
+  for (const mode of [
+    "acknowledged",
+    "legacy-app",
+    "lost-ack",
+    "unavailable-readback",
+    "changed-journal",
+    "expired-prewire",
+  ]) {
+    const f = fixture();
+    const events: string[] = [];
+    const checkpoint = "1".repeat(40);
+    let writeDispatches = 0;
+    let journalReads = 0;
+    const legacyApp = mode === "legacy-app";
+    const readToken = "inert-classification-reader";
+    const writeToken = "inert-classification-writer";
+    const options = {
+      token: readToken,
+      deadline: performance.now() + 5000,
+      guard() {},
+      fetch: (async (input, init) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        const authorization = request.headers.get("authorization");
+        if (url.pathname === "/graphql") {
+          assert.equal(request.method, "POST");
+          const wire: unknown = await request.json();
+          assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+          const isMutation = wire.query.startsWith("mutation");
+          assert.equal(authorization, `token ${isMutation || legacyApp ? writeToken : readToken}`);
+          if (!isMutation && writeDispatches > 0 && mode === "unavailable-readback")
+            throw new TypeError("fixture post-dispatch readback unavailable");
+          if (isMutation) {
+            assert.equal(++writeDispatches, 1);
+            events.push("write");
+          }
+          const result = f.api.graphql(wire.query, wire.variables);
+          if (isMutation && mode !== "acknowledged" && !legacyApp)
+            throw new TypeError("fixture acknowledgement lost after dispatch");
+          return Response.json({ data: result.data });
+        }
+        assert.equal(request.method, "GET");
+        if (
+          url.pathname ===
+          "/repos/boburning/portcove/git/ref/heads/portcove-fixture-coordinator-state"
+        ) {
+          assert.equal(authorization, `token ${readToken}`);
+          events.push("journal");
+          return Response.json({
+            ref: "refs/heads/portcove-fixture-coordinator-state",
+            object: {
+              type: "commit",
+              sha: mode === "changed-journal" && ++journalReads > 1 ? "2".repeat(40) : checkpoint,
+            },
+          });
+        }
+        const checks = /\/check-(?:runs|suites)(?:\/|$)/u.test(url.pathname);
+        assert.equal(authorization, `token ${legacyApp && !checks ? writeToken : readToken}`);
+        const response = f.api.request("GET", url.pathname.slice(1) + url.search);
+        return Response.json(response.body, { status: response.status ?? 500 });
+      }) satisfies typeof globalThis.fetch,
+    };
+    const fresh = () => events.push("fresh");
+    const beforeMutation = await createClassificationJournalGuard(
+      options,
+      "portcove-fixture",
+      checkpoint,
+      fresh,
+    );
+    await beforeMutation();
+    const run = () =>
+      persistReviewedClassificationForRequestWithSdk(
+        legacyApp ? { ...options, token: writeToken, checkToken: readToken } : options,
+        {
+          token: writeToken,
+          beforeMutation,
+          requireFresh() {
+            fresh();
+            if (mode === "expired-prewire") throw new Error("fixture pre-wire freshness expired");
+          },
+        },
+        f.producer,
+        f.request,
+      );
+    if (mode === "changed-journal") {
+      await assert.rejects(run(), /outstanding journal request changed/u);
+      assert.equal(writeDispatches, 0);
+    } else if (mode === "expired-prewire") {
+      await assert.rejects(run(), /fixture pre-wire freshness expired/u);
+      assert.equal(writeDispatches, 0);
+    } else if (mode === "unavailable-readback") {
+      await assert.rejects(
+        run(),
+        (error: unknown) =>
+          error instanceof CoordinatorRemoteError && /outcome unknown/u.test(error.message),
+      );
+      assert.equal(writeDispatches, 1);
+    } else {
+      const result = await run();
+      assert.equal(result.changed, true);
+      assert.equal(result.recovered, mode === "lost-ack");
+      assert.equal(result.review_check_id, 303);
+      assert.equal(result.request_id, f.request.request_id);
+      await beforeMutation();
+      assert.equal(writeDispatches, 1);
+      assert.deepEqual(
+        events.filter((event) => event !== "fresh"),
+        ["journal", "journal", "write", "journal"],
+      );
+    }
+    assert.equal(f.mutations(), writeDispatches);
   }
 });

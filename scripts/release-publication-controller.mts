@@ -53,7 +53,6 @@ import {
   refreshCapacityExecutor,
 } from "./release-capacity-executor.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
@@ -510,7 +509,7 @@ export async function runReleasePublicationController(
           }
           let controls = admitted.controls;
           let usedRound = 0;
-          const fresh = async (ordinal: number) => {
+          const fresh = async (ordinal: number, controlReader?: "publication-application") => {
             if (ordinal <= usedRound || ordinal > 14)
               throw new Error("publication control round repeated or exhausted");
             usedRound = ordinal;
@@ -519,7 +518,7 @@ export async function runReleasePublicationController(
               digest(admitted.facts),
               "release-publication",
               ordinal,
-              { deadline },
+              { deadline, ...(controlReader ? { controlReader } : {}) },
             );
             return controls;
           };
@@ -533,7 +532,7 @@ export async function runReleasePublicationController(
                       prepared,
                       executor,
                       actual,
-                      await fresh(ordinal),
+                      await fresh(ordinal, "publication-application"),
                       {
                         repository: admitted.coordinator_repository,
                         remote_configuration: coordinator,
@@ -543,7 +542,7 @@ export async function runReleasePublicationController(
                   initialState.input.active_candidate,
                 );
           stage = "actual-immutable-completion";
-          await fresh(usedRound + 1);
+          await fresh(usedRound + 1, "publication-application");
           let completion = await observeOwnedImmutableReleaseCompletion(
             prepared,
             executor,
@@ -561,7 +560,7 @@ export async function runReleasePublicationController(
             // verified above before even advancing the repair's journal phase.
             const phase = await advanceActualCandidateToPublishing(actual, { deadline, executor });
             await rebindPreparedImmutableReleaseAfterPhase(prepared, phase, deadline);
-            await fresh(usedRound + 1);
+            await fresh(usedRound + 1, "publication-application");
             completion = await observeOwnedImmutableReleaseCompletion(
               prepared,
               executor,
@@ -664,20 +663,15 @@ export async function runReleasePublicationController(
             directory,
             deadline,
           );
-          // Live control observation retains its existing transport until that
-          // caller family migrates. The job clock and retained locator use SDK reads.
-          const api = new GitHubApiClient((args, input) =>
-            createGitHubRunner({
-              cwd: directory,
-              maxBuffer: 2 * 1024 ** 2,
-              timeoutMs: coordinatorCommandTimeout(15000),
-            })([...args, "--hostname", "github.com"], input),
-          );
+          stage = "owned-result-upload";
+          const resultControls = await fresh(usedRound + 1, "publication-application");
           const boundary = async () => {
             checkCoordinatorDeadline();
             const currentExecutor = await refreshCapacityExecutor(executor);
             const original = admitted.admission.controls;
-            const current = controls.read(api, admitted.facts.opportunity);
+            const current = await resultControls.readSdkApplicationControls(
+              admitted.facts.opportunity,
+            );
             if (
               !original ||
               current.reader.job_id !== currentExecutor.job_id ||
@@ -696,8 +690,6 @@ export async function runReleasePublicationController(
               throw new Error("publication result controls held");
             return current.capacity_source.capacity.boundary;
           };
-          stage = "owned-result-upload";
-          await fresh(usedRound + 1);
           let handoff: Awaited<ReturnType<typeof handoffPublicationResultArtifact>> | undefined;
           const settlement = await executeOwnedCapacityEffect(
             executor,

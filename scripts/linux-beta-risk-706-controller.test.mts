@@ -23,7 +23,6 @@ import {
 import { nativePaths706, approval706 } from "./linux-beta-risk-706.mts";
 import { requireVerifiedLinuxRiskAssessment706 } from "./release-compiler-evidence.mts";
 import { requireActualAdmissionCompilerReceipt706 } from "./acquire-release-admission.mts";
-import type { GitHubRestReader } from "./github-api.mts";
 import { inspectReleaseEffectExpectation } from "./release-effect-contract.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
@@ -320,7 +319,7 @@ void test("actual caller pin association refuses candidate-measured policy and l
     /differs/u,
   );
 });
-void test("actual Git native input digest equals bounded provider tree traversal and refuses truncated/changed native source", (t) => {
+void test("actual Git native input digest equals bounded provider tree traversal and refuses truncated/changed native source", async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "risk706-native-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const git = (args: string[]) =>
@@ -347,40 +346,27 @@ void test("actual Git native input digest equals bounded provider tree traversal
   git(["add", "."]);
   git(["commit", "-qm", "native baseline"]);
   const original = git(["rev-parse", "HEAD^{tree}"]).trim();
-  const provider: GitHubRestReader = {
-    request: (_method, endpoint) => {
-      const sha = endpoint.slice(endpoint.lastIndexOf("/") + 1);
-      const tree = git(["ls-tree", sha])
-        .trimEnd()
-        .split("\n")
-        .map((line) => {
-          const [mode, type, oid, filename] = line.split(/[\t ]/u);
-          return { mode, type, sha: oid, path: filename };
-        });
-      return { status: 200, body: { sha, truncated: false, tree }, headers: new Map() };
-    },
+  const readTree = async (sha: string) => {
+    const tree = git(["ls-tree", sha])
+      .trimEnd()
+      .split("\n")
+      .map((line) => {
+        const [mode, type, oid, filename] = line.split(/[\t ]/u);
+        return { mode, type, sha: oid, path: filename };
+      });
+    return { sha, truncated: false, tree };
   };
   const expected = hash(git(["ls-tree", "HEAD", "--", ...nativePaths706]).trimEnd() + "\n");
-  assert.equal(readRisk706NativeInputs(provider, original), expected);
+  assert.equal(await readRisk706NativeInputs(readTree, original), expected);
   writeFileSync(path.join(root, "crates/portcove-core/src/lib.rs"), "genuine native change\n");
   git(["add", "."]);
   git(["commit", "-qm", "changed native"]);
   assert.notEqual(
-    readRisk706NativeInputs(provider, git(["rev-parse", "HEAD^{tree}"]).trim()),
+    await readRisk706NativeInputs(readTree, git(["rev-parse", "HEAD^{tree}"]).trim()),
     expected,
   );
-  assert.throws(
-    () =>
-      readRisk706NativeInputs(
-        {
-          request: () => ({
-            status: 200,
-            body: { sha: original, truncated: true, tree: [] },
-            headers: new Map(),
-          }),
-        },
-        original,
-      ),
+  await assert.rejects(
+    readRisk706NativeInputs(async () => ({ sha: original, truncated: true, tree: [] }), original),
     /incomplete/u,
   );
 });
@@ -422,4 +408,46 @@ void test("copied component/profile/context cannot authorize signing or publicat
     publication,
     /authorizeActualLinuxRisk706\(admissionContext, controls, state.checkpoint, deadline\)/u,
   );
+});
+
+void test("risk asset readback follows only complete same-release pages through the locked SDK", async () => {
+  const { createGitHubClient } = await import("./github-client.mts");
+  const { readPublicationReleaseAssets } = await import("./release-publication-inventory.mts");
+  const origin = "https://api.github.com";
+  const canonical = "/repositories/1354613114/releases/81/assets?per_page=100&page=2";
+  const expected = [
+    `${origin}/repos/boburning/portcove/releases/81/assets?per_page=100`,
+    origin + canonical,
+  ];
+  for (const next of [canonical, canonical.replace("/81/", "/82/")]) {
+    const dispatched: string[] = [];
+    const client = await createGitHubClient({
+      deadline: performance.now() + 1000,
+      credential: { kind: "explicit", token: "synthetic-risk" },
+      fetch: async (input) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        dispatched.push(url);
+        const page = dispatched.length;
+        return Response.json([{ id: page, name: `asset-${page}` }], {
+          headers: page === 1 ? { link: `<${origin}${next}>; rel="next"` } : {},
+        });
+      },
+    });
+    const read = readPublicationReleaseAssets(81, (url) =>
+      client.request(`GET ${url.pathname}${url.search}`, {
+        request: { portcove: { replay: "once", attempts: 0 } },
+      }),
+    );
+    if (next === canonical) {
+      assert.deepEqual(await read, [
+        { id: 1, name: "asset-1" },
+        { id: 2, name: "asset-2" },
+      ]);
+      assert.deepEqual(dispatched, expected);
+    } else {
+      await assert.rejects(read, /pagination changed scope/u);
+      assert.deepEqual(dispatched, expected.slice(0, 1));
+    }
+  }
 });

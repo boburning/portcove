@@ -24974,6 +24974,94 @@
       }
     },
     {
+      "id": "body-harvest-recompiled",
+      "name": "Body Harvest: Recompiled",
+      "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows copy or launch a copy you prepared.",
+      "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "mcsoderh/BodyHarvestRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BodyHarvestRecompiled-",
+            "-Windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BodyHarvestRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies the original and stores its private copy, settings and saves under %LOCALAPPDATA%\\BodyHarvestRecompiled. Back up that profile separately. Leave portable.txt out of the managed runtime to keep the profile outside it. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The managed route covers Windows x86-64. Use a separate upstream copy for portable.txt mode, Linux or macOS. Managed and external Windows copies can share the default profile. Check save compatibility before changing versions.",
+        "original_game_title": "Body Harvest",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed Windows copy on first Play",
+              "instruction": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies the original and stores its private copy, settings and saves under %LOCALAPPDATA%\\BodyHarvestRecompiled. Back up that profile separately. Leave portable.txt out of the managed runtime to keep the profile outside it."
+            },
+            {
+              "title": "Keep a complete permitted player",
+              "instruction": "On Windows, select BodyHarvestRecompiled.exe in your existing permitted copy; on native Linux x64, select BodyHarvestRecompiled. Keep its complete extracted folder and supplied assets/libraries together as the working directory. macOS uses the upstream application bundle. Linux ARM64 and Flatpak are separate upstream packages and preparation routes; Windows launch details do not apply to them. Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
+            },
+            {
+              "title": "Keep Flatpak data with the actual profile",
+              "instruction": "For an existing permitted Flatpak installation, follow upstream preparation and preserve the complete ~/.var/app/io.github.bodyharvestrecomp.bodyharvestrecomp folder alongside the actual profile. Its writable app area and normal/custom/portable profile can be different. Keep the working installation until its replacement is ready."
+            },
+            {
+              "title": "Select the prepared Windows player",
+              "instruction": "Select BodyHarvestRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback.",
+            "The managed route covers Windows x86-64. Use a separate upstream copy for portable.txt mode, Linux or macOS. Managed and external Windows copies can share the default profile. Check save compatibility before changing versions."
+          ],
+          "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
+          "references": [
+            {
+              "title": "Preserve the actual profile and working copy",
+              "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the actual BodyHarvestRecompiled profile, normally %LOCALAPPDATA%\\BodyHarvestRecompiled on Windows; the working folder for a Windows portable.txt copy; the real custom or platform-specific profile for other copies. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3426,
+          "cover_id": 258206,
+          "image_id": "co5j8e",
+          "image_sha256": "c14ab273e1271bb4fdee7feebc3bc6e9a34e7835e9fc42754f547fbbd853324a",
+          "game_slug": "body-harvest",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "brawmario-infinite-mario-64-ever",
       "name": "Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario)",
       "summary": "Explore Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario) and follow the upstream project for requirements, downloads and setup.",
@@ -32089,43 +32177,53 @@
       "persistent_file_patterns": [
         {
           "prefix": "demorec.",
-          "suffix": "0"
+          "suffix": "0",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "1"
+          "suffix": "1",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "2"
+          "suffix": "2",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "3"
+          "suffix": "3",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "4"
+          "suffix": "4",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "5"
+          "suffix": "5",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "6"
+          "suffix": "6",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "7"
+          "suffix": "7",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "8"
+          "suffix": "8",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "9"
+          "suffix": "9",
+          "allow_empty_middle": true
         }
       ],
       "presentation": {
@@ -33012,7 +33110,7 @@
     {
       "id": "pokemon-ruby-rubysapphirerecomp",
       "name": "Pokémon Ruby / RubySapphireRecomp",
-      "summary": "Use the upstream RubyRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play RubyRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "support_tier": "beta",
       "channels": [
@@ -33025,26 +33123,20 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "mstan/RubySapphireRecomp",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "RubyRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "manual_preparation": "Choose Play to open the upstream picker and select your own matching USA rev1 GBA original and retail GBA BIOS. Keep saves beside the original backed up separately. Portcove updates only its separate managed runtime.",
         "original_game_title": "Pokémon Ruby",
         "manual_setup": {
           "steps": [
@@ -33054,7 +33146,7 @@
             },
             {
               "title": "Finish upstream setup and select this game player",
-              "instruction": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+              "instruction": "For an external copy, open the official releases and extract the complete Windows RubyRecomp ZIP into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
             },
             {
               "title": "Keep the data and compiler paths",
@@ -33067,9 +33159,15 @@
           ],
           "warnings": [
             "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-            "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+            "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
           ],
-          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases",
+          "references": [
+            {
+              "title": "Updates, backups and rollback",
+              "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1557,
@@ -33079,7 +33177,33 @@
           "game_slug": "pokemon-ruby-version",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "RubyRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "config_ruby.ini",
+        "keybinds_ruby.ini",
+        "rom_ruby.cfg",
+        "bios_ruby.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_AXVE.toml.frag",
+        "recomp_coverage_AXVE.json",
+        "replay-divergence.state"
+      ],
+      "mod_package_policy": "versioned-packages-v1"
     },
     {
       "id": "pokemon-sapphire-gen1recomp",
@@ -33160,7 +33284,7 @@
     {
       "id": "pokemon-sapphire-rubysapphirerecomp",
       "name": "Pokémon Sapphire / RubySapphireRecomp",
-      "summary": "Use the upstream SapphireRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play SapphireRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "support_tier": "beta",
       "channels": [
@@ -33173,26 +33297,20 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "mstan/RubySapphireRecomp",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "SapphireRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "manual_preparation": "Choose Play to open the upstream picker and select your own matching USA rev1 GBA original and retail GBA BIOS. Keep saves beside the original backed up separately. Portcove updates only its separate managed runtime.",
         "original_game_title": "Pokémon Sapphire",
         "manual_setup": {
           "steps": [
@@ -33202,7 +33320,7 @@
             },
             {
               "title": "Finish upstream setup and select this game player",
-              "instruction": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+              "instruction": "For an external copy, open the official releases and extract the complete Windows SapphireRecomp ZIP into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
             },
             {
               "title": "Keep the data and compiler paths",
@@ -33215,9 +33333,15 @@
           ],
           "warnings": [
             "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-            "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+            "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
           ],
-          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases",
+          "references": [
+            {
+              "title": "Updates, backups and rollback",
+              "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1515,
@@ -33227,7 +33351,33 @@
           "game_slug": "pokemon-sapphire-version",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SapphireRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "config_sapphire.ini",
+        "keybinds_sapphire.ini",
+        "rom_sapphire.cfg",
+        "bios_sapphire.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_AXPE.toml.frag",
+        "recomp_coverage_AXPE.json",
+        "replay-divergence.state"
+      ],
+      "mod_package_policy": "versioned-packages-v1"
     },
     {
       "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",

@@ -84,7 +84,9 @@ fn shipwright_working_directory_persistence_requires_the_v3_reader() {
 #[test]
 fn native_ascii_paths_require_version7_instead_of_silently_using_an_older_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let mut port = catalog.port("opentyrian-opentyrian").unwrap().clone();
+    let mut port = crate::test_fixture::legacy_opentyrian_indexed_port(
+        catalog.port("opentyrian-opentyrian").unwrap(),
+    );
     port.windows_runtime_path_policy = Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
     let mut entry = entry_for_port(&port);
     for version in 1..=6 {
@@ -464,6 +466,16 @@ fn inspect(value: &Value) -> Result<DefinitionEntryInspection> {
 }
 
 #[test]
+fn indexed_entries_refuse_embedded_only_empty_middle_patterns() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("opentyrian-opentyrian").unwrap();
+    let entry = entry_for_port(port);
+    let error = inspect(&entry).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(error.message.contains("embedded-only"));
+}
+
+#[test]
 fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog
@@ -710,6 +722,17 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         };
         value["required_capabilities"] =
             json!(crate::test_fixture::definition_requirements(port, version));
+        if port.id == "opentyrian-opentyrian" {
+            // The current embedded contract opts in to a capability that is
+            // deliberately unavailable to indexed definitions. Its legacy
+            // indexed shape still has a complete, accepted typed projection.
+            let error = inspect(&value).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Unsupported);
+            assert!(error.message.contains("embedded-only"));
+            value["port"] =
+                serde_json::to_value(crate::test_fixture::legacy_opentyrian_indexed_port(port))
+                    .unwrap();
+        }
         let entry = inspect(&value).unwrap();
         assert_eq!(serde_json::to_value(entry.port()).unwrap(), value["port"]);
         assert!(entry.capabilities().compatible);

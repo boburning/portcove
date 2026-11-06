@@ -170,9 +170,10 @@ function pagedItems<T>(
   return items;
 }
 import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
+import type { GitHubCredential } from "./github-client.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { GitHubApiError } from "./github-operation.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { createHash } from "node:crypto";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
@@ -775,6 +776,96 @@ export function renderReport(
   return `${lines.join("\n")}\n`;
 }
 
+const ciRequestTimeout = 30_000;
+const ciTransferLimit = 20 * 1024 * 1024;
+
+export async function createCiHistoryRequest({
+  repository,
+  deadline,
+  credential,
+  fetch,
+}: {
+  repository: string;
+  deadline: number;
+  credential: GitHubCredential;
+  fetch?: typeof globalThis.fetch;
+}): Promise<CiRequest> {
+  const client = await createGitHubClient({
+    credential,
+    ...(fetch ? { fetch } : {}),
+    deadline,
+    requestTimeoutMs: ciRequestTimeout,
+    maxBytes: ciTransferLimit,
+    allowRequest: (method, url) =>
+      method === "GET" && url.pathname.startsWith(`/repos/${repository}/`),
+  });
+  // Metadata keeps the report's existing parallelism. The previous blocking
+  // archive transport admitted one transfer at a time.
+  let transfers = Promise.resolve();
+  const requestDeadline = () => {
+    const now = performance.now();
+    if (now >= deadline)
+      throw new GitHubApiError("deadline_exceeded", "CI report deadline exhausted");
+    return Math.min(deadline, now + ciRequestTimeout);
+  };
+  return async (route, paginate = false, responseType = "json") => {
+    const currentDeadline = requestDeadline();
+    if (responseType === "buffer") {
+      if (!route.startsWith(`repos/${repository}/actions/artifacts/`))
+        throw new GitHubApiError("request_refused", "CI artifact route is outside the repository");
+      const download = transfers.then(() =>
+        downloadGitHubArtifactArchive(route, {
+          credential,
+          deadline: requestDeadline(),
+          maxBytes: ciTransferLimit,
+          bufferAllowance: "ci-provenance",
+          lookup: { requestTimeoutMs: ciRequestTimeout },
+          ...(fetch ? { fetch } : {}),
+        }),
+      );
+      transfers = download.then(
+        () => {},
+        () => {},
+      );
+      return download;
+    }
+    const pages: unknown[] = [];
+    let received = 0;
+    const reserve = () => ({
+      consumeBytes: (bytes: number) => {
+        received += bytes;
+        if (received > ciTransferLimit)
+          throw new GitHubApiError(
+            "budget_exhausted",
+            "CI metadata collection exceeded its byte budget",
+          );
+      },
+      settle() {},
+    });
+    const url = new URL(route, "https://api.github.com/").href;
+    const headers = { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    if (!paginate)
+      return (
+        await client.request({
+          method: "GET",
+          url,
+          headers,
+          request: {
+            portcove: { replay: "safe-read", attempts: 0, reserve, deadline: currentDeadline },
+          },
+        })
+      ).data as unknown;
+    for await (const response of iterateGitHubPages(client, {
+      url,
+      headers,
+      reserve,
+      deadline: currentDeadline,
+    }))
+      pages.push(response.data as unknown);
+    return pages;
+  };
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -803,59 +894,11 @@ async function main() {
   const branch = values.branch ?? (values.event === "push" ? "main" : undefined);
   const { repository } = roadmapConfig;
   const deadline = performance.now() + 10 * 60_000;
-  const client = await createGitHubClient({
-    credential: localDeveloperCredential({ deadline }),
+  const request = await createCiHistoryRequest({
+    repository,
     deadline,
-    requestTimeoutMs: 30_000,
-    maxBytes: 20 * 1024 * 1024,
-    allowRequest: (method, url) =>
-      method === "GET" && url.pathname.startsWith(`/repos/${repository}/`),
+    credential: localDeveloperCredential({ deadline }),
   });
-  const request: CiRequest = async (route, paginate = false, responseType = "json") => {
-    if (performance.now() >= deadline)
-      throw new GitHubApiError("deadline_exceeded", "CI report deadline exhausted");
-    if (responseType === "buffer")
-      return readGitHubArtifactArchive(route, {
-        cwd: process.cwd(),
-        maxBytes: 20 * 1024 * 1024,
-        timeoutMs: Math.max(1, Math.min(30_000, Math.ceil(deadline - performance.now()))),
-      });
-    const requestDeadline = Math.min(deadline, performance.now() + 30_000);
-    const pages: unknown[] = [];
-    let received = 0;
-    const reserve = () => ({
-      consumeBytes: (bytes: number) => {
-        received += bytes;
-        if (received > 20 * 1024 * 1024)
-          throw new GitHubApiError(
-            "budget_exhausted",
-            "CI metadata collection exceeded its byte budget",
-          );
-      },
-      settle() {},
-    });
-    const url = new URL(route, "https://api.github.com/").href;
-    const headers = { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
-    if (!paginate)
-      return (
-        await client.request({
-          method: "GET",
-          url,
-          headers,
-          request: {
-            portcove: { replay: "safe-read", attempts: 0, reserve, deadline: requestDeadline },
-          },
-        })
-      ).data as unknown;
-    for await (const response of iterateGitHubPages(client, {
-      url,
-      headers,
-      reserve,
-      deadline: requestDeadline,
-    }))
-      pages.push(response.data as unknown);
-    return pages;
-  };
   const report = await collectHistory(request, {
     repository,
     workflow: values.workflow,

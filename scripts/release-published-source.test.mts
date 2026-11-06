@@ -4,10 +4,15 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
-import { inspectPublishedApplicationSource } from "./release-published-source.mts";
+import {
+  inspectPublishedApplicationSource,
+  inspectPublishedApplicationSourceWithSdk,
+} from "./release-published-source.mts";
 import { readSemanticPublicationBaseline } from "./release-semantic-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 async function fixture(t: test.TestContext, extraCodeChange = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "published-source-"));
@@ -211,6 +216,27 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
   };
 }
 
+function readWithLockedSdk(f: Awaited<ReturnType<typeof fixture>>, publication = f.publication) {
+  return inspectPublishedApplicationSourceWithSdk(
+    {
+      token: "inert-published-source",
+      deadline: performance.now() + 5000,
+      requireDirect: false,
+      guard() {},
+      fetch: async (input, init) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), "token inert-published-source");
+        const result = f.api.request(request.method, url.pathname.slice(1) + url.search);
+        return Response.json(result.body, { status: result.status });
+      },
+    },
+    { schema_version: 1, namespace: f.namespace },
+    publication,
+  );
+}
+
 void test("actual paired preparation and exact four-file transform preserve distinct published and original source identities", async (t) => {
   const f = await fixture(t);
   const result = inspectPublishedApplicationSource(
@@ -226,6 +252,9 @@ void test("actual paired preparation and exact four-file transform preserve dist
   assert.equal(result.authority, "none");
   assert.match(result.proof_sha256, /^[a-f0-9]{64}$/u);
   assert.ok(f.calls.some((entry) => entry.includes("/compare/")));
+  const legacyRoutes = f.calls.splice(0);
+  assert.deepEqual(await readWithLockedSdk(f), result);
+  assert.deepEqual(f.calls, legacyRoutes);
   const semanticApi = {
     request(method: string, endpoint: string) {
       if (endpoint === "repos/boburning/portcove")
@@ -268,6 +297,8 @@ void test("missing/wrong paired receipt, truncated tree, changed blob and tag dr
         f.publication,
       ),
     );
+    f.calls.length = 0;
+    await assert.rejects(readWithLockedSdk(f));
   }
   f.setFault("");
   f.refs.delete(`${f.namespace}-prepared-source/${f.source}`);
@@ -308,6 +339,7 @@ void test("legacy direct publication retains its actual source identity without 
     f.calls.some((entry) => entry.includes("/contents/") || entry.includes("/compare/")),
     false,
   );
+  assert.deepEqual(await readWithLockedSdk(f, publication), result);
   assert.ok(isRecord(result.publication));
 });
 
@@ -322,4 +354,137 @@ void test("valid raw intent and receipt pair cannot conceal extra application ch
       ),
     /changes more than exact existing version authorities/,
   );
+});
+
+void test("published source proof aborts a stalled metadata body at the tighter current deadline without replay", async () => {
+  let dispatches = 0;
+  let cancelled = false;
+  const deadline = performance.now() + 200;
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 4500, () =>
+      inspectPublishedApplicationSourceWithSdk(
+        {
+          token: "inert-published-source",
+          deadline: performance.now() + 5000,
+          requireDirect: false,
+          guard() {},
+          currentDeadline: () => deadline,
+          fetch: async (_input, init) => {
+            assert.ok(init?.signal);
+            dispatches++;
+            return new Response(
+              new ReadableStream({
+                start(controller) {
+                  controller.enqueue(Buffer.from("{"));
+                },
+                cancel() {
+                  cancelled = true;
+                },
+              }),
+              { headers: { "content-type": "application/json" } },
+            );
+          },
+        },
+        { schema_version: 1, namespace: "portcove-fixture" },
+        {
+          id: 42,
+          version: "0.1.0-alpha.3",
+          prepared_commit: "a".repeat(40),
+          prepared_tree: "b".repeat(40),
+        },
+      ),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(dispatches, 1);
+  assert.equal(cancelled, true);
+});
+
+void test("native predecessor shares its dispatch owner across bracketing inventories, source proof and Check routes", async (t) => {
+  const { createNativePredecessorReader } =
+    await import("./release-native-publication-admission.mts");
+  const f = await fixture(t);
+  const routes: string[] = [];
+  let charges = 0;
+  let exhausted = false;
+  const release = {
+    id: f.publication.id,
+    tag_name: `v${f.publication.version}`,
+    draft: false,
+    prerelease: true,
+    published_at: "2026-11-04T00:00:00Z",
+    updated_at: "2026-11-04T00:00:00Z",
+  };
+  const tag = {
+    id: "R_tag",
+    name: release.tag_name,
+    prefix: "refs/tags/",
+    target: { __typename: "Commit", oid: f.publication.prepared_commit },
+  };
+  const read = await createNativePredecessorReader(
+    "inert-postsign-reader",
+    performance.now() + 5000,
+    () => {},
+    () => {
+      if (exhausted) throw new Error("fixture shared predecessor budget exhausted");
+      charges++;
+    },
+    async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-postsign-reader");
+      routes.push(url.pathname + url.search);
+      if (url.pathname === "/graphql") {
+        assert.equal(request.method, "POST");
+        return Response.json({
+          data: {
+            repository: {
+              id: "R_fixture",
+              databaseId: 1354613114,
+              nameWithOwner: "boburning/portcove",
+              refs: { totalCount: 1, nodes: [tag], pageInfo: { hasNextPage: false } },
+            },
+          },
+        });
+      }
+      assert.equal(request.method, "GET");
+      if (url.pathname === "/repos/boburning/portcove")
+        return Response.json({
+          id: 1354613114,
+          full_name: "boburning/portcove",
+          node_id: "R_fixture",
+        });
+      if (url.pathname === "/repos/boburning/portcove/releases") return Response.json([release]);
+      if (url.pathname === "/repos/boburning/portcove/check-runs/44")
+        return Response.json({ id: 44 });
+      const result = f.api.request(request.method, url.pathname.slice(1) + url.search);
+      return Response.json(result.body, { status: result.status });
+    },
+  );
+  const beforeReleases = await read({ kind: "releases" });
+  assert.deepEqual(beforeReleases, { status: 200, body: [release] });
+  const beforeTags = await read({ kind: "tags" });
+  assert.deepEqual(beforeTags, { status: 200, body: [tag] });
+  assert.deepEqual(await read({ kind: "source", namespace: f.namespace, subject: f.publication }), {
+    status: 200,
+    body: f.source,
+  });
+  assert.ok(routes.length > 1);
+  assert.deepEqual(await read({ kind: "metadata", endpoint: "check-runs/44" }), {
+    status: 200,
+    body: { id: 44 },
+  });
+  assert.deepEqual(await read({ kind: "releases" }), beforeReleases);
+  assert.deepEqual(await read({ kind: "tags" }), beforeTags);
+  assert.equal(routes.filter((route) => route === "/repos/boburning/portcove").length, 1);
+  assert.deepEqual(routes.slice(-2), [
+    "/repos/boburning/portcove/releases?per_page=100",
+    "/graphql",
+  ]);
+  assert.equal(charges, routes.length);
+  const before = routes.length;
+  exhausted = true;
+  await assert.rejects(read({ kind: "releases" }), /fixture shared predecessor budget exhausted/u);
+  assert.equal(routes.length, before);
 });

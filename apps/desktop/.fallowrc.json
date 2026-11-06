@@ -27,6 +27,10 @@
       "toolingDependencies": ["@tauri-apps/cli"],
       "usedExports": [
         {
+          "pattern": "scripts/desktop-main-webview-boundary.mts",
+          "exports": ["readBoundaryDiagnostics"]
+        },
+        {
           "pattern": "scripts/desktop-bootstrap-recovery-test.mts",
           "exports": ["technicalDetailHasSeparation", "observeTechnicalDetails"]
         },

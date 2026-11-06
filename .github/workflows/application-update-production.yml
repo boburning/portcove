@@ -62,11 +62,82 @@ jobs:
           package-manager-cache: false
       - run: node scripts/production-controller-admission-cli.mts
         id: admit
+      - name: Observe exact publication pause before credential-bearing jobs
+        id: pause
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          retries: 0
+          debug: false
+          script: |
+            const repository = "https://api.github.com/repos/boburning/portcove";
+            const operation = AbortSignal.timeout(30_000);
+            async function get(suffix, limit, accept) {
+              const url = repository + suffix;
+              const signal = AbortSignal.any([operation, AbortSignal.timeout(10_000)]);
+              let bytes;
+              try {
+                const result = await github.request(`GET ${url}`, {
+                  headers: { accept },
+                  request: {
+                    signal,
+                    parseSuccessResponseBody: false,
+                    log: { debug() {}, info() {}, warn() {}, error() {} },
+                    fetch: async (input, init) => {
+                      if (input !== url || init.method !== "GET") throw Error("Unexpected pause route");
+                      const response = await fetch(input, { ...init, signal, redirect: "manual" });
+                      if (response.status !== 200 || !response.body) {
+                        await response.body?.cancel();
+                        throw Error("Pause response unavailable");
+                      }
+                      const reader = response.body.getReader();
+                      const chunks = [];
+                      let total = 0;
+                      try {
+                        for (;;) {
+                          const chunk = await reader.read();
+                          if (chunk.done) break;
+                          total += chunk.value.byteLength;
+                          if (total > limit) {
+                            await reader.cancel();
+                            throw Error("Pause response exceeds its bound");
+                          }
+                          chunks.push(chunk.value);
+                        }
+                      } finally {
+                        reader.releaseLock();
+                      }
+                      bytes = Buffer.concat(chunks, total);
+                      return new Response(null, { status: 200 });
+                    },
+                  },
+                });
+                signal.throwIfAborted();
+                if (result.status !== 200 || !bytes) throw Error("Pause response unavailable");
+                return JSON.parse(bytes.toString("utf8"));
+              } catch {
+                throw Error("Fixed publication pause read failed");
+              }
+            }
+            const head = async () => {
+              const ref = await get("/git/ref/heads/portcove-release-pause", 64 * 1024, "application/vnd.github+json");
+              if (ref?.ref !== "refs/heads/portcove-release-pause" || ref.object?.type !== "commit" ||
+                  typeof ref.object.sha !== "string" || !/^[a-f0-9]{40}$/.test(ref.object.sha))
+                throw Error("Publication pause ref identity unavailable");
+              return ref.object.sha;
+            };
+            const before = await head();
+            const pause = await get(`/contents/publication.json?ref=${before}`, 4096, "application/vnd.github.raw+json");
+            if (!pause || Object.keys(pause).sort().join(",") !== "publication_paused,schema_version" ||
+                pause.schema_version !== 1 || typeof pause.publication_paused !== "boolean")
+              throw Error("Publication pause schema differs");
+            if (await head() !== before) throw Error("Publication pause ref changed");
+            core.setOutput("publication_paused", String(pause.publication_paused));
     if: ${{ vars.PORTCOVE_CONTROLLER_REVISION == github.sha && vars.PORTCOVE_CONTROLLER_REF ==
       github.ref && ((inputs.publication_purpose == 'application' &&
       vars.PORTCOVE_CONTROLLER_ADMISSION != '') || (inputs.publication_purpose ==
       'catalog-publication' && vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION != '')) }}
     outputs:
+      publication_paused: ${{ steps.pause.outputs.publication_paused }}
       publication_purpose: ${{ steps.admit.outputs.publication_purpose }}
       classification_transport: ${{ steps.admit.outputs.classification_transport }}
       protection_app_id: ${{ steps.admit.outputs.protection_app_id }}
@@ -147,8 +218,8 @@ jobs:
       - admission
       - tool_bootstrap
       - tool_bootstrap_windows
-    if: ${{ !cancelled() && needs.admission.result == 'success' && needs.tool_bootstrap.result ==
-      'success' && ((needs.admission.outputs.publication_purpose == 'application' &&
+    if: ${{ !cancelled() && needs.admission.result == 'success' &&
+      needs.admission.outputs.publication_paused == 'false' && needs.tool_bootstrap.result == 'success' && ((needs.admission.outputs.publication_purpose == 'application' &&
       needs.tool_bootstrap_windows.result == 'success') ||
       (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
       needs.tool_bootstrap_windows.result == 'skipped')) }}
@@ -416,17 +487,36 @@ jobs:
           PORTCOVE_TOOL_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
           PORTCOVE_TOOL_ARTIFACT_SHA256: ${{ steps.upload.outputs.artifact-digest }}
         run: node scripts/release-controller-tool-bootstrap.mts bind-upload
+      - name: Retain bounded Windows runtime diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-windows-runtime-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/hosted-continuity-evidence/windows-runtime.json
+            work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json
+            work/hosted-continuity-evidence/windows-runtime-incomplete.json
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
+      - name: Retain bounded Windows compiler diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-windows-compiler-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ~/.pct-*/ct-*/failure.json
+            ~/.pct-*/ct-*/tools/manifest.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
       - name: Retain only bounded bootstrap diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: trusted-controller-tools-windows-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            work/hosted-continuity-evidence/windows-runtime.json
-            work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json
-            work/hosted-continuity-evidence/windows-runtime-incomplete.json
-            ~/.pct-*/ct-*/failure.json
-            ~/.pct-*/ct-*/tools/manifest.json
             ${{ runner.temp }}/controller-tools-windows-predicate.json
             ${{ runner.temp }}/controller-tool-binding-*/expected.json
             ${{ runner.temp }}/controller-tool-binding-*/provider-before.json
@@ -453,7 +543,31 @@ jobs:
       observation: ${{ steps.observe.outputs.observation }}
     steps:
       - *a1
+      - &controller_clock_pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          package_json_file: package.json
+          run_install: false
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+          PORTCOVE_RELEASE_READ_TOKEN: ""
       - *a2
+      - &controller_clock_install
+        name: Install the fixed controller clock dependencies before role credentials
+        shell: bash
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+          PORTCOVE_RELEASE_READ_TOKEN: ""
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_WORKFLOW_SHA" ]]
+          git diff --quiet HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc patches/
+          if [[ -e .npmrc ]]; then git ls-files --error-unmatch .npmrc >/dev/null; fi
+          install_home="$RUNNER_TEMP/controller-clock-install-home"
+          mkdir -m 700 "$install_home"
+          env -i PATH="$PATH" HOME="$install_home" CI=true pnpm --filter portcove-repository install --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/controller-clock-store"
       - id: probe
         env:
           PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ needs.admission.outputs.protection_app_id }}
@@ -502,7 +616,9 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - id: probe
         run: node scripts/release-reviewed-inputs.mts probe-production-request
       - id: storage
@@ -592,31 +708,9 @@ jobs:
       role_locators: ${{ steps.job.outputs.role_locators }}
     steps:
       - *a1
-      - &controller_clock_pnpm
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
-        with:
-          package_json_file: package.json
-          run_install: false
-        env:
-          GH_TOKEN: ""
-          GITHUB_TOKEN: ""
-          PORTCOVE_RELEASE_READ_TOKEN: ""
+      - *controller_clock_pnpm
       - *a2
-      - &controller_clock_install
-        name: Install the fixed controller clock dependencies before role credentials
-        shell: bash
-        env:
-          GH_TOKEN: ""
-          GITHUB_TOKEN: ""
-          PORTCOVE_RELEASE_READ_TOKEN: ""
-        run: |
-          set -euo pipefail
-          [[ "$(git rev-parse HEAD)" == "$GITHUB_WORKFLOW_SHA" ]]
-          git diff --quiet HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc patches/
-          if [[ -e .npmrc ]]; then git ls-files --error-unmatch .npmrc >/dev/null; fi
-          install_home="$RUNNER_TEMP/controller-clock-install-home"
-          mkdir -m 700 "$install_home"
-          env -i PATH="$PATH" HOME="$install_home" CI=true pnpm --filter portcove-repository install --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/controller-clock-store"
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts coordinator
         id: authorities

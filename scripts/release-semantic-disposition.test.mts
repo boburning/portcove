@@ -200,6 +200,7 @@ import {
 } from "./release-semantic-disposition.mts";
 import {
   readIndependentCatalogSemanticDisposition,
+  discoverIndependentCatalogSemanticDispositionWithSdk,
   inspectCatalogSemanticRequestCheckMatches,
   inspectSemanticRequestCheckMatches,
   createCatalogReviewDispositionReceipt,
@@ -343,4 +344,73 @@ void test("worker chooses exact catalog purpose without application version and 
       published_site: { malformed: true },
     }),
   );
+});
+
+void test("locked SDK brackets the exact catalog negative Check with the selected App inventory", async () => {
+  const { request, wire } = catalogFixture();
+  const record = prepareNegativeCatalogSemanticDispositionCheck(wire);
+  const config = {
+    schema_version: 2,
+    purpose: "catalog-publication",
+    review_app_id: 123,
+    review_check_name: semanticReviewCheckName,
+  };
+  const repository = { id: 1354613114, full_name: "boburning/portcove", node_id: "R_fixture" };
+  const suite = {
+    id: 12,
+    head_sha: request.opportunity.source_commit,
+    app: { id: 123 },
+    repository,
+  };
+  const check = {
+    ...record.proposed_request.body,
+    id: 99,
+    app: suite.app,
+    check_suite: { id: suite.id },
+    output: { ...record.proposed_request.body.output, annotations_count: 0, text: "" },
+  };
+  const routes: string[] = [];
+  const observed = await discoverIndependentCatalogSemanticDispositionWithSdk(
+    {
+      token: "catalog-reader",
+      deadline: performance.now() + 2000,
+      guard() {},
+      async fetch(input, init) {
+        assert.equal(new Headers(init?.headers).get("authorization"), "token catalog-reader");
+        assert.equal(init?.method, "GET");
+        const url = new URL(input instanceof Request ? input.url : input);
+        assert.equal(url.origin, "https://api.github.com");
+        const route = url.pathname.split("/").at(-1)!;
+        routes.push(route);
+        if (route === "check-suites") {
+          assert.equal(url.searchParams.get("app_id"), "123");
+          return Response.json({ total_count: 1, check_suites: [suite] });
+        }
+        if (route === "check-runs") {
+          assert.equal(url.searchParams.get("filter"), "all");
+          return Response.json({ total_count: 1, check_runs: [check] });
+        }
+        return Response.json(route === "99" ? check : repository);
+      },
+    },
+    config,
+    request,
+  );
+  assert.equal(observed.check_run_id, 99);
+  assert.equal(observed.wire_sha256, capacityDigest(record.wire));
+  assert.deepEqual(routes, [
+    "portcove",
+    "check-suites",
+    "check-runs",
+    "check-suites",
+    "check-runs",
+    "portcove",
+    "portcove",
+    "99",
+    "99",
+    "portcove",
+    "check-suites",
+    "check-runs",
+    "portcove",
+  ]);
 });

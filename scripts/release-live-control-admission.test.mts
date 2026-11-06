@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile, mkdtemp, rm, appendFile, writeFile } from "node:fs/promises";
+import { readFile, mkdtemp, readdir, rm, appendFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
 import { parse } from "yaml";
@@ -140,7 +141,30 @@ void test("observer output transport refuses expiry after every awaited write an
   }
 });
 
-void test("production protection observer entry uses the captured job credential for the scoped SDK lookup", async () => {
+void test("retired reviewed-input read command refuses before credential scratch or receipt", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retired-reviewed-input-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const result = childProcess.spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL("./release-reviewed-inputs.mts", import.meta.url)), "read"],
+    {
+      encoding: "utf8",
+      timeout: 10000,
+      env: {
+        ...process.env,
+        RUNNER_TEMP: root,
+        GH_TOKEN: "inert-reader",
+        PORTCOVE_STORAGE_APP_TOKEN: "inert-storage",
+      },
+    },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 1);
+  assert.equal(result.stderr.trim(), "reviewed input operation refused");
+  assert.deepEqual(await readdir(root), []);
+});
+
+void test("production protection observer entry uses separate captured job and protection App credentials through the SDK", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-protection-observer-entry-"));
   try {
     const phase = "coordinator";
@@ -182,14 +206,20 @@ void test("production protection observer entry uses the captured job credential
           assert.equal(request.headers.get("authorization"), null);
           return Response.json({ keys: [jwk] });
         }
-        dispatches.push([request.method, url.href, request.headers.get("authorization")]);
+        const authorization = request.headers.get("authorization");
+        dispatches.push([request.method, url.href, authorization]);
+        if (authorization === "token original-job-token")
+          return Response.json(provider.metadata(url.pathname + url.search));
+        assert.equal(authorization, "token different-protection-app-token");
+        assert.equal(url.href, "https://api.github.com/repos/boburning/portcove");
         return Response.json({}, { status: 503 });
       };
       process.on("beforeExit", () => {
-        assert.deepEqual(dispatches, [[
-          "GET", "https://api.github.com/repos/boburning/portcove/actions/runs/9988",
-          "token original-job-token",
-        ]]);
+        assert.deepEqual(dispatches.map(row => row[2]), [
+          ...Array(5).fill("token original-job-token"),
+          "token different-protection-app-token",
+        ]);
+        assert.ok(dispatches.every(row => row[0] === "GET"));
       });
       process.argv = [process.execPath, fileURLToPath(${JSON.stringify(command.href)}), "observe-production-coordinator"];
       await import(${JSON.stringify(command.href)});
@@ -212,6 +242,7 @@ void test("production protection observer entry uses the captured job credential
           PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
           PORTCOVE_EXPECTED_PROTECTION_APP_ID: String(observer.app_id),
           PORTCOVE_EXPECTED_INSTALLATION_ID: String(observer.installation_id),
+          PORTCOVE_OBSERVED_INSTALLATION_ID: String(observer.installation_id),
           PORTCOVE_CONTROL_APP_TOKEN: "different-protection-app-token",
           PORTCOVE_STORAGE_APP_TOKEN: undefined,
           NODE_OPTIONS: undefined,
@@ -232,6 +263,138 @@ void test("production protection observer entry uses the captured job credential
     await rm(root, { recursive: true, force: true });
   }
 });
+
+for (const role of ["observer", "writer"] as const) {
+  void test(`fixed classification ${role} entry reads the original clock and OIDC identity through locked Octokit`, async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-classification-entry-"));
+    try {
+      const writer = role === "writer";
+      const configuration = selectedPublicationAuthoritiesFixture("application");
+      const runtime = liveControlRuntimeFixture(
+        protectionFixture("a".repeat(40)),
+        config,
+        "coordinator",
+        true,
+      );
+      const workflow = await readFile(
+        new URL(`../${productionControllerWorkflow}`, import.meta.url),
+      );
+      const observer = configuration.journal.apps.protection_observer;
+      const command = new URL("./release-reviewed-inputs.mts", import.meta.url);
+      const fixture = new URL("./fixtures/assembler-identity-fixture.mts", import.meta.url);
+      const name = writer
+        ? "Persist independently reviewed classification"
+        : "Observe release input protections";
+      const oidcEnvironment = writer
+        ? "production-release-classification"
+        : "production-release-protection-observer";
+      const audience = writer
+        ? "portcove-release-classification-v1"
+        : "portcove-release-classification-protection-v1";
+      const program = `
+        import assert from "node:assert/strict";
+        import { fileURLToPath } from "node:url";
+        import { assemblerIdentityFixture, jwk } from ${JSON.stringify(fixture.href)};
+        const provider = assemblerIdentityFixture({
+          aud: ${JSON.stringify(audience)},
+          sub: ${JSON.stringify(controllerOidcSubject(runtime.policy.execution_ref, oidcEnvironment))},
+          environment: ${JSON.stringify(oidcEnvironment)},
+        }, {}, {
+          workflow: ${JSON.stringify(productionControllerWorkflow)},
+          job: ${JSON.stringify(name)},
+          runAttempt: 1,
+        });
+        const calls = [];
+        globalThis.fetch = async (input, init) => {
+          const request = new Request(input, init);
+          const url = new URL(request.url);
+          assert.equal(request.method, "GET");
+          if (url.origin === "https://fixture.actions.githubusercontent.com") {
+            calls.push("oidc");
+            assert.equal(url.searchParams.get("audience"), ${JSON.stringify(audience)});
+            assert.equal(request.headers.get("authorization"), "Bearer fixture-oidc");
+            return Response.json({ value: provider.token });
+          }
+          if (url.origin === "https://token.actions.githubusercontent.com") {
+            calls.push("keys");
+            assert.equal(request.headers.get("authorization"), null);
+            return Response.json({ keys: [jwk] });
+          }
+          assert.equal(url.origin, "https://api.github.com");
+          const authorization = request.headers.get("authorization");
+          if (authorization === "token unrelated-protection-app-token") {
+            assert.equal(${JSON.stringify(writer)}, false);
+            assert.equal(url.href, "https://api.github.com/repos/boburning/portcove");
+            calls.push("protection-app");
+            return Response.json({}, { status: 503 });
+          }
+          assert.equal(authorization, "token original-classification-job-reader");
+          calls.push(url.pathname + url.search);
+          if (calls.length === 1 && url.pathname.endsWith("/attempts/1/jobs")) {
+            process.env.GH_TOKEN = "unrelated-late-ambient-token";
+            return Response.json({total_count:1,jobs:[{
+              id:501, name:${JSON.stringify(name)}, run_id:9988, run_attempt:1,
+              head_sha:${JSON.stringify(runtime.policy.revision)}, status:"in_progress",
+              started_at:new Date(Date.now()-1000).toISOString(),
+            }]});
+          }
+          return ${JSON.stringify(writer)}
+            ? Response.json({}, { status: 503 })
+            : Response.json(provider.metadata(url.pathname + url.search));
+        };
+        process.on("beforeExit", () => {
+          assert.deepEqual(calls.slice(0, 4), [
+            "/repos/boburning/portcove/actions/runs/9988/attempts/1/jobs?page=1&per_page=100",
+            "oidc",
+            "keys",
+            "/repos/boburning/portcove/actions/runs/9988",
+          ]);
+          assert.equal(calls.at(-1), ${JSON.stringify(writer)}
+            ? "/repos/boburning/portcove/actions/runs/9988" : "protection-app");
+        });
+        process.argv = [process.execPath, fileURLToPath(${JSON.stringify(command.href)}), ${JSON.stringify(writer ? "persist-production-request" : "observe-production-classification")}];
+        await import(${JSON.stringify(command.href)});
+      `;
+      const result = childProcess.spawnSync(
+        process.execPath,
+        ["--input-type=module", "--eval", program],
+        {
+          env: {
+            ...process.env,
+            ...runtime.environment,
+            GITHUB_JOB: writer ? "classification_writer" : "classification_protection_observation",
+            RUNNER_TEMP: root,
+            PORTCOVE_EXECUTION_PURPOSE: "application",
+            PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+              ...runtime.policy,
+              workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+              authority_configuration_sha256: capacityDigest(configuration),
+            }),
+            PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
+            PORTCOVE_EXPECTED_PROTECTION_APP_ID: String(observer.app_id),
+            PORTCOVE_EXPECTED_INSTALLATION_ID: String(observer.installation_id),
+            PORTCOVE_OBSERVED_INSTALLATION_ID: String(observer.installation_id),
+            PORTCOVE_CONTROL_APP_TOKEN: writer ? undefined : "unrelated-protection-app-token",
+            PORTCOVE_STORAGE_APP_TOKEN: writer ? "unrelated-storage-app-token" : undefined,
+            NODE_OPTIONS: undefined,
+            NODE_PATH: undefined,
+            GH_TOKEN: "original-classification-job-reader",
+            ACTIONS_ID_TOKEN_REQUEST_URL:
+              "https://fixture.actions.githubusercontent.com/token?fixture=1",
+            ACTIONS_ID_TOKEN_REQUEST_TOKEN: "fixture-oidc",
+          },
+          encoding: "utf8",
+          timeout: 15_000,
+        },
+      );
+      assert.ifError(result.error);
+      assert.equal(result.status, 1);
+      assert.equal(result.stderr.trim(), "reviewed input operation refused");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
 
 void test("production observer joins original named source/OIDC and appointed mint output for both purposes, refusing copies, drift and expiry", async (t) => {
   let provider: ReturnType<typeof assemblerIdentityFixture>;
@@ -869,7 +1032,7 @@ void test("selected full application control drift cannot hide behind an unchang
   );
 });
 
-void test("coordinator exact request reader accepts persisted independent proof and refuses conflicting outcomes", async () => {
+void test("scoped coordinator request reader accepts persisted proof and distinguishes negative or conflicting outcomes", async (t) => {
   const selected = { ...config, review_check_name: semanticReviewCheckName };
   const request = createReleaseReviewRequest({
     before_checkpoint: "e".repeat(40),
@@ -897,6 +1060,13 @@ void test("coordinator exact request reader accepts persisted independent proof 
       opportunity_sha256: capacityDigest(opportunity),
       review: { ...full.review, completed_at: "2026-01-01T00:00:00Z" },
     }).proposed_request.body;
+    const negativeCheck = {
+      ...negative,
+      id: 505,
+      app: { id: selected.review_app_id },
+      check_suite: { id: 404 },
+      output: { ...negative.output, annotations_count: 0, text: "" },
+    };
     const accepted = () => {
       const value = control.api.request("GET", "repos/boburning/portcove/check-runs/303").body;
       assert.ok(isRecord(value));
@@ -927,14 +1097,7 @@ void test("coordinator exact request reader accepts persisted independent proof 
           };
         if (endpoint.includes("/check-suites/404/check-runs?")) {
           const records: Record<string, unknown>[] = persisted ? [accepted()] : [];
-          if (conflict)
-            records.push({
-              ...negative,
-              id: 505,
-              app: { id: selected.review_app_id },
-              check_suite: { id: 404 },
-              output: { ...negative.output, annotations_count: 0, text: "" },
-            });
+          if (conflict) records.push(negativeCheck);
           return {
             status: 200,
             headers: new Map<string, string>(),
@@ -943,6 +1106,8 @@ void test("coordinator exact request reader accepts persisted independent proof 
         }
         if (endpoint.endsWith("/check-runs/303"))
           return { status: 200, headers: new Map<string, string>(), body: accepted() };
+        if (conflict && endpoint.endsWith("/check-runs/505"))
+          return { status: 200, headers: new Map<string, string>(), body: negativeCheck };
         return control.api.request(method, endpoint, body);
       },
     };
@@ -952,22 +1117,65 @@ void test("coordinator exact request reader accepts persisted independent proof 
       selected,
       "coordinator",
     );
-    const source = await runtime.create();
-    const result = source.readRequest(api, request);
+    const { observerApi, ...options } = runtime.options;
+    let observerReads = 0;
+    const fetcher = t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string, init?: RequestInit) => {
+        const url = new URL(input);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token synthetic-coordinator",
+        );
+        if (url.pathname === "/graphql") {
+          assert.equal(init?.method, "POST");
+          assert.ok(typeof init.body === "string");
+          const wire: unknown = JSON.parse(init.body);
+          assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+          assert.match(wire.query, /^query\b/u);
+          return Response.json({ data: api.graphql(wire.query, wire.variables).data });
+        }
+        assert.equal(init?.method, "GET");
+        const endpoint = url.pathname.slice(1) + url.search;
+        if (endpoint.includes("/actions/jobs/")) {
+          observerReads++;
+          const response = observerApi.request("GET", endpoint);
+          return Response.json(response.body, { status: response.status ?? 500 });
+        }
+        const response = api.request("GET", endpoint);
+        return Response.json(response.body ?? null, { status: response.status ?? 500 });
+      },
+    );
+    const source = await authenticateReleaseControlSource(
+      { ...runtime.environment, GH_TOKEN: "synthetic-coordinator" },
+      runtime.workflow,
+      { ...options, deadline: performance.now() + 10000, controlReader: "coordinator-application" },
+    );
+    const result = await source.readSdkRequest(request);
+    assert.equal(observerReads, 3);
     assert.equal(result.classification.status, persisted ? "reviewed" : "missing");
     if (persisted) {
       assert.equal(result.classification.status, "reviewed");
       if (result.classification.status === "reviewed")
         assert.deepEqual(result.classification.opportunity, opportunity);
       conflict = true;
-      assert.throws(() => source.readRequest(api, request), /conflict/);
+      await assert.rejects(source.readSdkRequest(request, "effect"), /conflict/);
       conflict = false;
       control.conflicting();
-      assert.throws(() => source.readRequest(api, request));
+      await assert.rejects(source.readSdkRequest(request));
+    } else {
+      await assert.rejects(source.readSdkDisposition(request), /absent or ambiguous/u);
+      conflict = true;
+      const disposition = await source.readSdkDisposition(request);
+      assert.equal(disposition.disposition.check_run_id, 505);
+      assert.equal(disposition.disposition.wire.request.request_id, request.request_id);
     }
     runtime.advance(60001);
-    assert.throws(() => source.readRequest(api, request), /fresh/);
+    await assert.rejects(source.readSdkRequest(request), /fresh/u);
     assert.equal(control.mutations(), persisted ? 1 : 0);
+    fetcher.mock.restore();
   }
 });
 
@@ -1032,6 +1240,271 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
   const runtime = liveControlRuntimeFixture(protectionFixture(control.head()));
   return { control, runtime };
 }
+
+for (const controlReader of [
+  "admitted-aggregate",
+  "diagnostic-admission",
+  "coordinator-application",
+  "site-application",
+  "site-maintenance",
+  "metadata-maintenance",
+  "payload",
+  "tuf-maintenance",
+  "tuf-application",
+  "publication-application",
+] as const)
+  void test(`fixed ${controlReader} joins locked SDK ref, file and original observer reads`, async (t) => {
+    const aggregate =
+      controlReader === "admitted-aggregate" || controlReader === "diagnostic-admission";
+    const publication = controlReader === "publication-application";
+    const classification =
+      aggregate ||
+      publication ||
+      controlReader === "coordinator-application" ||
+      controlReader === "payload" ||
+      controlReader === "tuf-application" ||
+      controlReader === "site-application";
+    const phase = aggregate
+      ? "admission"
+      : controlReader === "site-maintenance" || controlReader === "site-application"
+        ? "site-publication"
+        : controlReader === "metadata-maintenance" || controlReader === "coordinator-application"
+          ? "coordinator"
+          : controlReader === "payload"
+            ? "payload"
+            : publication
+              ? "release-publication"
+              : "tuf-preview";
+    const control = releaseControlInputsFixture(
+      capacityDocumentFixture(),
+      opportunity,
+      config,
+      true,
+    );
+    if (classification)
+      persistReviewedClassification(control.api, config, opportunity, 303, () => {});
+    const protection = publication
+      ? publicationProtection(control.head())
+      : protectionFixture(control.head());
+    const runtime = liveControlRuntimeFixture(protection, config, phase, aggregate);
+    const { observerApi, ...options } = runtime.options;
+    const before = await runtime.create();
+    const expected = classification
+      ? before.read(control.api, opportunity)
+      : before.readMaintenance(control.api);
+    const priorMutations = control.mutations();
+    const base = "https://api.github.com";
+    const reads: string[] = [];
+    let riskScope = false;
+    let expireOnObserver = false;
+    let stallBody = false;
+    let oversizedBody = false;
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        assert.ok(url.startsWith(base + "/"));
+        const endpoint = url.slice(base.length);
+        reads.push(endpoint);
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          riskScope && !endpoint.includes("/actions/jobs/")
+            ? "token synthetic-risk"
+            : "token synthetic-site",
+        );
+        if (endpoint === "/graphql") {
+          assert.equal(init?.method, "POST");
+          assert.ok(typeof init.body === "string");
+          const wire: unknown = JSON.parse(init.body);
+          assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+          const { query, variables } = wire;
+          assert.ok(
+            variables.ref === "refs/heads/portcove-release-pause" ||
+              (classification && variables.ref === "refs/heads/portcove-release-inputs"),
+          );
+          return Response.json({ data: control.api.graphql(query, variables).data });
+        }
+        assert.equal(init?.method, "GET");
+        if (stallBody && endpoint === "/repos/boburning/portcove")
+          return new Response(new ReadableStream(), {
+            headers: { "content-type": "application/json" },
+          });
+        if (endpoint.startsWith("/repos/boburning/portcove/actions/jobs/")) {
+          if (expireOnObserver) runtime.advance(60001);
+          const result = observerApi.request("GET", endpoint.slice(1));
+          return Response.json(result.body, { status: result.status ?? 500 });
+        }
+        if (classification && endpoint === "/repos/boburning/portcove/check-runs/303") {
+          const check = control.api.request("GET", endpoint.slice(1));
+          return Response.json(check.body, { status: check.status ?? 500 });
+        }
+        assert.match(
+          endpoint,
+          /^\/repos\/boburning\/portcove(?:\/git\/(?:commits|trees|blobs)\/[a-f0-9]{40})?$/u,
+        );
+        const result = control.api.request("GET", endpoint.slice(1));
+        const body =
+          oversizedBody && endpoint === "/repos/boburning/portcove" && isRecord(result.body)
+            ? { ...result.body, padding: "x".repeat(256 * 1024) }
+            : result.body;
+        return Response.json(body, { status: result.status ?? 500 });
+      },
+    );
+    const source = await authenticateReleaseControlSource(
+      {
+        ...runtime.environment,
+        GH_TOKEN: "synthetic-site",
+        PORTCOVE_RELEASE_READ_TOKEN: "synthetic-risk",
+      },
+      runtime.workflow,
+      { ...options, deadline: performance.now() + 5000, controlReader },
+    );
+    const read = () =>
+      classification
+        ? source.readSdkApplicationControls(opportunity)
+        : controlReader === "metadata-maintenance"
+          ? source.readSdkMaintenance(undefined, {
+              deadline: performance.now() + 1000,
+              signingContext: true,
+            })
+          : source.readSdkMaintenance();
+    const observed = await read();
+    assert.deepEqual(observed.pause, expected.pause);
+    assert.deepEqual(observed.capacity_source, expected.capacity_source);
+    assert.equal(observed.facts_sha256, expected.facts_sha256);
+    assert.equal(
+      reads.filter((endpoint) => endpoint === "/graphql").length,
+      classification ? 6 : 4,
+    );
+    assert.equal(
+      reads.filter((endpoint) => endpoint === "/repos/boburning/portcove").length,
+      classification ? 3 : 2,
+    );
+    assert.match(reads[0] ?? "", /\/actions\/jobs\//u);
+    assert.equal(reads.at(-1), reads[0]);
+    assert.equal(control.mutations(), priorMutations);
+    const callsPerObservation = reads.length - 1;
+    if (classification && controlReader !== "coordinator-application") {
+      const start = reads.length;
+      let charged = 0;
+      let elapsed = 0;
+      let measured = 0;
+      const accounting = {
+        reserve() {
+          return {
+            consumeBytes() {},
+            settle({ dispatched }: { dispatched: boolean }) {
+              if (dispatched) charged++;
+            },
+          };
+        },
+        elapsed(milliseconds: number) {
+          measured++;
+          elapsed += milliseconds;
+        },
+        currentDeadline: () => performance.now() + 1000 - elapsed,
+      };
+      assert.deepEqual(
+        await source.readSdkApplicationControls(opportunity, { admission: accounting }),
+        observed,
+      );
+      assert.equal(charged, reads.length - start - 1);
+      assert.equal(measured, charged);
+      assert.ok(elapsed > 0);
+      assert.equal(reads.at(-1), reads[0]);
+      if (aggregate) {
+        const beforeOversize = reads.length;
+        oversizedBody = true;
+        await assert.rejects(
+          source.readSdkApplicationControls(opportunity, { maxBytes: 256 * 1024 }),
+          /exceeds its byte limit/u,
+        );
+        assert.deepEqual(reads.slice(beforeOversize), ["/repos/boburning/portcove"]);
+        oversizedBody = false;
+        const beforeTimeout = reads.length;
+        await assert.rejects(
+          source.readSdkApplicationControls(opportunity, {
+            admission: { ...accounting, currentDeadline: () => performance.now() - 1 },
+          }),
+          /admission API acquisition bound/u,
+        );
+        assert.equal(reads.length, beforeTimeout);
+      }
+    }
+    if (aggregate) {
+      assert.equal(source.evidence_scope, "injected-provider");
+      for (let round = 0; round < 2; round++) {
+        const beforeRead = reads.length;
+        assert.deepEqual(await read(), observed);
+        assert.equal(reads.length - beforeRead, callsPerObservation);
+      }
+      const beforeRefusal = reads.length;
+      const originalProxy = process.env.NODE_USE_ENV_PROXY;
+      process.env.NODE_USE_ENV_PROXY = "1";
+      try {
+        await assert.rejects(read());
+      } finally {
+        if (originalProxy === undefined) delete process.env.NODE_USE_ENV_PROXY;
+        else process.env.NODE_USE_ENV_PROXY = originalProxy;
+      }
+      const readOnly = liveControlRuntimeFixture(protection, config, "admission");
+      const { observerApi: _observer, ...readOnlyOptions } = readOnly.options;
+      const authenticateReadOnly = () =>
+        authenticateReleaseControlSource(
+          { ...readOnly.environment, GH_TOKEN: "synthetic-site" },
+          readOnly.workflow,
+          { ...readOnlyOptions, deadline: performance.now() + 5000, controlReader },
+        );
+      if (controlReader === "admitted-aggregate") {
+        await assert.rejects(authenticateReadOnly(), /protected application admission/u);
+        assert.equal(reads.length, beforeRefusal);
+      } else {
+        const diagnostic = await authenticateReadOnly();
+        assert.equal(diagnostic.phase, "admission");
+        assert.deepEqual(reads.slice(beforeRefusal), [reads[0]]);
+      }
+    }
+    if (publication || controlReader === "payload") {
+      const start = reads.length;
+      let reserved = 0;
+      let dispatched = 0;
+      riskScope = true;
+      const risk = await source.readSdkApplicationControls(opportunity, {
+        deadline: performance.now() + 1000,
+        reserve: () => {
+          reserved++;
+          return {
+            consumeBytes() {},
+            settle(value) {
+              if (value.dispatched) dispatched++;
+            },
+          };
+        },
+      });
+      riskScope = false;
+      assert.equal(risk.facts_sha256, expected.facts_sha256);
+      assert.equal(reserved, dispatched);
+      assert.equal(dispatched, reads.length - start - 1);
+      assert.equal(reads.at(-1), reads[0]);
+    }
+    if (controlReader === "metadata-maintenance") {
+      stallBody = true;
+      const beforeStall = reads.length;
+      await assert.rejects(
+        source.readSdkMaintenance(undefined, {
+          deadline: performance.now() + 150,
+          signingContext: true,
+        }),
+        /deadline|abort/u,
+      );
+      assert.deepEqual(reads.slice(beforeStall), ["/repos/boburning/portcove"]);
+      stallBody = false;
+    }
+    expireOnObserver = true;
+    await assert.rejects(read(), /fresh|expired/u);
+  });
 
 void test("controls cap the actual observer subprocess and refuse its late response without minting a source", async (t) => {
   const f = fixture();

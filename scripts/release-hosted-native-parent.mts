@@ -21,7 +21,10 @@ import {
   requireVerifiedHostedNativeJobIdentity,
 } from "./assembler-job-identity.mts";
 import { inspectHostedNativeProducer } from "./release-hosted-native-proof-contract.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 
 const sourceKeys = [
@@ -169,7 +172,11 @@ export async function createActualHostedNativeParentSource(
       );
       active();
       return verifyHostedNativeJobIdentity(platform, token, expected, {
-        transport: { cwd: directory, deadline: identityDeadline },
+        transport: {
+          sdkToken: fixedReleaseReaderToken(),
+          requireDirect: true,
+          deadline: identityDeadline,
+        },
       });
     });
     active();

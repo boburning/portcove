@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
+import { Octokit } from "@octokit/core";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { readFile, mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { sha256 } from "./application-release-io.mts";
+import { receiveStagedApplicationToolData, sha256 } from "./application-release-io.mts";
 import { isRecord } from "./runtime-values.mts";
 import { collectApplicationNativeReport } from "./release-native-pre-sign-report.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
@@ -428,6 +434,221 @@ void test("fresh native attester has no candidate execution, operational key or 
       JSON.stringify(workflow.jobs.attest),
     ),
   );
+});
+
+void test("native attester inline SDK stages a verified archive for the no-network receiver", async (t) => {
+  const workflow = parse(
+    await readFile(
+      new URL("../.github/workflows/application-release-native.yml", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    jobs: {
+      attest: {
+        steps: {
+          uses?: string;
+          run?: string;
+          with?: { script?: string; retries?: number; debug?: boolean };
+        }[];
+      };
+    };
+  };
+  const steps = workflow.jobs.attest.steps;
+  const index = steps.findIndex((step) => step.uses?.startsWith("actions/github-script@"));
+  const step = steps[index];
+  assert.equal(step?.uses, "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3");
+  assert.equal(step.with?.retries, 0);
+  assert.equal(step.with?.debug, false);
+  assert.equal(steps[index + 1]?.run, "node scripts/application-release-tools.mts receive-file");
+  const script = step.with?.script;
+  assert.ok(script && !script.includes("${{"));
+  for (const [kind, label] of [
+    ["private", "Private worker"],
+    ["assembly", "Assembly worker"],
+  ]) {
+    const workerWorkflow = parse(
+      await readFile(
+        new URL(`../.github/workflows/application-release-${kind}.yml`, import.meta.url),
+        "utf8",
+      ),
+    ) as {
+      jobs: { execute: { steps: ((typeof steps)[number] & { id?: string; name?: string })[] } };
+    };
+    const workerSteps = workerWorkflow.jobs.execute.steps;
+    const workerIndex = workerSteps.findIndex((entry) => entry.uses === step.uses);
+    const workerStep = workerSteps[workerIndex];
+    assert.ok(workerStep?.with?.script);
+    assert.deepEqual(
+      {
+        ...workerStep.with,
+        script: workerStep.with.script.replace(
+          `${label} tools acquisition refused`,
+          "Native attester tools acquisition refused",
+        ),
+      },
+      step.with,
+    );
+    assert.equal(
+      workerSteps[workerIndex + 1]?.run,
+      "node scripts/application-release-tools.mts receive-file",
+    );
+    const bind = workerSteps.findIndex((entry) => entry.name?.startsWith("Bind fixed caller"));
+    assert.ok(bind >= 0 && bind < workerIndex);
+    const worker = workerSteps.findIndex((entry) => entry.id === "worker");
+    assert.ok(worker > workerIndex + 1);
+    if (kind === "private")
+      assert.ok(workerSteps.findIndex((entry) => entry.id === "observer") > workerIndex + 1);
+    else
+      assert.ok(
+        workerSteps.findIndex((entry) => entry.uses?.startsWith("actions/attest@")) > worker,
+      );
+  }
+  const topLevel = parse(
+    await readFile(
+      new URL("../.github/workflows/application-release.yml", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    jobs: Record<string, { steps?: ((typeof steps)[number] & { name?: string })[] }>;
+  };
+  const toolReceivers = [
+    "context",
+    "draft_recovery",
+    "publication_prepare",
+    "publication",
+    "feed_prepare",
+    "feed",
+    "readback",
+    "public_installed_readback",
+  ];
+  assert.deepEqual(
+    Object.entries(topLevel.jobs)
+      .filter(([, job]) => job.steps?.some((entry) => entry.uses === step.uses))
+      .map(([job]) => job),
+    toolReceivers,
+  );
+  for (const job of toolReceivers) {
+    const receiver = topLevel.jobs[job]?.steps;
+    assert.ok(receiver);
+    const acquire = receiver.findIndex((entry) => entry.uses === step.uses);
+    const fixed = receiver.findIndex((entry) => entry.name?.startsWith("Bind fixed caller"));
+    assert.ok(fixed >= 0 && acquire > fixed);
+    const withOptions = receiver[acquire]?.with;
+    assert.ok(withOptions?.script);
+    assert.deepEqual(
+      {
+        ...withOptions,
+        script: withOptions.script.replace(
+          "Application tools acquisition refused",
+          "Native attester tools acquisition refused",
+        ),
+      },
+      step.with,
+    );
+    assert.equal(
+      receiver[acquire + 1]?.run,
+      "node scripts/application-release-tools.mts receive-file",
+    );
+    assert.ok(
+      receiver.every((entry) => entry.run !== "node scripts/application-release-tools.mts receive"),
+    );
+  }
+  const root = await mkdtemp(path.join(tmpdir(), "native-attester-tools-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const scratch = path.join(root, "portcove-native-attester-tools");
+  const output = path.join(root, "extracted");
+  const source = "a".repeat(40);
+  const ref = "refs/tags/portcove-production-controller-fixture";
+  const archive = createAuditZip([["tools.json", "fixture tool manifest"]]);
+  const id = 9;
+  const expected = {
+    id,
+    name: "application-tools-14-1",
+    run_id: "14",
+    source,
+    files: ["tools.json"],
+    maximum_archive_bytes: 320 * 1024 ** 2,
+    maximum_file_bytes: 128 * 1024 ** 2,
+  };
+  const metadata = {
+    id,
+    name: expected.name,
+    expired: false,
+    size_in_bytes: archive.length,
+    digest: `sha256:${sha256(archive)}`,
+    workflow_run: { id: 14, head_sha: source, repository_id: 1354613114 },
+  };
+  let mode = "wrong-source";
+  const calls: string[] = [];
+  const run = () =>
+    runInNewContext(`(async () => { ${script} })()`, {
+      require: createRequire(import.meta.url),
+      github: new Octokit({ auth: "inert-native-attester" }),
+      context: { repo: { owner: "boburning", repo: "portcove" }, runId: 14, sha: source, ref },
+      process: {
+        env: {
+          RUNNER_TEMP: root,
+          PORTCOVE_TOOLS_ARTIFACT: String(id),
+          PORTCOVE_TOOLS_ATTEMPT: "1",
+          GITHUB_RUN_ID: "14",
+          GITHUB_RUN_ATTEMPT: "1",
+          PORTCOVE_APPLICATION_RELEASE_REVISION: source,
+          PORTCOVE_APPLICATION_RELEASE_REF: ref,
+        },
+      },
+      Buffer,
+      AbortSignal,
+      Request,
+      Response,
+      URL,
+      fetch: async (input: Request | URL, init: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        calls.push(url.pathname);
+        assert.equal(request.redirect, "manual");
+        if (url.origin === "https://api.github.com") {
+          assert.equal(request.headers.get("authorization"), "token inert-native-attester");
+          if (url.pathname.endsWith("/zip"))
+            return new Response(null, {
+              status: 302,
+              headers: {
+                location:
+                  "https://productionresultssa1.blob.core.windows.net/actions-results/tools?sig=inert",
+              },
+            });
+          return Response.json(
+            mode === "wrong-source"
+              ? {
+                  ...metadata,
+                  workflow_run: { ...metadata.workflow_run, head_sha: "b".repeat(40) },
+                }
+              : metadata,
+          );
+        }
+        assert.equal(url.origin, "https://productionresultssa1.blob.core.windows.net");
+        assert.equal(request.credentials, "omit");
+        assert.equal(request.headers.has("authorization"), false);
+        return new Response(mode === "overlong" ? Buffer.concat([archive, Buffer.of(0)]) : archive);
+      },
+    }) as Promise<unknown>;
+  await assert.rejects(run(), /acquisition refused/u);
+  assert.equal(calls.length, 1);
+  mode = "overlong";
+  await assert.rejects(run(), /acquisition refused/u);
+  await assert.rejects(readFile(path.join(scratch, "archive.zip")), { code: "ENOENT" });
+  mode = "valid";
+  await run();
+  await assert.rejects(receiveStagedApplicationToolData(output, { ...expected, id: 10 }, scratch));
+  const saved = await readFile(path.join(scratch, "archive.zip"));
+  await writeFile(path.join(scratch, "archive.zip"), Buffer.alloc(saved.length));
+  await assert.rejects(receiveStagedApplicationToolData(output, expected, scratch));
+  await writeFile(path.join(scratch, "archive.zip"), saved);
+  assert.deepEqual(await receiveStagedApplicationToolData(output, expected, scratch), {
+    id,
+    bytes: archive.length,
+    sha256: sha256(archive),
+  });
+  assert.equal(await readFile(path.join(output, "tools.json"), "utf8"), "fixture tool manifest");
 });
 
 void test("native execution requires the fixed protected hosted Windows caller and no private issuer", () => {
@@ -1811,4 +2032,103 @@ void test("context reservations keep write credentials in the key-free job and p
     assert.ok(isRecord(job) && isRecord(job.permissions));
     assert.equal(job.permissions.contents, "read", name);
   }
+});
+
+void test("actual qualification selection reads the locked SDK inventory without an inherited deadline", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "application-source-inventory-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = "a".repeat(40),
+    tree = "b".repeat(40),
+    baseline = "c".repeat(40);
+  const output = path.join(root, "outputs");
+  const repo = "/repos/boburning/portcove";
+  const metadata = { id: 1354613114, full_name: "boburning/portcove", node_id: "R_fixture" };
+  const pages = {
+    [`GET ${repo}/git/commits/${source}`]: { sha: source, tree: { sha: tree } },
+    [`GET ${repo}`]: metadata,
+    [`GET ${repo}/releases?per_page=100`]: [
+      {
+        id: 1,
+        tag_name: "v0.1.0-alpha.1",
+        draft: false,
+        prerelease: true,
+        published_at: "2026-11-04T00:00:00Z",
+        updated_at: "2026-11-04T00:00:00Z",
+      },
+    ],
+    "POST /graphql": {
+      data: {
+        repository: {
+          id: metadata.node_id,
+          databaseId: metadata.id,
+          nameWithOwner: metadata.full_name,
+          refs: {
+            totalCount: 1,
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [
+              {
+                id: "ref-1",
+                name: "v0.1.0-alpha.1",
+                prefix: "refs/tags/",
+                target: { __typename: "Commit", oid: baseline },
+              },
+            ],
+          },
+        },
+      },
+    },
+    [`GET ${repo}/releases/1`]: { immutable: true, tag_name: "v0.1.0-alpha.1", draft: false },
+  };
+  const fixture = path.join(root, "provider.mjs");
+  await writeFile(
+    fixture,
+    `
+    import assert from "node:assert/strict";
+    const steps = Object.entries(${JSON.stringify(pages)});
+    globalThis.fetch = async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-qualification");
+      const [route, body] = steps.shift();
+      assert.equal(request.method + " " + url.pathname + url.search, route);
+      return Response.json(body);
+    };
+    process.on("beforeExit", () => assert.equal(steps.length, 0));
+  `,
+  );
+  await mkdir(path.join(root, "scripts"));
+  await writeFile(
+    path.join(root, "scripts/check-release-metadata.mts"),
+    'console.log("0.1.0-alpha.2");',
+  );
+  execFileSync(
+    process.execPath,
+    [
+      "--import",
+      fixture,
+      fileURLToPath(new URL("./application-release-source.mts", import.meta.url)),
+      "select",
+    ],
+    {
+      cwd: root,
+      env: {
+        PATH: process.env.PATH,
+        SystemRoot: process.env.SystemRoot,
+        GH_TOKEN: "inert-qualification",
+        GITHUB_REPOSITORY: "boburning/portcove",
+        GITHUB_REPOSITORY_ID: "1354613114",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_REF: "refs/heads/main",
+        GITHUB_SHA: source,
+        GITHUB_OUTPUT: output,
+      },
+      timeout: 30000,
+      stdio: "pipe",
+    },
+  );
+  assert.equal(
+    await readFile(output, "utf8"),
+    `source=${source}\ntree=${tree}\nversion=0.1.0-alpha.2\nbase=${baseline}\n`,
+  );
 });

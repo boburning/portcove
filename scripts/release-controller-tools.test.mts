@@ -1,4 +1,8 @@
-import { controllerFixtureFailureAnnotation } from "./qualify-controller-tool-build.mts";
+import {
+  assertControllerFixtureBuildBudget,
+  controllerFixtureBuildAllowanceMilliseconds,
+  controllerFixtureFailureAnnotation,
+} from "./qualify-controller-tool-build.mts";
 import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
@@ -773,7 +777,11 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   for (const event of ["pull_request", "push"]) {
     const trigger: unknown = parsed.on[event];
     assert.ok(isRecord(trigger) && Array.isArray(trigger.paths));
-    for (const scope of ["crates/portcove-cli/**", "crates/portcove-core/**"])
+    for (const scope of [
+      "crates/portcove-cli/**",
+      "crates/portcove-core/**",
+      "scripts/assembler-job-identity.mts",
+    ])
       assert.ok(trigger.paths.includes(scope));
   }
   const buildSource = await readFile(
@@ -1141,10 +1149,13 @@ void test("fixed controller tool senders use the locked SDK before signing exact
       ACTIONS_ID_TOKEN_REQUEST_TOKEN: "fixture-oidc-bearer",
     });
     const calls: string[] = [];
+    let refuseAt: string | undefined;
+    let artifactReads = 0;
     const fetcher: typeof globalThis.fetch = async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : input);
       const headers = new Headers(init?.headers);
       calls.push(url.pathname);
+      if (url.pathname === refuseAt) throw new Error("private diagnostic fixture");
       if (url.hostname === "runner.actions.githubusercontent.com") {
         assert.equal(url.searchParams.get("audience"), profile.audience);
         assert.equal(headers.get("authorization"), "Bearer fixture-oidc-bearer");
@@ -1165,6 +1176,9 @@ void test("fixed controller tool senders use the locked SDK before signing exact
       assert.equal(headers.get("authorization"), "token fixture-fixed-sender");
       const prefix = "/repos/boburning/portcove";
       if (url.pathname === `${prefix}/actions/artifacts/99`) {
+        artifactReads++;
+        if (refuseAt === "artifact-recheck" && artifactReads === 2)
+          throw new Error("private diagnostic fixture");
         process.env.GH_TOKEN = "unrelated-mutated-token";
         return Response.json(await f.options.metadata.artifact(99));
       }
@@ -1204,6 +1218,49 @@ void test("fixed controller tool senders use the locked SDK before signing exact
         `${actions}/artifacts/99`,
       ]);
       assert.equal(oidc.counts().requests, 5);
+      for (const [failurePath, phase, identityRefusal] of [
+        ["/oidc", "producer-token-request"],
+        ["/.well-known/jwks", "producer-identity-verification", "provider-keys"],
+        [
+          "/repos/boburning/portcove/actions/runs/9988",
+          "producer-identity-verification",
+          "provider-read",
+        ],
+        ["artifact-recheck", "producer-upload-identity-recheck"],
+        ["predicate-output", "producer-predicate-output"],
+      ] as const) {
+        refuseAt = failurePath;
+        artifactReads = 0;
+        process.env.GH_TOKEN = "fixture-fixed-sender";
+        const refusalRoot = await mkdtemp(path.join(root, "refusal-"));
+        if (failurePath === "predicate-output") {
+          const basename =
+            platform === "windows-x86_64"
+              ? "controller-tools-windows-predicate.json"
+              : "controller-tools-predicate.json";
+          await writeFile(path.join(refusalRoot, basename), "private diagnostic fixture");
+        }
+        await assert.rejects(
+          prepareControllerToolPredicate(refusalRoot, f.expected, {
+            ...identityExpected,
+            audience: profile.audience,
+            run_attempt: 1,
+          }),
+          /controller tool binding refused/u,
+        );
+        const attempt = (await readdir(refusalRoot)).find((name) =>
+          name.startsWith("controller-tool-binding-"),
+        );
+        assert.ok(attempt);
+        const directory = path.join(refusalRoot, attempt);
+        assert.deepEqual(JSON.parse(await readFile(path.join(directory, "refusal.json"), "utf8")), {
+          directory,
+          phase,
+          ...(identityRefusal ? { identity_refusal: identityRefusal } : {}),
+          authority: "none",
+          automatic_retry: false,
+        });
+      }
     } finally {
       mocked.mock.restore();
     }
@@ -1918,14 +1975,39 @@ void test("held Windows producer joins the exact platform artifact to an isolate
     record(bind.env).PORTCOVE_TOOL_ARTIFACT_ID,
     "${{ steps.upload.outputs.artifact-id }}",
   );
-  const diagnostics = record(record(producerSteps.at(-1)).with);
-  assert.ok(typeof diagnostics.path === "string");
-  assert.match(diagnostics.path, /~\/\.pct-\*\/ct-\*\/failure\.json/u);
-  assert.match(diagnostics.path, /controller-tools-windows-predicate\.json/u);
+  const diagnostics = producerSteps.slice(producerSteps.indexOf(bind) + 1);
+  assert.deepEqual(
+    diagnostics.map((step, index) => {
+      const options = record(step.with);
+      assert.equal(step.if, "${{ always() }}");
+      assert.equal(options["if-no-files-found"], "warn");
+      assert.equal(options.overwrite, false);
+      assert.equal(options["retention-days"], 7);
+      assert.equal(options["include-hidden-files"], index === 1 ? true : undefined);
+      assert.equal(typeof options.path, "string");
+      return String(options.path).trim().split("\n");
+    }),
+    [
+      [
+        "work/hosted-continuity-evidence/windows-runtime.json",
+        "work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json",
+        "work/hosted-continuity-evidence/windows-runtime-incomplete.json",
+      ],
+      ["~/.pct-*/ct-*/failure.json", "~/.pct-*/ct-*/tools/manifest.json"],
+      [
+        "${{ runner.temp }}/controller-tools-windows-predicate.json",
+        "${{ runner.temp }}/controller-tool-binding-*/expected.json",
+        "${{ runner.temp }}/controller-tool-binding-*/provider-before.json",
+        "${{ runner.temp }}/controller-tool-binding-*/refusal.json",
+      ],
+    ],
+  );
   assert.deepEqual(attester.needs, ["admission", "tool_bootstrap", "tool_bootstrap_windows"]);
   assert.ok(typeof attester.if === "string");
-  for (const [purpose, windows, linux, admission, cancelled, expected] of [
+  for (const [purpose, windows, linux, admission, cancelled, expected, paused = "false"] of [
     ["application", "success", "success", "success", false, true],
+    ["application", "success", "success", "success", false, false, "true"],
+    ["application", "success", "success", "success", false, false, ""],
     ["application", "success", "success", "success", true, false],
     ["application", "failure", "success", "success", false, false],
     ["application", "skipped", "success", "success", false, false],
@@ -1941,13 +2023,16 @@ void test("held Windows producer joins the exact platform artifact to an isolate
         always: () => true,
         cancelled: () => cancelled,
         needs: {
-          admission: { result: admission, outputs: { publication_purpose: purpose } },
+          admission: {
+            result: admission,
+            outputs: { publication_purpose: purpose, publication_paused: paused },
+          },
           tool_bootstrap: { result: linux },
           tool_bootstrap_windows: { result: windows },
         },
       }),
       expected,
-      `${purpose}/${windows}/${linux}/${admission}`,
+      `${purpose}/${windows}/${linux}/${admission}/${paused}`,
     );
   }
   assert.equal(attester["timeout-minutes"], 2);
@@ -2515,6 +2600,17 @@ void test("protected Windows runtime sequential budget preserves original provid
     assert.throws(() => remaining({ ...original, ...changed }));
 });
 
+void test("ordinary cold-build budget admits retained slow completions and refuses invalid or over-budget durations", () => {
+  assert.equal(controllerFixtureBuildAllowanceMilliseconds, 360000);
+  for (const milliseconds of [0, 184967, 225000, 228162, 231589, 240557, 243109, 360000])
+    assert.doesNotThrow(() => assertControllerFixtureBuildBudget(milliseconds));
+  for (const milliseconds of [-1, 0.5, 360001, Number.NaN, Infinity, -Infinity])
+    assert.throws(
+      () => assertControllerFixtureBuildBudget(milliseconds),
+      /cold fixed tool build exceeds its preparation allowance/u,
+    );
+});
+
 void test("controller failure annotations expose bounded stage metadata while excluding private error contents", () => {
   const error = Object.assign(new Error("PRIVATE credential and path"), {
     code: "ERR_ASSERTION",
@@ -2597,7 +2693,20 @@ void test(
     const env = { RUNNER_TEMP: os.tmpdir(), PORTCOVE_EXECUTION_PURPOSE: "application" };
     for (const [mode, additions, boundary] of [
       ["private-invalid-mode", {}, "operation"],
-      ["build", { AZURE_PRIVATE_FIXTURE: "private-fixture-value" }, "credential-boundary"],
+      ["build", { AZURE_DEVOPS_CACHE_DIR: "C:/azuredevopscli" }, "source-revision"],
+      [
+        "build",
+        { AZURE_EXTENSION_DIR: "/runner/extensions", AZURE_CONFIG_DIR: "/runner/config" },
+        "source-revision",
+      ],
+      [
+        "build",
+        {
+          AZURE_EXTENSION_DIR: "/runner/extensions",
+          AZURE_PRIVATE_FIXTURE: "private-fixture-value",
+        },
+        "credential-boundary",
+      ],
       ["build", { PORTCOVE_CONTROLLER_REVISION: "private-invalid-revision" }, "source-revision"],
       [
         "build",

@@ -1754,6 +1754,12 @@ publication are unclaimed. Exact identities and boundaries are recorded in the
 
 ## Adding or changing a port
 
+On an integrated record, `integration.platforms` owns managed platform
+eligibility. Use `listing.platforms` only for additional platforms where
+independent upstream package evidence applies. Declare each platform once.
+The discovery directory reports both sets. The managed definition and its
+selected release retain their own platform checks.
+
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's
 toolchain download fallback. Builder PATH contains only the owned toolchain and
@@ -1900,8 +1906,14 @@ at least one character between them, and never recurses or behaves as a general
 glob. Matching files are omitted from immutable verification but are not
 enumerated, backed up or restored. By contrast, `persistent_file_patterns` uses
 the same bounded syntax for player-owned files that must participate in those
-persistence operations, while `runtime_mutable_paths` remains the exact-path
-form for disposable runtime output. Catalog validation rejects overlapping or
+persistence operations. A current reader may opt a persistent pattern into
+matching its concatenated prefix and suffix with `allow_empty_middle: true`.
+It still matches regular files only and retains executable and critical-file
+refusals. Indexed definition admission rejects the option until its semantics
+can be negotiated with readers. Format-1 signed catalogs reject the option in
+the payload and inherit it only for matching compiled patterns.
+`runtime_mutable_paths` remains the exact-path form for
+disposable runtime output. Catalog validation rejects overlapping or
 duplicate rules and conflicts with executable, source, metadata, exact-runtime
 or persistent declarations. This contract cannot claim files in roaming AppData
 or another external user-profile directory; such state needs an upstream
@@ -2037,6 +2049,12 @@ per-title outcomes, checking independently reviewed expected launch vectors or
 accepted member observations. An ordinary fitting title needs no production Rust
 or per-title test wrapper. Independent observations and custom behavioral tests
 remain necessary where their scope differs from the shared route.
+For a managed-native case, record the independently observed executable and
+immutable members in the shared native lifecycle corpus and enroll the stable
+ID and managed role in the independent expectations. Review those facts against
+the package before generating the entrypoint.
+[Native lifecycle corpus](../crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json),
+[independent enrollment](../crates/portcove-core/src/testdata/route-enrollment-expectations.json).
 
 Optional authoring-only `gba_staged_archive_v1` expands the reviewed Windows
 staged GitHub archive layout used by the upstream GBA picker. Record the
@@ -2050,12 +2068,29 @@ Settings qualification also requires the explicit integration form.
 The projection refuses duplicate path and mod policy fields. Core receives
 and validates the same concrete contract as before.
 
-For a matching title, reuse the shared staging, preservation and rollback
-evidence and link the reviewed package and writer facts. Check the exact
-package selection, original edition, picker and process behavior, and any
-write or compatibility differences from the reviewed layout. A separate
-write-up or copy of the shared test campaign adds no new evidence. A change
-to the layout or update boundary still needs focused lifecycle verification.
+Reuse the shared staging, declared-data preservation and rollback evidence
+when the official Windows archive uses the reviewed picker, stays within its
+tracked process lifetime and has the same writer and update ownership.
+Independently check each title's package selection, executable, original
+edition and effective write paths. Review changed lifetime, writer layout,
+credentials or update ownership against the affected lifecycle operation.
+The Ruby and Sapphire example shows when explicit variant and fallback paths
+can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-versioned-mod-preservation-2026-10-25.md),
+[explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
+
+For a new compatible-release selection case, add the stable title ID to
+`cases` in the shared Windows archive fixture. Set its `inventory` to a key
+in `inventories` with at least two releases in oldest-to-newest order.
+Record one independently identified exact asset name per release in
+`selected_assets`. Keep the full observed release inventories and label
+controlled successors in the title evidence. Reuse an inventory when another
+title selects from the same releases. Use `other_zip_assets` to identify
+competing ZIPs outside the enrolled routes by inventory, zero-based release
+index and exact member name. The inventory check requires every ZIP to be
+covered exactly once. Generated route entrypoints and shared lifecycle
+fixtures separately cover registration, managed runtime replacement and data
+ownership. Ordinary compatible successors use the unchanged authored selectors.
+[Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
 
 Optional authoring-only `package_observation_v1` retains an exact previously
 accepted package/player inspection. Ordinary `prepare-port` consumes its receipt

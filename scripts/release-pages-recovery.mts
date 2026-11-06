@@ -123,7 +123,7 @@ export async function recoverPendingPagesPublication(
   privateParent: string,
   phaseDeadline: number,
   beforeSettlement?: () => Promise<void>,
-  beforeMutation?: () => void,
+  beforeMutation?: () => Promise<void>,
 ) {
   if (!Number.isFinite(phaseDeadline) || performance.now() >= phaseDeadline)
     throw new Error("Pages recovery deadline exhausted before observation");
@@ -148,7 +148,7 @@ export async function recoverPendingPagesPublication(
     const checkpointControls = async () => {
       if (!beforeMutation)
         throw new Error("selected Pages recovery requires original live mutation controls");
-      beforeMutation();
+      await beforeMutation();
     };
     const signedJournal = await ensureOwnedCheckpointJournalHistory(
       executor,
@@ -173,7 +173,7 @@ export async function recoverPendingPagesPublication(
           await beforeSettlement?.();
           return observation.resolution;
         },
-        signedJournal ? undefined : beforeMutation,
+        !signedJournal && beforeMutation ? { readCurrent: beforeMutation } : undefined,
         signedJournal ? checkpointControls : undefined,
       ),
     );

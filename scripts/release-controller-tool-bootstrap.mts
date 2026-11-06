@@ -14,6 +14,7 @@ import { inspectControllerExecutionPurpose } from "./release-control-phases.mts"
 import { isRecord } from "./runtime-values.mts";
 import {
   controllerOidcSubject,
+  jobIdentityRefusalCode,
   controllerToolBootstrapProfile,
 } from "./assembler-job-identity.mts";
 const project = fileURLToPath(new URL("..", import.meta.url));
@@ -43,6 +44,11 @@ try {
   )
     throw new Error("fixed bootstrap operation required");
   boundary = "credential-boundary";
+  // Hosted runner images set these Azure CLI and DevOps CLI directory paths globally.
+  // The controller never invokes Azure CLI or passes its configuration onward.
+  delete process.env.AZURE_CONFIG_DIR;
+  delete process.env.AZURE_EXTENSION_DIR;
+  delete process.env.AZURE_DEVOPS_CACHE_DIR;
   for (const key of Object.keys(process.env))
     if (
       /^PORTCOVE_CATALOG_(?:DEFINITIONS|POLICY|SNAPSHOT|TIMESTAMP)_KEY$/u.test(key) ||
@@ -128,9 +134,11 @@ try {
       `predicate=${JSON.stringify(binding.predicate)}\nmanifest_sha256=${binding.manifest_sha256}\n`,
     );
   }
-} catch {
+} catch (error) {
+  const identityRefusal = jobIdentityRefusalCode(error);
+  const stage = identityRefusal ? `${boundary}/${identityRefusal}` : boundary;
   console.error(
-    `fixed controller bootstrap refused at ${boundary}; retain private build/acquisition evidence; no automatic retry`,
+    `fixed controller bootstrap refused at ${stage}; retain private build/acquisition evidence; no automatic retry`,
   );
   process.exitCode = 2;
 }

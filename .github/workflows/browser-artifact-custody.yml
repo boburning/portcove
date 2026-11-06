@@ -65,10 +65,16 @@ jobs:
         with:
           pattern: browser-traces-*-${{ github.run_id }}-${{ github.run_attempt }}
           path: work/downloaded-browser-custody
+      - name: Read the original browser attempt jobs
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          retries: 0
+          debug: false
+          script: |
+            const { pathToFileURL } = require("node:url");
+            const path = require("node:path");
+            const { collectWorkflowJobEvidence } = await import(pathToFileURL(path.join(process.env.GITHUB_WORKSPACE, "scripts/workflow-job-evidence.mts")).href);
+            await collectWorkflowJobEvidence(github, "browser");
       - name: Verify all three packets and original step outcomes
-        env:
-          GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: |
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" > "$RUNNER_TEMP/browser-custody-jobs.json"
-          node apps/desktop/scripts/browser-runtime.mts verify-screenshot-only work/downloaded-browser-custody "$RUNNER_TEMP/browser-custody-jobs.json"
+        run: node apps/desktop/scripts/browser-runtime.mts verify-screenshot-only work/downloaded-browser-custody "$RUNNER_TEMP/browser-custody-jobs.json"

@@ -7,10 +7,8 @@ import {
   nativeSourceDeclarationByteLimit,
   inspectNativeCompatibilitySources,
 } from "./release-native-source-contract.mts";
-import {
-  createNativeSourceApiReader,
-  readActualNativeSourceDeclarations,
-} from "./release-native-candidate.mts";
+import { readActualNativeSourceDeclarations } from "./release-native-candidate.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 
 void test("actual maintained source recipe supplies declarations without runtime or admission authority", async () => {
   const files: Record<string, Buffer> = Object.fromEntries(
@@ -199,41 +197,36 @@ void test("actual maintained source recipe supplies declarations without runtime
   await assert.rejects(readActualNativeSourceDeclarations({}), /actual native source selection/);
 });
 
-void test("actual source transport bounds immutable blob JSON separately from metadata", () => {
-  const payload = JSON.stringify({
-    sha: "a".repeat(40),
+void test("locked source transport bounds immutable blob JSON separately from metadata", async () => {
+  const sha = "a".repeat(40);
+  const payload = {
+    sha,
     size: 4 * 1024 * 1024,
     encoding: "base64",
     content: Buffer.alloc(4 * 1024 * 1024, 32).toString("base64"),
-  });
-  const observed: number[] = [];
-  const api = createNativeSourceApiReader(process.cwd(), (_command, _args, options) => {
-    observed.push(options.maxBuffer!);
-    assert.ok(Buffer.byteLength(payload) < options.maxBuffer!);
-    return { status: 0, stdout: payload, stderr: "" };
-  });
-  const result = api.request("GET", `repos/boburning/portcove/git/blobs/${"a".repeat(40)}`);
-  assert.equal((result.body as { size: number }).size, 4 * 1024 * 1024);
-  const metadata = createNativeSourceApiReader(process.cwd(), (_command, _args, options) => {
-    observed.push(options.maxBuffer!);
-    return { status: 0, stdout: "{}", stderr: "" };
-  });
-  for (const endpoint of [
-    "repos/boburning/portcove/contents/crates/portcove-core/catalog/catalog.json?ref=" +
-      "a".repeat(40),
-    "repos/boburning/portcove/actions/runs/1",
-    "repos/boburning/portcove/git/blobs/not-an-immutable-sha",
-  ])
-    metadata.request("GET", endpoint);
-  assert.deepEqual(
-    observed,
-    [8, 2, 2, 2].map((mib) => mib * 1024 * 1024),
+  };
+  const observed: string[] = [];
+  const reader = (maxBytes: number) =>
+    createReleaseCustodyProvider({
+      token: "fixed-native-source-fixture",
+      deadline: performance.now() + 5000,
+      maxBytes,
+      async fetch(input, init) {
+        const request = new Request(input, init);
+        assert.equal(request.headers.get("authorization"), "token fixed-native-source-fixture");
+        observed.push(new URL(request.url).pathname);
+        return Response.json(payload);
+      },
+    });
+  const metadata = await reader(2 * 1024 * 1024);
+  const blobs = await reader(8 * 1024 * 1024);
+  await assert.rejects(
+    metadata.file("crates/portcove-core/catalog/catalog.json", sha),
+    /byte|limit|size/u,
   );
-  assert.throws(() =>
-    metadata.request("POST", "repos/boburning/portcove/git/blobs/" + "a".repeat(40)),
-  );
-  assert.throws(() =>
-    metadata.request("GET", "repos/other/repository/git/blobs/" + "a".repeat(40)),
-  );
-  assert.equal(observed.length, 4, "refused routes never reach the credentialled transport");
+  assert.deepEqual(await blobs.blob(sha), payload);
+  assert.deepEqual(observed, [
+    "/repos/boburning/portcove/contents/crates%2Fportcove-core%2Fcatalog%2Fcatalog.json",
+    `/repos/boburning/portcove/git/blobs/${sha}`,
+  ]);
 });

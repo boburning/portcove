@@ -3,7 +3,10 @@ import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { requireOrdinaryHostedAppSetupSource } from "./register-hosted-release-app.mts";
-import { createAppRegistrationStore } from "./release-app-registration-capture.mts";
+import {
+  createAppRegistrationStore,
+  preflightHostedAppSetupSdk,
+} from "./release-app-registration-capture.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { observeHostedAppInstallationScope } from "./release-hosted-app-installation.mts";
 import type { HostedReleaseAppRole } from "./release-hosted-app-setup.mts";
@@ -44,6 +47,7 @@ async function main() {
       "fixed role, reviewed observation source and retained registration source required",
     );
   requireOrdinaryHostedAppSetupSource(args[3]!);
+  if (!(await preflightHostedAppSetupSdk())) return;
   const role = args[1] as HostedReleaseAppRole;
   const directory = `/home/boburning/.local/share/portcove/app-registration/${role}`;
   // Validates canonical owner/non-writable ancestry. Refuses an existing attempt;

@@ -24,7 +24,7 @@ import { requirePreparedHostedNativeCustody } from "./release-hosted-native-acce
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import type { CoordinatorSigningApi } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
-import { sanitizeOperationError } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 

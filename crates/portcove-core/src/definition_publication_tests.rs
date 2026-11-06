@@ -2,7 +2,8 @@ use super::*;
 use serde_json::{Value, json};
 
 fn fixture(schema: u32) -> BTreeMap<String, Vec<u8>> {
-    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    let mut document =
+        crate::test_fixture::indexed_fixture_document(&crate::Catalog::embedded().unwrap());
     document
         .ports
         .iter_mut()

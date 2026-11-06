@@ -15355,6 +15355,10 @@
       },
       "PersistentFilePattern": {
         "properties": {
+          "allow_empty_middle": {
+            "description": "Match the concatenated prefix and suffix as well as names with an interior.",
+            "type": "boolean"
+          },
           "prefix": {
             "type": "string"
           },

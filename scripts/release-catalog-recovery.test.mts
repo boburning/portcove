@@ -169,8 +169,7 @@ void test("injected recovery join verifies existing public bytes and original ro
         active: () => 15000,
         signingContextRemaining: (deadline: number, max: number) =>
           signingContextRemaining(exhaustedBeforeLaunch ? performance.now() - 1 : deadline, max),
-        fixedApi: () => ({}),
-        recheckCatalogSemanticProof: () => {},
+        recheckFixedCatalogSemanticProof: async () => {},
         assemblies,
         requireActualCatalogRepositoryForRecovery: async (receipt: object) => {
           assert.equal(assemblies.get(receipt)!.recovery_only, true);

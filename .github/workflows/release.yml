@@ -147,7 +147,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Install repository quality tools
-        uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.quality-pins.outputs.required_all }}
       - name: Install Linux desktop prerequisites
@@ -245,7 +245,7 @@ jobs:
         run: echo "spec=cargo-deny@$(node scripts/quality-tools.mts --version cargo-deny)" >> "$GITHUB_OUTPUT"
       - name: Install the pinned scanner in the credential-free compiler job
         if: runner.os == 'Linux' && (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')
-        uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.compiler-scanner-pin.outputs.spec }}
       - run: pnpm install --frozen-lockfile
@@ -472,12 +472,12 @@ jobs:
     permissions:
       contents: read
     env:
-      GH_TOKEN: ${{ github.token }}
       PORTCOVE_RELEASE_PROFILE: ${{ needs.identity.outputs.release_profile }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -485,7 +485,7 @@ jobs:
       - name: Read pinned assembly scanner
         id: assembly-pins
         run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
+      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.assembly-pins.outputs.required_prebuilt }}
       - name: Download complete release matrix
@@ -519,30 +519,123 @@ jobs:
           dependency-snapshot: false
           upload-artifact: false
           upload-release-assets: false
+      - &setup-release-risk-pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+          run_install: false
+      - &install-release-risk-dependencies
+        name: Install frozen release risk dependencies before credentials
+        shell: bash
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --quiet HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc patches/
+          if test -e .npmrc || test -L .npmrc; then
+            git ls-files --error-unmatch -- .npmrc >/dev/null
+          fi
+          install_home="$RUNNER_TEMP/release-risk-install-home"
+          mkdir -m 700 "$install_home"
+          env -i PATH="$PATH" HOME="$install_home" CI=true pnpm --filter portcove-repository install --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/release-risk-store"
       - name: Bind the SBOM into the final checksum manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: node scripts/finalize-release-assets.mts --assets release-assets-aggregate --inventory release-metadata/release-inventory.json --sbom-subject-checksums release-attestation/sbom-subject-checksums.txt
+      - name: Read existing draft metadata without write permission
+        if: github.event_name == 'push'
+        id: reviewed-draft
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ github.token }}
+          retries: 0
+          debug: false
+          script: |
+            const { createHash } = require('node:crypto')
+            const { writeFile } = require('node:fs/promises')
+            const signal = AbortSignal.timeout(60000)
+            try {
+              const tag = context.ref.replace(/^refs\/tags\//u, '')
+              if (context.eventName !== 'push' || context.repo.owner !== 'boburning' ||
+                  context.repo.repo !== 'portcove' || context.ref !== `refs/tags/${tag}` ||
+                  !/^v[0-9][0-9A-Za-z.+-]{0,126}$/u.test(tag)) {
+                throw new Error()
+              }
+              const read = async (method, path, options = {}) => {
+                const route = `https://api.github.com${path}`
+                const lookup = () => github.request(`${method} ${route}`, {
+                  ...options,
+                  headers: { 'x-github-api-version': '2022-11-28' },
+                  request: { fetch: async (input, init) => {
+                    const request = new Request(input, init)
+                    if (request.url !== route || request.method !== method ||
+                        !request.headers.has('authorization')) throw new Error()
+                    const response = await fetch(request, { redirect: 'manual', signal })
+                    if (response.status !== 200 || !response.body) {
+                      await response.body?.cancel()
+                      if (response.status < 400) throw new Error()
+                      return new Response(null, { status: response.status })
+                    }
+                    const chunks = []
+                    let length = 0
+                    for await (const chunk of response.body) {
+                      length += chunk.byteLength
+                      if (length > 8 * 1024 ** 2) throw new Error()
+                      chunks.push(chunk)
+                    }
+                    signal.throwIfAborted()
+                    return new Response(Buffer.concat(chunks, length), {
+                      headers: { 'content-type': 'application/json' },
+                    })
+                  } },
+                })
+                try {
+                  return (await lookup()).data
+                } catch (error) {
+                  if (![502, 503, 504].includes(error?.status)) throw error
+                  return (await lookup()).data
+                }
+              }
+              // Resolve pending draft tags by GraphQL, then freeze the exact REST body.
+              const query = 'query($tag: String!) { repository(owner: "boburning", name: "portcove") { release(tagName: $tag) { databaseId isDraft tagName } } }'
+              const result = await read('POST', '/graphql', { query, variables: { tag } })
+              const release = result?.data?.repository?.release
+              if (result?.errors || release === undefined) throw new Error()
+              let body = ''
+              let review = null
+              if (release !== null) {
+                if (release.isDraft === false) {
+                  core.setFailed('Refusing to modify non-draft release')
+                  return
+                }
+                if (release.isDraft !== true || release.tagName !== tag ||
+                    !Number.isSafeInteger(release.databaseId) || release.databaseId < 1) throw new Error()
+                const current = await read('GET', `/repos/boburning/portcove/releases/${release.databaseId}`)
+                if (current?.draft !== true || current.id !== release.databaseId ||
+                    current.tag_name !== tag || typeof current.body !== 'string' ||
+                    Buffer.byteLength(current.body) > 256 * 1024) throw new Error()
+                body = current.body
+                review = { id: current.id, sha256: createHash('sha256').update(body).digest('hex') }
+              }
+              const reviewedBody = release && !body.endsWith('\n') ? `${body}\n` : body
+              await writeFile('release-metadata/reviewed-release-body.md', reviewedBody, { flag: 'wx' })
+              await writeFile('release-metadata/reviewed-draft.json', JSON.stringify(review), { flag: 'wx' })
+              core.setOutput('existing-draft', release !== null)
+            } catch {
+              core.setFailed('Could not verify existing release metadata')
+            }
       - name: Prepare immutable draft metadata without write permission
         if: github.event_name == 'push'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          EXISTING_DRAFT: ${{ steps.reviewed-draft.outputs.existing-draft }}
         run: |
-          if draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null)"; then
-            if [[ "$draft" != "true" ]]; then
-              echo "Refusing to modify non-draft release $RELEASE_TAG" >&2
-              exit 1
-            fi
-            gh release view "$RELEASE_TAG" --json body --jq .body > release-metadata/reviewed-release-body.md
-            existing_draft=true
-          else
-            printf '' > release-metadata/reviewed-release-body.md
-            existing_draft=false
-          fi
           node scripts/generate-release-downloads.mts \
             --inventory release-metadata/release-inventory.json \
             --body release-metadata/reviewed-release-body.md \
             --output release-metadata/generated-release-body.md
-          if [[ "$existing_draft" == "true" ]] && \
+          if [[ "$EXISTING_DRAFT" == "true" ]] && \
             ! cmp --silent release-metadata/reviewed-release-body.md release-metadata/generated-release-body.md; then
             echo "Refusing to rewrite existing release notes; delete the unpublished draft and rerun" >&2
             exit 1
@@ -652,14 +745,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - *setup-release-risk-pnpm
+      - *install-release-risk-dependencies
       - uses: ./.github/actions/setup-rust
       - name: Read pinned security scanner
         id: security-pins
         run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
+      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.security-pins.outputs.required_prebuilt }}
       - name: Recheck Linux release authorization before upload
@@ -686,65 +782,310 @@ jobs:
           name: release-publication-metadata-${{ github.run_id }}-${{ github.run_attempt }}
           path: release-metadata
       - name: Create or reconcile draft release
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.ref_name }}
           LINUX_RISK_EXPIRES_AT: ${{ needs.authorize_publication.outputs.expires_at }}
           LINUX_AUTHORIZED_AT: ${{ needs.authorize_publication.outputs.authorized_at }}
-        run: |
-          assert_current_authorization() {
-            local now authorized expiry
-            if [[ ! "$LINUX_AUTHORIZED_AT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$ ]]; then
-              echo "Linux release authorization timestamp is missing or invalid" >&2
-              exit 1
-            fi
-            now="$(date +%s)"
-            authorized="$(date -d "$LINUX_AUTHORIZED_AT" +%s)" || exit 1
-            if (( now < authorized || now - authorized > 900 )); then
-              echo "Linux release authorization is stale" >&2
-              exit 1
-            fi
-            if [[ -n "$LINUX_RISK_EXPIRES_AT" ]]; then
-              expiry="$(date -d "$LINUX_RISK_EXPIRES_AT" +%s)" || exit 1
-              if (( now >= expiry )); then
-                echo "Linux risk approval expired" >&2
-                exit 1
-              fi
-            fi
-          }
-          assert_current_authorization
-          assert_draft_release() {
-            assert_current_authorization
-            local draft
-            draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)"
-            if [[ "$draft" != "true" ]]; then
-              echo "Refusing to modify non-draft release $RELEASE_TAG" >&2
-              exit 1
-            fi
-          }
-          if draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null)"; then
-            if [[ "$draft" != "true" ]]; then
-              echo "Refusing to modify non-draft release $RELEASE_TAG" >&2
-              exit 1
-            fi
-          else
-            prerelease=()
-            if [[ "$RELEASE_TAG" == *-* ]]; then prerelease+=(--prerelease); fi
-            gh release create "$RELEASE_TAG" \
-              --verify-tag \
-              --draft \
-              --generate-notes \
-              --notes-file release-metadata/generated-release-body.md \
-              --title "Portcove $RELEASE_TAG" \
-              "${prerelease[@]}"
-          fi
-          while IFS= read -r asset; do
-            if [[ -n "$asset" ]]; then
-              assert_draft_release
-              gh release delete-asset "$RELEASE_TAG" "$asset" --yes
-            fi
-          done < <(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
-          for asset in release-assets-aggregate/*; do
-            assert_draft_release
-            gh release upload "$RELEASE_TAG" "$asset"
-          done
+        with:
+          github-token: ${{ github.token }}
+          retries: 0
+          debug: false
+          script: |
+            const { createHash } = require('node:crypto')
+            const { constants } = require('node:fs')
+            const { lstat, open, opendir } = require('node:fs/promises')
+            const repository = '/repos/boburning/portcove'
+            const api = 'https://api.github.com'
+            const uploads = 'https://uploads.github.com'
+            const sha = (value) => createHash('sha256').update(value).digest('hex')
+            const validId = (id) => Number.isSafeInteger(id) && id > 0
+            const validSha = (value) => typeof value === 'string' && /^[a-f0-9]{40}$/u.test(value)
+            const maxMetadata = 256 * 1024
+            const maxAsset = 512 * 1024 ** 2
+            const maxTotal = 2 * 1024 ** 3
+            const payload = 'release-assets-aggregate'
+            const metadata = 'release-metadata'
+            class PublicationError extends Error {}
+            const requireState = (condition, message) => {
+              if (!condition) throw new PublicationError(message)
+            }
+            const parseTime = (value) => {
+              const parts = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?Z$/u.exec(value ?? '')
+              const milliseconds = parts ? Date.parse(`${parts[1]}Z`) : NaN
+              return Number.isFinite(milliseconds) &&
+                new Date(milliseconds).toISOString().startsWith(`${parts[1]}.`) ? milliseconds : NaN
+            }
+            try {
+              const tag = context.ref.replace(/^refs\/tags\//u, '')
+              requireState(context.eventName === 'push' && context.repo.owner === 'boburning' &&
+                context.repo.repo === 'portcove' && context.ref === `refs/tags/${tag}` &&
+                /^v[0-9][0-9A-Za-z.+-]{0,126}$/u.test(tag) && validSha(context.sha),
+                'Release push identity is invalid')
+              const authorized = parseTime(process.env.LINUX_AUTHORIZED_AT)
+              requireState(Number.isFinite(authorized), 'Linux release authorization timestamp is missing or invalid')
+              const expiryInput = process.env.LINUX_RISK_EXPIRES_AT
+              const expires = expiryInput ? parseTime(expiryInput) : Infinity
+              requireState(!Number.isNaN(expires), 'Linux risk approval expiry is invalid')
+              const cutoff = Math.min(authorized + 901000, expires)
+              const guard = () => {
+                const now = Date.now()
+                requireState(now >= authorized && now < authorized + 901000, 'Linux release authorization is stale')
+                requireState(now < expires, 'Linux risk approval expired')
+                return cutoff - now
+              }
+              guard()
+              const overall = AbortSignal.timeout(guard())
+              const call = async (method, url, options = {}) => {
+                const upload = url.startsWith(uploads)
+                const signal = AbortSignal.any([overall, AbortSignal.timeout(Math.min(guard(), upload ? 120000 : 30000))])
+                const response = await github.request(`${method} ${url}`, {
+                  ...options,
+                  headers: { 'x-github-api-version': '2022-11-28', ...options.headers },
+                  request: { fetch: async (input, init) => {
+                    const request = new Request(input, { ...init, ...(upload ? { duplex: 'half' } : {}) })
+                    requireState(request.url === url && request.method === method &&
+                      request.headers.has('authorization') &&
+                      (new URL(url).origin === api || (upload && new URL(url).origin === uploads)),
+                      'Release request escaped its admitted route')
+                    signal.throwIfAborted()
+                    if (method !== 'GET') guard()
+                    const result = await fetch(request, { redirect: 'manual', signal })
+                    if (result.status < 200 || result.status >= 300 || !result.body) {
+                      await result.body?.cancel()
+                      requireState(result.status < 300 || result.status >= 400, 'Release API redirected')
+                      return new Response(null, { status: result.status })
+                    }
+                    const chunks = []
+                    let length = 0
+                    for await (const chunk of result.body) {
+                      length += chunk.byteLength
+                      requireState(length <= 8 * 1024 ** 2, 'Release API response exceeded its bound')
+                      chunks.push(chunk)
+                    }
+                    signal.throwIfAborted()
+                    return new Response(Buffer.concat(chunks, length), {
+                      status: result.status,
+                      headers: { 'content-type': 'application/json', ...(result.headers.has('link') ?
+                        { link: result.headers.get('link') } : {}) },
+                    })
+                  } },
+                })
+                return response
+              }
+              const read = async (method, route, options) => {
+                try {
+                  return await call(method, `${api}${route}`, options)
+                } catch (error) {
+                  if (![502, 503, 504].includes(error?.status)) throw error
+                  return call(method, `${api}${route}`, options)
+                }
+              }
+              const lookup = async () => {
+                const byTag = await read('GET', `${repository}/releases/tags/${encodeURIComponent(tag)}`)
+                  .catch((error) => { if (error?.status !== 404) throw error; return null })
+                if (byTag) return byTag.data
+                const query = 'query($tag: String!) { repository(owner: "boburning", name: "portcove") { release(tagName: $tag) { databaseId isDraft tagName } } }'
+                const { data } = await read('POST', '/graphql', { query, variables: { tag } })
+                const result = data?.data?.repository?.release
+                requireState(!data?.errors && result !== undefined, 'Could not verify the release tag lookup')
+                if (result === null) return null
+                requireState(validId(result.databaseId) && result.tagName === tag,
+                  'Release lookup returned an invalid identity')
+                return (await read('GET', `${repository}/releases/${result.databaseId}`)).data
+              }
+              const confirmTag = async () => {
+                const { data } = await read('GET', `${repository}/git/ref/tags/${encodeURIComponent(tag)}`)
+                requireState(data?.ref === context.ref, 'Release tag identity changed')
+                let object = data.object
+                const direct = object?.sha
+                for (let depth = 0; depth < 4 && object?.type === 'tag' && validSha(object.sha); depth++) {
+                  const annotated = (await read('GET', `${repository}/git/tags/${object.sha}`)).data
+                  requireState(annotated?.sha === object.sha, 'Release tag identity changed')
+                  object = annotated.object
+                }
+                requireState(object?.type === 'commit' && validSha(object.sha) &&
+                  (object.sha === context.sha || direct === context.sha), 'Release tag identity changed')
+              }
+              const readFile = async (path, bound) => {
+                const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+                try {
+                  const info = await handle.stat()
+                  requireState(info.isFile() && info.size <= bound, 'Publication metadata exceeded its bound')
+                  const buffer = Buffer.alloc(info.size + 1)
+                  const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
+                  requireState(bytesRead === info.size, 'Publication metadata changed during read')
+                  return new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, bytesRead))
+                } finally {
+                  await handle.close()
+                }
+              }
+              requireState((await lstat(metadata)).isDirectory() && (await lstat(payload)).isDirectory(),
+                'Publication artifact directories are invalid')
+              const review = JSON.parse(await readFile(`${metadata}/reviewed-draft.json`, 256))
+              requireState(review === null || (validId(review.id) && typeof review.sha256 === 'string' &&
+                /^[a-f0-9]{64}$/u.test(review.sha256)), 'Reviewed draft identity is invalid')
+              const body = await readFile(`${metadata}/generated-release-body.md`, maxMetadata)
+              requireState(body.trim().length > 0, 'Reviewed release body is empty')
+              const checksumName = 'SHA256SUMS.txt'
+              const sums = new Map()
+              for (const line of (await readFile(`${payload}/${checksumName}`, maxMetadata)).trimEnd().split('\n')) {
+                const fields = /^([a-f0-9]{64})  ([A-Za-z0-9][A-Za-z0-9._-]{0,254})$/u.exec(line)
+                requireState(fields && fields[2] !== checksumName && !sums.has(fields[2]),
+                  'Attested release checksum inventory is invalid')
+                sums.set(fields[2], fields[1])
+              }
+              const expected = new Map()
+              let total = 0
+              const names = []
+              for await (const entry of await opendir(payload)) {
+                requireState(entry.isFile() && names.length < 100,
+                  'Attested release asset inventory changed')
+                names.push(entry.name)
+              }
+              requireState(names.length === sums.size + 1 && names.includes(checksumName),
+                'Attested release asset inventory changed')
+              for (const name of names.sort()) {
+                guard()
+                requireState(name === checksumName || sums.has(name), 'Attested release asset inventory changed')
+                const handle = await open(`${payload}/${name}`, constants.O_RDONLY | constants.O_NOFOLLOW)
+                try {
+                  const info = await handle.stat()
+                  total += info.size
+                  requireState(info.isFile() && info.size > 0 && info.size <= maxAsset && total <= maxTotal,
+                    'Attested release asset exceeded its bound')
+                  const hash = createHash('sha256')
+                  let length = 0
+                  for await (const bytes of handle.createReadStream({ autoClose: false, end: info.size - 1, signal: overall })) {
+                    length += bytes.byteLength
+                    hash.update(bytes)
+                  }
+                  const digest = hash.digest('hex')
+                  requireState(length === info.size && (name === checksumName || digest === sums.get(name)),
+                    'Attested release asset checksum changed')
+                  expected.set(name, { digest: `sha256:${digest}`, info })
+                } finally {
+                  await handle.close()
+                }
+              }
+              const requireDraft = (release, id) => {
+                requireState(release?.draft !== false, 'Refusing to modify non-draft release')
+                requireState(release?.draft === true && validId(release.id) &&
+                  (id === undefined || release.id === id) && release.tag_name === tag &&
+                  typeof release.body === 'string' && Buffer.byteLength(release.body) <= maxMetadata,
+                  'Release draft identity changed')
+              }
+              await confirmTag()
+              let draft = await lookup()
+              if (draft) requireDraft(draft)
+              requireState(review === null ? draft === null :
+                draft?.id === review.id && sha(draft.body) === review.sha256,
+                'Release draft differs from the reviewed metadata')
+              if (draft === null) {
+                await confirmTag()
+                let created
+                try {
+                  created = (await call('POST', `${api}${repository}/releases`, {
+                    tag_name: tag, name: `Portcove ${tag}`,
+                    draft: true, prerelease: tag.includes('-'), generate_release_notes: true, body,
+                  })).data
+                } catch {
+                  // A later attempt must review server-generated notes after ambiguous creation.
+                  await lookup()
+                  throw new PublicationError('Draft creation outcome requires a new reviewed attempt')
+                }
+                requireDraft(created)
+                requireState(created.name === `Portcove ${tag}` && created.prerelease === tag.includes('-') &&
+                  (created.body === body.trimEnd() || created.body.startsWith(`${body.trimEnd()}\n`)),
+                  'Created draft differs from the requested notes and policy')
+                draft = (await read('GET', `${repository}/releases/${created.id}`)).data
+                requireDraft(draft, created.id)
+                requireState(draft.body === created.body && draft.name === created.name &&
+                  draft.prerelease === created.prerelease, 'Created draft changed before readback')
+              }
+              const id = draft.id
+              const releasePath = `${repository}/releases/${id}`
+              const requireCurrentDraft = async () => {
+                const { data: current } = await read('GET', releasePath)
+                requireDraft(current, id)
+                requireState(current.body === draft.body && current.name === draft.name &&
+                  current.prerelease === draft.prerelease, 'Release draft metadata changed')
+              }
+              const observe = async () => {
+                await requireCurrentDraft()
+                const assets = new Map()
+                const ids = new Set()
+                // Advance a fixed endpoint even when GitHub supplies a pagination URL.
+                for (let page = 1; page <= 11; page++) {
+                  const route = `${releasePath}/assets?per_page=100&page=${page}`
+                  const { data, headers } = await read('GET', route)
+                  requireState(Array.isArray(data) && data.length <= 100, 'Release asset inventory is invalid')
+                  for (const asset of data) {
+                    requireState(ids.size < 1000 && validId(asset?.id) && !ids.has(asset.id) && typeof asset.name === 'string' &&
+                      asset.name.length > 0 && !assets.has(asset.name), 'Release asset identity is invalid')
+                    ids.add(asset.id)
+                    assets.set(asset.name, asset)
+                  }
+                  const links = headers.link?.split(', ') ?? []
+                  requireState(links.every((link) => /^<https:\/\/api\.github\.com\/[^>]+>; rel="(?:first|prev|next|last)"$/u.test(link)),
+                    'Release asset pagination is invalid')
+                  if (data.length < 100 && !links.some((link) => link.endsWith('rel="next"'))) return assets
+                  requireState(data.length === 100, 'Release asset pagination is inconsistent')
+                }
+                throw new PublicationError('Release asset inventory exceeded its bound')
+              }
+              const matches = (remote, local) => remote?.state === 'uploaded' &&
+                remote.size === local.info.size && remote.digest === local.digest && !remote.label
+              const reconcile = async (effect, name, verify) => {
+                // Asset pagination can outlast draft state. Recheck immediately before writing.
+                await requireCurrentDraft()
+                guard()
+                try {
+                  await effect()
+                } catch {
+                  // A request can commit before its response is lost. Only the readback decides.
+                }
+                const after = await observe()
+                requireState(verify(after.get(name)), 'Release asset mutation did not reconcile')
+                return after
+              }
+              let assets = await observe()
+              for (const [name, asset] of assets) {
+                const local = expected.get(name)
+                if (local && matches(asset, local)) continue
+                await confirmTag()
+                const before = await observe()
+                requireState(before.get(name)?.id === asset.id, 'Release asset changed before deletion')
+                assets = await reconcile(
+                  () => call('DELETE', `${api}${repository}/releases/assets/${asset.id}`), name,
+                  (remote) => remote === undefined,
+                )
+              }
+              for (const [name, local] of expected) {
+                if (matches(assets.get(name), local)) continue
+                await confirmTag()
+                const before = await observe()
+                requireState(!before.has(name), 'Release asset appeared before upload')
+                const handle = await open(`${payload}/${name}`, constants.O_RDONLY | constants.O_NOFOLLOW)
+                try {
+                  const info = await handle.stat()
+                  requireState(info.isFile() && info.dev === local.info.dev && info.ino === local.info.ino &&
+                    info.size === local.info.size && info.mtimeMs === local.info.mtimeMs &&
+                    info.ctimeMs === local.info.ctimeMs, 'Attested release asset changed before upload')
+                  const stream = handle.createReadStream({ autoClose: false, end: info.size - 1, signal: overall })
+                  try {
+                    assets = await reconcile(() => call('POST', `${uploads}${releasePath}/assets?name=${encodeURIComponent(name)}`, {
+                      data: stream,
+                      headers: { 'content-type': 'application/octet-stream', 'content-length': String(info.size) },
+                    }), name, (remote) => matches(remote, local))
+                  } finally {
+                    stream.destroy()
+                  }
+                } finally {
+                  await handle.close()
+                }
+              }
+              requireState(assets.size === expected.size && [...expected].every(([name, local]) =>
+                matches(assets.get(name), local)), 'Draft release does not have the exact attested assets')
+            } catch (error) {
+              core.setFailed(error instanceof PublicationError ? error.message : 'Could not verify or reconcile the draft release')
+            }

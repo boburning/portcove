@@ -27,6 +27,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { acquireRetainedRebootArchive } from "./qualification/linux-reboot/acquire.mts";
+import rebootCohort from "./qualification/linux-reboot/cohort.json" with { type: "json" };
 
 import {
   artifactName,
@@ -1606,19 +1608,31 @@ void test("retained Linux reboot admits only its frozen independent mode and pub
     },
     (w) => {
       const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
-      object(object(steps[3]).with).ref = "main";
+      object(object(steps[7]).with).ref = "main";
     },
     (w) => {
       const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
-      object(steps[12]).run = "python3 scripts/qualification/linux-reboot/controller.py";
+      object(steps[contract.retainedReboot.observe.index]).run =
+        "python3 scripts/qualification/linux-reboot/controller.py";
     },
     (w) => {
       const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
-      object(steps[13]).if = "success()";
+      object(steps[contract.retainedReboot.retain.index]).if = "success()";
     },
     (w) => {
       const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
-      object(object(steps[14]).with).path = "work/";
+      object(object(steps[contract.retainedReboot.upload.index]).with).path = "work/";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(steps[contract.retainedReboot.stage.index]).env = object(
+        steps[contract.retainedReboot.acquire.index],
+      ).env;
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      const setup = object(steps[contract.retainedReboot.acquire.index - 1]);
+      setup.run = text(setup.run).replace(" --ignore-scripts", "");
     },
   ];
   for (const mutate of mutations) {
@@ -1628,5 +1642,108 @@ void test("retained Linux reboot admits only its frozen independent mode and pub
       () => updaterWorkflow(JSON.stringify(changed), releaseLabels(policy)),
       assert.AssertionError,
     );
+  }
+});
+
+void test("retained reboot reads and brackets exact Actions bytes with a credential-free file transfer", async (t) => {
+  const work = await mkdtemp(path.join(os.tmpdir(), "portcove-retained-reboot-"));
+  t.after(() => rm(work, { recursive: true, force: true }));
+  const bytes = Buffer.alloc(64, 7),
+    sha256 = createHash("sha256").update(bytes).digest("hex"),
+    context = { controller_source: revision, controller_run: "123", controller_attempt: "2" },
+    token = "inert-reboot-reader",
+    signed =
+      "https://productionresultssa1.blob.core.windows.net/actions-results/fixture?sig=private",
+    runRoute = `/repos/boburning/portcove/actions/runs/${rebootCohort.run}`,
+    artifactRoute = `/repos/boburning/portcove/actions/artifacts/${rebootCohort.artifact}`;
+  for (const variant of [
+    "exact",
+    "before-drift",
+    "after-drift",
+    "oversize",
+    "frozen-size",
+  ] as const) {
+    const root = path.join(work, variant);
+    await mkdir(root);
+    const cohort =
+      variant === "frozen-size"
+        ? rebootCohort
+        : { ...rebootCohort, archive_bytes: bytes.length, archive_sha256: sha256 };
+    const routes: string[] = [];
+    let reads = 0;
+    const fetch: typeof globalThis.fetch = async (input, init) => {
+      const request = new Request(input, init),
+        url = new URL(request.url);
+      assert.equal(request.method, "GET");
+      assert.equal(init?.redirect, "manual");
+      if (url.href === signed) {
+        routes.push("blob");
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(init?.credentials, "omit");
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(stream) {
+              stream.enqueue(bytes);
+              if (variant === "oversize") stream.enqueue(Uint8Array.of(1));
+              stream.close();
+            },
+          }),
+        );
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(url.search, "");
+      assert.equal(request.headers.get("authorization"), `token ${token}`);
+      routes.push(url.pathname);
+      if (url.pathname === runRoute)
+        return Response.json({
+          id: cohort.run,
+          head_sha: cohort.source,
+          run_attempt: cohort.attempt,
+          workflow_id: cohort.workflow_id,
+          status: "completed",
+          conclusion: "success",
+        });
+      if (url.pathname === artifactRoute) {
+        reads++;
+        return Response.json({
+          id: cohort.artifact,
+          expired:
+            (variant === "before-drift" && reads === 1) ||
+            (variant === "after-drift" && reads === 2),
+          size_in_bytes: cohort.archive_bytes,
+          digest: `sha256:${cohort.archive_sha256}`,
+          workflow_run: { id: cohort.run, head_sha: cohort.source },
+          fixture_private: token,
+        });
+      }
+      assert.equal(url.pathname, artifactRoute + "/zip");
+      return new Response(null, { status: 302, headers: { location: signed } });
+    };
+    const acquire = () => acquireRetainedRebootArchive(root, cohort, context, token, fetch);
+    if (variant === "exact") await acquire();
+    else await assert.rejects(acquire());
+    const before = [runRoute, artifactRoute],
+      transfer = [artifactRoute + "/zip", "blob"];
+    const expected =
+      variant === "before-drift"
+        ? before
+        : variant === "exact" || variant === "after-drift"
+          ? [...before, ...transfer, ...before]
+          : [...before, ...transfer];
+    assert.deepEqual(routes, expected, variant);
+    const raw = await readFile(path.join(root, "artifact-download.status.json"), "utf8");
+    assert.ok(!raw.includes(signed) && !raw.includes(token));
+    const receipt = object(JSON.parse(raw));
+    assert.equal(receipt.code, variant === "exact" ? 0 : null);
+    assert.equal(receipt.controller_source, context.controller_source);
+    if (variant === "exact") {
+      assert.deepEqual(receipt.before, receipt.after);
+      assert.deepEqual(receipt.archive, { bytes: bytes.length, sha256 });
+    }
+    const archive = path.join(root, "retained-cohort.zip");
+    if (variant === "before-drift") await assert.rejects(readFile(archive), { code: "ENOENT" });
+    else assert.deepEqual(await readFile(archive), bytes);
+    await assert.rejects(acquire());
+    assert.deepEqual(routes, expected, "an earlier attempt never triggers another provider read");
   }
 });

@@ -17,6 +17,7 @@ import {
   readObserverSnapshotArchive,
   publishObserverSnapshot,
   recoverObserverCheckpoint,
+  recoverObserverCheckpointWithSdk,
   snapshotName,
   observerSnapshotLimit,
   encodeObserverSnapshot,
@@ -157,17 +158,52 @@ function transport() {
 
 void test("fresh cache loss restores an exact failed scheduled producer and preserves its original checkpoint", async (t) => {
   const root = await directory(t),
-    f = transport();
-  const result = await recoverObserverCheckpoint({
+    f = transport(),
+    signed =
+      "https://productionresultssa1.blob.core.windows.net/actions-results/observer?sig=inert";
+  let clock = Date.now();
+  const deadline = clock + 60000;
+  const wire: string[] = [];
+  let late = false;
+  const options = {
     root,
     config,
     current,
-    deadline: Date.now() + 60000,
-    api: f.api,
-    download: f.download,
-  });
+    deadline,
+    now: () => clock,
+    token: "inert-observer-reader",
+    fetch: (async (input, init) => {
+      const request = new Request(input, init),
+        url = new URL(request.url);
+      assert.equal(request.method, "GET");
+      assert.equal(init?.redirect, "manual");
+      if (url.href === signed) {
+        wire.push("blob");
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(init?.credentials, "omit");
+        if (late) clock = deadline;
+        return new Response(new Uint8Array(f.archive));
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-observer-reader");
+      wire.push(url.pathname);
+      if (url.pathname === "/repos/boburning/portcove/actions/artifacts/7/zip")
+        return new Response(null, { status: 302, headers: { location: signed } });
+      const response = await f.api.read(url.pathname.slice(1) + url.search);
+      return Response.json(response.body, {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+      });
+    }) satisfies typeof globalThis.fetch,
+  };
+  const result = await recoverObserverCheckpointWithSdk(options);
   assert.equal(result.origin, "artifact");
-  assert.equal(f.count(), 1);
+  assert.deepEqual(wire.slice(-4), [
+    "/repos/boburning/portcove/actions/artifacts/7/zip",
+    "blob",
+    "/repos/boburning/portcove/actions/artifacts/7",
+    "/repos/boburning/portcove/actions/runs/101",
+  ]);
   assert.deepEqual(
     JSON.parse(
       await readFile(path.join(root, "work/upstream-observer/catalog/checkpoint.json"), "utf8"),
@@ -183,6 +219,18 @@ void test("fresh cache loss restores an exact failed scheduled producer and pres
     download: () => assert.fail("Valid cache needs no artifact"),
   });
   assert.equal(cache.origin, "cache");
+  const lateRoot = await directory(t);
+  wire.length = 0;
+  late = true;
+  await assert.rejects(
+    recoverObserverCheckpointWithSdk({ ...options, root: lateRoot }),
+    /recovery collection deadline exhausted/,
+  );
+  assert.deepEqual(wire.slice(-2), ["/repos/boburning/portcove/actions/artifacts/7/zip", "blob"]);
+  await assert.rejects(
+    readFile(path.join(lateRoot, "work/upstream-observer/catalog/checkpoint.json")),
+    { code: "ENOENT" },
+  );
 });
 
 void test("live-shaped discovery pages history and excludes comparison patches within the original metadata envelope", async (t) => {
@@ -1465,11 +1513,28 @@ void test("snapshot workflow keeps job-only read permission and shares the origi
   const workflow = parseDocument(text).toJS() as {
     permissions: unknown;
     jobs: {
-      observe: { permissions: unknown; steps: { name?: string; with?: Record<string, unknown> }[] };
+      observe: {
+        permissions: unknown;
+        steps: { name?: string; run?: string; env?: unknown; with?: Record<string, unknown> }[];
+      };
     };
   };
   assert.deepEqual(workflow.permissions, { contents: "read" });
   assert.deepEqual(workflow.jobs.observe.permissions, { contents: "read", actions: "read" });
+  const steps = workflow.jobs.observe.steps;
+  const install = steps.findIndex(
+    (step) => step.name === "Install locked observer dependencies before credentials",
+  );
+  const restore = steps.findIndex(
+    (step) => step.run === "node scripts/observer-checkpoint-artifact.mts restore",
+  );
+  assert.ok(install >= 0 && restore > install);
+  assert.equal(
+    steps[install]!.run,
+    "pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+  );
+  assert.equal(steps[install]!.env, undefined);
+  assert.deepEqual(steps[restore]!.env, { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" });
   assert.equal(
     workflow.jobs.observe.steps.find((step) => step.name === "Retain checkpoint recovery snapshot")!
       .with!["retention-days"],

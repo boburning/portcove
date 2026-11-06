@@ -350,6 +350,18 @@ async function catalogContinuationBehavior(
       controls = { evidence_scope: "github.com", readMaintenance: () => ({}) };
     const executionEnvironment = process.env;
     executionEnvironment.GH_TOKEN = "inert-catalog-continuation";
+    let asyncMaintenanceReads = 0;
+    Object.assign(controls, {
+      async readCatalogRecoveryMaintenance(
+        token: string,
+        reserve: () => { settle(observation: { dispatched: boolean }): void },
+      ) {
+        assert.equal(token, "inert-catalog-continuation");
+        reserve().settle({ dispatched: true });
+        asyncMaintenanceReads++;
+        return {};
+      },
+    });
     const toolsReceipt = Object.freeze({ kind: "inert-tool-receipt" });
     const contextReceipt = Object.freeze({ kind: "inert-context-receipt" });
     const receivedRoles: object[] = [];
@@ -431,7 +443,14 @@ async function catalogContinuationBehavior(
       prepareControlReadiness: () => ({}),
       retainControlStepLocator: async () => {},
       waitForControlArtifact: async () => ({}),
-      authenticateCatalogReleaseControlSource: async () => controls,
+      authenticateCatalogReleaseControlSource: async (
+        _environment: unknown,
+        _workflow: unknown,
+        options: unknown,
+      ) => {
+        assert.ok(isRecord(options) && options.catalogRecoveryObserver === true);
+        return controls;
+      },
       catalogCoordinatorMaintenanceIdentity: () => "same-controls",
       authenticateCapacityExecutor: async () => ({}),
       ensureOwnedCheckpointJournalHistory: async () => false,
@@ -498,12 +517,12 @@ async function catalogContinuationBehavior(
         _receipt: object,
         _executor: object,
         raw: { checkpoint: string },
-        guards: { refresh: () => Promise<void>; beforeMutation: () => void },
+        guards: { refresh: () => Promise<void>; beforeMutation: () => Promise<void> },
       ) => {
         assert.equal(raw.checkpoint, checkpoint);
         await guards.refresh();
         if (mutateEnvironment) executionEnvironment.PORTCOVE_CATALOG_AUTHORITIES = "changed";
-        guards.beforeMutation();
+        await guards.beforeMutation();
         calls.push("exact-handoff");
         return { checkpoint: "next" };
       },
@@ -636,6 +655,7 @@ async function catalogContinuationBehavior(
       "catalog continuation entry must reach the exact recovered decision",
     );
     assert.equal(sdkReads, 40);
+    assert.ok(asyncMaintenanceReads > 1, "initial and refreshed maintenance must use SDK");
     assert.deepEqual(calls, [
       "original-context",
       "original-definitions",
@@ -946,14 +966,14 @@ void test("actual continuation guard renews and checks maintenance LAST after de
     changed = false;
   const initial = {
       evidence_scope: "github.com",
-      readMaintenance: () => {
+      readCatalogRecoveryMaintenance: async () => {
         events.push("old-maintenance");
         return "stable";
       },
     },
     fresh = {
       evidence_scope: "github.com",
-      readMaintenance: () => {
+      readCatalogRecoveryMaintenance: async () => {
         events.push("final-maintenance");
         return changed ? "changed" : "stable";
       },
@@ -972,7 +992,8 @@ void test("actual continuation guard renews and checks maintenance LAST after de
       checkpoint,
       descriptor,
       stable: "stable",
-      api: {},
+      readerToken: "inert-catalog-continuation",
+      reserve() {},
       recoveryTransport: {},
       digest,
       path,
@@ -993,10 +1014,18 @@ void test("actual continuation guard renews and checks maintenance LAST after de
       refreshCapacityExecutor: async () => {
         events.push("executor");
       },
-      authenticateCatalogReleaseControlRound: async () => {
+      authenticateCatalogReleaseControlRound: async (
+        _directory: string,
+        _facts: string,
+        _phase: string,
+        _round: number,
+        options: unknown,
+      ) => {
+        assert.ok(isRecord(options) && options.catalogRecoveryObserver === true);
         events.push("renew");
         return fresh;
       },
+      isRecord,
       catalogCoordinatorMaintenanceIdentity: (raw: unknown) => raw,
     },
   ) as () => Promise<void>;

@@ -23,6 +23,16 @@ function canonicalMarkers(body: string) {
     .sort();
 }
 
+export function validateRoadmapBodyChange(previousBody: string, body: string) {
+  const before = canonicalMarkers(previousBody);
+  const after = canonicalMarkers(body);
+  if (JSON.stringify(before) !== JSON.stringify(after))
+    throw new Error(
+      "Replacement changed or removed canonical identity markers; use the explicit normalization route for identity changes",
+    );
+  validateDurableIssueBody(body);
+}
+
 /** The same selected-record planning rules as doctor; never claims global uniqueness. */
 export function validateRoadmapReplacement(
   config: RoadmapConfig,
@@ -33,13 +43,7 @@ export function validateRoadmapReplacement(
 ) {
   if ((item.content?.body ?? item.body ?? "") !== previousBody)
     throw new Error("Roadmap body changed; refresh the issue and Project preimage");
-  const before = canonicalMarkers(previousBody);
-  const after = canonicalMarkers(body);
-  if (JSON.stringify(before) !== JSON.stringify(after))
-    throw new Error(
-      "Replacement changed or removed canonical identity markers; use the explicit normalization route for identity changes",
-    );
-  validateDurableIssueBody(body);
+  validateRoadmapBodyChange(previousBody, body);
   const proposed = {
     ...item,
     body,

@@ -47,7 +47,7 @@ import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import { isRecord } from "./runtime-values.mts";
-import { sanitizeOperationError } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 import { randomBytes } from "node:crypto";
 
 export class ProviderCapacityRefusal extends Error {

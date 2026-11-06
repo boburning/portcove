@@ -250,7 +250,12 @@ export async function verifyReleasePublicBuildInputs(
         throw new Error("public build artifact deadline exhausted");
       const endpoint = `repos/boburning/portcove/actions/artifacts/${item.artifact_id}/zip`;
       const received = download
-        ? await download(endpoint, { cwd: directory, maxBytes: item.bytes, timeoutMs })
+        ? await download(endpoint, {
+            cwd: directory,
+            maxBytes: item.bytes,
+            timeoutMs,
+            ...(lookup ? { lookup: lookup() } : {}),
+          })
         : await downloadGitHubArtifactArchive(endpoint, {
             credential: credential!,
             deadline: transferDeadline,

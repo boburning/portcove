@@ -4,6 +4,8 @@ export interface BoundedZipLimits {
   files: number;
   nameBytes: number;
   allowedPaths: ReadonlySet<string>;
+  /** Trusted policy for additional regular files with producer-generated names. */
+  allowedFilePath?: (name: string) => boolean;
   /** Trusted exact names only; inert empty directory records, never extraction targets. */
   allowedEmptyDirectories?: ReadonlySet<string>;
 }
@@ -35,6 +37,7 @@ export function inspectBoundedZip(
       limits.allowedPaths instanceof Set &&
       limits.allowedPaths.size > 0 &&
       limits.allowedPaths.size <= 128 &&
+      (limits.allowedFilePath === undefined || typeof limits.allowedFilePath === "function") &&
       (limits.allowedEmptyDirectories === undefined ||
         (limits.allowedEmptyDirectories instanceof Set &&
           limits.allowedEmptyDirectories.size <= 16 &&
@@ -140,12 +143,7 @@ export function inspectBoundedZip(
     const nameBytes = archive.subarray(cursor + 46, cursor + 46 + nameSize),
       name = nameBytes.toString("utf8");
     const directory = limits.allowedEmptyDirectories?.has(name) === true;
-    check(
-      (limits.allowedPaths.has(name) || directory) &&
-        Buffer.from(name).equals(nameBytes) &&
-        !names.has(name),
-      "path or collision",
-    );
+    check(Buffer.from(name).equals(nameBytes) && !names.has(name), "path or collision");
     names.add(name);
     const kind = (attributes >>> 16) & 0xf000;
     check(
@@ -158,6 +156,15 @@ export function inspectBoundedZip(
             crc === 0
         : (kind === 0 || kind === 0x8000) && (attributes & 0x10) === 0,
       "nonregular entry",
+    );
+    check(
+      limits.allowedPaths.has(name) ||
+        directory ||
+        (limits.allowedFilePath !== undefined &&
+          !/[\\:\p{Cc}]/u.test(name) &&
+          name.split("/").every((part) => part && part !== "." && part !== "..") &&
+          limits.allowedFilePath(name) === true),
+      "path or collision",
     );
     expanded += bytes;
     check(expanded <= limits.expandedBytes && compressed <= archive.length, "declared byte limit");

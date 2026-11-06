@@ -172,6 +172,7 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     };
     let baseline = Catalog::embedded()?;
     for port in &mut payload.catalog.ports {
+        let original = baseline.port(&port.id)?;
         if port.windows_shipwright_persistence {
             return Err(PortcoveError::verification(
                 "legacy signed catalogs cannot deliver Shipwright working-directory persistence",
@@ -179,8 +180,23 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
         }
         // V1 can still supply compatible metadata to a newer binary. Its
         // payload cannot provide or turn off authority compiled into that binary.
-        port.windows_shipwright_persistence =
-            baseline.port(&port.id)?.windows_shipwright_persistence;
+        port.windows_shipwright_persistence = original.windows_shipwright_persistence;
+        for pattern in &port.persistent_file_patterns {
+            if pattern.allow_empty_middle {
+                return Err(PortcoveError::verification(
+                    "legacy signed catalogs cannot deliver empty-middle file patterns",
+                ));
+            }
+        }
+        for (pattern, compiled) in port
+            .persistent_file_patterns
+            .iter_mut()
+            .zip(&original.persistent_file_patterns)
+        {
+            if pattern.prefix == compiled.prefix && pattern.suffix == compiled.suffix {
+                pattern.allow_empty_middle = compiled.allow_empty_middle;
+            }
+        }
     }
     let catalog = Catalog::from_document(payload.catalog)?;
     validate_update_contract(&catalog, &baseline)?;
