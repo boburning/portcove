@@ -133,7 +133,7 @@ export async function signCoordinatorCheckpointEvidence(
           checkpoint: checkpoint.checkpoint,
           subject_sha256: hash(input.subject),
           producer: expected.producer,
-          sdk: "@sigstore/sign@5.0.0",
+          sdk: "@sigstore/sign@5.1.0",
           automatic_retry: false,
           signature_verification: "not-performed",
           authority: "none",

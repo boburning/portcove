@@ -9,7 +9,8 @@ export function assertCommittedWorkspace(root: string, commit: string, tree: str
     const result = spawnSync("git", args, {
       cwd: root,
       encoding: "utf8",
-      timeout: args[0] === "status" ? 60_000 : 10_000,
+      // A freshly copied workspace can need a full filesystem scan.
+      timeout: args[0] === "status" ? 180_000 : 10_000,
     });
     if (result.error || result.status !== 0) throw result.error ?? new Error(result.stderr);
     return result.stdout.trimEnd();
