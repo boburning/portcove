@@ -29,6 +29,7 @@ async function transferGitHubArtifactArchive(
   options: ArtifactDownloadOptions,
   maximum: number,
   receive: (chunk: Uint8Array) => void | Promise<void>,
+  maximumDuration = 120000,
 ) {
   const { credential, deadline, maxBytes, fetch: fetcher = globalThis.fetch } = options;
   if (
@@ -39,13 +40,14 @@ async function transferGitHubArtifactArchive(
     maxBytes < 22 ||
     maxBytes > maximum ||
     !Number.isFinite(deadline) ||
-    deadline - performance.now() > 120000
+    deadline - performance.now() > maximumDuration
   )
     throw new GitHubApiError("invalid_configuration", "Bounded GitHub artifact lookup required");
   const api = await createGitHubClient({
     credential,
     deadline,
     maxBytes: 128 * 1024,
+    ...(maximumDuration > 120000 ? { requestTimeoutMs: maximumDuration } : {}),
     fetch: fetcher,
     ...(options.signal ? { signal: options.signal } : {}),
     observeRedirects: true,
@@ -301,9 +303,40 @@ export async function downloadGitHubArtifactArchiveFile(
   });
 }
 
+/** The frozen Linux reboot cohort needs a larger file-backed transfer. Keep its
+ * original ten-minute deadline and retain failed bytes for private diagnosis. */
+export async function downloadRetainedRebootArtifactFile(
+  endpoint: string,
+  filename: string,
+  options: ArtifactDownloadOptions,
+) {
+  return writeExclusiveDownload(
+    filename,
+    async (file) => {
+      const digest = createHash("sha256");
+      const bytes = await transferGitHubArtifactArchive(
+        endpoint,
+        options,
+        640 * 1024 * 1024,
+        async (chunk) => {
+          await file.writeFile(chunk);
+          digest.update(chunk);
+        },
+        600000,
+      );
+      if (bytes !== options.maxBytes)
+        throw new GitHubApiError("invalid_response", "GitHub artifact byte count differs");
+      await file.sync();
+      return { bytes, sha256: digest.digest("hex") };
+    },
+    true,
+  );
+}
+
 async function writeExclusiveDownload<T>(
   filename: string,
   transfer: (file: FileHandle) => Promise<T>,
+  retainPartial = false,
 ) {
   const file = await open(filename, "wx", 0o600);
   let complete = false;
@@ -317,6 +350,6 @@ async function writeExclusiveDownload<T>(
     complete = true;
     return result;
   } finally {
-    if (!complete) await unlink(filename);
+    if (!complete && !retainPartial) await unlink(filename);
   }
 }
