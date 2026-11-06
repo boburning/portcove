@@ -59,8 +59,12 @@ have separate source and setup authority. Replacing their runtime requires
 the applicable successor qualification and custody readback under [#534](https://github.com/boburning/portcove/issues/534).
 The WSL worker service path needs a frozen dependency closure provisioned before
 credentials and bound to the exact successor setup and worker revisions. The
-sealed semantic and native Check issuer child needs the SDK closure covered by
-its exact HTTP executable receipt. The connected Windows diagnostic source gate
+sealed semantic and native Check issuer child has a sibling SDK entry point at
+`scripts/release-semantic-issuer-sdk-http.mts`. The current issuer owners retain
+their original child. Before switching, bind the successor executable and all
+resolved SDK files to both owners' exact custody, provision the frozen dependency
+closure before credentials, and qualify the bounded stdin and private response
+pipe through both owners. The connected Windows diagnostic source gate
 is held and its current external closure admits only the pinned YAML dependency.
 The held reviewed-input and pre-tool launcher contracts remain part of the
 retirement inventory. The standalone reviewed-input `read` mode had no maintained

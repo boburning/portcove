@@ -1254,6 +1254,10 @@ for (const [file, tests] of [
   ],
   ["scripts/release-native-check-broker.mts", ["scripts/release-native-check-broker.test.mts"]],
   [
+    "scripts/release-semantic-issuer-sdk-http.mts",
+    ["scripts/release-native-check-broker.test.mts"],
+  ],
+  [
     "scripts/release-native-worker.mts",
     [
       "scripts/release-native-windows-driver.test.mts",
@@ -1456,7 +1460,10 @@ for (const [file, tests] of [
     "broker",
   ].map((name): [string, string[]] => [
     `scripts/release-semantic-${name}.mts`,
-    ["scripts/release-semantic-broker.test.mts"],
+    [
+      "scripts/release-semantic-broker.test.mts",
+      ...(name === "issuer-http" ? ["scripts/release-native-check-broker.test.mts"] : []),
+    ],
   ]),
   [".github/workflows/native-design-compatibility.yml", ["scripts/workflow-provenance.test.mts"]],
   [
@@ -2680,6 +2687,7 @@ for (const file of [
 for (const file of ["package.json", "pnpm-lock.yaml", "scripts/github-client.mts"])
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-native-check-broker.test.mts",
     "scripts/release-native-public-pair.test.mts",
     "scripts/release-semantic-disposition.test.mts",
     "scripts/roadmap-publish.test.mts",
@@ -2713,6 +2721,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/release-metadata-site-controller.test.mts",
   "scripts/release-coordinator-recovery.test.mts",
   "scripts/release-native-candidate.test.mts",
+  "scripts/release-native-check-broker.test.mts",
   "scripts/release-pending-result-recovery.test.mts",
   "scripts/release-catalog-site-controller.test.mts",
   "scripts/release-site-readback.test.mts",
