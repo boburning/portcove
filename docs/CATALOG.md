@@ -2056,12 +2056,29 @@ Settings qualification also requires the explicit integration form.
 The projection refuses duplicate path and mod policy fields. Core receives
 and validates the same concrete contract as before.
 
-For a matching title, reuse the shared staging, preservation and rollback
-evidence and link the reviewed package and writer facts. Check the exact
-package selection, original edition, picker and process behavior, and any
-write or compatibility differences from the reviewed layout. A separate
-write-up or copy of the shared test campaign adds no new evidence. A change
-to the layout or update boundary still needs focused lifecycle verification.
+Reuse the shared staging, declared-data preservation and rollback evidence
+when the official Windows archive uses the reviewed picker, stays within its
+tracked process lifetime and has the same writer and update ownership.
+Independently check each title's package selection, executable, original
+edition and effective write paths. Review changed lifetime, writer layout,
+credentials or update ownership against the affected lifecycle operation.
+The Ruby and Sapphire example shows when explicit variant and fallback paths
+can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-versioned-mod-preservation-2026-10-25.md),
+[explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
+
+For a new compatible-release selection case, add the stable title ID to
+`cases` in the shared Pokémon GBA fixture. Set its `inventory` to a key
+in `inventories` with at least two observed releases in oldest-to-newest
+order. Record one independently identified exact asset name per release in
+`selected_assets`. Keep the full upstream inventories, including competing
+assets. Reuse an inventory when another title selects from the same releases.
+This corpus currently expects each ZIP to belong to exactly one enrolled
+title. Inventories with other ZIPs need a selection case that covers that
+layout. The fixture tests release selection. Generated prepared-player entrypoints cover
+registration, and the staged lifecycle fixtures cover fresh install and data
+preservation. Ordinary compatible successors use the unchanged authored
+selectors and require no fixture edit.
+[Shared release-selection fixture](../crates/portcove-core/src/testdata/gba-pokemon-release-selection.json).
 
 Optional authoring-only `package_observation_v1` retains an exact previously
 accepted package/player inspection. Ordinary `prepare-port` consumes its receipt
