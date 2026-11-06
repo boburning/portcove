@@ -2138,29 +2138,42 @@ async fn native_engine_selection_2612() {
 }
 
 #[tokio::test]
-async fn gba_pokemon_selection_advances_each_game_from_one_shared_release_inventory() {
+async fn gba_pokemon_selection_advances_from_shared_release_inventories() {
+    #[derive(serde::Deserialize)]
+    struct Case {
+        inventory: String,
+        selected_assets: Vec<String>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Corpus {
+        cases: std::collections::BTreeMap<String, Case>,
+        inventories: std::collections::BTreeMap<String, Vec<serde_json::Value>>,
+    }
+
     let catalog = crate::Catalog::embedded().unwrap();
-    let observed: Vec<serde_json::Value> = serde_json::from_str(include_str!(
-        "../../testdata/gba-pokemon-release-selection-2026-11-05.json"
+    let Corpus { cases, inventories } = serde_json::from_str(include_str!(
+        "../../testdata/gba-pokemon-release-selection.json"
     ))
     .unwrap();
-    for (id, prefix) in [
-        ("pokemon-firered-fireredleafgreenrecomp", "FireRedRecomp"),
-        (
-            "pokemon-leafgreen-fireredleafgreenrecomp",
-            "LeafGreenRecomp",
-        ),
-    ] {
-        let port = catalog.port(id).unwrap();
+    assert!(!cases.is_empty());
+    let mut enrolled = std::collections::BTreeSet::new();
+    for (id, case) in cases {
+        let port = catalog.port(&id).unwrap();
         let definition = serde_json::to_value(port).unwrap();
-        for (index, tag) in ["v0.0.6", "v0.0.8"].into_iter().enumerate() {
-            let name = format!("{prefix}-windows-x64-{tag}.zip");
-            let expected = observed[index]["assets"]
+        let observed = &inventories[&case.inventory];
+        assert!(observed.len() >= 2, "{id}");
+        assert_eq!(observed.len(), case.selected_assets.len(), "{id}");
+        for (index, name) in case.selected_assets.iter().enumerate() {
+            let release = &observed[index];
+            let tag = release["tag_name"].as_str().unwrap();
+            let expected = release["assets"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .find(|asset| asset["name"] == name)
+                .find(|asset| asset["name"].as_str() == Some(name))
                 .unwrap();
+            assert!(enrolled.insert((case.inventory.clone(), index, name.clone())));
             let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
             let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
             let selected = GithubReleaseProvider::with_api_root(root)
@@ -2168,20 +2181,38 @@ async fn gba_pokemon_selection_advances_each_game_from_one_shared_release_invent
                 .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
                 .await
                 .unwrap();
-            assert_eq!(selected.version, tag);
-            assert_eq!(selected.asset.name, name);
-            assert_eq!(selected.asset.size, expected["size"].as_u64().unwrap());
+            assert_eq!(selected.version, tag, "{id}");
+            assert_eq!(&selected.asset.name, name, "{id}");
+            assert_eq!(
+                selected.asset.size,
+                expected["size"].as_u64().unwrap(),
+                "{id}"
+            );
             assert_eq!(
                 selected.asset.sha256,
                 expected["digest"]
                     .as_str()
                     .unwrap()
                     .strip_prefix("sha256:")
-                    .unwrap()
+                    .unwrap(),
+                "{id}"
             );
             server.join().unwrap();
-            assert_eq!(requests.try_iter().count(), 2);
+            assert_eq!(requests.try_iter().count(), 2, "{id}");
         }
-        assert_eq!(serde_json::to_value(port).unwrap(), definition);
+        assert_eq!(serde_json::to_value(port).unwrap(), definition, "{id}");
+    }
+    for (group, observed) in inventories {
+        for (index, release) in observed.iter().enumerate() {
+            for asset in release["assets"].as_array().unwrap() {
+                let name = asset["name"].as_str().unwrap();
+                if name.ends_with(".zip") {
+                    assert!(
+                        enrolled.contains(&(group.clone(), index, name.to_owned())),
+                        "{name}"
+                    );
+                }
+            }
+        }
     }
 }

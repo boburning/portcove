@@ -37974,7 +37974,7 @@
     {
       "id": "pokemon-ruby-rubysapphirerecomp",
       "name": "Pokémon Ruby / RubySapphireRecomp",
-      "summary": "Use the upstream RubyRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play RubyRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "issue_number": 337,
       "availability": "packages",
@@ -37987,7 +37987,7 @@
         "game_slug": "pokemon-ruby-version",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7",
+      "release_url": "https://github.com/mstan/RubySapphireRecomp/releases",
       "manual_setup": {
         "steps": [
           {
@@ -37996,7 +37996,7 @@
           },
           {
             "title": "Finish upstream setup and select this game player",
-            "instruction": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+            "instruction": "For an external copy, open the official releases and extract the complete Windows RubyRecomp ZIP into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
           },
           {
             "title": "Keep the data and compiler paths",
@@ -38009,9 +38009,15 @@
         ],
         "warnings": [
           "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-          "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+          "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
         ],
-        "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+        "help_url": "https://github.com/mstan/RubySapphireRecomp/releases",
+        "references": [
+          {
+            "title": "Updates, backups and rollback",
+            "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+          }
+        ]
       },
       "original_game_title": "Pokémon Ruby",
       "platforms": [
@@ -38078,7 +38084,7 @@
     {
       "id": "pokemon-sapphire-rubysapphirerecomp",
       "name": "Pokémon Sapphire / RubySapphireRecomp",
-      "summary": "Use the upstream SapphireRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play SapphireRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "issue_number": 338,
       "availability": "packages",
@@ -38091,7 +38097,7 @@
         "game_slug": "pokemon-sapphire-version",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7",
+      "release_url": "https://github.com/mstan/RubySapphireRecomp/releases",
       "manual_setup": {
         "steps": [
           {
@@ -38100,7 +38106,7 @@
           },
           {
             "title": "Finish upstream setup and select this game player",
-            "instruction": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+            "instruction": "For an external copy, open the official releases and extract the complete Windows SapphireRecomp ZIP into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
           },
           {
             "title": "Keep the data and compiler paths",
@@ -38113,9 +38119,15 @@
         ],
         "warnings": [
           "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-          "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+          "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
         ],
-        "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+        "help_url": "https://github.com/mstan/RubySapphireRecomp/releases",
+        "references": [
+          {
+            "title": "Updates, backups and rollback",
+            "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+          }
+        ]
       },
       "original_game_title": "Pokémon Sapphire",
       "platforms": [
