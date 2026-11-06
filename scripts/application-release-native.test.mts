@@ -3,10 +3,14 @@ import test from "node:test";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
+import { Octokit } from "@octokit/core";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { readFile, mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { sha256 } from "./application-release-io.mts";
+import { receiveStagedApplicationToolData, sha256 } from "./application-release-io.mts";
 import { isRecord } from "./runtime-values.mts";
 import { collectApplicationNativeReport } from "./release-native-pre-sign-report.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
@@ -430,6 +434,130 @@ void test("fresh native attester has no candidate execution, operational key or 
       JSON.stringify(workflow.jobs.attest),
     ),
   );
+});
+
+void test("native attester inline SDK stages a verified archive for the no-network receiver", async (t) => {
+  const workflow = parse(
+    await readFile(
+      new URL("../.github/workflows/application-release-native.yml", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    jobs: {
+      attest: {
+        steps: {
+          uses?: string;
+          run?: string;
+          with?: { script?: string; retries?: number; debug?: boolean };
+        }[];
+      };
+    };
+  };
+  const steps = workflow.jobs.attest.steps;
+  const index = steps.findIndex((step) => step.uses?.startsWith("actions/github-script@"));
+  const step = steps[index];
+  assert.equal(step?.uses, "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3");
+  assert.equal(step.with?.retries, 0);
+  assert.equal(step.with?.debug, false);
+  assert.equal(steps[index + 1]?.run, "node scripts/application-release-tools.mts receive-file");
+  const script = step.with?.script;
+  assert.ok(script && !script.includes("${{"));
+  const root = await mkdtemp(path.join(tmpdir(), "native-attester-tools-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const scratch = path.join(root, "portcove-native-attester-tools");
+  const output = path.join(root, "extracted");
+  const source = "a".repeat(40);
+  const ref = "refs/tags/portcove-production-controller-fixture";
+  const archive = createAuditZip([["tools.json", "fixture tool manifest"]]);
+  const id = 9;
+  const expected = {
+    id,
+    name: "application-tools-14-1",
+    run_id: "14",
+    source,
+    files: ["tools.json"],
+    maximum_archive_bytes: 320 * 1024 ** 2,
+    maximum_file_bytes: 128 * 1024 ** 2,
+  };
+  const metadata = {
+    id,
+    name: expected.name,
+    expired: false,
+    size_in_bytes: archive.length,
+    digest: `sha256:${sha256(archive)}`,
+    workflow_run: { id: 14, head_sha: source, repository_id: 1354613114 },
+  };
+  let mode = "wrong-source";
+  const calls: string[] = [];
+  const run = () =>
+    runInNewContext(`(async () => { ${script} })()`, {
+      require: createRequire(import.meta.url),
+      github: new Octokit({ auth: "inert-native-attester" }),
+      context: { repo: { owner: "boburning", repo: "portcove" }, runId: 14, sha: source, ref },
+      process: {
+        env: {
+          RUNNER_TEMP: root,
+          PORTCOVE_TOOLS_ARTIFACT: String(id),
+          PORTCOVE_TOOLS_ATTEMPT: "1",
+          GITHUB_RUN_ID: "14",
+          GITHUB_RUN_ATTEMPT: "1",
+          PORTCOVE_APPLICATION_RELEASE_REVISION: source,
+          PORTCOVE_APPLICATION_RELEASE_REF: ref,
+        },
+      },
+      Buffer,
+      AbortSignal,
+      Request,
+      Response,
+      URL,
+      fetch: async (input: Request | URL, init: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        calls.push(url.pathname);
+        assert.equal(request.redirect, "manual");
+        if (url.origin === "https://api.github.com") {
+          assert.equal(request.headers.get("authorization"), "token inert-native-attester");
+          if (url.pathname.endsWith("/zip"))
+            return new Response(null, {
+              status: 302,
+              headers: {
+                location:
+                  "https://productionresultssa1.blob.core.windows.net/actions-results/tools?sig=inert",
+              },
+            });
+          return Response.json(
+            mode === "wrong-source"
+              ? {
+                  ...metadata,
+                  workflow_run: { ...metadata.workflow_run, head_sha: "b".repeat(40) },
+                }
+              : metadata,
+          );
+        }
+        assert.equal(url.origin, "https://productionresultssa1.blob.core.windows.net");
+        assert.equal(request.credentials, "omit");
+        assert.equal(request.headers.has("authorization"), false);
+        return new Response(mode === "overlong" ? Buffer.concat([archive, Buffer.of(0)]) : archive);
+      },
+    }) as Promise<unknown>;
+  await assert.rejects(run(), /acquisition refused/u);
+  assert.equal(calls.length, 1);
+  mode = "overlong";
+  await assert.rejects(run(), /acquisition refused/u);
+  await assert.rejects(readFile(path.join(scratch, "archive.zip")), { code: "ENOENT" });
+  mode = "valid";
+  await run();
+  await assert.rejects(receiveStagedApplicationToolData(output, { ...expected, id: 10 }, scratch));
+  const saved = await readFile(path.join(scratch, "archive.zip"));
+  await writeFile(path.join(scratch, "archive.zip"), Buffer.alloc(saved.length));
+  await assert.rejects(receiveStagedApplicationToolData(output, expected, scratch));
+  await writeFile(path.join(scratch, "archive.zip"), saved);
+  assert.deepEqual(await receiveStagedApplicationToolData(output, expected, scratch), {
+    id,
+    bytes: archive.length,
+    sha256: sha256(archive),
+  });
+  assert.equal(await readFile(path.join(output, "tools.json"), "utf8"), "fixture tool manifest");
 });
 
 void test("native execution requires the fixed protected hosted Windows caller and no private issuer", () => {
