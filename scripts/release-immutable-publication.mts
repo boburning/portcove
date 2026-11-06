@@ -39,7 +39,6 @@ import {
 import { parseReleaseChecksumManifest } from "./reconcile-release-assets.mts";
 import { prepareReleasePublicBuildInputs } from "./release-public-build-inputs.mts";
 import { verifyUpdaterInventory } from "./updater-artifact-inventory.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import {
@@ -1424,19 +1423,10 @@ export async function advanceOwnedImmutableReleasePublication(
   const token = process.env.PORTCOVE_RELEASE_PUBLICATION_TOKEN;
   if (!token || token.length > 16384 || /\s/u.test(token))
     throw new Error("dedicated Release publication credential unavailable");
-  const api = new GitHubApiClient((args, body) => {
-    const result = createGitHubRunner({
-      cwd: state.session.directory,
-      timeoutMs: publicationRemaining(deadline),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], body);
-    publicationRemaining(deadline);
-    return result;
-  });
   const readBoundary = async () => {
     publicationRemaining(deadline);
     requireAuthenticatedReleaseControlSource(controls, "release-publication");
-    const current = controls.read(api, admission.facts.opportunity);
+    const current = await controls.readSdkApplicationControls(admission.facts.opportunity);
     publicationRemaining(deadline);
     if (
       current.reader.job_id !== identity.job_id ||
