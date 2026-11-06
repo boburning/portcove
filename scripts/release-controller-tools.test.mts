@@ -1210,9 +1210,14 @@ void test("fixed controller tool senders use the locked SDK before signing exact
         `${actions}/artifacts/99`,
       ]);
       assert.equal(oidc.counts().requests, 5);
-      for (const [failurePath, phase] of [
+      for (const [failurePath, phase, identityRefusal] of [
         ["/oidc", "producer-token-request"],
-        ["/.well-known/jwks", "producer-identity-verification"],
+        ["/.well-known/jwks", "producer-identity-verification", "provider-keys"],
+        [
+          "/repos/boburning/portcove/actions/runs/9988",
+          "producer-identity-verification",
+          "provider-read",
+        ],
         ["artifact-recheck", "producer-upload-identity-recheck"],
         ["predicate-output", "producer-predicate-output"],
       ] as const) {
@@ -1243,6 +1248,7 @@ void test("fixed controller tool senders use the locked SDK before signing exact
         assert.deepEqual(JSON.parse(await readFile(path.join(directory, "refusal.json"), "utf8")), {
           directory,
           phase,
+          ...(identityRefusal ? { identity_refusal: identityRefusal } : {}),
           authority: "none",
           automatic_retry: false,
         });
