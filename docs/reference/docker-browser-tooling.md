@@ -70,6 +70,7 @@ match the selected source catalog. The complete
 committed source, including manifests, lockfile, patches and lifecycle scripts,
 participates in preparation. Git rejects tracked or
 untracked source changes after preparation and immediately before fresh tests.
+The full Git status scan has a three-minute limit for cold workspace copies.
 Ignored generated dependencies, caches and output remain separate. Frozen
 installation and the maintained provider compatibility check resolve the exact
 `playwright-core` package and Node executable. BuildKit keys the system-library
