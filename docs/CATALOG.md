@@ -1754,6 +1754,12 @@ publication are unclaimed. Exact identities and boundaries are recorded in the
 
 ## Adding or changing a port
 
+On an integrated record, `integration.platforms` owns managed platform
+eligibility. Use `listing.platforms` only for additional platforms where
+independent upstream package evidence applies. Declare each platform once.
+The discovery directory reports both sets. The managed definition and its
+selected release retain their own platform checks.
+
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's
 toolchain download fallback. Builder PATH contains only the owned toolchain and
@@ -2043,6 +2049,12 @@ per-title outcomes, checking independently reviewed expected launch vectors or
 accepted member observations. An ordinary fitting title needs no production Rust
 or per-title test wrapper. Independent observations and custom behavioral tests
 remain necessary where their scope differs from the shared route.
+For a managed-native case, record the independently observed executable and
+immutable members in the shared native lifecycle corpus and enroll the stable
+ID and managed role in the independent expectations. Review those facts against
+the package before generating the entrypoint.
+[Native lifecycle corpus](../crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json),
+[independent enrollment](../crates/portcove-core/src/testdata/route-enrollment-expectations.json).
 
 Optional authoring-only `gba_staged_archive_v1` expands the reviewed Windows
 staged GitHub archive layout used by the upstream GBA picker. Record the
@@ -2067,18 +2079,18 @@ can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-
 [explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
 
 For a new compatible-release selection case, add the stable title ID to
-`cases` in the shared Pokémon GBA fixture. Set its `inventory` to a key
-in `inventories` with at least two observed releases in oldest-to-newest
-order. Record one independently identified exact asset name per release in
-`selected_assets`. Keep the full upstream inventories, including competing
-assets. Reuse an inventory when another title selects from the same releases.
-This corpus currently expects each ZIP to belong to exactly one enrolled
-title. Inventories with other ZIPs need a selection case that covers that
-layout. The fixture tests release selection. Generated prepared-player entrypoints cover
-registration, and the staged lifecycle fixtures cover fresh install and data
-preservation. Ordinary compatible successors use the unchanged authored
-selectors and require no fixture edit.
-[Shared release-selection fixture](../crates/portcove-core/src/testdata/gba-pokemon-release-selection.json).
+`cases` in the shared Windows archive fixture. Set its `inventory` to a key
+in `inventories` with at least two releases in oldest-to-newest order.
+Record one independently identified exact asset name per release in
+`selected_assets`. Keep the full observed release inventories and label
+controlled successors in the title evidence. Reuse an inventory when another
+title selects from the same releases. Use `other_zip_assets` to identify
+competing ZIPs outside the enrolled routes by inventory, zero-based release
+index and exact member name. The inventory check requires every ZIP to be
+covered exactly once. Generated route entrypoints and shared lifecycle
+fixtures separately cover registration, managed runtime replacement and data
+ownership. Ordinary compatible successors use the unchanged authored selectors.
+[Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
 
 Optional authoring-only `package_observation_v1` retains an exact previously
 accepted package/player inspection. Ordinary `prepare-port` consumes its receipt

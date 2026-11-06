@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { inspectRetainedRecoveryHistory } from "./upstream-release-recovery.mts";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { access, mkdtemp, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { parse } from "yaml";
 import {
   inspectRehearsalDraftReadback,
@@ -22,11 +26,16 @@ import {
   retainedDiagnostic,
 } from "./upstream-release-identity.mts";
 import {
+  readRehearsalAttemptObservations,
   recoveryJobMinutes,
   inspectRehearsalBudget,
   inspectRehearsalProtection,
 } from "./upstream-release-runtime.mts";
-import { inspectRehearsalArtifact, rehearsalTransferFiles } from "./upstream-release-transfer.mts";
+import {
+  inspectRehearsalArtifact,
+  receiveRehearsalArtifact,
+  rehearsalTransferFiles,
+} from "./upstream-release-transfer.mts";
 import { inspectRehearsalAcceptance } from "./upstream-release-acceptance.mts";
 import {
   rehearsalFeedTransition,
@@ -150,7 +159,12 @@ void test("native workflow preserves credential separation, exact producer ident
     new URL("../.github/workflows/upstream-release-rehearsal.yml", import.meta.url),
     "utf8",
   );
-  type Step = { uses?: string; run?: string; with?: Record<string, unknown> };
+  type Step = {
+    uses?: string;
+    run?: string;
+    with?: Record<string, unknown>;
+    env?: Record<string, string>;
+  };
   type Job = {
     "runs-on": string;
     "timeout-minutes": number;
@@ -184,6 +198,16 @@ void test("native workflow preserves credential separation, exact producer ident
       assert.notEqual(job.permissions?.["id-token"], "write");
       assert.notEqual(job.permissions?.attestations, "write");
     }
+    const clock = job.steps.findIndex((step) =>
+      step.run?.includes("upstream-release-runtime.mts budget"),
+    );
+    const expectedInstall =
+      name === "public_installed"
+        ? "pnpm install --frozen-lockfile"
+        : "pnpm --filter portcove-repository install --frozen-lockfile --prod --ignore-scripts --ignore-pnpmfile";
+    const install = job.steps.findIndex((step) => step.run === expectedInstall);
+    assert.ok(install >= 0 && install < clock);
+    assert.ok(job.steps.slice(0, install + 1).every((step) => !step.env?.GH_TOKEN));
     for (const step of job.steps) {
       assert.doesNotMatch(step.uses ?? "", /cache/u);
       if (step.uses?.includes("/checkout@")) {
@@ -227,7 +251,10 @@ void test("native workflow preserves credential separation, exact producer ident
     assert.ok(text.includes(String(id)));
   assert.ok(
     workflow.jobs.recovery!.steps.every(
-      (step) => !/cargo |pnpm install|\.exe\s/u.test(step.run ?? ""),
+      (step) =>
+        step.run ===
+          "pnpm --filter portcove-repository install --frozen-lockfile --prod --ignore-scripts --ignore-pnpmfile" ||
+        !/cargo |pnpm [^\n]*\binstall\b|\.exe\s/u.test(step.run ?? ""),
     ),
   );
 
@@ -388,6 +415,135 @@ void test("opaque artifact admission binds run/source/producer and transport bou
     { workflow_run: { ...raw.workflow_run, head_sha: "d".repeat(40) } },
   ])
     assert.throws(() => inspectRehearsalArtifact({ ...raw, ...delta }, input));
+});
+
+void test("locked SDK observes the five fixed rehearsal attempts once in provider order", async () => {
+  const execution = {
+    source: "c".repeat(40),
+    run_id: "67890",
+    run_attempt: 1,
+    ref: rehearsalExecutionRef,
+  };
+  const environment = {
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_REPOSITORY_ID: "1354613114",
+    GITHUB_REF: rehearsalExecutionRef,
+    GITHUB_REF_PROTECTED: "true",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_SHA: execution.source,
+    GITHUB_RUN_ID: execution.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GH_TOKEN: "inert-rehearsal-reader",
+  };
+  const selected = [
+    retainedRehearsal,
+    { ...retainedRehearsal, run_attempt: 2 },
+    retainedRecovery,
+    retainedDiagnostic,
+    execution,
+  ];
+  const responses = new Map<string, unknown>();
+  for (const subject of selected) {
+    const route = `https://api.github.com/repos/boburning/portcove/actions/runs/${subject.run_id}/attempts/${subject.run_attempt}`;
+    responses.set(route, {
+      id: Number(subject.run_id),
+      head_sha: subject.source,
+      head_branch: subject.ref.slice("refs/tags/".length),
+      run_attempt: subject.run_attempt,
+      path: ".github/workflows/upstream-release-rehearsal.yml",
+      event: "workflow_dispatch",
+    });
+    responses.set(`${route}/jobs?page=1&per_page=100`, { total_count: 0, jobs: [] });
+  }
+  const calls: string[] = [];
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    const route = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    calls.push(route);
+    assert.equal(init?.method, "GET");
+    assert.equal(init.redirect, "manual");
+    assert.equal(new Headers(init.headers).get("authorization"), "token inert-rehearsal-reader");
+    assert.ok(responses.has(route), route);
+    return Response.json(responses.get(route));
+  };
+  const observations = await readRehearsalAttemptObservations({ environment, fetch });
+  assert.deepEqual(calls, [...responses.keys()]);
+  assert.equal(observations.attempts.length, 5);
+  assert.equal(observations.contexts.length, 5);
+  calls.length = 0;
+  await assert.rejects(
+    readRehearsalAttemptObservations({ environment: { ...environment, GH_TOKEN: "" }, fetch }),
+    /job reader credential is unavailable/u,
+  );
+  assert.deepEqual(calls, []);
+  await assert.rejects(
+    readRehearsalAttemptObservations({
+      environment,
+      fetch: async (url, init) => {
+        const response = await fetch(url, init);
+        if (calls.length === 2)
+          response.headers.set("link", '<https://api.github.com/next>; rel="next"');
+        return response;
+      },
+    }),
+  );
+  assert.deepEqual(calls, [...responses.keys()].slice(0, 2));
+});
+
+void test("rehearsal transfer brackets the SDK lookup and rejects changed provider identity before extraction", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "rehearsal-transfer-test-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const destination = path.join(directory, "output");
+  const id = retainedRehearsal.signed_artifact;
+  const api = `https://api.github.com/repos/boburning/portcove/actions/artifacts/${id}`;
+  const blob = "https://productionresultssa1.blob.core.windows.net/actions-results/inert?sig=test";
+  const bytes = Buffer.alloc(22);
+  const digest = createHash("sha256").update(bytes).digest("hex");
+  const calls: string[] = [];
+  const environment = {
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_REPOSITORY_ID: "1354613114",
+    GITHUB_REF: rehearsalExecutionRef,
+    GITHUB_REF_PROTECTED: "true",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_SHA: "c".repeat(40),
+    GITHUB_RUN_ID: "67890",
+    GITHUB_RUN_ATTEMPT: "1",
+    GH_TOKEN: "inert-rehearsal-reader",
+  };
+  await assert.rejects(
+    receiveRehearsalArtifact("signed", id, destination, 1, {
+      environment,
+      async fetch(input, init) {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        calls.push(url);
+        const auth = new Headers(init?.headers).get("authorization");
+        if (url === blob) {
+          assert.equal(auth, null);
+          return new Response(bytes, { headers: { "content-length": String(bytes.length) } });
+        }
+        assert.equal(auth, "token inert-rehearsal-reader");
+        if (url === `${api}/zip`)
+          return new Response(null, { status: 302, headers: { location: blob } });
+        assert.equal(url, api);
+        return Response.json({
+          id,
+          name: `upstream-signed-${retainedRehearsal.run_id}-1`,
+          expired: false,
+          size_in_bytes: bytes.length,
+          digest: `sha256:${calls.length === 1 ? digest : "a".repeat(64)}`,
+          workflow_run: {
+            id: Number(retainedRehearsal.run_id),
+            head_sha: retainedRehearsal.source,
+            repository_id: 1354613114,
+          },
+        });
+      },
+    }),
+    /provider identity changed during transfer/u,
+  );
+  assert.deepEqual(calls, [api, `${api}/zip`, blob, api]);
+  await assert.rejects(access(destination), { code: "ENOENT" });
 });
 
 void test("budget retains actual prior time, refuses unsafe retry and never rebuilds a successful package", () => {

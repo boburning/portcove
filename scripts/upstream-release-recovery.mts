@@ -159,7 +159,7 @@ async function preflight() {
       runs.workflow_runs[0].id === Number(executor.run_id),
     "only one control continuation is admitted",
   );
-  const { attempts, contexts } = readRehearsalAttemptObservations();
+  const { attempts, contexts } = await readRehearsalAttemptObservations();
   const budget = inspectRetainedRecoveryHistory(attempts, contexts);
   await assertRehearsalProtection("recovery");
   const signed = "work/upstream-signed";

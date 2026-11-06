@@ -390,9 +390,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error(
         "Common port fields belong to the listing, not a second integration authority.",
       );
-    if (listing.platforms !== undefined && integration.platforms !== undefined)
+    const managedPlatforms = Array.isArray(integration.platforms) ? integration.platforms : [];
+    if (listing.platforms?.some((platform) => managedPlatforms.includes(platform)))
       throw new Error(
-        "Integrated platforms belong to the integration; the listing projection derives them.",
+        "A platform must be declared once. Listing platforms may add upstream package platforms outside the integration.",
       );
     if (
       isRecord(presentation) &&
@@ -492,7 +493,12 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     .map(projectPackagePlayerFacts)
     .map((record) => ({
       ...structuredClone(record.listing),
-      platforms: structuredClone(record.integration?.platforms ?? record.listing.platforms ?? []),
+      platforms: [
+        ...(Array.isArray(record.integration?.platforms)
+          ? (record.integration.platforms as unknown[])
+          : []),
+        ...(record.listing.platforms ?? []),
+      ],
       availability: record.listing.availability ?? "unknown",
       ...(record.release_maintenance
         ? {
