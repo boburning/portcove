@@ -83,7 +83,7 @@ import {
 } from "./release-coordinator-remote.mts";
 import { checkpointReleaseOpportunity } from "./release-coordinator-state.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
-import { collectReleaseSourceChanges } from "./release-source-changes.mts";
+import { collectReleaseSourceChangesWithSdk } from "./release-source-changes.mts";
 import { createReleasePublicationReader } from "./release-publication-inventory.mts";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
 import {
@@ -311,38 +311,47 @@ export async function runFixedCatalogCoordinatorConfiguration(
           recovered.checkpoint,
           "unresolved effect requires its existing recovery",
         );
+      const requireMainSource = (repo: unknown, ref: unknown) => {
+        if (
+          !isRecord(repo) ||
+          repo.id !== 1354613114 ||
+          repo.full_name !== "boburning/portcove" ||
+          repo.default_branch !== "main" ||
+          !isRecord(ref) ||
+          ref.ref !== "refs/heads/main" ||
+          !isRecord(ref.object) ||
+          ref.object.type !== "commit" ||
+          typeof ref.object.sha !== "string" ||
+          !/^[a-f0-9]{40}$/u.test(ref.object.sha)
+        )
+          throw new Error("fixed default-main catalog source unavailable");
+        return ref.object.sha;
+      };
       const mainHead = () => {
         const repo = api.request("GET", repository),
           ref = api.request("GET", `${repository}/git/ref/heads/main`);
-        if (
-          repo.status !== 200 ||
-          !isRecord(repo.body) ||
-          repo.body.id !== 1354613114 ||
-          repo.body.full_name !== "boburning/portcove" ||
-          repo.body.default_branch !== "main" ||
-          ref.status !== 200 ||
-          !isRecord(ref.body) ||
-          ref.body.ref !== "refs/heads/main" ||
-          !isRecord(ref.body.object) ||
-          ref.body.object.type !== "commit" ||
-          typeof ref.body.object.sha !== "string" ||
-          !/^[a-f0-9]{40}$/u.test(ref.body.object.sha)
-        )
+        if (repo.status !== 200 || ref.status !== 200)
           throw new Error("fixed default-main catalog source unavailable");
-        return ref.body.object.sha;
+        return requireMainSource(repo.body, ref.body);
       };
-      const sourceCommit = pending?.opportunity.source_commit ?? mainHead();
-      stage = "fixed-inert-source-and-Core";
+      const checkDirectSource = () => {
+        check();
+        assertTrustedDirectNode("fixed catalog authoring source");
+      };
       const sourceProvider = await createReleaseCustodyProvider({
         token: readerToken,
         deadline,
         maxBytes: 16 * 1024 ** 2,
+        beforeDispatch: checkDirectSource,
         afterRead: check,
-        fetch(input, init) {
-          assertTrustedDirectNode("fixed catalog authoring source");
-          return globalThis.fetch(input, init);
-        },
       });
+      const sourceCommit =
+        pending?.opportunity.source_commit ??
+        requireMainSource(
+          await sourceProvider.repository(deadline),
+          await sourceProvider.mainRef(),
+        );
+      stage = "fixed-inert-source-and-Core";
       const source = await materializeCatalogPublicationSource(
         sourceProvider,
         sourceCommit,
@@ -412,11 +421,20 @@ export async function runFixedCatalogCoordinatorConfiguration(
             initialization.initial_site_preimage_sha256 !== pins.initial_site_preimage?.sha256))
       )
         throw new Error("catalog initialization differs from actual protected setup/source");
-      const changes = collectReleaseSourceChanges(api, {
-        base_commit: seed?.source_commit ?? initial.commit,
-        source_commit: source.source.commit,
-        source_tree: source.source.tree,
-      });
+      const changes = await collectReleaseSourceChangesWithSdk(
+        {
+          token: readerToken,
+          deadline,
+          maxBytes: 16 * 1024 ** 2,
+          requestTimeoutMs: 15000,
+          guard: checkDirectSource,
+        },
+        {
+          base_commit: seed?.source_commit ?? initial.commit,
+          source_commit: source.source.commit,
+          source_tree: source.source.tree,
+        },
+      );
       if (changes.base_tree !== (seed?.source_tree ?? initial.tree))
         throw new Error("catalog baseline raw Git tree differs");
       const opportunity = deriveCatalogCoordinatorOpportunity(

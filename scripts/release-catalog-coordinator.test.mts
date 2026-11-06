@@ -92,7 +92,7 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
  './release-catalog-inspection.mts':'export const inspectActualCatalogPublication=async()=>globalThis.__catalog.inspect();export const requireActualCatalogInspection=async()=>globalThis.__catalog.inspection;export const readCatalogPublicationBundle=async()=>new Map();',
  './release-coordinator-recovery.mts':'export const recoverRemoteCoordinator=(...args)=>globalThis.__catalog.recover(...args);export const readRemoteCoordinatorSnapshot=(...args)=>globalThis.__catalog.recover(...args);export const inspectRemoteCommitObject=(_raw,id)=>({tree:id==="4".repeat(40)?"a".repeat(40):"8".repeat(40)});',
  './release-coordinator-remote.mts':'export const inspectCoordinatorRemoteNamespace=x=>{if(x.schema_version!==1||Object.keys(x).sort().join(",")!=="namespace,schema_version")throw new Error("namespace");return x.namespace;};export const publishCoordinatorCheckpoint=(...a)=>globalThis.__catalog.publish(...a);',
- './release-source-changes.mts':'export const collectReleaseSourceChanges=()=>({base_tree:"a".repeat(40),change_set_sha256:"b".repeat(64)});',
+ './release-source-changes.mts':'export const collectReleaseSourceChangesWithSdk=async(...args)=>globalThis.__catalog.compare(...args);',
  './release-publication-inventory.mts':'export const createReleasePublicationReader=()=>({tags:()=>[],releases:()=>[],readAllocations:()=>({allocations:[]})});',
  './release-coordinator-journal-api.mts':'export const createCoordinatorJournalApi=()=>({request:()=>globalThis.__catalog.write(),graphql:()=>globalThis.__catalog.write()});',
  './release-semantic-disposition-reader.mts':'export const readIndependentCatalogSemanticCheckInventory=(_api,producer)=>{globalThis.__catalog.inspectProducer(producer);return {records:[],assertUnchanged(){}};};export const inspectCatalogSemanticRequestCheckMatches=()=>globalThis.__catalog.matches();export const discoverIndependentCatalogSemanticDisposition=()=>globalThis.__catalog.negativeObserved;',
@@ -113,6 +113,14 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
   assert.equal(url.origin,'https://api.github.com');
   assert.equal(init.method,'GET');
   assert.equal(new Headers(init.headers).get('authorization'),'token ghs_catalog_coordinator_clock_fixture');
+  if(url.pathname==='/repos/boburning/portcove'){
+   assert.equal(url.search,'');
+   return Response.json({id:1354613114,full_name:'boburning/portcove',default_branch:'main'});
+  }
+  if(url.pathname==='/repos/boburning/portcove/git/ref/heads/main'){
+   assert.equal(url.search,'');counters.sourceHeads++;
+   return Response.json({ref:'refs/heads/main',object:{type:'commit',sha:scope.source.commit}});
+  }
   if(url.pathname.startsWith('/repos/boburning/portcove/git/commits/')){
    assert.equal(url.search,'');
    assert.ok([scope.source.commit,authority.catalog.public_source.commit].some(sha=>url.pathname.endsWith('/'+sha)));
@@ -126,17 +134,20 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
 
  root=await mkdtemp(path.join(os.tmpdir(),'catalog-entry-controlled-'));
  try {
-  async function setup(name){scenario=name;counters={main:0,controls:0,inspect:0,write:0,prepare:0,complete:0,sourceReads:0};maintenanceReads=0;live=path.join(root,name);await mkdir(live);execFileSync('git',['init','--bare','--quiet',live]);
+  async function setup(name){scenario=name;counters={main:0,controls:0,inspect:0,write:0,prepare:0,complete:0,sourceReads:0,sourceHeads:0,comparisons:0};maintenanceReads=0;live=path.join(root,name);await mkdir(live);execFileSync('git',['init','--bare','--quiet',live]);
    const now=new Date().toISOString(),input={schema_version:2,now,opportunity:null,active_candidate:null,controller:{workflow:'.github/workflows/application-update-production.yml',revision:reader.admitted.revision,publication_paused:false,capacity_attempt:{...capacityFixture(),schema_version:2}},publication:{complete:true,observed_at:now,published_versions:[],published_sources:[],reserved_versions:[],last_routine_preview_at:null},catalog_initialization:{schema_version:1,kind:'catalog-initialization',authority:'none',source_commit:authority.catalog.public_source.commit,source_tree:'a'.repeat(40),root_sha256:authority.catalog.public_source.root.sha256,publisher_configuration_sha256:authority.configuration_sha256,setup_plan_sha256:authority.catalog.setup_plan_sha256,initial_site_preimage_sha256:authority.catalog.public_source.initial_site_preimage.sha256}};
    cp=(await checkpointReleaseOpportunity(live,null,input)).checkpoint;
    fake.tools={};fake.identity=selection.tools.artifact;fake.inspection=actualInspection;fake.previous=()=>({...scope,source:{commit:'4'.repeat(40),tree:'a'.repeat(40)},request:scenario==='previous-missing'?null:scope.request});
    fake.source=commit=>{assert.equal(commit,scope.source.commit);return scenario==='absent'?{...scope,request:null}:scope;};
+   fake.compare=async(options,requested)=>{
+    assert.equal(options.token,'ghs_catalog_coordinator_clock_fixture');assert.equal(options.maxBytes,16*1024**2);assert.equal(options.requestTimeoutMs,15000);assert.ok(options.deadline>performance.now());options.guard();assert.equal(requested.source_commit,scope.source.commit);counters.comparisons++;return {base_tree:'a'.repeat(40),change_set_sha256:'b'.repeat(64)};
+   };
    fake.inspect=()=>{counters.inspect++;return {};};fake.authenticateControls=()=>{counters.controls++;return fake.controls;};fake.write=()=>{counters.write++;return {};};
    fake.matches=()=>({accepted:['accepted','selected-accepted','replacement'].includes(scenario)?[{check_run_id:99,opportunity:{}}]:[],negative:['negative','retire'].includes(scenario)?[100]:[],authority:'none'});
    fake.prepare=(parent,args,deadline)=>{counters.prepare++;assert.equal(args.tools,fake.tools);assert.equal(args.check_id,99);assert.ok(deadline<performance.now()+170000);return {};};fake.complete=()=>{counters.complete++;return {decision:'catalog-context-prepared',authority:'none'};};
   }
-  await setup('absent');let result=await runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000);assert.equal(result.decision,'held');assert.equal(counters.sourceReads,1);assert.equal(counters.inspect,0);assert.equal(counters.write,0);assert.equal(counters.controls,0);
-  await setup('neutral');const old=cp;result=await runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000);assert.equal(result.decision,'catalog-review-requested');assert.notEqual(cp,old);assert.equal(counters.controls,1);assert.equal(counters.prepare,0);assert.equal(counters.write,2);const retained=(await recoverReleaseOpportunity(live,cp)).input;assert.deepEqual(retained.catalog_review_request,result.catalog_review_request);assert.equal(retained.opportunity,null);assert.equal(retained.active_candidate,null);assert.equal(retained.catalog_review_request.core_inspection,coreText);
+  await setup('absent');let result=await runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000);assert.equal(result.decision,'held');assert.equal(counters.sourceReads,1);assert.equal(counters.sourceHeads,1);assert.equal(counters.main,0);assert.equal(counters.inspect,0);assert.equal(counters.write,0);assert.equal(counters.controls,0);
+  await setup('neutral');const old=cp;result=await runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000);assert.equal(result.decision,'catalog-review-requested');assert.equal(counters.sourceHeads,1);assert.equal(counters.comparisons,1);assert.notEqual(cp,old);assert.equal(counters.controls,1);assert.equal(counters.prepare,0);assert.equal(counters.write,2);const retained=(await recoverReleaseOpportunity(live,cp)).input;assert.deepEqual(retained.catalog_review_request,result.catalog_review_request);assert.equal(retained.opportunity,null);assert.equal(retained.active_candidate,null);assert.equal(retained.catalog_review_request.core_inspection,coreText);
   const frozen=retained.catalog_review_request;const originalSource=fake.source;fake.source=commit=>{assert.equal(commit,frozen.opportunity.source_commit);return originalSource(commit);};const mainBefore=counters.main;result=await runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000);assert.equal(result.decision,'held');assert.equal(counters.main,mainBefore);assert.equal(counters.controls,1);assert.deepEqual((await recoverReleaseOpportunity(live,cp)).input.catalog_review_request,frozen);
   scenario='retire';fake.negativeObserved={fixture:'negative-provider-proof'};fake.receiveNegative=async(_controls,_parent,request,checkpoint)=>{
     const snapshot=await recoverReleaseOpportunity(live,cp);assert.equal(checkpoint,cp);assert.equal(request.request_id,snapshot.input.catalog_review_request.request_id);
