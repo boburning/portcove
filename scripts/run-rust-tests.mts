@@ -605,7 +605,13 @@ export async function runRustTests(
         product: "linux-process-tree-reaper",
         source: "scripts/fixtures/linux-process-tree-reaper.rs.txt",
         output: linuxReaper,
-        rustcArgs: ["--edition=2024", "--crate-name", "portcove_linux_process_tree_reaper"],
+        rustcArgs: [
+          "--edition=2024",
+          "--crate-name",
+          "portcove_linux_process_tree_reaper",
+          "-C",
+          "strip=symbols",
+        ],
       });
     }
     const command =

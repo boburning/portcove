@@ -30,6 +30,8 @@ export const nativeRuntimeSupport = Object.freeze({
     "--edition=2024",
     "--crate-name",
     "portcove_linux_process_tree_reaper",
+    "-C",
+    "strip=symbols",
   ]),
   maximumBinaryBytes: 16 * 1024 ** 2,
 });

@@ -1177,7 +1177,13 @@ for (const mode of [
         architecture: process.arch,
         product: "linux-process-tree-reaper",
         source: "scripts/fixtures/linux-process-tree-reaper.rs.txt",
-        rustcArgs: ["--edition=2024", "--crate-name", "portcove_linux_process_tree_reaper"],
+        rustcArgs: [
+          "--edition=2024",
+          "--crate-name",
+          "portcove_linux_process_tree_reaper",
+          "-C",
+          "strip=symbols",
+        ],
       });
       assert.equal(prepared.output.sha256.length, 64);
       const supervisor = path.resolve("scripts/rust-test-tree-supervisor.mts");
