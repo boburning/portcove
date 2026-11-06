@@ -230,8 +230,10 @@ void test("bootstrap successor retains the appointed empty draft and its origina
       assert.equal(resumed.release_id, first.release_id);
       assert.equal(resumed.custody.source, source);
       assert.equal(resumed.custody.source_tree, tree);
-      assert.equal(f.mutations[1]?.body.tag_name, `portcove-production-candidate-${opportunity}`);
-      assert.equal(f.mutations[1]?.body.target_commitish, source);
+      const patch = f.mutations[1]?.body;
+      assert.ok(isRecord(patch));
+      assert.equal(patch.tag_name, `portcove-production-candidate-${opportunity}`);
+      assert.equal(patch.target_commitish, source);
       assert.equal(draft.target_commitish, source);
       assert.deepEqual(resumed.custody.runs, [
         ...first.custody.runs,
