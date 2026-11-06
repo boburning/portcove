@@ -396,6 +396,14 @@ async function verifyWakeIntentUpload(
  * fixed wake is the inductive boundary: it checked its predecessors first.
  * Missing/expired history, failed responses and zero run matches are Unknown.
  * Only a provider-observed skipped fixed dispatch step proves no POST occurred. */
+interface WakePredecessor {
+  configuration: ReturnType<typeof inspectControllerWakeConfiguration>;
+  wake_run_id: number;
+  receiver_run_id: number;
+  intent_artifact_id: number;
+  intent_sha256: string;
+}
+
 export async function reconcilePreviousWakes(
   config: ReturnType<typeof inspectControllerWakeConfiguration>,
   environment: NodeJS.ProcessEnv,
@@ -404,6 +412,7 @@ export async function reconcilePreviousWakes(
   options: {
     download?: typeof readGitHubArtifactArchive;
     directory?: string;
+    predecessor?: WakePredecessor;
     deadline?: number;
     approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
   } = {},
@@ -522,10 +531,14 @@ export async function reconcilePreviousWakes(
         throw new Error("prior wake dispatch step identity unavailable");
       return steps[0];
     };
+    const predecessor =
+      run.id === options.predecessor?.wake_run_id ? options.predecessor : undefined;
     const nativeStep =
       config.schema_version === 5 || run.conclusion === "skipped"
         ? await readDispatchStep()
         : undefined;
+    if (predecessor && (run.conclusion !== "success" || nativeStep?.conclusion === "skipped"))
+      throw new Error("appointed wake predecessor did not dispatch");
     if (nativeStep === null) {
       await record("prior-wake-no-dispatch-observed", {
         wake_run_id: run.id,
@@ -579,6 +592,12 @@ export async function reconcilePreviousWakes(
         !/^sha256:[a-f0-9]{64}$/u.test(matches[0].digest)
       )
         throw new Error("prior wake exact immutable intent unavailable");
+      if (
+        predecessor &&
+        (matches[0].id !== predecessor.intent_artifact_id ||
+          matches[0].digest !== `sha256:${predecessor.intent_sha256}`)
+      )
+        throw new Error("prior wake predecessor artifact differs");
       const originalConfiguration = await verifyWakeIntentUpload(
         api,
         { ...environment, GITHUB_RUN_ID: String(run.id), GITHUB_SHA: run.head_sha },
@@ -586,15 +605,34 @@ export async function reconcilePreviousWakes(
         {
           artifact: { id: matches[0].id, sha256: matches[0].digest.slice(7) },
           directory: options.directory ?? process.cwd(),
-          ...(config.schema_version === 5
-            ? { approved_configurations: options.approved_configurations ?? [config] }
-            : options.approved_configurations === undefined
-              ? {}
-              : { approved_configurations: options.approved_configurations }),
+          ...(predecessor
+            ? { approved_configurations: [predecessor.configuration] }
+            : config.schema_version === 5
+              ? { approved_configurations: options.approved_configurations ?? [config] }
+              : options.approved_configurations === undefined
+                ? {}
+                : { approved_configurations: options.approved_configurations }),
           ...(options.download ? { download: options.download } : {}),
           ...(options.deadline === undefined ? {} : { deadline: options.deadline }),
         },
       );
+      if (predecessor) {
+        const receiver = await api.run(String(predecessor.receiver_run_id));
+        const bound = inspectWakeControllerRun(
+          receiver,
+          predecessor.configuration,
+          String(run.id),
+          String(predecessor.receiver_run_id),
+          run.head_sha,
+        );
+        if (
+          !isRecord(receiver) ||
+          receiver.status !== "completed" ||
+          receiver.conclusion !== "failure"
+        )
+          throw new Error("prior wake predecessor receiver is not a terminal failure");
+        await record("prior-wake-predecessor-receiver-observed", bound);
+      }
       await record("prior-wake-boundary-observed", {
         wake_run_id: run.id,
         intent_artifact_id: matches[0].id,
@@ -641,6 +679,7 @@ export async function reconcilePreviousWakes(
     );
     await record("prior-wake-dispatch-readback", observed);
   }
+  if (options.predecessor) throw new Error("appointed wake predecessor was not reconciled");
   if (start > activation)
     throw new Error("wake history expired before a successful recovery boundary; no dispatch");
   if (
@@ -753,6 +792,7 @@ export async function wakeRatifiedController(
         mode: "prepare";
         download?: typeof readGitHubArtifactArchive;
         deadline?: number;
+        predecessor?: WakePredecessor;
         approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
       }
     | {
@@ -761,6 +801,7 @@ export async function wakeRatifiedController(
         download?: typeof readGitHubArtifactArchive;
         directory: string;
         deadline?: number;
+        predecessor?: WakePredecessor;
         approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
       },
 ) {
@@ -769,6 +810,7 @@ export async function wakeRatifiedController(
     options.mode === "dispatch"
       ? { ...options, artifact: structuredClone(options.artifact) }
       : { ...options };
+  if (options.predecessor) options.predecessor = structuredClone(options.predecessor);
   if (options.approved_configurations)
     options.approved_configurations = structuredClone(options.approved_configurations);
   let deadline = Math.min(performance.now() + 55000, options.deadline ?? Infinity);
@@ -1057,10 +1099,11 @@ export async function wakeRatifiedController(
   await record("dispatch-intent", intent);
   if (options.mode === "prepare")
     return { authority: "none", decision: "intent-prepared-only" as const, intent };
-  const { approved_configurations, ...currentIntentOptions } = options;
-  void approved_configurations; // The current upload must match ONLY its selected intent.
+  // The current upload must match only its selected intent.
   await verifyWakeIntentUpload(api, environment, intent, {
-    ...currentIntentOptions,
+    artifact: options.artifact,
+    directory: options.directory,
+    ...(options.download ? { download: options.download } : {}),
     deadline,
   });
   await reconcilePreviousWakes(config, environment, api, record, { ...options, deadline });
@@ -1140,13 +1183,51 @@ export async function wakeRatifiedController(
 /** Fixed scheduling only: data here never authenticates a candidate or effect. */
 /** Workflow variables map an unconfigured purpose to the empty string. Only
  * absent/empty is inert; malformed configured JSON must still refuse. */
-export function readControllerWakeChoicesFromEnvironment(env: NodeJS.ProcessEnv = process.env) {
+export function readControllerWakeSetupFromEnvironment(env: NodeJS.ProcessEnv = process.env) {
   const parsed = (value: string | undefined): unknown =>
     value === undefined || value === "" ? null : JSON.parse(value);
-  return inspectControllerWakeChoices(
-    parsed(env.PORTCOVE_CONTROLLER_WAKE),
-    parsed(env.PORTCOVE_CATALOG_CONTROLLER_WAKE),
-  );
+  const application = parsed(env.PORTCOVE_CONTROLLER_WAKE);
+  const catalog = parsed(env.PORTCOVE_CATALOG_CONTROLLER_WAKE);
+  if (!isRecord(application) || !Object.hasOwn(application, "predecessor"))
+    return { choices: inspectControllerWakeChoices(application, catalog) };
+  const { predecessor: raw, ...active } = application;
+  const choices = inspectControllerWakeChoices(active, catalog);
+  const current = choices[0]!;
+  if (
+    catalog !== null ||
+    current.schema_version < 4 ||
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !==
+      "configuration,intent_artifact_id,intent_sha256,receiver_run_id,wake_run_id" ||
+    typeof raw.intent_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(raw.intent_sha256)
+  )
+    throw new Error("invalid application wake predecessor appointment");
+  const positiveId = (value: unknown) => {
+    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1)
+      throw new Error("invalid wake predecessor identity");
+    return value;
+  };
+  const configuration = inspectControllerWakeConfiguration(raw.configuration);
+  if (
+    configuration.schema_version !== 4 ||
+    configuration.publication_purpose !== "application" ||
+    configuration.namespace !== current.namespace ||
+    configuration.dispatch_actor_id !== current.dispatch_actor_id ||
+    configuration.activation_started_at !== current.activation_started_at ||
+    configuration.wake_workflow_sha256 !== current.wake_workflow_sha256 ||
+    configuration.revision === current.revision ||
+    configuration.execution_ref === current.execution_ref
+  )
+    throw new Error("wake predecessor differs from the appointed application boundary");
+  const predecessor: WakePredecessor = {
+    configuration,
+    wake_run_id: positiveId(raw.wake_run_id),
+    receiver_run_id: positiveId(raw.receiver_run_id),
+    intent_artifact_id: positiveId(raw.intent_artifact_id),
+    intent_sha256: raw.intent_sha256,
+  };
+  return { choices, predecessor };
 }
 
 export function inspectControllerWakeChoices(application: unknown, catalog: unknown) {
@@ -1307,7 +1388,7 @@ async function main() {
     if (!Number.isFinite(remaining) || remaining <= 0 || remaining > 55000)
       throw new Error("actual wake job original budget exhausted or future-dated");
     deadline = Math.min(upperDeadline, performance.now() + remaining);
-    const choices = readControllerWakeChoicesFromEnvironment();
+    const { choices, predecessor } = readControllerWakeSetupFromEnvironment();
     const selectedFile = path.join(temp, "controller-wake-selected.json");
     let selected: ReturnType<typeof inspectControllerWakeConfiguration>;
     if (mode === "--prepare") {
@@ -1367,11 +1448,17 @@ async function main() {
         await receipt.sync();
       },
       mode === "--prepare"
-        ? { mode: "prepare", deadline, approved_configurations: choices }
+        ? {
+            mode: "prepare",
+            deadline,
+            approved_configurations: choices,
+            ...(predecessor ? { predecessor } : {}),
+          }
         : {
             mode: "dispatch",
             deadline,
             approved_configurations: choices,
+            ...(predecessor ? { predecessor } : {}),
             directory: temp,
             artifact: {
               id: Number(process.env.PORTCOVE_WAKE_INTENT_ARTIFACT_ID),

@@ -27,7 +27,7 @@ import { projectFixedControllerJobOutputs } from "./release-controller-job-outpu
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
 import {
   inspectControllerWakeChoices,
-  readControllerWakeChoicesFromEnvironment,
+  readControllerWakeSetupFromEnvironment,
   selectControllerWakePurpose,
   readWakePurposePriority,
 } from "./release-controller-wake.mts";
@@ -244,21 +244,21 @@ void test("automatic purpose fairness is fixed-data routing, with exact shared n
     catalog = { ...base, publication_purpose: "catalog-publication", dispatch_actor_id: "888" };
   const choices = inspectControllerWakeChoices(app, catalog);
   assert.deepEqual(
-    readControllerWakeChoicesFromEnvironment({
+    readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: JSON.stringify(app),
       PORTCOVE_CATALOG_CONTROLLER_WAKE: "",
-    }),
+    }).choices,
     inspectControllerWakeChoices(app, null),
   );
   assert.deepEqual(
-    readControllerWakeChoicesFromEnvironment({
+    readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: "",
       PORTCOVE_CATALOG_CONTROLLER_WAKE: JSON.stringify(catalog),
-    }),
+    }).choices,
     inspectControllerWakeChoices(null, catalog),
   );
   assert.throws(() =>
-    readControllerWakeChoicesFromEnvironment({
+    readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: " ",
       PORTCOVE_CATALOG_CONTROLLER_WAKE: JSON.stringify(catalog),
     }),
