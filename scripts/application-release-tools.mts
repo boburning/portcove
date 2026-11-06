@@ -24,9 +24,15 @@ export const applicationToolFiles = [
   "application-release-private.bundle.mjs",
 ] as const;
 
+async function requireApplicationToolNodeVersion() {
+  const pin = (await readFile(new URL("../.node-version", import.meta.url), "utf8")).trim();
+  assert.equal(process.versions.node, pin, "application tools require the checked-out Node pin");
+  return pin;
+}
+
 async function build() {
   const execution = inspectApplicationReleaseExecution(process.env);
-  assert.equal(process.versions.node, "24.22.2");
+  const node = await requireApplicationToolNodeVersion();
   const output = path.resolve("work/application-tools");
   await mkdir(output);
   const require = createRequire(new URL("../apps/desktop/package.json", import.meta.url));
@@ -56,7 +62,7 @@ async function build() {
   await writeApplicationJson(path.join(output, "tools.json"), {
     schema_version: 1,
     ...execution,
-    node: "24.22.2",
+    node,
     tauri_cli: "2.12.2",
     files,
   });
@@ -64,6 +70,7 @@ async function build() {
 
 async function receiveApplicationTools(id: number, attempt: number) {
   const execution = inspectApplicationReleaseExecution(process.env);
+  const node = await requireApplicationToolNodeVersion();
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= execution.run_attempt);
   const directory = path.resolve("work/application-tools");
   const expected = {
@@ -94,9 +101,8 @@ async function receiveApplicationTools(id: number, attempt: number) {
     },
     { ...execution, run_attempt: attempt },
   );
-  assert.equal(manifest.node, "24.22.2");
+  assert.equal(manifest.node, node);
   assert.equal(manifest.tauri_cli, "2.12.2");
-  assert.equal(process.versions.node, manifest.node);
   const files = await Promise.all(
     applicationToolFiles.map((name) => applicationFileIdentity(path.join(directory, name))),
   );

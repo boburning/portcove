@@ -5,6 +5,7 @@ on:
       - .github/workflows/controller-tool-build-fixture.yml
       - scripts/release-*.mts
       - scripts/application-release-private.mts
+      - scripts/application-release-tools.mts
       - scripts/production-controller-admission.mts
       - scripts/assembler-job-identity.mts
       - scripts/github-*.mts
@@ -48,6 +49,7 @@ on:
       - scripts/release-controller-tool*.mts
       - scripts/release-controller-wake.mts
       - scripts/application-release-private.mts
+      - scripts/application-release-tools.mts
       - scripts/release-input-protections.mts
       - scripts/assembler-job-identity.mts
       - scripts/qualify-controller-tool-build.mts
