@@ -1959,7 +1959,7 @@ void test("historical metadata reader authenticates both assembly subjects while
         https_enforced: true,
       },
     };
-    const discovered: ReturnType<typeof discoverPublishedApplicationCohort> = {
+    const discovered: Awaited<ReturnType<typeof discoverPublishedApplicationCohort>> = {
       release_id: 10,
       custody: f.custody,
       state,

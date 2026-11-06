@@ -79,7 +79,7 @@ import {
   readImmutableBootstrapFeed,
   readApplicationImmutableFeed,
   verifyApplicationPagesArtifact,
-  discoverPublishedApplicationCohort,
+  discoverActualPublishedApplicationCohort,
   readApplicationPriorPublication,
   readApplicationPendingLineage,
   assertApplicationForwardPreimage,
@@ -1008,7 +1008,7 @@ async function prepareOrdinaryPublication() {
   const receipt = inspectHistoricalApplicationPublication(metadata, expected.custody);
   await finishDraftRecovery(expected, metadata, receipt.publication, files, async () => {
     await readPublicApplicationSiteMarker(prior.receipt.site);
-    assert.deepEqual(discoverPublishedApplicationCohort(applicationApi), discovered);
+    assert.deepEqual(await discoverActualPublishedApplicationCohort(), discovered);
     await guard(source);
     return () => {
       assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
@@ -1041,7 +1041,7 @@ async function prepareOrdinaryPublication() {
     },
   });
   assert.deepEqual(
-    discoverPublishedApplicationCohort(applicationApi),
+    await discoverActualPublishedApplicationCohort(),
     discovered,
     "public prior changed during draft preparation",
   );
@@ -1122,7 +1122,7 @@ async function publishOrdinaryMetadata() {
           isRecord(prior.provider),
       );
       assert.equal(prior.site.generation, prepared.prior_generation);
-      const discovered = discoverPublishedApplicationCohort(applicationApi);
+      const discovered = await discoverActualPublishedApplicationCohort();
       assert.deepEqual(
         discovered.state,
         prior.provider,
@@ -1196,7 +1196,7 @@ async function publishBootstrapMetadata() {
       assert.equal(raw.prior_generation, prior.receipt.site.generation);
       assert.equal(raw.prior_repository_sha256, prior.receipt.publication.repository_sha256);
       await readPublicApplicationSiteMarker(prior.receipt.site);
-      assert.deepEqual(discoverPublishedApplicationCohort(applicationApi, lineage), discovered);
+      assert.deepEqual(await discoverActualPublishedApplicationCohort(lineage), discovered);
       await guard(source);
       return () => {
         assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
@@ -2779,7 +2779,7 @@ async function prepareApplicationPrior(
     output_parent: renewalOutput,
   });
   assert.deepEqual(
-    discoverPublishedApplicationCohort(applicationApi, forward?.lineage),
+    await discoverActualPublishedApplicationCohort(forward?.lineage),
     discovered,
     "prior cohort changed during actual authentication",
   );
@@ -3230,7 +3230,7 @@ async function assembleMetadata() {
       output_parent: output,
     });
     assert.deepEqual(
-      discoverPublishedApplicationCohort(applicationApi, forward?.lineage),
+      await discoverActualPublishedApplicationCohort(forward?.lineage),
       discovered,
       "prior cohort changed during actual site assembly",
     );

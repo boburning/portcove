@@ -36,11 +36,11 @@ import type { ApplicationMetadataPublicationBinding } from "./application-releas
 import type { ApplicationMetadataRenewalBasis } from "./application-release-publication.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { inspectSiteArtifactArchive } from "./release-site-deployment.mts";
-import { createReleasePublicationReader } from "./release-publication-inventory.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import { readReleaseNotesWithSdk } from "./release-publication-inventory.mts";
 import {
   readApplicationPagesState,
   readApplicationPagesExecution,
+  readApplicationPagesStateAsync,
   assertBootstrapPagesActor,
 } from "./application-release-site.mts";
 
@@ -50,43 +50,42 @@ import {
  * Only a caller-verified immutable pending cohort may be excluded for its own
  * feed recovery. Normal admission keeps every newer/concurrent cohort hold. */
 type PendingCohort = { release_id: number; custody: ApplicationRunCustody };
-export function discoverPublishedApplicationCohort(
-  api: CoordinatorRemoteApi,
+export async function discoverPublishedApplicationCohort(
+  transport: {
+    read: (endpoint: string) => Promise<GitHubMetadataResponse>;
+    releaseNotes: () => Promise<Record<string, unknown>[]>;
+  },
   pending?: PendingCohort | readonly PendingCohort[],
 ) {
-  const exclusions: readonly PendingCohort[] =
-    pending === undefined ? [] : "release_id" in pending ? [pending] : pending;
+  const exclusions: readonly PendingCohort[] = structuredClone(
+    pending === undefined ? [] : "release_id" in pending ? [pending] : pending,
+  );
   assert.ok(
     exclusions.length <= 3 &&
       new Set(exclusions.map((value) => value.release_id)).size === exclusions.length,
   );
-  const state = readApplicationPagesState(api);
-  const execution = readApplicationPagesExecution(api, state);
-  const cohorts = createReleasePublicationReader(api)
-    .releaseNotes()
-    .flatMap((release) => {
-      const notes = readApplicationRunNotes(release.body ?? "");
-      const nativeTag = /^portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(
-        String(release.tag_name),
+  const state = await readApplicationPagesStateAsync(transport.read);
+  const execution = await readApplicationPagesExecution(transport.read, state);
+  const cohorts = (await transport.releaseNotes()).flatMap((release) => {
+    const notes = readApplicationRunNotes(release.body ?? "");
+    const nativeTag = /^portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(
+      String(release.tag_name),
+    );
+    const nativeAsset =
+      Array.isArray(release.assets) &&
+      release.assets.some(
+        (asset: unknown) => isRecord(asset) && asset.name === "application-metadata.json",
       );
-      const nativeAsset =
-        Array.isArray(release.assets) &&
-        release.assets.some(
-          (asset: unknown) => isRecord(asset) && asset.name === "application-metadata.json",
-        );
-      if (!release.draft && (nativeTag || nativeAsset))
-        assert.ok(
-          notes,
-          "published native cohort lost its run custody; recover before continuation",
-        );
-      if (!notes || release.draft) return [];
-      assert.equal(release.immutable, true, "published native cohort is mutable");
-      assert.equal(release.target_commitish, notes.custody.source, "native source anchor changed");
-      assert.ok(typeof release.published_at === "string");
-      const published = Date.parse(release.published_at);
-      assert.ok(Number.isFinite(published));
-      return [{ release, custody: notes.custody, published }];
-    });
+    if (!release.draft && (nativeTag || nativeAsset))
+      assert.ok(notes, "published native cohort lost its run custody; recover before continuation");
+    if (!notes || release.draft) return [];
+    assert.equal(release.immutable, true, "published native cohort is mutable");
+    assert.equal(release.target_commitish, notes.custody.source, "native source anchor changed");
+    assert.ok(typeof release.published_at === "string");
+    const published = Date.parse(release.published_at);
+    assert.ok(Number.isFinite(published));
+    return [{ release, custody: notes.custody, published }];
+  });
   const matches = cohorts.filter(({ custody }) =>
     custody.runs.some((run) => run.id === execution.run.id),
   );
@@ -124,7 +123,7 @@ export function discoverPublishedApplicationCohort(
   const tag = selected.release.tag_name;
   assert.ok(tag === candidate || (version !== null && tag === `v${version.version}`));
   const expectedCommit = tag === candidate ? selected.custody.source : version!.prepared_commit;
-  const response = api.request("GET", `repos/boburning/portcove/git/ref/tags/${tag}`);
+  const response = await transport.read(`repos/boburning/portcove/git/ref/tags/${tag}`);
   assert.equal(response.status, 200);
   assert.ok(
     isRecord(response.body) &&
@@ -136,7 +135,7 @@ export function discoverPublishedApplicationCohort(
   assert.equal(response.body.object.type, "commit");
   assert.equal(response.body.object.sha, expectedCommit);
   assert.deepEqual(
-    readApplicationPagesState(api),
+    await readApplicationPagesStateAsync(transport.read),
     state,
     "prior Pages actor changed during cohort discovery",
   );
@@ -152,6 +151,48 @@ export function discoverPublishedApplicationCohort(
     execution,
     authority: "none" as const,
   };
+}
+
+export async function discoverActualPublishedApplicationCohort(
+  pending?: PendingCohort | readonly PendingCohort[],
+) {
+  const token = fixedReleaseReaderToken();
+  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
+  const guard = () => assertTrustedDirectNode("fixed application feed discovery");
+  const { createGitHubClient } = await import("./github-client.mts");
+  let expected: string | undefined;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    allowRequest(method, url) {
+      guard();
+      return method === "GET" && url.href === expected;
+    },
+  });
+  return discoverPublishedApplicationCohort(
+    {
+      async read(endpoint) {
+        const url = new URL(endpoint, "https://api.github.com/");
+        if (
+          url.origin !== "https://api.github.com" ||
+          !url.pathname.startsWith("/repos/boburning/portcove/") ||
+          url.username ||
+          url.password ||
+          url.hash
+        )
+          throw new Error("application feed discovery route differs");
+        expected = url.href;
+        const response = await client.request(`GET ${url.pathname}${url.search}`, {
+          request: { portcove: { replay: "once", attempts: 0 } },
+        });
+        return { status: response.status, headers: new Map(), body: response.data as unknown };
+      },
+      releaseNotes: () => readReleaseNotesWithSdk({ token, deadline, guard }),
+    },
+    pending,
+  );
 }
 
 /** Read only metadata and authenticate the complete two-subject assembly. The
@@ -274,7 +315,7 @@ export async function readRegisteredImmutableApplicationMetadata(
 /** A served prior additionally binds the immutable receipt to the actual Pages
  * actor. Unserved recovery uses the registered immutable reader above instead. */
 export async function readImmutableApplicationMetadata(
-  discovered: ReturnType<typeof discoverPublishedApplicationCohort>,
+  discovered: Awaited<ReturnType<typeof discoverPublishedApplicationCohort>>,
   transport: Omit<Parameters<typeof readRegisteredImmutableApplicationMetadata>[1], "read"> & {
     api: GitHubRestReader;
     read?: Parameters<typeof readRegisteredImmutableApplicationMetadata>[1]["read"];
@@ -727,7 +768,7 @@ export async function readApplicationPriorPublication(
   scratch: string,
   pending?: Parameters<typeof discoverPublishedApplicationCohort>[1],
 ) {
-  const discovered = discoverPublishedApplicationCohort(applicationApi, pending);
+  const discovered = await discoverActualPublishedApplicationCohort(pending);
   const prior = await readImmutableApplicationMetadata(discovered, {
     api: applicationApi,
     ...(await applicationMetadataTransport(discovered, scratch)),

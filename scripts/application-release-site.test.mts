@@ -139,7 +139,7 @@ void test("ordinary prior-site deployment preserves post-OIDC guards and uncerta
   assert.equal(lost.events.filter((event) => event === "POST").length, 1);
 });
 
-void test("prior Pages discovery checks the original feed attempt and refuses replayed deployment chronology", () => {
+void test("prior Pages discovery checks the original feed attempt and refuses replayed deployment chronology", async () => {
   const ref = "portcove-production-controller-windows-fixture";
   const state = {
     deployment_id: 10,
@@ -200,23 +200,20 @@ void test("prior Pages discovery checks the original feed attempt and refuses re
       pages: state.pages,
       "deployments?environment=github-pages&per_page=1": [deployment],
     };
-    const api = {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        const suffix = endpoint.replace(/^repos\/boburning\/portcove\//u, "");
-        assert.ok(Object.hasOwn(replies, suffix), suffix);
-        calls.push(suffix);
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body: structuredClone(replies[suffix]),
-        };
-      },
+    const read = async (endpoint: string) => {
+      const suffix = endpoint.replace(/^repos\/boburning\/portcove\//u, "");
+      assert.ok(Object.hasOwn(replies, suffix), suffix);
+      calls.push(suffix);
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body: structuredClone(replies[suffix]),
+      };
     };
-    return { job, run, deployment, status, calls, api };
+    return { job, run, deployment, status, calls, read };
   };
   const positive = fixture();
-  const result = readApplicationPagesExecution(positive.api, state);
+  const result = await readApplicationPagesExecution(positive.read, state);
   assert.deepEqual(result.run, {
     id: "123",
     control_commit: control,
@@ -226,7 +223,7 @@ void test("prior Pages discovery checks the original feed attempt and refuses re
   assert.ok(positive.calls.includes("actions/runs/123/attempts/1"));
   const failedReadback = fixture();
   failedReadback.job.conclusion = "failure";
-  const recoveredActor = readApplicationPagesExecution(failedReadback.api, state);
+  const recoveredActor = await readApplicationPagesExecution(failedReadback.read, state);
   assert.equal(recoveredActor.conclusion, "failure");
   assert.equal(recoveredActor.authority, "none");
   assert.equal(recoveredActor.deployment_created_at, failedReadback.deployment.created_at);
@@ -265,7 +262,7 @@ void test("prior Pages discovery checks the original feed attempt and refuses re
   ]) {
     const negative = fixture();
     mutate(negative);
-    assert.throws(() => readApplicationPagesExecution(negative.api, state));
+    await assert.rejects(readApplicationPagesExecution(negative.read, state));
   }
 });
 void test("pause, missing OIDC, expired original receipt and changed public preimage cause zero Pages mutations", async () => {

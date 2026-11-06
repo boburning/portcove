@@ -6,6 +6,9 @@ import { execFileSync } from "node:child_process";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { performance } from "node:perf_hooks";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   applicationApi,
@@ -45,7 +48,7 @@ import {
   readApplicationImmutableMetadata,
   readApplicationPendingLineage,
   assertApplicationForwardPreimage,
-  discoverPublishedApplicationCohort,
+  discoverActualPublishedApplicationCohort,
 } from "./application-release-feed.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { materializeInitialApplicationRehearsal } from "./release-site-readback.mts";
@@ -54,6 +57,7 @@ import { collectReleaseSourceChanges } from "./release-source-changes.mts";
 import {
   createReleasePublicationReader,
   peelReleaseReference,
+  readReleaseNotesWithSdk,
 } from "./release-publication-inventory.mts";
 import {
   parseVersionClassification,
@@ -622,7 +626,7 @@ async function renewPublishedMetadata() {
     opportunity,
     async (known, context) => {
       assert.deepEqual(
-        discoverPublishedApplicationCohort(applicationApi),
+        await discoverActualPublishedApplicationCohort(),
         discovered,
         "published renewal basis changed before source registration",
       );
@@ -645,7 +649,7 @@ async function renewPublishedMetadata() {
     producer_attempt: execution.run_attempt,
   };
   inspectApplicationRenewalSource(packet);
-  assert.deepEqual(discoverPublishedApplicationCohort(applicationApi), discovered);
+  assert.deepEqual(await discoverActualPublishedApplicationCohort(), discovered);
   await writeApplicationJson("work/application-source/source.json", packet);
   await applicationOutput("source_attempt", execution.run_attempt);
   await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
@@ -671,12 +675,15 @@ async function renewUnservedMetadata() {
   assert.match(pendingOpportunity, /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u);
   // Application cohorts move to vVERSION; metadata cohorts keep the candidate
   // tag. The native notes inventory resolves either without allocating a version.
-  const matches = createReleasePublicationReader(applicationApi)
-    .releaseNotes()
-    .filter(
-      (release) =>
-        readApplicationRunNotes(release.body ?? "")?.custody.opportunity === pendingOpportunity,
-    );
+  const releases = await readReleaseNotesWithSdk({
+    token: fixedReleaseReaderToken(),
+    deadline: performance.now() + 120000,
+    guard: () => assertTrustedDirectNode("fixed application unserved metadata inventory"),
+  });
+  const matches = releases.filter(
+    (release) =>
+      readApplicationRunNotes(release.body ?? "")?.custody.opportunity === pendingOpportunity,
+  );
   assert.equal(matches.length, 1, "pending renewal has no unique native cohort");
   const release = matches[0]!;
   assert.ok(typeof release.id === "number" && Number.isSafeInteger(release.id));
@@ -754,7 +761,7 @@ async function renewUnservedMetadata() {
   const finalDirectory = path.join(scratch, "final-lineage");
   await mkdir(finalDirectory);
   const freshLineage = await readApplicationPendingLineage(parent, finalDirectory);
-  assert.deepEqual(discoverPublishedApplicationCohort(applicationApi, freshLineage), discovered);
+  assert.deepEqual(await discoverActualPublishedApplicationCohort(freshLineage), discovered);
   await writeApplicationJson("work/application-source/source.json", packet);
   await applicationOutput("source_attempt", execution.run_attempt);
   await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
