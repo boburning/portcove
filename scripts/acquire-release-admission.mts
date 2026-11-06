@@ -42,7 +42,7 @@ import {
   inspectReleaseProfile,
   selectReleasePackagePolicy,
 } from "./release-package-policy.mts";
-import type { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { acquirePackageArchive } from "./release-artifact-assembly.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
@@ -341,7 +341,7 @@ export async function acquireReleaseAdmission(
     api?: Api;
     collectEvidence?: typeof collectReleaseRunEvidence;
     recover?: Recover;
-    download?: typeof readGitHubArtifactArchive;
+    download?: SigningArchiveDownload;
     now?: () => number;
     capacity?: { ratification: unknown; readBoundary: () => Promise<unknown> };
     controls?: AuthenticatedReleaseControlSource;
@@ -819,8 +819,15 @@ export async function acquireReleaseAdmission(
       if (performance.now() - started > 15 * 60 * 1000)
         throw new Error("admission archive acquisition deadline exhausted");
       const endpoint = `${base}/actions/artifacts/${archive.artifact_id}/zip`;
+      const timeoutMs = Math.floor(Math.min(120000, admissionDeadline - performance.now()));
+      if (timeoutMs < 1) throw new Error("release package archive acquisition deadline exhausted");
       const bytes = options.download
-        ? options.download(endpoint, { cwd: root, maxBytes: archive.bytes, timeoutMs: 120000 })
+        ? await options.download(endpoint, {
+            cwd: root,
+            maxBytes: archive.bytes,
+            timeoutMs,
+            lookup: archiveLookup(),
+          })
         : await acquirePackageArchive(
             root,
             endpoint,

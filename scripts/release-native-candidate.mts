@@ -21,7 +21,6 @@ import {
   remainingNativeParentBudget,
 } from "./release-native-parent.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
 import {
   downloadGitHubArtifactArchiveFile,
   downloadGitHubReleaseAssetFile,
@@ -445,20 +444,6 @@ async function sourceTransport(parent: Parent, directory: string) {
     return result;
   };
   const api = createNativeSourceApiReader(directory, textSpawn);
-  const opaque =
-    (reader: typeof readGitHubArtifactArchive): typeof readGitHubArtifactArchive =>
-    (endpoint, options) =>
-      reader(endpoint, {
-        ...options,
-        spawn: (command, args, spawnOptions) => {
-          if (command !== "gh") throw new Error("native source executable selection refused");
-          inspectNativeSourceCommand(args);
-          checkToolIdentity();
-          const result = spawnSync(fixed.github_cli.path, args, { ...spawnOptions, env });
-          checkToolIdentity();
-          return result;
-        },
-      });
   const credential = { kind: "explicit" as const, token };
   const fixedFetch: typeof globalThis.fetch = (input, init) => {
     checkToolIdentity();
@@ -504,35 +489,51 @@ async function sourceTransport(parent: Parent, directory: string) {
       throw new Error("native signed platform archive identity unavailable");
     return readPostSignMetadata(`/repos/boburning/portcove/actions/artifacts/${id}`, deadline);
   };
+  const download = async (
+    endpoint: string,
+    { cwd, maxBytes, timeoutMs, lookup }: Parameters<SigningArchiveDownload>[1],
+    phaseDeadline = Infinity,
+  ) => {
+    if (!/^repos\/boburning\/portcove\/actions\/artifacts\/[1-9][0-9]{0,15}\/zip$/u.test(endpoint))
+      throw new Error("fixed installed native archive route refused");
+    const deadline = postSignDeadline(phaseDeadline, timeoutMs);
+    await recheck();
+    const scratch = await mkdtemp(path.join(cwd, "native-proof-archive-"));
+    let bytes: Buffer;
+    try {
+      const filename = path.join(scratch, "archive.zip");
+      await downloadGitHubArtifactArchiveFile(endpoint, filename, {
+        credential,
+        deadline,
+        maxBytes,
+        fetch: fixedFetch,
+        ...(lookup ? { lookup } : {}),
+      });
+      checkToolIdentity();
+      if (performance.now() >= deadline) throw new Error("native proof archive deadline exhausted");
+      bytes = await readControllerToolFile(filename, maxBytes);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    await recheck();
+    if (performance.now() >= deadline || bytes.length !== maxBytes)
+      throw new Error("native proof archive differs or exceeded its deadline");
+    return bytes;
+  };
   const downloadPostSignArchive = async (
     item: { id: number; bytes: number; sha256: string },
     root: string,
     cap: number,
     phaseDeadline: number,
   ) => {
-    const deadline = postSignDeadline(phaseDeadline, cap);
-    await recheck();
-    const scratch = await mkdtemp(path.join(root, "native-proof-archive-"));
-    let bytes: Buffer;
-    try {
-      const filename = path.join(scratch, "archive.zip");
-      await downloadGitHubArtifactArchiveFile(
-        `repos/boburning/portcove/actions/artifacts/${item.id}/zip`,
-        filename,
-        { credential, deadline, maxBytes: item.bytes, fetch: fixedFetch },
-      );
-      checkToolIdentity();
-      if (performance.now() >= deadline) throw new Error("native proof archive deadline exhausted");
-      bytes = await readControllerToolFile(filename, item.bytes);
-    } finally {
-      await rm(scratch, { recursive: true, force: true });
-    }
-    await recheck();
-    if (performance.now() >= deadline || bytes.length !== item.bytes || hash(bytes) !== item.sha256)
-      throw new Error("native proof archive differs or exceeded its deadline");
+    const bytes = await download(
+      `repos/boburning/portcove/actions/artifacts/${item.id}/zip`,
+      { cwd: root, maxBytes: item.bytes, timeoutMs: cap },
+      phaseDeadline,
+    );
+    if (hash(bytes) !== item.sha256) throw new Error("native proof archive digest differs");
     return bytes;
   };
-  const download = opaque(readGitHubArtifactArchive);
   const recover = () =>
     recoverRemoteCoordinator(
       directory,
