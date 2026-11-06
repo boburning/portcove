@@ -6,7 +6,8 @@ import { isRecord } from "./runtime-values.mts";
 
 interface Outcome {
   request: number;
-  status: "complete" | "incomplete";
+  status: "complete" | "complete_with_holds" | "incomplete";
+  counts?: { delivered: number; existing: number; held: number; pending: number };
   continuation: "inventory_changed" | "budget_exhausted" | null;
   progress: string | null;
 }
@@ -28,19 +29,31 @@ export function readHostedOutcomes(raw: unknown): Outcome[] {
       !Number.isSafeInteger(value.request) ||
       value.request < 1 ||
       seen.has(value.request) ||
-      !["complete", "incomplete"].includes(String(value.status)) ||
+      !["complete", "complete_with_holds", "incomplete"].includes(String(value.status)) ||
       ![null, "inventory_changed", "budget_exhausted"].includes(value.continuation as null) ||
       !(
         value.progress === null ||
         (typeof value.progress === "string" && /^[a-f0-9]{64}$/u.test(value.progress))
       ) ||
-      (value.status === "complete" && value.continuation !== null)
+      (value.status !== "incomplete" && value.continuation !== null) ||
+      (value.counts !== undefined &&
+        (!isRecord(value.counts) ||
+          !["delivered", "existing", "held", "pending"].every((key) => {
+            const count = (value.counts as Record<string, unknown>)[key];
+            return Number.isSafeInteger(count) && Number(count) >= 0;
+          }) ||
+          Number(value.counts.held) > Number(value.counts.pending))) ||
+      (value.status === "complete_with_holds" &&
+        (!isRecord(value.counts) ||
+          !Number.isSafeInteger(value.counts.held) ||
+          Number(value.counts.held) < 1 ||
+          value.counts.pending !== value.counts.held))
     )
       throw new Error("Invalid intake continuation outcome");
     seen.add(value.request);
     return value as unknown as Outcome;
   });
-  if ((raw.status === "passed") !== outcomes.every((o) => o.status === "complete"))
+  if ((raw.status === "passed") !== outcomes.every((o) => o.status !== "incomplete"))
     throw new Error("Intake summary disagrees with affected outcomes");
   return outcomes;
 }
@@ -104,7 +117,7 @@ export function runHostedIntakePasses(
       if (outcome.continuation && !stalled) next.push(outcome.request);
     }
     if (!next.length) {
-      stopReason = outcomes.every((o) => o.status === "complete")
+      stopReason = outcomes.every((o) => o.status !== "incomplete")
         ? "complete"
         : "blocked_or_stalled";
       break;
@@ -115,7 +128,7 @@ export function runHostedIntakePasses(
   const outcomes = [...retained.values()];
   return {
     status:
-      stopReason === "complete" && !queuePending && outcomes.every((o) => o.status === "complete")
+      stopReason === "complete" && !queuePending && outcomes.every((o) => o.status !== "incomplete")
         ? "passed"
         : "incomplete",
     outcomes,
@@ -173,6 +186,27 @@ function main() {
     runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
   );
   writeFileSync(path.join(directory, "summary.json"), JSON.stringify(result, null, 2));
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    const rows = result.outcomes.flatMap(({ request, status, counts }) =>
+      counts
+        ? [
+            `| ${request} | ${status} | ${counts.delivered} | ${counts.existing} | ${counts.held} | ${counts.pending} |`,
+          ]
+        : [`| ${request} | ${status} | — | — | — | — |`],
+    );
+    writeFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      [
+        "## Hosted discovery intake",
+        "",
+        "| Proposal comment | Result | Delivered | Existing | Held | Pending |",
+        "| --- | --- | ---: | ---: | ---: | ---: |",
+        ...rows,
+        "",
+      ].join("\n"),
+      { flag: "a" },
+    );
+  }
   if (result.status !== "passed") process.exitCode = 1;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
