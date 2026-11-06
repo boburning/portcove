@@ -4,11 +4,15 @@ import {
   writeFileSync,
   mkdirSync,
   mkdtempSync,
+  rmSync,
   lstatSync,
   appendFileSync,
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { crc32, inflateRawSync } from "node:zlib";
+import { inspectBoundedZip } from "./bounded-zip.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
 import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -31,7 +35,10 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const directory = path.join(root, "work/roadmap-publisher");
 const repository = "boburning/portcove";
 const prefix = `/repos/${repository}`;
+const maximumArchiveBytes = 16 * 1024 * 1024;
+const maximumReportBytes = 8 * 1024 * 1024;
 type Sdk = Awaited<ReturnType<typeof createGitHubClient>>;
+type Credential = { kind: "explicit"; token: string };
 export interface PublicationApi {
   comments(): Promise<unknown[]>;
   create(body: string): Promise<unknown>;
@@ -113,12 +120,10 @@ export function allowRoadmapPublicationRequest(method: string, url: URL) {
   );
 }
 
-async function publicationSdk() {
-  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
-  if (!token) throw new Error("Hosted report publication requires its explicit credential");
+async function publicationSdk(credential: Credential) {
   let received = 0;
   return await createGitHubClient({
-    credential: { kind: "explicit", token },
+    credential,
     deadline: performance.now() + 10 * 60_000,
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     allowRequest: allowRoadmapPublicationRequest,
@@ -136,20 +141,32 @@ async function publicationSdk() {
     },
   });
 }
-function readBounded(file: string, limit = 8 * 1024 * 1024) {
+function readBounded(file: string, limit = maximumReportBytes) {
   const stat = lstatSync(file);
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > limit)
     throw new Error("Retained report is not a bounded regular file");
   return readFileSync(file, "utf8");
 }
-function command(executable: string, args: string[]) {
-  const result = spawnSync(executable, args, {
-    cwd: root,
-    encoding: "utf8",
-    timeout: 60000,
-    maxBuffer: 8 * 1024 * 1024,
-    windowsHide: true,
-  });
+function publicationCutover() {
+  const result = spawnSync(
+    "git",
+    [
+      "log",
+      "--first-parent",
+      "--diff-filter=A",
+      "--format=%cI",
+      "-1",
+      "--",
+      ".github/workflows/roadmap-report.yml",
+    ],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 60000,
+      maxBuffer: 8 * 1024 * 1024,
+      windowsHide: true,
+    },
+  );
   if (result.status !== 0) {
     const diagnostic = sanitizeOperationError(
       new Error(result.stderr || "Command execution failed"),
@@ -159,7 +176,7 @@ function command(executable: string, args: string[]) {
         ),
       },
     );
-    throw new Error(`Publication command failed: ${executable}; ${diagnostic.message}`);
+    throw new Error(`Publication command failed: git; ${diagnostic.message}`);
   }
   return result.stdout.trim();
 }
@@ -219,46 +236,105 @@ export async function writeMaintainedRoadmapReport(
     throw new Error("Maintained report readback differs; reconcile before any retry");
   return numeric(result.id);
 }
-async function download(sdk: Sdk, run: number, name: string) {
+// The collector includes its retained doctor and membership diagnostics in the same ZIP.
+const uuid = "[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}";
+const diagnosticFiles = new RegExp(
+  `^(?:roadmap-health/${uuid}/(?:stdout\\.txt|stderr\\.txt|report\\.json)|` +
+    `roadmap-doctor/${uuid}\\.json|roadmap-diagnostics/(?:${uuid}\\.json|membership-${uuid}/report\\.json))$`,
+  "u",
+);
+async function downloadReportMember(
+  sdk: Sdk,
+  credential: Credential,
+  run: number,
+  attempt: number,
+  kind: "state" | "diagnostics",
+) {
+  const diagnostics = kind === "diagnostics";
+  const name = `${diagnostics ? "roadmap-diagnostics" : "roadmap-report-state"}-${run}-${attempt}`;
+  const member = diagnostics ? "roadmap-health/publication.json" : "state.json";
   const artifacts = await inventory(
     sdk,
     `${prefix}/actions/runs/${run}/artifacts?per_page=100`,
     "artifacts",
   );
-  const matches = artifacts.map(record).filter((artifact) => artifact.name === name);
+  const matches = artifacts.filter((artifact) => artifact.name === name);
+  const artifact = matches[0];
+  const size = artifact?.size_in_bytes;
   if (
     matches.length !== 1 ||
-    matches[0]?.expired ||
-    !Number.isSafeInteger(matches[0]?.size_in_bytes) ||
-    Number(matches[0]?.size_in_bytes) > 16 * 1024 * 1024
+    artifact?.expired !== false ||
+    !isRecord(artifact.workflow_run) ||
+    artifact.workflow_run.id !== run ||
+    artifact.workflow_run.repository_id !== 1354613114 ||
+    typeof size !== "number" ||
+    !Number.isSafeInteger(size) ||
+    size < 22 ||
+    size > maximumArchiveBytes
   )
-    throw new Error(`Missing, expired or oversized retained artifact: ${name}`);
+    throw new Error(`Missing, expired, mismatched or oversized retained artifact: ${name}`);
   const destination = mkdtempSync(path.join(directory, "download-"));
-  command("gh", [
-    "run",
-    "download",
-    String(run),
-    "--repo",
-    repository,
-    "--name",
-    name,
-    "--dir",
-    destination,
-  ]);
-  return destination;
+  const filename = path.join(destination, "artifact.zip");
+  const deadline = performance.now() + 60_000;
+  try {
+    await downloadGitHubArtifactArchiveFile(
+      `repos/${repository}/actions/artifacts/${numeric(artifact.id)}/zip`,
+      filename,
+      { credential, deadline, maxBytes: size, lookup: { requestTimeoutMs: 60_000 } },
+    );
+    const archive = readFileSync(filename);
+    const { entries } = inspectBoundedZip(
+      archive,
+      {
+        compressedBytes: size,
+        // The diagnostics can contain multiple copies of a report and its command streams.
+        expandedBytes: diagnostics ? 64 * 1024 * 1024 : maximumReportBytes,
+        files: diagnostics ? 16 : 1,
+        nameBytes: 128,
+        allowedPaths: new Set([member]),
+        ...(diagnostics ? { allowedFilePath: (name: string) => diagnosticFiles.test(name) } : {}),
+      },
+      { clock: () => performance.now(), deadline },
+    );
+    const entry = entries.find((entry) => entry.name === member);
+    if (!entry || entry.bytes < 1 || entry.bytes > maximumReportBytes)
+      throw new Error("Retained report is not a bounded regular file");
+    const compressed = archive.subarray(entry.data, entry.dataEnd);
+    const bytes =
+      entry.method === 0
+        ? compressed
+        : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
+    const value = bytes.toString("utf8");
+    if (
+      bytes.length !== entry.bytes ||
+      crc32(bytes) !== entry.crc ||
+      !Buffer.from(value).equals(bytes)
+    )
+      throw new Error("Retained report member bytes differ");
+    if (performance.now() >= deadline) throw new Error("Retained report deadline exhausted");
+    return value;
+  } finally {
+    rmSync(destination, { recursive: true, force: true });
+  }
 }
-async function readState(sdk: Sdk, pointer: Record<string, unknown>): Promise<RoadmapReportState> {
+async function readState(
+  sdk: Sdk,
+  credential: Credential,
+  pointer: Record<string, unknown>,
+): Promise<RoadmapReportState> {
   const run = numeric(pointer.run),
     attempt = numeric(pointer.attempt);
-  const retainedRun = record((await sdk.request("GET " + `${prefix}/actions/runs/${run}`)).data);
+  const retainedRun = record(
+    (await sdk.request("GET " + `${prefix}/actions/runs/${run}/attempts/${attempt}`)).data,
+  );
   if (
+    retainedRun.id !== run ||
+    retainedRun.run_attempt !== attempt ||
     retainedRun.path !== ".github/workflows/roadmap-report.yml" ||
     retainedRun.head_branch !== "main"
   )
     throw new Error("State producer is not the trusted report workflow");
-  const bytes = readBounded(
-    path.join(await download(sdk, run, `roadmap-report-state-${run}-${attempt}`), "state.json"),
-  );
+  const bytes = await downloadReportMember(sdk, credential, run, attempt, "state");
   if (reportDigest(bytes) !== pointer.sha256)
     throw new Error("Retained state digest differs from published pointer");
   const state: unknown = JSON.parse(bytes);
@@ -289,14 +365,14 @@ async function readState(sdk: Sdk, pointer: Record<string, unknown>): Promise<Ro
   }
   return state as unknown as RoadmapReportState;
 }
-async function prepare(sdk: Sdk, api: PublicationApi) {
+async function prepare(sdk: Sdk, api: PublicationApi, credential: Credential) {
   const previous = await existing(api);
   let state: RoadmapReportState;
   if (previous) {
     try {
       const match = String(previous.body).match(/^<!-- portcove-roadmap-report:(\{[^\n]*\}) -->/u);
       if (!match?.[1]) throw new Error("Maintained report pointer is malformed");
-      state = await readState(sdk, record(JSON.parse(match[1])));
+      state = await readState(sdk, credential, record(JSON.parse(match[1])));
     } catch (error) {
       const diagnostic = sanitizeOperationError(error);
       writeFileSync(path.join(directory, "state-error.json"), JSON.stringify(diagnostic));
@@ -317,15 +393,7 @@ async function prepare(sdk: Sdk, api: PublicationApi) {
       return;
     }
   } else {
-    const since = command("git", [
-      "log",
-      "--first-parent",
-      "--diff-filter=A",
-      "--format=%cI",
-      "-1",
-      "--",
-      ".github/workflows/roadmap-report.yml",
-    ]);
+    const since = publicationCutover();
     if (!Number.isFinite(Date.parse(since)))
       throw new Error("Publication cutover identity is unavailable");
     state = {
@@ -373,9 +441,8 @@ async function prepare(sdk: Sdk, api: PublicationApi) {
         throw new Error(
           "Journal collector identity or completion differs from the trusted workflow",
         );
-      const destination = await download(sdk, id, `roadmap-diagnostics-${id}-${attempt}`);
       const manifest = record(
-        JSON.parse(readBounded(path.join(destination, "roadmap-health/publication.json"))),
+        JSON.parse(await downloadReportMember(sdk, credential, id, attempt, "diagnostics")),
       );
       if (manifest.format_version !== 1 || manifest.run !== id || manifest.attempt !== attempt)
         throw new Error("Collector manifest identity differs");
@@ -393,7 +460,7 @@ async function prepare(sdk: Sdk, api: PublicationApi) {
     );
   }
   const bytes = JSON.stringify(state);
-  if (Buffer.byteLength(bytes) > 8 * 1024 * 1024)
+  if (Buffer.byteLength(bytes) > maximumReportBytes)
     throw new Error("Retained state exceeds its bounded size");
   writeFileSync(path.join(directory, "state.json"), bytes);
   const body = renderRoadmapReport(state, {
@@ -411,7 +478,7 @@ async function prepare(sdk: Sdk, api: PublicationApi) {
   if (process.env.GITHUB_OUTPUT)
     appendFileSync(process.env.GITHUB_OUTPUT, "state_available=true\n");
 }
-async function publish(sdk: Sdk, api: PublicationApi) {
+async function publish(sdk: Sdk, api: PublicationApi, credential: Credential) {
   const previous: unknown = JSON.parse(readBounded(path.join(directory, "preimage.json")));
   const mode = record(JSON.parse(readBounded(path.join(directory, "mode.json")))).mode;
   if (mode === "state-unavailable") {
@@ -430,9 +497,7 @@ async function publish(sdk: Sdk, api: PublicationApi) {
     attempt = numeric(Number(process.env.GITHUB_RUN_ATTEMPT));
   // Upload completes before making the snapshot pointer visible. An interrupted
   // publication leaves the old pointer, so the next event replays the receipts.
-  const uploaded = readBounded(
-    path.join(await download(sdk, run, `roadmap-report-state-${run}-${attempt}`), "state.json"),
-  );
+  const uploaded = await downloadReportMember(sdk, credential, run, attempt, "state");
   if (uploaded !== readBounded(path.join(directory, "state.json")))
     throw new Error("Uploaded report state differs from the candidate");
   const body = readBounded(path.join(directory, "body.md"), 60000);
@@ -446,10 +511,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       throw new Error(
         "Usage: roadmap-publish.mts prepare|publish inside the serialized hosted publisher",
       );
-    const sdk = await publicationSdk(),
+    const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+    if (!token) throw new Error("Hosted report publication requires its explicit credential");
+    const credential: Credential = { kind: "explicit", token };
+    const sdk = await publicationSdk(credential),
       api = createPublicationApi(sdk);
-    if (operation === "prepare") await prepare(sdk, api);
-    else if (operation === "publish") await publish(sdk, api);
+    if (operation === "prepare") await prepare(sdk, api, credential);
+    else if (operation === "publish") await publish(sdk, api, credential);
     else
       throw new Error(
         "Usage: roadmap-publish.mts prepare|publish inside the serialized hosted publisher",
