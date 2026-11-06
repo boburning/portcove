@@ -506,7 +506,17 @@ export function persistReviewedClassification(
   );
 }
 
-function* persistClassification(rawConfig: unknown, rawOpportunity: unknown, checkId: number) {
+function* persistClassification(
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+): ControlReads<{
+  changed: boolean;
+  commit: string | null;
+  path: string;
+  recovered?: boolean;
+  authority: "none";
+}> {
   const config = configuration(rawConfig);
   numeric(checkId);
   const opportunity = validateOpportunity(rawOpportunity);
