@@ -128,6 +128,22 @@ export async function createProtectionObservationReader(options: {
   };
 }
 
+/** Route only the two fixed application refs through the existing Contents reader. */
+export async function createApplicationProtectionObservationReader(
+  options: Parameters<typeof createProtectionObservationReader>[0] & { refToken: string },
+): Promise<ProtectionReader> {
+  const { refToken, ...scope } = options;
+  const [protection, ref] = await Promise.all([
+    createProtectionObservationReader(scope),
+    createProtectionObservationReader({ ...scope, token: refToken }),
+  ]);
+  return (endpoint, deadline) =>
+    (refs.some((branch) => endpoint === `${prefix}/git/ref/heads/${branch}`) ? ref : protection)(
+      endpoint,
+      deadline,
+    );
+}
+
 /** GET-only collection. Its credential still has Administration WRITE because
  * that is GitHub's permission for complete ruleset/bypass visibility. Never
  * release that token to candidate/admission/assembly/classification/publication.
@@ -161,9 +177,12 @@ async function observeProtections(
     ...(journalBranch === undefined ? [] : [journalBranch]),
   ];
   let requests = 0;
+  // Application publication observes two complete inventories, including
+  // retained immutable controller rulesets. Keep the catalog envelope intact.
+  const requestLimit = purpose === "application" && releasePublication ? 128 : 80;
   const deadline = performance.now() + 120_000;
   const get = async (suffix: string) => {
-    if (++requests > 80 || performance.now() >= deadline)
+    if (++requests > requestLimit || performance.now() >= deadline)
       throw new Error("protection observation bound exhausted");
     const result = await request(`${prefix}${suffix}`, deadline);
     if (
