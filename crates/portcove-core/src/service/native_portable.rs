@@ -3513,13 +3513,17 @@ mod tests {
             observed["selected_executable"],
             case.prepared_player.executable
         );
+        let expectations = crate::test_fixture::route_expectations();
+        let expected = expectations
+            .iter()
+            .find(|row| row["port_id"] == id)
+            .expect("managed route needs an independent launch expectation");
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port(id).unwrap();
         assert_eq!(
-            Catalog::embedded()
-                .unwrap()
-                .port(id)
-                .unwrap()
-                .launch_arguments,
-            case.prepared_player.arguments
+            serde_json::to_value(&port.launch_arguments).unwrap(),
+            expected["managed_arguments"],
+            "{id}: managed launch arguments"
         );
         assert_native_engine_adoption_lifecycle(id).await;
         eprintln!(
