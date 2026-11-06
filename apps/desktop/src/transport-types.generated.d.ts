@@ -1517,6 +1517,10 @@ export interface ManualSetupStep {
   title: string;
 }
 export interface PersistentFilePattern {
+  /**
+   * Match the concatenated prefix and suffix as well as names with an interior.
+   */
+  allow_empty_middle?: boolean;
   prefix: string;
   suffix: string;
   [k: string]: unknown;
