@@ -2552,6 +2552,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
   "scripts/application-release-feed.test.mts",
   "scripts/application-release-publication.test.mts",
+  "scripts/acquire-release-admission.test.mts",
   "scripts/release-native-candidate.test.mts",
   "scripts/release-hosted-native-job.test.mts",
   "scripts/release-pending-release-recovery.test.mts",
