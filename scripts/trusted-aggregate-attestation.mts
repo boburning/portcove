@@ -438,7 +438,13 @@ export async function prepareAggregateAttestation(
   if (scoped && !identityOptions) assertTrustedDirectNode("aggregate sender identity");
   const identity = await (
     admitted ? verifyAdmittedAssemblerJobIdentity : verifyAssemblerJobIdentity
-  )(token, expected, identityOptions ?? { transport: { sdkToken: credential.token, deadline } });
+  )(
+    token,
+    expected,
+    identityOptions ?? {
+      transport: { sdkToken: credential.token, deadline, requireDirect: scoped },
+    },
+  );
   if (original && original.run_id === expected.run_id && original.job_id === identity.job_id)
     throw new Error(
       "aggregate current custodian cannot impersonate its original terminal producer",
