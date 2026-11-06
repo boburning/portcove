@@ -35,12 +35,62 @@ import type {
 import { inspectApplicationReleaseReference } from "./application-release-run.mts";
 import type { ReleaseSourceAttestationExpectation } from "./release-source-attestation.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { compareApplicationVersionPrecedence } from "../apps/desktop/scripts/release-version-policy.mts";
 import { applicationPackageNames } from "./application-release-artifacts.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 
 export const bootstrapAssetNames = ["application-site.zip", "application-metadata.json"] as const;
+/** Only the caller's existing fixed Release writer is admitted to the upload origin. */
+export async function createApplicationAssetUploader(
+  token: string | undefined,
+  assertWindow?: () => void,
+) {
+  assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
+  const origin = "https://uploads.github.com";
+  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
+  let expected: string | undefined;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    baseUrl: origin,
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 128 * 1024,
+    allowRequest(method, url) {
+      assertTrustedDirectNode("fixed application Release upload");
+      assertWindow?.();
+      return method === "POST" && url.href === expected;
+    },
+  });
+  return async (releaseId: number, name: string, bytes: Buffer) => {
+    assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
+    assert.match(name, /^[A-Za-z0-9][A-Za-z0-9._+-]{0,255}$/u);
+    assert.equal(expected, undefined, "application asset uploads must remain sequential");
+    const endpoint = `/repos/boburning/portcove/releases/${releaseId}/assets?name=${encodeURIComponent(name)}`;
+    expected = origin + endpoint;
+    try {
+      const response = await client.request(`POST ${endpoint}`, {
+        data: new Uint8Array(bytes),
+        headers: {
+          "Content-Type": name.endsWith(".zip")
+            ? "application/zip"
+            : name.endsWith(".json")
+              ? "application/json"
+              : "application/octet-stream",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+        request: { portcove: { replay: "once", attempts: 0 } },
+      });
+      assert.equal(response.status, 201);
+    } finally {
+      expected = undefined;
+    }
+  };
+}
+
 type AssetName = (typeof bootstrapAssetNames)[number];
 export type BootstrapPublicationBinding = {
   control_commit: string;

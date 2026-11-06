@@ -74,13 +74,13 @@ import {
   assertMetadataRenewalPublication,
   inspectTufPublicationFacts,
 } from "./release-metadata-contract.mts";
-import { readGitHubReleaseAsset } from "./github-binary.mts";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import {
   readImmutableBootstrapFeed,
   readApplicationImmutableFeed,
   verifyApplicationPagesArtifact,
   discoverActualPublishedApplicationCohort,
+  createFixedApplicationReleaseAssetReader,
   readApplicationPriorPublication,
   readApplicationPendingLineage,
   assertApplicationForwardPreimage,
@@ -121,6 +121,7 @@ import {
   applicationDraftProofName,
   readApplicationDraftRecoveryState,
   readExpiredApplicationDraftAssets,
+  createApplicationAssetUploader,
   verifyApplicationDraftRecoveryBackup,
   readStagedDraftRecoveryBackup,
   removeExpiredApplicationDraftAssets,
@@ -734,13 +735,7 @@ async function prepareDraftRecovery(
     metadata,
     retained.assets,
     {
-      async readAsset(id, maximum) {
-        return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-          cwd: process.cwd(),
-          maxBytes: maximum,
-          timeoutMs: 30000,
-        });
-      },
+      readAsset: createFixedApplicationReleaseAssetReader(),
       authenticateAssembly: authenticateDraftRecoveryAssembly,
     },
   );
@@ -930,33 +925,6 @@ async function finishDraftRecovery(
   });
 }
 
-async function uploadApplicationReleaseAsset(releaseId: number, name: string, bytes: Buffer) {
-  assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
-  assert.match(name, /^[A-Za-z0-9][A-Za-z0-9._+-]{0,255}$/u);
-  const token = process.env.GH_TOKEN;
-  assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
-  const response = await fetch(
-    `https://uploads.github.com/repos/boburning/portcove/releases/${releaseId}/assets?name=${encodeURIComponent(name)}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": name.endsWith(".zip")
-          ? "application/zip"
-          : name.endsWith(".json")
-            ? "application/json"
-            : "application/octet-stream",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      body: new Uint8Array(bytes),
-      redirect: "error",
-      signal: AbortSignal.timeout(30000),
-    },
-  );
-  await response.body?.cancel();
-  assert.equal(response.status, 201);
-}
-
 async function prepareOrdinaryPublication() {
   assert.ok(!process.env.PORTCOVE_SIGNING_KEY && !process.env.PORTCOVE_OBSERVER_TOKEN);
   const current = execution(),
@@ -1036,7 +1004,7 @@ async function prepareOrdinaryPublication() {
   });
   const result = await prepareApplicationReleaseDraft(expected, files, {
     api: applicationApi,
-    upload: uploadApplicationReleaseAsset,
+    upload: await createApplicationAssetUploader(process.env.GH_TOKEN),
     retainAssembly(assembly) {
       return retainApplicationDraftAssembly(
         applicationApi,
@@ -1048,13 +1016,7 @@ async function prepareOrdinaryPublication() {
         },
       );
     },
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
+    readAsset: createFixedApplicationReleaseAssetReader(),
     async beforeDraftWrite() {
       await guard(source, false);
     },
@@ -1277,33 +1239,8 @@ async function publishBootstrapMetadata() {
         await guard(source);
         return assertProtectionWriteWindow;
       },
-      async readAsset(id, maximumBytes) {
-        return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-          cwd: process.cwd(),
-          maxBytes: maximumBytes,
-          timeoutMs: 30000,
-        });
-      },
-      async upload(releaseId, name, bytes) {
-        // Fixed ID/name endpoint; no provider-supplied URL or credential redirect.
-        const response = await fetch(
-          `https://uploads.github.com/repos/boburning/portcove/releases/${releaseId}/assets?name=${name}`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": name.endsWith(".zip") ? "application/zip" : "application/json",
-              "X-GitHub-Api-Version": "2022-11-28",
-            },
-            body: new Uint8Array(bytes),
-            redirect: "error",
-            signal: AbortSignal.timeout(30000),
-          },
-        );
-        // The exact asset inventory/byte readback decides ambiguous outcomes.
-        await response.body?.cancel();
-        assert.equal(response.status, 201);
-      },
+      readAsset: createFixedApplicationReleaseAssetReader(),
+      upload: await createApplicationAssetUploader(token, () => assertProtectionWriteWindow()),
     },
     expected,
     files.get(bootstrapAssetNames[1])!,
@@ -1343,13 +1280,7 @@ async function prepareOrdinaryFeed() {
       );
       inspectApplicationReleaseAttestation(verified, identity);
     },
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
+    readAsset: createFixedApplicationReleaseAssetReader(),
     async authenticateContents(files, inspected) {
       const { producer, producer_attempt: assemblyAttempt } = inspected.receipt;
       for (const name of bootstrapAssetNames)
@@ -2112,13 +2043,7 @@ export async function preparePublicWindowsCandidate(
       );
       inspectApplicationReleaseAttestation(verified, identity);
     },
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
+    readAsset: createFixedApplicationReleaseAssetReader(undefined, deadline),
   };
   const checked = await readApplicationWindowsCandidateAssets(
     input.candidate,
@@ -2720,11 +2645,8 @@ async function materializePendingAuthority(
 ) {
   const archive = authority.assets.find((asset) => asset.name === bootstrapAssetNames[0]);
   assert.ok(archive);
-  const bytes = readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${archive.id}`, {
-    cwd: process.cwd(),
-    maxBytes: archive.bytes,
-    timeoutMs: 30000,
-  });
+  const readAsset = createFixedApplicationReleaseAssetReader(scratch);
+  const bytes = await readAsset(archive.id, archive.bytes);
   assert.equal(bytes.length, archive.bytes);
   assert.equal(sha256(bytes), archive.sha256);
   const decoded = readBootstrapSiteArchive(bytes, authority.receipt);

@@ -17,6 +17,7 @@ import { sha256 } from "./application-release-io.mts";
 import type { ReleaseSourceAttestationExpectation } from "./release-source-attestation.mts";
 import {
   bootstrapAssetNames,
+  createApplicationAssetUploader,
   applicationDraftProofBytes,
   applicationDraftProofName,
   inspectBootstrapPublicationReceipt,
@@ -58,6 +59,7 @@ import {
   discoverPublishedApplicationCohort,
   assertApplicationForwardPreimage,
   readApplicationPendingLineage,
+  createFixedApplicationReleaseAssetReader,
 } from "./application-release-feed.mts";
 
 // Inert release bytes and an injected provider: protocol tests, never native,
@@ -2793,4 +2795,100 @@ void test("actual pending lineage aborts stalled Release identity before acquiri
   assert.equal(calls, 1);
   assert.equal(cancelled, true);
   assert.deepEqual(await readdir(root), []);
+});
+
+void test("fixed application Release assets keep captured credentials and clean private file custody", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "fixed-app-release-asset-"));
+  const original = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-fixed-application-asset";
+  t.after(async () => {
+    if (original === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = original;
+    await rm(root, { recursive: true, force: true });
+  });
+  const read = createFixedApplicationReleaseAssetReader(root);
+  process.env.GH_TOKEN = "inert-other-scope";
+  const payload = Buffer.from("fixed public bytes");
+  let extra = false;
+  const calls: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      calls.push(url.origin + url.pathname);
+      assert.equal(request.method, "GET");
+      if (url.origin === "https://api.github.com") {
+        assert.equal(url.pathname, "/repos/boburning/portcove/releases/assets/10");
+        assert.equal(request.headers.get("authorization"), "token inert-fixed-application-asset");
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://release-assets.githubusercontent.com/exact?sig=inert" },
+        });
+      }
+      assert.equal(url.origin, "https://release-assets.githubusercontent.com");
+      assert.equal(request.credentials, "omit");
+      assert.equal(request.headers.has("authorization"), false);
+      return new Response(extra ? Buffer.concat([payload, Buffer.from(".")]) : payload);
+    },
+  );
+  assert.deepEqual(await read(10, payload.length), payload);
+  assert.deepEqual(await readdir(root), []);
+  extra = true;
+  await assert.rejects(read(10, payload.length));
+  assert.deepEqual(await readdir(root), []);
+  const expired = createFixedApplicationReleaseAssetReader(root, performance.now() - 1);
+  await assert.rejects(expired(10, payload.length));
+  assert.deepEqual(await readdir(root), []);
+  assert.deepEqual(calls, [
+    "https://api.github.com/repos/boburning/portcove/releases/assets/10",
+    "https://release-assets.githubusercontent.com/exact",
+    "https://api.github.com/repos/boburning/portcove/releases/assets/10",
+    "https://release-assets.githubusercontent.com/exact",
+  ]);
+});
+
+void test("fixed application upload preserves opaque bytes and refuses replay or credential redirects", async (t) => {
+  const payload = Buffer.from([0, 255, 33, 9]);
+  let mode = "success";
+  let calls = 0;
+  const upload = await createApplicationAssetUploader("inert-fixed-upload", () => {
+    if (mode === "expired") throw new Error("fixture upload window expired");
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(
+        request.url,
+        "https://uploads.github.com/repos/boburning/portcove/releases/10/assets?name=example%2Btest.zip",
+      );
+      assert.equal(request.method, "POST");
+      assert.equal(request.headers.get("authorization"), "token inert-fixed-upload");
+      assert.equal(request.headers.get("content-type"), "application/zip");
+      assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
+      assert.deepEqual(Buffer.from(await request.arrayBuffer()), payload);
+      calls++;
+      if (mode === "lost") throw new TypeError("fixture upload acknowledgement lost");
+      if (mode === "redirect")
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://example.invalid/upload" },
+        });
+      return Response.json({ id: 24 }, { status: 201 });
+    },
+  );
+  await upload(10, "example+test.zip", payload);
+  assert.equal(calls, 1);
+  mode = "lost";
+  await assert.rejects(upload(10, "example+test.zip", payload));
+  assert.equal(calls, 2);
+  mode = "redirect";
+  await assert.rejects(upload(10, "example+test.zip", payload), { code: "redirect_refused" });
+  assert.equal(calls, 3);
+  mode = "expired";
+  await assert.rejects(upload(10, "example+test.zip", payload), /fixture upload window expired/u);
+  assert.equal(calls, 3);
 });
