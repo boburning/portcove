@@ -108,13 +108,18 @@ async function receiveApplicationTools(id: number, attempt: number) {
     await rm(scratch, { recursive: true, force: true });
   }
   const subject = await applicationFileIdentity(path.join(directory, "tools.json"));
-  await verifyReleaseSourceAttestation(directory, "tools.json", {
-    source_commit: execution.source,
-    ref: execution.ref,
-    run_id: execution.run_id,
-    run_attempt: attempt,
-    subjects: [...files, subject],
-  });
+  await verifyReleaseSourceAttestation(
+    directory,
+    "tools.json",
+    {
+      source_commit: execution.source,
+      ref: execution.ref,
+      run_id: execution.run_id,
+      run_attempt: attempt,
+      subjects: [...files, subject],
+    },
+    { scope: "application-controller" },
+  );
   await chmod(path.join(directory, "portcove-release-tools"), 0o700);
   // The worker runs beside the fixed checkout's reviewed public assets.
   await copyFile(
