@@ -7,6 +7,19 @@ use crate::{
     DefinitionContentIndex, PortDefinition, PortcoveError, Result, check_definition_capabilities,
 };
 
+pub(crate) fn require_indexed_persistence(port: &PortDefinition) -> Result<()> {
+    if port
+        .persistent_file_patterns
+        .iter()
+        .any(|pattern| pattern.allow_empty_middle)
+    {
+        return Err(PortcoveError::unsupported(
+            "empty-middle persistent file patterns are currently embedded-only",
+        ));
+    }
+    Ok(())
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct EntryDocument {
@@ -150,15 +163,7 @@ impl DefinitionContentIndex {
                 "entry port identity or complete typed projection is invalid",
             ));
         }
-        if port
-            .persistent_file_patterns
-            .iter()
-            .any(|pattern| pattern.allow_empty_middle)
-        {
-            return Err(PortcoveError::unsupported(
-                "empty-middle persistent file patterns are currently embedded-only",
-            ));
-        }
+        require_indexed_persistence(&port)?;
         if !retained && !port.release.managed_build.is_empty() {
             return Err(crate::cartridge_build::retired_creation());
         }

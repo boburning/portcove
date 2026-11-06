@@ -84,7 +84,9 @@ fn shipwright_working_directory_persistence_requires_the_v3_reader() {
 #[test]
 fn native_ascii_paths_require_version7_instead_of_silently_using_an_older_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let mut port = legacy_opentyrian_indexed_port(catalog.port("opentyrian-opentyrian").unwrap());
+    let mut port = crate::test_fixture::legacy_opentyrian_indexed_port(
+        catalog.port("opentyrian-opentyrian").unwrap(),
+    );
     port.windows_runtime_path_policy = Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
     let mut entry = entry_for_port(&port);
     for version in 1..=6 {
@@ -94,14 +96,6 @@ fn native_ascii_paths_require_version7_instead_of_silently_using_an_older_reader
     }
     entry["required_capabilities"][0]["minimum_version"] = json!(7);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
-}
-
-fn legacy_opentyrian_indexed_port(port: &crate::PortDefinition) -> crate::PortDefinition {
-    let mut port = port.clone();
-    for pattern in &mut port.persistent_file_patterns {
-        pattern.allow_empty_middle = false;
-    }
-    port
 }
 
 #[test]
@@ -735,7 +729,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             let error = inspect(&value).unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Unsupported);
             assert!(error.message.contains("embedded-only"));
-            value["port"] = serde_json::to_value(legacy_opentyrian_indexed_port(port)).unwrap();
+            value["port"] =
+                serde_json::to_value(crate::test_fixture::legacy_opentyrian_indexed_port(port))
+                    .unwrap();
         }
         let entry = inspect(&value).unwrap();
         assert_eq!(serde_json::to_value(entry.port()).unwrap(), value["port"]);

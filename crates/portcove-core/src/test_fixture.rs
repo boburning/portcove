@@ -160,6 +160,16 @@ fn historical_port_catalog(snapshot: &str) -> crate::Catalog {
     crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
+pub(crate) fn legacy_opentyrian_indexed_port(
+    port: &crate::PortDefinition,
+) -> crate::PortDefinition {
+    let mut port = port.clone();
+    for pattern in &mut port.persistent_file_patterns {
+        pattern.allow_empty_middle = false;
+    }
+    port
+}
+
 /// Give synthetic installer fixtures the same complete retention input as a
 /// production catalog operation, with their explicitly modified port contract.
 pub(crate) fn retained_qualification(
