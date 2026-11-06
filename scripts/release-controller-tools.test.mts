@@ -773,7 +773,11 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   for (const event of ["pull_request", "push"]) {
     const trigger: unknown = parsed.on[event];
     assert.ok(isRecord(trigger) && Array.isArray(trigger.paths));
-    for (const scope of ["crates/portcove-cli/**", "crates/portcove-core/**"])
+    for (const scope of [
+      "crates/portcove-cli/**",
+      "crates/portcove-core/**",
+      "scripts/assembler-job-identity.mts",
+    ])
       assert.ok(trigger.paths.includes(scope));
   }
   const buildSource = await readFile(
