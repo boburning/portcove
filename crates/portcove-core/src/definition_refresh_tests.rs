@@ -353,10 +353,7 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
     library
         .trust_catalog_key(&hex::encode(key.verifying_key().as_bytes()))
         .unwrap();
-    let mut baseline = Catalog::embedded()
-        .unwrap()
-        .authoritative_document()
-        .clone();
+    let mut baseline = crate::test_fixture::indexed_fixture_document(&Catalog::embedded().unwrap());
     // The legacy signature changes metadata. The reader supplies the
     // independent working-directory authority compiled into the client.
     for port in &mut baseline.ports {
