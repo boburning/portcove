@@ -2553,13 +2553,21 @@ for (const file of [
   ]);
 
 for (const file of [
+  "package.json",
+  "pnpm-lock.yaml",
+  "scripts/github-client.mts",
+  "scripts/release-catalog-signing-context.mts",
   "scripts/release-control-inputs.mts",
+  "scripts/release-coordinator-driver.mts",
+  "scripts/release-custody-provider.mts",
   "scripts/release-live-control-admission.mts",
+  ".github/workflows/application-update-production.yml",
 ])
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/release-catalog-authorities.test.mts",
     "scripts/release-catalog-signing.test.mts",
+    "scripts/release-catalog-context-boundary.test.mts",
   ]);
 
 explicitNodeTests.set("scripts/application-release-site.mts", [

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
 import { createFixedControlReadAllowance } from "./release-control-inputs.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { isRecord } from "./runtime-values.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -306,63 +307,100 @@ void test("catalog OIDC control source is purpose-separated and retains existing
     /changed after ratification/,
   );
 });
-void test("fixed catalog maintenance joins SDK pause and capacity reads with original observer identity", async (t) => {
-  const f = runtime(true, "catalog-timestamp");
-  const { observerApi, ...options } = f.actual.options;
-  const original = await authenticateCatalogReleaseControlSource(
-    f.environment,
-    f.actual.workflow,
-    f.actual.options,
-  );
-  const expected = original.readMaintenance(f.control.api);
-  const routes: string[] = [];
-  let expireOnObserver = false;
-  t.mock.method(
-    globalThis,
-    "fetch",
-    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-      const request = new Request(input, init);
-      const url = new URL(request.url);
-      assert.equal(url.origin, "https://api.github.com");
-      assert.equal(request.headers.get("authorization"), "token inert-catalog-controls");
-      routes.push(url.pathname);
-      if (url.pathname === "/graphql") {
-        assert.equal(request.method, "POST");
-        const wire: unknown = await request.json();
-        assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
-        assert.equal(wire.variables.ref, "refs/heads/portcove-release-pause");
-        return Response.json({ data: f.control.api.graphql(wire.query, wire.variables).data });
-      }
-      assert.equal(request.method, "GET");
-      const route = url.pathname.slice(1) + url.search;
-      if (route.includes("/actions/jobs/")) {
-        if (expireOnObserver) f.actual.advance(60001);
-        const job = observerApi.request("GET", route);
-        return Response.json(job.body, { status: job.status });
-      }
-      const result = f.control.api.request("GET", route);
-      return Response.json(result.body, { status: result.status ?? 500 });
-    },
-  );
-  const source = await authenticateCatalogReleaseControlSource(
-    { ...f.environment, GH_TOKEN: "inert-catalog-controls" },
-    f.actual.workflow,
-    { ...options, controlReader: "catalog-maintenance", deadline: performance.now() + 5000 },
-  );
-  await assert.rejects(source.readSdkMaintenance(), /scoped maintenance reader unavailable/u);
-  const observed = await source.readSdkMaintenance(createFixedControlReadAllowance());
-  assert.equal(observed.purpose, "catalog-signing-controls");
-  assert.equal(observed.facts_sha256, expected.facts_sha256);
-  assert.equal(routes[0], "/repos/boburning/portcove/actions/jobs/600");
-  assert.equal(routes.at(-1), routes[0]);
-  assert.equal(routes.filter((route) => route === "/graphql").length, 4);
-  assert.equal(f.control.mutations(), 0);
-  expireOnObserver = true;
-  await assert.rejects(
-    source.readSdkMaintenance(createFixedControlReadAllowance()),
-    /fresh|expired/u,
-  );
-});
+for (const phase of ["catalog-timestamp", "coordinator"] as const)
+  void test(`fixed catalog ${phase} maintenance joins SDK pause and capacity reads with original observer identity`, async (t) => {
+    const f = runtime(true, phase);
+    const { observerApi, ...options } = f.actual.options;
+    const original = await authenticateCatalogReleaseControlSource(
+      f.environment,
+      f.actual.workflow,
+      f.actual.options,
+    );
+    const expected = original.readMaintenance(f.control.api);
+    const routes: string[] = [];
+    let expireOnObserver = false;
+    let stallObserver = false;
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), "token inert-catalog-controls");
+        routes.push(url.pathname);
+        if (url.pathname === "/graphql") {
+          assert.equal(request.method, "POST");
+          const wire: unknown = await request.json();
+          assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+          assert.equal(wire.variables.ref, "refs/heads/portcove-release-pause");
+          return Response.json({ data: f.control.api.graphql(wire.query, wire.variables).data });
+        }
+        assert.equal(request.method, "GET");
+        const route = url.pathname.slice(1) + url.search;
+        if (route.includes("/actions/jobs/")) {
+          if (stallObserver)
+            return new Response(new ReadableStream(), {
+              headers: { "content-type": "application/json" },
+            });
+          if (expireOnObserver) f.actual.advance(60001);
+          const job = observerApi.request("GET", route);
+          return Response.json(job.body, { status: job.status });
+        }
+        const result = f.control.api.request("GET", route);
+        return Response.json(result.body, { status: result.status ?? 500 });
+      },
+    );
+    const source = await authenticateCatalogReleaseControlSource(
+      { ...f.environment, GH_TOKEN: "inert-catalog-controls" },
+      f.actual.workflow,
+      { ...options, controlReader: "catalog-maintenance", deadline: performance.now() + 5000 },
+    );
+    await assert.rejects(source.readSdkMaintenance(), /scoped maintenance reader unavailable/u);
+    const reserve = createFixedControlReadAllowance();
+    const coordinator =
+      phase === "coordinator"
+        ? { deadline: performance.now() + 1000, signingContext: true as const }
+        : undefined;
+    const observed = await source.readSdkMaintenance(reserve, coordinator);
+    assert.equal(
+      observed.purpose,
+      phase === "coordinator" ? "catalog-coordinator-controls" : "catalog-signing-controls",
+    );
+    assert.equal(observed.facts_sha256, expected.facts_sha256);
+    assert.equal(routes[0], "/repos/boburning/portcove/actions/jobs/600");
+    assert.equal(routes.at(-1), routes[0]);
+    assert.equal(routes.filter((route) => route === "/graphql").length, 4);
+    assert.equal(f.control.mutations(), 0);
+    if (coordinator) {
+      const shared = createFixedControlReadAllowance();
+      const provider = await createReleaseCustodyProvider({
+        token: "inert-catalog-controls",
+        deadline: coordinator.deadline,
+        reserve: shared,
+      });
+      for (let count = 0; count < 32; count++) await provider.repository(coordinator.deadline);
+      const beforeRefusal = routes.length;
+      await assert.rejects(source.readSdkMaintenance(shared, coordinator), /read bound exhausted/u);
+      assert.equal(routes.length, beforeRefusal);
+
+      stallObserver = true;
+      await assert.rejects(
+        source.readSdkMaintenance(createFixedControlReadAllowance(), {
+          ...coordinator,
+          deadline: performance.now() + 150,
+        }),
+        /deadline|abort/u,
+      );
+      assert.equal(routes.at(-1), "/repos/boburning/portcove/actions/jobs/600");
+      stallObserver = false;
+    }
+    expireOnObserver = true;
+    await assert.rejects(
+      source.readSdkMaintenance(createFixedControlReadAllowance(), coordinator),
+      /fresh|expired/u,
+    );
+  });
 void test("selected full catalog controls retain actual fixed reader and isolated observer verification without a Classification App", async () => {
   const f = runtime();
   const configuration = selectedPublicationAuthoritiesFixture("catalog-publication");

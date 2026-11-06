@@ -306,7 +306,8 @@ void test("actual context getter checks renewed maintenance only after delayed s
       next_controls: async () => {
         calls.push("renew");
         return {
-          readMaintenance: () => {
+          readSdkMaintenance: async (_reserve: unknown, options: { deadline: number }) => {
+            assert.equal(options.deadline, owned.deadline);
             calls.push("maintenance-LAST");
             if (!eligible) throw new Error("expired final controls");
             return maintenance();
@@ -315,7 +316,8 @@ void test("actual context getter checks renewed maintenance only after delayed s
       },
     },
     source: {
-      readMaintenance: () => {
+      readSdkMaintenance: async (_reserve: unknown, options: { deadline: number }) => {
+        assert.equal(options.deadline, owned.deadline);
         calls.push("old-maintenance");
         return maintenance();
       },
@@ -340,7 +342,7 @@ void test("actual context getter checks renewed maintenance only after delayed s
     }),
     readCatalogPublicationBundle: async () => new Map(),
     assertControllerCatalogPublisherScope: () => {},
-    apiFor: () => ({}),
+    createFixedControlReadAllowance: () => () => ({}),
     verifyState: async () => {
       calls.push("state");
       now = 61000;

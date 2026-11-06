@@ -1,4 +1,4 @@
-import { createGitHubClient } from "./github-client.mts";
+import { createGitHubClient, type GitHubClientOptions } from "./github-client.mts";
 import { GitHubApiError, nextLink } from "./github-operation.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 
@@ -61,6 +61,7 @@ export async function createReleaseCustodyProvider(options: {
   maxBytes?: number;
   currentDeadline?: () => number;
   chargeRead?: () => void;
+  reserve?: GitHubClientOptions["reserve"];
   beforeDispatch?: () => void;
   afterRead?: () => void;
   fetch?: typeof globalThis.fetch;
@@ -72,6 +73,7 @@ export async function createReleaseCustodyProvider(options: {
     maxBytes = 2 * 1024 ** 2,
     currentDeadline,
     chargeRead,
+    reserve,
     beforeDispatch,
     afterRead,
     fetch,
@@ -90,6 +92,7 @@ export async function createReleaseCustodyProvider(options: {
     }),
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     ...(fetch ? { fetch } : {}),
+    ...(reserve ? { reserve } : {}),
   });
   const get = async (
     route: string,

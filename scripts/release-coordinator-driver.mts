@@ -434,9 +434,9 @@ export async function prepareActualCoordinatorCatalogSigning(
             controlDigest,
             "coordinator",
             round,
-            { deadline },
+            { deadline, controlReader: "catalog-maintenance" },
           );
-          const facts = control.readMaintenance(metadataContinuationApi(directory, () => deadline));
+          const facts = await control.readSdkMaintenance(undefined, { deadline });
           if (
             control.evidence_scope !== "github.com" ||
             facts.reader.job_id !== reader.identity.job_id ||
