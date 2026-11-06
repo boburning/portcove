@@ -150,6 +150,12 @@ void test("release risk jobs install frozen dependencies before binding their re
     );
     const risk = selected.findIndex((step) => step.name === operation);
     assert.ok(setup >= 0 && install > setup && risk > install);
+    if (name === "assemble") {
+      const sbom = selected.findIndex((step) =>
+        String(step.uses).startsWith("anchore/sbom-action@"),
+      );
+      assert.ok(sbom >= 0 && setup > sbom);
+    }
     assert.deepEqual(selected[install]?.env, { GH_TOKEN: "", GITHUB_TOKEN: "" });
     assert.match(
       String(selected[install]?.run),

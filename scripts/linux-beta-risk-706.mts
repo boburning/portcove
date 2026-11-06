@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { risk706GraphDigest } from "./linux-beta-risk-706-profile.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   fixedReleaseReaderToken,
   readOnlyReleaseChildEnvironment,
@@ -686,7 +687,10 @@ export async function decisionInputs706(
     deadline,
     requestTimeoutMs: 15_000,
     maxBytes: 16 * 1024 ** 2,
-    allowRequest: (method, url) => method === "GET" && url.href === expected,
+    allowRequest(method, url) {
+      if (scopedEnvironment) assertTrustedDirectNode("isolated Linux release risk inventory");
+      return method === "GET" && url.href === expected;
+    },
   });
   const read = async (url: URL) => {
     expected = url.href;

@@ -23,6 +23,7 @@ import {
 
 import { createHash } from "node:crypto";
 import { parseDependencyScan } from "./dependency-security.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 
 const scannerPolicy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
 
@@ -883,7 +884,13 @@ void test("legacy risk authorization reads complete SDK release and eligible ass
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(path.join(dir, ".github"));
   writeFileSync(path.join(dir, ".github/linux-beta-risk-706.json"), JSON.stringify(approval));
-  for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "GITHUB_ACTIONS"] as const) {
+  for (const name of [
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "GITHUB_ACTIONS",
+    "NODE_USE_ENV_PROXY",
+    "NODE_EXTRA_CA_CERTS",
+  ] as const) {
     const value = process.env[name];
     t.after(() => {
       if (value === undefined) delete process.env[name];
@@ -893,6 +900,7 @@ void test("legacy risk authorization reads complete SDK release and eligible ass
   process.env.GH_TOKEN = "legacy-risk-gh";
   process.env.GITHUB_TOKEN = "legacy-risk-github";
   delete process.env.GITHUB_ACTIONS;
+  process.env.NODE_USE_ENV_PROXY = "1";
   const prefix = "https://api.github.com/repos/boburning/portcove/releases";
   const routes = [
     `${prefix}?per_page=100`,
@@ -971,6 +979,17 @@ void test("legacy risk authorization reads complete SDK release and eligible ass
     routes.slice(0, 3),
   );
   assert.ok(seen.every(({ auth }) => auth === "token legacy-risk-workflow"));
+
+  seen.length = 0;
+  invalidAssetLink = false;
+  await withReadOnlyReleaseChildren(dir, async () => {
+    await assert.rejects(collect, /trusted direct Node runtime/u);
+    assert.deepEqual(seen, []);
+    delete process.env.NODE_USE_ENV_PROXY;
+    process.env.NODE_EXTRA_CA_CERTS = path.join(dir, "unadmitted-ca.pem");
+    await assert.rejects(collect, /trusted direct Node runtime/u);
+    assert.deepEqual(seen, []);
+  });
 });
 
 void test("qualification cannot allocate a publication and the second tag is always refused", () => {
