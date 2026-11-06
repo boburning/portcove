@@ -318,6 +318,8 @@ function observeProtections(
  * requires the isolated observer's result through trusted same-workflow needs,
  * never caller/dispatch JSON or a receipt from another run.
  */
+export const inputProtectionFreshnessMilliseconds = 60_000;
+
 export function requireReleaseInputWriterPolicy(
   raw: unknown,
   writerAppId: number,
@@ -464,7 +466,7 @@ function requireInputPolicy(
     typeof raw.observed_at !== "string" ||
     !Number.isFinite(Date.parse(raw.observed_at)) ||
     now - Date.parse(raw.observed_at) < 0 ||
-    now - Date.parse(raw.observed_at) > 60_000 ||
+    now - Date.parse(raw.observed_at) > inputProtectionFreshnessMilliseconds ||
     !isRecord(raw.inventory) ||
     !Array.isArray(raw.inventory.rulesets) ||
     !Array.isArray(raw.inventory.branches) ||
@@ -579,7 +581,7 @@ export function requireReleaseImmutabilityPolicy(raw: unknown, now = Date.now())
     typeof raw.observed_at !== "string" ||
     !Number.isFinite(Date.parse(raw.observed_at)) ||
     now - Date.parse(raw.observed_at) < 0 ||
-    now - Date.parse(raw.observed_at) > 60_000 ||
+    now - Date.parse(raw.observed_at) > inputProtectionFreshnessMilliseconds ||
     !isRecord(raw.inventory) ||
     !isRecord(raw.inventory.immutable_releases) ||
     Object.keys(raw.inventory.immutable_releases).sort().join(",") !==

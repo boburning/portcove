@@ -61,6 +61,7 @@ export async function createReleaseCustodyProvider(options: {
   maxBytes?: number;
   currentDeadline?: () => number;
   chargeRead?: () => void;
+  beforeDispatch?: () => void;
   afterRead?: () => void;
   fetch?: typeof globalThis.fetch;
 }): Promise<ReleaseCustodyProvider> {
@@ -71,6 +72,7 @@ export async function createReleaseCustodyProvider(options: {
     maxBytes = 2 * 1024 ** 2,
     currentDeadline,
     chargeRead,
+    beforeDispatch,
     afterRead,
     fetch,
   } = options;
@@ -80,6 +82,12 @@ export async function createReleaseCustodyProvider(options: {
     deadline,
     maxBytes,
     requestTimeoutMs,
+    ...(beforeDispatch && {
+      allowRequest() {
+        beforeDispatch();
+        return true;
+      },
+    }),
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     ...(fetch ? { fetch } : {}),
   });

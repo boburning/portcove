@@ -15,6 +15,7 @@ import {
 } from "./assembler-job-identity.mts";
 import {
   requireReleaseInputWriterPolicy,
+  inputProtectionFreshnessMilliseconds,
   requireFixedClassificationStoragePolicy,
   requireCatalogMaintenancePolicy,
   requireReleaseImmutabilityPolicy,
@@ -344,17 +345,6 @@ async function authenticateControlSource(
       : undefined;
   const producerJobId = producer.job_id;
   const producerCheckRunId = producer.check_run_id;
-  const observerProvider =
-    siteReaderToken === undefined
-      ? undefined
-      : await (
-          await import("./release-custody-provider.mts")
-        ).createReleaseCustodyProvider({
-          token: siteReaderToken,
-          deadline: phaseDeadline!,
-          maxBytes: 128 * 1024,
-          fetch: fixedFetch,
-        });
   const inspectProducer = (status: number | undefined, job: unknown) => {
     remaining();
     if (
@@ -394,12 +384,6 @@ async function authenticateControlSource(
     );
     return inspectProducer(response.status, response.body);
   };
-  const readSiteProducer = async () => {
-    remaining();
-    if (!observerProvider) throw new Error("scoped site observer readback unavailable");
-    return inspectProducer(200, await observerProvider.job(producerJobId));
-  };
-  const producerIdentity = observerProvider ? await readSiteProducer() : producerReadback();
   const now = options.now ?? Date.now;
   const guard = () => {
     remaining();
@@ -446,6 +430,33 @@ async function authenticateControlSource(
         : {}),
     };
   };
+  let siteDeadline: number | undefined;
+  let readSiteProducer: (() => Promise<string>) | undefined;
+  let producerIdentity: string;
+  if (siteReaderToken !== undefined && phaseDeadline !== undefined) {
+    const protection = guard();
+    const expiresAt = Math.min(
+      Date.parse(identity.expires_at),
+      Date.parse(protection.observed_at) + inputProtectionFreshnessMilliseconds,
+    );
+    siteDeadline = Math.min(phaseDeadline, performance.now() + (expiresAt - now()));
+    const observer = await (
+      await import("./release-custody-provider.mts")
+    ).createReleaseCustodyProvider({
+      token: siteReaderToken,
+      deadline: siteDeadline,
+      maxBytes: 128 * 1024,
+      beforeDispatch: guard,
+      fetch: fixedFetch,
+    });
+    readSiteProducer = async () => {
+      guard();
+      return inspectProducer(200, await observer.job(producerJobId));
+    };
+    producerIdentity = await readSiteProducer();
+  } else {
+    producerIdentity = producerReadback();
+  }
   guard();
   const requireObservedRefs = (refs: readonly (readonly [string, string])[]) => {
     if (
@@ -542,12 +553,12 @@ async function authenticateControlSource(
       return maintenanceFacts(protection, pause, capacity);
     },
     async readSiteMaintenance() {
-      if (siteReaderToken === undefined || phaseDeadline === undefined)
+      if (siteReaderToken === undefined || siteDeadline === undefined || !readSiteProducer)
         throw new Error("actual site maintenance reader unavailable");
       const protection = beginMaintenance();
       const { pause, capacity } = await readMaintenanceControlsWithSdk({
         token: siteReaderToken,
-        deadline: phaseDeadline,
+        deadline: siteDeadline,
         guard,
         fetch: fixedFetch,
       });

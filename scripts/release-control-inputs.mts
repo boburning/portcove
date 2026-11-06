@@ -695,6 +695,10 @@ export async function readMaintenanceControlsWithSdk(options: {
     credential: { kind: "explicit", token },
     deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
     maxBytes: 2 * 1024 ** 2,
+    allowRequest() {
+      guard();
+      return true;
+    },
     ...(fetch ? { fetch } : {}),
   });
   const once = () => ({ portcove: { replay: "once" as const, attempts: 0 } });
