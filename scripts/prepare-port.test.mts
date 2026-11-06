@@ -1308,6 +1308,11 @@ void test("preparation resolves related downloads from stable ID and canonical i
         Boolean(changedRecord),
         !route.startsWith("managed") && !route.startsWith("release-feed"),
       );
+      if (route.startsWith("managed") && route !== "managed-gitlab") {
+        assert.match(result.report.next, /No authored record changes were proposed/);
+      } else if (changedRecord) {
+        assert.match(result.report.next, /copy accepted records into catalog\/ports/);
+      }
       assert.equal(proposal.listing.project_url, record.listing.project_url);
       assert.equal(
         proposal.listing.release_url,

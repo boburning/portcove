@@ -843,7 +843,9 @@ export async function preparePort(options: PrepareOptions) {
           ? "Review the exact declared archive pin and independent artifact/native evidence; no hosted-release hint selection or newer-version discovery is offered. Complete Core validation, capability version 3 negotiation (version 4 when the packaged-file Windows path policy is declared) and ordinary delivery checks."
           : options.route === "download" && !facts.assets_complete
             ? "Select an exact release or resolve the incomplete asset observation before package selection."
-            : "Review the proposed record files, copy accepted records into catalog/ports, regenerate, and complete the applicable review and delivery checks.",
+            : prepared.files.records.length === 0
+              ? "No authored record changes were proposed. Review the observed evidence and any limits for the intended operation."
+              : "Review the proposed record files, copy accepted records into catalog/ports, regenerate, and complete the applicable review and delivery checks.",
       scope:
         "Prepared local records only; listing visibility, executable acceptance and published user delivery are separate outcomes. No download, engine execution, issue mutation, signing or publication.",
     };
