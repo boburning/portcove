@@ -14,7 +14,6 @@ import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   applicationApi,
-  applicationGet,
   applicationOutput,
   readApplicationJson,
   writeApplicationJson,
@@ -377,7 +376,7 @@ async function prepare() {
   const selected = await readApplicationSemanticSelection(run.head_sha);
   assert.ok(selected.opportunity.meaningful && !selected.opportunity.documentation_only);
   if (process.env.PORTCOVE_WAKE_RUN_ID) {
-    const main = applicationGet("git/ref/heads/main");
+    const main = await (await openApplicationSourceMetadata()).mainRef();
     assert.ok(isRecord(main) && main.ref === "refs/heads/main" && isRecord(main.object));
     assert.equal(main.object.type, "commit");
     assert.equal(main.object.sha, original, "automatic release source is no longer current main");
@@ -817,7 +816,7 @@ async function recoverImmutableMetadataFeed() {
   const opportunity = process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY ?? "";
   assert.match(opportunity, /^[a-f0-9]{64}$/u);
   const tag = `portcove-production-candidate-${opportunity}`;
-  const release = applicationGet(`releases/tags/${tag}`);
+  const release = await (await openApplicationSourceMetadata()).releaseByTag(tag);
   assert.ok(isRecord(release) && Number.isSafeInteger(release.id) && Number(release.id) > 0);
   assert.equal(release.tag_name, tag);
   const notes = readApplicationRunNotes(release.body);
