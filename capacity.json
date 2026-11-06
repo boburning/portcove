@@ -18,7 +18,7 @@
     "operation": null,
     "prior_operations": [],
     "ratification": {
-      "active": true,
+      "active": false,
       "boundary_sha256": "fbd044ff28b9246982fa26b237ec2e60c19e5ac747ac0220f89c7450600b3bb9",
       "resource_policy_sha256": "d6564c57e5439a787bc95200674c0b70d8130a2d1d73512ae73d1847646c4a94",
       "selection": "slice4-d2-c6470ec28ba9addb0f70d9f86953322d835bb8c0"
