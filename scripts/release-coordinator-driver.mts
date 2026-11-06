@@ -231,7 +231,7 @@ export async function prepareActualCoordinatorCatalogSigning(
       let recovered = await recoverRemoteCoordinator(
         directory,
         { schema_version: 1, namespace: authorities.namespace },
-        { transport: { cwd: directory, deadline: budget.monotonicDeadline } },
+        { transport: budget.journalTransport() },
       );
       if (
         recovered.input.active_candidate != null ||
@@ -356,7 +356,7 @@ export async function prepareActualCoordinatorCatalogSigning(
         const before = await readRemoteCoordinatorSnapshot(
           directory,
           { schema_version: 1, namespace: authorities.namespace },
-          { transport: { cwd: directory, deadline: budget.monotonicDeadline } },
+          { transport: budget.journalTransport() },
         );
         if (before.checkpoint !== recovered.checkpoint)
           throw new Error("catalog journal changed before subject CAS");
@@ -407,7 +407,7 @@ export async function prepareActualCoordinatorCatalogSigning(
         const readback = await readRemoteCoordinatorSnapshot(
           directory,
           { schema_version: 1, namespace: authorities.namespace },
-          { transport: { cwd: directory, deadline: budget.monotonicDeadline } },
+          { transport: budget.journalTransport() },
         );
         if (
           readback.checkpoint !== persisted.checkpoint ||
@@ -470,7 +470,7 @@ export async function prepareActualCoordinatorCatalogSigning(
       const fresh = await readRemoteCoordinatorSnapshot(
         directory,
         { schema_version: 1, namespace: authorities.namespace },
-        { transport: { cwd: directory, deadline: budget.monotonicDeadline } },
+        { transport: budget.journalTransport() },
       );
       if (fresh.checkpoint !== recovered.checkpoint)
         throw new Error("catalog checkpoint changed during preparation");
@@ -551,7 +551,7 @@ export async function requireActualCoordinatorCatalogPreparation(
     const current = await readRemoteCoordinatorSnapshot(
       owned.directory,
       { schema_version: 1, namespace: owned.namespace },
-      { transport: { cwd: owned.directory, deadline: owned.deadline } },
+      { transport: { credential: { token: fixedReleaseReaderToken() }, deadline: owned.deadline } },
     );
     await verifyCatalogCoordinatorBaseline(owned.inputs.opportunity, current.input, authorities, {
       deadline: owned.deadline,
@@ -630,7 +630,9 @@ async function recheckActualCatalogReview(result: object, tighter?: number) {
       current = await readRemoteCoordinatorSnapshot(
         owned.directory,
         { schema_version: 1, namespace: owned.namespace },
-        { transport: { cwd: owned.directory, deadline: owned.deadline } },
+        {
+          transport: { credential: { token: fixedReleaseReaderToken() }, deadline: owned.deadline },
+        },
       );
     await verifyCatalogCoordinatorBaseline(owned.inputs.opportunity, current.input, authorities, {
       deadline: owned.deadline,
@@ -928,19 +930,23 @@ async function coordinatorDeadline(phaseDeadline?: number) {
   if (performance.now() >= monotonicDeadline)
     throw new Error("coordinator inherited deadline exhausted");
   const deadline = Date.now() + Math.floor(monotonicDeadline - performance.now());
+  const remaining = (maximum = 170000) => {
+    const left = Math.floor(
+      Math.min(deadline - Date.now(), monotonicDeadline - performance.now(), maximum),
+    );
+    if (left < 1) throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
+    return left;
+  };
   return {
     deadline,
     monotonicDeadline,
     journalTransport() {
-      return { credential: { token: readerToken }, deadline: monotonicDeadline };
+      return {
+        credential: { token: readerToken },
+        deadline: Math.min(monotonicDeadline, performance.now() + remaining()),
+      };
     },
-    remaining(maximum = 170000) {
-      const left = Math.floor(
-        Math.min(deadline - Date.now(), monotonicDeadline - performance.now(), maximum),
-      );
-      if (left < 1) throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
-      return left;
-    },
+    remaining,
     check() {
       if (Date.now() >= deadline || performance.now() >= monotonicDeadline)
         throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
@@ -1251,7 +1257,7 @@ async function coordinateTrustedReleaseAt(
     let recovered =
       round?.recovered ??
       (await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-        transport: { cwd: directory, deadline: budget.monotonicDeadline },
+        transport: budget.journalTransport(),
       }));
     checkpoint = recovered.checkpoint;
     const repository = recovered.repository;
@@ -1488,7 +1494,7 @@ async function coordinateTrustedReleaseAt(
       const current = await readRemoteCoordinatorSnapshot(
         directory,
         selected.remote_configuration,
-        { transport: { cwd: directory, deadline: budget.monotonicDeadline } },
+        { transport: budget.journalTransport() },
       );
       if (current.checkpoint !== expectedCheckpoint)
         throw new Error("remote checkpoint changed during coordinator admission");
@@ -1956,7 +1962,7 @@ async function prepareTrustedCoordinatorRenewalAt(
     const recovered =
       round?.recovered ??
       (await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-        transport: { cwd: directory, deadline: budget.monotonicDeadline },
+        transport: budget.journalTransport(),
       }));
     checkpoint = recovered.checkpoint;
     if (coordinatorHasUnresolvedEffect(recovered.input))
@@ -2103,7 +2109,7 @@ async function prepareTrustedCoordinatorRenewalAt(
     await verifiedControllerToolPaths(receipt);
     await inspectPreparedMetadataRenewal(preparation);
     const current = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
-      transport: { cwd: directory, deadline: budget.monotonicDeadline },
+      transport: budget.journalTransport(),
     });
     const fresh = controls.readMaintenance(api);
     if (
@@ -2256,7 +2262,12 @@ export async function requireActualCoordinatorMetadataPreparation(
     const remote = await readRemoteCoordinatorSnapshot(
       retained.repository,
       { schema_version: 1, namespace: retained.namespace },
-      { transport: { cwd: retained.repository, deadline: retained.deadline } },
+      {
+        transport: {
+          credential: { token: fixedReleaseReaderToken() },
+          deadline: retained.deadline,
+        },
+      },
     );
     if (remote.checkpoint !== retained.checkpoint)
       throw new Error("remote coordinator metadata checkpoint changed");
@@ -2602,7 +2613,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
       authority: "none",
     };
   const current = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
-    transport: { cwd: directory, deadline: budget.monotonicDeadline },
+    transport: budget.journalTransport(),
   });
   if (
     current.checkpoint !== recovered.checkpoint ||
@@ -2747,7 +2758,7 @@ export async function requireActualCoordinatorBootstrapPreparation(
     const current = await readRemoteCoordinatorSnapshot(
       owned.directory,
       { schema_version: 1, namespace: owned.namespace },
-      { transport: { cwd: owned.directory, deadline: owned.deadline } },
+      { transport: { credential: { token: fixedReleaseReaderToken() }, deadline: owned.deadline } },
     );
     if (current.checkpoint !== owned.checkpoint)
       throw new Error("bootstrap remote checkpoint changed");
@@ -3245,7 +3256,7 @@ async function recoverTrustedCoordinatorContext(
     )
       throw new Error("actual context recovery maintenance changed");
     const state = await readRemoteCoordinatorSnapshot(directory, configuration, {
-      transport: { cwd: directory, deadline: budget.monotonicDeadline },
+      transport: budget.journalTransport(),
     });
     if (
       state.checkpoint !== recovered.checkpoint ||
@@ -3526,12 +3537,11 @@ async function requestTrustedSemanticReviewAt(
     "review request coordinator private parent",
   );
   const directory = await mkdtemp(path.join(privateParent, "coordinator-review-"));
-  const journalTransport = budget.journalTransport();
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
     const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-      transport: journalTransport,
+      transport: budget.journalTransport(),
     });
     checkpoint = recovered.checkpoint;
     if (selectCoordinatorPendingContextRecovery(recovered.input)) {
@@ -3802,7 +3812,7 @@ async function requestTrustedSemanticReviewAt(
       return { decision: "held", directory, checkpoint, plan, authority: "none" };
     const fresh = controls.readMaintenance(api);
     const remote = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
-      transport: journalTransport,
+      transport: budget.journalTransport(),
     });
     if (
       (await mainHead()) !== source ||
@@ -3955,7 +3965,7 @@ async function continueTrustedSemanticReview(
     };
     const fresh = controls.readDisposition(api, request);
     const current = await readRemoteCoordinatorSnapshot(directory, remoteConfiguration, {
-      transport: { cwd: directory, deadline: budget.monotonicDeadline },
+      transport: budget.journalTransport(),
     });
     budget.check();
     if (fresh.facts_sha256 !== observed.facts_sha256 || current.checkpoint !== checkpoint)

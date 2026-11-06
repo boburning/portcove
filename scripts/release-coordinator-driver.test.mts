@@ -1034,6 +1034,7 @@ void test("actual context recovery awaits scoped maintenance through a refreshed
       { checkpoint: "same", input: {} },
       {
         monotonicDeadline: 70000,
+        journalTransport: () => ({ credential: { token: "inert-context" }, deadline: 68000 }),
         remaining: () => 68000 - now,
         check() {},
       },
@@ -1212,6 +1213,7 @@ void test("actual neutral review entry awaits fixed SDK source and complete inve
     { remote_configuration: {} },
     {
       monotonicDeadline: deadline,
+      journalTransport: () => ({ credential: { token: "inert-neutral-source" }, deadline }),
       remaining: () => 2000,
       check() {},
     },
@@ -1447,7 +1449,12 @@ void test("actual first bootstrap entry binds the preserved seed before local in
     recovered: unknown,
     budget: unknown,
   ) => Promise<{ decision: string; checkpoint: string }>;
-  const budget = { monotonicDeadline: performance.now() + 60000, check: () => {} };
+  const deadline = performance.now() + 60000;
+  const budget = {
+    monotonicDeadline: deadline,
+    journalTransport: () => ({ credential: { token: "inert-bootstrap" }, deadline }),
+    check: () => {},
+  };
   const result = await entry(
     "/inert",
     { tools: { artifact: {}, bundle: {} }, remote_configuration: {} },
