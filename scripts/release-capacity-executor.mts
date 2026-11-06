@@ -1406,7 +1406,7 @@ export async function recoverOwnedPublishedCatalogMetadata(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
-  beforeMutation?: () => void,
+  beforeMutation?: RecoveryMutationControls,
   beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);

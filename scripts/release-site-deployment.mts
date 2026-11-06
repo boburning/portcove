@@ -926,7 +926,7 @@ export async function recoverPublishedCatalogSiteHandoff(
   session: DeploymentSession,
   executor: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
-  guards?: { refresh: () => Promise<void>; beforeMutation: () => void },
+  guards?: { refresh: () => Promise<void>; beforeMutation: () => Promise<void> },
 ) {
   const prepared = sessions.get(session);
   if (
@@ -945,7 +945,7 @@ export async function recoverPublishedCatalogSiteHandoff(
     throw new Error("catalog recovery requires current control mutation guards");
   await guards.refresh();
   const checkpointControls = async () => {
-    guards.beforeMutation();
+    await guards.beforeMutation();
   };
   const signedJournal = await ensureOwnedCheckpointJournalHistory(
     executor,
@@ -1016,7 +1016,7 @@ export async function recoverPublishedCatalogSiteHandoff(
         },
       };
     },
-    signedJournal ? undefined : guards.beforeMutation,
+    signedJournal ? undefined : { readCurrent: guards.beforeMutation },
     signedJournal ? checkpointControls : undefined,
   );
 }

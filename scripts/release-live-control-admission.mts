@@ -207,6 +207,7 @@ async function authenticateControlSource(
     requestToken?: typeof requestAssemblerToken;
     observerApi?: GitHubRestReader;
     controlReader?: SdkControlReader;
+    catalogRecoveryObserver?: true;
     observerTransport?: Pick<NonNullable<Parameters<typeof createGitHubRunner>[0]>, "spawn">;
     now?: () => number;
     observedArtifact?: ObservedControlArtifact;
@@ -228,10 +229,24 @@ async function authenticateControlSource(
   const controlReader = options.controlReader;
   const sdkReaderToken = controlReader === undefined ? undefined : fixedReleaseReaderToken(env);
   const aggregateAdmission = controlReader === "admitted-aggregate";
+  const catalogRecoveryObserver = options.catalogRecoveryObserver === true;
+  if (
+    catalogRecoveryObserver &&
+    (purpose !== "catalog-publication" ||
+      phase !== "coordinator" ||
+      phaseDeadline === undefined ||
+      controlReader !== undefined)
+  )
+    throw new Error("catalog recovery observer requires the fixed coordinator deadline");
+  const sdkObserverToken = catalogRecoveryObserver ? fixedReleaseReaderToken(env) : sdkReaderToken;
+
   const catalogCoordinator = controlReader === "catalog-maintenance" && phase === "coordinator";
   const coordinatorMaintenance = catalogCoordinator || controlReader === "metadata-maintenance";
   const direct =
-    aggregateAdmission || coordinatorMaintenance || readOnlyReleaseChildEnvironment() !== undefined;
+    aggregateAdmission ||
+    catalogRecoveryObserver ||
+    coordinatorMaintenance ||
+    readOnlyReleaseChildEnvironment() !== undefined;
   const matchesSdkRole =
     controlReader === "site-maintenance" || controlReader === "site-application"
       ? phase === "site-publication" &&
@@ -372,7 +387,7 @@ async function authenticateControlSource(
   if (identity.job_id === producer.job_id || identity.check_run_id === producer.check_run_id)
     throw new Error("protection observer and control reader must be separate jobs");
   const observerApi =
-    sdkReaderToken === undefined
+    sdkObserverToken === undefined
       ? (options.observerApi ??
         new GitHubApiClient((args, input) =>
           createGitHubRunner({
@@ -473,7 +488,7 @@ async function authenticateControlSource(
   let sdkDeadline: number | undefined;
   let readSdkProducer: ((deadline?: number) => Promise<string>) | undefined;
   let producerIdentity: string;
-  if (sdkReaderToken !== undefined && phaseDeadline !== undefined) {
+  if (sdkObserverToken !== undefined && phaseDeadline !== undefined) {
     const protection = guard();
     const expiresAt = Math.min(
       Date.parse(identity.expires_at),
@@ -483,7 +498,7 @@ async function authenticateControlSource(
     const observer = await (
       await import("./release-custody-provider.mts")
     ).createReleaseCustodyProvider({
-      token: sdkReaderToken,
+      token: sdkObserverToken,
       deadline: sdkDeadline,
       maxBytes: 128 * 1024,
       beforeDispatch: guard,
@@ -626,6 +641,49 @@ async function authenticateControlSource(
       guard();
       if (producerReadback() !== producerIdentity)
         throw new Error("observer job changed during maintenance acquisition");
+      return maintenanceFacts(protection, pause, capacity);
+    },
+    async readCatalogRecoveryMaintenance(
+      token: string,
+      reserve: ReturnType<typeof createFixedControlReadAllowance>,
+    ) {
+      if (
+        purpose !== "catalog-publication" ||
+        phase !== "coordinator" ||
+        phaseDeadline === undefined ||
+        !readSdkProducer ||
+        !catalogRecoveryObserver ||
+        !token ||
+        token !== env.GH_TOKEN
+      )
+        throw new Error("catalog recovery requires the original fixed maintenance reader");
+      const protection = beginMaintenance();
+      const deadline = Math.min(
+        phaseDeadline,
+        performance.now() +
+          (Math.min(
+            Date.parse(identity.expires_at),
+            Date.parse(protection.observed_at) + inputProtectionFreshnessMilliseconds,
+          ) -
+            now()),
+      );
+      const { pause, capacity } = await readMaintenanceControlsWithSdk(
+        {
+          token,
+          deadline,
+          guard() {
+            guard();
+            assertTrustedDirectNode("fixed catalog recovery controls");
+          },
+          maxBytes: 4 * 1024 ** 2,
+          requestTimeoutMs: 15000,
+        },
+        reserve,
+      );
+      guard();
+      if ((await readSdkProducer(deadline)) !== producerIdentity)
+        throw new Error("observer job changed during maintenance acquisition");
+      guard();
       return maintenanceFacts(protection, pause, capacity);
     },
     async readSdkMaintenance(
@@ -851,9 +909,13 @@ async function authenticateControlRoundForPurpose(
   factsSha256: string,
   rawPhase: unknown,
   index: number,
-  options: { deadline?: number; controlReader?: SdkControlReader } = {},
+  options: {
+    deadline?: number;
+    controlReader?: SdkControlReader;
+    catalogRecoveryObserver?: true;
+  } = {},
 ) {
-  const { deadline, controlReader } = options;
+  const { deadline, controlReader, catalogRecoveryObserver } = options;
   const phase = inspectReleaseControlPhase(rawPhase);
   const round = { index, nonce: randomBytes(32).toString("hex") };
   inspectControlRound(round);
@@ -894,6 +956,7 @@ async function authenticateControlRoundForPurpose(
     round,
     observedArtifact,
     ...(controlReader === undefined ? {} : { controlReader }),
+    ...(catalogRecoveryObserver === undefined ? {} : { catalogRecoveryObserver }),
     ...deadlineOption,
   });
 }
@@ -918,7 +981,11 @@ export function authenticateCatalogReleaseControlRound(
   factsSha256: string,
   rawPhase: unknown,
   index: number,
-  options: { deadline?: number; controlReader?: SdkControlReader } = {},
+  options: {
+    deadline?: number;
+    controlReader?: SdkControlReader;
+    catalogRecoveryObserver?: true;
+  } = {},
 ) {
   return authenticateControlRoundForPurpose(
     "catalog-publication",

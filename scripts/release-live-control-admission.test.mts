@@ -297,9 +297,16 @@ for (const role of ["observer", "writer"] as const) {
             return Response.json({ keys: [jwk] });
           }
           assert.equal(url.origin, "https://api.github.com");
-          assert.equal(request.headers.get("authorization"), "token original-classification-job-reader");
+          const authorization = request.headers.get("authorization");
+          if (authorization === "token unrelated-protection-app-token") {
+            assert.equal(${JSON.stringify(writer)}, false);
+            assert.equal(url.href, "https://api.github.com/repos/boburning/portcove");
+            calls.push("protection-app");
+            return Response.json({}, { status: 503 });
+          }
+          assert.equal(authorization, "token original-classification-job-reader");
           calls.push(url.pathname + url.search);
-          if (url.pathname.endsWith("/attempts/1/jobs")) {
+          if (calls.length === 1 && url.pathname.endsWith("/attempts/1/jobs")) {
             process.env.GH_TOKEN = "unrelated-late-ambient-token";
             return Response.json({total_count:1,jobs:[{
               id:501, name:${JSON.stringify(name)}, run_id:9988, run_attempt:1,
@@ -307,14 +314,20 @@ for (const role of ["observer", "writer"] as const) {
               started_at:new Date(Date.now()-1000).toISOString(),
             }]});
           }
-          return Response.json({}, { status: 503 });
+          return ${JSON.stringify(writer)}
+            ? Response.json({}, { status: 503 })
+            : Response.json(provider.metadata(url.pathname + url.search));
         };
-        process.on("beforeExit", () => assert.deepEqual(calls, [
-          "/repos/boburning/portcove/actions/runs/9988/attempts/1/jobs?page=1&per_page=100",
-          "oidc",
-          "keys",
-          "/repos/boburning/portcove/actions/runs/9988",
-        ]));
+        process.on("beforeExit", () => {
+          assert.deepEqual(calls.slice(0, 4), [
+            "/repos/boburning/portcove/actions/runs/9988/attempts/1/jobs?page=1&per_page=100",
+            "oidc",
+            "keys",
+            "/repos/boburning/portcove/actions/runs/9988",
+          ]);
+          assert.equal(calls.at(-1), ${JSON.stringify(writer)}
+            ? "/repos/boburning/portcove/actions/runs/9988" : "protection-app");
+        });
         process.argv = [process.execPath, fileURLToPath(${JSON.stringify(command.href)}), ${JSON.stringify(writer ? "persist-production-request" : "observe-production-classification")}];
         await import(${JSON.stringify(command.href)});
       `;

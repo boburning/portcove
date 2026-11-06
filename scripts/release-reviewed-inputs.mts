@@ -518,7 +518,7 @@ async function runOperation(
       requireObserver();
       let readProtection: Parameters<typeof observeReleaseInputProtections>[0] = (endpoint) =>
         api.request("GET", endpoint);
-      if (productionObservation) {
+      if (productionObservation || classificationObserver) {
         if (
           !appToken ||
           !isRecord(observerIdentity) ||

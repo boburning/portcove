@@ -24,8 +24,7 @@ import { isRecord } from "./runtime-values.mts";
  * therefore never brands its output as direct runtime/provider authority.
  * The fixed coordinator must independently authenticate its current control
  * source and producer configuration before consuming any retirement receipt. */
-function readDisposition(
-  api: GitHubRestReader,
+function* dispositionRead(
   rawConfiguration: unknown,
   rawRequest: unknown,
   checkId: number,
@@ -46,13 +45,16 @@ function readDisposition(
     checkId < 1
   )
     throw new Error("negative semantic readback requires fixed producer/request/check identity");
+  const sourceCommit =
+    "opportunity" in request ? request.opportunity.source_commit : request.source_commit;
   const started = performance.now();
   let count = 0;
-  const read = api.request.bind(api);
-  const get = (endpoint: string) => {
+  function* get(
+    endpoint: string,
+  ): Generator<CheckInventoryRead, Record<string, unknown>, GitHubMetadataResponse> {
     if (++count > 4 || performance.now() - started > 120000)
       throw new Error("negative semantic readback request/duration bound exhausted");
-    const response = read("GET", endpoint);
+    const response = yield { endpoint, remainingBytes: Infinity };
     if (
       response.status !== 200 ||
       !isRecord(response.body) ||
@@ -61,9 +63,9 @@ function readDisposition(
     )
       throw new Error("negative semantic provider record unavailable or oversized");
     return structuredClone(response.body);
-  };
-  const repository = () => {
-    const value = get("repos/boburning/portcove");
+  }
+  function* repository() {
+    const value = yield* get("repos/boburning/portcove");
     if (
       value.id !== 1354613114 ||
       value.full_name !== "boburning/portcove" ||
@@ -73,16 +75,15 @@ function readDisposition(
     )
       throw new Error("negative semantic repository differs");
     return { id: value.id, name: value.full_name, node_id: value.node_id };
-  };
-  const observe = () => {
-    const value = get(`repos/boburning/portcove/check-runs/${checkId}`);
+  }
+  function* observe() {
+    const value = yield* get(`repos/boburning/portcove/check-runs/${checkId}`);
     if (
       value.id !== checkId ||
       !isRecord(value.app) ||
       value.app.id !== config.review_app_id ||
       value.name !== semanticReviewCheckName ||
-      value.head_sha !==
-        ("opportunity" in request ? request.opportunity.source_commit : request.source_commit) ||
+      value.head_sha !== sourceCommit ||
       value.status !== "completed" ||
       value.conclusion !== "failure" ||
       typeof value.completed_at !== "string" ||
@@ -129,12 +130,12 @@ function readDisposition(
       summary_sha256: capacityDigest(value.output.summary),
       observation_sha256: capacityDigest(observed),
     };
-  };
-  const firstRepository = repository();
-  const first = observe();
-  const final = observe();
+  }
+  const firstRepository = yield* repository();
+  const first = yield* observe();
+  const final = yield* observe();
   if (
-    capacityDigest(firstRepository) !== capacityDigest(repository()) ||
+    capacityDigest(firstRepository) !== capacityDigest(yield* repository()) ||
     first.observation_sha256 !== final.observation_sha256 ||
     first.wire_sha256 !== final.wire_sha256
   )
@@ -148,13 +149,22 @@ function readDisposition(
   };
 }
 
+function runLegacy<T>(
+  api: GitHubRestReader,
+  sequence: Generator<CheckInventoryRead, T, GitHubMetadataResponse>,
+) {
+  let step = sequence.next();
+  while (!step.done) step = sequence.next(api.request("GET", step.value.endpoint));
+  return step.value;
+}
+
 export function readIndependentSemanticDisposition(
   api: GitHubRestReader,
   config: unknown,
   request: unknown,
   checkId: number,
 ) {
-  const result = readDisposition(api, config, request, checkId, false);
+  const result = runLegacy(api, dispositionRead(config, request, checkId, false));
   return { ...result, wire: inspectNegativeSemanticDisposition(result.wire) };
 }
 export function readIndependentCatalogSemanticDisposition(
@@ -163,7 +173,7 @@ export function readIndependentCatalogSemanticDisposition(
   request: unknown,
   checkId: number,
 ) {
-  return readDisposition(api, config, request, checkId, true);
+  return runLegacy(api, dispositionRead(config, request, checkId, true));
 }
 
 /** Discover a lost/unreturned Check locator without asking a human or trusting
@@ -178,34 +188,21 @@ function readCheckInventory(
   sourceCommit: string,
   catalog: boolean,
 ) {
-  function run<T>(sequence: Generator<CheckInventoryRead, T, GitHubMetadataResponse>) {
-    let step = sequence.next();
-    while (!step.done) step = sequence.next(api.request("GET", step.value.endpoint));
-    return step.value;
-  }
-  const result = run(checkInventory(rawConfiguration, sourceCommit, catalog));
-  return { ...result, assertUnchanged: () => run(result.assertUnchanged()) };
+  const result = runLegacy(api, checkInventory(rawConfiguration, sourceCommit, catalog));
+  return { ...result, assertUnchanged: () => runLegacy(api, result.assertUnchanged()) };
 }
 
-export async function readIndependentSemanticCheckInventoryWithSdk(
-  options: {
-    token: string;
-    checkToken?: string;
-    deadline: number;
-    guard: () => void;
-    maxBytes?: number;
-    requestTimeoutMs?: number;
-    fetch?: typeof globalThis.fetch;
-  },
-  configuration: unknown,
-  sourceCommit: string,
-) {
-  const deadline = Math.min(
-    options.deadline,
-    coordinatorCommandDeadline() ?? Infinity,
-    performance.now() + 120000,
-  );
-  const inventory = checkInventory(configuration, sourceCommit, false, deadline);
+type SemanticSdkOptions = {
+  token: string;
+  checkToken?: string;
+  deadline: number;
+  guard: () => void;
+  maxBytes?: number;
+  requestTimeoutMs?: number;
+  fetch?: typeof globalThis.fetch;
+};
+
+async function createSemanticSdkReader(options: SemanticSdkOptions, deadline: number) {
   let expectedUrl: string | undefined;
   const { createGitHubClient } = await import("./github-client.mts");
   const createReader = (token: string) =>
@@ -266,8 +263,39 @@ export async function readIndependentSemanticCheckInventoryWithSdk(
     }
     return step.value;
   }
-  const result = await run(inventory);
+  return run;
+}
+
+async function readCheckInventoryWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  sourceCommit: string,
+  catalog: boolean,
+) {
+  const deadline = Math.min(
+    options.deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
+  const run = await createSemanticSdkReader(options, deadline);
+  const result = await run(checkInventory(configuration, sourceCommit, catalog, deadline));
   return { ...result, assertUnchanged: () => run(result.assertUnchanged()) };
+}
+
+export function readIndependentSemanticCheckInventoryWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  sourceCommit: string,
+) {
+  return readCheckInventoryWithSdk(options, configuration, sourceCommit, false);
+}
+
+export function readIndependentCatalogSemanticCheckInventoryWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  sourceCommit: string,
+) {
+  return readCheckInventoryWithSdk(options, configuration, sourceCommit, true);
 }
 
 function* checkInventory(
@@ -726,6 +754,30 @@ export function discoverIndependentCatalogSemanticDisposition(
     matches.negative[0]!,
   );
   inventory.assertUnchanged();
+  return result;
+}
+
+export async function discoverIndependentCatalogSemanticDispositionWithSdk(
+  options: SemanticSdkOptions,
+  config: unknown,
+  rawRequest: unknown,
+) {
+  const request = inspectCatalogReviewRequest(rawRequest);
+  if (!request) throw new Error("catalog negative discovery requires request");
+  const deadline = Math.min(
+    options.deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
+  const run = await createSemanticSdkReader(options, deadline);
+  const inventory = await run(
+    checkInventory(config, request.opportunity.source_commit, true, deadline),
+  );
+  const matches = inspectCatalogSemanticRequestCheckMatches(inventory.records, request);
+  if (matches.negative.length !== 1 || matches.accepted.length !== 0)
+    throw new Error("catalog negative absent or ambiguous; no POST");
+  const result = await run(dispositionRead(config, request, matches.negative[0]!, true));
+  await run(inventory.assertUnchanged());
   return result;
 }
 
