@@ -370,7 +370,7 @@ void test("unrelated pins preserve the Aqua root while invalidating checkout sta
   }
 });
 
-void test("Aqua version changes require a coordinated archive ledger and invalidate the root", (t) => {
+void test("Aqua version changes reject stale ledgers and invalidate coordinated roots", (t) => {
   const item = pinnedCheckoutFixture(t);
   const versionFile = path.join(item.paths.projectRoot, ".aqua-version");
   const bootstrapFile = path.join(item.paths.projectRoot, ".config/tool-bootstrap.json");
