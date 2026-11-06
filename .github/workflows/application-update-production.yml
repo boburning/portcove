@@ -64,25 +64,74 @@ jobs:
         id: admit
       - name: Observe exact publication pause before credential-bearing jobs
         id: pause
-        shell: bash
-        run: |
-          set -euo pipefail
-          read_pause_ref() {
-            timeout 10s gh api --hostname github.com repos/boburning/portcove/git/ref/heads/portcove-release-pause \
-              --jq 'select(.ref == "refs/heads/portcove-release-pause" and .object.type == "commit") | .object.sha'
-          }
-          before="$(read_pause_ref)"
-          [[ "$before" =~ ^[a-f0-9]{40}$ ]]
-          pause_body="$(mktemp)"
-          trap 'rm -f "$pause_body"' EXIT
-          timeout 10s gh api --hostname github.com \
-            "repos/boburning/portcove/contents/publication.json?ref=$before" \
-            -H 'Accept: application/vnd.github.raw+json' | head -c 4097 > "$pause_body"
-          [[ "$(wc -c < "$pause_body")" -le 4096 ]]
-          paused="$(jq -ers 'select(length == 1) | .[0] | select(type == "object" and keys == ["publication_paused","schema_version"] and .schema_version == 1 and (.publication_paused | type) == "boolean") | .publication_paused | tostring' "$pause_body")"
-          [[ "$paused" == true || "$paused" == false ]]
-          [[ "$(read_pause_ref)" == "$before" ]]
-          printf 'publication_paused=%s\n' "$paused" >> "$GITHUB_OUTPUT"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          retries: 0
+          debug: false
+          script: |
+            const repository = "https://api.github.com/repos/boburning/portcove";
+            const operation = AbortSignal.timeout(30_000);
+            async function get(suffix, limit, accept) {
+              const url = repository + suffix;
+              const signal = AbortSignal.any([operation, AbortSignal.timeout(10_000)]);
+              let bytes;
+              try {
+                const result = await github.request(`GET ${url}`, {
+                  headers: { accept },
+                  request: {
+                    signal,
+                    parseSuccessResponseBody: false,
+                    log: { debug() {}, info() {}, warn() {}, error() {} },
+                    fetch: async (input, init) => {
+                      if (input !== url || init.method !== "GET") throw Error("Unexpected pause route");
+                      const response = await fetch(input, { ...init, signal, redirect: "manual" });
+                      if (response.status !== 200 || !response.body) {
+                        await response.body?.cancel();
+                        throw Error("Pause response unavailable");
+                      }
+                      const reader = response.body.getReader();
+                      const chunks = [];
+                      let total = 0;
+                      try {
+                        for (;;) {
+                          const chunk = await reader.read();
+                          if (chunk.done) break;
+                          total += chunk.value.byteLength;
+                          if (total > limit) {
+                            await reader.cancel();
+                            throw Error("Pause response exceeds its bound");
+                          }
+                          chunks.push(chunk.value);
+                        }
+                      } finally {
+                        reader.releaseLock();
+                      }
+                      bytes = Buffer.concat(chunks, total);
+                      return new Response(null, { status: 200 });
+                    },
+                  },
+                });
+                signal.throwIfAborted();
+                if (result.status !== 200 || !bytes) throw Error("Pause response unavailable");
+                return JSON.parse(bytes.toString("utf8"));
+              } catch {
+                throw Error("Fixed publication pause read failed");
+              }
+            }
+            const head = async () => {
+              const ref = await get("/git/ref/heads/portcove-release-pause", 64 * 1024, "application/vnd.github+json");
+              if (ref?.ref !== "refs/heads/portcove-release-pause" || ref.object?.type !== "commit" ||
+                  typeof ref.object.sha !== "string" || !/^[a-f0-9]{40}$/.test(ref.object.sha))
+                throw Error("Publication pause ref identity unavailable");
+              return ref.object.sha;
+            };
+            const before = await head();
+            const pause = await get(`/contents/publication.json?ref=${before}`, 4096, "application/vnd.github.raw+json");
+            if (!pause || Object.keys(pause).sort().join(",") !== "publication_paused,schema_version" ||
+                pause.schema_version !== 1 || typeof pause.publication_paused !== "boolean")
+              throw Error("Publication pause schema differs");
+            if (await head() !== before) throw Error("Publication pause ref changed");
+            core.setOutput("publication_paused", String(pause.publication_paused));
     if: ${{ vars.PORTCOVE_CONTROLLER_REVISION == github.sha && vars.PORTCOVE_CONTROLLER_REF ==
       github.ref && ((inputs.publication_purpose == 'application' &&
       vars.PORTCOVE_CONTROLLER_ADMISSION != '') || (inputs.publication_purpose ==
