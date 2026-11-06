@@ -1281,8 +1281,19 @@ void test("actual first bootstrap entry binds the preserved seed before local in
     capacity: {},
     capacity_source: { capacity: { schema_version: 2 } },
   };
-  const control = { evidence_scope: "github.com", readMaintenance: () => facts };
-  const controlReads: string[] = [];
+  const controlReads: number[] = [];
+  const control = (originalDeadline: number) => ({
+    evidence_scope: "github.com",
+    async readSdkMaintenance(
+      _allowance: undefined,
+      request: { deadline: number; maxBytes?: number },
+    ) {
+      assert.ok(request.deadline <= originalDeadline);
+      await Promise.resolve();
+      controlReads.push(request.maxBytes ?? 256 * 1024);
+      return facts;
+    },
+  });
   const fenceReads: number[] = [];
   const publication = {
     public_source: { commit: revision, initial_site_preimage: { path: "historical.json" } },
@@ -1322,8 +1333,11 @@ void test("actual first bootstrap entry binds the preserved seed before local in
     }),
     readProductionControllerWorkflowBytes: async () => Buffer.from("fixed source"),
     authenticateControlReaderJob: async () => reader,
-    coordinatorApi: () => ({}),
-    authenticateCoordinatorInitialControls: async () => control,
+    authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
+      assert.deepEqual(args.slice(5), ["application", "metadata-maintenance"]);
+      const budget = args[4] as { monotonicDeadline: number };
+      return control(budget.monotonicDeadline);
+    },
     coordinatorMaintenanceIdentity,
     capacityDigest: releaseCanonicalDigest,
     coordinatorBootstrapSourceProvider: async () => bootstrapProvider,
@@ -1357,25 +1371,9 @@ void test("actual first bootstrap entry binds the preserved seed before local in
       options: { deadline: number; controlReader?: string },
     ) => {
       assert.equal(phase, "coordinator");
-      if (!options.controlReader)
-        return {
-          evidence_scope: "github.com",
-          readMaintenance() {
-            controlReads.push("legacy");
-            return facts;
-          },
-        };
       assert.equal(options.controlReader, "metadata-maintenance");
-      return {
-        evidence_scope: "github.com",
-        async readSdkMaintenance(_allowance: undefined, request: { deadline: number }) {
-          assert.equal(request.deadline, options.deadline);
-          controlReads.push("sdk");
-          return facts;
-        },
-      };
+      return control(options.deadline);
     },
-    metadataContinuationApi: () => ({}),
     coordinatorContinuationDeadline,
     assessBoundedCapacity: () => ({ eligibility: "eligible" }),
     readRemoteCoordinatorSnapshot: async () => original,
@@ -1454,6 +1452,7 @@ void test("actual first bootstrap entry binds the preserved seed before local in
     monotonicDeadline: deadline,
     journalTransport: () => ({ credential: { token: "inert-bootstrap" }, deadline }),
     check: () => {},
+    remaining: () => 60000,
   };
   const result = await entry(
     "/inert",
@@ -1465,13 +1464,15 @@ void test("actual first bootstrap entry binds the preserved seed before local in
   assert.equal(result.checkpoint, next);
   assert.deepEqual(events, ["verify-original-history", "local-intent", "signed-publication"]);
   assert.deepEqual(original, immutableSeed, "the original seed remains unchanged");
-  const legacyReads = Array<string>(7).fill("legacy");
-  assert.deepEqual(controlReads, legacyReads);
-  assert.deepEqual(fenceReads, [5, 5, 7]);
+  const large = 16 * 1024 ** 2;
+  const roundLimit = 256 * 1024;
+  const expectedReads = [large, roundLimit, large, roundLimit, large, large, large, large];
+  assert.deepEqual(controlReads, expectedReads);
+  assert.deepEqual(fenceReads, [6, 6, 8]);
   const retained = session.get(result);
   assert.ok(retained);
   await retained.next_controls(budget.monotonicDeadline);
-  assert.deepEqual(controlReads, [...legacyReads, "sdk"]);
+  assert.deepEqual(controlReads, [...expectedReads, roundLimit]);
   events.length = 0;
   refuseHistory = true;
   await assert.rejects(

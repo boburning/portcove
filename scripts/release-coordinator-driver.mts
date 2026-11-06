@@ -1051,6 +1051,20 @@ async function coordinatorCheckpointPublisher(
   };
 }
 
+async function readFixedCoordinatorMaintenance(
+  controls: Awaited<ReturnType<typeof authenticateReleaseControlSource>>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
+  maxBytes: number,
+) {
+  budget.check();
+  const facts = await controls.readSdkMaintenance(undefined, {
+    deadline: Math.min(budget.monotonicDeadline, performance.now() + budget.remaining()),
+    maxBytes,
+  });
+  budget.check();
+  return facts;
+}
+
 function guardedCoordinatorJournal(
   directory: string,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
@@ -2060,7 +2074,6 @@ async function prepareTrustedCoordinatorRenewalAt(
       deadline: budget.monotonicDeadline,
     });
     const prepared = await inspectPreparedMetadataRenewal(preparation);
-    const api = coordinatorApi(directory, budget, 2 * 1024 * 1024);
     const sourceOptions = coordinatorSourceReadOptions(budget, 2 * 1024 ** 2);
     const inventory = await createPublicationInventoryWithSdk({
       ...sourceOptions,
@@ -2110,8 +2123,10 @@ async function prepareTrustedCoordinatorRenewalAt(
       phase: "coordinator",
       deadline: budget.monotonicDeadline,
       observedArtifact: artifact,
+      controlReader: "metadata-maintenance",
     });
-    const initial = controls.readMaintenance(api);
+    const readMaintenance = () => readFixedCoordinatorMaintenance(controls, budget, 2 * 1024 ** 2);
+    const initial = await readMaintenance();
     if (
       !initial.resource_policy_matches_controller ||
       !isRecord(initial.capacity_source.capacity) ||
@@ -2149,7 +2164,7 @@ async function prepareTrustedCoordinatorRenewalAt(
     const current = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
       transport: budget.journalTransport(),
     });
-    const fresh = controls.readMaintenance(api);
+    const fresh = await readMaintenance();
     if (
       current.checkpoint !== checkpoint ||
       fresh.pause.publication_paused ||
@@ -2161,10 +2176,11 @@ async function prepareTrustedCoordinatorRenewalAt(
       throw new Error("maintenance inputs or remote checkpoint changed before durable preparation");
     phase = "durable-maintenance-descriptor";
     budget.check();
-    const checkpointControls = () => {
-      budget.check();
-      if (controls.readMaintenance(api).facts_sha256 !== initial.facts_sha256)
-        throw new Error("maintenance controls changed immediately before journal CAS");
+    const checkpointControls = {
+      async readCurrent() {
+        if ((await readMaintenance()).facts_sha256 !== initial.facts_sha256)
+          throw new Error("maintenance controls changed immediately before journal CAS");
+      },
     };
     const publishCheckpoint = await coordinatorCheckpointPublisher(
       directory,
@@ -2491,15 +2507,18 @@ async function prepareTrustedCoordinatorBootstrapAt(
       : inspectMetadataBootstrapDescriptor(recovered.input.metadata_bootstrap);
   const generatedAt =
     oldDescriptor?.generated_at ?? new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
-  const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
   const initialSource = await authenticateCoordinatorInitialControls(
     directory,
     capacityDigest({ checkpoint: recovered.checkpoint, initial_setup: authorities.publication }),
     reader,
     workflow,
     budget,
+    "application",
+    "metadata-maintenance",
   );
-  const initialFacts = initialSource.readMaintenance(api);
+  const readMaintenance = (control: typeof initialSource) =>
+    readFixedCoordinatorMaintenance(control, budget, 16 * 1024 ** 2);
+  const initialFacts = await readMaintenance(initialSource);
   if (
     initialFacts.reader.job_id !== reader.identity.job_id ||
     initialFacts.reader.check_run_id !== reader.identity.check_run_id
@@ -2571,7 +2590,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
   let refreshing = false,
     refused = false;
   let owned: BootstrapPreparation | undefined;
-  const controls = async (phaseDeadline?: number, controlReader?: "metadata-maintenance") => {
+  const controls = async (phaseDeadline?: number) => {
     const deadline = owned
       ? (owned.deadline = coordinatorContinuationDeadline(owned.deadline, phaseDeadline))
       : coordinatorContinuationDeadline(budget.monotonicDeadline, phaseDeadline);
@@ -2584,11 +2603,9 @@ async function prepareTrustedCoordinatorBootstrapAt(
         capacityDigest({ checkpoint: controlCheckpoint, descriptor }),
         "coordinator",
         round,
-        { deadline, ...(controlReader ? { controlReader } : {}) },
+        { deadline, controlReader: "metadata-maintenance" },
       );
-      const facts = controlReader
-        ? await control.readSdkMaintenance(undefined, { deadline })
-        : control.readMaintenance(metadataContinuationApi(directory, () => deadline));
+      const facts = await control.readSdkMaintenance(undefined, { deadline });
       if (
         control.evidence_scope !== "github.com" ||
         facts.reader.job_id !== reader.identity.job_id ||
@@ -2609,7 +2626,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
     }
   };
   const initialControls = await controls();
-  const initial = initialControls.readMaintenance(api);
+  const initial = await readMaintenance(initialControls);
   if (
     !isRecord(recovered.input.controller) ||
     !isRecord(recovered.input.controller.capacity_attempt) ||
@@ -2687,14 +2704,15 @@ async function prepareTrustedCoordinatorBootstrapAt(
     { flag: "wx", mode: 0o600 },
   );
   const beforeControls = await controls();
-  const fresh = beforeControls.readMaintenance(api);
+  const fresh = await readMaintenance(beforeControls);
   if (coordinatorMaintenanceIdentity(fresh) !== identity)
     throw new Error("bootstrap controls changed before journal CAS");
   budget.check();
-  const checkpointControls = () => {
-    budget.check();
-    if (coordinatorMaintenanceIdentity(beforeControls.readMaintenance(api)) !== identity)
-      throw new Error("bootstrap controls changed immediately before journal CAS");
+  const checkpointControls = {
+    async readCurrent() {
+      if (coordinatorMaintenanceIdentity(await readMaintenance(beforeControls)) !== identity)
+        throw new Error("bootstrap controls changed immediately before journal CAS");
+    },
   };
   const publishCheckpoint = await coordinatorCheckpointPublisher(
     directory,
@@ -2750,9 +2768,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
     ...(catalogSite ? { catalog_site: catalogSite.receipt } : {}),
     fresh_configured_site: lateSite,
     site_observed_at: siteObservedAt,
-    // Preparation and its synchronous CAS fence are complete. Later signing
-    // checks get their own scoped reader without changing the original writer.
-    next_controls: (phaseDeadline) => controls(phaseDeadline, "metadata-maintenance"),
+    next_controls: controls,
   };
   bootstrapPreparations.set(result, owned);
   return result;
