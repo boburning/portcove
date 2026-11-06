@@ -566,6 +566,16 @@ Only verification accepts `--version` to check a historical fixture explicitly.
 Inventories are evidence, not trust roots or executable feeds. Altered/rebuilt
 packages require new verification and cannot inherit previous package evidence.
 
+When changing the release-tools CLI grammar or error output, run
+`just test-rust -p portcove-release-tools --test cli` against the built binary.
+The [CLI contract tests](../crates/portcove-release-tools/tests/cli.rs) cover
+help, argument refusal, and the lowercase `usage: portcove-release-tools`
+marker expected by the no-argument controller probes. Review output and exit
+status against the [Linux probe](../scripts/qualify-controller-tool-build.mts)
+and [Windows probe](../scripts/qualify-controller-tools-windows.mts). The
+[controller tool build fixture](../.github/workflows/controller-tool-build-fixture.yml)
+exercises the packaged binary on both platforms.
+
 `scripts/reconstruct-application-update-records.mts` is the offline bridge from
 those verified inventories to the application record schema. It accepts a bounded
 source descriptor, a separate reviewed eligibility map and an output directory:
