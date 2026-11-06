@@ -188,7 +188,13 @@ function readCheckInventory(
 }
 
 export async function readIndependentSemanticCheckInventoryWithSdk(
-  options: { token: string; deadline: number; guard: () => void; fetch?: typeof globalThis.fetch },
+  options: {
+    token: string;
+    checkToken?: string;
+    deadline: number;
+    guard: () => void;
+    fetch?: typeof globalThis.fetch;
+  },
   configuration: unknown,
   sourceCommit: string,
 ) {
@@ -200,16 +206,22 @@ export async function readIndependentSemanticCheckInventoryWithSdk(
   const inventory = checkInventory(configuration, sourceCommit, false, deadline);
   let expectedUrl: string | undefined;
   const { createGitHubClient } = await import("./github-client.mts");
-  const client = await createGitHubClient({
-    credential: { kind: "explicit", token: options.token },
-    deadline,
-    maxBytes: 2 * 1024 * 1024,
-    allowRequest(method, url) {
-      options.guard();
-      return method === "GET" && url.href === expectedUrl;
-    },
-    ...(options.fetch ? { fetch: options.fetch } : {}),
-  });
+  const createReader = (token: string) =>
+    createGitHubClient({
+      credential: { kind: "explicit", token },
+      deadline,
+      maxBytes: 2 * 1024 * 1024,
+      allowRequest(method, url) {
+        options.guard();
+        return method === "GET" && url.href === expectedUrl;
+      },
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+    });
+  const client = await createReader(options.token);
+  const checks =
+    options.checkToken === undefined || options.checkToken === options.token
+      ? client
+      : await createReader(options.checkToken);
   async function run<T>(sequence: Generator<CheckInventoryRead, T, GitHubMetadataResponse>) {
     let step = sequence.next();
     while (!step.done) {
@@ -235,7 +247,8 @@ export async function readIndependentSemanticCheckInventoryWithSdk(
           };
         },
       };
-      const result = await client.request(`GET ${endpoint.pathname}${endpoint.search}`, {
+      const reader = endpoint.pathname === "/repos/boburning/portcove" ? client : checks;
+      const result = await reader.request(`GET ${endpoint.pathname}${endpoint.search}`, {
         request: { portcove: policy },
       });
       options.guard();

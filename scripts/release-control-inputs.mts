@@ -767,6 +767,7 @@ function* ratifiedCapacityConfiguration(guard: () => void) {
 
 type ControlSdkOptions = {
   token: string;
+  checkToken?: string;
   deadline: number;
   guard: () => void;
   requestTimeoutMs?: number;
@@ -799,20 +800,24 @@ async function controlSdkReader(
   reserve?: ReturnType<typeof createFixedControlReadAllowance>,
   writer?: ClassificationSdkWriter,
 ) {
-  const { token, guard, fetch, requestTimeoutMs } = options;
+  const { token, checkToken, guard, fetch, requestTimeoutMs } = options;
   const { createGitHubClient } = await import("./github-client.mts");
-  const client = await createGitHubClient({
-    credential: { kind: "explicit", token },
-    deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
-    maxBytes: options.maxBytes ?? 2 * 1024 ** 2,
-    allowRequest() {
-      guard();
-      return true;
-    },
-    ...(fetch ? { fetch } : {}),
-    ...(reserve ? { reserve } : {}),
-    ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
-  });
+  const createReader = (readerToken: string) =>
+    createGitHubClient({
+      credential: { kind: "explicit", token: readerToken },
+      deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
+      maxBytes: options.maxBytes ?? 2 * 1024 ** 2,
+      allowRequest() {
+        guard();
+        return true;
+      },
+      ...(fetch ? { fetch } : {}),
+      ...(reserve ? { reserve } : {}),
+      ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
+    });
+  const client = await createReader(token);
+  const checks =
+    checkToken === undefined || checkToken === token ? client : await createReader(checkToken);
   const writerClient =
     writer === undefined
       ? undefined
@@ -849,7 +854,8 @@ async function controlSdkReader(
       return { status: response.status, body: envelope.data };
     }
     try {
-      const response = await client.request(`GET /repos/${repository}${effect.suffix}`, {
+      const reader = effect.suffix.startsWith("/check-runs/") ? checks : client;
+      const response = await reader.request(`GET /repos/${repository}${effect.suffix}`, {
         request: once(),
       });
       return { status: response.status, body: response.data };
@@ -869,6 +875,7 @@ async function controlSdkReader(
         continue;
       }
       let result: ControlResponse;
+      let dispatched = false;
       try {
         guard();
         if (effect.kind === "classification-write") {
@@ -876,7 +883,14 @@ async function controlSdkReader(
           const response = await writerClient.request("POST /graphql", {
             query: releaseClassificationCommitMutation,
             variables: effect.variables,
-            request: once(),
+            request: {
+              portcove: {
+                ...once().portcove,
+                observe(observation) {
+                  dispatched = observation.dispatched;
+                },
+              },
+            },
           });
           const envelope: unknown = response.data;
           result = { status: response.status, body: isRecord(envelope) ? envelope.data : null };
@@ -885,6 +899,7 @@ async function controlSdkReader(
         }
         guard();
       } catch (error) {
+        if (effect.kind === "classification-write" && !dispatched) throw error;
         step = sequence.throw(error);
         continue;
       }

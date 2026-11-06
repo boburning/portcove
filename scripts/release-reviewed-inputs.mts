@@ -649,8 +649,7 @@ async function runOperation(
           parsed.review_check_name !== producer.review_check_name
         )
           throw new Error("writer producer roles differ from ratified release authority");
-        const sdkWriter =
-          mode === "persist-production-request" && classification?.selected ? classification : null;
+        const sdkWriter = mode === "persist-production-request" ? classification : undefined;
         const recovered = await recoverRemoteCoordinator(
           temp,
           { schema_version: 1, namespace },
@@ -680,7 +679,8 @@ async function runOperation(
           }
         };
         if (sdkWriter) {
-          if (!jobToken) throw new Error("isolated fixed classification job token unavailable");
+          const writeToken = selectedWriter ? jobToken : appToken;
+          if (!writeToken) throw new Error("appointed classification writer token unavailable");
           const options = {
             token: sdkWriter.readerToken,
             deadline: sdkWriter.deadline,
@@ -696,9 +696,14 @@ async function runOperation(
             requireFreshWriter,
           );
           await beforeMutation();
+          // The legacy App still owns non-Check reads on its production path.
+          // Checks and the journal guard retain the fixed job read credential.
+          const readOptions = selectedWriter
+            ? options
+            : { ...options, token: writeToken, checkToken: options.token };
           result = await persistReviewedClassificationForRequestWithSdk(
-            options,
-            { token: jobToken, beforeMutation, requireFresh: requireFreshWriter },
+            readOptions,
+            { token: writeToken, beforeMutation, requireFresh: requireFreshWriter },
             producer,
             request,
           );

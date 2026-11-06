@@ -199,14 +199,24 @@ void test("fixed classification probes preserve exact readiness and absence thro
 });
 
 void test("fixed classification SDK routes a single CAS and reconciles only its authoritative tuple", async () => {
-  for (const mode of ["acknowledged", "lost-ack", "unavailable-readback", "changed-journal"]) {
+  for (const mode of [
+    "acknowledged",
+    "legacy-app",
+    "lost-ack",
+    "unavailable-readback",
+    "changed-journal",
+    "expired-prewire",
+  ]) {
     const f = fixture();
     const events: string[] = [];
     const checkpoint = "1".repeat(40);
     let writeDispatches = 0;
     let journalReads = 0;
+    const legacyApp = mode === "legacy-app";
+    const readToken = "inert-classification-reader";
+    const writeToken = "inert-classification-writer";
     const options = {
-      token: "inert-classification-reader",
+      token: readToken,
       deadline: performance.now() + 5000,
       guard() {},
       fetch: (async (input, init) => {
@@ -219,10 +229,7 @@ void test("fixed classification SDK routes a single CAS and reconciles only its 
           const wire: unknown = await request.json();
           assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
           const isMutation = wire.query.startsWith("mutation");
-          assert.equal(
-            authorization,
-            isMutation ? "token inert-classification-writer" : "token inert-classification-reader",
-          );
+          assert.equal(authorization, `token ${isMutation || legacyApp ? writeToken : readToken}`);
           if (!isMutation && writeDispatches > 0 && mode === "unavailable-readback")
             throw new TypeError("fixture post-dispatch readback unavailable");
           if (isMutation) {
@@ -230,16 +237,16 @@ void test("fixed classification SDK routes a single CAS and reconciles only its 
             events.push("write");
           }
           const result = f.api.graphql(wire.query, wire.variables);
-          if (isMutation && mode !== "acknowledged")
+          if (isMutation && mode !== "acknowledged" && !legacyApp)
             throw new TypeError("fixture acknowledgement lost after dispatch");
           return Response.json({ data: result.data });
         }
         assert.equal(request.method, "GET");
-        assert.equal(authorization, "token inert-classification-reader");
         if (
           url.pathname ===
           "/repos/boburning/portcove/git/ref/heads/portcove-fixture-coordinator-state"
         ) {
+          assert.equal(authorization, `token ${readToken}`);
           events.push("journal");
           return Response.json({
             ref: "refs/heads/portcove-fixture-coordinator-state",
@@ -249,6 +256,8 @@ void test("fixed classification SDK routes a single CAS and reconciles only its 
             },
           });
         }
+        const checks = /\/check-(?:runs|suites)(?:\/|$)/u.test(url.pathname);
+        assert.equal(authorization, `token ${legacyApp && !checks ? writeToken : readToken}`);
         const response = f.api.request("GET", url.pathname.slice(1) + url.search);
         return Response.json(response.body, { status: response.status ?? 500 });
       }) satisfies typeof globalThis.fetch,
@@ -263,13 +272,23 @@ void test("fixed classification SDK routes a single CAS and reconciles only its 
     await beforeMutation();
     const run = () =>
       persistReviewedClassificationForRequestWithSdk(
-        options,
-        { token: "inert-classification-writer", beforeMutation, requireFresh: fresh },
+        legacyApp ? { ...options, token: writeToken, checkToken: readToken } : options,
+        {
+          token: writeToken,
+          beforeMutation,
+          requireFresh() {
+            fresh();
+            if (mode === "expired-prewire") throw new Error("fixture pre-wire freshness expired");
+          },
+        },
         f.producer,
         f.request,
       );
     if (mode === "changed-journal") {
       await assert.rejects(run(), /outstanding journal request changed/u);
+      assert.equal(writeDispatches, 0);
+    } else if (mode === "expired-prewire") {
+      await assert.rejects(run(), /fixture pre-wire freshness expired/u);
       assert.equal(writeDispatches, 0);
     } else if (mode === "unavailable-readback") {
       await assert.rejects(
