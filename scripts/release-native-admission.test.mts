@@ -85,7 +85,6 @@ void test("Windows first beta requires ratified profile and complete exact Windo
 });
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
-  deriveNativePublicationJourneys,
   deriveNativePublicationJourneysWithSdk,
   deriveHostedNativePublicationJourneys,
   createNativeCheckpointEvidenceReader,
@@ -1149,7 +1148,13 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     initial_site_preimage_sha256: bootstrap.initial_site_preimage_sha256,
   });
   let reads = 0;
-  const input: Parameters<typeof deriveNativePublicationJourneys>[0] = {
+  const noRead = async () => {
+    reads++;
+    return assert.fail("initial lineage has no predecessor reads");
+  };
+  const derive = (data: Parameters<typeof deriveNativePublicationJourneysWithSdk>[0]) =>
+    deriveNativePublicationJourneysWithSdk(data, noRead);
+  const input: Parameters<typeof deriveNativePublicationJourneysWithSdk>[0] = {
     files: new Map([["payload.json", payload]]),
     coordinator_input: {
       metadata_bootstrap: bootstrap,
@@ -1189,16 +1194,6 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     signed_context_sha256: "2".repeat(64),
     platform_labels: ["windows-x86_64", "linux-x86_64"],
     public_pins: pins,
-    api: {
-      request: () => {
-        reads++;
-        throw new Error("unexpected provider request");
-      },
-      graphql: () => {
-        reads++;
-        throw new Error("unexpected provider query");
-      },
-    },
   };
   const candidate = {
     phase: "building",
@@ -1234,10 +1229,7 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   } = nextPublished;
   const beforePages = { ...current, published_metadata: published };
   assert.equal(nativeCompletionUsesHistoricalLineage(beforePages, input.manifest), false);
-  assert.deepEqual(
-    deriveNativePublicationJourneys({ ...input, coordinator_input: beforePages }),
-    deriveNativePublicationJourneys(input),
-  );
+  assert.deepEqual(await derive({ ...input, coordinator_input: beforePages }), await derive(input));
   assert.equal(nativeCompletionUsesHistoricalLineage(current, input.manifest), true);
   const wrongSeed = {
     ...current,
@@ -1253,8 +1245,8 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     published_metadata: { ...published, root_sha256: "0".repeat(64) },
   };
   assert.equal(nativeCompletionUsesHistoricalLineage(changedOldRoot, input.manifest), false);
-  assert.throws(
-    () => deriveNativePublicationJourneys({ ...input, coordinator_input: changedOldRoot }),
+  await assert.rejects(
+    () => derive({ ...input, coordinator_input: changedOldRoot }),
     /prior differs/,
   );
   assert.throws(
@@ -1275,13 +1267,10 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   assert.deepEqual(lineage.input, historical);
   assert.notEqual(lineage.input, historical);
   // The unchanged reserved/signing path must still refuse a newer public seed.
-  assert.throws(
-    () => deriveNativePublicationJourneys({ ...input, coordinator_input: current }),
-    /prior differs/,
-  );
+  await assert.rejects(() => derive({ ...input, coordinator_input: current }), /prior differs/);
   assert.deepEqual(
-    deriveNativePublicationJourneys({ ...input, coordinator_input: lineage.input }),
-    deriveNativePublicationJourneys(input),
+    await derive({ ...input, coordinator_input: lineage.input }),
+    await derive(input),
   );
   for (const name of [
     "prepared_commit",
@@ -1352,7 +1341,7 @@ void test("shared data-only journey derivation binds exact prior inventory and r
       }),
     /signed candidate/,
   );
-  const journeys = deriveNativePublicationJourneys(input);
+  const journeys = await derive(input);
   assert.equal(journeys.length, 2);
   assert.equal((journeys[0] as { kind: string }).kind, "initial-empty-feed");
   assert.deepEqual(
@@ -1374,7 +1363,6 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     },
   };
   const schema2 = inspectPublicationAuthorities(locatorPins, 2);
-  const noRead = async () => assert.fail("initial lineage has no predecessor reads");
   const noProof = { request: noRead, graphql: noRead };
   assert.deepEqual(
     await deriveHostedNativePublicationJourneys(
@@ -1408,25 +1396,22 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   );
   assert.equal(reads, 0);
   assert.deepEqual(
-    deriveNativePublicationJourneys({
+    await derive({
       ...input,
       authority_schema_version: 2,
       public_pins: schema2,
     }),
     journeys,
   );
-  assert.throws(
-    () => deriveNativePublicationJourneys({ ...input, public_pins: schema2 }),
-    /schema2/,
-  );
-  assert.throws(() =>
-    deriveNativePublicationJourneys({
+  await assert.rejects(() => derive({ ...input, public_pins: schema2 }), /schema2/);
+  await assert.rejects(() =>
+    derive({
       ...input,
       files: new Map([["payload.json", Buffer.from("changed")]]),
     }),
   );
-  assert.throws(() =>
-    deriveNativePublicationJourneys({
+  await assert.rejects(() =>
+    derive({
       ...input,
       coordinator_input: { ...input.coordinator_input, metadata_bootstrap: null },
     }),
@@ -1435,7 +1420,7 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   const recordSha = createHash("sha256").update(record).digest("hex");
   const files = new Map(input.files);
   files.set(`prior/targets/${recordSha}.releases/old.json`, record);
-  assert.throws(() => deriveNativePublicationJourneys({ ...input, files }), /prior differs/);
+  await assert.rejects(() => derive({ ...input, files }), /prior differs/);
   assert.equal(reads, 0);
 });
 

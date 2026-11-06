@@ -67,7 +67,10 @@ import {
   prepareNativeQualificationCheck,
   collectNativeReleaseQualification,
 } from "./release-native-acceptance.mts";
-import { deriveNativePublicationJourneys } from "./release-native-publication-admission.mts";
+import {
+  createNativePredecessorReader,
+  deriveNativePublicationJourneysWithSdk,
+} from "./release-native-publication-admission.mts";
 import { inspectNativeQualificationCandidate } from "./release-native-qualification-contract.mts";
 import { nativeQualificationCheckName } from "./release-native-qualification-contract.mts";
 
@@ -667,6 +670,26 @@ async function sourceTransport(parent: Parent, directory: string) {
         { credential, deadline, fetch: fixedFetch, recheck },
         assertUnchanged,
       ),
+    async readPublicationJourneys(
+      input: Parameters<typeof deriveNativePublicationJourneysWithSdk>[0],
+    ) {
+      await recheck();
+      const deadline = Math.min(
+        coordinatorCommandDeadline() ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      );
+      const predecessor = await createNativePredecessorReader(
+        token,
+        deadline,
+        checkToolIdentity,
+        undefined,
+        fixedFetch,
+        2 * 1024 ** 2,
+      );
+      const journeys = await deriveNativePublicationJourneysWithSdk(input, predecessor);
+      await recheck();
+      return journeys;
+    },
     readPostSignInventory,
     readPostSignArtifact,
     downloadPostSignArchive,
@@ -1327,7 +1350,7 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
   if (digest(fileInventory) !== digest(manifest.files))
     throw new Error("native context files changed after authenticated keyless assembly");
-  const journeys = deriveNativePublicationJourneys({
+  const journeys = await original.source.readPublicationJourneys({
     files,
     coordinator_input: current.input,
     manifest,
@@ -1336,7 +1359,6 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     platform_labels: [selected.parent.descriptor.platform_label],
     public_pins: inspectPublicationAuthorities(authorities.publication, authorities.schema_version),
     authority_schema_version: authorities.schema_version,
-    api: original.source.api,
   });
   const journey = journeys[0];
   let predecessorRecord: Record<string, unknown> | null = null;

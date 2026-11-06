@@ -8,7 +8,6 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import type { GitHubApiClient } from "./github-api.mts";
 import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import { checkpointEvidenceRefQuery } from "./release-coordinator-checkpoint-evidence.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -54,15 +53,11 @@ import {
   nativePrepublicationProfile,
 } from "./release-native-qualification-contract.mts";
 import {
-  createReleasePublicationReader,
   createPublicationInventoryWithSdk,
   peelReleaseReference,
 } from "./release-publication-inventory.mts";
 import { selectCoordinatorPublicationBaseline } from "./release-coordinator-driver.mts";
-import {
-  inspectPublishedApplicationSource,
-  inspectPublishedApplicationSourceWithSdk,
-} from "./release-published-source.mts";
+import { inspectPublishedApplicationSourceWithSdk } from "./release-published-source.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -205,7 +200,6 @@ type NativePublicationJourneyInput = {
   platform_labels: readonly string[];
   public_pins: ReturnType<typeof inspectPublicationAuthorities>;
   authority_schema_version?: unknown;
-  api: Pick<GitHubApiClient, "request" | "graphql">;
   checkpointObjects?: (deadline: number) => Promise<CatalogAnchorMetadataProvider>;
 };
 
@@ -216,14 +210,12 @@ type NativePredecessorRead =
   | {
       kind: "source";
       namespace: string;
-      subject: Parameters<typeof inspectPublishedApplicationSource>[2];
+      subject: Parameters<typeof inspectPublishedApplicationSourceWithSdk>[2];
     };
 type NativePredecessorResponse = Pick<GitHubMetadataResponse, "status" | "body">;
 type NativeJourneyReads<T> = Generator<NativePredecessorRead, T, NativePredecessorResponse>;
 type ReadNativePredecessor = (effect: NativePredecessorRead) => Promise<NativePredecessorResponse>;
-type LegacyReadNativePredecessor = (effect: NativePredecessorRead) => NativePredecessorResponse;
-type PublicationInventory = ReturnType<typeof createReleasePublicationReader>;
-
+type PublicationInventory = Awaited<ReturnType<typeof createPublicationInventoryWithSdk>>;
 function* readNativeCheckPredecessor(
   record: Record<string, unknown>,
 ): NativeJourneyReads<ReturnType<typeof inspectNativePublicationPredecessor>> {
@@ -242,52 +234,14 @@ function* readNativeCheckPredecessor(
   return inspectNativePublicationPredecessor(record, check.body);
 }
 
-function createLegacyPredecessorReader(
-  api: NativePublicationJourneyInput["api"],
-): LegacyReadNativePredecessor {
-  let inventory: PublicationInventory | undefined;
-  return (effect) => {
-    switch (effect.kind) {
-      case "releases":
-      case "tags":
-        inventory ??= createReleasePublicationReader(api);
-        return { status: 200, body: inventory[effect.kind]() };
-      case "metadata":
-        return api.request("GET", `repos/boburning/portcove/${effect.endpoint}`);
-      case "source":
-        return {
-          status: 200,
-          body: inspectPublishedApplicationSource(
-            api,
-            { schema_version: 1, namespace: effect.namespace },
-            effect.subject,
-          ).source_baseline.commit,
-        };
-    }
-  };
-}
-
-function runLegacyJourney<T>(read: LegacyReadNativePredecessor, sequence: NativeJourneyReads<T>) {
-  let step = sequence.next();
-  while (!step.done) step = sequence.next(read(step.value));
-  return step.value;
-}
-
 async function runSdkJourney<T>(read: ReadNativePredecessor, sequence: NativeJourneyReads<T>) {
   let step = sequence.next();
   while (!step.done) step = sequence.next(await read(step.value));
   return step.value;
 }
 
-export function deriveNativePublicationJourneys(input: NativePublicationJourneyInput) {
-  return runLegacyJourney(
-    createLegacyPredecessorReader(input.api),
-    deriveNativePublicationJourneysWithRecords(input, readNativeCheckPredecessor),
-  ).journeys;
-}
-
 export async function deriveNativePublicationJourneysWithSdk(
-  input: Omit<NativePublicationJourneyInput, "api">,
+  input: NativePublicationJourneyInput,
   read: ReadNativePredecessor,
 ) {
   return (
@@ -303,7 +257,7 @@ export async function deriveNativePublicationJourneysWithSdk(
  * completed-history verification; exact same-run proof uses signed stage custody
  * without pretending that the original continuity job has finished. */
 export async function deriveHostedNativePublicationJourneys(
-  raw: Omit<NativePublicationJourneyInput, "api">,
+  raw: NativePublicationJourneyInput,
   parent: string,
   deadline: number,
   readPredecessor: ReadNativePredecessor,
@@ -375,7 +329,7 @@ export async function deriveHostedNativePublicationJourneys(
 }
 
 function* deriveNativePublicationJourneysWithRecords(
-  input: Omit<NativePublicationJourneyInput, "api">,
+  input: NativePublicationJourneyInput,
   resolveRecord: (record: Record<string, unknown>) => NativeJourneyReads<unknown>,
 ): NativeJourneyReads<{ journeys: unknown[]; stable?: () => NativeJourneyReads<void> }> {
   const {
@@ -454,10 +408,10 @@ function* deriveNativePublicationJourneysWithRecords(
     });
     journeys = platform_labels.map(() => journey);
   } else {
-    const releases = (yield { kind: "releases" }).body as ReturnType<
-      PublicationInventory["releases"]
+    const releases = (yield { kind: "releases" }).body as Awaited<
+      ReturnType<PublicationInventory["releases"]>
     >;
-    const tags = (yield { kind: "tags" }).body as ReturnType<PublicationInventory["tags"]>;
+    const tags = (yield { kind: "tags" }).body as Awaited<ReturnType<PublicationInventory["tags"]>>;
     const versions = [
       ...new Set(
         [...priorRecords.values()]
