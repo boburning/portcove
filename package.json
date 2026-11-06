@@ -33,7 +33,7 @@
     "@octokit/plugin-paginate-rest": "16.0.0",
     "@resvg/resvg-js": "2.6.2",
     "@sigstore/bundle": "5.0.1",
-    "@sigstore/sign": "5.0.0",
+    "@sigstore/sign": "5.1.0",
     "@types/node": "26.6.6",
     "@types/selenium-webdriver": "4.35.7",
     "@types/semver": "7.8.0",
