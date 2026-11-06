@@ -257,13 +257,14 @@ export async function prepareControllerToolPredicate(
       source_tree: expected.source_tree,
       platform: profile.platform,
     });
-    phase = "fresh-producer-identity";
+    phase = "producer-token-request";
     const oidc = await requestAssemblerToken(
       identityExpected.audience,
       environment,
       globalThis.fetch,
       deadline(15000),
     );
+    phase = "producer-identity-verification";
     const identity = await verifyControllerToolBootstrapJobIdentity(
       oidc,
       identityExpected,
@@ -272,6 +273,7 @@ export async function prepareControllerToolPredicate(
       },
       profile.platform,
     );
+    phase = "producer-upload-identity-recheck";
     if (
       identity.evidence_scope !== "github.com" ||
       Date.now() >= Date.parse(identity.expires_at) ||
@@ -279,6 +281,7 @@ export async function prepareControllerToolPredicate(
       Date.now() >= Date.parse(identity.expires_at)
     )
       throw new Error("bootstrap identity/upload drifted");
+    phase = "producer-predicate-output";
     const predicate = {
       ...predicateProfile(expected),
       role: "fixed-controller-tools",

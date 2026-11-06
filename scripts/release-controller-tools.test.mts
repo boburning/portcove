@@ -1141,10 +1141,13 @@ void test("fixed controller tool senders use the locked SDK before signing exact
       ACTIONS_ID_TOKEN_REQUEST_TOKEN: "fixture-oidc-bearer",
     });
     const calls: string[] = [];
+    let refuseAt: string | undefined;
+    let artifactReads = 0;
     const fetcher: typeof globalThis.fetch = async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : input);
       const headers = new Headers(init?.headers);
       calls.push(url.pathname);
+      if (url.pathname === refuseAt) throw new Error("private diagnostic fixture");
       if (url.hostname === "runner.actions.githubusercontent.com") {
         assert.equal(url.searchParams.get("audience"), profile.audience);
         assert.equal(headers.get("authorization"), "Bearer fixture-oidc-bearer");
@@ -1165,6 +1168,9 @@ void test("fixed controller tool senders use the locked SDK before signing exact
       assert.equal(headers.get("authorization"), "token fixture-fixed-sender");
       const prefix = "/repos/boburning/portcove";
       if (url.pathname === `${prefix}/actions/artifacts/99`) {
+        artifactReads++;
+        if (refuseAt === "artifact-recheck" && artifactReads === 2)
+          throw new Error("private diagnostic fixture");
         process.env.GH_TOKEN = "unrelated-mutated-token";
         return Response.json(await f.options.metadata.artifact(99));
       }
@@ -1204,6 +1210,43 @@ void test("fixed controller tool senders use the locked SDK before signing exact
         `${actions}/artifacts/99`,
       ]);
       assert.equal(oidc.counts().requests, 5);
+      for (const [failurePath, phase] of [
+        ["/oidc", "producer-token-request"],
+        ["/.well-known/jwks", "producer-identity-verification"],
+        ["artifact-recheck", "producer-upload-identity-recheck"],
+        ["predicate-output", "producer-predicate-output"],
+      ] as const) {
+        refuseAt = failurePath;
+        artifactReads = 0;
+        process.env.GH_TOKEN = "fixture-fixed-sender";
+        const refusalRoot = await mkdtemp(path.join(root, "refusal-"));
+        if (failurePath === "predicate-output") {
+          const basename =
+            platform === "windows-x86_64"
+              ? "controller-tools-windows-predicate.json"
+              : "controller-tools-predicate.json";
+          await writeFile(path.join(refusalRoot, basename), "private diagnostic fixture");
+        }
+        await assert.rejects(
+          prepareControllerToolPredicate(refusalRoot, f.expected, {
+            ...identityExpected,
+            audience: profile.audience,
+            run_attempt: 1,
+          }),
+          /controller tool binding refused/u,
+        );
+        const attempt = (await readdir(refusalRoot)).find((name) =>
+          name.startsWith("controller-tool-binding-"),
+        );
+        assert.ok(attempt);
+        const directory = path.join(refusalRoot, attempt);
+        assert.deepEqual(JSON.parse(await readFile(path.join(directory, "refusal.json"), "utf8")), {
+          directory,
+          phase,
+          authority: "none",
+          automatic_retry: false,
+        });
+      }
     } finally {
       mocked.mock.restore();
     }
