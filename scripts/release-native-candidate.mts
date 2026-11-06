@@ -21,7 +21,7 @@ import {
   remainingNativeParentBudget,
 } from "./release-native-parent.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive, readGitHubReleaseAsset } from "./github-binary.mts";
+import { readGitHubArtifactArchive } from "./github-binary.mts";
 import {
   downloadGitHubArtifactArchiveFile,
   downloadGitHubReleaseAssetFile,
@@ -630,7 +630,26 @@ async function sourceTransport(parent: Parent, directory: string) {
     metadata,
     declarations,
     download,
-    downloadAsset: opaque(readGitHubReleaseAsset),
+    readPublicRelease: (version: string, deadline: number) =>
+      readNativeImmutableReleaseSnapshot(
+        version,
+        { credential, deadline, fetch: fixedFetch, recheck },
+        true,
+      ),
+    retainPublicReleaseAsset: (
+      asset: ReturnType<typeof inspectPublicImmutableReleaseAsset>,
+      root: string,
+      slot: "prior" | "candidate" | "parked",
+      deadline: number,
+      assertUnchanged: () => Promise<void>,
+    ) =>
+      retainNativeImmutableReleaseAsset(
+        asset,
+        root,
+        slot,
+        { credential, deadline, fetch: fixedFetch, recheck },
+        assertUnchanged,
+      ),
     readPostSignInventory,
     downloadPostSignArchive,
     acquirePredecessor: (record: unknown, candidate: unknown, root: string) =>
@@ -1500,28 +1519,23 @@ export function inspectPublicImmutableReleaseAsset(
   });
 }
 
-/** Retain an exact immutable predecessor under its owner's original reader and
- * lifetime. The numeric asset identifier never establishes native acceptance. */
-export async function acquireNativePredecessorRelease(
-  record: unknown,
-  candidate: unknown,
-  directory: string,
-  options: {
-    credential: Extract<GitHubCredential, { kind: "explicit" }>;
-    deadline: number;
-    fetch: typeof globalThis.fetch;
-    recheck: () => void | Promise<void>;
-  },
+type NativeImmutableReleaseSource = {
+  credential: Extract<GitHubCredential, { kind: "explicit" }>;
+  deadline: number;
+  fetch: typeof globalThis.fetch;
+  recheck: () => void | Promise<void>;
+};
+
+export async function readNativeImmutableReleaseSnapshot(
+  version: string,
+  options: NativeImmutableReleaseSource,
+  pageSize100 = false,
 ) {
-  if (
-    !isRecord(record) ||
-    typeof record.version !== "string" ||
-    !/^[0-9]+[.][0-9]+[.][0-9]+(?:-[A-Za-z0-9.-]+)?$/u.test(record.version)
-  )
-    throw new Error("native actual predecessor record absent");
+  if (!/^[0-9]+[.][0-9]+[.][0-9]+(?:-[A-Za-z0-9.-]+)?$/u.test(version))
+    throw new Error("native immutable Release version refused");
   const deadline = Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity);
   const repository = "/repos/boburning/portcove";
-  const tag = `${repository}/releases/tags/${encodeURIComponent(`v${record.version}`)}`;
+  const tag = `${repository}/releases/tags/${encodeURIComponent(`v${version}`)}`;
   const { createGitHubClient } = await import("./github-client.mts");
   let admittedRoute = tag;
   const api = await createGitHubClient({
@@ -1548,70 +1562,84 @@ export async function acquireNativePredecessorRelease(
       await policy.admissionSettled;
     }
   };
-  const read = async () => {
-    const release: unknown = (await get(tag)).data;
-    if (!isRecord(release) || !Number.isSafeInteger(release.id) || Number(release.id) < 1)
-      throw new Error("native predecessor Release unavailable");
-    const assetsRoute = `${repository}/releases/${String(release.id)}/assets`;
-    const numericRoute = `/repositories/1354613114/releases/${String(release.id)}/assets`;
-    const assets: unknown[] = [];
-    const ids = new Set<number>();
-    let route = assetsRoute;
-    for (let page = 1; ; page++) {
-      const response = await get(route);
-      const entries: unknown = response.data;
-      if (!Array.isArray(entries) || assets.length + entries.length > 64)
-        throw new Error("native predecessor immutable asset inventory exceeds its bound");
-      for (const asset of entries as unknown[]) {
-        if (
-          !isRecord(asset) ||
-          typeof asset.id !== "number" ||
-          !Number.isSafeInteger(asset.id) ||
-          asset.id < 1 ||
-          ids.has(asset.id)
-        )
-          throw new Error("native predecessor asset inventory ambiguous");
-        ids.add(asset.id);
-        assets.push(asset);
-      }
-      const header = response.headers.link;
-      let next: string | undefined;
-      if (header !== undefined) {
-        if (typeof header !== "string")
-          throw new Error("native predecessor immutable asset pagination is malformed");
-        const pattern = /<([^>]+)>;\s*rel="([^"]+)"/gu;
-        const relations = [...header.matchAll(pattern)];
-        const nextRelations = relations.filter((match) => match[2]?.split(/\s+/u).includes("next"));
-        if (
-          !relations.length ||
-          header.replace(pattern, "").replace(/[,\s]/gu, "") ||
-          nextRelations.length > 1
-        )
-          throw new Error("native predecessor immutable asset pagination is malformed");
-        next = nextRelations[0]?.[1];
-      }
-      if (!next) return inspectNativePredecessorReleaseAsset(record, candidate, release, assets);
-      const url = URL.parse(next, "https://api.github.com");
+  const release: unknown = (await get(tag)).data;
+  if (!isRecord(release) || !Number.isSafeInteger(release.id) || Number(release.id) < 1)
+    throw new Error("native predecessor Release unavailable");
+  const assetsRoute = `${repository}/releases/${String(release.id)}/assets`;
+  const numericRoute = `/repositories/1354613114/releases/${String(release.id)}/assets`;
+  const assets: unknown[] = [];
+  const ids = new Set<number>();
+  let route = pageSize100 ? `${assetsRoute}?per_page=100` : assetsRoute;
+  for (let page = 1; ; page++) {
+    const response = await get(route);
+    const entries: unknown = response.data;
+    if (!Array.isArray(entries) || assets.length + entries.length > 64)
+      throw new Error("native predecessor immutable asset inventory exceeds its bound");
+    for (const asset of entries as unknown[]) {
       if (
-        !url ||
-        entries.length === 0 ||
-        assets.length >= 64 ||
-        url.origin !== "https://api.github.com" ||
-        url.username ||
-        url.password ||
-        url.hash ||
-        (url.pathname !== assetsRoute && url.pathname !== numericRoute) ||
-        url.searchParams.size !== 1 ||
-        url.searchParams.get("page") !== String(page + 1)
+        !isRecord(asset) ||
+        typeof asset.id !== "number" ||
+        !Number.isSafeInteger(asset.id) ||
+        asset.id < 1 ||
+        ids.has(asset.id)
       )
-        throw new Error("native predecessor immutable asset pagination changed scope");
-      route = url.pathname + url.search;
+        throw new Error("native predecessor asset inventory ambiguous");
+      ids.add(asset.id);
+      assets.push(asset);
     }
+    const header = response.headers.link;
+    let next: string | undefined;
+    if (header !== undefined) {
+      if (typeof header !== "string")
+        throw new Error("native predecessor immutable asset pagination is malformed");
+      const pattern = /<([^>]+)>;\s*rel="([^"]+)"/gu;
+      const relations = [...header.matchAll(pattern)];
+      const nextRelations = relations.filter((match) => match[2]?.split(/\s+/u).includes("next"));
+      if (
+        !relations.length ||
+        header.replace(pattern, "").replace(/[,\s]/gu, "") ||
+        nextRelations.length > 1
+      )
+        throw new Error("native predecessor immutable asset pagination is malformed");
+      next = nextRelations[0]?.[1];
+    }
+    if (!next) return { release, assets };
+    const url = URL.parse(next, "https://api.github.com");
+    if (
+      !url ||
+      entries.length === 0 ||
+      assets.length >= 64 ||
+      url.origin !== "https://api.github.com" ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      (url.pathname !== assetsRoute && url.pathname !== numericRoute) ||
+      url.searchParams.size !== (pageSize100 ? 2 : 1) ||
+      (pageSize100 && url.searchParams.get("per_page") !== "100") ||
+      url.searchParams.get("page") !== String(page + 1)
+    )
+      throw new Error("native predecessor immutable asset pagination changed scope");
+    route = url.pathname + url.search;
+  }
+}
+
+async function retainNativeImmutableReleaseAsset(
+  asset: ReturnType<typeof inspectPublicImmutableReleaseAsset>,
+  directory: string,
+  prefix: "predecessor" | "prior" | "candidate" | "parked",
+  options: NativeImmutableReleaseSource,
+  assertUnchanged: () => Promise<void>,
+) {
+  if (path.basename(asset.filename) !== asset.filename)
+    throw new Error("native immutable asset filename refused");
+  const deadline = Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity);
+  const guard = async () => {
+    await options.recheck();
+    if (performance.now() >= deadline) throw new Error("native predecessor lifetime exhausted");
   };
-  const asset = await read();
   const transferDeadline = Math.min(deadline, performance.now() + 120000);
   const scratch = await mkdtemp(path.join(directory, "native-predecessor-"));
-  const filename = path.join(directory, `predecessor-${asset.filename}`);
+  const filename = path.join(directory, `${prefix}-${asset.filename}`);
   const sameFile = (left: BigIntStats, right: BigIntStats) =>
     left.isFile() && right.isFile() && left.dev === right.dev && left.ino === right.ino;
   const sameVersion = (left: BigIntStats, right: BigIntStats) =>
@@ -1640,9 +1668,7 @@ export async function acquireNativePredecessorRelease(
       try {
         if (!sameVersion(downloaded.identity, await owned.stat({ bigint: true })))
           throw new Error("native predecessor scratch file changed");
-        const repeated = await read();
-        if (digest(asset) !== digest(repeated))
-          throw new Error("native predecessor provider state changed");
+        await assertUnchanged();
         await guard();
         if (!sameVersion(downloaded.identity, await lstat(source, { bigint: true })))
           throw new Error("native predecessor scratch file changed");
@@ -1703,6 +1729,37 @@ export async function acquireNativePredecessorRelease(
     }
     throw error;
   }
+}
+
+/** Retain an exact immutable predecessor under its owner's original reader and
+ * lifetime. The numeric asset identifier never establishes native acceptance. */
+export async function acquireNativePredecessorRelease(
+  record: unknown,
+  candidate: unknown,
+  directory: string,
+  options: NativeImmutableReleaseSource,
+) {
+  if (
+    !isRecord(record) ||
+    typeof record.version !== "string" ||
+    !/^[0-9]+[.][0-9]+[.][0-9]+(?:-[A-Za-z0-9.-]+)?$/u.test(record.version)
+  )
+    throw new Error("native actual predecessor record absent");
+  const version = record.version;
+  const read = async () => {
+    const snapshot = await readNativeImmutableReleaseSnapshot(version, options);
+    return inspectNativePredecessorReleaseAsset(
+      record,
+      candidate,
+      snapshot.release,
+      snapshot.assets,
+    );
+  };
+  const asset = await read();
+  return retainNativeImmutableReleaseAsset(asset, directory, "predecessor", options, async () => {
+    if (digest(asset) !== digest(await read()))
+      throw new Error("native predecessor provider state changed");
+  });
 }
 
 /** The same installed parent owns signed-input/Tough verification, exact opaque

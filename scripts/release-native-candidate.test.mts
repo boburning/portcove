@@ -24,6 +24,7 @@ import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts"
 import {
   inspectNativePredecessorReleaseAsset,
   acquireNativePredecessorRelease,
+  readNativeImmutableReleaseSnapshot,
   inspectNativePostSignPackageMetadata,
   acquireActualNativePostSignCandidate,
   inspectSelectedNativeCandidate,
@@ -53,6 +54,50 @@ import {
   inspectNativePayloadVerificationPlan,
   runNativePayloadVerificationPlan,
 } from "./release-native-keyless-assembly.mts";
+
+void test("public native Release assets use the locked SDK and exact next-page scope", async () => {
+  const origin = "https://api.github.com";
+  const first = "/repos/boburning/portcove/releases/17/assets?per_page=100";
+  const next = "/repositories/1354613114/releases/17/assets?per_page=100&page=2";
+  const tag = "/repos/boburning/portcove/releases/tags/v1.2.3";
+  const credential = { kind: "explicit", token: "synthetic-public-parent" } as const;
+  for (const hostile of [false, true]) {
+    const calls: string[] = [];
+    const observed = readNativeImmutableReleaseSnapshot(
+      "1.2.3",
+      {
+        credential,
+        deadline: performance.now() + 5000,
+        recheck() {},
+        async fetch(input, init) {
+          const url = String(input);
+          calls.push(url);
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            "token synthetic-public-parent",
+          );
+          if (url === origin + tag) return Response.json({ id: 17 });
+          if (url === origin + first)
+            return Response.json([{ id: 100 }], {
+              headers: {
+                link: `<${origin}${hostile ? next.replace("per_page=100", "per_page=1") : next}>; rel="next"`,
+              },
+            });
+          assert.equal(url, origin + next);
+          return Response.json([{ id: 101 }]);
+        },
+      },
+      true,
+    );
+    if (hostile) {
+      await assert.rejects(observed, /pagination changed scope/);
+      assert.deepEqual(calls, [origin + tag, origin + first]);
+    } else {
+      assert.deepEqual(await observed, { release: { id: 17 }, assets: [{ id: 100 }, { id: 101 }] });
+      assert.deepEqual(calls, [origin + tag, origin + first, origin + next]);
+    }
+  }
+});
 
 void test("native keyless plan fixes owned public input paths and the maintained local tool without minting execution authority", async () => {
   const root = path.resolve(fileURLToPath(new URL("..", import.meta.url))),
