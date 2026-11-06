@@ -185,7 +185,15 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     const current = await recoverRemoteCoordinator(
       directory,
       { schema_version: 1, namespace: parent.configuration.journal.namespace },
-      { transport: { cwd: directory, spawn, deadline } },
+      {
+        transport: {
+          credential: { token: childEnvironment.GH_TOKEN ?? "" },
+          deadline,
+          checkSource: () => {
+            remaining(1);
+          },
+        },
+      },
     );
     await requireActualHostedNativeParentSource(parentReceipt);
     remaining(1);
