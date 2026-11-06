@@ -72,7 +72,8 @@ async function readFile(...args) {
       case "evidence": jobs.frontend_full.steps = jobs.frontend_full.steps.filter(step => step.name !== "Retain original Fallow reports"); break;
     }
   }
-  const changed = stringify(settings, { collectionStyle: "flow", defaultStringType: "QUOTE_DOUBLE", lineWidth: 0, sortMapEntries: (a, b) => String(b.key).localeCompare(String(a.key)) });
+  // Expand aliases so reversing job keys cannot emit an alias before its anchor.
+  const changed = stringify(settings, { aliasDuplicateObjects: false, collectionStyle: "flow", defaultStringType: "QUOTE_DOUBLE", lineWidth: 0, sortMapEntries: (a, b) => String(b.key).localeCompare(String(a.key)) });
   assert.deepEqual(parseDocument(changed).toJS(), settings, "reformatted YAML must preserve the intended values");
   assert.notEqual(changed, original.toString(), "control must actually change the input representation");
   return typeof original === "string" ? changed : Buffer.from(changed);
