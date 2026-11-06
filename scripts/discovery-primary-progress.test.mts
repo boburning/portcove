@@ -533,3 +533,23 @@ void test("optional-manifest checkpoint interruption cannot discard completed pr
       1,
     );
 });
+
+void test("only an initial repository metadata 404 becomes upstream unavailable", async () => {
+  for (const endpoint404 of ["repos/owner/game", "repos/owner/game/releases?per_page=10"]) {
+    const {
+      context: { primaryProgress: _primaryProgress, ...context },
+    } = await primaryFixture();
+    const sdk = await fixtureGitHub(({ endpoint }) => {
+      if (endpoint === endpoint404) return Response.json({ message: "Not Found" }, { status: 404 });
+      assert.equal(endpoint, "repos/owner/game");
+      return { id: 41, full_name: "owner/game", default_branch: "main" };
+    });
+    await assert.rejects(
+      investigateDiscoveryUpstream({ ...context, sdk }, "owner/game"),
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        error.status === 404 &&
+        (error.code === "upstream_repository_unavailable") === (endpoint404 === "repos/owner/game"),
+    );
+  }
+});
