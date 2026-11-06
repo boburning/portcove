@@ -793,10 +793,13 @@ Complete each proposal through the existing Codex issue/PR delivery process:
    browser provider to the target's bundled Vitest; verify every upgrade even when
    the migrator updates it automatically. Coordinate the trusted Pack identity
    in `scripts/release-controller-tools.mts`. Run the fixed controller Pack
-   identity test in `scripts/release-controller-tools.test.mts` before publishing
-   the upgrade, and qualify the existing public controller tool build fixtures
-   on Linux and Windows. The builder, manifest producer and validator require
-   that exact identity.
+   identity test before publishing the upgrade.
+
+   `node --test --test-name-pattern="fixed controller Pack identity" scripts/release-controller-tools.test.mts`
+
+   Qualify the existing public controller tool build fixtures on Linux and
+   Windows. The builder, manifest producer and validator require that exact
+   identity.
 
 4. Preserve the 1440-minute/non-strict pnpm policy and remove migrator-added
    `minimumReleaseAgeExclude` entries for the bundle. Preserve allowBuilds
@@ -817,7 +820,9 @@ Complete each proposal through the existing Codex issue/PR delivery process:
    candidate, and `GITHUB_SHA` set to the candidate if it already includes the
    target or to the locally composed merge commit. Set
    `PORTCOVE_FAST_VALIDATION_ACTIVATED=true` and
-   `PORTCOVE_PROSE_POLICY_ACTIVATED=true` as in the ordinary PR workflow. Check
+   `PORTCOVE_PROSE_POLICY_ACTIVATED=true` as in the ordinary PR workflow.
+   Create `work/ci-plan` and set `GITHUB_OUTPUT` to an absolute file path there
+   to capture the selector's workflow outputs. Check
    `work/ci-plan/validation-plan.json` for the expected obligations across the
    full diff, including changes brought in from the proposal branch. Obtain
    separate non-writing review, complete required CI on the published head, then
