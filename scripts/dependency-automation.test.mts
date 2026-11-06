@@ -243,7 +243,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "es-module-lexer"), false);
   for (const [signingTool, version] of [
     ["@sigstore/bundle", "5.0.1"],
-    ["@sigstore/sign", "5.0.0"],
+    ["@sigstore/sign", "5.1.0"],
   ] as const) {
     assert.equal(repositoryPackage.devDependencies[signingTool], version);
     assert.equal(Object.hasOwn(desktopPackage.dependencies, signingTool), false);

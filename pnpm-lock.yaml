@@ -187,7 +187,7 @@ overrides:
   vitest@*: 5.1.0
 
 patchedDependencies:
-  '@sigstore/sign@5.0.0': fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713
+  '@sigstore/sign@5.1.0': fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713
   '@tauri-apps/api@2.12.4': a3d8fac0475d7cd95ac99b94014545bbd4a9e24155c5077fa018c6ccc5f7978a
   i18next-cli@>=1.82.4 <2: 8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f
 
@@ -209,8 +209,8 @@ importers:
         specifier: 5.0.1
         version: 5.0.1
       '@sigstore/sign':
-        specifier: 5.0.0
-        version: 5.0.0(patch_hash=fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713)(supports-color@10.2.2)
+        specifier: 5.1.0
+        version: 5.1.0(patch_hash=fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713)(supports-color@10.2.2)
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
@@ -1055,8 +1055,8 @@ packages:
     resolution: {integrity: sha512-SQqvFMt4V78fdjcDdYX6HbiVSOR4QK3ZgwCa2KOsopAgPIHy1rU5UDUmzLl02r5oyyaYcYHR1hpwDRk/yUe+Mw==}
     engines: {node: ^18.17.0 || >=20.5.0}
 
-  '@sigstore/sign@5.0.0':
-    resolution: {integrity: sha512-DSFivqz9/i5AkwZ5fq0YdjaJlc4o1WeS2Zffon0kqtChx0vy4W9NOjkEet9bF2vkzOufX72eVH8kZBIGtcBp1w==}
+  '@sigstore/sign@5.1.0':
+    resolution: {integrity: sha512-obt7Ukh6juytRSKFsUM0keWK/eRbasdkIh7s1ZszFFvCW1eNNeVe14EvQDsmCgfHrV41gN/y2qbAz2IiwUiFjw==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
   '@swc/core-darwin-arm64@1.16.21':
@@ -3134,7 +3134,7 @@ snapshots:
 
   '@sigstore/protobuf-specs@0.5.2': {}
 
-  '@sigstore/sign@5.0.0(patch_hash=fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713)(supports-color@10.2.2)':
+  '@sigstore/sign@5.1.0(patch_hash=fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713)(supports-color@10.2.2)':
     dependencies:
       '@gar/promise-retry': 1.0.3
       '@sigstore/bundle': 5.0.1
