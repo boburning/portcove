@@ -353,13 +353,21 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
-        command: CatalogCommand::InspectProposal { file },
+        command:
+            CatalogCommand::InspectProposal {
+                file,
+                repository_authoring,
+            },
     } = &cli.command
     {
         render_read_success(
             mode,
             "catalog.inspect-proposal",
-            portcove_core::Catalog::inspect_proposal(file)?,
+            if *repository_authoring {
+                portcove_core::Catalog::inspect_repository_proposal(file)?
+            } else {
+                portcove_core::Catalog::inspect_proposal(file)?
+            },
             |report| catalog::proposal_inspection(report, cli.technical_details),
         )?;
         return Ok(ExitCode::SUCCESS);

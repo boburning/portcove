@@ -2338,7 +2338,9 @@ maintenance, to check current provider bytes for an accepted title. Earlier whol
 evidence. The first run on the new cache can require a lookup for a cover that
 has yet to be accepted. Existing accepted covers and upstream observation
 checkpoints are still usable offline. Operational changes require `--validator-cli`; captured Core
-`inspect-proposal` checks their exact assembled bytes. Whenever that CLI is
+`inspect-proposal --repository-authoring` checks their exact assembled bytes
+and applies the same outcome-summary convention as embedded-catalog CI. Use a
+validator built from a checkout that supports this flag. Whenever that CLI is
 supplied, `catalog inspect-listings --path` also validates the generated listing
 document, and its returned document must match the exact input semantics.
 Successful receipts bind input bytes and validator identity and survive resume.

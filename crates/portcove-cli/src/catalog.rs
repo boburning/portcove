@@ -92,6 +92,9 @@ pub(crate) enum CatalogCommand {
     InspectProposal {
         /// Inert catalog proposal JSON file; inspection does not sign, trust or publish it.
         file: PathBuf,
+        /// Also check the repository's authored catalog summary convention.
+        #[arg(long)]
+        repository_authoring: bool,
     },
     /// Probe inert settings samples through Core's document editor without library writes.
     InspectSettingsQualification {
