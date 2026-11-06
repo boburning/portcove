@@ -24,6 +24,7 @@ import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import {
+  createPublicationInventoryWithSdk,
   readPublicationAllocationsWithSdk,
   releasePublicationRefsQuery,
 } from "./release-publication-inventory.mts";
@@ -1138,4 +1139,63 @@ void test("fixed building caller refuses imported configuration and exhausted or
     runFixedBuildingConfiguration({}, process.cwd(), performance.now() - 1),
     /deadline/,
   );
+});
+
+void test("source publication inventory keeps ordered short pages, exact repo alias and original row shape through the SDK", async () => {
+  for (const wrongRepository of [false, true]) {
+    const routes: string[] = [];
+    const second = `/repositories/${wrongRepository ? 1354613115 : 1354613114}/releases?page=2&per_page=100`;
+    const reader = await createPublicationInventoryWithSdk({
+      token: "synthetic-source-inventory",
+      deadline: performance.now() + 5000,
+      async recheck() {},
+      async fetch(input, init) {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.method, "GET");
+        assert.equal(request.headers.get("authorization"), "token synthetic-source-inventory");
+        routes.push(url.pathname + url.search);
+        if (url.pathname === "/repos/boburning/portcove") {
+          return Response.json({
+            id: 1354613114,
+            full_name: "boburning/portcove",
+            node_id: "R_fixture",
+          });
+        }
+        const first = url.pathname === "/repos/boburning/portcove/releases";
+        if (!first) assert.equal(url.pathname + url.search, second);
+        const time = "2026-11-04T00:00:00Z";
+        return Response.json(
+          [
+            {
+              id: first ? 3 : 1,
+              tag_name: first ? "v0.0.3" : "v0.0.1",
+              draft: false,
+              prerelease: true,
+              published_at: time,
+              updated_at: time,
+            },
+          ],
+          first
+            ? { headers: { link: `<https://api.github.com${second}>; rel="next"` } }
+            : undefined,
+        );
+      },
+    });
+    if (wrongRepository) {
+      await assert.rejects(reader.releases(), /pagination changed scope/u);
+      assert.equal(routes.length, 2);
+    } else {
+      assert.deepEqual(
+        (await reader.releases()).map((row) => row.id),
+        [1, 3],
+      );
+      assert.deepEqual(routes, [
+        "/repos/boburning/portcove",
+        "/repos/boburning/portcove/releases?per_page=100",
+        second,
+      ]);
+    }
+  }
 });

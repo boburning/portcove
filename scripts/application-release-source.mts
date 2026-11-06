@@ -56,7 +56,7 @@ import { materializeInitialApplicationRehearsal } from "./release-site-readback.
 import { validateOpportunity } from "./release-coordinator.mts";
 import { collectReleaseSourceChanges } from "./release-source-changes.mts";
 import {
-  createReleasePublicationReader,
+  createPublicationInventoryWithSdk,
   peelReleaseReference,
   readReleaseNotesWithSdk,
 } from "./release-publication-inventory.mts";
@@ -202,6 +202,20 @@ export async function readCurrentApplicationWakeQualification() {
   return { source, ...selected, ...(qualification ? { qualification } : {}) };
 }
 
+function openApplicationSourcePublicationInventory() {
+  const guard = () => assertTrustedDirectNode("fixed application source publication inventory");
+  return createPublicationInventoryWithSdk({
+    token: fixedReleaseReaderToken(),
+    deadline: Number.POSITIVE_INFINITY,
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    beforeDispatch: guard,
+    async recheck() {
+      guard();
+    },
+  });
+}
+
 async function selectForQualification() {
   assert.equal(process.env.GITHUB_REPOSITORY, "boburning/portcove");
   assert.equal(process.env.GITHUB_REPOSITORY_ID, "1354613114");
@@ -211,20 +225,18 @@ async function selectForQualification() {
   assert.match(source, /^[a-f0-9]{40}$/u);
   const commit = applicationGet(`git/commits/${source}`);
   assert.ok(isRecord(commit) && isRecord(commit.tree) && typeof commit.tree.sha === "string");
-  const reader = createReleasePublicationReader(applicationApi);
-  const releases = reader
-    .releases()
-    .filter(
-      (release) =>
-        !release.draft && release.published_at !== null && release.tag_name.startsWith("v"),
-    );
+  const reader = await openApplicationSourcePublicationInventory();
+  const releases = (await reader.releases()).filter(
+    (release) =>
+      !release.draft && release.published_at !== null && release.tag_name.startsWith("v"),
+  );
   for (const release of releases) classifyApplicationVersion(release.tag_name.slice(1));
   releases.sort((left, right) =>
     compareApplicationVersionPrecedence(right.tag_name.slice(1), left.tag_name.slice(1)),
   );
   const latest = releases[0];
   assert.ok(latest, "an actual published dependency-review baseline is required");
-  const tag = reader.tags().find((value) => value.name === latest.tag_name);
+  const tag = (await reader.tags()).find((value) => value.name === latest.tag_name);
   assert.ok(tag);
   const base = peelReleaseReference(tag);
   const details = applicationGet(`releases/${latest.id}`);
@@ -349,8 +361,8 @@ async function prepare() {
     original,
     beforeWrite,
   );
-  const publicationReader = createReleasePublicationReader(applicationApi);
-  const releases = publicationReader.releases();
+  const publicationReader = await openApplicationSourcePublicationInventory();
+  const releases = await publicationReader.releases();
   const publishedHistory = releases
     .filter(
       (value) => !value.draft && value.published_at !== null && value.tag_name.startsWith("v"),
@@ -370,8 +382,8 @@ async function prepare() {
   const history = retained?.published_versions ?? publishedHistory;
   // Reuse/retirement of a previously published prepared source is handled by the
   // immutable-release recovery path, never by allocating the source twice.
-  const tags = publicationReader.tags();
-  const allocations = publicationReader.readAllocations(tags, "portcove-production");
+  const tags = await publicationReader.tags();
+  const allocations = await publicationReader.readAllocations(tags, "portcove-production");
   assert.ok(
     !allocations.allocations.some((value) => value.source_commit === run.head_sha),
     "source already allocated: use immutable release/feed recovery",
