@@ -4,7 +4,7 @@ import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { classifyApplicationVersion } from "../apps/desktop/scripts/release-version-policy.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createGitHubClient } from "./github-client.mts";
+import { createGitHubClient, type GitHubRequestPolicy } from "./github-client.mts";
 import { performance } from "node:perf_hooks";
 
 const repository = "boburning/portcove";
@@ -118,74 +118,77 @@ async function observePreparedReleaseCandidate(
   };
   remaining();
   let requests = 0;
-  const client = await createGitHubClient({
-    credential: { kind: "explicit", token: credential },
-    deadline,
-    maxBytes: maximumBytes,
-    fetch: transport,
-    headers: {
-      accept: "application/vnd.github+json",
-      "content-type": "application/json",
-      "x-github-api-version": "2026-03-10",
-    },
-    allowRequest(method, url) {
-      if (url.hash) return false;
-      if (method === "POST")
-        return url.pathname === `${workflowEndpoint}/dispatches` && !url.search;
-      return (
-        method === "GET" &&
-        ((!url.search &&
-          (url.pathname === workflowEndpoint ||
-            (url.pathname.startsWith(runEndpoint) &&
-              /^[1-9][0-9]*$/u.test(url.pathname.slice(runEndpoint.length))))) ||
-          (url.pathname === `${workflowEndpoint}/runs` &&
-            url.href.startsWith(`${origin}${runInventory}`) &&
-            /^(?:[1-9]|10)$/u.test(url.href.slice((origin + runInventory).length))))
-      );
-    },
-    reserve() {
-      if (requests >= 16) throw new Error("prepared dispatch request bound exceeded");
-      requests++;
-      return {
-        consumeBytes() {},
-        settle(observation) {
-          if (!observation.dispatched) requests--;
-        },
-      };
-    },
-  });
   let attempted = false;
-  const request = async (
-    method: "GET" | "POST",
-    endpoint: string,
-    body?: Record<string, unknown>,
-  ) => {
-    remaining();
-    const response = await client.request({
-      method,
-      url: `${origin}${endpoint}`,
-      ...(body === undefined ? {} : { data: body }),
-      request: {
-        portcove: {
-          replay: "once",
-          attempts: 0,
-          observe(observation) {
-            if (method === "POST" && observation.dispatched) attempted = true;
-          },
-        },
-      },
-    });
-    remaining();
-    if (response.status !== 200) throw new Error("prepared dispatch response status unsupported");
-    const value: unknown =
-      typeof response.data === "string" ? JSON.parse(response.data) : response.data;
-    if (!isRecord(value)) throw new Error("prepared dispatch record absent");
-    return value;
-  };
-  // Resolve the fixed workflow before the irreversible request. No caller
-  // workflow ID, URL, arbitrary ref, command or input map is accepted.
   let runId: number | null = null;
   try {
+    const client = await createGitHubClient({
+      credential: { kind: "explicit", token: credential },
+      deadline,
+      maxBytes: maximumBytes,
+      fetch: transport,
+      headers: {
+        accept: "application/vnd.github+json",
+        "content-type": "application/json",
+        "x-github-api-version": "2026-03-10",
+      },
+      allowRequest(method, url) {
+        if (url.hash) return false;
+        if (method === "POST")
+          return url.pathname === `${workflowEndpoint}/dispatches` && !url.search;
+        return (
+          method === "GET" &&
+          ((!url.search &&
+            (url.pathname === workflowEndpoint ||
+              (url.pathname.startsWith(runEndpoint) &&
+                /^[1-9][0-9]*$/u.test(url.pathname.slice(runEndpoint.length))))) ||
+            (url.pathname === `${workflowEndpoint}/runs` &&
+              url.href.startsWith(`${origin}${runInventory}`) &&
+              /^(?:[1-9]|10)$/u.test(url.href.slice((origin + runInventory).length))))
+        );
+      },
+      reserve() {
+        if (requests >= 16) throw new Error("prepared dispatch request bound exceeded");
+        requests++;
+        return {
+          consumeBytes() {},
+          settle(observation) {
+            if (!observation.dispatched) requests--;
+          },
+        };
+      },
+    });
+    const request = async (
+      method: "GET" | "POST",
+      endpoint: string,
+      body?: Record<string, unknown>,
+    ) => {
+      remaining();
+      const policy: GitHubRequestPolicy = {
+        replay: "once",
+        attempts: 0,
+        observe(observation) {
+          if (method === "POST" && observation.dispatched) attempted = true;
+        },
+      };
+      const response = await client.request({
+        method,
+        url: `${origin}${endpoint}`,
+        ...(body === undefined ? {} : { data: body }),
+        request: { portcove: policy },
+      });
+      remaining();
+      if (response.status !== 200) throw new Error("prepared dispatch response status unsupported");
+      // The provider may label the JSON with its vendor media type. The SDK
+      // transport already checked the bounded bytes as UTF-8 before parsing.
+      const data: unknown = response.data;
+      const text = data instanceof ArrayBuffer ? Buffer.from(data).toString("utf8") : data;
+      const value: unknown = typeof text === "string" ? JSON.parse(text) : text;
+      remaining();
+      if (!isRecord(value)) throw new Error("prepared dispatch record absent");
+      return value;
+    };
+    // Resolve the fixed workflow before the irreversible request. No caller
+    // workflow ID, URL, arbitrary ref, command or input map is accepted.
     const workflow = await request("GET", workflowEndpoint);
     positive(workflow.id);
     if (workflow.path !== ".github/workflows/release.yml" || workflow.state !== "active")
@@ -203,12 +206,14 @@ async function observePreparedReleaseCandidate(
         },
       });
       positive(acknowledgment.workflow_run_id);
-      runId = acknowledgment.workflow_run_id;
+      const acknowledgedRun = acknowledgment.workflow_run_id;
       if (
-        acknowledgment.run_url !== `${origin}/repos/${repository}/actions/runs/${runId}` ||
-        acknowledgment.html_url !== `https://github.com/${repository}/actions/runs/${runId}`
+        acknowledgment.run_url !== `${origin}${runEndpoint}${acknowledgedRun}` ||
+        acknowledgment.html_url !==
+          `https://github.com/${repository}/actions/runs/${acknowledgedRun}`
       )
         throw new Error("dispatch acknowledgment does not identify its exact fixed repository run");
+      runId = acknowledgedRun;
     } else if (existingRunId > 0) runId = existingRunId;
     else {
       const identities: {

@@ -101,6 +101,7 @@ function provider(mode = "success") {
     if (url.endsWith("/dispatches")) {
       if (mode === "lost") throw new Error("credential-super-secret must not escape");
       if (mode === "legacy") return new Response(null, { status: 204 });
+      if (mode === "unbound") return Response.json({ workflow_run_id: 42 });
       return Response.json({
         workflow_run_id: 42,
         run_url: "https://api.github.com/repos/boburning/portcove/actions/runs/42",
@@ -134,7 +135,13 @@ void test("one immutable prepared tag dispatch binds documented acknowledgment a
       assert.equal(fixture.calls.length, 1);
       guard++;
     },
-    fixture.transport,
+    async (route, options) => {
+      const result = await fixture.transport(route, options);
+      return new Response(result.body, {
+        status: result.status,
+        headers: { "content-type": "application/vnd.github+json" },
+      });
+    },
   );
   assert.equal(guard, 1);
   assert.equal(result.remote_identity, "github-actions:boburning/portcove:run:42:attempt:1");
@@ -146,7 +153,7 @@ void test("one immutable prepared tag dispatch binds documented acknowledgment a
   });
 });
 void test("dispatch never retries lost acknowledgment, unsupported status or mismatched actual run", async () => {
-  for (const mode of ["lost", "legacy", "attempt", "source", "actor"]) {
+  for (const mode of ["lost", "legacy", "unbound", "attempt", "source", "actor"]) {
     const fixture = provider(mode);
     await assert.rejects(
       dispatchPreparedReleaseCandidate(
@@ -159,6 +166,10 @@ void test("dispatch never retries lost acknowledgment, unsupported status or mis
         assert.ok(error instanceof CoordinatorRemoteError);
         assert.ok(isRecord(error.evidence));
         assert.equal(error.evidence.mutation_attempted, true);
+        assert.equal(
+          error.evidence.acknowledged_run_id,
+          ["lost", "legacy", "unbound"].includes(mode) ? null : 42,
+        );
         assert.equal(JSON.stringify(error).includes("credential-super-secret"), false);
         return true;
       },
