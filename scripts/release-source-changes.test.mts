@@ -4,6 +4,7 @@ import test from "node:test";
 import { createCompilerSourceReader } from "./release-compiler-source.mts";
 import {
   collectReleaseSourceChanges,
+  collectReleaseSourceChangesWithSdk,
   netTreeDeltaScope,
   releaseSourceChangeRequests,
 } from "./release-source-changes.mts";
@@ -27,6 +28,38 @@ void test("complete source comparison uses reconstructed trees rather than GitHu
   assert.equal(api_requests, 5);
   assert.equal(authority, "none");
   assert.match(qualification, /no semantic classification/u);
+});
+
+void test("scoped SDK source comparison returns the same exact raw-tree evidence", async (t) => {
+  const f = releaseSourceFixture();
+  const calls: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-source-comparison");
+      calls.push(url.href);
+      const result = f.api.request("GET", url.pathname.slice(1) + url.search);
+      return Response.json(result.body, {
+        status: result.status ?? 200,
+        headers: new Headers([...result.headers]),
+      });
+    },
+  );
+  const result = await collectReleaseSourceChangesWithSdk(
+    {
+      token: "inert-source-comparison",
+      deadline: performance.now() + 5000,
+      guard() {},
+    },
+    f.opportunity,
+  );
+  assert.deepEqual(result, collectReleaseSourceChanges(f.api, f.opportunity));
+  assert.equal(calls.length, 5);
 });
 
 void test("retained public signed GitHub commit preserves non-UTC offsets and terminal signature folding only under its exact raw hash", async () => {

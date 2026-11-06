@@ -2617,6 +2617,12 @@ for (const file of [
     "scripts/release-classification-request.test.mts",
   ]);
 
+for (const file of ["package.json", "pnpm-lock.yaml", "scripts/github-client.mts"])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-native-public-pair.test.mts",
+  ]);
+
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/application-release-feed.test.mts",
   "scripts/application-release-publication.test.mts",
@@ -2634,6 +2640,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/release-site-readback.test.mts",
   "scripts/release-coordinator-owned-executor.test.mts",
   "scripts/release-native-admission.test.mts",
+  "scripts/release-native-public-pair.test.mts",
   "scripts/release-hosted-native-job.test.mts",
   "scripts/release-coordinator-journal-api.test.mts",
   "scripts/release-publication-result-artifact.test.mts",

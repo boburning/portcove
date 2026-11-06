@@ -6,11 +6,11 @@ import {
   applicationNativeJobMinutes,
   readApplicationJobBudget,
 } from "./application-release-budget.mts";
-import { applicationApi } from "./application-release-io.mts";
 import {
   inspectApplicationRunCustody,
   readApplicationRunNotes,
   registerApplicationBudgetRun,
+  createApplicationRunRegistrationProvider,
 } from "./application-release-run.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
@@ -445,29 +445,23 @@ void test("forward metadata maintenance counts original executions, refuses miss
     body: `<!-- portcove-application-runs-v1\n${JSON.stringify(ownerState)}\n-->`,
   });
   let pause = releaseControlInputsFixture(undefined, undefined, undefined, false);
-  t.mock.method(applicationApi, "request", (method: string, endpoint: string, input?: unknown) => {
-    if (method === "PATCH") {
-      assert.equal(endpoint, "repos/boburning/portcove/releases/10");
-      assert.ok(isRecord(input));
-      assert.deepEqual(Object.keys(input), ["body"]);
-      const parsed = readApplicationRunNotes(input.body);
-      assert.ok(parsed);
-      ownerState = parsed.custody;
-      recordWrites++;
-      return { status: 200, headers: new Map<string, string>(), body: {} };
-    }
-    assert.equal(method, "GET");
-    const suffix = endpoint.replace(/^repos\/boburning\/portcove\//u, "");
-    let body: unknown;
-    if (suffix === "releases/10") body = ownerRelease();
-    else throw new Error(`unexpected legacy request: ${suffix}`);
-    return { status: 200, headers: new Map<string, string>(), body };
-  });
   t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
     assert.ok(typeof input === "string");
     const url = new URL(input);
     assert.equal(url.origin, "https://api.github.com");
     assert.equal(new Headers(init.headers).get("authorization"), "token synthetic-budget-reader");
+    if (init.method === "PATCH") {
+      assert.equal(url.pathname, "/repos/boburning/portcove/releases/10");
+      assert.ok(typeof init.body === "string");
+      const body: unknown = JSON.parse(init.body);
+      assert.ok(isRecord(body));
+      assert.deepEqual(Object.keys(body), ["body"]);
+      const parsed = readApplicationRunNotes(body.body);
+      assert.ok(parsed);
+      ownerState = parsed.custody;
+      recordWrites++;
+      throw new TypeError("fixture lost the cost-owner PATCH acknowledgement");
+    }
     if (url.pathname === "/graphql") {
       assert.equal(init.method, "POST");
       assert.ok(typeof init.body === "string");
@@ -626,7 +620,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   ownerState = inspectApplicationRunCustody({ ...legacyOwner, schema_version: 1 });
   mode = "over-cap";
   await registerApplicationBudgetRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     { release_id: 10, custody: ownerState },
     child,
     { source, ref, run_id: "124", run_attempt: 1 },

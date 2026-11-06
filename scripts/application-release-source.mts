@@ -9,10 +9,10 @@ import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
-  applicationApi,
-  applicationGet,
   applicationOutput,
   readApplicationJson,
   writeApplicationJson,
@@ -20,10 +20,13 @@ import {
 } from "./application-release-io.mts";
 import { semanticReviewCheckName } from "./release-control-phases.mts";
 import {
-  readIndependentSemanticCheckInventory,
+  readIndependentSemanticCheckInventoryWithSdk,
   selectLatestApplicationSemanticCheck,
 } from "./release-semantic-disposition-reader.mts";
-import { readIndependentSemanticReview, readPublicationPause } from "./release-control-inputs.mts";
+import {
+  readIndependentApplicationSemanticReviewWithSdk,
+  readPublicationPauseWithSdk,
+} from "./release-control-inputs.mts";
 import {
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
@@ -54,9 +57,9 @@ import {
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { materializeInitialApplicationRehearsal } from "./release-site-readback.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
-import { collectReleaseSourceChanges } from "./release-source-changes.mts";
+import { collectReleaseSourceChangesWithSdk } from "./release-source-changes.mts";
 import {
-  createReleasePublicationReader,
+  createPublicationInventoryWithSdk,
   peelReleaseReference,
   readReleaseNotesWithSdk,
 } from "./release-publication-inventory.mts";
@@ -66,7 +69,10 @@ import {
   compareApplicationVersionPrecedence,
 } from "../apps/desktop/scripts/release-version-policy.mts";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
-import { publishPreparedReleaseObjects } from "./release-prepared-transport.mts";
+import {
+  createNativePreparedObjectTransport,
+  publishPreparedReleaseObjects,
+} from "./release-prepared-transport.mts";
 import {
   readWindowsApplicationQualification,
   selectWindowsApplicationQualificationRun,
@@ -121,9 +127,26 @@ export function inspectApplicationSemanticSelection(raw: unknown, source: string
   return opportunity;
 }
 
+function applicationSourceControlOptions(token = fixedReleaseReaderToken()) {
+  return {
+    token,
+    deadline: Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000),
+    guard: () => assertTrustedDirectNode("fixed application source controls"),
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000 as const,
+  };
+}
+
+function openApplicationSourceMetadata(token = fixedReleaseReaderToken()) {
+  const options = applicationSourceControlOptions(token);
+  return createReleaseCustodyProvider({ ...options, beforeDispatch: options.guard });
+}
+
 export async function readApplicationSemanticSelection(source: string) {
   assert.match(source, /^[a-f0-9]{40}$/u);
-  const commit = applicationGet(`git/commits/${source}`);
+  const token = fixedReleaseReaderToken();
+  const custody = await openApplicationSourceMetadata(token);
+  const commit = await custody.commit(source);
   assert.ok(
     isRecord(commit) &&
       commit.sha === source &&
@@ -131,20 +154,27 @@ export async function readApplicationSemanticSelection(source: string) {
       typeof commit.tree.sha === "string",
   );
   assert.match(commit.tree.sha, /^[a-f0-9]{40}$/u);
-  const inventory = readIndependentSemanticCheckInventory(applicationApi, semanticProducer, source);
+  const inventory = await readIndependentSemanticCheckInventoryWithSdk(
+    applicationSourceControlOptions(token),
+    semanticProducer,
+    source,
+  );
   // A later pending, failed or refused independent decision cannot be hidden by
   // falling back to an older success. The fixed App owns this Check namespace.
   const check = selectLatestApplicationSemanticCheck(inventory.records);
   const opportunity = inspectApplicationSemanticSelection(check, source, commit.tree.sha);
-  const review = readIndependentSemanticReview(
-    applicationApi,
+  const review = await readIndependentApplicationSemanticReviewWithSdk(
+    applicationSourceControlOptions(token),
     semanticProducer,
     opportunity,
     Number(check.id),
   );
-  const changes = collectReleaseSourceChanges(applicationApi, opportunity);
+  const changes = await collectReleaseSourceChangesWithSdk(
+    applicationSourceControlOptions(token),
+    opportunity,
+  );
   assert.equal(changes.change_set_sha256, opportunity.change_set_sha256);
-  inventory.assertUnchanged();
+  await inventory.assertUnchanged();
   assert.ok(isRecord(check.output) && typeof check.output.summary === "string");
   return {
     opportunity,
@@ -202,6 +232,20 @@ export async function readCurrentApplicationWakeQualification() {
   return { source, ...selected, ...(qualification ? { qualification } : {}) };
 }
 
+function openApplicationSourcePublicationInventory(token = fixedReleaseReaderToken()) {
+  const guard = () => assertTrustedDirectNode("fixed application source publication inventory");
+  return createPublicationInventoryWithSdk({
+    token,
+    deadline: performance.now() + 120000,
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    beforeDispatch: guard,
+    async recheck() {
+      guard();
+    },
+  });
+}
+
 async function selectForQualification() {
   assert.equal(process.env.GITHUB_REPOSITORY, "boburning/portcove");
   assert.equal(process.env.GITHUB_REPOSITORY_ID, "1354613114");
@@ -209,25 +253,24 @@ async function selectForQualification() {
   assert.equal(process.env.GITHUB_REF, "refs/heads/main");
   const source = process.env.GITHUB_SHA ?? "";
   assert.match(source, /^[a-f0-9]{40}$/u);
-  const commit = applicationGet(`git/commits/${source}`);
+  const token = fixedReleaseReaderToken();
+  const commit = await (await openApplicationSourceMetadata(token)).commit(source);
   assert.ok(isRecord(commit) && isRecord(commit.tree) && typeof commit.tree.sha === "string");
-  const reader = createReleasePublicationReader(applicationApi);
-  const releases = reader
-    .releases()
-    .filter(
-      (release) =>
-        !release.draft && release.published_at !== null && release.tag_name.startsWith("v"),
-    );
+  const reader = await openApplicationSourcePublicationInventory(token);
+  const releases = (await reader.releases()).filter(
+    (release) =>
+      !release.draft && release.published_at !== null && release.tag_name.startsWith("v"),
+  );
   for (const release of releases) classifyApplicationVersion(release.tag_name.slice(1));
   releases.sort((left, right) =>
     compareApplicationVersionPrecedence(right.tag_name.slice(1), left.tag_name.slice(1)),
   );
   const latest = releases[0];
   assert.ok(latest, "an actual published dependency-review baseline is required");
-  const tag = reader.tags().find((value) => value.name === latest.tag_name);
+  const tag = (await reader.tags()).find((value) => value.name === latest.tag_name);
   assert.ok(tag);
   const base = peelReleaseReference(tag);
-  const details = applicationGet(`releases/${latest.id}`);
+  const details = await (await openApplicationSourceMetadata(token)).release(latest.id);
   assert.ok(
     isRecord(details) &&
       details.immutable === true &&
@@ -264,7 +307,7 @@ async function beforeSourceRecord() {
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
   assert.equal(
-    readPublicationPause(applicationApi).publication_paused,
+    (await readPublicationPauseWithSdk(applicationSourceControlOptions())).publication_paused,
     false,
     "publication paused",
   );
@@ -299,7 +342,7 @@ async function prepare() {
   await verifyApplicationReleaseTrust();
   const original = process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY ?? "";
   assert.match(original, /^[a-f0-9]{40}$/u);
-  const commit = applicationGet(`git/commits/${original}`);
+  const commit = await (await openApplicationSourceMetadata()).commit(original);
   assert.ok(
     isRecord(commit) &&
       commit.sha === original &&
@@ -335,7 +378,7 @@ async function prepare() {
   const selected = await readApplicationSemanticSelection(run.head_sha);
   assert.ok(selected.opportunity.meaningful && !selected.opportunity.documentation_only);
   if (process.env.PORTCOVE_WAKE_RUN_ID) {
-    const main = applicationGet("git/ref/heads/main");
+    const main = await (await openApplicationSourceMetadata()).mainRef();
     assert.ok(isRecord(main) && main.ref === "refs/heads/main" && isRecord(main.object));
     assert.equal(main.object.type, "commit");
     assert.equal(main.object.sha, original, "automatic release source is no longer current main");
@@ -349,8 +392,8 @@ async function prepare() {
     original,
     beforeWrite,
   );
-  const publicationReader = createReleasePublicationReader(applicationApi);
-  const releases = publicationReader.releases();
+  const publicationReader = await openApplicationSourcePublicationInventory();
+  const releases = await publicationReader.releases();
   const publishedHistory = releases
     .filter(
       (value) => !value.draft && value.published_at !== null && value.tag_name.startsWith("v"),
@@ -370,8 +413,8 @@ async function prepare() {
   const history = retained?.published_versions ?? publishedHistory;
   // Reuse/retirement of a previously published prepared source is handled by the
   // immutable-release recovery path, never by allocating the source twice.
-  const tags = publicationReader.tags();
-  const allocations = publicationReader.readAllocations(tags, "portcove-production");
+  const tags = await publicationReader.tags();
+  const allocations = await publicationReader.readAllocations(tags, "portcove-production");
   assert.ok(
     !allocations.allocations.some((value) => value.source_commit === run.head_sha),
     "source already allocated: use immutable release/feed recovery",
@@ -404,7 +447,7 @@ async function prepare() {
     history,
   );
   const custody = await retainApplicationPreparation(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     registration.release_id,
     registration.custody,
     {
@@ -431,7 +474,7 @@ async function prepare() {
       intent_sha256: prepared.intent_sha256,
     },
     {
-      api: applicationApi,
+      open: (deadline) => createNativePreparedObjectTransport(fixedReleaseReaderToken(), deadline),
       beforeWrite: () =>
         beforeWrite(registration.known_run_ids, { release_id: registration.release_id, custody }),
     },
@@ -541,7 +584,7 @@ async function bootstrap() {
   const raw: unknown = JSON.parse(process.env.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR ?? "null");
   inspectInitialApplicationDescriptor(raw, expected);
   assert.equal(process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY, expected.descriptor_sha256);
-  const commit = applicationGet(`git/commits/${execution.source}`);
+  const commit = await (await openApplicationSourceMetadata()).commit(execution.source);
   assert.ok(
     isRecord(commit) &&
       commit.sha === execution.source &&
@@ -612,7 +655,7 @@ async function renewPublishedMetadata() {
     renewal_basis: basis,
     renewal_clock: "native-context-reservation-v1",
   });
-  const commit = applicationGet(`git/commits/${execution.source}`);
+  const commit = await (await openApplicationSourceMetadata()).commit(execution.source);
   assert.ok(
     isRecord(commit) &&
       commit.sha === execution.source &&
@@ -722,7 +765,7 @@ async function renewUnservedMetadata() {
   assert.equal(process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY, opportunity);
   const owner = await readActualApplicationBudgetOwner(authority);
   const linked = await registerApplicationBudgetRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     authority,
     opportunity,
     execution,
@@ -775,7 +818,7 @@ async function recoverImmutableMetadataFeed() {
   const opportunity = process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY ?? "";
   assert.match(opportunity, /^[a-f0-9]{64}$/u);
   const tag = `portcove-production-candidate-${opportunity}`;
-  const release = applicationGet(`releases/tags/${tag}`);
+  const release = await (await openApplicationSourceMetadata()).releaseByTag(tag);
   assert.ok(isRecord(release) && Number.isSafeInteger(release.id) && Number(release.id) > 0);
   assert.equal(release.tag_name, tag);
   const notes = readApplicationRunNotes(release.body);
@@ -829,7 +872,7 @@ async function recoverImmutableMetadataFeed() {
   // uses a smaller tail. Persist the authorized execution before full admission.
   if (notes.custody.budget?.kind === "member")
     await registerApplicationBudgetRun(
-      applicationApi,
+      await createApplicationRunRegistrationProvider(),
       expected,
       opportunity,
       execution,

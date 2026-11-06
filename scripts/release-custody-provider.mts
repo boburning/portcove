@@ -40,6 +40,7 @@ type ReleaseCustodyProvider = HistoricalJobProvider &
     run(id: string): Promise<unknown>;
     artifact(id: number): Promise<unknown>;
     releaseByTag(tag: string): Promise<unknown>;
+    mainRef(): Promise<unknown>;
     runArtifacts(id: string, page: number): Promise<unknown>;
   };
 export type RunArtifactInventoryProvider = Pick<ReleaseCustodyProvider, "runArtifacts">;
@@ -160,6 +161,9 @@ export async function createReleaseCustodyProvider(options: {
     },
     async releaseByTag(tag) {
       return (await get("/repos/{owner}/{repo}/releases/tags/{tag}", { tag })).data as unknown;
+    },
+    async mainRef() {
+      return (await get("/repos/{owner}/{repo}/git/ref/heads/main", {})).data as unknown;
     },
     async run(id) {
       return (await get("/repos/{owner}/{repo}/actions/runs/{run_id}", { run_id: id }))
