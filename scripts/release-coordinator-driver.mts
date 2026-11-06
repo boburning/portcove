@@ -237,7 +237,7 @@ export async function prepareActualCoordinatorCatalogSigning(
         throw new Error("catalog current coordinator reservation is not available");
       const readOptions = {
         deadline: budget.monotonicDeadline,
-        currentDeadline: () => performance.now() + budget.remaining(15000),
+        currentDeadline: () => performance.now() + budget.remaining(),
         maxBytes: 2 * 1024 ** 2,
         guard: () => budget.check(),
       };

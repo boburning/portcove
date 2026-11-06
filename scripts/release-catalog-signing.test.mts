@@ -990,6 +990,88 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
     ),
   );
   assert.equal(routes.length, 32);
+
+  await t.test(
+    "coordinator gives each GET its own timeout inside the original phase",
+    async (timing) => {
+      const source = await readFile(
+        new URL("./release-coordinator-driver.mts", import.meta.url),
+        "utf8",
+      );
+      const preparation = source.indexOf(
+          "export async function prepareActualCoordinatorCatalogSigning(",
+        ),
+        optionsStart = source.indexOf("const readOptions = {", preparation),
+        optionsEnd = source.indexOf("await verifyCatalogCoordinatorBaseline(", optionsStart),
+        reviewStart = source.indexOf("async function readCatalogCoordinatorReview("),
+        reviewEnd = source.indexOf("async function recheckActualCatalogReview(", reviewStart);
+      assert.ok(preparation > 0 && optionsStart > preparation && optionsEnd > optionsStart);
+      assert.ok(reviewStart > 0 && reviewEnd > reviewStart);
+      const phaseDeadline = 41000;
+      let clock = 1000,
+        wallCutoff = phaseDeadline,
+        bodyTimes = [11000, 11000];
+      timing.mock.method(performance, "now", () => clock);
+      const timedFetch: typeof globalThis.fetch = async (input, init) => {
+        const response = await fetch(input, init);
+        const elapsed = bodyTimes.shift();
+        assert.ok(elapsed !== undefined);
+        const stream = response.body?.pipeThrough(
+          new TransformStream<Uint8Array, Uint8Array>({
+            transform(chunk, controller) {
+              clock += elapsed;
+              controller.enqueue(chunk);
+            },
+          }),
+        );
+        return new Response(stream, { headers: response.headers });
+      };
+      timing.mock.method(globalThis, "fetch", timedFetch);
+      const read = runInNewContext(
+        stripTypeScriptTypes(
+          source.slice(optionsStart, optionsEnd) + source.slice(reviewStart, reviewEnd),
+        ) +
+          "\n(authorities, opportunity) => readCatalogCoordinatorReview(readOptions, authorities, opportunity, 303)",
+        {
+          performance,
+          budget: {
+            monotonicDeadline: phaseDeadline,
+            remaining(maximum = 170000) {
+              return Math.min(maximum, phaseDeadline - clock, wallCutoff - clock);
+            },
+            check() {
+              if (clock >= Math.min(phaseDeadline, wallCutoff)) throw new Error("phase expired");
+            },
+          },
+          readOnlyReleaseChildEnvironment: () => undefined,
+          fixedReleaseReaderToken: () => "inert-catalog-reader",
+          inspectCatalogSemanticOpportunity: (opportunity: unknown) => opportunity,
+          readIndependentCatalogSemanticReviewWithSdk,
+          capacityDigest: digest,
+        },
+      ) as (
+        authority: { semantic_producer: unknown },
+        opportunity: unknown,
+      ) => Promise<{
+        proof_sha256: string;
+      }>;
+      routes.length = 0;
+      assert.equal((await read(selected, op)).proof_sha256, proof_sha256);
+      assert.deepEqual(routes, [
+        "/repos/boburning/portcove",
+        "/repos/boburning/portcove/check-runs/303",
+      ]);
+      assert.equal(clock, 23000);
+
+      clock = 1000;
+      bodyTimes = [11000, 16000];
+      await assert.rejects(read(selected, op), { code: "deadline_exceeded" });
+      clock = 1000;
+      wallCutoff = 20000;
+      bodyTimes = [11000, 11000];
+      await assert.rejects(read(selected, op), { code: "deadline_exceeded" });
+    },
+  );
 });
 
 void test("catalog context and role ready/predicate routes reach fixed upload and normalized attestation names", async (t) => {
