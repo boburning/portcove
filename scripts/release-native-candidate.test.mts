@@ -804,7 +804,7 @@ void test("predecessor custody requires exact immutable Release and streams veri
       "github.com",
       "-H",
       "Accept: application/octet-stream",
-      "repos/boburning/portcove/issues",
+      "repos/boburning/portcove/releases/assets/2",
     ]),
   );
 });

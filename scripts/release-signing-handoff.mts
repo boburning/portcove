@@ -224,7 +224,12 @@ export async function handoffSigningOutput(
  * these public bytes using the existing custom-predicate attestation path. */
 export type SigningArchiveDownload = (
   endpoint: string,
-  bounds: { cwd: string; maxBytes: number; timeoutMs: number },
+  bounds: {
+    cwd: string;
+    maxBytes: number;
+    timeoutMs: number;
+    lookup?: NonNullable<Parameters<typeof downloadGitHubArtifactArchive>[1]["lookup"]>;
+  },
 ) => Buffer | Promise<Buffer>;
 
 export async function readSigningOutputArtifact(

@@ -242,7 +242,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
           artifact.bytes >= 22 &&
           artifact.bytes <= 2 * 1024 * 1024,
       );
-      const archive = selected.source.download(
+      const archive = await selected.source.download(
         `repos/boburning/portcove/actions/artifacts/${artifact.id}/zip`,
         { cwd: directory, maxBytes: artifact.bytes, timeoutMs: remainingNativeParentBudget(30000) },
       );

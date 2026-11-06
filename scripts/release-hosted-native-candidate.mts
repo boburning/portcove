@@ -26,7 +26,7 @@ import {
   acquireNativePredecessorRelease,
 } from "./release-native-candidate.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
@@ -109,21 +109,6 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
       input,
     ),
   );
-  const download: typeof readGitHubArtifactArchive = (endpoint, options) =>
-    readGitHubArtifactArchive(endpoint, {
-      ...options,
-      spawn: (command, args, settings) => {
-        if (command !== "gh") throw new Error("fixed hosted native source executable differs");
-        inspectNativeSourceCommand(args);
-        const result = spawnSync(command, args, {
-          ...settings,
-          env: childEnvironment,
-          timeout: remaining(settings.timeout ?? 60000),
-        });
-        remaining(1);
-        return result;
-      },
-    });
   const credential = { kind: "explicit" as const, token: childEnvironment.GH_TOKEN ?? "" };
   const directFetch: typeof globalThis.fetch = (input, init) => {
     remaining(1);
@@ -151,37 +136,49 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     if (response.status !== 200) throw new Error("original signed artifact metadata unavailable");
     return response.data as unknown;
   };
+  const download: SigningArchiveDownload = async (
+    endpoint,
+    { cwd, maxBytes, timeoutMs, lookup },
+  ) => {
+    if (!/^repos\/boburning\/portcove\/actions\/artifacts\/[1-9][0-9]{0,15}\/zip$/u.test(endpoint))
+      throw new Error("fixed hosted native archive route refused");
+    const transferDeadline = performance.now() + remaining(timeoutMs);
+    const scratch = await mkdtemp(path.join(cwd, "post-sign-archive-"));
+    let bytes: Buffer;
+    try {
+      const filename = path.join(scratch, "archive.zip");
+      await downloadGitHubArtifactArchiveFile(endpoint, filename, {
+        credential,
+        deadline: transferDeadline,
+        maxBytes,
+        fetch: directFetch,
+        ...(lookup ? { lookup } : {}),
+      });
+      remaining(1);
+      bytes = await readControllerToolFile(filename, maxBytes);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    await requireActualHostedNativeParentSource(parentReceipt);
+    if (performance.now() >= transferDeadline || bytes.length !== maxBytes)
+      throw new Error("hosted native artifact archive differs or exceeded its deadline");
+    return bytes;
+  };
   const downloadPostSignArchive = async (
     item: { id: number; bytes: number; sha256: string },
     root: string,
     cap: number,
   ) => {
-    const transferDeadline = performance.now() + remaining(cap);
-    const scratch = await mkdtemp(path.join(root, "post-sign-archive-"));
-    let bytes: Buffer;
-    try {
-      const filename = path.join(scratch, "archive.zip");
-      await downloadGitHubArtifactArchiveFile(
-        `repos/boburning/portcove/actions/artifacts/${item.id}/zip`,
-        filename,
-        { credential, deadline: transferDeadline, maxBytes: item.bytes, fetch: directFetch },
-      );
-      remaining(1);
-      if (performance.now() >= transferDeadline)
-        throw new Error("original signed artifact transfer deadline exhausted");
-      bytes = await readControllerToolFile(filename, item.bytes);
-    } finally {
-      await rm(scratch, { recursive: true, force: true });
-    }
-    remaining(1);
-    if (
-      performance.now() >= transferDeadline ||
-      bytes.length !== item.bytes ||
-      hash(bytes) !== item.sha256
-    )
-      throw new Error("original signed artifact archive changed");
+    const bytes = await download(`repos/boburning/portcove/actions/artifacts/${item.id}/zip`, {
+      cwd: root,
+      maxBytes: item.bytes,
+      timeoutMs: cap,
+    });
+    if (hash(bytes) !== item.sha256)
+      throw new Error("hosted native artifact archive digest differs");
     return bytes;
   };
+
   const recover = bindReadOnlyReleaseChildren(async () => {
     await requireActualHostedNativeParentSource(parentReceipt);
     remaining(1);

@@ -245,8 +245,16 @@ void test("updater package custody retains the captured callback without grantin
   const retained: string[] = [];
   const originalRecover = f.options.recover;
   assert.ok(originalRecover);
+  const download = f.options.download;
+  assert.ok(download);
+  let archiveLookups = 0;
   const options: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
     ...f.options,
+    download: async (endpoint, bounds) => {
+      assert.ok(bounds.lookup?.reserve && bounds.lookup.elapsed);
+      archiveLookups++;
+      return download(endpoint, bounds);
+    },
     retainDesktopPackage: async (identity, bytes) => {
       assert.equal(bytes.length, identity.bytes);
       assert.equal(hash(bytes), identity.sha256);
@@ -259,6 +267,7 @@ void test("updater package custody retains the captured callback without grantin
     },
   };
   const result = await acquireReleaseAdmission(f.root, f.config, options);
+  assert.ok(archiveLookups >= 2);
   assert.deepEqual(retained.sort(), ["linux-x86_64", "windows-x86_64"]);
   assert.equal(result.decision, "hold");
   assert.equal(result.descriptor, null);
@@ -656,7 +665,7 @@ void test("actual admission package transfer uses the scoped SDK with signed del
       const id = /^\/actions-results\/([1-9][0-9]*)$/u.exec(url.pathname)?.[1];
       assert.ok(id);
       deliveries.push(id);
-      const archive = download(`repos/boburning/portcove/actions/artifacts/${id}/zip`, {
+      const archive = await download(`repos/boburning/portcove/actions/artifacts/${id}/zip`, {
         cwd: f.root,
         maxBytes: 512 * 1024 ** 2,
         timeoutMs: 120000,
