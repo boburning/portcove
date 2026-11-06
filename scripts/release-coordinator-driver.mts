@@ -121,7 +121,7 @@ import {
 } from "./release-review-request.mts";
 import { createReleaseReviewDispositionReceipt } from "./release-semantic-disposition-reader.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
-import { inspectPublishedApplicationSource } from "./release-published-source.mts";
+import { inspectPublishedApplicationSourceWithSdk } from "./release-published-source.mts";
 import {
   requireControllerApplicationCoordinatorAuthorities,
   requireControllerApplicationCoordinatorPublicationAuthorities,
@@ -3570,12 +3570,22 @@ async function requestTrustedSemanticReviewAt(
       typeof publishedCommit.body.tree.sha !== "string"
     )
       throw new Error("published baseline tree unavailable");
-    const sourceProof = inspectPublishedApplicationSource(api, selected.remote_configuration, {
-      id: baselineRelease.id,
-      version: baseVersion,
-      prepared_commit: baselinePrepared,
-      prepared_tree: publishedCommit.body.tree.sha,
-    });
+    const sourceProof = await inspectPublishedApplicationSourceWithSdk(
+      {
+        token: fixedReleaseReaderToken(),
+        deadline: budget.monotonicDeadline,
+        requireDirect: readOnlyReleaseChildEnvironment() !== undefined,
+        guard: () => budget.check(),
+        currentDeadline: () => performance.now() + budget.remaining(15000),
+      },
+      selected.remote_configuration,
+      {
+        id: baselineRelease.id,
+        version: baseVersion,
+        prepared_commit: baselinePrepared,
+        prepared_tree: publishedCommit.body.tree.sha,
+      },
+    );
     const base = sourceProof.source_baseline.commit;
     if (source === base) {
       return {

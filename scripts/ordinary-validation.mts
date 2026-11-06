@@ -603,6 +603,7 @@ for (const [file, tests] of [
     "scripts/release-coordinator-driver.mts",
     [
       "scripts/release-catalog-coordinator.test.mts",
+      "scripts/release-published-source.test.mts",
       "scripts/release-coordinator-driver.test.mts",
       "scripts/release-coordinator-recovery.test.mts",
     ],
@@ -852,6 +853,7 @@ for (const [file, tests] of [
     [
       "scripts/release-compiler-source.test.mts",
       "scripts/release-compiler-source-admission.test.mts",
+      "scripts/release-published-source.test.mts",
     ],
   ],
   [
@@ -876,6 +878,8 @@ for (const [file, tests] of [
       "scripts/acquire-release-admission.test.mts",
       "scripts/application-release-feed.test.mts",
       "scripts/application-release-run.test.mts",
+      "scripts/release-native-public-pair.test.mts",
+      "scripts/release-published-source.test.mts",
     ],
   ],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
@@ -1310,7 +1314,11 @@ for (const [file, tests] of [
   ["scripts/release-tuf-publication.mts", ["scripts/release-tuf-signing.test.mts"]],
   [
     "scripts/release-native-publication-admission.mts",
-    ["scripts/release-native-admission.test.mts", "scripts/release-hosted-native-history.test.mts"],
+    [
+      "scripts/release-native-admission.test.mts",
+      "scripts/release-hosted-native-history.test.mts",
+      "scripts/release-published-source.test.mts",
+    ],
   ],
   [
     "scripts/release-hosted-native-history.mts",
@@ -2433,6 +2441,7 @@ for (const file of [
 ])
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-published-source.test.mts",
     "scripts/application-release-context.test.mts",
     "scripts/application-release-feed.test.mts",
     "scripts/application-release-run.test.mts",
