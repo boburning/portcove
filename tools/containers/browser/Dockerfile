@@ -1,3 +1,5 @@
+ARG BROWSER_SYSTEM_STAGE=system
+
 FROM ghcr.io/voidzero-dev/vite-plus:1.5.0@sha256:cce163cdf4cf3fff928925e03a815910be14d34c355fe40b4e79e766fe368f63 AS base
 
 ENV CI=true PORTCOVE_CONTAINER_GUEST=1 VP_GIT_HOOKS=0
@@ -28,17 +30,21 @@ RUN --mount=type=bind,from=workspace,source=/portcove/browser-deps,target=/opt/b
     && test ! -e /usr/bin/sudo \
     && dpkg-query -W > /portcove/installed-system-packages.txt
 
-FROM system
+FROM ${BROWSER_SYSTEM_STAGE} AS workspace-smoke
 COPY --link --chown=1000:1000 --from=workspace /home/vp/ /home/vp/
 COPY --link --chown=1000:1000 --from=workspace /workspace/ /workspace/
 ARG SOURCE_COMMIT
 ARG SOURCE_TREE
 USER vp
 WORKDIR /workspace
+COPY --chown=vp:vp container-entry.mts container-source.mts runtime-values.mts /portcove/
+RUN test "$(id -u)" = 1000 && test "$(id -g)" = 1000 && test -w /workspace && test -w /home/vp \
+    && node /portcove/container-source.mts "$SOURCE_COMMIT" "$SOURCE_TREE"
+
+FROM workspace-smoke
 RUN node apps/desktop/scripts/browser-runtime.mts bootstrap
 RUN pnpm list --recursive --depth Infinity --json > /portcove/installed-npm-packages.json
 RUN node -e "const {execFileSync}=require('node:child_process'); require('node:fs').writeFileSync('/portcove/tool-versions.json', JSON.stringify(Object.fromEntries(['node','pnpm','vp'].map(command => [command,execFileSync(command,['--version'],{encoding:'utf8'}).trim()]))));"
-COPY --chown=vp:vp container-entry.mts container-source.mts runtime-values.mts /portcove/
 RUN node /portcove/container-source.mts "$SOURCE_COMMIT" "$SOURCE_TREE"
 ARG WORKSPACE_OWNER
 ARG PREPARATION

@@ -170,6 +170,12 @@ interface FailureState {
   diagnostic_error?: string;
   failed_command?: Record<string, unknown>;
 }
+interface BuildCacheAdmission {
+  observed_bytes: number;
+  required_headroom_bytes: number;
+  limit_bytes: number;
+  has_headroom: boolean;
+}
 interface RunState extends FailureState {
   format_version: number;
   tool: string;
@@ -194,6 +200,7 @@ interface RunState extends FailureState {
   capacity_phase?: string;
   global_images_before_bytes?: number;
   build_cache_before_bytes?: number;
+  build_cache_admission?: BuildCacheAdmission;
   build_cache_after_bytes?: number;
   build_name?: string;
   bundle?: { bytes: number; sha256: string };
@@ -223,6 +230,7 @@ interface RunState extends FailureState {
 }
 interface BrowserOptions {
   commit: unknown;
+  comparisonPhase?: "cold" | "warm";
   excludeDirty?: boolean;
   mode?: string | undefined;
   files?: readonly string[];
@@ -691,7 +699,16 @@ export function createContainerHost(profile: string) {
       Number(size[1]) * 1000 ** ["B", "kB", "MB", "GB", "TB"].indexOf(size[2] ?? ""),
     );
   }
-  async function doctor({ networkRequired = true } = {}) {
+  function buildCacheAdmission(observedBytes: number): BuildCacheAdmission {
+    return {
+      observed_bytes: observedBytes,
+      required_headroom_bytes: budgets.image_bytes,
+      limit_bytes: budgets.build_cache_bytes,
+      has_headroom: observedBytes + budgets.image_bytes <= budgets.build_cache_bytes,
+    };
+  }
+
+  async function doctor({ networkRequired = true, cacheRequired = true } = {}) {
     if (process.versions.node !== readFileSync(path.join(root, ".node-version"), "utf8").trim())
       throw new Error("Use the repository-pinned Node version for the optional host adapter");
     if (process.platform !== "win32")
@@ -749,6 +766,13 @@ export function createContainerHost(profile: string) {
       throw new Error(
         "Owned container staging/evidence budget exhausted; inspect scoped cleanup and retained failures",
       );
+    const buildCache = cacheRequired
+      ? buildCacheAdmission(
+          cacheBytes(
+            (await docker(["system", "df", "--format", "json"], { timeout: 120_000 })).stdout,
+          ),
+        )
+      : undefined;
     return {
       format_version: 1,
       read_only: true,
@@ -767,6 +791,7 @@ export function createContainerHost(profile: string) {
         ? await network()
         : { checked: false, reason: "Recovery export requires no downloads" },
       budgets,
+      ...(buildCache ? { build_cache_admission: buildCache } : {}),
       usage: { staging_bytes: stagingBytes, evidence_bytes: evidenceBytes },
     };
   }
@@ -1217,13 +1242,14 @@ export function createContainerHost(profile: string) {
 
   async function browser({
     commit,
+    comparisonPhase,
     excludeDirty = false,
     mode = builder ? "check" : "suite",
     files = [],
     timeout = budgets.timeout_ms,
   }: BrowserOptions) {
     if (
-      !(builder ? ["check", "package"] : ["suite", "probe", "exact"]).includes(mode) ||
+      !(builder ? ["check", "package"] : ["suite", "probe", "exact", "smoke"]).includes(mode) ||
       (mode === "exact" ? !files.length : files.length) ||
       !Number.isSafeInteger(timeout) ||
       timeout < 100 ||
@@ -1240,7 +1266,8 @@ export function createContainerHost(profile: string) {
     const intendedDriverSource = fallowSource(root, undefined, { includeAll: true });
     if (source.excluded_changes.length)
       console.error(`Excluded dirty work (not tested): ${JSON.stringify(source.excluded_changes)}`);
-    const host = await doctor();
+    const smoke = mode === "smoke";
+    const host = await doctor({ cacheRequired: false });
     initializeStage();
     await ensureRetainedEvidenceStore(evidenceRoot);
     const run = randomUUID();
@@ -1349,6 +1376,7 @@ export function createContainerHost(profile: string) {
             : {}),
           platform: "linux/amd64",
           workspace,
+          ...(smoke || comparisonPhase ? { mode, run } : {}),
         }),
       );
       const tag = `${prefix}:${preparation}`;
@@ -1394,7 +1422,9 @@ export function createContainerHost(profile: string) {
           );
         return Math.min(limit, remaining);
       };
-      let image = usage.images.find((candidate) => candidate.RepoTags?.includes(tag));
+      let image = smoke
+        ? undefined
+        : usage.images.find((candidate) => candidate.RepoTags?.includes(tag));
       if (!image) {
         const diskUsage = (
           await docker(["system", "df", "--format", "json"], {
@@ -1404,6 +1434,9 @@ export function createContainerHost(profile: string) {
         ).stdout;
         const cache = cacheBytes(diskUsage);
         state.global_images_before_bytes = cacheBytes(diskUsage, "Images");
+        state.build_cache_before_bytes = cache;
+        state.build_cache_admission = buildCacheAdmission(cache);
+        save();
         if (
           usage.bytes + budgets.image_bytes > budgets.images_bytes ||
           state.global_images_before_bytes + 2 * budgets.image_bytes > budgets.global_images_bytes
@@ -1411,9 +1444,8 @@ export function createContainerHost(profile: string) {
           throw new Error(
             "Image preparation admission budget exhausted; no shared images were deleted",
           );
-        if (cache + budgets.image_bytes > budgets.build_cache_bytes)
+        if (!state.build_cache_admission.has_headroom)
           throw new Error("Build-cache admission budget exhausted; no global cache was pruned");
-        state.build_cache_before_bytes = cache;
         console.error(`Preparing ${tag} from committed ${selectedCommit}`);
         const snapshot = path.join(directory, "snapshot");
         await command("git", ["clone", "--shared", "--no-checkout", root, snapshot], {
@@ -1508,7 +1540,17 @@ export function createContainerHost(profile: string) {
             "build",
             "--builder",
             "desktop-linux",
-            "--load",
+            ...(smoke
+              ? [
+                  "--output",
+                  "type=cacheonly",
+                  "--target",
+                  "workspace-smoke",
+                  "--build-arg",
+                  "BROWSER_SYSTEM_STAGE=base",
+                ]
+              : ["--load"]),
+            ...(comparisonPhase === "cold" ? ["--no-cache-filter", "system"] : []),
             "--platform",
             "linux/amd64",
             "--progress=plain",
@@ -1544,12 +1586,14 @@ export function createContainerHost(profile: string) {
         );
         state.capacity_phase = "prepared";
         save();
-        image = imageObservation(
-          firstObservation(parseJson((await docker(["image", "inspect", tag])).stdout)),
-        );
-        state.image = image.Id;
-        state.image_inspection = image;
-        save();
+        if (!smoke) {
+          image = imageObservation(
+            firstObservation(parseJson((await docker(["image", "inspect", tag])).stdout)),
+          );
+          state.image = image.Id;
+          state.image_inspection = image;
+          save();
+        }
         state.build_cache_after_bytes = cacheBytes(
           (
             await docker(["system", "df", "--format", "json"], {
@@ -1562,8 +1606,19 @@ export function createContainerHost(profile: string) {
           throw new Error(
             "Build cache exceeded its observed admission budget; retain diagnostics and stop preparation",
           );
+        if (smoke) {
+          await reservation.release();
+          reservation = null;
+          state.capacity_released = true;
+          state.status = "smoke-passed";
+          state.causal_exit = 0;
+          state.preparation_ms = Date.now() - preparing;
+          save();
+          return { ...state, exit_code: 0 };
+        }
         state.prepared_reused = false;
       } else state.prepared_reused = true;
+      if (!image) throw new Error("Prepared image is unavailable");
       const labels = owned(image);
       if (
         labels["io.portcove.source"] !== selectedCommit ||
@@ -1657,7 +1712,7 @@ export function createContainerHost(profile: string) {
           : "failed";
       state.causal_exit = state.interruption ? 124 : state.container_exit;
       save();
-      state.storage_after = await doctor({ networkRequired: false });
+      state.storage_after = await doctor({ networkRequired: false, cacheRequired: false });
       await exportRun(state, directory);
       save();
       return { ...state, exit_code: state.interruption ? 124 : state.container_exit };
@@ -1998,6 +2053,10 @@ export function createContainerHost(profile: string) {
           ? "usage: container-build.mts doctor | run --commit <40-hex> [--exclude-dirty] [--mode check|package] [--timeout-ms <100..5400000>] | export --run <UUID> | clean [--apply] [--older-than-hours <0..8760>]"
           : "usage: container-browser.mts doctor | run --commit <40-hex> [--exclude-dirty] [--mode suite|probe|exact] [--timeout-ms <100..1800000>] [--files <literal desktop test files>...] | export --run <UUID> | clean [--apply] [--older-than-hours <0..8760>]",
       );
+      if (!builder)
+        console.log(
+          "  smoke --commit <40-hex> [--exclude-dirty] | run --mode exact --commit <40-hex> --compare-commit <40-hex> --files <literal desktop test files>...",
+        );
       return;
     }
     const action = args.shift();
@@ -2014,36 +2073,64 @@ export function createContainerHost(profile: string) {
       console.log(JSON.stringify(await cleanup(apply, age)));
     } else if (action === "export" && args.length === 2 && args[0] === "--run")
       console.log(JSON.stringify(await recover(requiredState(args[1], "recovery run"))));
-    else if (action === "run") {
+    else if (action === "run" || (!builder && action === "smoke")) {
       const options: BrowserOptions = { commit: undefined };
+      let comparison: string | undefined;
       while (args.length) {
         const flag = args.shift();
         if (flag === "--commit") options.commit = args.shift();
         else if (flag === "--exclude-dirty") options.excludeDirty = true;
-        else if (flag === "--mode") options.mode = args.shift();
-        else if (flag === "--timeout-ms") options.timeout = Number(args.shift());
-        else if (flag === "--files") {
+        else if (flag === "--mode" && action === "run") options.mode = args.shift();
+        else if (
+          flag === "--compare-commit" &&
+          !builder &&
+          action === "run" &&
+          comparison === undefined
+        )
+          comparison = requiredState(args.shift(), "comparison commit");
+        else if (flag === "--timeout-ms" && action === "run")
+          options.timeout = Number(args.shift());
+        else if (flag === "--files" && action === "run") {
           const misplaced = args.find((file) => file.startsWith("-"));
           if (misplaced)
             throw new Error("Place options before --files: " + JSON.stringify(misplaced));
           options.files = args.splice(0);
         } else throw new Error(`Unknown container argument ${flag}`);
       }
-      const result = await browser(options);
-      console.log(
-        JSON.stringify({
-          run: result.run,
-          commit: result.source.commit,
-          tree: result.source.tree,
-          image: result.image,
-          prepared_reused: result.prepared_reused,
-          status: result.status,
-          exit_code: result.exit_code,
-          export: result.export,
-          state: path.join(stageRoot, result.run, "host.json"),
-        }),
-      );
-      process.exitCode = result.exit_code;
+      if (action === "smoke") options.mode = "smoke";
+      if (action === "run" && options.mode === "smoke")
+        throw new Error("Use the smoke command for a workspace-only check");
+      if (comparison !== undefined) {
+        if (options.mode !== "exact" || !options.files?.length || options.commit === comparison)
+          throw new Error("Comparison requires exact files and two distinct commits");
+        const peer = await selectedSource(comparison, options.excludeDirty);
+        await validateSelectedBrowserFiles(peer.commit, options.files);
+      }
+      let exitCode = 0;
+      const commits = comparison === undefined ? [options.commit] : [options.commit, comparison];
+      for (const [index, commit] of commits.entries()) {
+        // Admission errors throw before dispatching the peer.
+        const result = await browser({
+          ...options,
+          commit,
+          ...(comparison !== undefined ? { comparisonPhase: index === 0 ? "cold" : "warm" } : {}),
+        });
+        console.log(
+          JSON.stringify({
+            run: result.run,
+            commit: result.source.commit,
+            tree: result.source.tree,
+            image: result.image,
+            prepared_reused: result.prepared_reused,
+            status: result.status,
+            exit_code: result.exit_code,
+            export: result.export,
+            state: path.join(stageRoot, result.run, "host.json"),
+          }),
+        );
+        exitCode ||= result.exit_code;
+      }
+      process.exitCode = exitCode;
     } else throw new Error("Unknown container command; use --help");
   }
   return {

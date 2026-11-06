@@ -15,6 +15,7 @@ need only the repository-selected Node and existing host capabilities.
 
 ```powershell
 just container-doctor
+node scripts/container-browser.mts smoke --commit <commit>
 just container-browser --commit <full-40-character-commit>
 just container-browser --commit <commit> --mode exact --files src/browser/controlled-react-act.browser.test.tsx
 just container-browser --commit <commit> --mode probe
@@ -34,6 +35,20 @@ executed files. The default `suite` runs the canonical browser and
 forced-colors projects freshly.
 
 `--commit` is mandatory and names a full committed SHA available locally.
+Run `smoke` after changing workspace transfer or ownership. It uses the shared
+BuildKit copy and Git guard with the pinned base, without running the system
+installer, downloading Chromium, loading an image or starting a task.
+The result and bounded build log remain in its staging run directory.
+
+Use `--compare-commit <sha>` in exact mode for a cold system layer followed by a distinct
+committed control. Both builds use distinct prepared-image tags. The first
+rebuilds the system stage. Use a source-only control with
+identical tool inputs. Check both build logs for the actual system-layer
+execution and cache hit. An admission failure stops the pair before the
+second request. Run `node scripts/resource-status.mts` before a native comparison if the host queue is
+already occupied. A reservation awaiting quiescence proof points to
+[owner recovery](owned-resource-recovery.md).
+
 Unpushed commits work without publication. Dirty current work is refused
 unless the caller explicitly supplies `--exclude-dirty`; excluded paths are
 disclosed and remain untested. Nothing commits, stashes, resets, pushes or
@@ -114,7 +129,11 @@ and published evidence each have a 10 GiB admission budget. Images have a
 10 GiB individual/40 GiB aggregate budget, with an additional conservative
 80 GiB global-image admission limit to account for shared base downloads.
 Global build-cache observation reserves
-headroom within a 40 GiB admission budget. These disk limits are admission and
+headroom within a 40 GiB admission budget. The doctor reports observed usage,
+the reserved headroom for one build and the limit. Compare the projected
+usage after the first build before starting a pair. Admission checks fresh
+usage again before each build and preserves the figures on refusal.
+These disk limits are admission and
 post-operation refusal controls, not filesystem quotas or limits on other users.
 The existing minimum-free-space floor also applies to physical Windows and Linux
 storage. Exceeding a budget preserves resources and blocks further preparation;
@@ -126,7 +145,9 @@ BuildKit output there as it arrives within the existing command output limit.
 Verified exports go to the existing retained-evidence location, under
 `container-browser/<run-UUID>`, outside checkout cleanup roots. Logs, traces,
 screenshots, commands, source/environment identities and hashed publication
-inventory remain available on failure. An interrupted export preserves the
+inventory remain available on failure. The browser command log records
+timestamped Playwright launches, Vitest server readiness and browser API
+connections. Missing milestones remain absent when the run fails before them. An interrupted export preserves the
 container and partial copies; `container-export --run` attempts a separate
 no-clobber publication. A later passing run has a new UUID and cannot replace
 an earlier failure.

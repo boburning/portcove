@@ -1,6 +1,7 @@
 import { configDefaults, type TestProjectConfiguration, type TestUserConfig } from "vite-plus";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
+import type { Reporter } from "vite-plus/test/node";
 import { URL } from "node:url";
 import { playwright } from "vite-plus/test/browser-playwright";
 import { createBrowserTraceRun } from "./browser-traces.ts";
@@ -14,6 +15,17 @@ const traceRun = createBrowserTraceRun(
 export const testReporters = [
   ...configDefaults.reporters,
   traceRun.reporter,
+  ...(process.env.PORTCOVE_CONTAINER_GUEST === "1"
+    ? [
+        {
+          onBrowserInit(project) {
+            process.stderr.write(
+              new Date().toISOString() + " Browser server ready " + project.name + "\n",
+            );
+          },
+        } satisfies Reporter,
+      ]
+    : []),
   createFrontendCaseObservations(fileURLToPath(new URL("../", import.meta.url))),
   ...(process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE === "1" ? ["json" as const] : []),
 ] satisfies NonNullable<TestUserConfig["reporters"]>;

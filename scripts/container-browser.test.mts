@@ -101,19 +101,49 @@ void test("browser adapter retains its independently reviewed pre-extraction con
       assertCommandFailure(error);
       result = error.result;
     }
+    const stdout = result.stdout.replaceAll("\r\n", "\n");
+    const help = strings(args).includes("--help");
+    if (help) assert.match(stdout, /smoke --commit .* --compare-commit /u);
     assert.deepEqual(
       {
         status: result.status,
         // The immutable oracle records the historical command spelling.
-        stdout: result.stdout
-          .replaceAll("\r\n", "\n")
-          .replaceAll("container-browser.mts", "container-browser.mjs"),
+        stdout: (help ? stdout.slice(0, stdout.indexOf("\n") + 1) : stdout).replaceAll(
+          "container-browser.mts",
+          "container-browser.mjs",
+        ),
         stderr: result.stderr.replaceAll("\r\n", "\n"),
       },
       expected,
     );
   }
 });
+void test("a comparison rejects invalid or identical controls before Docker admission", async () => {
+  const run = [
+    "scripts/container-browser.mts",
+    "run",
+    "--mode",
+    "exact",
+    "--commit",
+    "a".repeat(40),
+    "--exclude-dirty",
+    "--compare-commit",
+  ];
+  for (const [peer, diagnostic] of [
+    ["a".repeat(40), /two distinct commits/u],
+    ["HEAD", /Select one full committed SHA/u],
+  ] as const) {
+    await assert.rejects(
+      command(process.execPath, [...run, peer, "--files", "src/example.test.ts"]),
+      (error) => {
+        assertCommandFailure(error);
+        assert.match(error.result.stderr, diagnostic);
+        return true;
+      },
+    );
+  }
+});
+
 const info = {
   OSType: "linux",
   OperatingSystem: "Docker Desktop",

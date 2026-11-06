@@ -4,11 +4,28 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { collectResourceStatus } from "./resource-status.mts";
+import { capacityOwnerLines, collectResourceStatus } from "./resource-status.mts";
 import { writeFileSync } from "node:fs";
 import { parsePressure, parseDiskStats, sampleHostObservations } from "./resource-observations.mts";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+
+void test("capacity summary identifies retained external work and its owner recovery route", () => {
+  const owner = {
+    slot: "slot-0",
+    workspace: "owned-workspace",
+    command: "container-browser exact",
+    activity: { kind: "external work awaiting quiescence proof" },
+    token: "internal-reservation-token",
+  };
+  const [line] = capacityOwnerLines({ running: [owner] });
+  assert.match(
+    line ?? "",
+    /owned-workspace.*container-browser exact.*awaiting quiescence proof.*owned-resource-recovery/u,
+  );
+  assert.doesNotMatch(line ?? "", /internal-reservation-token/u);
+  assert.deepEqual(capacityOwnerLines({ running: [] }), []);
+});
 
 void test("resource status CLI renders its collected I/O observation without requiring JSON", () => {
   const output = execFileSync(
