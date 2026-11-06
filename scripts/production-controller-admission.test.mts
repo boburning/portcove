@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import filesystem from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
+import { Octokit } from "@octokit/core";
 import { parse } from "yaml";
 import {
   admitProductionController,
@@ -1390,6 +1392,88 @@ const workflow = await readFile(
   new URL("../.github/workflows/application-update-production.yml", import.meta.url),
   "utf8",
 );
+
+void test("fixed pause step brackets the raw bounded document through locked Octokit", async () => {
+  const parsed = parse(workflow) as {
+    jobs: {
+      admission: { steps: { id?: string; uses?: string; with?: Record<string, unknown> }[] };
+    };
+  };
+  const pause = parsed.jobs.admission.steps.find((step) => step.id === "pause");
+  assert.equal(pause?.uses, "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3");
+  assert.equal(pause.with?.retries, 0);
+  assert.equal(pause.with?.debug, false);
+  const script = pause.with?.script;
+  assert.ok(typeof script === "string" && !script.includes("${{"));
+  const base = "https://api.github.com/repos/boburning/portcove";
+  const ref = "/git/ref/heads/portcove-release-pause";
+  const sha = "a".repeat(40);
+  for (const scenario of [
+    "paused",
+    "unpaused",
+    "changed",
+    "oversized",
+    "failed-body",
+    "redirect",
+  ]) {
+    const calls: string[] = [];
+    const outputs: unknown[] = [];
+    const execute = runInNewContext(`(async () => {${script}})()`, {
+      github: new Octokit({ auth: "inert" }),
+      core: { setOutput: (...values: unknown[]) => outputs.push(values) },
+      AbortSignal,
+      Response,
+      Buffer,
+      fetch: async (input: string, init: RequestInit) => {
+        const suffix = input.slice(base.length);
+        assert.equal(input, base + suffix);
+        assert.equal(init.redirect, "manual");
+        assert.equal(new Headers(init.headers).get("authorization"), "token inert");
+        calls.push(suffix);
+        if (suffix === ref)
+          return Response.json({
+            ref: "refs/heads/portcove-release-pause",
+            object: {
+              type: "commit",
+              sha: scenario === "changed" && calls.length === 3 ? "b".repeat(40) : sha,
+            },
+          });
+        assert.equal(suffix, `/contents/publication.json?ref=${sha}`);
+        assert.equal(new Headers(init.headers).get("accept"), "application/vnd.github.raw+json");
+        if (scenario === "redirect")
+          return new Response(null, {
+            status: 302,
+            headers: { location: "https://example.invalid/" },
+          });
+        if (scenario === "oversized") return new Response(" ".repeat(4097));
+        if (scenario === "failed-body")
+          return new Response(
+            new ReadableStream({
+              pull(controller) {
+                controller.error(new Error("raw provider exception"));
+              },
+            }),
+          );
+        return Response.json({ publication_paused: scenario !== "unpaused", schema_version: 1 });
+      },
+    }) as Promise<void>;
+    if (scenario === "paused" || scenario === "unpaused") {
+      await execute;
+      assert.deepEqual(outputs, [["publication_paused", String(scenario === "paused")]]);
+    } else {
+      await assert.rejects(
+        execute,
+        /Fixed publication pause read failed|Publication pause ref changed/u,
+      );
+      assert.deepEqual(outputs, []);
+    }
+    assert.deepEqual(calls, [
+      ref,
+      `/contents/publication.json?ref=${sha}`,
+      ...(["paused", "unpaused", "changed"].includes(scenario) ? [ref] : []),
+    ]);
+  }
+});
 
 void test("held receiver leaves both tool producers available and fences protected consumers", () => {
   const { jobs } = parse(workflow) as {
