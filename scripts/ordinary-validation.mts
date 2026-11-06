@@ -603,6 +603,7 @@ for (const [file, tests] of [
     "scripts/release-coordinator-driver.mts",
     [
       "scripts/release-catalog-coordinator.test.mts",
+      "scripts/release-published-source.test.mts",
       "scripts/release-coordinator-driver.test.mts",
       "scripts/release-coordinator-recovery.test.mts",
     ],
@@ -852,6 +853,7 @@ for (const [file, tests] of [
     [
       "scripts/release-compiler-source.test.mts",
       "scripts/release-compiler-source-admission.test.mts",
+      "scripts/release-published-source.test.mts",
     ],
   ],
   [
@@ -2433,6 +2435,7 @@ for (const file of [
 ])
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-published-source.test.mts",
     "scripts/application-release-context.test.mts",
     "scripts/application-release-feed.test.mts",
     "scripts/application-release-run.test.mts",

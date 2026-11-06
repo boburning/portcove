@@ -340,7 +340,7 @@ export async function inspectPreparedCompilerSourceAsync(
   return step.value;
 }
 
-function* preparedCompilerSourceRequests(
+export function* preparedCompilerSourceRequests(
   rawCandidate: PreparedCompilerSource,
   deadline = Infinity,
 ) {

@@ -4,10 +4,15 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
-import { inspectPublishedApplicationSource } from "./release-published-source.mts";
+import {
+  inspectPublishedApplicationSource,
+  inspectPublishedApplicationSourceWithSdk,
+} from "./release-published-source.mts";
 import { readSemanticPublicationBaseline } from "./release-semantic-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 async function fixture(t: test.TestContext, extraCodeChange = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "published-source-"));
@@ -211,6 +216,27 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
   };
 }
 
+function readWithLockedSdk(f: Awaited<ReturnType<typeof fixture>>, publication = f.publication) {
+  return inspectPublishedApplicationSourceWithSdk(
+    {
+      token: "inert-published-source",
+      deadline: performance.now() + 5000,
+      requireDirect: false,
+      guard() {},
+      fetch: async (input, init) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), "token inert-published-source");
+        const result = f.api.request(request.method, url.pathname.slice(1) + url.search);
+        return Response.json(result.body, { status: result.status });
+      },
+    },
+    { schema_version: 1, namespace: f.namespace },
+    publication,
+  );
+}
+
 void test("actual paired preparation and exact four-file transform preserve distinct published and original source identities", async (t) => {
   const f = await fixture(t);
   const result = inspectPublishedApplicationSource(
@@ -226,6 +252,9 @@ void test("actual paired preparation and exact four-file transform preserve dist
   assert.equal(result.authority, "none");
   assert.match(result.proof_sha256, /^[a-f0-9]{64}$/u);
   assert.ok(f.calls.some((entry) => entry.includes("/compare/")));
+  const legacyRoutes = f.calls.splice(0);
+  assert.deepEqual(await readWithLockedSdk(f), result);
+  assert.deepEqual(f.calls, legacyRoutes);
   const semanticApi = {
     request(method: string, endpoint: string) {
       if (endpoint === "repos/boburning/portcove")
@@ -268,6 +297,8 @@ void test("missing/wrong paired receipt, truncated tree, changed blob and tag dr
         f.publication,
       ),
     );
+    f.calls.length = 0;
+    await assert.rejects(readWithLockedSdk(f));
   }
   f.setFault("");
   f.refs.delete(`${f.namespace}-prepared-source/${f.source}`);
@@ -308,6 +339,7 @@ void test("legacy direct publication retains its actual source identity without 
     f.calls.some((entry) => entry.includes("/contents/") || entry.includes("/compare/")),
     false,
   );
+  assert.deepEqual(await readWithLockedSdk(f, publication), result);
   assert.ok(isRecord(result.publication));
 });
 
@@ -322,4 +354,47 @@ void test("valid raw intent and receipt pair cannot conceal extra application ch
       ),
     /changes more than exact existing version authorities/,
   );
+});
+
+void test("published source proof aborts a stalled metadata body at the inherited deadline without replay", async () => {
+  let dispatches = 0;
+  let cancelled = false;
+  const deadline = performance.now() + 200;
+  await assert.rejects(
+    withCoordinatorDeadline(deadline, () =>
+      inspectPublishedApplicationSourceWithSdk(
+        {
+          token: "inert-published-source",
+          deadline: performance.now() + 5000,
+          requireDirect: false,
+          guard() {},
+          fetch: async (_input, init) => {
+            assert.ok(init?.signal);
+            dispatches++;
+            return new Response(
+              new ReadableStream({
+                start(controller) {
+                  controller.enqueue(Buffer.from("{"));
+                },
+                cancel() {
+                  cancelled = true;
+                },
+              }),
+              { headers: { "content-type": "application/json" } },
+            );
+          },
+        },
+        { schema_version: 1, namespace: "portcove-fixture" },
+        {
+          id: 42,
+          version: "0.1.0-alpha.3",
+          prepared_commit: "a".repeat(40),
+          prepared_tree: "b".repeat(40),
+        },
+      ),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(dispatches, 1);
+  assert.equal(cancelled, true);
 });
