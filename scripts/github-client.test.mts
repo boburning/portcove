@@ -3,7 +3,11 @@ import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
-import { localDeveloperCredential, verifyGitHubAttestation } from "./github-cli.mts";
+import {
+  localDeveloperCredential,
+  verifyGitHubAttestation,
+  verifyGitHubRelease,
+} from "./github-cli.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { verifyControllerArtifactVerification } from "./github-controller-attestation.mts";
 
@@ -1404,4 +1408,54 @@ void test("controller verifier redacts the actual custom child credential and re
       return true;
     },
   );
+});
+
+void test("retained Release verifier fixes its command and rejects unscoped arguments", () => {
+  const environment = { GH_TOKEN: "ghs_SYNTHETIC_TEST_ONLY" };
+  const options = {
+    cwd: process.cwd(),
+    timeoutMs: 1000,
+    maxBytes: 1024,
+    environment,
+  };
+  let calls = 0;
+  assert.throws(
+    () =>
+      verifyGitHubRelease("boburning/portcove", "--help", {
+        ...options,
+        spawn() {
+          calls++;
+          assert.fail("invalid Release target cannot reach the verifier");
+        },
+      }),
+    /verification target/u,
+  );
+  assert.throws(
+    () =>
+      verifyGitHubRelease("boburning/portcove", "v0.1.0-RC.2", {
+        ...options,
+        spawn(command, args, settings) {
+          calls++;
+          assert.equal(command, "gh");
+          assert.deepEqual(args, [
+            "release",
+            "verify",
+            "v0.1.0-RC.2",
+            "--repo",
+            "boburning/portcove",
+            "--format",
+            "json",
+          ]);
+          assert.equal(settings.timeout, 1000);
+          assert.equal(settings.maxBuffer, 1024);
+          assert.deepEqual(settings.env, environment);
+          return { status: 1, stdout: "", stderr: `Authorization: Bearer ${environment.GH_TOKEN}` };
+        },
+      }),
+    (error: unknown) =>
+      error instanceof GitHubApiError &&
+      error.code === "command_failed" &&
+      !error.message.includes(environment.GH_TOKEN),
+  );
+  assert.equal(calls, 1);
 });

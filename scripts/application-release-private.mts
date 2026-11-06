@@ -11,7 +11,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   applicationOutput,
   readApplicationJson,
-  applicationGh,
+  verifyApplicationRelease,
   receiveApplicationData,
   writeApplicationJson,
   sha256,
@@ -1335,18 +1335,8 @@ async function prepareOrdinaryFeed() {
   const input = await readImmutableApplicationRelease(expected, {
     open: (expected, deadline) =>
       createPreparedApplicationPublicationReader(fixedReleaseReaderToken(), expected, deadline),
-    async authenticateRelease(identity) {
-      const verified: unknown = JSON.parse(
-        applicationGh([
-          "release",
-          "verify",
-          identity.tag,
-          "--repo",
-          "boburning/portcove",
-          "--format",
-          "json",
-        ]),
-      );
+    async authenticateRelease(identity, deadline) {
+      const verified: unknown = JSON.parse(verifyApplicationRelease(identity.tag, deadline));
       inspectApplicationReleaseAttestation(verified, identity);
     },
     readAsset: createFixedApplicationReleaseAssetReader(),
@@ -2114,18 +2104,8 @@ export async function preparePublicWindowsCandidate(
       });
       return provider.releaseByTag(tag);
     },
-    async authenticateRelease(identity) {
-      const verified: unknown = JSON.parse(
-        applicationGh([
-          "release",
-          "verify",
-          identity.tag,
-          "--repo",
-          "boburning/portcove",
-          "--format",
-          "json",
-        ]),
-      );
+    async authenticateRelease(identity, deadline) {
+      const verified: unknown = JSON.parse(verifyApplicationRelease(identity.tag, deadline));
       inspectApplicationReleaseAttestation(verified, identity);
     },
     readAsset: createFixedApplicationReleaseAssetReader(undefined, deadline),

@@ -1047,6 +1047,7 @@ export async function readApplicationWindowsCandidateAssets(
     deadline?: number;
     authenticateRelease: (
       expected: Parameters<typeof inspectApplicationReleaseAttestation>[1],
+      deadline: number,
     ) => Promise<void>;
     readAsset: ApplicationPublicationReadTransport["readAsset"];
   },
@@ -1138,12 +1139,15 @@ async function readImmutableWindowsPair(
     "immutable product asset inventory is incomplete",
   );
   const selected = select(inventory);
-  await transport.authenticateRelease({
-    release_id: expected.release_id,
-    tag: remote.tag,
-    prepared_commit: remote.preparation.prepared_commit,
-    assets: inventory,
-  });
+  await transport.authenticateRelease(
+    {
+      release_id: expected.release_id,
+      tag: remote.tag,
+      prepared_commit: remote.preparation.prepared_commit,
+      assets: inventory,
+    },
+    remote.deadline,
+  );
   remote.within();
   const files = new Map<string, Buffer>();
   for (const asset of selected) {
@@ -1169,6 +1173,7 @@ export async function readImmutableApplicationRelease(
     open: ApplicationPublicationReadTransport["open"];
     authenticateRelease: (
       expected: Parameters<typeof inspectApplicationReleaseAttestation>[1],
+      deadline: number,
     ) => Promise<void>;
     readAsset: ApplicationPublicationReadTransport["readAsset"];
     authenticateContents: (
@@ -1190,12 +1195,15 @@ export async function readImmutableApplicationRelease(
   );
   assert.ok(assets.reduce((total, asset) => total + asset.bytes, 0) <= 2 * 1024 ** 3);
   await remote.inspectTag();
-  await transport.authenticateRelease({
-    release_id: expected.release_id,
-    tag: remote.tag,
-    prepared_commit: remote.preparation.prepared_commit,
-    assets,
-  });
+  await transport.authenticateRelease(
+    {
+      release_id: expected.release_id,
+      tag: remote.tag,
+      prepared_commit: remote.preparation.prepared_commit,
+      assets,
+    },
+    remote.deadline,
+  );
   remote.within();
   const files = new Map<string, Buffer>();
   for (const asset of assets) {
