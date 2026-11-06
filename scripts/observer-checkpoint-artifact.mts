@@ -12,7 +12,7 @@ import { rateLimitFromResponse } from "./github-operation.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { readObserverMetadata } from "./upstream-observer.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import {
   validateCatalogObserverCheckpoint,
@@ -694,7 +694,10 @@ type RecoveryOptions = {
   current: Producer;
   deadline: number;
   api: { read(endpoint: string): Promise<GitHubMetadataResponse> };
-  download?: typeof readGitHubArtifactArchive;
+  download?: (
+    endpoint: string,
+    bounds: { maxBytes: number; timeoutMs: number },
+  ) => Buffer | Promise<Buffer>;
   now?: () => number;
   log?: (event: {
     route: string;
@@ -1141,10 +1144,11 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         artifact.workflow_run.head_sha === source.source,
       "checkpoint artifact identity unavailable",
     );
+    requireValue(options.download, "checkpoint artifact transport unavailable");
     admit();
-    const archive = (options.download ?? readGitHubArtifactArchive)(
+    const archive = await options.download(
       `repos/${repository}/actions/artifacts/${Number(artifact.id)}/zip`,
-      { cwd: root, maxBytes: Number(artifact.size_in_bytes), timeoutMs: remaining() },
+      { maxBytes: Number(artifact.size_in_bytes), timeoutMs: remaining() },
     );
     remaining();
     requireValue(
@@ -1216,6 +1220,37 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   };
 }
 
+export async function recoverObserverCheckpointWithSdk({
+  token,
+  fetch,
+  ...options
+}: Omit<RecoveryOptions, "api" | "download"> & { token: string; fetch?: typeof globalThis.fetch }) {
+  const credential = { kind: "explicit" as const, token };
+  const deadline = performance.now() + Math.max(0, options.deadline - (options.now ?? Date.now)());
+  const sdk = await createGitHubClient({
+    credential,
+    deadline,
+    maxBytes: observerSnapshotLimit,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      (url.pathname === `/repos/${repository}` || url.pathname.startsWith(`/repos/${repository}/`)),
+    ...(fetch ? { fetch } : {}),
+  });
+  return recoverObserverCheckpoint({
+    ...options,
+    api: { read: (endpoint) => readObserverMetadata(sdk, endpoint) },
+    download: (endpoint, { maxBytes, timeoutMs }) =>
+      downloadGitHubArtifactArchive(endpoint, {
+        credential,
+        deadline: Math.min(deadline, performance.now() + timeoutMs),
+        maxBytes,
+        lookup: { requestTimeoutMs: timeoutMs },
+        ...(fetch ? { fetch } : {}),
+      }),
+  });
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const root = fileURLToPath(new URL("../", import.meta.url));
@@ -1241,25 +1276,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       );
       const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
       requireValue(token, "checkpoint recovery requires its explicit credential");
-      const sdk = await createGitHubClient({
-        credential: { kind: "explicit", token },
-        deadline: performance.now() + Math.max(0, deadline - Date.now()),
-        maxBytes: observerSnapshotLimit,
-        headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-        allowRequest: (method, url) =>
-          method === "GET" &&
-          (url.pathname === `/repos/${repository}` ||
-            url.pathname.startsWith(`/repos/${repository}/`)),
-      });
-      const api = { read: (endpoint: string) => readObserverMetadata(sdk, endpoint) };
       console.log(
         JSON.stringify(
-          await recoverObserverCheckpoint({
+          await recoverObserverCheckpointWithSdk({
             root,
             config,
             current,
             deadline,
-            api,
+            token,
             log: (event) =>
               console.log(JSON.stringify({ kind: "observer-recovery-metadata", ...event })),
           }),

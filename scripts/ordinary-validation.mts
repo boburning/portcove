@@ -2382,7 +2382,11 @@ const workflowTests = new Map([
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
   [
     "configured-upstream-observer.yml",
-    ["scripts/upstream-observer.test.mts", "scripts/catalog-upstream-observer.test.mts"],
+    [
+      "scripts/upstream-observer.test.mts",
+      "scripts/catalog-upstream-observer.test.mts",
+      "scripts/observer-checkpoint-artifact.test.mts",
+    ],
   ],
   [
     "upstream-health.yml",
@@ -2689,6 +2693,8 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 ]);
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
+  "scripts/ci-health.test.mts",
+  "scripts/observer-checkpoint-artifact.test.mts",
   "scripts/updater-artifact-inventory.test.mts",
   "scripts/application-release-feed.test.mts",
   "scripts/application-release-publication.test.mts",
@@ -2735,7 +2741,12 @@ for (const file of [
     ]),
   ]);
 
-for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
+for (const name of [
+  "ci-health",
+  "handoff-evidence",
+  "observer-checkpoint-artifact",
+  "postmerge-ci",
+]) {
   const file = `scripts/${name}.mts`;
   explicitNodeTests.set(file, [...(explicitNodeTests.get(file) ?? []), `scripts/${name}.test.mts`]);
 }

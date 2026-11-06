@@ -6,7 +6,14 @@ function required<T>(value: T | null | undefined): T {
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { collectHistory, renderReport, summarizeAttempt, summarizeHistory } from "./ci-health.mts";
+import {
+  collectHistory,
+  createCiHistoryRequest,
+  renderReport,
+  summarizeAttempt,
+  summarizeHistory,
+} from "./ci-health.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
 import { buildWorkflowProvenance } from "./workflow-provenance.mts";
 
 const stamp = (seconds: number) => new Date(Date.UTC(2026, 8, 7) + seconds * 1000).toISOString();
@@ -529,13 +536,47 @@ void test("collector admits only digest-bound attempt provenance to equivalent c
     },
     checkoutSha: "a".repeat(40),
   });
-  const archive = storedZip(JSON.stringify(record));
-  const request: CiRequest = async (route, paginate, responseType) => {
-    if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 1 }] };
-    if (route.includes("/jobs?")) return [{ total_count: 1, jobs: [job()] }];
-    if (route.includes("/artifacts?"))
-      return [
-        {
+  let archive = storedZip(JSON.stringify(record));
+  let credentialReads = 0,
+    deliveries = 0;
+  const deliveryStarted = Promise.withResolvers<void>(),
+    resumeDelivery = Promise.withResolvers<void>();
+  let holdDelivery = false;
+  const signed = "https://productionresultssa1.blob.core.windows.net/actions-results/ci?sig=inert";
+  const deadline = performance.now() + 10000;
+  const request = await createCiHistoryRequest({
+    repository: "example/repo",
+    deadline,
+    credential: localDeveloperCredential({
+      deadline,
+      environment: {},
+      resolve: async () => {
+        credentialReads++;
+        return "inert-ci-reader";
+      },
+    }),
+    fetch: async (input, init) => {
+      const request = new Request(input, init),
+        url = new URL(request.url);
+      assert.equal(request.method, "GET");
+      assert.equal(init?.redirect, "manual");
+      if (url.href === signed) {
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(init?.credentials, "omit");
+        deliveries++;
+        if (holdDelivery) {
+          deliveryStarted.resolve();
+          await resumeDelivery.promise;
+        }
+        return new Response(new Uint8Array(archive));
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-ci-reader");
+      if (url.pathname.includes("/workflows/"))
+        return Response.json({ workflow_runs: [{ id: 1, run_attempt: 1 }] });
+      if (url.pathname.endsWith("/jobs")) return Response.json({ total_count: 1, jobs: [job()] });
+      if (url.pathname.endsWith("/artifacts"))
+        return Response.json({
           total_count: 1,
           artifacts: [
             {
@@ -546,19 +587,20 @@ void test("collector admits only digest-bound attempt provenance to equivalent c
               workflow_run: { id: 1, head_sha: "a".repeat(40) },
             },
           ],
-        },
-      ];
-    if (route.includes("/artifacts/9/zip")) {
-      assert.equal(responseType, "buffer");
-      return archive;
-    }
-    return run();
-  };
-  const report = await collectHistory(request, {
-    repository: "example/repo",
-    event: "push",
-    limit: 1,
+        });
+      if (url.pathname === "/repos/example/repo/actions/artifacts/9/zip")
+        return new Response(null, { status: 302, headers: { location: signed } });
+      assert.equal(url.pathname, "/repos/example/repo/actions/runs/1/attempts/1");
+      return Response.json(run());
+    },
   });
+  const collect = () =>
+    collectHistory(request, {
+      repository: "example/repo",
+      event: "push",
+      limit: 1,
+    });
+  const report = await collect();
   assert.equal(report.summary.provenance.verified, 1);
   assert.equal(report.summary.provenance.unknown, 0);
   assert.equal(report.summary.cohorts.length, 1);
@@ -566,6 +608,32 @@ void test("collector admits only digest-bound attempt provenance to equivalent c
     required(report.summary.cohorts[0]).name,
     new RegExp(`exact:${record.equivalent_cohort}`, "u"),
   );
+  assert.equal(credentialReads, 1);
+  assert.equal(deliveries, 1);
+  archive = Buffer.alloc(2 * 1024 * 1024 + 1);
+  await assert.rejects(collect(), /Invalid provenance artifact archive size/);
+  assert.equal(deliveries, 2, "the transfer cap is distinct from the parser cap");
+  await assert.rejects(request("repos/other/repo/actions/artifacts/9/zip", false, "buffer"), {
+    code: "request_refused",
+  });
+  assert.equal(credentialReads, 1);
+
+  holdDelivery = true;
+  const route = "repos/example/repo/actions/artifacts/9/zip";
+  const first = request(route, false, "buffer"),
+    second = request(route, false, "buffer");
+  try {
+    await Promise.race([
+      deliveryStarted.promise,
+      first.then(() => assert.fail("first transfer was not held")),
+    ]);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(deliveries, 3, "only one archive transfer is in flight");
+  } finally {
+    resumeDelivery.resolve();
+    await Promise.all([first, second]);
+  }
+  assert.equal(deliveries, 4);
 });
 
 void test("non-text workflow timestamps remain unavailable instead of coerced durations", () => {
