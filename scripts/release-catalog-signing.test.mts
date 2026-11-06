@@ -495,7 +495,7 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
   const make = raw as (
     directory: string,
     budget: { check: () => void; monotonicDeadline: number },
-    guard: () => void,
+    guard: (() => void) | { readCurrent: () => Promise<void> },
   ) => typeof journal;
   let expired = false;
   const guarded = make("inert", { monotonicDeadline: 100, check() {} }, () => {
@@ -519,13 +519,16 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
   assert.equal(observed.filter((value) => value !== "guard").length, before);
   guarded.request("GET");
   assert.equal(observed.at(-1), "GET");
-  // Run the actual producer callback too: a synchronous Check GET may consume
+  // Run the actual producer callback too: the awaited Check GET may consume
   // the remaining control lifetime while the enclosing job is still live.
-  const callbackCall = source.indexOf("const beforeMutation = () => {"),
-    callbackStart = source.indexOf("() => {", callbackCall),
-    callbackEnd = source.indexOf("\n        };", callbackStart);
-  assert.ok(callbackCall > 0 && callbackEnd > callbackStart);
+  const receiver = source.indexOf("export async function prepareActualCoordinatorCatalogSigning("),
+    callbackStart = source.indexOf("const beforeMutation = {", receiver),
+    callbackEnd = source.indexOf("const signedJournal = ", callbackStart);
+  assert.ok(receiver > 0 && callbackStart > receiver && callbackEnd > callbackStart);
   let clock = 59;
+  let check = Promise.withResolvers<void>(),
+    enteredControls = Promise.withResolvers<void>(),
+    controls = Promise.withResolvers<void>();
   const order: string[] = [],
     budget = {
       monotonicDeadline: 170,
@@ -534,36 +537,52 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
       },
     };
   const actualCallback: unknown = runInNewContext(
-    `(${stripTypeScriptTypes(`${source.slice(callbackStart, callbackEnd)}\n}`)})`,
+    `${stripTypeScriptTypes(source.slice(callbackStart, callbackEnd))}\nbeforeMutation`,
     {
       budget,
-      api: {},
-      authorities: {},
-      inputs: { opportunity: {}, check_id: 1 },
       semantic: { proof_sha256: "same" },
       stable: "stable",
-      readCatalogCoordinatorReview() {
+      async readReview() {
         order.push("Check GET");
+        await check.promise;
         clock += 2;
         return { proof_sha256: "same" };
       },
-      initialControls: {
-        readMaintenance() {
-          order.push("maintenance");
-          if (clock >= 60) throw new Error("original controls expired");
-          return "stable";
-        },
+      async readMaintenance() {
+        order.push("maintenance");
+        enteredControls.resolve();
+        await controls.promise;
+        if (clock >= 60) throw new Error("original controls expired");
+        return "stable";
       },
       catalogCoordinatorMaintenanceIdentity: (value: unknown) => value,
     },
     { timeout: 1000, contextCodeGeneration: { strings: false, wasm: false } },
   );
-  assert.equal(typeof actualCallback, "function");
-  const lastGuard = make("inert", budget, actualCallback as () => void),
+  const lastGuard = make("inert", budget, actualCallback as { readCurrent: () => Promise<void> }),
     writesBefore = observed.filter((value) => value === "POST").length;
-  assert.throws(() => lastGuard.request("POST"), /controls expired/);
+  const refused = Promise.resolve(lastGuard.request("POST"));
+  assert.deepEqual(order, ["Check GET"]);
+  check.resolve();
+  await enteredControls.promise;
   assert.deepEqual(order, ["Check GET", "maintenance"]);
   assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
+  controls.resolve();
+  await assert.rejects(refused, /controls expired/);
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
+
+  clock = 0;
+  check = Promise.withResolvers();
+  enteredControls = Promise.withResolvers();
+  controls = Promise.withResolvers();
+  const accepted = Promise.resolve(lastGuard.request("POST"));
+  check.resolve();
+  await enteredControls.promise;
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
+  controls.resolve();
+  await accepted;
+  assert.deepEqual(order, ["Check GET", "maintenance", "Check GET", "maintenance"]);
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore + 1);
 });
 void test("catalog context transports exact independent purpose, full byte inventory and lossless u64 wire", () => {
   const f = fixture(),
@@ -971,6 +990,88 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
     ),
   );
   assert.equal(routes.length, 32);
+
+  await t.test(
+    "coordinator gives each GET its own timeout inside the original phase",
+    async (timing) => {
+      const source = await readFile(
+        new URL("./release-coordinator-driver.mts", import.meta.url),
+        "utf8",
+      );
+      const preparation = source.indexOf(
+          "export async function prepareActualCoordinatorCatalogSigning(",
+        ),
+        optionsStart = source.indexOf("const readOptions = {", preparation),
+        optionsEnd = source.indexOf("await verifyCatalogCoordinatorBaseline(", optionsStart),
+        reviewStart = source.indexOf("async function readCatalogCoordinatorReview("),
+        reviewEnd = source.indexOf("async function recheckActualCatalogReview(", reviewStart);
+      assert.ok(preparation > 0 && optionsStart > preparation && optionsEnd > optionsStart);
+      assert.ok(reviewStart > 0 && reviewEnd > reviewStart);
+      const phaseDeadline = 41000;
+      let clock = 1000,
+        wallCutoff = phaseDeadline,
+        bodyTimes = [11000, 11000];
+      timing.mock.method(performance, "now", () => clock);
+      const timedFetch: typeof globalThis.fetch = async (input, init) => {
+        const response = await fetch(input, init);
+        const elapsed = bodyTimes.shift();
+        assert.ok(elapsed !== undefined);
+        const stream = response.body?.pipeThrough(
+          new TransformStream<Uint8Array, Uint8Array>({
+            transform(chunk, controller) {
+              clock += elapsed;
+              controller.enqueue(chunk);
+            },
+          }),
+        );
+        return new Response(stream, { headers: response.headers });
+      };
+      timing.mock.method(globalThis, "fetch", timedFetch);
+      const read = runInNewContext(
+        stripTypeScriptTypes(
+          source.slice(optionsStart, optionsEnd) + source.slice(reviewStart, reviewEnd),
+        ) +
+          "\n(authorities, opportunity) => readCatalogCoordinatorReview(readOptions, authorities, opportunity, 303)",
+        {
+          performance,
+          budget: {
+            monotonicDeadline: phaseDeadline,
+            remaining(maximum = 170000) {
+              return Math.min(maximum, phaseDeadline - clock, wallCutoff - clock);
+            },
+            check() {
+              if (clock >= Math.min(phaseDeadline, wallCutoff)) throw new Error("phase expired");
+            },
+          },
+          readOnlyReleaseChildEnvironment: () => undefined,
+          fixedReleaseReaderToken: () => "inert-catalog-reader",
+          inspectCatalogSemanticOpportunity: (opportunity: unknown) => opportunity,
+          readIndependentCatalogSemanticReviewWithSdk,
+          capacityDigest: digest,
+        },
+      ) as (
+        authority: { semantic_producer: unknown },
+        opportunity: unknown,
+      ) => Promise<{
+        proof_sha256: string;
+      }>;
+      routes.length = 0;
+      assert.equal((await read(selected, op)).proof_sha256, proof_sha256);
+      assert.deepEqual(routes, [
+        "/repos/boburning/portcove",
+        "/repos/boburning/portcove/check-runs/303",
+      ]);
+      assert.equal(clock, 23000);
+
+      clock = 1000;
+      bodyTimes = [11000, 16000];
+      await assert.rejects(read(selected, op), { code: "deadline_exceeded" });
+      clock = 1000;
+      wallCutoff = 20000;
+      bodyTimes = [11000, 11000];
+      await assert.rejects(read(selected, op), { code: "deadline_exceeded" });
+    },
+  );
 });
 
 void test("catalog context and role ready/predicate routes reach fixed upload and normalized attestation names", async (t) => {

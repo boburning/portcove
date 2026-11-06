@@ -21,7 +21,7 @@ import {
   requireActualCatalogInspection,
   readCatalogPublicationBundle,
 } from "./release-catalog-inspection.mts";
-import { readIndependentCatalogSemanticReview } from "./release-control-inputs.mts";
+import { readIndependentCatalogSemanticReviewWithSdk } from "./release-control-inputs.mts";
 import { inspectCatalogInitialization } from "./release-catalog-publication-contract.mts";
 import {
   inspectPublicationReportRepair,
@@ -39,10 +39,8 @@ import {
   assessBoundedCapacity,
 } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
   createPublicationInventoryWithSdk,
-  createReleasePublicationReader,
   peelReleaseReference,
 } from "./release-publication-inventory.mts";
 import {
@@ -63,12 +61,11 @@ import {
   createPreparedCheckpointObjectApi,
 } from "./release-coordinator-journal-api.mts";
 import {
-  collectReleaseSourceChanges,
   collectReleaseSourceChangesWithSdk,
   netTreeDeltaScope,
 } from "./release-source-changes.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
-import { hydrateReleasePreparationSource } from "./release-preparation-source.mts";
+import { hydrateReleasePreparationSourceWithSdk } from "./release-preparation-source.mts";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import {
   classifyApplicationVersion,
@@ -164,7 +161,7 @@ import {
 
 import { recoverCandidateSigningCustody } from "./release-candidate-signing-recovery.mts";
 
-type Reader = ReturnType<typeof createReleasePublicationReader>;
+type Reader = Awaited<ReturnType<typeof createPublicationInventoryWithSdk>>;
 type CatalogPreparationInputs = {
   tools: object;
   inspection: Parameters<typeof requireActualCatalogInspection>[0];
@@ -238,13 +235,18 @@ export async function prepareActualCoordinatorCatalogSigning(
         coordinatorHasUnresolvedEffect(recovered.input)
       )
         throw new Error("catalog current coordinator reservation is not available");
-      const api = coordinatorApi(directory, budget, 2 * 1024 ** 2);
-      await verifyCatalogCoordinatorBaseline(inputs.opportunity, recovered.input, authorities, {
+      const readOptions = {
         deadline: budget.monotonicDeadline,
-        currentDeadline: () => performance.now() + budget.remaining(15000),
+        currentDeadline: () => performance.now() + budget.remaining(),
         maxBytes: 2 * 1024 ** 2,
         guard: () => budget.check(),
-      });
+      };
+      await verifyCatalogCoordinatorBaseline(
+        inputs.opportunity,
+        recovered.input,
+        authorities,
+        readOptions,
+      );
       const inspection = await requireActualCatalogInspection(
         inputs.inspection,
         budget.monotonicDeadline,
@@ -263,12 +265,9 @@ export async function prepareActualCoordinatorCatalogSigning(
         inspection.inspection,
         files,
       );
-      const semantic = readCatalogCoordinatorReview(
-        api,
-        authorities,
-        inputs.opportunity,
-        inputs.check_id,
-      );
+      const readReview = () =>
+        readCatalogCoordinatorReview(readOptions, authorities, inputs.opportunity, inputs.check_id);
+      const semantic = await readReview();
       const descriptor = deriveCatalogSigningDescriptor(
         inputs.opportunity,
         inspection,
@@ -286,15 +285,17 @@ export async function prepareActualCoordinatorCatalogSigning(
         throw new Error("a different catalog subject is already retained; no overwrite");
       const controlDigest = capacityDigest({ namespace: authorities.namespace, descriptor });
       const initialControls = await authenticateCoordinatorInitialControls(
-          directory,
-          controlDigest,
-          reader,
-          workflow,
-          budget,
-          "catalog",
-        ),
-        initialFacts = initialControls.readMaintenance(api),
-        stable = catalogCoordinatorMaintenanceIdentity(initialFacts);
+        directory,
+        controlDigest,
+        reader,
+        workflow,
+        budget,
+        "catalog",
+        "catalog-maintenance",
+      );
+      const readMaintenance = () =>
+        readFixedCoordinatorMaintenance(initialControls, budget, readOptions.maxBytes);
+      const stable = catalogCoordinatorMaintenanceIdentity(await readMaintenance());
       if (
         descriptor.source_commit !== inspection.source.commit ||
         descriptor.source_tree !== inspection.source.tree ||
@@ -341,14 +342,9 @@ export async function prepareActualCoordinatorCatalogSigning(
         };
         if (planReleaseOpportunity(input).action !== "catalog-publication")
           throw new Error("existing coordinator holds forbid catalog subject admission");
-        if (catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !== stable)
+        if (catalogCoordinatorMaintenanceIdentity(await readMaintenance()) !== stable)
           throw new Error("catalog controls changed before subject CAS");
-        const freshProof = readCatalogCoordinatorReview(
-          api,
-          authorities,
-          inputs.opportunity,
-          inputs.check_id,
-        );
+        const freshProof = await readReview();
         if (freshProof.proof_sha256 !== semantic.proof_sha256)
           throw new Error("catalog Check changed before subject CAS");
         await requireActualCatalogInspection(inputs.inspection, budget.monotonicDeadline);
@@ -360,30 +356,22 @@ export async function prepareActualCoordinatorCatalogSigning(
         );
         if (before.checkpoint !== recovered.checkpoint)
           throw new Error("catalog journal changed before subject CAS");
-        const beforeMutation = () => {
-          budget.check();
-          const currentProof = readCatalogCoordinatorReview(
-            api,
-            authorities,
-            inputs.opportunity,
-            inputs.check_id,
-          );
-          if (currentProof.proof_sha256 !== semantic.proof_sha256)
-            throw new Error("catalog selected Check changed before journal mutation");
-          if (
-            catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !== stable
-          )
-            throw new Error("catalog controls changed before provider journal mutation");
-          budget.check();
-        };
-        const checkpointControls = async () => {
-          beforeMutation();
+        const beforeMutation = {
+          readCurrent: async () => {
+            budget.check();
+            const currentProof = await readReview();
+            if (currentProof.proof_sha256 !== semantic.proof_sha256)
+              throw new Error("catalog selected Check changed before journal mutation");
+            if (catalogCoordinatorMaintenanceIdentity(await readMaintenance()) !== stable)
+              throw new Error("catalog controls changed before provider journal mutation");
+            budget.check();
+          },
         };
         const signedJournal = await ensureOwnedCheckpointJournalHistory(
           executor,
           recovered.repository,
           recovered.checkpoint,
-          checkpointControls,
+          beforeMutation.readCurrent,
         );
         const persisted = await checkpointReleaseOpportunity(
           recovered.repository,
@@ -395,7 +383,7 @@ export async function prepareActualCoordinatorCatalogSigning(
             executor,
             recovered.repository,
             persisted.checkpoint,
-            checkpointControls,
+            beforeMutation.readCurrent,
           );
         else
           await publishCoordinatorCheckpoint(
@@ -533,9 +521,9 @@ export async function requireActualCoordinatorCatalogPreparation(
     if (inspection.tools_receipt !== owned.tools)
       throw new Error("catalog original Core tools receipt changed");
     assertControllerCatalogPublisherScope(authorities.configuration, inspection.inspection, files);
-    const api = metadataContinuationApi(owned.directory, () => owned.deadline);
-    const semantic = readCatalogCoordinatorReview(
-      api,
+    const readOptions = catalogContinuationReadOptions(() => owned.deadline);
+    const semantic = await readCatalogCoordinatorReview(
+      readOptions,
       authorities,
       owned.inputs.opportunity,
       owned.inputs.check_id,
@@ -553,14 +541,12 @@ export async function requireActualCoordinatorCatalogPreparation(
       { schema_version: 1, namespace: owned.namespace },
       { transport: { credential: { token: fixedReleaseReaderToken() }, deadline: owned.deadline } },
     );
-    await verifyCatalogCoordinatorBaseline(owned.inputs.opportunity, current.input, authorities, {
-      deadline: owned.deadline,
-      currentDeadline: () => coordinatorContinuationDeadline(owned.deadline),
-      maxBytes: 256 * 1024,
-      guard: () => {
-        coordinatorContinuationDeadline(owned.deadline);
-      },
-    });
+    await verifyCatalogCoordinatorBaseline(
+      owned.inputs.opportunity,
+      current.input,
+      authorities,
+      readOptions,
+    );
     if (
       current.checkpoint !== owned.checkpoint ||
       capacityDigest(
@@ -593,17 +579,38 @@ export async function requireActualCoordinatorCatalogPreparation(
     };
   });
 }
+type CatalogCoordinatorReadOptions = {
+  deadline: number;
+  currentDeadline: () => number;
+  maxBytes: number;
+  guard: () => void;
+};
+function catalogContinuationReadOptions(deadline: () => number): CatalogCoordinatorReadOptions {
+  const currentDeadline = () => coordinatorContinuationDeadline(deadline());
+  return { deadline: deadline(), currentDeadline, maxBytes: 256 * 1024, guard: currentDeadline };
+}
+
 /** An inert proof parser is not a receiver capability. Only the actual fixed
  * OIDC/config/control admission above inserts the resulting session map. */
-function readCatalogCoordinatorReview(
-  api: Parameters<typeof readIndependentCatalogSemanticReview>[0],
+async function readCatalogCoordinatorReview(
+  options: CatalogCoordinatorReadOptions,
   authorities: { semantic_producer: unknown },
   opportunity: unknown,
   check_id: number,
 ) {
+  const direct = readOnlyReleaseChildEnvironment() !== undefined;
   const selected = inspectCatalogSemanticOpportunity(opportunity),
-    proof = readIndependentCatalogSemanticReview(
-      api,
+    proof = await readIndependentCatalogSemanticReviewWithSdk(
+      {
+        token: fixedReleaseReaderToken(),
+        deadline: Math.min(options.deadline, options.currentDeadline()),
+        maxBytes: options.maxBytes,
+        requestTimeoutMs: 15000,
+        guard() {
+          options.guard();
+          if (direct) assertTrustedDirectNode("fixed catalog semantic Check");
+        },
+      },
       authorities.semantic_producer,
       selected,
       check_id,
@@ -626,24 +633,22 @@ async function recheckActualCatalogReview(result: object, tighter?: number) {
       authorities = await requireControllerCatalogCoordinatorAuthorities();
     if (capacityDigest(authorities) !== owned.authorities_sha256)
       throw new Error("catalog selected issuer/configuration changed");
-    const api = metadataContinuationApi(owned.directory, () => owned.deadline),
-      current = await readRemoteCoordinatorSnapshot(
-        owned.directory,
-        { schema_version: 1, namespace: owned.namespace },
-        {
-          transport: { credential: { token: fixedReleaseReaderToken() }, deadline: owned.deadline },
-        },
-      );
-    await verifyCatalogCoordinatorBaseline(owned.inputs.opportunity, current.input, authorities, {
-      deadline: owned.deadline,
-      currentDeadline: () => coordinatorContinuationDeadline(owned.deadline),
-      maxBytes: 256 * 1024,
-      guard: () => {
-        coordinatorContinuationDeadline(owned.deadline);
+    const current = await readRemoteCoordinatorSnapshot(
+      owned.directory,
+      { schema_version: 1, namespace: owned.namespace },
+      {
+        transport: { credential: { token: fixedReleaseReaderToken() }, deadline: owned.deadline },
       },
-    });
-    const semantic = readCatalogCoordinatorReview(
-      api,
+    );
+    const readOptions = catalogContinuationReadOptions(() => owned.deadline);
+    await verifyCatalogCoordinatorBaseline(
+      owned.inputs.opportunity,
+      current.input,
+      authorities,
+      readOptions,
+    );
+    const semantic = await readCatalogCoordinatorReview(
+      readOptions,
       authorities,
       owned.inputs.opportunity,
       owned.inputs.check_id,
@@ -674,7 +679,7 @@ async function verifyCatalogCoordinatorBaseline(
       };
     };
   },
-  options: { deadline: number; currentDeadline: () => number; maxBytes: number; guard: () => void },
+  options: CatalogCoordinatorReadOptions,
 ) {
   const pins = authorities.catalog.public_source;
   const initialization = inspectCatalogInitialization(input.catalog_initialization);
@@ -760,18 +765,6 @@ export function coordinatorContinuationDeadline(current: number, requested?: num
   if (effective <= performance.now())
     throw new Error("coordinator continuation deadline exhausted");
   return effective;
-}
-function metadataContinuationApi(repository: string, deadline: () => number) {
-  return new GitHubApiClient((args, input) => {
-    const effective = coordinatorContinuationDeadline(deadline());
-    const response = createGitHubRunner({
-      cwd: repository,
-      maxBuffer: 256 * 1024,
-      timeoutMs: Math.max(1, Math.floor(Math.min(15000, effective - performance.now()))),
-    })([...args, "--hostname", "github.com"], input);
-    coordinatorContinuationDeadline(deadline());
-    return response;
-  });
 }
 /** Integrity comparison only: caller JSON never establishes authenticated
  * controls. Every source is authenticated and freshness-checked separately. */
@@ -953,20 +946,22 @@ async function coordinatorDeadline(phaseDeadline?: number) {
     },
   };
 }
-function coordinatorApi(
-  directory: string,
+function coordinatorSourceReadOptions(
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
-  maxBuffer: number,
+  maxBytes: number,
 ) {
-  return new GitHubApiClient((args, input) => {
-    const result = createGitHubRunner({
-      cwd: directory,
-      maxBuffer,
-      timeoutMs: budget.remaining(15000),
-    })([...args, "--hostname", "github.com"], input);
-    budget.check();
-    return result;
-  });
+  const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
+  return {
+    token: fixedReleaseReaderToken(),
+    deadline: budget.monotonicDeadline,
+    maxBytes,
+    requestTimeoutMs: 15000,
+    currentDeadline: () => performance.now() + budget.remaining(15000),
+    guard: () => {
+      budget.check();
+      if (requireDirect) assertTrustedDirectNode("fixed coordinator source reads");
+    },
+  };
 }
 function coordinatorBootstrapSourceProvider(
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
@@ -1036,6 +1031,20 @@ async function coordinatorCheckpointPublisher(
   };
 }
 
+async function readFixedCoordinatorMaintenance(
+  controls: Awaited<ReturnType<typeof authenticateReleaseControlSource>>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
+  maxBytes: number,
+) {
+  budget.check();
+  const facts = await controls.readSdkMaintenance(undefined, {
+    deadline: Math.min(budget.monotonicDeadline, performance.now() + budget.remaining()),
+    maxBytes,
+  });
+  budget.check();
+  return facts;
+}
+
 function guardedCoordinatorJournal(
   directory: string,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
@@ -1071,8 +1080,8 @@ function guardedCoordinatorJournal(
  * routine Preview, but never bypass its actual cadence. No urgency is inferred. */
 export function deriveCoordinatorPublication(
   tags: Awaited<ReturnType<Reader["tags"]>>,
-  releases: ReturnType<Reader["releases"]>,
-  allocations: ReturnType<Reader["readAllocations"]>["allocations"],
+  releases: Awaited<ReturnType<Reader["releases"]>>,
+  allocations: Awaited<ReturnType<Reader["readAllocations"]>>["allocations"],
   now: string,
   active?: unknown,
 ) {
@@ -1130,7 +1139,7 @@ export function deriveCoordinatorPublication(
  * it must also be the highest published version before reserving a successor.
  * An out-of-order historical publication remains an explicit hold. */
 export function selectCoordinatorPublicationBaseline(
-  releases: ReturnType<Reader["releases"]>,
+  releases: Awaited<ReturnType<Reader["releases"]>>,
   publishedVersions: readonly string[],
 ) {
   const highest = [...publishedVersions].sort(compareApplicationVersionPrecedence).at(-1);
@@ -1258,7 +1267,6 @@ async function coordinateTrustedReleaseAt(
   let phase = "remote-recovery";
   let checkpoint: string | null = null;
   try {
-    const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
     let recovered =
       round?.recovered ??
       (await recoverRemoteCoordinator(directory, selected.remote_configuration, {
@@ -1277,11 +1285,16 @@ async function coordinateTrustedReleaseAt(
     )
       throw new Error("active original frozen opportunity unavailable");
     phase = "complete-publication-and-source";
-    const inventory = createReleasePublicationReader(api);
-    const tags = inventory.tags();
-    const releases = inventory.releases();
-    const { allocations } = inventory.readAllocations(tags, namespace);
-    const changes = collectReleaseSourceChanges(api, opportunity);
+    const sourceOptions = coordinatorSourceReadOptions(budget, 16 * 1024 ** 2);
+    const inventory = await createPublicationInventoryWithSdk({
+      ...sourceOptions,
+      beforeDispatch: sourceOptions.guard,
+      recheck: async () => budget.check(),
+    });
+    const tags = await inventory.tags();
+    const releases = await inventory.releases();
+    const { allocations } = await inventory.readAllocations(tags, namespace);
+    const changes = await collectReleaseSourceChangesWithSdk(sourceOptions, opportunity);
     if (changes.change_set_sha256 !== opportunity.change_set_sha256)
       throw new Error("independent complete source delta differs from reviewed opportunity");
     const workflow = round?.admission?.workflow ?? (await readProductionControllerWorkflowBytes());
@@ -1317,26 +1330,29 @@ async function coordinateTrustedReleaseAt(
       path.join(project, ".github/workflows/release.yml"),
       256 * 1024,
     );
-    hydrateReleasePreparationSource(
+    await hydrateReleasePreparationSourceWithSdk(
       repository,
       {
         source_commit: opportunity.source_commit,
         source_tree: opportunity.source_tree,
       },
-      api,
+      sourceOptions,
       { trustedReleaseWorkflow },
     );
     if (activeOpportunity.source_commit !== opportunity.source_commit) {
-      const activeChanges = collectReleaseSourceChanges(api, activeOpportunity);
+      const activeChanges = await collectReleaseSourceChangesWithSdk(
+        sourceOptions,
+        activeOpportunity,
+      );
       if (activeChanges.change_set_sha256 !== activeOpportunity.change_set_sha256)
         throw new Error("active frozen accumulated source delta differs");
-      hydrateReleasePreparationSource(
+      await hydrateReleasePreparationSourceWithSdk(
         repository,
         {
           source_commit: activeOpportunity.source_commit,
           source_tree: activeOpportunity.source_tree,
         },
-        api,
+        sourceOptions,
         { trustedReleaseWorkflow },
       );
     }
@@ -1383,13 +1399,20 @@ async function coordinateTrustedReleaseAt(
       (await authenticateReleaseControlSource(process.env, workflow, {
         phase: "coordinator",
         deadline: budget.monotonicDeadline,
+        controlReader: "coordinator-application",
         ...(artifact ? { observedArtifact: artifact } : {}),
       }));
-    const initial = controls.read(api, opportunity);
+    const readLiveControls = async (selectedOpportunity: typeof opportunity) => {
+      budget.check();
+      const observed = await controls.readSdkApplicationControls(selectedOpportunity);
+      budget.check();
+      return observed;
+    };
+    const initial = await readLiveControls(opportunity);
     const original =
       activeOpportunity.source_commit === opportunity.source_commit
         ? initial
-        : controls.read(api, activeOpportunity);
+        : await readLiveControls(activeOpportunity);
     const recoveredController = recovered.input.controller;
     const priorOperation = inspectCapacityOperation(
       isRecord(recoveredController) && isRecord(recoveredController.capacity_attempt)
@@ -1474,8 +1497,7 @@ async function coordinateTrustedReleaseAt(
         },
         undefined,
         async () => {
-          budget.check();
-          const fresh = controls.read(api, activeOpportunity);
+          const fresh = await readLiveControls(activeOpportunity);
           if (
             fresh.pause.publication_paused ||
             !fresh.resource_policy_matches_controller ||
@@ -1492,7 +1514,7 @@ async function coordinateTrustedReleaseAt(
     const assertInventory = async (expectedCheckpoint = checkpoint) => {
       budget.check();
       if (
-        capacityDigest({ tags: inventory.tags(), releases: inventory.releases() }) !==
+        capacityDigest({ tags: await inventory.tags(), releases: await inventory.releases() }) !==
         expectedInventory
       )
         throw new Error("complete publication inventory changed during coordinator admission");
@@ -1557,21 +1579,22 @@ async function coordinateTrustedReleaseAt(
         authority: "none",
         automatic_retry: false,
       };
-    const readSynchronousBoundary = () => {
+    const readBoundary = async () => {
       budget.check();
       if (round?.admission) {
-        const exact = controls.readRequest(api, round.admission.request).classification;
+        const exact = (await controls.readSdkRequest(round.admission.request, "effect"))
+          .classification;
         if (
           exact.status !== "reviewed" ||
           capacityDigest(exact.opportunity) !== capacityDigest(opportunity)
         )
           throw new Error("accepted request changed or acquired contradictory disposition");
       }
-      const fresh = controls.read(api, opportunity);
+      const fresh = await readLiveControls(opportunity);
       const frozen =
         activeOpportunity.source_commit === opportunity.source_commit
           ? fresh
-          : controls.read(api, activeOpportunity);
+          : await readLiveControls(activeOpportunity);
       if (
         fresh.pause.publication_paused ||
         !fresh.resource_policy_matches_controller ||
@@ -1586,7 +1609,6 @@ async function coordinateTrustedReleaseAt(
         throw new Error("fresh coordinator control sources changed or remain held");
       return structuredClone(fresh.capacity_source.capacity.boundary);
     };
-    const readBoundary = async () => readSynchronousBoundary();
     await readBoundary();
     await assertInventory();
     const checkpointControls = async () => {
@@ -1601,7 +1623,7 @@ async function coordinateTrustedReleaseAt(
     );
     const legacyJournal = signedJournal
       ? undefined
-      : guardedCoordinatorJournal(directory, budget, readSynchronousBoundary);
+      : guardedCoordinatorJournal(directory, budget, { readCurrent: checkpointControls });
     const publishCheckpoint = async (next: string) => {
       if (signedJournal)
         return publishOwnedSignedCoordinatorCheckpoint(
@@ -1704,13 +1726,13 @@ async function coordinateTrustedReleaseAt(
           : { api: legacyJournal! },
       );
       checkpoint = allocated.checkpoint;
-      const ownTags = inventory.tags();
+      const ownTags = await inventory.tags();
       inspectPreparedReceiptInventoryAdvance(tags, ownTags, namespace, {
         version: prepared.version,
         source_commit: prepared.source_commit,
         prepared_commit: prepared.prepared_commit,
       });
-      const ownReleases = inventory.releases();
+      const ownReleases = await inventory.releases();
       if (capacityDigest(ownReleases) !== capacityDigest(releases))
         throw new Error("Release inventory changed during immutable preparation allocation");
       expectedInventory = capacityDigest({ tags: ownTags, releases: ownReleases });
@@ -2032,11 +2054,15 @@ async function prepareTrustedCoordinatorRenewalAt(
       deadline: budget.monotonicDeadline,
     });
     const prepared = await inspectPreparedMetadataRenewal(preparation);
-    const api = coordinatorApi(directory, budget, 2 * 1024 * 1024);
-    const inventory = createReleasePublicationReader(api);
-    const tags = inventory.tags();
-    const releases = inventory.releases();
-    const { allocations } = inventory.readAllocations(
+    const sourceOptions = coordinatorSourceReadOptions(budget, 2 * 1024 ** 2);
+    const inventory = await createPublicationInventoryWithSdk({
+      ...sourceOptions,
+      beforeDispatch: sourceOptions.guard,
+      recheck: async () => budget.check(),
+    });
+    const tags = await inventory.tags();
+    const releases = await inventory.releases();
+    const { allocations } = await inventory.readAllocations(
       tags,
       inspectCoordinatorRemoteNamespace(selected.remote_configuration),
     );
@@ -2077,8 +2103,10 @@ async function prepareTrustedCoordinatorRenewalAt(
       phase: "coordinator",
       deadline: budget.monotonicDeadline,
       observedArtifact: artifact,
+      controlReader: "metadata-maintenance",
     });
-    const initial = controls.readMaintenance(api);
+    const readMaintenance = () => readFixedCoordinatorMaintenance(controls, budget, 2 * 1024 ** 2);
+    const initial = await readMaintenance();
     if (
       !initial.resource_policy_matches_controller ||
       !isRecord(initial.capacity_source.capacity) ||
@@ -2116,21 +2144,23 @@ async function prepareTrustedCoordinatorRenewalAt(
     const current = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
       transport: budget.journalTransport(),
     });
-    const fresh = controls.readMaintenance(api);
+    const fresh = await readMaintenance();
     if (
       current.checkpoint !== checkpoint ||
       fresh.pause.publication_paused ||
-      capacityDigest({ tags: inventory.tags(), releases: inventory.releases() }) !== inventorySha ||
+      capacityDigest({ tags: await inventory.tags(), releases: await inventory.releases() }) !==
+        inventorySha ||
       capacityDigest(fresh.pause) !== capacityDigest(initial.pause) ||
       capacityDigest(fresh.capacity) !== capacityDigest(initial.capacity)
     )
       throw new Error("maintenance inputs or remote checkpoint changed before durable preparation");
     phase = "durable-maintenance-descriptor";
     budget.check();
-    const checkpointControls = () => {
-      budget.check();
-      if (controls.readMaintenance(api).facts_sha256 !== initial.facts_sha256)
-        throw new Error("maintenance controls changed immediately before journal CAS");
+    const checkpointControls = {
+      async readCurrent() {
+        if ((await readMaintenance()).facts_sha256 !== initial.facts_sha256)
+          throw new Error("maintenance controls changed immediately before journal CAS");
+      },
     };
     const publishCheckpoint = await coordinatorCheckpointPublisher(
       directory,
@@ -2328,7 +2358,7 @@ async function authenticateCoordinatorInitialControls(
   workflow: Buffer,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   purpose: "application" | "catalog" = "application",
-  controlReader?: "metadata-maintenance",
+  controlReader?: "metadata-maintenance" | "catalog-maintenance",
 ) {
   budget.check();
   const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
@@ -2457,15 +2487,18 @@ async function prepareTrustedCoordinatorBootstrapAt(
       : inspectMetadataBootstrapDescriptor(recovered.input.metadata_bootstrap);
   const generatedAt =
     oldDescriptor?.generated_at ?? new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
-  const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
   const initialSource = await authenticateCoordinatorInitialControls(
     directory,
     capacityDigest({ checkpoint: recovered.checkpoint, initial_setup: authorities.publication }),
     reader,
     workflow,
     budget,
+    "application",
+    "metadata-maintenance",
   );
-  const initialFacts = initialSource.readMaintenance(api);
+  const readMaintenance = (control: typeof initialSource) =>
+    readFixedCoordinatorMaintenance(control, budget, 16 * 1024 ** 2);
+  const initialFacts = await readMaintenance(initialSource);
   if (
     initialFacts.reader.job_id !== reader.identity.job_id ||
     initialFacts.reader.check_run_id !== reader.identity.check_run_id
@@ -2537,7 +2570,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
   let refreshing = false,
     refused = false;
   let owned: BootstrapPreparation | undefined;
-  const controls = async (phaseDeadline?: number, controlReader?: "metadata-maintenance") => {
+  const controls = async (phaseDeadline?: number) => {
     const deadline = owned
       ? (owned.deadline = coordinatorContinuationDeadline(owned.deadline, phaseDeadline))
       : coordinatorContinuationDeadline(budget.monotonicDeadline, phaseDeadline);
@@ -2550,11 +2583,9 @@ async function prepareTrustedCoordinatorBootstrapAt(
         capacityDigest({ checkpoint: controlCheckpoint, descriptor }),
         "coordinator",
         round,
-        { deadline, ...(controlReader ? { controlReader } : {}) },
+        { deadline, controlReader: "metadata-maintenance" },
       );
-      const facts = controlReader
-        ? await control.readSdkMaintenance(undefined, { deadline })
-        : control.readMaintenance(metadataContinuationApi(directory, () => deadline));
+      const facts = await control.readSdkMaintenance(undefined, { deadline });
       if (
         control.evidence_scope !== "github.com" ||
         facts.reader.job_id !== reader.identity.job_id ||
@@ -2575,7 +2606,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
     }
   };
   const initialControls = await controls();
-  const initial = initialControls.readMaintenance(api);
+  const initial = await readMaintenance(initialControls);
   if (
     !isRecord(recovered.input.controller) ||
     !isRecord(recovered.input.controller.capacity_attempt) ||
@@ -2653,14 +2684,15 @@ async function prepareTrustedCoordinatorBootstrapAt(
     { flag: "wx", mode: 0o600 },
   );
   const beforeControls = await controls();
-  const fresh = beforeControls.readMaintenance(api);
+  const fresh = await readMaintenance(beforeControls);
   if (coordinatorMaintenanceIdentity(fresh) !== identity)
     throw new Error("bootstrap controls changed before journal CAS");
   budget.check();
-  const checkpointControls = () => {
-    budget.check();
-    if (coordinatorMaintenanceIdentity(beforeControls.readMaintenance(api)) !== identity)
-      throw new Error("bootstrap controls changed immediately before journal CAS");
+  const checkpointControls = {
+    async readCurrent() {
+      if (coordinatorMaintenanceIdentity(await readMaintenance(beforeControls)) !== identity)
+        throw new Error("bootstrap controls changed immediately before journal CAS");
+    },
   };
   const publishCheckpoint = await coordinatorCheckpointPublisher(
     directory,
@@ -2716,9 +2748,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
     ...(catalogSite ? { catalog_site: catalogSite.receipt } : {}),
     fresh_configured_site: lateSite,
     site_observed_at: siteObservedAt,
-    // Preparation and its synchronous CAS fence are complete. Later signing
-    // checks get their own scoped reader without changing the original writer.
-    next_controls: (phaseDeadline) => controls(phaseDeadline, "metadata-maintenance"),
+    next_controls: controls,
   };
   bootstrapPreparations.set(result, owned);
   return result;
@@ -3871,7 +3901,6 @@ async function continueTrustedSemanticReview(
   try {
     const request = inspectReleaseReviewRequest(recovered.input.review_request);
     if (!request) throw new Error("no outstanding exact semantic request to retire");
-    const api = coordinatorApi(directory, budget, 2 * 1024 * 1024);
     const workflow = await readProductionControllerWorkflowBytes();
     const reader = await authenticateControlReaderJob(process.env, workflow, {
       phase: "coordinator",
@@ -3901,9 +3930,11 @@ async function continueTrustedSemanticReview(
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
       deadline: budget.monotonicDeadline,
+      controlReader: "coordinator-application",
       observedArtifact: artifact,
     });
-    const reviewed = controls.readRequest(api, request);
+    const reviewed = await controls.readSdkRequest(request);
+    budget.check();
     if (reviewed.classification.status === "reviewed") {
       const authorities = await requireControllerApplicationCoordinatorAuthorities();
       if (
@@ -3922,7 +3953,8 @@ async function continueTrustedSemanticReview(
         { directory, budget, recovered, admission: { workflow, reader, controls, request } },
       );
     }
-    const observed = controls.readDisposition(api, request);
+    const observed = await controls.readSdkDisposition(request);
+    budget.check();
     if (
       observed.pause.publication_paused ||
       !observed.resource_policy_matches_controller ||
@@ -3953,7 +3985,7 @@ async function continueTrustedSemanticReview(
         prior_operations: structuredClone(priorCapacity.prior_operations),
       },
     };
-    const fresh = controls.readDisposition(api, request);
+    const fresh = await controls.readSdkDisposition(request);
     const current = await readRemoteCoordinatorSnapshot(directory, remoteConfiguration, {
       transport: budget.journalTransport(),
     });
@@ -3961,10 +3993,13 @@ async function continueTrustedSemanticReview(
     if (fresh.facts_sha256 !== observed.facts_sha256 || current.checkpoint !== checkpoint)
       throw new Error("negative semantic/control/checkpoint identity changed before retirement");
     phase = "durable-negative-semantic-retirement";
-    const checkpointControls = () => {
-      budget.check();
-      if (controls.readDisposition(api, request).facts_sha256 !== observed.facts_sha256)
-        throw new Error("semantic disposition/controls changed immediately before journal CAS");
+    const checkpointControls = {
+      async readCurrent() {
+        budget.check();
+        if ((await controls.readSdkDisposition(request)).facts_sha256 !== observed.facts_sha256)
+          throw new Error("semantic disposition/controls changed immediately before journal CAS");
+        budget.check();
+      },
     };
     const publishCheckpoint = await coordinatorCheckpointPublisher(
       directory,
