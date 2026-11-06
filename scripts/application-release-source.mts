@@ -30,6 +30,7 @@ import {
 import {
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
+  resumeEmptyApplicationBootstrap,
   retainApplicationPreparation,
   inspectApplicationQualificationIdentity,
   readApplicationRunNotes,
@@ -599,14 +600,24 @@ async function bootstrap() {
     expected.site_preimage_sha256,
     path.resolve(process.env.RUNNER_TEMP),
   );
-  const registration = await registerApplicationReleaseRun(
-    await createApplicationRunRegistrationProvider(),
-    execution,
-    execution.source,
-    commit.tree.sha,
-    expected.descriptor_sha256,
-    beforeSourceWrite,
-  );
+  const provider = await createApplicationRunRegistrationProvider();
+  const recovery = process.env.PORTCOVE_APPLICATION_BOOTSTRAP_DRAFT_RECOVERY;
+  const registration = recovery
+    ? await resumeEmptyApplicationBootstrap(
+        provider,
+        execution,
+        expected.descriptor_sha256,
+        JSON.parse(recovery),
+        beforeSourceWrite,
+      )
+    : await registerApplicationReleaseRun(
+        provider,
+        execution,
+        execution.source,
+        commit.tree.sha,
+        expected.descriptor_sha256,
+        beforeSourceWrite,
+      );
   assert.equal(
     registration.custody.preparation,
     null,
