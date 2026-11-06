@@ -53,6 +53,10 @@ import { authenticateReleaseControlRound } from "./release-live-control-admissio
 import { orderedJsonValue } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import {
   requestAssemblerToken,
   inspectAssemblerIdentityExpectation,
   verifyPayloadSignerJobIdentity,
@@ -644,6 +648,8 @@ export async function runPayloadSigningController(
     {},
     async (context, prepared, directory) => {
       requireActualReleaseAdmissionContext(context, "payload-signing");
+      const reader = { token: fixedReleaseReaderToken() };
+      const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
       const risk = await (
         await import("./linux-beta-risk-706-controller.mts")
       ).authorizeActualLinuxRisk706(context, undefined, context.checkpoint, deadline);
@@ -654,7 +660,7 @@ export async function runPayloadSigningController(
         deadline,
       );
       const identity = await verifyPayloadSignerJobIdentity(token, identityExpected, {
-        transport: { cwd: directory, deadline },
+        transport: { sdkToken: reader.token, requireDirect, deadline },
       });
       if (identity.evidence_scope !== "github.com")
         throw new Error("actual payload signer required");
@@ -722,7 +728,7 @@ export async function runPayloadSigningController(
         await requireVerifiedReleaseSbomDocument(context.sbom_receipt);
         const coordinator = { schema_version: 1, namespace: authorities.namespace };
         const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-          transport: { cwd: directory, deadline },
+          transport: { credential: reader, deadline },
         });
         await requireReservedAggregate(
           JSON.stringify({
