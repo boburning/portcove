@@ -33,7 +33,6 @@ import {
   controllerToolSourceAssetMaximumBytes,
   controllerToolPlatformProfile,
   controllerToolFileMaximumBytes,
-  controllerToolExpandedMaximumBytes,
   type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 /** Installed package API is the repository-pinned Vite+ Pack, not a downloaded
@@ -509,7 +508,7 @@ export async function buildControllerTools(
       console.log(
         `::notice title=Controller inventory bytes::${JSON.stringify({
           platform,
-          maximum: controllerToolExpandedMaximumBytes,
+          maximum: 320 * 1024 ** 2,
           total: files.reduce((total, file) => total + file.bytes, 0),
           files: files.map(({ path, bytes }) => ({ path, bytes })),
         })}`,
