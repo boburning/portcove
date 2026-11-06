@@ -855,6 +855,7 @@ for (const [file, tests] of [
   [
     "scripts/release-compiler-source.mts",
     [
+      "scripts/release-native-public-compiler.test.mts",
       "scripts/release-compiler-source.test.mts",
       "scripts/release-compiler-source-admission.test.mts",
       "scripts/release-published-source.test.mts",
@@ -891,6 +892,7 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/release-native-source-contract.test.mts",
       "scripts/application-release-feed.test.mts",
       "scripts/application-release-publication.test.mts",
       "scripts/application-release-context.test.mts",

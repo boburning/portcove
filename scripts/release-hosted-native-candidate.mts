@@ -6,7 +6,6 @@ import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { applicationReleaseProfile } from "./release-authority-configuration.mts";
 /** Original hosted-parent candidate custody. This selects bytes through the
  * existing collector; it cannot supply a native receipt or admission result. */
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -19,13 +18,11 @@ import { requireActualHostedNativeParentSource } from "./release-hosted-native-p
 import {
   inspectSelectedNativeCandidate,
   inspectHostedNativePreparationStage,
-  inspectNativeSourceCommand,
   inspectNativePostSignController,
   inspectNativePostSignArtifactInventory,
   inspectNativePostSignPackageMetadata,
   acquireNativePredecessorRelease,
 } from "./release-native-candidate.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
@@ -92,27 +89,6 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
   };
   const childEnvironment = readOnlyReleaseChildEnvironment();
   if (!childEnvironment) throw new Error("fixed hosted native reader environment absent");
-  const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-    command,
-    args,
-    options,
-  ) => {
-    if (command !== "gh") throw new Error("fixed hosted native source executable differs");
-    inspectNativeSourceCommand(args, options.input);
-    const result = spawnSync(command, args, {
-      ...options,
-      timeout: remaining(options.timeout ?? 15000),
-      env: childEnvironment,
-    });
-    remaining(1);
-    return result;
-  };
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({ cwd: directory, maxBuffer: 2 * 1024 * 1024, spawn })(
-      [...args, "--hostname", "github.com"],
-      input,
-    ),
-  );
   const credential = { kind: "explicit" as const, token: childEnvironment.GH_TOKEN ?? "" };
   const directFetch: typeof globalThis.fetch = (input, init) => {
     remaining(1);
@@ -288,7 +264,6 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     parent,
     deadline,
     remaining,
-    api,
     collectEvidence,
     predecessorReaders,
     admissionSource: {

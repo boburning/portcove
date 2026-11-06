@@ -8,7 +8,6 @@ import {
   compareReleaseCompilerSource,
   prepareReleaseCompilerSourceClosure,
   inspectReleaseCompilerSourceClosure,
-  inspectPreparedCompilerSource,
   inspectPreparedCompilerSourceAsync,
   createCompilerSourceReader,
 } from "./release-compiler-source.mts";
@@ -237,6 +236,9 @@ void test("actual deterministic four version edits pass while dependencies and e
   );
   const response = (body: unknown) => ({ status: 200, body, headers: new Map<string, string>() });
   const requests: string[] = [];
+  const guarded: string[] = [];
+  let toolChanged = false;
+  let changeToolAtDispatch = false;
   let sdkReply: ((method: string, endpoint: string) => { body: unknown }) | undefined;
   t.mock.method(
     globalThis,
@@ -246,10 +248,11 @@ void test("actual deterministic four version edits pass while dependencies and e
       assert.equal(request.headers.get("authorization"), "token pinned-compiler-fixture");
       assert.ok(sdkReply);
       requests.push(new URL(request.url).pathname);
+      if (changeToolAtDispatch) toolChanged = true;
       return Response.json(sdkReply(request.method, request.url).body);
     },
   );
-  const run = async (preparedTree: string, compareLegacy = false) => {
+  const run = async (preparedTree: string) => {
     const prepared = sourceFixtureCommit(preparedTree, [source.sha], "prepared\n");
     const api = {
       request(method: string, endpoint: string) {
@@ -313,16 +316,24 @@ void test("actual deterministic four version edits pass while dependencies and e
     const read = await createCompilerSourceReader({
       credential: { kind: "explicit", token: "pinned-compiler-fixture" },
       deadline,
-      maxBytes: 4 * 1024 * 1024,
+      maxBytes: 2 * 1024 * 1024,
+      fixedReader: true,
+      checkSource(url) {
+        guarded.push(url.pathname);
+        if (toolChanged) throw new Error("fixture fixed source tool changed");
+      },
     });
     sdkReply = api.request;
     const result = await inspectPreparedCompilerSourceAsync(read, candidate, deadline);
-    if (compareLegacy) assert.deepEqual(result, inspectPreparedCompilerSource(api, candidate));
     return result;
   };
   for (const [filename, content] of expected) await writeFile(path.join(f.root, filename), content);
   f.commit();
-  assert.equal((await run(f.git(["rev-parse", "HEAD^{tree}"]), true)).authority, "none");
+  assert.equal((await run(f.git(["rev-parse", "HEAD^{tree}"]))).authority, "none");
+  assert.deepEqual(
+    guarded,
+    requests.flatMap((request) => [request, request]),
+  );
   assert.deepEqual(
     requests.filter((route) => route.includes("/contents/")),
     [
@@ -333,6 +344,10 @@ void test("actual deterministic four version edits pass while dependencies and e
       "/repos/boburning/portcove/contents/apps/desktop/src-tauri/tauri.conf.json",
     ],
   );
+  changeToolAtDispatch = true;
+  await assert.rejects(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /fixed source tool changed/);
+  changeToolAtDispatch = false;
+  toolChanged = false;
   await writeFile(
     path.join(f.root, "apps/desktop/package.json"),
     expected.get("apps/desktop/package.json")!.replace('"fixed"', '"changed"'),
