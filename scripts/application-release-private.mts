@@ -25,10 +25,10 @@ import {
   verifyApplicationReleaseTrust,
 } from "./application-release-policy.mts";
 import { readApplicationJobBudget } from "./application-release-budget.mts";
-import { readPublicationPause } from "./release-control-inputs.mts";
+import { readPublicationPauseWithSdk } from "./release-control-inputs.mts";
 import { semanticReviewCheckName } from "./release-control-phases.mts";
 import {
-  readIndependentSemanticCheckInventory,
+  readIndependentSemanticCheckInventoryWithSdk,
   selectLatestApplicationSemanticCheck,
 } from "./release-semantic-disposition-reader.mts";
 import {
@@ -36,6 +36,7 @@ import {
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import {
+  fixedReleaseReaderToken,
   readOnlyReleaseChildEnvironment,
   withReadOnlyReleaseChildren,
 } from "./release-readonly-child-environment.mts";
@@ -95,6 +96,8 @@ import {
 import { inspectSiteGeneration } from "./release-site-generation.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import { performance } from "node:perf_hooks";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { setTimeout as pause } from "node:timers/promises";
 import {
   applicationNativeHarness,
@@ -227,14 +230,28 @@ export async function readNativeApplicationSource(directory = sourceDirectory) {
   return source;
 }
 
-function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
+function applicationWorkerControlOptions() {
+  return {
+    token: fixedReleaseReaderToken(),
+    deadline: Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000),
+    guard: () => assertTrustedDirectNode("fixed application worker controls"),
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+  };
+}
+
+async function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
   const producer = {
     schema_version: 2,
     purpose: "application",
     review_app_id: 5555053,
     review_check_name: semanticReviewCheckName,
   };
-  const records = readIndependentSemanticCheckInventory(applicationApi, producer, original);
+  const records = await readIndependentSemanticCheckInventoryWithSdk(
+    applicationWorkerControlOptions(),
+    producer,
+    original,
+  );
   const latest = selectLatestApplicationSemanticCheck(records.records);
   assert.ok(latest && isRecord(semantic));
   assert.equal(latest.id, semantic.check_id);
@@ -242,7 +259,7 @@ function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
   assert.equal(latest.conclusion, "success");
   assert.ok(isRecord(latest.output) && typeof latest.output.summary === "string");
   assert.equal(sha256(Buffer.from(latest.output.summary)), semantic.summary_sha256);
-  records.assertUnchanged();
+  await records.assertUnchanged();
 }
 
 async function guard(
@@ -261,11 +278,11 @@ async function guard(
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
   const spending = inspectApplicationSpendingAppointment(process.env);
-  const pause = readPublicationPause(applicationApi);
+  const pause = await readPublicationPauseWithSdk(applicationWorkerControlOptions());
   assert.equal(pause.publication_paused, false, "publication paused");
   if (source.purpose === "application-release") {
     assert.ok(typeof source.original_source === "string");
-    assertCurrentApplicationSemantic(source.original_source, source.semantic);
+    await assertCurrentApplicationSemantic(source.original_source, source.semantic);
   }
   if (source.purpose === "metadata-bootstrap")
     inspectApplicationBootstrapSource(source, bootstrapAppointment());
@@ -359,7 +376,7 @@ async function guard(
       custody: registered,
     });
     if (owner.custody.preparation)
-      assertCurrentApplicationSemantic(owner.custody.source, source.renewal_semantic);
+      await assertCurrentApplicationSemantic(owner.custody.source, source.renewal_semantic);
   }
   const known = registered.runs.map((run) => run.id);
   assert.deepEqual(JSON.parse(process.env.PORTCOVE_KNOWN_RELEASE_RUNS ?? "null"), known);

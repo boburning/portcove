@@ -2294,6 +2294,18 @@ for (const file of [
     ...new Set([...(explicitNodeTests.get(file) ?? []), ...applicationReleaseTests]),
   ]);
 
+for (const file of [
+  "package.json",
+  "pnpm-lock.yaml",
+  "scripts/github-client.mts",
+  "scripts/release-control-inputs.mts",
+  "scripts/release-semantic-disposition-reader.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/application-release-budget.test.mts",
+  ]);
+
 const workflowTests = new Map([
   [
     "hosted-native-continuity.yml",
