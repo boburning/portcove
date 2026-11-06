@@ -86,6 +86,34 @@ void test("dispatch phase deadline refuses expired reads and a late guard before
     ["GET", "GET"],
   );
 });
+void test("a deadline crossed between final control and SDK dispatch prevents the prepared POST", async (t) => {
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  const fixture = provider();
+  const advanceClock = (after: number) => {
+    if (after === 0) clock = 2001;
+    else queueMicrotask(() => advanceClock(after - 1));
+  };
+  await assert.rejects(
+    dispatchPreparedReleaseCandidate(
+      input,
+      "fixture-token",
+      async () => advanceClock(4),
+      fixture.transport,
+      2000,
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError);
+      assert.ok(isRecord(error.evidence));
+      assert.equal(error.evidence.mutation_attempted, false);
+      return true;
+    },
+  );
+  assert.deepEqual(
+    fixture.calls.map(({ method }) => method),
+    ["GET"],
+  );
+});
 function provider(mode = "success") {
   const calls: { url: string; method: string; body: unknown }[] = [];
   const transport: typeof fetch = async (raw, init) => {
