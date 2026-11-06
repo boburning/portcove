@@ -16072,7 +16072,33 @@ fn main() {
         const PORT: &str = "opentyrian-opentyrian";
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        let service = PortcoveService::new(library.clone()).unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let platform = Platform::current().unwrap();
+        if !service
+            .catalog()
+            .port(PORT)
+            .unwrap()
+            .platforms
+            .contains(&platform)
+        {
+            // Exercise persistence with an inert host fixture even where upstream has no package.
+            let mut document = service.catalog().authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == PORT)
+                .unwrap();
+            port.platforms.push(platform);
+            port.executable_hints
+                .insert(platform, vec!["opentyrian".into()]);
+            port.release.asset_hints.insert(
+                platform,
+                port.release.asset_hints[&Platform::LinuxX86_64].clone(),
+            );
+            service.replace_catalog_for_test(
+                Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+            );
+        }
         let current = service.catalog().port(PORT).unwrap();
         let mut legacy = current.clone();
         for pattern in &mut legacy.persistent_file_patterns {
@@ -16086,7 +16112,9 @@ fn main() {
             };
             let root = library.versions_dir().join(PORT).join(&artifact.sha256);
             fs::create_dir_all(&root).unwrap();
-            write_host_test_executable_with_contents(&root, PORT, b"inert OpenTyrian fixture");
+            let executable = root.join(&port.executable_hints[&platform][0]);
+            fs::write(&executable, b"inert OpenTyrian fixture").unwrap();
+            crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
             register_existing_test_artifact_with_port(
                 &library, port, version, &root, artifact, active,
             )
