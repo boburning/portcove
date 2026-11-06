@@ -70,7 +70,8 @@ void test("public native Release assets use the locked SDK and exact next-page s
         deadline: performance.now() + 5000,
         recheck() {},
         async fetch(input, init) {
-          const url = String(input);
+          const url =
+            typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
           calls.push(url);
           assert.equal(
             new Headers(init?.headers).get("authorization"),
