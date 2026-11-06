@@ -867,6 +867,7 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/application-release-feed.test.mts",
       "scripts/application-release-context.test.mts",
       "scripts/release-catalog-source.test.mts",
       "scripts/release-catalog-coordinator.test.mts",
@@ -2400,6 +2401,7 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/application-release-context.test.mts",
+    "scripts/application-release-feed.test.mts",
     "scripts/release-control-handshake.test.mts",
     "scripts/release-capacity-executor.test.mts",
     "scripts/release-hosted-native-windows-runner.test.mts",
@@ -2528,6 +2530,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 ]);
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
+  "scripts/application-release-feed.test.mts",
   "scripts/release-native-candidate.test.mts",
   "scripts/release-hosted-native-job.test.mts",
   "scripts/release-pending-release-recovery.test.mts",

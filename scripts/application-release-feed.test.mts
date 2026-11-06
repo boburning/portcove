@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { performance } from "node:perf_hooks";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import {
   verifyBootstrapPagesArtifact,
+  verifyApplicationPagesArtifact,
   discoverPublishedApplicationCohort,
 } from "./application-release-feed.mts";
 import { serializeSiteTar } from "./release-site-deployment.mts";
@@ -228,13 +235,10 @@ function fixture(archiveOverride?: (tar: Buffer) => Buffer) {
   let calls = 0,
     reads = 0;
   const transport = {
-    api: {
-      request(method: string, endpoint: string) {
-        calls++;
-        assert.equal(method, "GET");
-        assert.equal(endpoint, "repos/boburning/portcove/actions/artifacts/10");
-        return { status: 200, headers: new Map<string, string>(), body: structuredClone(metadata) };
-      },
+    async readMetadata(id: number) {
+      calls++;
+      assert.equal(id, 10);
+      return structuredClone(metadata);
     },
     async readArchive(id: number, maximum: number) {
       reads++;
@@ -246,6 +250,7 @@ function fixture(archiveOverride?: (tar: Buffer) => Buffer) {
   return {
     expected,
     metadata,
+    zip,
     transport,
     run: () => verifyBootstrapPagesArtifact(expected, transport),
     counts: () => ({ calls, reads }),
@@ -259,6 +264,98 @@ void test("Pages artifact verification brackets exact opaque TAR bytes with fixe
   assert.equal(receipt.artifact.id, 10);
   assert.equal(receipt.authority, "none");
   assert.deepEqual(f.counts(), { calls: 2, reads: 1 });
+});
+
+void test("actual Pages verifier brackets signed ZIP delivery under the fixed scoped reader", async (t) => {
+  const f = fixture();
+  const root = await mkdtemp(path.join(os.tmpdir(), "fixed-application-pages-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const originalToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "fixed-original-pages-reader";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+  });
+  const artifact = "/repos/boburning/portcove/actions/artifacts/10";
+  const routes: string[] = [];
+  let metadataReads = 0;
+  let fault = "";
+  let cancelled = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      routes.push(url.pathname);
+      assert.equal(request.method, "GET");
+      assert.equal(request.redirect, "manual");
+      if (url.origin === "https://productionresultssa1.blob.core.windows.net") {
+        assert.equal(request.credentials, "omit");
+        assert.equal(request.headers.has("authorization"), false);
+        if (fault === "stalled")
+          return new Response(
+            new ReadableStream({
+              cancel() {
+                cancelled = true;
+              },
+            }),
+          );
+        return new Response(f.zip);
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(url.search, "");
+      assert.equal(request.headers.get("authorization"), "token fixed-original-pages-reader");
+      if (url.pathname === `${artifact}/zip`) {
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://productionresultssa1.blob.core.windows.net/actions-results/pages?sig=inert",
+          },
+        });
+      }
+      assert.equal(url.pathname, artifact);
+      metadataReads++;
+      process.env.GH_TOKEN = "unrelated-after-metadata";
+      return Response.json(
+        fault === "drift" && metadataReads === 2
+          ? { ...f.metadata, digest: `sha256:${"f".repeat(64)}` }
+          : f.metadata,
+        { status: fault === "non-200" ? 201 : 200 },
+      );
+    },
+  );
+  await withReadOnlyReleaseChildren(root, async () => {
+    process.env.GH_TOKEN = "unrelated-before-metadata";
+    const read = () => verifyApplicationPagesArtifact(f.expected, root);
+    assert.deepEqual(await read(), await f.run());
+    assert.deepEqual(routes, [artifact, `${artifact}/zip`, "/actions-results/pages", artifact]);
+    for (const [scenario, reason, dispatches] of [
+      ["non-200", /read unavailable/u, 1],
+      ["drift", /changed during byte verification/u, 4],
+    ] as const) {
+      fault = scenario;
+      routes.length = metadataReads = 0;
+      await assert.rejects(read(), reason);
+      assert.equal(routes.length, dispatches);
+    }
+    fault = "stalled";
+    routes.length = 0;
+    const keepAlive = setTimeout(() => {}, 1000);
+    try {
+      await assert.rejects(withCoordinatorDeadline(performance.now() + 150, read), {
+        code: "deadline_exceeded",
+      });
+      assert.equal(cancelled, true);
+      assert.deepEqual(routes, [artifact, `${artifact}/zip`, "/actions-results/pages"]);
+    } finally {
+      clearTimeout(keepAlive);
+    }
+    assert.ok(
+      (await readdir(root)).every((name) => !name.startsWith("application-pages-archive-")),
+    );
+  });
 });
 
 void test("wrong producer source/run/name/attempt and expired or oversized Pages archives refuse before download", async () => {

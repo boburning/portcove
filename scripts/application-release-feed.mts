@@ -1,12 +1,15 @@
 /** Immutable bootstrap feed input. This GET-only transport authenticates byte
  * custody and the assembly's provenance; it cannot sign, publish or deploy. */
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { readGitHubReleaseAsset } from "./github-binary.mts";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { applicationApi, sha256 } from "./application-release-io.mts";
 import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
 import {
@@ -290,7 +293,7 @@ export async function readImmutableApplicationMetadata(
  * verifies its opaque provider copy, never parses or extracts an incoming TAR.
  * Job/attempt custody comes from the fixed DAG's exact output artifact ID. */
 export async function verifyBootstrapPagesArtifact(
-  expected: {
+  rawExpected: {
     artifact_id: number;
     control_commit: string;
     run_id: string;
@@ -298,10 +301,12 @@ export async function verifyBootstrapPagesArtifact(
     tar: { bytes: number; sha256: string };
   },
   transport: {
-    api: GitHubRestReader;
+    readMetadata: (id: number) => Promise<unknown>;
+    deadline?: number;
     readArchive: (id: number, maximum: number) => Promise<Buffer>;
   },
 ) {
+  const expected = structuredClone(rawExpected);
   assert.ok(Number.isSafeInteger(expected.artifact_id) && expected.artifact_id > 0);
   assert.match(expected.control_commit, /^[a-f0-9]{40}$/u);
   assert.match(expected.run_id, /^[1-9][0-9]{0,15}$/u);
@@ -317,15 +322,13 @@ export async function verifyBootstrapPagesArtifact(
       expected.tar.bytes <= 512 * 1024 ** 2,
   );
   assert.match(expected.tar.sha256, /^[a-f0-9]{64}$/u);
-  const start = performance.now();
-  const metadata = () => {
-    const response = transport.api.request(
-      "GET",
-      `repos/boburning/portcove/actions/artifacts/${expected.artifact_id}`,
-    );
-    assert.ok(performance.now() - start < 120000);
-    assert.equal(response.status, 200);
-    const raw = response.body;
+  const deadline = Math.min(transport.deadline ?? Infinity, performance.now() + 120000);
+  const active = () =>
+    assert.ok(performance.now() < deadline, "Pages artifact verification deadline exhausted");
+  const metadata = async () => {
+    active();
+    const raw = await transport.readMetadata(expected.artifact_id);
+    active();
     assert.ok(isRecord(raw));
     assert.equal(raw.id, expected.artifact_id);
     assert.equal(raw.name, `application-pages-${expected.run_id}-${expected.producer_attempt}`);
@@ -349,12 +352,13 @@ export async function verifyBootstrapPagesArtifact(
       sha256: raw.digest.slice(7),
     };
   };
-  const before = metadata();
+  const before = await metadata();
   const archive = await transport.readArchive(expected.artifact_id, before.bytes);
+  active();
   assert.equal(archive.length, before.bytes);
   assert.equal(sha256(archive), before.sha256);
   const tar = inspectSiteArtifactArchive(archive, expected.tar);
-  assert.deepEqual(metadata(), before, "Pages artifact changed during byte verification");
+  assert.deepEqual(await metadata(), before, "Pages artifact changed during byte verification");
   return {
     schema_version: 1,
     authority: "none",
@@ -365,6 +369,53 @@ export async function verifyBootstrapPagesArtifact(
     producer_attempt: expected.producer_attempt,
     scope: "exact fixed-uploader TAR bytes only; no deployment or public acceptance",
   };
+}
+
+/** Actual fixed bundled capture and preflight transport. */
+export async function verifyApplicationPagesArtifact(
+  expected: Parameters<typeof verifyBootstrapPagesArtifact>[0],
+  scratchParent = process.env.RUNNER_TEMP,
+) {
+  assert.ok(scratchParent && path.isAbsolute(scratchParent));
+  const identity = structuredClone(expected);
+  const token = fixedReleaseReaderToken();
+  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
+  const fetch: typeof globalThis.fetch = (input, init) => {
+    assertTrustedDirectNode("fixed application Pages artifact");
+    return globalThis.fetch(input, init);
+  };
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    fetch,
+  });
+  const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
+  const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
+  return verifyBootstrapPagesArtifact(identity, {
+    deadline,
+    readMetadata: (id) => provider.artifact(id),
+    async readArchive(id, maxBytes) {
+      const transferDeadline = Math.min(deadline, performance.now() + 30000);
+      const scratch = await mkdtemp(path.join(scratchParent, "application-pages-archive-"));
+      let bytes: Buffer;
+      try {
+        const filename = "archive.zip";
+        await downloadGitHubArtifactArchiveFile(
+          `repos/boburning/portcove/actions/artifacts/${id}/zip`,
+          path.join(scratch, filename),
+          { credential: { kind: "explicit", token }, deadline: transferDeadline, maxBytes, fetch },
+        );
+        bytes = await readBoundedPublicBuildInputFile(scratch, filename, maxBytes);
+      } finally {
+        await rm(scratch, { recursive: true, force: true });
+      }
+      assert.ok(performance.now() < transferDeadline, "Pages artifact transfer deadline exhausted");
+      return bytes;
+    },
+  });
 }
 
 export async function readImmutableApplicationMetadataFeed(

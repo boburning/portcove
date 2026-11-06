@@ -73,12 +73,12 @@ import {
   assertMetadataRenewalPublication,
   inspectTufPublicationFacts,
 } from "./release-metadata-contract.mts";
-import { readGitHubReleaseAsset, readGitHubArtifactArchive } from "./github-binary.mts";
+import { readGitHubReleaseAsset } from "./github-binary.mts";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import {
   readImmutableBootstrapFeed,
   readImmutableApplicationMetadataFeed,
-  verifyBootstrapPagesArtifact,
+  verifyApplicationPagesArtifact,
   discoverPublishedApplicationCohort,
   readApplicationPriorPublication,
   readApplicationPendingLineage,
@@ -1696,25 +1696,13 @@ async function captureBootstrapPagesArchive() {
     "artifact.tar",
     info.size,
   );
-  const receipt = await verifyBootstrapPagesArtifact(
-    {
-      artifact_id: Number(process.env.PORTCOVE_PAGES_ARTIFACT),
-      control_commit: current.source,
-      run_id: current.run_id,
-      producer_attempt: current.run_attempt,
-      tar: { bytes: tar.length, sha256: sha256(tar) },
-    },
-    {
-      api: applicationApi,
-      async readArchive(id, maximum) {
-        return readGitHubArtifactArchive(`repos/boburning/portcove/actions/artifacts/${id}/zip`, {
-          cwd: process.cwd(),
-          maxBytes: maximum,
-          timeoutMs: 30000,
-        });
-      },
-    },
-  );
+  const receipt = await verifyApplicationPagesArtifact({
+    artifact_id: Number(process.env.PORTCOVE_PAGES_ARTIFACT),
+    control_commit: current.source,
+    run_id: current.run_id,
+    producer_attempt: current.run_attempt,
+    tar: { bytes: tar.length, sha256: sha256(tar) },
+  });
   await writeApplicationJson("work/application-feed/pages.json", {
     ...receipt,
     site_generation: site.site_generation,
@@ -1762,25 +1750,13 @@ async function preflightBootstrapSite() {
   assert.equal(captured.site_generation, feed.site_generation);
   assert.equal(captured.artifact.id, Number(process.env.PORTCOVE_PAGES_ARTIFACT));
   assert.ok(typeof captured.tar.bytes === "number" && typeof captured.tar.sha256 === "string");
-  const pages = await verifyBootstrapPagesArtifact(
-    {
-      artifact_id: Number(process.env.PORTCOVE_PAGES_ARTIFACT),
-      control_commit: current.source,
-      run_id: current.run_id,
-      producer_attempt: attempt,
-      tar: { bytes: captured.tar.bytes, sha256: captured.tar.sha256 },
-    },
-    {
-      api: applicationApi,
-      async readArchive(id, maximum) {
-        return readGitHubArtifactArchive(`repos/boburning/portcove/actions/artifacts/${id}/zip`, {
-          cwd: process.cwd(),
-          maxBytes: maximum,
-          timeoutMs: 30000,
-        });
-      },
-    },
-  );
+  const pages = await verifyApplicationPagesArtifact({
+    artifact_id: Number(process.env.PORTCOVE_PAGES_ARTIFACT),
+    control_commit: current.source,
+    run_id: current.run_id,
+    producer_attempt: attempt,
+    tar: { bytes: captured.tar.bytes, sha256: captured.tar.sha256 },
+  });
   const { site_generation: capturedGeneration, ...captureBody } = captured;
   assert.equal(capturedGeneration, feed.site_generation);
   assert.deepEqual(pages, captureBody);
