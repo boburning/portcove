@@ -26,6 +26,7 @@ import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 
 type Phase = "building" | "publishing" | "promoting";
 type PhaseOptions = {
@@ -427,8 +428,8 @@ async function requirePhaseAdvanceWithinDeadline(
     { schema_version: 1, namespace: value.namespace },
     {
       transport: {
-        cwd: value.repository,
-        ...(value.deadline === undefined ? {} : { deadline: value.deadline }),
+        credential: { token: fixedReleaseReaderToken() },
+        deadline: value.deadline ?? performance.now() + 120000,
       },
     },
   );
