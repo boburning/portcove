@@ -1,16 +1,21 @@
 /** Provider artifact transfer for the application package job. No candidate code
  * is loaded, and neither an artifact nor its provenance grants release authority. */
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { performance } from "node:perf_hooks";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { isRecord } from "./runtime-values.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import {
   applicationPackageNames,
@@ -68,24 +73,48 @@ async function receivePackageArchive(
 ) {
   expected = structuredClone(expected);
   applicationPackageNames(expected.version);
-  const endpoint = `repos/boburning/portcove/actions/artifacts/${expected.artifact}`;
-  const raw: unknown = JSON.parse(
-    execFileSync("gh", ["api", "--hostname", "github.com", endpoint], {
-      env: readOnlyReleaseChildEnvironment(),
-      encoding: "utf8",
-      timeout: 30000,
-      maxBuffer: 65536,
-    }),
-  );
-  const identity = inspectApplicationPackageArtifact(raw, expected, phase);
-  const archive = readGitHubArtifactArchive(`${endpoint}/zip`, {
-    cwd: process.cwd(),
-    maxBytes: 512 * 1024 ** 2,
-    timeoutMs: 120000,
+  const token = fixedReleaseReaderToken();
+  const isolated = readOnlyReleaseChildEnvironment() !== undefined;
+  const fetch = isolated
+    ? (input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) => {
+        assertTrustedDirectNode("application package archive");
+        return globalThis.fetch(input, init);
+      }
+    : globalThis.fetch;
+  const inherited = coordinatorCommandDeadline() ?? Infinity;
+  const metadataDeadline = Math.min(inherited, performance.now() + 30000);
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const metadata = await createReleaseCustodyProvider({
+    token,
+    deadline: metadataDeadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 65536,
+    fetch,
   });
-  assert.equal(archive.length, identity.bytes);
-  assert.equal(createHash("sha256").update(archive).digest("hex"), identity.sha256);
-  await extractApplicationPackageArchive(archive, directory, expected.version, phase);
+  const identity = inspectApplicationPackageArtifact(
+    await metadata.artifact(expected.artifact),
+    expected,
+    phase,
+  );
+  const deadline = Math.min(inherited, performance.now() + 120000);
+  const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
+  const scratch = await mkdtemp(path.join(tmpdir(), "portcove-application-package-"));
+  try {
+    const archiveName = "package.zip";
+    await downloadGitHubArtifactArchiveFile(
+      `repos/boburning/portcove/actions/artifacts/${expected.artifact}/zip`,
+      path.join(scratch, archiveName),
+      { credential: { kind: "explicit", token }, deadline, maxBytes: identity.bytes, fetch },
+    );
+    const archive = await readBoundedPublicBuildInputFile(scratch, archiveName, identity.bytes);
+    assert.equal(archive.length, identity.bytes);
+    assert.equal(createHash("sha256").update(archive).digest("hex"), identity.sha256);
+    if (performance.now() >= inherited) throw new Error("application package deadline exhausted");
+    await extractApplicationPackageArchive(archive, directory, expected.version, phase);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+  if (performance.now() >= inherited) throw new Error("application package deadline exhausted");
   return identity;
 }
 

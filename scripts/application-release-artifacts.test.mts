@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { link, mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
 import { parse } from "yaml";
@@ -139,6 +142,98 @@ void test("package names and provider observations cannot select foreign bytes, 
     assert.throws(() => inspectApplicationPackageArtifact({ ...raw, ...change }, binding));
 });
 
+void test("compiler entry acquires exact archive through the locked SDK before extraction", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "application-sdk-archive-"));
+  try {
+    const names = applicationPackageNames(expected.version);
+    const zip = createAuditZip(names.map((name) => [name, name] as const));
+    const archive = path.join(root, "fixture.zip");
+    const preload = path.join(root, "provider.mjs");
+    await writeFile(archive, zip);
+    const artifact = {
+      id: 123,
+      name: `application-compiler-${expected.run_id}-1`,
+      expired: false,
+      size_in_bytes: zip.length,
+      digest: `sha256:${createHash("sha256").update(zip).digest("hex")}`,
+      workflow_run: {
+        id: Number(expected.run_id),
+        head_sha: expected.control_commit,
+        repository_id: 1354613114,
+      },
+    };
+    await writeFile(
+      preload,
+      `
+      import assert from "node:assert/strict";
+      import { readFile } from "node:fs/promises";
+      const metadata = "https://api.github.com/repos/boburning/portcove/actions/artifacts/123";
+      const delivery = "https://productionresultssa1.blob.core.windows.net/actions-results/package?sig=synthetic";
+      let calls = 0;
+      globalThis.fetch = async (input, init) => {
+        const headers = new Headers(init.headers);
+        if (calls++ === 0) {
+          assert.equal(String(input), metadata);
+          assert.equal(headers.get("authorization"), "token sdk-synthetic");
+          process.env.GH_TOKEN = "replacement";
+          return Response.json(${JSON.stringify(artifact)});
+        }
+        if (calls === 2) {
+          assert.equal(String(input), metadata + "/zip");
+          assert.equal(headers.get("authorization"), "token sdk-synthetic");
+          return new Response(null, { status: 302, headers: { location: delivery } });
+        }
+        assert.equal(calls, 3);
+        assert.equal(String(input), delivery);
+        assert.equal(headers.has("authorization"), false);
+        return new Response(await readFile(${JSON.stringify(archive)}));
+      };
+      process.on("exit", (code) => { if (!code) assert.equal(calls, 3); });
+    `,
+    );
+    await promisify(execFile)(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        fileURLToPath(new URL("./application-release-transfer.mts", import.meta.url)),
+        "compiler",
+      ],
+      {
+        cwd: root,
+        timeout: 15000,
+        env: {
+          ...process.env,
+          GH_TOKEN: "sdk-synthetic",
+          GITHUB_REPOSITORY: "boburning/portcove",
+          GITHUB_REPOSITORY_ID: "1354613114",
+          GITHUB_EVENT_NAME: "workflow_dispatch",
+          GITHUB_REF: "refs/heads/main",
+          GITHUB_WORKFLOW_REF:
+            "boburning/portcove/.github/workflows/application-release.yml@refs/heads/main",
+          GITHUB_SHA: expected.control_commit,
+          GITHUB_WORKFLOW_SHA: expected.control_commit,
+          GITHUB_RUN_ID: expected.run_id,
+          GITHUB_RUN_ATTEMPT: "1",
+          PORTCOVE_APPLICATION_PACKAGE_MODE: "qualification",
+          PORTCOVE_PRODUCT_SOURCE: expected.source_commit,
+          PORTCOVE_PRODUCT_TREE: expected.source_tree,
+          PORTCOVE_PRODUCT_VERSION: expected.version,
+          PORTCOVE_PACKAGE_ATTEMPT: "1",
+          PORTCOVE_COMPILER_ARTIFACT: "123",
+        },
+      },
+    );
+    for (const name of names)
+      assert.equal(
+        await readFile(path.join(root, "work/application-unsigned", name), "utf8"),
+        name,
+      );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 void test("compiler handoff rejects unsafe archive declarations before creating any output", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "application-archive-"));
   try {
@@ -221,15 +316,15 @@ void test("native package workflow keeps candidate execution separate from attes
   const provenanceSteps = workflow.jobs.provenance.steps;
   assert.equal(provenanceSteps[0]?.with?.ref, "${{ github.sha }}");
   assert.equal(provenanceSteps[0]?.with?.["persist-credentials"], false);
-  assert.ok(
-    !provenanceSteps.some((step) => /pnpm install|cargo |tauri build/u.test(step.run ?? "")),
+  const install = provenanceSteps.findIndex(
+    (step) => step.run === "pnpm install --frozen-lockfile --ignore-scripts",
   );
+  const transfer = provenanceSteps.findIndex(
+    (step) => step.run === "node scripts/application-release-transfer.mts compiler",
+  );
+  assert.ok(install > 0 && transfer > install);
+  assert.ok(!provenanceSteps.some((step) => /cargo |tauri build/u.test(step.run ?? "")));
   assert.ok(provenanceSteps.some((step) => step.uses?.startsWith("actions/attest@")));
-  assert.ok(
-    provenanceSteps.some(
-      (step) => step.run === "node scripts/application-release-transfer.mts compiler",
-    ),
-  );
   assert.ok(!provenanceSteps.some((step) => step.uses?.startsWith("actions/download-artifact@")));
   const text = JSON.stringify(workflow);
   assert.equal(workflow.jobs.package.environment, undefined);
