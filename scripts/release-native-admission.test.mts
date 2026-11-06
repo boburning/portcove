@@ -1472,3 +1472,37 @@ void test("historical native proof uses exact one-attempt SDK reads and refuses 
     "POST /graphql",
   ]);
 });
+
+void test("historical native proof cuts off a stalled body at the inherited deadline", async () => {
+  const { withCoordinatorDeadline } = await import("./release-coordinator-deadline.mts");
+  let dispatches = 0;
+  let cancelled = false;
+  const proof = await createNativeCheckpointEvidenceReader(
+    "inert-native-proof",
+    performance.now() + 5000,
+    () => {},
+    () => {},
+    async () => {
+      dispatches++;
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("{"));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    },
+  );
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 500, async () =>
+      proof.request("GET", `repos/boburning/portcove/git/commits/${"a".repeat(40)}`),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(dispatches, 1);
+  assert.equal(cancelled, true);
+});
