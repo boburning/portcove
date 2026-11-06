@@ -19,7 +19,7 @@ import {
 } from "./ci-workflow-fixture.mts";
 
 // Independently expected contract pin; Renovate updates it with the Action group.
-const reviewedInstallAction = "taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2"; // v2.90.0
+const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
 
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = workflowJobs(nativeDesignCompatibilityWorkflow);
