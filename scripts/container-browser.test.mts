@@ -16,6 +16,7 @@ import {
   linuxStorage,
   cacheBytes,
   selectedSource,
+  validateSelectedBrowserFiles,
   runtimeArguments,
   validateRuntime,
   verifyPublication,
@@ -237,7 +238,18 @@ void test("an unpushed commit is selected exactly and dirty bytes/refs remain un
   try {
     await git("init");
     writeFileSync(path.join(fixture, "source.txt"), "committed\n");
-    await git("add", "source.txt");
+    const desktop = path.join(fixture, "apps/desktop/src");
+    mkdirSync(desktop, { recursive: true });
+    const committedTest = "src/literal $(name).test.ts";
+    writeFileSync(path.join(desktop, path.basename(committedTest)), "committed test\n");
+    await git("add", "source.txt", "apps/desktop");
+    const regularBlob = await git("rev-parse", ":apps/desktop/" + committedTest);
+    await git(
+      "update-index",
+      "--add",
+      "--cacheinfo",
+      "120000," + regularBlob + ",apps/desktop/src/link.test.ts",
+    );
     await git(
       "-c",
       "core.hooksPath=",
@@ -254,6 +266,11 @@ void test("an unpushed commit is selected exactly and dirty bytes/refs remain un
     const commit = await git("rev-parse", "HEAD"),
       tree = await git("rev-parse", "HEAD^{tree}");
     assert.equal(await git("remote"), "");
+    await assert.rejects(
+      validateSelectedBrowserFiles(commit, ["src/link.test.ts"], fixture),
+      /missing or not regular in selected commit/u,
+    );
+    await git("update-index", "--skip-worktree", "apps/desktop/src/link.test.ts");
     assertCommittedWorkspace(fixture, commit, tree);
     assert.equal((await selectedSource(commit, false, fixture)).tree, tree);
     writeFileSync(path.join(fixture, "source.txt"), "dirty bytes\n");
@@ -262,13 +279,27 @@ void test("an unpushed commit is selected exactly and dirty bytes/refs remain un
     writeFileSync(path.join(fixture, "excluded.txt"), "untracked bytes\n");
     assert.throws(() => assertCommittedWorkspace(fixture, commit, tree), /committed bytes/u);
     writeFileSync(path.join(fixture, "source.txt"), "dirty bytes\n");
+    rmSync(path.join(desktop, path.basename(committedTest)));
+    const untrackedTest = "src/untracked.test.ts";
+    writeFileSync(path.join(desktop, path.basename(untrackedTest)), "untracked test\n");
+    assert.deepEqual(await validateSelectedBrowserFiles(commit, [".\\" + committedTest], fixture), [
+      "apps/desktop/" + committedTest,
+    ]);
+    await assert.rejects(
+      validateSelectedBrowserFiles(commit, [untrackedTest], fixture),
+      /missing or not regular in selected commit/u,
+    );
+    await assert.rejects(
+      validateSelectedBrowserFiles(commit, ["src/../literal $(name).test.ts"], fixture),
+      /Expected a literal desktop test path/u,
+    );
     const before = await git("status", "--porcelain=v1"),
       branch = await git("symbolic-ref", "HEAD");
     await assert.rejects(selectedSource(commit, false, fixture), /Dirty current work/u);
     const admitted = await selectedSource(commit, true, fixture);
     assert.equal(admitted.commit, commit);
     assert.equal(admitted.tree, tree);
-    assert.equal(admitted.excluded_changes.length, 2);
+    assert.equal(admitted.excluded_changes.length, 4);
     await assert.rejects(selectedSource("HEAD", true, fixture), /full committed SHA/u);
     await assert.rejects(selectedSource("0".repeat(40), true, fixture));
     assert.equal(await git("status", "--porcelain=v1"), before);
@@ -279,6 +310,35 @@ void test("an unpushed commit is selected exactly and dirty bytes/refs remain un
     rmSync(fixture, { recursive: true });
   }
 });
+void test("the CLI rejects misplaced options and missing exact tests before host admission", async () => {
+  const commit = (await command("git", ["rev-parse", "HEAD"])).stdout.trim();
+  const base = [
+    "scripts/container-browser.mts",
+    "run",
+    "--commit",
+    commit,
+    "--exclude-dirty",
+    "--mode",
+    "exact",
+    "--files",
+    "src/missing-container-control.browser.test.tsx",
+  ];
+  for (const flag of ["--timeout-ms", "--help"]) {
+    await assert.rejects(command(process.execPath, [...base, flag]), (error) => {
+      assertCommandFailure(error);
+      assert.match(error.result.stderr, /Place options before --files/u);
+      assert.ok(error.result.stderr.includes(flag));
+      return true;
+    });
+  }
+  await assert.rejects(command(process.execPath, base), (error) => {
+    assertCommandFailure(error);
+    assert.match(error.result.stderr, /missing or not regular in selected commit/u);
+    assert.ok(error.result.stderr.includes(commit));
+    return true;
+  });
+});
+
 void test("task argv is literal, bounded and excludes host mounts, privileges and proxy credentials", () => {
   const run = "30000000-0000-4000-8000-000000000000",
     file = "src/literal $(nope); name.browser.test.tsx";
@@ -424,6 +484,29 @@ void test("child failures and finite timeout retain original status, arguments a
   await assert.rejects(cleanup(false, -1), /Cleanup age/u);
 });
 
+void test("bounded command output is available while the child is still running", async () => {
+  const abort = new AbortController();
+  let output = "";
+  const running = command(
+    process.execPath,
+    ["-e", "process.stdout.write('before exit'); setInterval(() => {}, 1000)"],
+    {
+      signal: abort.signal,
+      onOutput(chunk) {
+        output += chunk.toString();
+        if (output === "before exit") abort.abort();
+      },
+    },
+  );
+  await assert.rejects(running, (error) => {
+    assertCommandFailure(error);
+    assert.match(error.message, /interrupted/u);
+    assert.equal(error.result.stdout, "before exit");
+    return true;
+  });
+  assert.equal(output, "before exit");
+});
+
 void test("a failing diagnostic sink does not replace the actual child failure", async () => {
   mkdirSync(path.join(root, "work"), { recursive: true });
   const directory = mkdtempSync(path.join(root, "work/container-sink-"));
@@ -432,10 +515,18 @@ void test("a failing diagnostic sink does not replace the actual child failure",
     writeFileSync(broken, "owned sink control");
     let primary;
     try {
-      await command(process.execPath, [
-        "-e",
-        "process.stdout.write('partial');process.stderr.write('original cause');process.exit(23)",
-      ]);
+      await command(
+        process.execPath,
+        [
+          "-e",
+          "process.stdout.write('partial');process.stderr.write('original cause');process.exit(23)",
+        ],
+        {
+          onOutput() {
+            throw new Error("live sink control");
+          },
+        },
+      );
     } catch (error) {
       primary = error;
     }

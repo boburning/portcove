@@ -13,6 +13,7 @@ export const {
   cacheBytes,
   doctor,
   selectedSource,
+  validateSelectedBrowserFiles,
   runtimeArguments,
   validateRuntime,
   verifyPublication,

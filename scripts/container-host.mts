@@ -313,6 +313,7 @@ interface CommandOptions {
   cwd?: string;
   timeout?: number;
   signal?: AbortSignal;
+  onOutput?: (chunk: Buffer) => void;
 }
 // Completed failures prove quiescence without converting a failed build to success.
 export function completedContainerPreparation(records: readonly unknown[], name: unknown) {
@@ -392,7 +393,7 @@ export function createContainerHost(profile: string) {
   function command(
     commandName: string,
     args: readonly string[],
-    { cwd = root, timeout = 15_000, signal }: CommandOptions = {},
+    { cwd = root, timeout = 15_000, signal, onOutput }: CommandOptions = {},
   ): Promise<ContainerCommandResult> {
     return new Promise((resolve, reject) => {
       if (signal?.aborted) {
@@ -421,6 +422,7 @@ export function createContainerHost(profile: string) {
       const chunks: [Buffer[], Buffer[]] = [[], []];
       let bytes = 0;
       let problem: Error | undefined;
+      let outputFailure: Error | undefined;
       let force: ReturnType<typeof setTimeout> | undefined;
       let exited = false;
       let stopping = false;
@@ -467,6 +469,13 @@ export function createContainerHost(profile: string) {
           else {
             const output = chunks[index];
             if (output) output.push(data);
+            if (!outputFailure) {
+              try {
+                onOutput?.(data);
+              } catch (error) {
+                outputFailure = new Error("Could not retain live command output", { cause: error });
+              }
+            }
           }
         });
       child.on("error", (error) => {
@@ -496,6 +505,7 @@ export function createContainerHost(profile: string) {
               { result },
             ),
           );
+        else if (outputFailure) reject(Object.assign(outputFailure, { result }));
         else resolve(result);
       });
     });
@@ -787,6 +797,41 @@ export function createContainerHost(profile: string) {
       checkout_head: await git(["rev-parse", "HEAD"], repository),
       excluded_changes: excluded.split("\n").filter(Boolean),
     };
+  }
+  async function validateSelectedBrowserFiles(
+    commit: string,
+    files: readonly string[],
+    repository = root,
+  ): Promise<string[]> {
+    const paths = files.map((input) => {
+      const relative = input.replaceAll("\\", "/").replace(/^(?:\.\/)?(?:apps\/desktop\/)?/u, "");
+      if (
+        /[?*{}[\]]/u.test(relative) ||
+        relative.split("").some((character) => character.charCodeAt(0) < 32) ||
+        relative.split("/").some((part) => !part || part === "." || part === "..") ||
+        !/\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(relative)
+      )
+        throw new Error("Expected a literal desktop test path: " + JSON.stringify(input));
+      return "apps/desktop/" + relative;
+    });
+    const { stdout } = await command(
+      "git",
+      ["--literal-pathspecs", "ls-tree", "-z", "--full-tree", commit, "--", ...paths],
+      { cwd: repository },
+    );
+    const regularFiles = new Set(
+      stdout
+        .split("\0")
+        .filter((entry) => /^100(?:644|755) blob /u.test(entry))
+        .map((entry) => entry.slice(entry.indexOf("\t") + 1)),
+    );
+    for (const file of paths) {
+      if (!regularFiles.has(file))
+        throw new Error(
+          "Desktop test is missing or not regular in selected commit " + commit + ": " + file,
+        );
+    }
+    return paths;
   }
   function owned(input: unknown, run?: unknown) {
     const info = object(input);
@@ -1191,6 +1236,7 @@ export function createContainerHost(profile: string) {
       );
     const source = await selectedSource(commit, excludeDirty);
     const selectedCommit = source.commit;
+    if (mode === "exact") files = await validateSelectedBrowserFiles(selectedCommit, files);
     const intendedDriverSource = fallowSource(root, undefined, { includeAll: true });
     if (source.excluded_changes.length)
       console.error(`Excluded dirty work (not tested): ${JSON.stringify(source.excluded_changes)}`);
@@ -1256,7 +1302,7 @@ export function createContainerHost(profile: string) {
       const base = (
         builder
           ? /^FROM (ghcr\.io\/voidzero-dev\/vite-plus:(\d+\.\d+\.\d+)@sha256:[a-f0-9]{64}) AS vite$/mu
-          : /^FROM (ghcr\.io\/voidzero-dev\/vite-plus:(\d+\.\d+\.\d+)@sha256:[a-f0-9]{64})$/mu
+          : /^FROM (ghcr\.io\/voidzero-dev\/vite-plus:(\d+\.\d+\.\d+)@sha256:[a-f0-9]{64}) AS base$/mu
       ).exec(text);
       if (!base) throw new Error("Browser image requires an exact Vite+ tag and digest");
       const { parse } = await import("yaml");
@@ -1454,7 +1500,10 @@ export function createContainerHost(profile: string) {
         state.capacity_phase = "image-build";
         state.build_name = `${prefix}-${run}`;
         save();
-        const build = await docker(
+        const buildLog = path.join(directory, "build.log");
+        writeFileSync(buildLog, "", { flag: "wx" });
+        console.error("Building " + state.build_name + " (live output in " + buildLog + ")");
+        await docker(
           [
             "build",
             "--builder",
@@ -1487,11 +1536,14 @@ export function createContainerHost(profile: string) {
             ].flatMap((key) => ["--build-arg", `${key}=`]),
             directory,
           ],
-          { timeout: setupTimeout(), signal: abort.signal },
+          {
+            timeout: setupTimeout(),
+            signal: abort.signal,
+            onOutput: (chunk) => appendFileSync(buildLog, chunk, { flag: "a" }),
+          },
         );
         state.capacity_phase = "prepared";
         save();
-        writeFileSync(path.join(directory, "build.log"), build.stdout + build.stderr);
         image = imageObservation(
           firstObservation(parseJson((await docker(["image", "inspect", tag])).stdout)),
         );
@@ -1938,7 +1990,9 @@ export function createContainerHost(profile: string) {
 
   async function main() {
     const args = process.argv.slice(2);
-    if (!args.length || args.includes("--help")) {
+    const filesAt = args.indexOf("--files");
+    const helpAt = args.indexOf("--help");
+    if (!args.length || (helpAt !== -1 && (filesAt === -1 || helpAt < filesAt))) {
       console.log(
         builder
           ? "usage: container-build.mts doctor | run --commit <40-hex> [--exclude-dirty] [--mode check|package] [--timeout-ms <100..5400000>] | export --run <UUID> | clean [--apply] [--older-than-hours <0..8760>]"
@@ -1969,6 +2023,9 @@ export function createContainerHost(profile: string) {
         else if (flag === "--mode") options.mode = args.shift();
         else if (flag === "--timeout-ms") options.timeout = Number(args.shift());
         else if (flag === "--files") {
+          const misplaced = args.find((file) => file.startsWith("-"));
+          if (misplaced)
+            throw new Error("Place options before --files: " + JSON.stringify(misplaced));
           options.files = args.splice(0);
         } else throw new Error(`Unknown container argument ${flag}`);
       }
@@ -1999,6 +2056,7 @@ export function createContainerHost(profile: string) {
     cacheBytes,
     doctor,
     selectedSource,
+    validateSelectedBrowserFiles,
     runtimeArguments,
     validateRuntime,
     verifyPublication,

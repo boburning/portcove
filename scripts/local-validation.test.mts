@@ -3548,6 +3548,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
         for (const retained of [
           "scripts/prepare-port.test.mts",
           "scripts/catalog-staged-check.test.mts",
+          "scripts/precommit-check.test.mts",
         ]) {
           assert.ok(local.nodeTests.has(retained), label);
           assert.ok(hosted.includes(retained), label);

@@ -430,6 +430,7 @@ for (const [file, tests] of [
       "scripts/prepare-port.test.mts",
       ...catalogAuthoringContractTests,
       "scripts/catalog-staged-check.test.mts",
+      "scripts/precommit-check.test.mts",
     ],
   ],
   ...[

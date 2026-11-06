@@ -26,8 +26,11 @@ just container-clean --older-than-hours 72 --apply
 Without Just, use `node scripts/container-browser.mts doctor`, `run`, `export`
 or `clean` with the same arguments. No global Vite+ or Corepack is required
 by this host route. The deliberately failing `probe` command returns nonzero.
-`exact` uses the maintained literal-file selector; the default `suite` runs
-the canonical browser and forced-colors projects freshly.
+`exact` accepts literal desktop test files. Put every option before `--files`.
+The host checks that each path is a regular test file in the selected Git commit
+before Docker admission. The guest uses the maintained exact selector to
+reconcile executed files. The default `suite` runs the canonical browser and
+forced-colors projects freshly.
 
 `--commit` is mandatory and names a full committed SHA available locally.
 Unpushed commits work without publication. Dirty current work is refused
@@ -67,10 +70,13 @@ committed source, including manifests, lockfile, patches and lifecycle scripts,
 participates in preparation. Git rejects tracked or
 untracked source changes after preparation and immediately before fresh tests.
 Ignored generated dependencies, caches and output remain separate. Frozen
-installation and the maintained provider compatibility check precede
-Playwright's own system-library installer and
-canonical Chromium headless-shell bootstrap. No Rust or packaging toolchain is
-added. The upstream image's sudo facility is removed before task execution.
+installation and the maintained provider compatibility check resolve the exact
+`playwright-core` package and Node executable. BuildKit keys the system-library
+step to the pinned base and that installer and runtime payload. A source-only
+change still prepares its own verified workspace and can reuse the system
+layer when those inputs match. Chromium headless-shell bootstrap remains bound
+to the selected workspace. The system layer removes the upstream image's sudo
+facility before task execution.
 
 Prepared images are specific to the source commit/tree, base, architecture,
 recipe/entry/integrity-guard bytes and workspace owner. Adapter files enter
@@ -113,6 +119,8 @@ storage. Exceeding a budget preserves resources and blocks further preparation;
 it never triggers machine-wide pruning.
 
 Staging and recovery state live under `work/container-browser/<run-UUID>`.
+On a fresh image build, the adapter prints the path to `build.log` and writes
+BuildKit output there as it arrives within the existing command output limit.
 Verified exports go to the existing retained-evidence location, under
 `container-browser/<run-UUID>`, outside checkout cleanup roots. Logs, traces,
 screenshots, commands, source/environment identities and hashed publication
