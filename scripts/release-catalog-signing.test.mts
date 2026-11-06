@@ -495,7 +495,7 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
   const make = raw as (
     directory: string,
     budget: { check: () => void; monotonicDeadline: number },
-    guard: () => void,
+    guard: (() => void) | { readCurrent: () => Promise<void> },
   ) => typeof journal;
   let expired = false;
   const guarded = make("inert", { monotonicDeadline: 100, check() {} }, () => {
@@ -519,13 +519,16 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
   assert.equal(observed.filter((value) => value !== "guard").length, before);
   guarded.request("GET");
   assert.equal(observed.at(-1), "GET");
-  // Run the actual producer callback too: a synchronous Check GET may consume
+  // Run the actual producer callback too: the awaited Check GET may consume
   // the remaining control lifetime while the enclosing job is still live.
-  const callbackCall = source.indexOf("const beforeMutation = () => {"),
-    callbackStart = source.indexOf("() => {", callbackCall),
-    callbackEnd = source.indexOf("\n        };", callbackStart);
-  assert.ok(callbackCall > 0 && callbackEnd > callbackStart);
+  const receiver = source.indexOf("export async function prepareActualCoordinatorCatalogSigning("),
+    callbackStart = source.indexOf("const beforeMutation = {", receiver),
+    callbackEnd = source.indexOf("const signedJournal = ", callbackStart);
+  assert.ok(receiver > 0 && callbackStart > receiver && callbackEnd > callbackStart);
   let clock = 59;
+  let check = Promise.withResolvers<void>(),
+    enteredControls = Promise.withResolvers<void>(),
+    controls = Promise.withResolvers<void>();
   const order: string[] = [],
     budget = {
       monotonicDeadline: 170,
@@ -534,36 +537,52 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
       },
     };
   const actualCallback: unknown = runInNewContext(
-    `(${stripTypeScriptTypes(`${source.slice(callbackStart, callbackEnd)}\n}`)})`,
+    `${stripTypeScriptTypes(source.slice(callbackStart, callbackEnd))}\nbeforeMutation`,
     {
       budget,
-      api: {},
-      authorities: {},
-      inputs: { opportunity: {}, check_id: 1 },
       semantic: { proof_sha256: "same" },
       stable: "stable",
-      readCatalogCoordinatorReview() {
+      async readReview() {
         order.push("Check GET");
+        await check.promise;
         clock += 2;
         return { proof_sha256: "same" };
       },
-      initialControls: {
-        readMaintenance() {
-          order.push("maintenance");
-          if (clock >= 60) throw new Error("original controls expired");
-          return "stable";
-        },
+      async readMaintenance() {
+        order.push("maintenance");
+        enteredControls.resolve();
+        await controls.promise;
+        if (clock >= 60) throw new Error("original controls expired");
+        return "stable";
       },
       catalogCoordinatorMaintenanceIdentity: (value: unknown) => value,
     },
     { timeout: 1000, contextCodeGeneration: { strings: false, wasm: false } },
   );
-  assert.equal(typeof actualCallback, "function");
-  const lastGuard = make("inert", budget, actualCallback as () => void),
+  const lastGuard = make("inert", budget, actualCallback as { readCurrent: () => Promise<void> }),
     writesBefore = observed.filter((value) => value === "POST").length;
-  assert.throws(() => lastGuard.request("POST"), /controls expired/);
+  const refused = Promise.resolve(lastGuard.request("POST"));
+  assert.deepEqual(order, ["Check GET"]);
+  check.resolve();
+  await enteredControls.promise;
   assert.deepEqual(order, ["Check GET", "maintenance"]);
   assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
+  controls.resolve();
+  await assert.rejects(refused, /controls expired/);
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
+
+  clock = 0;
+  check = Promise.withResolvers();
+  enteredControls = Promise.withResolvers();
+  controls = Promise.withResolvers();
+  const accepted = Promise.resolve(lastGuard.request("POST"));
+  check.resolve();
+  await enteredControls.promise;
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
+  controls.resolve();
+  await accepted;
+  assert.deepEqual(order, ["Check GET", "maintenance", "Check GET", "maintenance"]);
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore + 1);
 });
 void test("catalog context transports exact independent purpose, full byte inventory and lossless u64 wire", () => {
   const f = fixture(),

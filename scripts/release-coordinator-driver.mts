@@ -21,7 +21,7 @@ import {
   requireActualCatalogInspection,
   readCatalogPublicationBundle,
 } from "./release-catalog-inspection.mts";
-import { readIndependentCatalogSemanticReview } from "./release-control-inputs.mts";
+import { readIndependentCatalogSemanticReviewWithSdk } from "./release-control-inputs.mts";
 import { inspectCatalogInitialization } from "./release-catalog-publication-contract.mts";
 import {
   inspectPublicationReportRepair,
@@ -39,7 +39,6 @@ import {
   assessBoundedCapacity,
 } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
   createPublicationInventoryWithSdk,
   peelReleaseReference,
@@ -236,13 +235,18 @@ export async function prepareActualCoordinatorCatalogSigning(
         coordinatorHasUnresolvedEffect(recovered.input)
       )
         throw new Error("catalog current coordinator reservation is not available");
-      const api = coordinatorApi(directory, budget, 2 * 1024 ** 2);
-      await verifyCatalogCoordinatorBaseline(inputs.opportunity, recovered.input, authorities, {
+      const readOptions = {
         deadline: budget.monotonicDeadline,
         currentDeadline: () => performance.now() + budget.remaining(15000),
         maxBytes: 2 * 1024 ** 2,
         guard: () => budget.check(),
-      });
+      };
+      await verifyCatalogCoordinatorBaseline(
+        inputs.opportunity,
+        recovered.input,
+        authorities,
+        readOptions,
+      );
       const inspection = await requireActualCatalogInspection(
         inputs.inspection,
         budget.monotonicDeadline,
@@ -261,12 +265,9 @@ export async function prepareActualCoordinatorCatalogSigning(
         inspection.inspection,
         files,
       );
-      const semantic = readCatalogCoordinatorReview(
-        api,
-        authorities,
-        inputs.opportunity,
-        inputs.check_id,
-      );
+      const readReview = () =>
+        readCatalogCoordinatorReview(readOptions, authorities, inputs.opportunity, inputs.check_id);
+      const semantic = await readReview();
       const descriptor = deriveCatalogSigningDescriptor(
         inputs.opportunity,
         inspection,
@@ -284,15 +285,17 @@ export async function prepareActualCoordinatorCatalogSigning(
         throw new Error("a different catalog subject is already retained; no overwrite");
       const controlDigest = capacityDigest({ namespace: authorities.namespace, descriptor });
       const initialControls = await authenticateCoordinatorInitialControls(
-          directory,
-          controlDigest,
-          reader,
-          workflow,
-          budget,
-          "catalog",
-        ),
-        initialFacts = initialControls.readMaintenance(api),
-        stable = catalogCoordinatorMaintenanceIdentity(initialFacts);
+        directory,
+        controlDigest,
+        reader,
+        workflow,
+        budget,
+        "catalog",
+        "catalog-maintenance",
+      );
+      const readMaintenance = () =>
+        readFixedCoordinatorMaintenance(initialControls, budget, readOptions.maxBytes);
+      const stable = catalogCoordinatorMaintenanceIdentity(await readMaintenance());
       if (
         descriptor.source_commit !== inspection.source.commit ||
         descriptor.source_tree !== inspection.source.tree ||
@@ -339,14 +342,9 @@ export async function prepareActualCoordinatorCatalogSigning(
         };
         if (planReleaseOpportunity(input).action !== "catalog-publication")
           throw new Error("existing coordinator holds forbid catalog subject admission");
-        if (catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !== stable)
+        if (catalogCoordinatorMaintenanceIdentity(await readMaintenance()) !== stable)
           throw new Error("catalog controls changed before subject CAS");
-        const freshProof = readCatalogCoordinatorReview(
-          api,
-          authorities,
-          inputs.opportunity,
-          inputs.check_id,
-        );
+        const freshProof = await readReview();
         if (freshProof.proof_sha256 !== semantic.proof_sha256)
           throw new Error("catalog Check changed before subject CAS");
         await requireActualCatalogInspection(inputs.inspection, budget.monotonicDeadline);
@@ -358,30 +356,22 @@ export async function prepareActualCoordinatorCatalogSigning(
         );
         if (before.checkpoint !== recovered.checkpoint)
           throw new Error("catalog journal changed before subject CAS");
-        const beforeMutation = () => {
-          budget.check();
-          const currentProof = readCatalogCoordinatorReview(
-            api,
-            authorities,
-            inputs.opportunity,
-            inputs.check_id,
-          );
-          if (currentProof.proof_sha256 !== semantic.proof_sha256)
-            throw new Error("catalog selected Check changed before journal mutation");
-          if (
-            catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !== stable
-          )
-            throw new Error("catalog controls changed before provider journal mutation");
-          budget.check();
-        };
-        const checkpointControls = async () => {
-          beforeMutation();
+        const beforeMutation = {
+          readCurrent: async () => {
+            budget.check();
+            const currentProof = await readReview();
+            if (currentProof.proof_sha256 !== semantic.proof_sha256)
+              throw new Error("catalog selected Check changed before journal mutation");
+            if (catalogCoordinatorMaintenanceIdentity(await readMaintenance()) !== stable)
+              throw new Error("catalog controls changed before provider journal mutation");
+            budget.check();
+          },
         };
         const signedJournal = await ensureOwnedCheckpointJournalHistory(
           executor,
           recovered.repository,
           recovered.checkpoint,
-          checkpointControls,
+          beforeMutation.readCurrent,
         );
         const persisted = await checkpointReleaseOpportunity(
           recovered.repository,
@@ -393,7 +383,7 @@ export async function prepareActualCoordinatorCatalogSigning(
             executor,
             recovered.repository,
             persisted.checkpoint,
-            checkpointControls,
+            beforeMutation.readCurrent,
           );
         else
           await publishCoordinatorCheckpoint(
@@ -531,9 +521,9 @@ export async function requireActualCoordinatorCatalogPreparation(
     if (inspection.tools_receipt !== owned.tools)
       throw new Error("catalog original Core tools receipt changed");
     assertControllerCatalogPublisherScope(authorities.configuration, inspection.inspection, files);
-    const api = metadataContinuationApi(owned.directory, () => owned.deadline);
-    const semantic = readCatalogCoordinatorReview(
-      api,
+    const readOptions = catalogContinuationReadOptions(() => owned.deadline);
+    const semantic = await readCatalogCoordinatorReview(
+      readOptions,
       authorities,
       owned.inputs.opportunity,
       owned.inputs.check_id,
@@ -551,14 +541,12 @@ export async function requireActualCoordinatorCatalogPreparation(
       { schema_version: 1, namespace: owned.namespace },
       { transport: { credential: { token: fixedReleaseReaderToken() }, deadline: owned.deadline } },
     );
-    await verifyCatalogCoordinatorBaseline(owned.inputs.opportunity, current.input, authorities, {
-      deadline: owned.deadline,
-      currentDeadline: () => coordinatorContinuationDeadline(owned.deadline),
-      maxBytes: 256 * 1024,
-      guard: () => {
-        coordinatorContinuationDeadline(owned.deadline);
-      },
-    });
+    await verifyCatalogCoordinatorBaseline(
+      owned.inputs.opportunity,
+      current.input,
+      authorities,
+      readOptions,
+    );
     if (
       current.checkpoint !== owned.checkpoint ||
       capacityDigest(
@@ -591,17 +579,38 @@ export async function requireActualCoordinatorCatalogPreparation(
     };
   });
 }
+type CatalogCoordinatorReadOptions = {
+  deadline: number;
+  currentDeadline: () => number;
+  maxBytes: number;
+  guard: () => void;
+};
+function catalogContinuationReadOptions(deadline: () => number): CatalogCoordinatorReadOptions {
+  const currentDeadline = () => coordinatorContinuationDeadline(deadline());
+  return { deadline: deadline(), currentDeadline, maxBytes: 256 * 1024, guard: currentDeadline };
+}
+
 /** An inert proof parser is not a receiver capability. Only the actual fixed
  * OIDC/config/control admission above inserts the resulting session map. */
-function readCatalogCoordinatorReview(
-  api: Parameters<typeof readIndependentCatalogSemanticReview>[0],
+async function readCatalogCoordinatorReview(
+  options: CatalogCoordinatorReadOptions,
   authorities: { semantic_producer: unknown },
   opportunity: unknown,
   check_id: number,
 ) {
+  const direct = readOnlyReleaseChildEnvironment() !== undefined;
   const selected = inspectCatalogSemanticOpportunity(opportunity),
-    proof = readIndependentCatalogSemanticReview(
-      api,
+    proof = await readIndependentCatalogSemanticReviewWithSdk(
+      {
+        token: fixedReleaseReaderToken(),
+        deadline: Math.min(options.deadline, options.currentDeadline()),
+        maxBytes: options.maxBytes,
+        requestTimeoutMs: 15000,
+        guard() {
+          options.guard();
+          if (direct) assertTrustedDirectNode("fixed catalog semantic Check");
+        },
+      },
       authorities.semantic_producer,
       selected,
       check_id,
@@ -624,24 +633,22 @@ async function recheckActualCatalogReview(result: object, tighter?: number) {
       authorities = await requireControllerCatalogCoordinatorAuthorities();
     if (capacityDigest(authorities) !== owned.authorities_sha256)
       throw new Error("catalog selected issuer/configuration changed");
-    const api = metadataContinuationApi(owned.directory, () => owned.deadline),
-      current = await readRemoteCoordinatorSnapshot(
-        owned.directory,
-        { schema_version: 1, namespace: owned.namespace },
-        {
-          transport: { credential: { token: fixedReleaseReaderToken() }, deadline: owned.deadline },
-        },
-      );
-    await verifyCatalogCoordinatorBaseline(owned.inputs.opportunity, current.input, authorities, {
-      deadline: owned.deadline,
-      currentDeadline: () => coordinatorContinuationDeadline(owned.deadline),
-      maxBytes: 256 * 1024,
-      guard: () => {
-        coordinatorContinuationDeadline(owned.deadline);
+    const current = await readRemoteCoordinatorSnapshot(
+      owned.directory,
+      { schema_version: 1, namespace: owned.namespace },
+      {
+        transport: { credential: { token: fixedReleaseReaderToken() }, deadline: owned.deadline },
       },
-    });
-    const semantic = readCatalogCoordinatorReview(
-      api,
+    );
+    const readOptions = catalogContinuationReadOptions(() => owned.deadline);
+    await verifyCatalogCoordinatorBaseline(
+      owned.inputs.opportunity,
+      current.input,
+      authorities,
+      readOptions,
+    );
+    const semantic = await readCatalogCoordinatorReview(
+      readOptions,
       authorities,
       owned.inputs.opportunity,
       owned.inputs.check_id,
@@ -672,7 +679,7 @@ async function verifyCatalogCoordinatorBaseline(
       };
     };
   },
-  options: { deadline: number; currentDeadline: () => number; maxBytes: number; guard: () => void },
+  options: CatalogCoordinatorReadOptions,
 ) {
   const pins = authorities.catalog.public_source;
   const initialization = inspectCatalogInitialization(input.catalog_initialization);
@@ -758,18 +765,6 @@ export function coordinatorContinuationDeadline(current: number, requested?: num
   if (effective <= performance.now())
     throw new Error("coordinator continuation deadline exhausted");
   return effective;
-}
-function metadataContinuationApi(repository: string, deadline: () => number) {
-  return new GitHubApiClient((args, input) => {
-    const effective = coordinatorContinuationDeadline(deadline());
-    const response = createGitHubRunner({
-      cwd: repository,
-      maxBuffer: 256 * 1024,
-      timeoutMs: Math.max(1, Math.floor(Math.min(15000, effective - performance.now()))),
-    })([...args, "--hostname", "github.com"], input);
-    coordinatorContinuationDeadline(deadline());
-    return response;
-  });
 }
 /** Integrity comparison only: caller JSON never establishes authenticated
  * controls. Every source is authenticated and freshness-checked separately. */
@@ -950,21 +945,6 @@ async function coordinatorDeadline(phaseDeadline?: number) {
         throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
     },
   };
-}
-function coordinatorApi(
-  directory: string,
-  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
-  maxBuffer: number,
-) {
-  return new GitHubApiClient((args, input) => {
-    const result = createGitHubRunner({
-      cwd: directory,
-      maxBuffer,
-      timeoutMs: budget.remaining(15000),
-    })([...args, "--hostname", "github.com"], input);
-    budget.check();
-    return result;
-  });
 }
 function coordinatorSourceReadOptions(
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
@@ -2378,7 +2358,7 @@ async function authenticateCoordinatorInitialControls(
   workflow: Buffer,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   purpose: "application" | "catalog" = "application",
-  controlReader?: "metadata-maintenance",
+  controlReader?: "metadata-maintenance" | "catalog-maintenance",
 ) {
   budget.check();
   const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
