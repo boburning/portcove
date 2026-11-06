@@ -1,4 +1,8 @@
-import { controllerFixtureFailureAnnotation } from "./qualify-controller-tool-build.mts";
+import {
+  assertControllerFixtureBuildBudget,
+  controllerFixtureBuildAllowanceMilliseconds,
+  controllerFixtureFailureAnnotation,
+} from "./qualify-controller-tool-build.mts";
 import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
@@ -2594,6 +2598,17 @@ void test("protected Windows runtime sequential budget preserves original provid
     { minutes: Infinity },
   ])
     assert.throws(() => remaining({ ...original, ...changed }));
+});
+
+void test("ordinary cold-build budget admits retained slow completions and refuses invalid or over-budget durations", () => {
+  assert.equal(controllerFixtureBuildAllowanceMilliseconds, 360000);
+  for (const milliseconds of [0, 184967, 225000, 228162, 231589, 240557, 243109, 360000])
+    assert.doesNotThrow(() => assertControllerFixtureBuildBudget(milliseconds));
+  for (const milliseconds of [-1, 0.5, 360001, Number.NaN, Infinity, -Infinity])
+    assert.throws(
+      () => assertControllerFixtureBuildBudget(milliseconds),
+      /cold fixed tool build exceeds its preparation allowance/u,
+    );
 });
 
 void test("controller failure annotations expose bounded stage metadata while excluding private error contents", () => {
