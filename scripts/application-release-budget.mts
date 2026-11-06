@@ -306,6 +306,90 @@ export async function readApplicationOpportunityRuns(
     });
 }
 
+const emptyBootstrapContinuation = {
+  opportunity: "ce5fc42d395494d6faff4a2b494b3649923c0b27f508e390667ab7ad46cc4509",
+  release_id: 436818191,
+  ref: "refs/tags/portcove-production-controller-windows-20261105r12",
+  predecessors: [
+    {
+      id: 42262046049,
+      source: "9caa02ce98ccd5d6e3e8133735b373f779a0489c",
+      tag: "portcove-production-controller-windows-20261105r10",
+      milliseconds: 29_000,
+    },
+    {
+      id: 42264854396,
+      source: "9caa02ce98ccd5d6e3e8133735b373f779a0489c",
+      tag: "portcove-production-controller-windows-20261105r10",
+      milliseconds: 171_000,
+    },
+    {
+      id: 42273701261,
+      source: "5ab859841dcdf857572b67a4acce5126002dc1c3",
+      tag: "portcove-production-controller-windows-20261105r11",
+      milliseconds: 29_000,
+    },
+  ],
+} as const;
+
+/** The protected ref is an independent owner appointment. The failed source run
+ * that predates draft creation is counted from the complete provider inventory. */
+export function permitsEmptyBootstrapContinuation(
+  runs: readonly Record<string, unknown>[],
+  execution: ReturnType<typeof inspectApplicationReleaseExecution>,
+  opportunity: string,
+  purpose: unknown,
+  executionPath: unknown,
+  owner: ApplicationBudgetContext | undefined,
+) {
+  const expected = emptyBootstrapContinuation;
+  if (
+    opportunity !== expected.opportunity ||
+    purpose !== "metadata-bootstrap" ||
+    executionPath !== "ordinary" ||
+    execution.ref !== expected.ref ||
+    execution.run_attempt !== 1 ||
+    owner?.release_id !== expected.release_id ||
+    owner.custody.opportunity !== opportunity ||
+    owner.custody.preparation !== null ||
+    owner.custody.budget !== undefined ||
+    runs.length !== 4
+  )
+    return false;
+  const current = runs.find((run) => run.id === Number(execution.run_id));
+  if (
+    !current ||
+    current.run_attempt !== 1 ||
+    current.head_sha !== execution.source ||
+    current.head_branch !== execution.ref.slice("refs/tags/".length) ||
+    current.status !== "in_progress"
+  )
+    return false;
+  const prior = expected.predecessors;
+  const custody = owner.custody.runs;
+  return (
+    prior.every(({ id, source, tag }) =>
+      runs.some(
+        (run) =>
+          run.id === id &&
+          run.head_sha === source &&
+          run.head_branch === tag &&
+          run.run_attempt === 1 &&
+          run.status === "completed" &&
+          run.conclusion === "failure",
+      ),
+    ) &&
+    isDeepStrictEqual(custody, [
+      ...prior.slice(1).map(({ id, source, tag }) => ({
+        id: String(id),
+        control_commit: source,
+        control_ref: "refs/tags/" + tag,
+      })),
+      { id: execution.run_id, control_commit: execution.source, control_ref: execution.ref },
+    ])
+  );
+}
+
 export async function readApplicationJobBudget(
   registeredRunIds: readonly string[] | undefined,
   purpose: unknown,
@@ -360,6 +444,14 @@ export async function readApplicationJobBudget(
         ),
       "durably recorded run missing from provider history; no budget reset",
     );
+  const continuation = permitsEmptyBootstrapContinuation(
+    runs,
+    execution,
+    opportunity,
+    purpose,
+    executionPath,
+    owner,
+  );
   let actual = 0,
     remaining = 0,
     attempts = 0;
@@ -386,7 +478,10 @@ export async function readApplicationJobBudget(
         Number(run.run_attempt) <= 3,
     );
     attempts += Number(run.run_attempt);
-    assert.ok(attempts <= 3, "release opportunity exhausted its bounded attempts across runs");
+    assert.ok(
+      attempts <= (continuation ? 4 : 3),
+      "release opportunity exhausted its bounded attempts across runs",
+    );
     const observations = [];
     for (let attempt = 1; attempt <= Number(run.run_attempt); attempt++)
       observations.push({
@@ -401,6 +496,14 @@ export async function readApplicationJobBudget(
       current ? purpose : "application-release",
       current ? executionPath : "ordinary",
     );
+    if (continuation && !current) {
+      const prior = emptyBootstrapContinuation.predecessors.find(({ id }) => id === run.id);
+      assert.equal(
+        result.actual_milliseconds,
+        prior?.milliseconds,
+        "bootstrap predecessor cost changed",
+      );
+    }
     actual += result.actual_milliseconds;
     remaining += result.remaining_declared_minutes;
     evidence.push({ run_id: String(run.id), ...result });

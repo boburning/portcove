@@ -5,6 +5,7 @@ import {
   readApplicationOpportunityRuns,
   applicationNativeJobMinutes,
   readApplicationJobBudget,
+  permitsEmptyBootstrapContinuation,
 } from "./application-release-budget.mts";
 import {
   inspectApplicationRunCustody,
@@ -655,4 +656,62 @@ void test("forward metadata maintenance counts original executions, refuses miss
       ),
     "refused maintenance run stays in the original cost record",
   );
+});
+
+void test("only the exact exhausted empty bootstrap can admit one protected successor", () => {
+  const opportunity = "ce5fc42d395494d6faff4a2b494b3649923c0b27f508e390667ab7ad46cc4509";
+  const r10 = "9caa02ce98ccd5d6e3e8133735b373f779a0489c";
+  const r11 = "5ab859841dcdf857572b67a4acce5126002dc1c3";
+  const tag = (revision: number) => `portcove-production-controller-windows-20261105r${revision}`;
+  const execution = { source, ref: "refs/tags/" + tag(12), run_id: "42279999999", run_attempt: 1 };
+  const runs = [
+    { id: 42262046049, head_sha: r10, head_branch: tag(10) },
+    { id: 42264854396, head_sha: r10, head_branch: tag(10) },
+    { id: 42273701261, head_sha: r11, head_branch: tag(11) },
+  ].map((row) => ({ ...row, status: "completed", conclusion: "failure", run_attempt: 1 }));
+  runs.push({
+    id: Number(execution.run_id),
+    head_sha: source,
+    head_branch: tag(12),
+    status: "in_progress",
+    conclusion: "",
+    run_attempt: 1,
+  });
+  const custody = inspectApplicationRunCustody({
+    schema_version: 1,
+    kind: "application-release-run-custody",
+    source: r10,
+    source_tree: "beac77d095fee337fe4ab495e1f73f7250e2464f",
+    opportunity,
+    preparation: null,
+    runs: runs.slice(1).map((row) => ({
+      id: String(row.id),
+      control_commit: row.head_sha,
+      control_ref: "refs/tags/" + row.head_branch,
+    })),
+  });
+  const owner = { release_id: 436818191, custody };
+  const permit = (
+    inventory = runs,
+    current = execution,
+    context = owner,
+    purpose = "metadata-bootstrap",
+  ) =>
+    permitsEmptyBootstrapContinuation(
+      inventory,
+      current,
+      opportunity,
+      purpose,
+      "ordinary",
+      context,
+    );
+  assert.equal(permit(), true);
+  assert.equal(permit(runs.slice(1)), false);
+  assert.equal(permit([...runs, { ...runs[3]!, id: 42279999998 }]), false);
+  assert.equal(permit([{ ...runs[0]!, conclusion: "cancelled" }, ...runs.slice(1)]), false);
+  assert.equal(permit([...runs.slice(0, 3), { ...runs[3]!, status: "completed" }]), false);
+  assert.equal(permit(runs, { ...execution, run_attempt: 2 }), false);
+  assert.equal(permit(runs, { ...execution, ref: "refs/tags/" + tag(13) }), false);
+  assert.equal(permit(runs, execution, { ...owner, release_id: 436818192 }), false);
+  assert.equal(permit(runs, execution, owner, "application-release"), false);
 });
