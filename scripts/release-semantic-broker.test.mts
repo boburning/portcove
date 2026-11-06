@@ -434,6 +434,37 @@ void test("App registration directly captures one conversion and authenticates t
   assert.equal(f.calls.length, 2);
 });
 
+void test("App registration refuses a conversion redirect and retains no redirect address", async () => {
+  const f = appRegistrationFixture();
+  const redirect = "https://elsewhere.invalid/private-redirect?signature=inert";
+  let requests = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async (input, init) => {
+      requests++;
+      assert.equal(input, `https://api.github.com/app-manifests/${appCode}/conversions`);
+      assert.equal(init?.redirect, "error");
+      assert.equal(new Headers(init?.headers).has("authorization"), false);
+      return new Response(null, { status: 302, headers: { location: redirect } });
+    },
+  });
+  await assert.rejects(capture(appCallback), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.match(
+      error.message,
+      /registration body or private retention failed|registration response incomplete or refused/u,
+    );
+    assert.ok(!error.message.includes(redirect) && !error.message.includes(appCode));
+    return true;
+  });
+  assert.equal(requests, 1);
+  assert.equal(f.record("conversion-response.json").status, 302);
+  assert.ok(!f.privateFiles.has("result.json"));
+  for (const bytes of f.privateFiles.values()) assert.ok(!bytes.includes(Buffer.from(redirect)));
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(requests, 1);
+});
+
 void test("App conversion retains wrong-owner or expanded-permission effects without installing or retrying", async () => {
   for (const change of [
     { owner: { id: 1, login: "other" } },

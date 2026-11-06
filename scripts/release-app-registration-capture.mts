@@ -1,6 +1,7 @@
 import { createHash, createPrivateKey, createPublicKey } from "node:crypto";
 
-import type { ReadableStreamDefaultReader } from "node:stream/web";
+import { createGitHubClient } from "./github-client.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   inspectHostedReleaseAppIdentity,
   prepareHostedReleaseAppManifest,
@@ -48,6 +49,121 @@ export function inspectAppRegistrationCallback(
   return url.searchParams.get("code")!;
 }
 
+/** App setup owns private raw evidence, including a bounded prefix on failure.
+ * Capture the original stream as the configured client consumes it. */
+export async function readPrivateAppSetupResponse(options: {
+  endpoint: string;
+  method: "GET" | "POST" | "DELETE";
+  bearer?: string;
+  payload?: { permissions: { metadata: "read" } };
+  timeout: number;
+  maxBytes: number;
+  version: string;
+  userAgent?: string;
+  transport?: typeof fetch;
+}) {
+  const { endpoint, method, bearer, payload, timeout, maxBytes, version, transport } = options;
+  const allowed =
+    bearer === undefined
+      ? method === "POST" &&
+        payload === undefined &&
+        /^\/app-manifests\/[A-Za-z0-9_-]{16,128}\/conversions$/u.test(endpoint)
+      : method === "POST"
+        ? payload?.permissions.metadata === "read" &&
+          /^\/app\/installations\/[1-9][0-9]*\/access_tokens$/u.test(endpoint)
+        : payload === undefined &&
+          (method === "DELETE"
+            ? endpoint === "/installation/token"
+            : endpoint === "/app" ||
+              endpoint === "/app/installations?per_page=100" ||
+              endpoint === "/installation/repositories?per_page=100" ||
+              /^\/app\/installations\/[1-9][0-9]*$/u.test(endpoint));
+  if (!allowed || (bearer !== undefined && (!bearer || /\s/u.test(bearer))))
+    throw new Error("App setup request outside its private scope");
+  const route = `https://api.github.com${endpoint}`;
+  const chunks: Buffer[] = [];
+  let length = 0,
+    complete = false,
+    failed = false;
+  let observed: { status: number; headers: Headers } | undefined;
+  let accepted = false;
+  const client = await createGitHubClient({
+    credential: bearer === undefined ? { kind: "anonymous" } : { kind: "explicit", token: bearer },
+    deadline: performance.now() + timeout,
+    requestTimeoutMs: timeout,
+    maxBytes,
+    headers: {
+      accept: "application/vnd.github+json",
+      "x-github-api-version": version,
+      ...(options.userAgent ? { "user-agent": options.userAgent } : {}),
+    },
+    allowRequest(actual, url) {
+      if (!transport) assertTrustedDirectNode("private App setup");
+      return actual === method && url.href === route;
+    },
+    async fetch(input, init) {
+      const headers = new Headers(init?.headers);
+      if (bearer !== undefined) headers.set("authorization", `Bearer ${bearer}`);
+      const response = await (transport ?? fetch)(input, { ...init, headers, redirect: "error" });
+      observed = { status: response.status, headers: response.headers };
+      if (method === "DELETE") {
+        await response.body?.cancel();
+        return new Response(null, { status: response.status, headers: response.headers });
+      }
+      const reader = response.body?.getReader();
+      if (!reader) {
+        failed = true;
+        return response;
+      }
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          async pull(controller) {
+            try {
+              const part = await reader.read();
+              if (part.done) {
+                complete = true;
+                controller.close();
+                return;
+              }
+              if (!(part.value instanceof Uint8Array))
+                throw new Error("App setup body is not byte data");
+              const retained = part.value.subarray(0, maxBytes - length);
+              chunks.push(Buffer.from(retained));
+              length += retained.byteLength;
+              controller.enqueue(part.value);
+            } catch (error) {
+              failed = true;
+              controller.error(error);
+              await reader.cancel().catch(() => {});
+            }
+          },
+          cancel(reason) {
+            return reader.cancel(reason);
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      return new Response(stream, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    },
+  });
+  try {
+    await client.request(`${method} ${route}`, {
+      ...(payload === undefined ? {} : { data: { permissions: { metadata: "read" } } }),
+      request: { parseSuccessResponseBody: false, portcove: { replay: "once", attempts: 0 } },
+    });
+    accepted = true;
+  } catch {
+    // Never include the conversion-code route, token or provider response in diagnostics.
+    if (!observed) throw new Error("App setup transport unavailable");
+  }
+  if (!observed) throw new Error("App setup transport unavailable");
+  return { ...observed, body: Buffer.concat(chunks, length), complete, failed, accepted };
+}
+
 /** One direct callback -> one conversion. No imported transcript or default
  * credential lookup. Failed/ambiguous effects stay pending for explicit
  * readback; the consumed closure can never issue a second conversion POST. */
@@ -61,7 +177,6 @@ export function createAppRegistrationCapture(options: {
   const { role, state, deadline, store } = options;
   prepareHostedReleaseAppManifest(role);
   let consumed = false;
-  const transport = options.transport ?? fetch;
   const record = (name: string, value: unknown) =>
     store.write(name, Buffer.from(JSON.stringify(value)));
   const active = () => {
@@ -71,26 +186,18 @@ export function createAppRegistrationCapture(options: {
   const request = async (kind: "conversion" | "app-readback", codeOrJwt: string) => {
     active();
     const conversion = kind === "conversion";
-    let response: Response;
-    let readFailed = false,
-      retentionFailed = false;
+    let response: Awaited<ReturnType<typeof readPrivateAppSetupResponse>>;
     try {
-      response = await transport(
-        conversion
-          ? `https://api.github.com/app-manifests/${codeOrJwt}/conversions`
-          : "https://api.github.com/app",
-        {
-          method: conversion ? "POST" : "GET",
-          redirect: "error",
-          signal: AbortSignal.timeout(Math.min(10000, deadline - Date.now())),
-          headers: {
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2026-03-10",
-            "User-Agent": "portcove-fixed-app-registration",
-            ...(conversion ? {} : { Authorization: `Bearer ${codeOrJwt}` }),
-          },
-        },
-      );
+      response = await readPrivateAppSetupResponse({
+        endpoint: conversion ? `/app-manifests/${codeOrJwt}/conversions` : "/app",
+        method: conversion ? "POST" : "GET",
+        ...(conversion ? {} : { bearer: codeOrJwt }),
+        timeout: Math.min(10000, deadline - Date.now()),
+        maxBytes: maximumBody,
+        version: "2026-03-10",
+        userAgent: "portcove-fixed-app-registration",
+        ...(options.transport ? { transport: options.transport } : {}),
+      });
     } catch {
       await record(`${kind}-transport.json`, {
         response: "unavailable",
@@ -99,78 +206,48 @@ export function createAppRegistrationCapture(options: {
       });
       throw new Error("registration transport ambiguous; no retry");
     }
-    const chunks: Buffer[] = [];
-    let total = 0,
-      complete = false;
-    const reader = response.body?.getReader() as
-      | ReadableStreamDefaultReader<Uint8Array>
-      | undefined;
-    try {
-      if (!reader) throw new Error("registration response body absent");
-      for (;;) {
-        const part = await reader.read();
-        if (part.done) {
-          complete = true;
-          break;
-        }
-        const bytes = Buffer.from(part.value);
-        const retained = bytes.subarray(0, maximumBody - total);
-        chunks.push(retained);
-        total += retained.length;
-        if (retained.length !== bytes.length) break;
-      }
-    } catch {
-      readFailed = true;
-    } finally {
+    const { body, complete } = response;
+    let retained = body;
+    if (role === "storage_writer") {
+      // The approved extension retains its sole operational RSA key
+      // separately in private custody, never unused OAuth/webhook credentials.
+      // This is an explicitly filtered capture, not original response bytes.
+      let projection: Record<string, unknown> = { unparsed: true };
       try {
-        await reader?.cancel();
+        const raw: unknown = JSON.parse(body.toString("utf8"));
+        if (isRecord(raw))
+          projection = Object.fromEntries(
+            ["id", "slug", "name", "owner", "permissions", "events"]
+              .filter((key) => Object.hasOwn(raw, key))
+              .map((key) => [key, raw[key]]),
+          );
       } catch {
-        /* Original partial body remains. */
+        /* No partial secret-bearing response is retained. */
       }
-      const body = Buffer.concat(chunks);
-      let retained = body;
-      if (role === "storage_writer") {
-        // The approved extension retains its sole operational RSA key
-        // separately in private custody, never unused OAuth/webhook credentials.
-        // This is an explicitly filtered capture, not original response bytes.
-        let projection: Record<string, unknown> = { unparsed: true };
-        try {
-          const raw: unknown = JSON.parse(body.toString("utf8"));
-          if (isRecord(raw))
-            projection = Object.fromEntries(
-              ["id", "slug", "name", "owner", "permissions", "events"]
-                .filter((key) => Object.hasOwn(raw, key))
-                .map((key) => [key, raw[key]]),
-            );
-        } catch {
-          /* No partial secret-bearing response is retained. */
-        }
-        retained = Buffer.from(JSON.stringify(projection));
-      }
-      try {
-        await store.write(`${kind}.body`, retained);
-        await record(`${kind}-response.json`, {
-          status: response.status,
-          complete,
-          retained_bytes: retained.length,
-          retained_sha256: sha(retained),
-          ...(role === "storage_writer"
-            ? {
-                encoding: "storage-app-allowlist",
-                observed_bytes: body.length,
-                observed_sha256: sha(body),
-              }
-            : {}),
-        });
-      } catch {
-        retentionFailed = true;
-      }
+      retained = Buffer.from(JSON.stringify(projection));
     }
-    if (readFailed || retentionFailed)
+    try {
+      await store.write(`${kind}.body`, retained);
+      await record(`${kind}-response.json`, {
+        status: response.status,
+        complete,
+        retained_bytes: retained.length,
+        retained_sha256: sha(retained),
+        ...(role === "storage_writer"
+          ? {
+              encoding: "storage-app-allowlist",
+              observed_bytes: body.length,
+              observed_sha256: sha(body),
+            }
+          : {}),
+      });
+    } catch {
       throw new Error("registration body or private retention failed; preserve pending intent");
-    const body = Buffer.concat(chunks);
+    }
+    if (response.failed)
+      throw new Error("registration body or private retention failed; preserve pending intent");
     active();
-    if (!complete || response.status !== (conversion ? 201 : 200))
+    if (!complete || !response.accepted || response.status !== (conversion ? 201 : 200))
       throw new Error("registration response incomplete or refused; retain actual effects");
     return JSON.parse(body.toString("utf8")) as unknown;
   };
