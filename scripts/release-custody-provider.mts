@@ -5,7 +5,7 @@ import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 export interface HistoricalJobProvider {
   attempt(run: string, attempt: number): Promise<unknown>;
   jobs(run: string, attempt: number, page: number): Promise<{ body: unknown; next: string | null }>;
-  job(id: number): Promise<unknown>;
+  job(id: number, deadline?: number): Promise<unknown>;
 }
 
 export interface CatalogAnchorMetadataProvider {
@@ -196,8 +196,8 @@ export async function createReleaseCustodyProvider(options: {
         next: typeof link === "string" ? nextLink(new Map([["link", link]])) : null,
       };
     },
-    async job(id) {
-      return (await get("/repos/{owner}/{repo}/actions/jobs/{job_id}", { job_id: id }))
+    async job(id, limit) {
+      return (await get("/repos/{owner}/{repo}/actions/jobs/{job_id}", { job_id: id }, limit))
         .data as unknown;
     },
     async commit(sha) {

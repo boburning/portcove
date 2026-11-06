@@ -1055,7 +1055,23 @@ void test("actual first bootstrap entry binds the preserved seed before local in
       assert.equal(provider, bootstrapProvider);
       return {};
     },
-    authenticateReleaseControlRound: async () => control,
+    authenticateReleaseControlRound: async (
+      _directory: string,
+      _digest: string,
+      phase: string,
+      _round: number,
+      options: { deadline: number; controlReader: string },
+    ) => {
+      assert.equal(phase, "coordinator");
+      assert.equal(options.controlReader, "metadata-maintenance");
+      return {
+        ...control,
+        async readSdkMaintenance(_allowance: undefined, request: { deadline: number }) {
+          assert.equal(request.deadline, options.deadline);
+          return facts;
+        },
+      };
+    },
     metadataContinuationApi: () => ({}),
     coordinatorContinuationDeadline,
     assessBoundedCapacity: () => ({ eligibility: "eligible" }),

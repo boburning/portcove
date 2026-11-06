@@ -716,6 +716,7 @@ type ControlSdkOptions = {
   deadline: number;
   guard: () => void;
   requestTimeoutMs?: number;
+  maxBytes?: number;
   fetch?: typeof globalThis.fetch;
 };
 
@@ -742,7 +743,7 @@ async function controlSdkReader(
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
     deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
-    maxBytes: 2 * 1024 ** 2,
+    maxBytes: options.maxBytes ?? 2 * 1024 ** 2,
     allowRequest() {
       guard();
       return true;
