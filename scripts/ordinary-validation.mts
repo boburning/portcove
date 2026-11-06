@@ -791,6 +791,7 @@ for (const [file, tests] of [
       "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-publication-controller.test.mts",
       "scripts/release-report-repair-identity.test.mts",
+      "scripts/release-immutable-publication.test.mts",
     ],
   ],
   [
