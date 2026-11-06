@@ -341,7 +341,7 @@ void test("fixed catalog maintenance joins SDK pause and capacity reads with ori
         return Response.json(job.body, { status: job.status });
       }
       const result = f.control.api.request("GET", route);
-      return Response.json(result.body, { status: result.status });
+      return Response.json(result.body, { status: result.status ?? 500 });
     },
   );
   const source = await authenticateCatalogReleaseControlSource(
