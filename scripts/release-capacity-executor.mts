@@ -463,16 +463,6 @@ export async function prepareOwnedNativeCandidateCheckpoint(
   }
 }
 
-/** The authenticated executor owns journal selection before callers bind their
- * matching live controls. A selection is sticky for this session. */
-export function usesSignedCheckpointJournal(session: ExecutorSession) {
-  const value = sessions.get(session);
-  if (!value) throw new Error("actual executor required before journal selection");
-  capacityExecutorIdentity(session);
-  value.requiresSignedJournal ||= inspectSelectedJournalRequirement({ ...process.env });
-  return value.requiresSignedJournal || value.journalBinding !== undefined;
-}
-
 /** Reuse only this actual session's same head. A stopped/ambiguous history is
  * never rebound, and legacy callers cannot use this to select a job journal. */
 export async function ensureOwnedCheckpointJournalHistory(
@@ -485,7 +475,9 @@ export async function ensureOwnedCheckpointJournalHistory(
   if (!value) throw new Error("actual executor required before journal selection");
   if (value.nativePreparing || value.nativeCheckpoint)
     throw new Error("native phase owns executor until exact checkpoint settlement");
-  if (!usesSignedCheckpointJournal(session)) return false;
+  capacityExecutorIdentity(session);
+  value.requiresSignedJournal ||= inspectSelectedJournalRequirement({ ...process.env });
+  if (!value.requiresSignedJournal && value.journalBinding === undefined) return false;
   if (value.journalBinding === undefined)
     await authenticateOwnedCheckpointJournalHistory(session, repository, expected);
   await publishOwnedSignedCoordinatorCheckpoint(session, repository, expected, currentControls);
@@ -893,7 +885,7 @@ async function ownedCheckpointTransport(
   session: ExecutorSession,
   input: { repository: string; checkpoint: string; remote_configuration: unknown },
   beforeCheckpointMutation?: () => Promise<void>,
-  beforeLegacyMutation?: () => void,
+  beforeLegacyMutation?: RecoveryMutationControls,
   purpose?: "application" | "catalog-publication",
 ) {
   const value = sessions.get(session)!;
@@ -1203,23 +1195,28 @@ export function capacityRecoveryJobReader(value: { deadline?: number }) {
   };
 }
 
-/** The actual caller supplies a synchronous recheck of its current authenticated
- * controls. GET-only recovery is separate from every journal mutation. */
-function recoveryJournalApi(value: PrivateSession, beforeMutation?: () => void) {
+type RecoveryMutationControls = (() => void) | { readCurrent: () => Promise<void> };
+
+/** GET-only recovery remains independent. Explicit SDK control reads must be
+ * awaited immediately before the corresponding journal write. */
+function recoveryJournalApi(value: PrivateSession, beforeMutation?: RecoveryMutationControls) {
   const journal = createCoordinatorJournalApi(value.directory, value.deadline);
-  const guard = () => {
-    if (beforeMutation && beforeMutation() !== undefined)
-      throw new Error("recovery mutation guard must complete synchronously");
+  const guarded = <T,>(write: () => Promise<T>) => {
+    if (typeof beforeMutation === "function") {
+      if (beforeMutation() !== undefined)
+        throw new Error("recovery mutation guard must complete synchronously");
+    } else if (beforeMutation) {
+      return beforeMutation.readCurrent().then(write);
+    }
+    return write();
   };
   return {
-    request: (...args: Parameters<typeof journal.request>) => {
-      if (args[0] !== "GET") guard();
-      return journal.request(...args);
-    },
-    graphql: (...args: Parameters<typeof journal.graphql>) => {
-      if (/^\s*mutation\b/u.test(args[0])) guard();
-      return journal.graphql(...args);
-    },
+    request: (...args: Parameters<typeof journal.request>) =>
+      args[0] === "GET" ? journal.request(...args) : guarded(() => journal.request(...args)),
+    graphql: (...args: Parameters<typeof journal.graphql>) =>
+      /^\s*mutation\b/u.test(args[0])
+        ? guarded(() => journal.graphql(...args))
+        : journal.graphql(...args),
   };
 }
 export async function recoverOwnedCapacityEffect(
@@ -1227,7 +1224,7 @@ export async function recoverOwnedCapacityEffect(
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[0],
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[1],
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[2],
-    beforeMutation?: () => void,
+    beforeMutation?: RecoveryMutationControls,
     /** Selected signed journal: actual live controls; fourth guard is legacy only. */
     beforeCheckpointMutation?: () => Promise<void>,
   ]
@@ -1259,7 +1256,7 @@ async function recoverOwnedCapacityEffectWithinScope(
     completed_effect?: { remote_identity: string; evidence_sha256: string };
   }>,
   admittedAggregate = false,
-  beforeMutation?: () => void,
+  beforeMutation?: RecoveryMutationControls,
   beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
@@ -1387,7 +1384,7 @@ export async function recoverOwnedPublishedMetadata(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
-  beforeMutation?: () => void,
+  beforeMutation?: RecoveryMutationControls,
   beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
@@ -1430,7 +1427,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
   component: "application" | "catalog" = "application",
-  beforeMutation?: () => void,
+  beforeMutation?: RecoveryMutationControls,
   beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);

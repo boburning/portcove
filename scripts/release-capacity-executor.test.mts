@@ -1,6 +1,9 @@
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
 import {
   capacityExecutorIdentity,
   inspectSelectedJournalRequirement,
@@ -534,4 +537,53 @@ void test("actual executor applies the selected journal refusal before authentic
   );
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr + result.stdout);
+});
+
+void test("legacy journal awaits explicit async recovery controls before a one-attempt write", async () => {
+  const text = await readFile(new URL("./release-capacity-executor.mts", import.meta.url), "utf8");
+  const start = text.indexOf("function recoveryJournalApi(");
+  const end = text.indexOf("export async function recoverOwnedCapacityEffect(", start);
+  assert.ok(start > 0 && end > start);
+  const calls: string[] = [];
+  const journal = runInNewContext(
+    stripTypeScriptTypes(text.slice(start, end)) + "; recoveryJournalApi;",
+    {
+      createCoordinatorJournalApi: () => ({
+        async request(method: string) {
+          calls.push(method);
+        },
+        async graphql() {
+          calls.push("CAS");
+        },
+      }),
+    },
+  ) as (
+    value: object,
+    controls: { readCurrent: () => Promise<void> },
+  ) => {
+    request(method: string): Promise<void>;
+    graphql(query: string): Promise<void>;
+  };
+  const controlsReady = Promise.withResolvers<void>();
+  let stale = false;
+  const api = journal(
+    {},
+    {
+      async readCurrent() {
+        calls.push("controls");
+        await controlsReady.promise;
+        if (stale) throw new Error("controls changed");
+      },
+    },
+  );
+  const pending = api.request("POST");
+  assert.deepEqual(calls, ["controls"]);
+  await api.request("GET");
+  assert.deepEqual(calls, ["controls", "GET"]);
+  controlsReady.resolve();
+  await pending;
+  assert.deepEqual(calls, ["controls", "GET", "POST"]);
+  stale = true;
+  await assert.rejects(api.graphql("mutation { exactCAS }"), /controls changed/u);
+  assert.deepEqual(calls, ["controls", "GET", "POST", "controls"]);
 });

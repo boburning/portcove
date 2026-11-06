@@ -83,7 +83,6 @@ import {
 import {
   authenticateCapacityExecutor,
   ensureOwnedCheckpointJournalHistory,
-  usesSignedCheckpointJournal,
   publishOwnedSignedCoordinatorCheckpoint,
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
@@ -3003,8 +3002,6 @@ async function recoverTrustedCoordinatorPages(
     operation_id: (selected ?? handoff)!.operation.id,
     expected: (selected ?? handoff)!.expected,
   });
-  const signedJournal = usesSignedCheckpointJournal(executor);
-  const api = signedJournal ? undefined : coordinatorApi(directory, budget, 256 * 1024);
   let round = 0;
   const initialSource = await authenticateCoordinatorInitialControls(
     directory,
@@ -3013,17 +3010,12 @@ async function recoverTrustedCoordinatorPages(
     workflow,
     budget,
     "application",
-    signedJournal ? "metadata-maintenance" : undefined,
+    "metadata-maintenance",
   );
-  const readMaintenance = async (controls: typeof initialSource) =>
-    api === undefined
-      ? controls.readSdkMaintenance(undefined, {
-          deadline: Math.min(
-            budget.monotonicDeadline,
-            performance.now() + budget.remaining(120000),
-          ),
-        })
-      : controls.readMaintenance(api);
+  const readMaintenance = (controls: typeof initialSource) =>
+    controls.readSdkMaintenance(undefined, {
+      deadline: Math.min(budget.monotonicDeadline, performance.now() + budget.remaining(120000)),
+    });
   const initialFacts = await readMaintenance(initialSource);
   if (
     initialFacts.reader.job_id !== reader.identity.job_id ||
@@ -3040,10 +3032,7 @@ async function recoverTrustedCoordinatorPages(
       factsSha,
       "coordinator",
       round,
-      {
-        deadline: budget.monotonicDeadline,
-        ...(signedJournal && { controlReader: "metadata-maintenance" as const }),
-      },
+      { deadline: budget.monotonicDeadline, controlReader: "metadata-maintenance" },
     );
     const observed = await readMaintenance(controls);
     if (
@@ -3059,24 +3048,13 @@ async function recoverTrustedCoordinatorPages(
     mutationControls = controls;
     budget.check();
   };
-  const verifyMutationControls = (current: Awaited<ReturnType<typeof readMaintenance>>) => {
+  const beforeMutation = async () => {
+    budget.check();
+    const current = await readMaintenance(mutationControls);
     if (coordinatorMaintenanceIdentity(current) !== initialIdentity)
       throw new Error("Pages recovery controls changed immediately before journal mutation");
     budget.check();
   };
-  const beforeMutation =
-    api === undefined
-      ? undefined
-      : () => {
-          budget.check();
-          verifyMutationControls(mutationControls.readMaintenance(api));
-        };
-  const beforeSignedMutation = signedJournal
-    ? async () => {
-        budget.check();
-        verifyMutationControls(await readMaintenance(mutationControls));
-      }
-    : undefined;
   const readback = selected
     ? await recoverPendingPagesPublication(
         executor,
@@ -3089,7 +3067,6 @@ async function recoverTrustedCoordinatorPages(
         budget.monotonicDeadline,
         freshBoundary,
         beforeMutation,
-        beforeSignedMutation,
       )
     : null;
   const checkpoint = readback?.settled.checkpoint ?? recovered.checkpoint;
@@ -3110,7 +3087,6 @@ async function recoverTrustedCoordinatorPages(
       budget.monotonicDeadline,
       freshBoundary,
       beforeMutation,
-      beforeSignedMutation,
     );
     return Object.freeze({
       decision: "pages-published-metadata-recovered",

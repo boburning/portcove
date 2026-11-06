@@ -123,8 +123,7 @@ export async function recoverPendingPagesPublication(
   privateParent: string,
   phaseDeadline: number,
   beforeSettlement?: () => Promise<void>,
-  beforeMutation?: () => void,
-  beforeSignedMutation?: () => Promise<void>,
+  beforeMutation?: () => Promise<void>,
 ) {
   if (!Number.isFinite(phaseDeadline) || performance.now() >= phaseDeadline)
     throw new Error("Pages recovery deadline exhausted before observation");
@@ -146,21 +145,17 @@ export async function recoverPendingPagesPublication(
   let observation: Awaited<ReturnType<typeof readPendingPagesPublication>> | undefined;
   try {
     await beforeSettlement?.();
-    const checkpointControls =
-      beforeSignedMutation ??
-      (async () => {
-        if (!beforeMutation)
-          throw new Error("selected Pages recovery requires original live mutation controls");
-        beforeMutation();
-      });
+    const checkpointControls = async () => {
+      if (!beforeMutation)
+        throw new Error("selected Pages recovery requires original live mutation controls");
+      await beforeMutation();
+    };
     const signedJournal = await ensureOwnedCheckpointJournalHistory(
       executor,
       raw.repository,
       raw.checkpoint,
       checkpointControls,
     );
-    if (beforeSignedMutation && !signedJournal)
-      throw new Error("selected Pages control reader requires its signed checkpoint journal");
     const settled = await withCoordinatorDeadline(phaseDeadline, () =>
       recoverOwnedCapacityEffect(
         executor,
@@ -178,7 +173,7 @@ export async function recoverPendingPagesPublication(
           await beforeSettlement?.();
           return observation.resolution;
         },
-        signedJournal ? undefined : beforeMutation,
+        !signedJournal && beforeMutation ? { readCurrent: beforeMutation } : undefined,
         signedJournal ? checkpointControls : undefined,
       ),
     );
