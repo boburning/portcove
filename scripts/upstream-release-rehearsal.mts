@@ -252,18 +252,16 @@ export function inspectRehearsalReleaseReadback(
   ref: unknown,
   assets: unknown,
   expected: { id: number; tag: string; source: string; files: Entry[] },
-  state: "draft" | "immutable",
 ) {
   if (
     !isRecord(release) ||
     release.id !== expected.id ||
     release.tag_name !== expected.tag ||
     release.target_commitish !== expected.source ||
-    release.draft !== (state === "draft") ||
-    release.immutable !== (state === "immutable") ||
-    (state === "immutable" &&
-      (typeof release.published_at !== "string" ||
-        !Number.isFinite(Date.parse(release.published_at)))) ||
+    release.draft !== false ||
+    release.immutable !== true ||
+    typeof release.published_at !== "string" ||
+    !Number.isFinite(Date.parse(release.published_at)) ||
     release.prerelease !== true ||
     !isRecord(ref) ||
     ref.ref !== `refs/tags/${expected.tag}` ||
@@ -273,7 +271,7 @@ export function inspectRehearsalReleaseReadback(
     !Array.isArray(assets) ||
     assets.length !== expected.files.length
   )
-    throw new Error("final draft, tag or complete asset inventory changed");
+    throw new Error("immutable release, tag or complete asset inventory changed");
   const names = new Set<string>();
   for (const asset of assets) {
     if (
@@ -285,7 +283,7 @@ export function inspectRehearsalReleaseReadback(
           f.name === asset.name && f.bytes === asset.size && `sha256:${f.sha256}` === asset.digest,
       )
     )
-      throw new Error("final draft asset identity changed");
+      throw new Error("immutable release asset identity changed");
     names.add(asset.name);
   }
   return {
@@ -298,14 +296,6 @@ export function inspectRehearsalReleaseReadback(
     files: expected.files,
     observed_at: new Date().toISOString(),
   };
-}
-export function inspectRehearsalDraftReadback(
-  release: unknown,
-  ref: unknown,
-  assets: unknown,
-  expected: { id: number; tag: string; source: string; files: Entry[] },
-) {
-  return inspectRehearsalReleaseReadback(release, ref, assets, expected, "draft");
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const phase = process.argv[2],

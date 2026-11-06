@@ -109,7 +109,6 @@ export async function verifyImmutableRehearsal(directory: string, phase = "immut
     tagReadback(tag, m.source),
     assets(Number(release.id), files),
     { id: Number(release.id), tag, source: m.source, files },
-    "immutable",
   );
   // Maintained provider-generated release attestation, distinct from build provenance.
   gh(["release", "verify", tag, "--repo", "boburning/portcove"]);
