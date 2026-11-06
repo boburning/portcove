@@ -33,7 +33,7 @@ import {
 import {
   observeReleaseInputProtections,
   createProtectionObservationReader,
-  requireReleaseImmutabilityPolicy,
+  requireApplicationReleaseProtectionDigest,
 } from "./release-input-protections.mts";
 import {
   fixedReleaseReaderToken,
@@ -343,8 +343,13 @@ async function guard(
     );
     const expectedDigest = process.env.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256;
     assertProtectionWriteWindow = () => {
-      const observation = requireReleaseImmutabilityPolicy(receipt.observation);
-      assert.equal(observation.inventory_sha256, expectedDigest);
+      assert.equal(
+        requireApplicationReleaseProtectionDigest(
+          receipt.observation,
+          source.purpose === "metadata-bootstrap",
+        ),
+        expectedDigest,
+      );
     };
     assertProtectionWriteWindow();
   }
@@ -2288,9 +2293,8 @@ async function observe() {
     guard: () => assertTrustedDirectNode("fixed application protection observer"),
   });
   const observation = await observeReleaseInputProtections(observer, { releasePublication: true });
-  const interpreted = requireReleaseImmutabilityPolicy(observation);
   assert.equal(
-    interpreted.inventory_sha256,
+    requireApplicationReleaseProtectionDigest(observation, source.purpose === "metadata-bootstrap"),
     process.env.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256,
   );
   await writeApplicationJson("work/application-protection/protection.json", {

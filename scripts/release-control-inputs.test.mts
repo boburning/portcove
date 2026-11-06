@@ -25,6 +25,7 @@ import {
   observeReleaseInputProtections,
   createProtectionObservationReader,
   requireReleaseInputWriterPolicy,
+  requireApplicationReleaseProtectionDigest,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import { capacityDigest } from "./release-capacity.mts";
@@ -277,6 +278,67 @@ void test("release immutability requires fresh complete isolated setting, not an
     { ...proof, inventory: { immutable_releases: { enabled: true } } },
   ])
     assert.throws(() => requireReleaseImmutabilityPolicy(value, now));
+});
+
+void test("bootstrap appointment binds protection and refs across observer principals", () => {
+  const now = Date.now();
+  const ruleset = {
+    id: 42,
+    bypass_actors: [{ actor_id: 7, actor_type: "Integration", bypass_mode: "always" }],
+    rules: [{ type: "deletion" }],
+    current_user_can_bypass: "always",
+  };
+  const pauseRef = (sha: string) => ({
+    branch: "portcove-release-pause",
+    ref: {
+      object: { sha, url: `https://api.github.com/repos/boburning/portcove/git/commits/${sha}` },
+    },
+  });
+  const inventory = {
+    immutable_releases: { enabled: true, enforced_by_owner: false },
+    rulesets: [ruleset],
+    branches: [pauseRef("a".repeat(40))],
+  };
+  const proof = (value: typeof inventory) => ({
+    schema_version: 1,
+    repository_id: 1354613114,
+    coverage: "current-repository-input-branches-and-release-immutability",
+    observed_at: new Date(now).toISOString(),
+    inventory: value,
+    inventory_sha256: capacityDigest(value),
+  });
+  const owner = proof(inventory);
+  const observer = proof({
+    ...inventory,
+    rulesets: [{ ...ruleset, current_user_can_bypass: "never" }],
+  });
+  const appointed = requireApplicationReleaseProtectionDigest(owner, true, now);
+  assert.equal(requireApplicationReleaseProtectionDigest(observer, true, now), appointed);
+  assert.equal(
+    requireApplicationReleaseProtectionDigest(owner, false, now),
+    owner.inventory_sha256,
+  );
+  assert.notEqual(
+    requireApplicationReleaseProtectionDigest(observer, false, now),
+    owner.inventory_sha256,
+  );
+  for (const changed of [
+    { ...inventory, rulesets: [{ ...ruleset, bypass_actors: [] }] },
+    { ...inventory, rulesets: [{ ...ruleset, rules: [] }] },
+    { ...inventory, branches: [pauseRef("b".repeat(40))] },
+  ])
+    assert.notEqual(
+      requireApplicationReleaseProtectionDigest(proof(changed), true, now),
+      appointed,
+    );
+  assert.throws(() =>
+    requireApplicationReleaseProtectionDigest(
+      { ...owner, inventory: observer.inventory },
+      true,
+      now,
+    ),
+  );
+  assert.throws(() => requireApplicationReleaseProtectionDigest(owner, true, now + 60001));
 });
 
 void test("writer policy requires fresh exact per-ref principals and unbypassable immutable ref rules", () => {
