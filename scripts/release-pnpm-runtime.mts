@@ -8,16 +8,16 @@ import path from "node:path";
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 
-export const nativePnpmVersion = "12.16.1";
+export const nativePnpmVersion = "12.18.0";
 export const nativePnpmArchive = Object.freeze({
-  url: "https://registry.npmjs.org/@pnpm/exe.linux-x64/-/exe.linux-x64-12.16.1.tgz",
+  url: "https://registry.npmjs.org/@pnpm/exe.linux-x64/-/exe.linux-x64-12.18.0.tgz",
   integrity:
-    "sha512-RK//8ZLcXGW8A2k8bQOXZDBN1Qu92zN4dYnG1bzj1zoQ1fkZ6jNzZ1AvXtsfGVma795CJtvoaF5bLXf4l/FIUw==",
+    "sha512-OJ+X2wcraldCwj75pCIerWARQSRpdfj0eBTs/2ODyhfeW46ylOnjTIE/GKra6Mn6E72/gBmXS8igrUioa+F9fQ==",
 });
 export const nativeWindowsPnpmArchive = Object.freeze({
-  url: "https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.16.1.tgz",
+  url: "https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.18.0.tgz",
   integrity:
-    "sha512-k+FhRJ0ttphFoFIVB1Sk4v76YJAulafmA/Ly57cysesUhhIzVlApeOShUz0jXubKx317TThlEfpQrukldnqORA==",
+    "sha512-5FJkghO7RLRkQpWxeVEygW9XsmnNuxzPfXbgwFWCHsFyFhpDn/vOdL88ToQEM0Kt5igdW5s6U0/IDH8Dvkt3pg==",
 });
 export type NativePnpmPlatform = "linux-x86_64" | "windows-x86_64";
 function packageProfile(platform: NativePnpmPlatform) {

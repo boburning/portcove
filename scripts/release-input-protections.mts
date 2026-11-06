@@ -644,3 +644,30 @@ export function requireReleaseImmutabilityPolicy(raw: unknown, now = Date.now())
     authorization: "provider-release-immutability-setting-only",
   };
 }
+
+export function requireApplicationReleaseProtectionDigest(
+  raw: unknown,
+  bootstrap: boolean,
+  now = Date.now(),
+) {
+  const policy = requireReleaseImmutabilityPolicy(raw, now);
+  if (!bootstrap) return policy.inventory_sha256;
+  if (
+    !isRecord(raw) ||
+    !isRecord(raw.inventory) ||
+    !Array.isArray(raw.inventory.rulesets) ||
+    !Array.isArray(raw.inventory.branches)
+  )
+    throw new Error("bootstrap protection inventory is incomplete");
+  const rulesets = raw.inventory.rulesets.map((ruleset: unknown) => {
+    if (!isRecord(ruleset)) throw new Error("bootstrap ruleset detail is malformed");
+    // GitHub reports this field for the authenticated viewer. Configured bypass
+    // actors, rules and the exact observed refs remain in the appointment digest.
+    const detail = { ...ruleset };
+    delete detail.current_user_can_bypass;
+    return detail;
+  });
+  return createHash("sha256")
+    .update(canonical({ ...raw.inventory, rulesets }))
+    .digest("hex");
+}

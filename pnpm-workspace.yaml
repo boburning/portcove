@@ -32,6 +32,7 @@ peerDependencyRules:
     vite: "*"
     vitest: "*"
 patchedDependencies:
-  "i18next-cli@1.82.4": patches/i18next-cli@1.82.4.patch
+  # Retain the namespace fix across compatible 1.x updates; changed patch context still fails.
+  "i18next-cli@>=1.82.4 <2": patches/i18next-cli-default-namespace.patch
   "@sigstore/sign@5.0.0": patches/@sigstore__sign@5.0.0.patch
   "@tauri-apps/api@2.12.4": patches/@tauri-apps__api@2.12.4.patch

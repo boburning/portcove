@@ -23,16 +23,22 @@ entrypoints carry the same patch; successful registration and native unlisten
 retain upstream behavior. The maintained adapter regression uses the actual API
 package with an emulated transport. Review the patch and regression when updating
 that dependency; remove the patch only after equivalent upstream cleanup is proven.
-The version-bound `i18next-cli@1.82.4` patch makes both published ESM and
-CommonJS primary-translation loaders try the configured string `extract.defaultNS`
-before their existing namespace fallbacks. Upstream 1.81.0 otherwise misses
-Portcove's `settings.json`, so its nested-resource interpolation check can accept
-missing arguments. Unset/false defaults retain the existing fallbacks; this is
-not general multi-namespace discovery. The separate missing/provided nested-key
-fixtures exercise the actual CLI without inline defaults. Remove the patch only
-after a mature upstream release handles the configured namespace and passes those
-controls; 1.82.4's linter still guesses namespace names instead of reading the
-configured default. The narrow glob 13.0.6 and minimatch 10.2.6 security overrides
+The `i18next-cli-default-namespace.patch` applies to `i18next-cli@>=1.82.4 <2`.
+Both published ESM and CommonJS primary-translation loaders try the configured
+string `extract.defaultNS` before their existing namespace fallbacks. Upstream
+1.81.0 otherwise misses Portcove's `settings.json`, so its nested-resource
+interpolation check can accept missing arguments. Unset/false defaults retain
+the existing fallbacks; this is not general multi-namespace discovery.
+
+The range selector lets compatible 1.x upgrades retain the patch instead of
+failing artifact generation on an unused old version key. Patch application
+remains mandatory: changed context or an out-of-range version fails installation;
+no unused-patch exemption is enabled. The separate missing/provided nested-key
+fixtures exercise the actual CLI without inline defaults. Review every upgrade
+and remove the patch only after a mature upstream release handles the configured
+namespace and passes those controls; 1.84.0's linter still guesses namespace names
+instead of reading the configured default. The narrow glob 13.0.6 and minimatch
+10.2.6 security overrides
 remain in policy: the pinned Renovate 44.156.3 tooling client still declares those
 versions, even though this CLI release consumes glob 14 and minimatch 11 directly.
 Validate their application in each generated tooling-client graph separately.

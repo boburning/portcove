@@ -538,8 +538,8 @@ for(const name of ['valid','overflow','oversized-registration','missing-post','b
  const source=Buffer.from('fixed fixture support'),binary=Buffer.alloc(64);binary.set([127,69,76,70,2,1]);binary.writeUInt16LE(62,18);
  const sourceFile=path.join(tools,'scripts/fixtures/linux-process-tree-reaper.rs.txt');await fsp.writeFile(sourceFile,source);await fsp.writeFile(path.join(tools,'bin/native-linux-tree-reaper'),binary);
  const compiler={verbose_version:'fixture build',sysroot:'/build-only',commands:[{command:'rustc',resolved:null}],environment:[]};
- const input=rustSupportInputIdentity({product:'linux-process-tree-reaper',source:sourceFile,compiler,rustcArgs:['--edition=2024','--crate-name','portcove_linux_process_tree_reaper'],platform:'linux',architecture:'x64'});
- await fsp.writeFile(path.join(tools,'native-linux-support.json'),JSON.stringify({schema_version:1,product:'linux-process-tree-reaper',platform:'linux-x86_64',compiler,input_fingerprint:input.fingerprint,rustc_arguments:['--edition=2024','--crate-name','portcove_linux_process_tree_reaper'],source:{bytes:source.length,sha256:hash(source)},output:{bytes:64,sha256:hash(binary),mode:448}}));
+ const input=rustSupportInputIdentity({product:'linux-process-tree-reaper',source:sourceFile,compiler,rustcArgs:['--edition=2024','--crate-name','portcove_linux_process_tree_reaper','-C','strip=symbols'],platform:'linux',architecture:'x64'});
+ await fsp.writeFile(path.join(tools,'native-linux-support.json'),JSON.stringify({schema_version:1,product:'linux-process-tree-reaper',platform:'linux-x86_64',compiler,input_fingerprint:input.fingerprint,rustc_arguments:['--edition=2024','--crate-name','portcove_linux_process_tree_reaper','-C','strip=symbols'],source:{bytes:source.length,sha256:hash(source)},output:{bytes:64,sha256:hash(binary),mode:448}}));
  deadline=clock+(name==='missing-post'?150:1000);
  const outcome=api.superviseFixedHostedLinuxNativeStages().then(value=>({value}),error=>({error})).finally(()=>{done=true});
  if(['valid','bad-post','lost-supervisor','late-final'].includes(name)){

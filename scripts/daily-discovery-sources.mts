@@ -550,8 +550,23 @@ export async function consumeConfiguredObserver(c: SourceContext) {
     ],
   };
 }
+export class DiscoveryRepositoryUnavailable extends GitHubApiError {
+  readonly repository: string;
+  constructor(repository: string, cause: GitHubApiError) {
+    super("upstream_repository_unavailable", "Candidate repository metadata returned HTTP 404", {
+      status: 404,
+      cause,
+    });
+    this.repository = repository;
+  }
+}
+
 export async function investigateDiscoveryUpstream(c: SourceContext, repository: string) {
-  const meta = await metadata(c, repository);
+  const meta = await metadata(c, repository).catch((error: unknown) => {
+    if (error instanceof GitHubApiError && error.status === 404)
+      throw new DiscoveryRepositoryUnavailable(repository, error);
+    throw error;
+  });
   if (!c.primaryProgress) return await investigatePrimary(c, meta);
   const repo = str(meta.full_name);
   if (

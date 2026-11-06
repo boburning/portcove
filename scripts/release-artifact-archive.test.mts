@@ -13,20 +13,21 @@ import {
   downloadGitHubArtifactArchive,
   downloadGitHubArtifactArchiveFile,
 } from "./github-artifact-download.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { readGitHubReleaseAsset } from "./github-binary.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const identity = (bytes: Buffer) => ({ bytes: bytes.length, sha256: hash(bytes) });
 
-void test("opaque transport discards real subprocess output overflow and timeout", () => {
-  const endpoint = "repos/boburning/portcove/actions/artifacts/123/zip";
+void test("retained release asset transport discards real subprocess output overflow and timeout", () => {
+  const endpoint = "repos/boburning/portcove/releases/assets/123";
   for (const code of [
     "process.stdout.write(Buffer.alloc(100001))",
     "setInterval(() => {}, 1000)",
   ]) {
     assert.throws(
       () =>
-        readGitHubArtifactArchive(endpoint, {
+        readGitHubReleaseAsset(endpoint, {
           cwd: process.cwd(),
           maxBytes: 100,
           timeoutMs: 250,
@@ -317,16 +318,23 @@ void test("CRC and independently expected content reject self-consistent changed
   );
 });
 
-void test("opaque transfer fixes github.com and bounds collection before returning any bytes", () => {
-  const endpoint = "repos/boburning/portcove/actions/artifacts/123/zip";
+void test("retained release asset transfer fixes github.com and bounds collection before returning any bytes", () => {
+  const endpoint = "repos/boburning/portcove/releases/assets/123";
   let calls = 0;
   const opts = { cwd: process.cwd(), maxBytes: 100, timeoutMs: 15000 };
-  const bytes = readGitHubArtifactArchive(endpoint, {
+  const bytes = readGitHubReleaseAsset(endpoint, {
     ...opts,
     spawn: (command, args, options) => {
       calls++;
       assert.equal(command, "gh");
-      assert.deepEqual(args, ["api", "--hostname", "github.com", endpoint]);
+      assert.deepEqual(args, [
+        "api",
+        "--hostname",
+        "github.com",
+        "-H",
+        "Accept: application/octet-stream",
+        endpoint,
+      ]);
       assert.equal(options.maxBuffer, 100);
       assert.equal(options.timeout, 15000);
       assert.equal(options.encoding, null);
@@ -351,21 +359,25 @@ void test("opaque transfer fixes github.com and bounds collection before returni
     },
   ])
     assert.throws(
-      () => readGitHubArtifactArchive(endpoint, { ...opts, spawn: () => result }),
+      () => readGitHubReleaseAsset(endpoint, { ...opts, spawn: () => result }),
       /^Error: bounded GitHub artifact transport failed$/u,
     );
   for (const route of [
-    "https://evil.invalid/zip",
-    "repos/boburning/portcove/actions/artifacts/123/zip?token=x",
+    "https://evil.invalid/releases/assets/123",
+    "repos/other/portcove/releases/assets/123",
+    "repos/boburning/portcove/actions/artifacts/123/zip",
+    "repos/boburning/portcove/releases/assets/123?token=x",
     "--hostname",
   ])
-    assert.throws(() =>
-      readGitHubArtifactArchive(route, {
-        ...opts,
-        spawn: () => {
-          assert.fail("invalid route reached transport");
-        },
-      }),
+    assert.throws(
+      () =>
+        readGitHubReleaseAsset(route, {
+          ...opts,
+          spawn: () => {
+            assert.fail("invalid route reached transport");
+          },
+        }),
+      /^Error: artifact transport requires a bounded exact GitHub route$/u,
     );
 });
 
@@ -459,7 +471,7 @@ async function integration(
   };
   const options = {
     evidence: { read },
-    download: (endpoint: string, options: Parameters<typeof readGitHubArtifactArchive>[1]) => {
+    download: (endpoint: string, options: Parameters<SigningArchiveDownload>[1]) => {
       const id = Number(endpoint.split("/").at(-2));
       const bytes = blobs.get(id)!;
       assert.equal(options.maxBytes, bytes.length);

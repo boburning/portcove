@@ -2056,6 +2056,11 @@ the package before generating the entrypoint.
 [Native lifecycle corpus](../crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json),
 [independent enrollment](../crates/portcove-core/src/testdata/route-enrollment-expectations.json).
 
+Fixture-only enrollment edits select both route inventories and every generated
+managed and prepared lifecycle case. The independent Windows archive inventory
+selects its shared release-selection case. Changes to authored title records
+still select the full Core inventory.
+
 Optional authoring-only `gba_staged_archive_v1` expands the reviewed Windows
 staged GitHub archive layout used by the upstream GBA picker. Record the
 four-character game code used by the packaged diagnostics and whether the
@@ -2091,6 +2096,12 @@ covered exactly once. Generated route entrypoints and shared lifecycle
 fixtures separately cover registration, managed runtime replacement and data
 ownership. Ordinary compatible successors use the unchanged authored selectors.
 [Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
+
+The retained native-engine selection cases keep their controlled successor
+inventories and refusal filenames in the
+[native-engine scenario fixture](../crates/portcove-core/src/testdata/native-engine-release-scenarios.json).
+Use the exact observed package name as the player key. Shared repositories can
+reuse one successor inventory while checking distinct expected players.
 
 Optional authoring-only `package_observation_v1` retains an exact previously
 accepted package/player inspection. Ordinary `prepare-port` consumes its receipt

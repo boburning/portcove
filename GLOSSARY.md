@@ -164,6 +164,12 @@ for exact claims. [Catalog qualification](docs/CATALOG.md#channels-support-and-q
 [signed catalogs](docs/SIGNED-CATALOG.md) and [application updater trust](docs/UPDATER-TRUST.md)
 retain their own admission rules. A glossary entry cannot promote catalog support.
 
+### Hosted discovery
+
+**Candidate hold** is a recorded pause in intake for a specific upstream
+candidate. The candidate stays in its proposal and can resume when the
+recorded access and evidence conditions are met.
+
 ## Delivery evidence
 
 **Retained input**: A preserved copy of declared input bytes, identified at a recorded observation time. Its existence does not establish that execution consumed those bytes.

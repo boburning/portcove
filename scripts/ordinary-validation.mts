@@ -11,7 +11,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { nodeTestPath, parseNodeTestSuites } from "./node-test-suites.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateValidationPlan, validationOwnershipForPath } from "./validation-plan.mts";
+import {
+  routeEnrollmentInputs,
+  validateValidationPlan,
+  validationOwnershipForPath,
+} from "./validation-plan.mts";
 import { selectWorkspaceRustImpact } from "./rust-test-impact.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 import { hasNextestEquivalence } from "./nextest-equivalence.mts";
@@ -1250,6 +1254,10 @@ for (const [file, tests] of [
   ],
   ["scripts/release-native-check-broker.mts", ["scripts/release-native-check-broker.test.mts"]],
   [
+    "scripts/release-semantic-issuer-sdk-http.mts",
+    ["scripts/release-native-check-broker.test.mts"],
+  ],
+  [
     "scripts/release-native-worker.mts",
     [
       "scripts/release-native-windows-driver.test.mts",
@@ -1452,7 +1460,10 @@ for (const [file, tests] of [
     "broker",
   ].map((name): [string, string[]] => [
     `scripts/release-semantic-${name}.mts`,
-    ["scripts/release-semantic-broker.test.mts"],
+    [
+      "scripts/release-semantic-broker.test.mts",
+      ...(name === "issuer-http" ? ["scripts/release-native-check-broker.test.mts"] : []),
+    ],
   ]),
   [".github/workflows/native-design-compatibility.yml", ["scripts/workflow-provenance.test.mts"]],
   [
@@ -2424,6 +2435,12 @@ for (const file of [
   ]);
 }
 
+for (const file of routeEnrollmentInputs)
+  explicitNodeTests.set(file, [
+    "scripts/catalog-route-facts.test.mts",
+    ...catalogGeneratorContractTests,
+  ]);
+
 explicitNodeTests.set("scripts/fixtures/coordinator-fixture-phases.mts", [
   "scripts/release-coordinator-state.test.mts",
 ]);
@@ -2670,17 +2687,25 @@ for (const file of [
 for (const file of ["package.json", "pnpm-lock.yaml", "scripts/github-client.mts"])
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-native-check-broker.test.mts",
     "scripts/release-native-public-pair.test.mts",
     "scripts/release-semantic-disposition.test.mts",
     "scripts/roadmap-publish.test.mts",
   ]);
 
+explicitNodeTests.set("scripts/github-binary.mts", [
+  "scripts/github-client.test.mts",
+  "scripts/release-admitted-aggregate-controller.test.mts",
+  "scripts/release-artifact-archive.test.mts",
+  "scripts/release-publication-inputs.test.mts",
+]);
+
 for (const file of [
   "package.json",
   "pnpm-lock.yaml",
+  "scripts/github-binary.mts",
   "scripts/github-client.mts",
   "scripts/release-custody-provider.mts",
-  "scripts/github-artifact-download.mts",
   "scripts/upstream-release-transfer.mts",
   "scripts/upstream-release-runtime.mts",
   "scripts/upstream-release-recovery.mts",
@@ -2703,6 +2728,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/release-metadata-site-controller.test.mts",
   "scripts/release-coordinator-recovery.test.mts",
   "scripts/release-native-candidate.test.mts",
+  "scripts/release-native-check-broker.test.mts",
   "scripts/release-pending-result-recovery.test.mts",
   "scripts/release-catalog-site-controller.test.mts",
   "scripts/release-site-readback.test.mts",
@@ -2718,6 +2744,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 ]);
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
+  "scripts/upstream-release-rehearsal.test.mts",
   "scripts/ci-health.test.mts",
   "scripts/roadmap-publish.test.mts",
   "scripts/observer-checkpoint-artifact.test.mts",
