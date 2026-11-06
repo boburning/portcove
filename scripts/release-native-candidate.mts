@@ -471,10 +471,9 @@ async function sourceTransport(parent: Parent, directory: string) {
       coordinatorCommandDeadline() ?? Infinity,
       performance.now() + remainingNativeParentBudget(cap),
     );
-  const readPostSignInventory = async (run: string, phaseDeadline: number) => {
+  const readPostSignMetadata = async (endpoint: string, phaseDeadline: number) => {
     await recheck();
     const deadline = postSignDeadline(phaseDeadline, 15000);
-    const endpoint = `/repos/boburning/portcove/actions/runs/${run}/artifacts?per_page=100`;
     const { createGitHubClient } = await import("./github-client.mts");
     const client = await createGitHubClient({
       credential,
@@ -494,6 +493,16 @@ async function sourceTransport(parent: Parent, directory: string) {
     if (response.status !== 200 || performance.now() >= deadline)
       throw new Error("post-sign artifact inventory unavailable");
     return response.data as unknown;
+  };
+  const readPostSignInventory = (run: string, deadline: number) =>
+    readPostSignMetadata(
+      `/repos/boburning/portcove/actions/runs/${run}/artifacts?per_page=100`,
+      deadline,
+    );
+  const readPostSignArtifact = (id: number, deadline: number) => {
+    if (!Number.isSafeInteger(id) || id < 1)
+      throw new Error("native signed platform archive identity unavailable");
+    return readPostSignMetadata(`/repos/boburning/portcove/actions/artifacts/${id}`, deadline);
   };
   const downloadPostSignArchive = async (
     item: { id: number; bytes: number; sha256: string },
@@ -651,6 +660,7 @@ async function sourceTransport(parent: Parent, directory: string) {
         assertUnchanged,
       ),
     readPostSignInventory,
+    readPostSignArtifact,
     downloadPostSignArchive,
     acquirePredecessor: (record: unknown, candidate: unknown, root: string) =>
       acquireNativePredecessorRelease(record, candidate, root, {
@@ -1781,19 +1791,21 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
   );
   if (rows.length !== 1 || !isRecord(rows[0]) || typeof rows[0].artifact_id !== "number")
     throw new Error("native signed platform archive absent");
-  const endpoint = `repos/boburning/portcove/actions/artifacts/${rows[0].artifact_id}`;
-  const read = () => {
-    const response = original.source.api.request("GET", endpoint);
-    if (response.status !== 200) throw new Error("native exact package archive unavailable");
-    return response.body;
-  };
-  const before = read(),
+  const artifactId = rows[0].artifact_id;
+  const deadline = performance.now() + remainingNativeParentBudget();
+  const read = () => original.source.readPostSignArtifact(artifactId, deadline);
+  const before = await read(),
     identity = await inspectNativePostSignPackageMetadata(facts, platform, before);
-  const archiveBytes = original.source.download(`${endpoint}/zip`, {
-    cwd: verified.directory,
-    maxBytes: identity.archive.bytes,
-    timeoutMs: remainingNativeParentBudget(120000),
-  });
+  const archiveBytes = await original.source.downloadPostSignArchive(
+    {
+      id: identity.archive.artifact_id,
+      bytes: identity.archive.bytes,
+      sha256: identity.archive.sha256,
+    },
+    verified.directory,
+    120000,
+    deadline,
+  );
   let retained: { identity: Identity; bytes: Buffer } | undefined;
   await discoverReleaseArtifactFiles(
     archiveBytes,
@@ -1813,7 +1825,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
     },
   );
   if (!retained) throw new Error("native signed updater package missing");
-  const after = read();
+  const after = await read();
   await inspectNativePostSignPackageMetadata(facts, platform, after);
   if (digest(before) !== digest(after))
     throw new Error("native exact package provider identity changed");
