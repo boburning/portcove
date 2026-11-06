@@ -184,7 +184,10 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
   ];
   if (facts.managed_native) {
     const integration = projected.integration!;
-    const preservation = `Portcove preserves only these declared local inputs during replacement and backup: ${(integration.persistent_paths as string[]).join(", ")}. Its backup does not include external profiles.`;
+    const localPaths = integration.persistent_paths as string[];
+    const preservation = localPaths.length
+      ? `Portcove preserves only these declared local inputs during replacement and backup: ${localPaths.join(", ")}. Its backup does not include external profiles.`
+      : "The managed copy has no declared local player data to back up. Back up the external profile separately.";
     (guide.references as unknown[]).push({
       title: "Managed runtime ownership",
       instruction: `${managedOwnership} ${preservation}`,

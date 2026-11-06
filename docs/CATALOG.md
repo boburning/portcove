@@ -2067,18 +2067,18 @@ can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-
 [explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
 
 For a new compatible-release selection case, add the stable title ID to
-`cases` in the shared Pokémon GBA fixture. Set its `inventory` to a key
-in `inventories` with at least two observed releases in oldest-to-newest
-order. Record one independently identified exact asset name per release in
-`selected_assets`. Keep the full upstream inventories, including competing
-assets. Reuse an inventory when another title selects from the same releases.
-This corpus currently expects each ZIP to belong to exactly one enrolled
-title. Inventories with other ZIPs need a selection case that covers that
-layout. The fixture tests release selection. Generated prepared-player entrypoints cover
-registration, and the staged lifecycle fixtures cover fresh install and data
-preservation. Ordinary compatible successors use the unchanged authored
-selectors and require no fixture edit.
-[Shared release-selection fixture](../crates/portcove-core/src/testdata/gba-pokemon-release-selection.json).
+`cases` in the shared Windows archive fixture. Set its `inventory` to a key
+in `inventories` with at least two releases in oldest-to-newest order.
+Record one independently identified exact asset name per release in
+`selected_assets`. Keep the full observed release inventories and label
+controlled successors in the title evidence. Reuse an inventory when another
+title selects from the same releases. Use `other_zip_assets` to identify
+competing ZIPs outside the enrolled routes by inventory, zero-based release
+index and exact member name. The inventory check requires every ZIP to be
+covered exactly once. Generated route entrypoints and shared lifecycle
+fixtures separately cover registration, managed runtime replacement and data
+ownership. Ordinary compatible successors use the unchanged authored selectors.
+[Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
 
 Optional authoring-only `package_observation_v1` retains an exact previously
 accepted package/player inspection. Ordinary `prepare-port` consumes its receipt

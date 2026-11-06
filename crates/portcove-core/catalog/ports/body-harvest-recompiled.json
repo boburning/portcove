@@ -3,10 +3,9 @@
   "listing": {
     "id": "body-harvest-recompiled",
     "name": "Body Harvest: Recompiled",
-    "summary": "Use a permitted Body Harvest player and select your own North American cartridge dump on first Play.",
+    "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows copy or launch a copy you prepared.",
     "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
     "issue_number": 1448,
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
     "artwork": {
@@ -27,11 +26,7 @@
       "steps": [
         {
           "title": "Keep a complete permitted player",
-          "instruction": "On Windows, select BodyHarvestRecompiled.exe in your existing permitted copy; on native Linux x64, select BodyHarvestRecompiled. Keep its complete extracted folder and supplied assets/libraries together as the working directory. macOS uses the upstream application bundle. Linux ARM64 and Flatpak are separate upstream packages and preparation routes; Windows launch details do not apply to them."
-        },
-        {
-          "title": "Select your original game on first Play",
-          "instruction": "Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
+          "instruction": "On Windows, select BodyHarvestRecompiled.exe in your existing permitted copy; on native Linux x64, select BodyHarvestRecompiled. Keep its complete extracted folder and supplied assets/libraries together as the working directory. macOS uses the upstream application bundle. Linux ARM64 and Flatpak are separate upstream packages and preparation routes; Windows launch details do not apply to them. Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
         },
         {
           "title": "Keep Flatpak data with the actual profile",
@@ -47,6 +42,47 @@
           "title": "Preserve the actual profile and working copy",
           "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
         }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["BodyHarvestRecompiled-", "-Windows.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["BodyHarvestRecompiled.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned"
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the actual BodyHarvestRecompiled profile, normally %LOCALAPPDATA%\\BodyHarvestRecompiled on Windows; the working folder for a Windows portable.txt copy; the real custom or platform-specific profile for other copies"
+      ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Set up the managed Windows copy on first Play",
+        "instruction": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies the original and stores its private copy, settings and saves under %LOCALAPPDATA%\\BodyHarvestRecompiled. Back up that profile separately. Leave portable.txt out of the managed runtime to keep the profile outside it."
+      },
+      "warnings": [
+        "The managed route covers Windows x86-64. Use a separate upstream copy for portable.txt mode, Linux or macOS. Managed and external Windows copies can share the default profile. Check save compatibility before changing versions."
       ]
     }
   }

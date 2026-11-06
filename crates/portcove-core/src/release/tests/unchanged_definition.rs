@@ -2138,7 +2138,7 @@ async fn native_engine_selection_2612() {
 }
 
 #[tokio::test]
-async fn gba_pokemon_selection_advances_from_shared_release_inventories() {
+async fn windows_archive_selection_advances_from_shared_release_inventories() {
     #[derive(serde::Deserialize)]
     struct Case {
         inventory: String,
@@ -2146,14 +2146,26 @@ async fn gba_pokemon_selection_advances_from_shared_release_inventories() {
     }
 
     #[derive(serde::Deserialize)]
+    struct OtherZipAsset {
+        inventory: String,
+        release_index: usize,
+        asset: String,
+    }
+
+    #[derive(serde::Deserialize)]
     struct Corpus {
         cases: std::collections::BTreeMap<String, Case>,
         inventories: std::collections::BTreeMap<String, Vec<serde_json::Value>>,
+        other_zip_assets: Vec<OtherZipAsset>,
     }
 
     let catalog = crate::Catalog::embedded().unwrap();
-    let Corpus { cases, inventories } = serde_json::from_str(include_str!(
-        "../../testdata/gba-pokemon-release-selection.json"
+    let Corpus {
+        cases,
+        inventories,
+        other_zip_assets,
+    } = serde_json::from_str(include_str!(
+        "../../testdata/windows-archive-release-selection.json"
     ))
     .unwrap();
     assert!(!cases.is_empty());
@@ -2202,17 +2214,24 @@ async fn gba_pokemon_selection_advances_from_shared_release_inventories() {
         }
         assert_eq!(serde_json::to_value(port).unwrap(), definition, "{id}");
     }
+    let mut other_zips = std::collections::BTreeSet::new();
+    for asset in other_zip_assets {
+        assert!(other_zips.insert((asset.inventory, asset.release_index, asset.asset)));
+    }
     for (group, observed) in inventories {
         for (index, release) in observed.iter().enumerate() {
             for asset in release["assets"].as_array().unwrap() {
                 let name = asset["name"].as_str().unwrap();
                 if name.ends_with(".zip") {
-                    assert!(
-                        enrolled.contains(&(group.clone(), index, name.to_owned())),
-                        "{name}"
-                    );
+                    let key = (group.clone(), index, name.to_owned());
+                    assert!(enrolled.remove(&key) ^ other_zips.remove(&key), "{key:?}");
                 }
             }
         }
     }
+    assert!(enrolled.is_empty(), "unmatched selected ZIPs: {enrolled:?}");
+    assert!(
+        other_zips.is_empty(),
+        "unmatched other ZIPs: {other_zips:?}"
+    );
 }

@@ -3143,7 +3143,23 @@ mod tests {
 
     #[test]
     fn body_harvest_recompiled_frontend_license_player_route_1448() {
-        assert_listing_only_player_route("body-harvest-recompiled", Some(false));
+        let id = "body-harvest-recompiled";
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().adapter,
+            crate::AdapterKind::NativePortable
+        );
+        let listing = service.catalog.listing(id).unwrap();
+        assert!(listing.manual_setup.is_some());
+        assert!(listing.download_block_reason.is_none());
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
     }
 
     #[test]
