@@ -10,7 +10,6 @@ import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import {
   applicationApi,
-  applicationGet,
   applicationOutput,
   readApplicationJson,
   applicationGh,
@@ -101,6 +100,7 @@ import {
   applicationNativeFiles,
   inspectApplicationNativeAcceptance,
   inspectApplicationNativeProducerJob,
+  readApplicationAttemptJobs,
   inspectApplicationPublicInstalledProducer,
   inspectApplicationPublicInstalledProof,
   inspectApplicationNativeAttempts,
@@ -2034,6 +2034,7 @@ async function deployBootstrapSite(readOnly = false) {
  * here before any ordinary-account harness may receive candidate bytes. */
 export async function preparePublicWindowsCandidate(
   source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
+  deadline?: number,
 ) {
   const current = execution();
   assert.equal(source.purpose, "application-release");
@@ -2044,9 +2045,7 @@ export async function preparePublicWindowsCandidate(
   assert.ok(preparation?.qualification);
   const attempt = Number(process.env.PORTCOVE_WINDOWS_CANDIDATE_ATTEMPT);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
-  const runJobs = applicationGet(
-    `actions/runs/${current.run_id}/attempts/${attempt}/jobs?per_page=100`,
-  );
+  const runJobs = await readApplicationAttemptJobs(current.run_id, attempt, deadline);
   assert.ok(isRecord(runJobs) && Array.isArray(runJobs.jobs) && runJobs.jobs.length < 100);
   assert.equal(runJobs.total_count, runJobs.jobs.length);
   const producers = runJobs.jobs.filter((job: unknown) => isRecord(job) && job.name === "readback");
@@ -2228,12 +2227,12 @@ async function verifyPublicWindowsInstalled() {
   const source = await readNativeApplicationSource();
   const attempt = Number(process.env.PORTCOVE_WINDOWS_PROOF_ATTEMPT);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
-  const producer = () =>
+  const producer = async () =>
     inspectApplicationPublicInstalledProducer(
-      applicationGet(`actions/runs/${current.run_id}/attempts/${attempt}/jobs?per_page=100`),
+      await readApplicationAttemptJobs(current.run_id, attempt),
       { run_id: current.run_id, run_attempt: attempt, source: current.source },
     );
-  const job = producer();
+  const job = await producer();
   const acquired = await preparePublicWindowsCandidate(source);
   assert.ok(acquired.ordinaryInputs, "installed proof requires an actual public predecessor");
   const directory = path.resolve("work/application-public-installed-readback");
@@ -2269,7 +2268,7 @@ async function verifyPublicWindowsInstalled() {
       ).sha256,
     },
   );
-  assert.deepEqual(producer(), job);
+  assert.deepEqual(await producer(), job);
   await acquired.assertCurrentSite();
   await writeApplicationJson("work/application-public-installed-verified/result.json", {
     schema_version: 1,
@@ -2629,7 +2628,7 @@ async function readNativePayloadAcceptance(
     binding,
   );
   const producer = inspectApplicationNativeProducerJob(
-    applicationGet(`actions/runs/${current.run_id}/attempts/${attempt}/jobs?per_page=100`),
+    await readApplicationAttemptJobs(current.run_id, attempt),
     accepted.report,
     binding,
   );

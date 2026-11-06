@@ -3,6 +3,10 @@
  * fixed Actions producer and exact artifact before admitting any key use. */
 import assert from "node:assert/strict";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -118,6 +122,43 @@ export function inspectApplicationPublicInstalledJourney(
   );
   assert.equal(journey.automatic_relaunch.executable.sha256, expected.candidate_executable_sha256);
   assert.equal(journey.automatic_relaunch.title, "Portcove");
+}
+
+/** One exact attempt inventory from the original private job reader. */
+export async function readApplicationAttemptJobs(
+  run: string,
+  attempt: number,
+  phaseDeadline = Infinity,
+): Promise<unknown> {
+  assert.match(run, /^[1-9][0-9]{0,15}$/u);
+  assert.ok(
+    Number.isSafeInteger(Number(run)) &&
+      Number.isSafeInteger(attempt) &&
+      attempt >= 1 &&
+      attempt <= 3,
+  );
+  const token = fixedReleaseReaderToken();
+  const deadline = Math.min(
+    phaseDeadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 30000,
+  );
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    fetch(input, init) {
+      assertTrustedDirectNode("fixed application attempt job inventory");
+      return globalThis.fetch(input, init);
+    },
+  });
+  const result = await provider.jobs(run, attempt, 1);
+  assert.equal(result.next, null, "original application attempt job inventory is incomplete");
+  if (performance.now() >= deadline)
+    throw new Error("original application attempt job read exhausted");
+  return result.body;
 }
 
 export function inspectApplicationPublicInstalledProducer(

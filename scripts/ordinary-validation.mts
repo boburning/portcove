@@ -2261,6 +2261,7 @@ for (const file of [
   "scripts/application-release-source.mts",
   "scripts/application-release-private.mts",
   "scripts/application-release-native-execution.mts",
+  "scripts/application-release-native.mts",
   "scripts/application-release-native-owner.ps1",
   "scripts/release-hosted-native-windows-owner-mechanism.ps1",
   "scripts/native-qualification-account.cs.txt",

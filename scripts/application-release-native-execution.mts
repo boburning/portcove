@@ -148,7 +148,9 @@ async function produce() {
   const publicDeadline = publicJob
     ? await readPublicInstalledOwnerDeadline(current, await metadata(performance.now() + 30000))
     : Infinity;
-  const acquired = publicJob ? await preparePublicWindowsCandidate(source) : undefined;
+  const acquired = publicJob
+    ? await preparePublicWindowsCandidate(source, publicDeadline)
+    : undefined;
   const publicInput = acquired?.ordinaryInputs;
   if (publicJob) assert.ok(publicInput && acquired?.candidate.predecessor);
   const packages = publicJob ? undefined : await receiveNativePackages(source);
