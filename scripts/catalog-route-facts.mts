@@ -153,7 +153,10 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
     throw new Error("Route facts require a concrete bespoke guide envelope.");
   const player = resolvedPlayer(facts, record.integration);
   const selector: Step = {
-    title: "Select the prepared player",
+    title:
+      facts.managed_native && record.listing.platforms?.length
+        ? "Select the prepared Windows player"
+        : "Select the prepared player",
     instruction: selectionInstruction(player.executable, player.arguments),
   };
   const steps: unknown[] = guide.steps;
@@ -184,7 +187,10 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
   ];
   if (facts.managed_native) {
     const integration = projected.integration!;
-    const preservation = `Portcove preserves only these declared local inputs during replacement and backup: ${(integration.persistent_paths as string[]).join(", ")}. Its backup does not include external profiles.`;
+    const localPaths = integration.persistent_paths as string[];
+    const preservation = localPaths.length
+      ? `Portcove preserves only these declared local inputs during replacement and backup: ${localPaths.join(", ")}. Its backup does not include external profiles.`
+      : "The managed copy has no declared local player data to back up. Back up the external profile separately.";
     (guide.references as unknown[]).push({
       title: "Managed runtime ownership",
       instruction: `${managedOwnership} ${preservation}`,

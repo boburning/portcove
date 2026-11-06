@@ -3331,16 +3331,28 @@ mod tests {
             );
         }
         phase("backup-begin");
-        let backup = service.create_backup(id).unwrap();
-        phase("backup-complete");
-        for path in &probes {
-            assert_eq!(
-                fs::read(backup.path.join("data").join(path)).unwrap(),
-                contents(path),
-                "{id}: backup {path}"
+        let backup = if probes.is_empty() {
+            let failure = service.create_backup(id).unwrap_err();
+            assert_eq!(failure.code, crate::ErrorCode::NotFound, "{id}");
+            assert!(
+                failure.message.contains("no persistent data to back up"),
+                "{id}: {failure}"
             );
-        }
+            None
+        } else {
+            let backup = service.create_backup(id).unwrap();
+            for path in &probes {
+                assert_eq!(
+                    fs::read(backup.path.join("data").join(path)).unwrap(),
+                    contents(path),
+                    "{id}: backup {path}"
+                );
+            }
+            Some(backup)
+        };
+        phase("backup-complete");
         if case["exercise_restore"] == true {
+            let backup = backup.as_ref().expect("restore needs a backup");
             phase("reviewed-restore-begin");
             for path in &probes {
                 fs::write(first_root.join(path), b"later owned data").unwrap();
@@ -3446,10 +3458,12 @@ mod tests {
                 "{id}: removal {path}"
             );
         }
-        assert!(
-            backup.path.exists(),
-            "{id}: backup survives runtime removal"
-        );
+        if let Some(backup) = backup {
+            assert!(
+                backup.path.exists(),
+                "{id}: backup survives runtime removal"
+            );
+        }
         assert_eq!(
             fs::read(temporary.path().join("retained-unknown-player-addition")).unwrap(),
             b"keep for review"
