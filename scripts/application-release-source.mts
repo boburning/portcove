@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   applicationApi,
@@ -20,10 +22,13 @@ import {
 } from "./application-release-io.mts";
 import { semanticReviewCheckName } from "./release-control-phases.mts";
 import {
-  readIndependentSemanticCheckInventory,
+  readIndependentSemanticCheckInventoryWithSdk,
   selectLatestApplicationSemanticCheck,
 } from "./release-semantic-disposition-reader.mts";
-import { readIndependentSemanticReview, readPublicationPause } from "./release-control-inputs.mts";
+import {
+  readIndependentApplicationSemanticReviewWithSdk,
+  readPublicationPauseWithSdk,
+} from "./release-control-inputs.mts";
 import {
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
@@ -54,7 +59,7 @@ import {
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { materializeInitialApplicationRehearsal } from "./release-site-readback.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
-import { collectReleaseSourceChanges } from "./release-source-changes.mts";
+import { collectReleaseSourceChangesWithSdk } from "./release-source-changes.mts";
 import {
   createPublicationInventoryWithSdk,
   peelReleaseReference,
@@ -121,9 +126,24 @@ export function inspectApplicationSemanticSelection(raw: unknown, source: string
   return opportunity;
 }
 
+function applicationSourceControlOptions(token = fixedReleaseReaderToken()) {
+  return {
+    token,
+    deadline: Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000),
+    guard: () => assertTrustedDirectNode("fixed application source controls"),
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000 as const,
+  };
+}
+
 export async function readApplicationSemanticSelection(source: string) {
   assert.match(source, /^[a-f0-9]{40}$/u);
-  const commit = applicationGet(`git/commits/${source}`);
+  const options = applicationSourceControlOptions();
+  const custody = await createReleaseCustodyProvider({
+    ...options,
+    beforeDispatch: options.guard,
+  });
+  const commit = await custody.commit(source);
   assert.ok(
     isRecord(commit) &&
       commit.sha === source &&
@@ -131,20 +151,27 @@ export async function readApplicationSemanticSelection(source: string) {
       typeof commit.tree.sha === "string",
   );
   assert.match(commit.tree.sha, /^[a-f0-9]{40}$/u);
-  const inventory = readIndependentSemanticCheckInventory(applicationApi, semanticProducer, source);
+  const inventory = await readIndependentSemanticCheckInventoryWithSdk(
+    applicationSourceControlOptions(options.token),
+    semanticProducer,
+    source,
+  );
   // A later pending, failed or refused independent decision cannot be hidden by
   // falling back to an older success. The fixed App owns this Check namespace.
   const check = selectLatestApplicationSemanticCheck(inventory.records);
   const opportunity = inspectApplicationSemanticSelection(check, source, commit.tree.sha);
-  const review = readIndependentSemanticReview(
-    applicationApi,
+  const review = await readIndependentApplicationSemanticReviewWithSdk(
+    applicationSourceControlOptions(options.token),
     semanticProducer,
     opportunity,
     Number(check.id),
   );
-  const changes = collectReleaseSourceChanges(applicationApi, opportunity);
+  const changes = await collectReleaseSourceChangesWithSdk(
+    applicationSourceControlOptions(options.token),
+    opportunity,
+  );
   assert.equal(changes.change_set_sha256, opportunity.change_set_sha256);
-  inventory.assertUnchanged();
+  await inventory.assertUnchanged();
   assert.ok(isRecord(check.output) && typeof check.output.summary === "string");
   return {
     opportunity,
@@ -276,7 +303,7 @@ async function beforeSourceRecord() {
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
   assert.equal(
-    readPublicationPause(applicationApi).publication_paused,
+    (await readPublicationPauseWithSdk(applicationSourceControlOptions())).publication_paused,
     false,
     "publication paused",
   );

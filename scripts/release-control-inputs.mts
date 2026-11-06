@@ -936,6 +936,29 @@ export async function readApplicationControlsWithSdk(
   return { classification, pause, capacity };
 }
 
+export async function readIndependentApplicationSemanticReviewWithSdk(
+  options: ControlSdkOptions,
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+) {
+  numeric(checkId);
+  const config = inspectApplicationSemanticProducerConfiguration(rawConfig);
+  const opportunity = validateOpportunity(rawOpportunity);
+  const run = await controlSdkReader(options);
+  return run(
+    (function* () {
+      const selected = yield* controlSession();
+      return inspectReview(
+        yield* selected.get(`/check-runs/${checkId}`),
+        checkId,
+        config,
+        opportunity,
+      );
+    })(),
+  );
+}
+
 export async function readIndependentCatalogSemanticReviewWithSdk(
   options: ControlSdkOptions,
   rawConfig: unknown,

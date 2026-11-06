@@ -42,6 +42,43 @@ export function collectReleaseSourceChanges(
   return step.value;
 }
 
+export async function collectReleaseSourceChangesWithSdk(
+  options: { token: string; deadline: number; guard: () => void },
+  rawOpportunity: unknown,
+) {
+  const collection = releaseSourceChangeRequests(rawOpportunity, { deadline: options.deadline });
+  let step = collection.next();
+  let expected: string | undefined;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token: options.token },
+    deadline: options.deadline,
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    allowRequest(method, url) {
+      options.guard();
+      return method === "GET" && url.href === expected;
+    },
+  });
+  while (!step.done) {
+    const url = new URL(step.value.endpoint, "https://api.github.com/");
+    expected = url.href;
+    const response = await client.request(`GET ${url.pathname}${url.search}`, {
+      request: { portcove: { replay: "once", attempts: 0, deadline: step.value.deadline } },
+    });
+    options.guard();
+    const link: unknown = response.headers.link;
+    if (link !== undefined && typeof link !== "string")
+      throw new Error("release source comparison pagination unavailable");
+    step = collection.next({
+      status: response.status,
+      body: response.data,
+      headers: new Map(typeof link === "string" ? [["link", link]] : []),
+    });
+  }
+  return step.value;
+}
+
 /** Sequential exact reads and their single shared completeness validator. */
 export function* releaseSourceChangeRequests(
   rawOpportunity: unknown,
