@@ -259,11 +259,16 @@ void test("manual timeout rehearsal retains finite budgets, normal failure and i
   assert.equal(verify.needs, "probe");
   assert.equal(verify.if, "always()");
   assert.deepEqual(verify.permissions, { contents: "read", actions: "read", checks: "read" });
-  const final: unknown = verify.steps[2];
+  const final: unknown = verify.steps.at(-1);
   assert.ok(isRecord(final) && typeof final.run === "string");
-  assert.match(final.run, /attempts\/\$GITHUB_RUN_ATTEMPT\/jobs\?per_page=100/u);
   assert.match(final.run, /ci-job-timeout-probe\.mts verify/u);
-  assert.match(final.run, /annotations\?per_page=100/u);
+  for (const name of [
+    "timeout-jobs.json",
+    "timeout-job.log",
+    "timeout-check.json",
+    "timeout-annotations.json",
+  ])
+    assert.ok(final.run.includes(`"$RUNNER_TEMP/${name}"`));
 });
 
 void test("timeout context refuses missing or malformed source/run/attempt", () => {
