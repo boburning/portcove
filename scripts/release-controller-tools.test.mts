@@ -26,6 +26,7 @@ import {
   controllerToolAssets,
   controllerToolBundler,
   controllerToolSourceAssetMaximumBytes,
+  controllerToolExpandedMaximumBytes,
   readControllerToolFile,
   controllerToolEntries,
   controllerToolChildren,
@@ -1351,17 +1352,18 @@ void test("only closed Node inventory entries receive the larger finite runtime 
 void test("tool manifest retains the aggregate and per-file byte limits on both platforms", () => {
   for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
     const manifest = fixture({}, platform).manifest;
+    assert.equal(controllerToolExpandedMaximumBytes, 352 * 1024 ** 2);
     // Describe a boundary inventory without allocating large payload buffers.
     const files = manifest.files.map((file) => ({ ...file, bytes: 1 }));
     files[0]!.bytes = 128 * 1024 ** 2;
     files[1]!.bytes = 128 * 1024 ** 2;
-    files[2]!.bytes = 64 * 1024 ** 2 - (files.length - 3);
+    files[2]!.bytes = 96 * 1024 ** 2 - (files.length - 3);
     assert.equal(
       inspectControllerToolManifest({ ...manifest, files }, platform).files.reduce(
         (total, file) => total + file.bytes,
         0,
       ),
-      320 * 1024 ** 2,
+      controllerToolExpandedMaximumBytes,
     );
     files[2]!.bytes++;
     assert.throws(
