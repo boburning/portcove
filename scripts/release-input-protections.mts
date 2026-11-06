@@ -313,13 +313,13 @@ function observeProtections(
     authority: "none",
   };
 }
+export const inputProtectionFreshnessMilliseconds = 60_000;
+
 /** Interpret only the selected narrow policy. Additional/unknown restrictions
  * may refuse availability; no fallback broadens the authorized writer. This
  * requires the isolated observer's result through trusted same-workflow needs,
  * never caller/dispatch JSON or a receipt from another run.
  */
-export const inputProtectionFreshnessMilliseconds = 60_000;
-
 export function requireReleaseInputWriterPolicy(
   raw: unknown,
   writerAppId: number,
