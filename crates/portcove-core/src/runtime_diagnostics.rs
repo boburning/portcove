@@ -96,6 +96,7 @@ pub fn field(name: &str, value: &Value) -> Option<Value> {
         | "stream_complete"
         | "context_complete"
         | "session_clean"
+        | "main_webview"
         | "qualification_prepared" => value.as_bool().map(|value| json!(value)),
         "operation" => label(
             value,

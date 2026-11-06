@@ -128,6 +128,24 @@ fn unmarked_malformed_and_hardlinked_slots_are_preserved_and_not_adopted() {
 }
 
 #[test]
+fn writer_initialization_refuses_a_replaced_session_marker() {
+    let temp = tempfile::tempdir().unwrap();
+    let (allocation, _, _) = allocate(temp.path(), uuid::Uuid::new_v4(), Surface::Desktop);
+    let allocation = allocation.unwrap();
+    let directory = allocation.directory.clone();
+    let marker = directory.join(SESSION_MARKER);
+    let bytes = fs::read(&marker).unwrap();
+    fs::rename(&marker, directory.join("displaced-marker")).unwrap();
+    fs::write(&marker, &bytes).unwrap();
+
+    let mut sink = allocation.into_sink();
+    let error = sink.initialize().unwrap_err();
+    assert_eq!(error.stage, FailureStage::Open);
+    assert_eq!(fs::read(&marker).unwrap(), bytes);
+    assert!(!directory.join(writer::LOG_FILE_NAME).exists());
+}
+
+#[test]
 fn held_session_lease_outlives_a_timed_out_guard() {
     use std::sync::mpsc;
     struct BlockedSession {

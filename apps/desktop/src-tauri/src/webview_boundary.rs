@@ -61,8 +61,7 @@ pub fn init<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
             if !allowed {
                 tracing::warn!(
                     operation_id = "webview-navigation",
-                    webview_label = webview.label(),
-                    scheme = url.scheme(),
+                    main_webview = webview.label() == "main",
                     "blocked navigation outside trusted application origin"
                 );
             }
