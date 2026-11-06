@@ -49,6 +49,7 @@ import {
 } from "./release-native-qualification-contract.mts";
 import {
   createReleasePublicationReader,
+  createPublicationInventoryWithSdk,
   peelReleaseReference,
 } from "./release-publication-inventory.mts";
 import { selectCoordinatorPublicationBaseline } from "./release-coordinator-driver.mts";
@@ -203,6 +204,8 @@ type NativePublicationJourneyInput = {
 };
 
 type NativePredecessorRead =
+  | { kind: "releases" }
+  | { kind: "tags" }
   | { kind: "metadata"; endpoint: string }
   | {
       kind: "source";
@@ -212,6 +215,8 @@ type NativePredecessorRead =
 type NativePredecessorResponse = Pick<GitHubMetadataResponse, "status" | "body">;
 type NativeJourneyReads<T> = Generator<NativePredecessorRead, T, NativePredecessorResponse>;
 type ReadNativePredecessor = (effect: NativePredecessorRead) => Promise<NativePredecessorResponse>;
+type LegacyReadNativePredecessor = (effect: NativePredecessorRead) => NativePredecessorResponse;
+type PublicationInventory = ReturnType<typeof createReleasePublicationReader>;
 
 function* readNativeCheckPredecessor(
   record: Record<string, unknown>,
@@ -231,26 +236,34 @@ function* readNativeCheckPredecessor(
   return inspectNativePublicationPredecessor(record, check.body);
 }
 
-function runLegacyJourney<T>(
-  input: NativePublicationJourneyInput,
-  sequence: NativeJourneyReads<T>,
-) {
+function createLegacyPredecessorReader(
+  api: NativePublicationJourneyInput["api"],
+): LegacyReadNativePredecessor {
+  let inventory: PublicationInventory | undefined;
+  return (effect) => {
+    switch (effect.kind) {
+      case "releases":
+      case "tags":
+        inventory ??= createReleasePublicationReader(api);
+        return { status: 200, body: inventory[effect.kind]() };
+      case "metadata":
+        return api.request("GET", `repos/boburning/portcove/${effect.endpoint}`);
+      case "source":
+        return {
+          status: 200,
+          body: inspectPublishedApplicationSource(
+            api,
+            { schema_version: 1, namespace: effect.namespace },
+            effect.subject,
+          ).source_baseline.commit,
+        };
+    }
+  };
+}
+
+function runLegacyJourney<T>(read: LegacyReadNativePredecessor, sequence: NativeJourneyReads<T>) {
   let step = sequence.next();
-  while (!step.done) {
-    const effect = step.value;
-    const response =
-      effect.kind === "metadata"
-        ? input.api.request("GET", `repos/boburning/portcove/${effect.endpoint}`)
-        : {
-            status: 200,
-            body: inspectPublishedApplicationSource(
-              input.api,
-              { schema_version: 1, namespace: effect.namespace },
-              effect.subject,
-            ).source_baseline.commit,
-          };
-    step = sequence.next(response);
-  }
+  while (!step.done) step = sequence.next(read(step.value));
   return step.value;
 }
 
@@ -262,7 +275,7 @@ async function runSdkJourney<T>(read: ReadNativePredecessor, sequence: NativeJou
 
 export function deriveNativePublicationJourneys(input: NativePublicationJourneyInput) {
   return runLegacyJourney(
-    input,
+    createLegacyPredecessorReader(input.api),
     deriveNativePublicationJourneysWithRecords(input, readNativeCheckPredecessor),
   ).journeys;
 }
@@ -321,9 +334,10 @@ export async function deriveHostedNativePublicationJourneys(
     }
     return yield* readNativeCheckPredecessor(record);
   });
+  const legacyReader = createLegacyPredecessorReader(input.api);
   const prepared = readPredecessor
     ? await runSdkJourney(readPredecessor, sequence)
-    : runLegacyJourney(input, sequence);
+    : runLegacyJourney(legacyReader, sequence);
   active();
   if (!records.length) return prepared.journeys;
   if (records.length !== prepared.journeys.length || ![1, 2].includes(prepared.journeys.length))
@@ -346,7 +360,10 @@ export async function deriveHostedNativePublicationJourneys(
       : await collectOriginalNativeParentPredecessors(nativeParentReceipt, ...args);
   if (historical.evidence_scope !== "github.com")
     throw new Error("actual original native history required");
-  prepared.stable();
+  if (prepared.stable) {
+    if (readPredecessor) await runSdkJourney(readPredecessor, prepared.stable());
+    else runLegacyJourney(legacyReader, prepared.stable());
+  }
   active();
   return prepared.journeys.map((journey, index) => {
     if (!isRecord(journey)) throw new Error("historical native journey unavailable");
@@ -360,12 +377,11 @@ export async function deriveHostedNativePublicationJourneys(
 function* deriveNativePublicationJourneysWithRecords(
   input: NativePublicationJourneyInput,
   resolveRecord: (record: Record<string, unknown>) => NativeJourneyReads<unknown>,
-): NativeJourneyReads<{ journeys: unknown[]; stable: () => void }> {
+): NativeJourneyReads<{ journeys: unknown[]; stable?: () => NativeJourneyReads<void> }> {
   const {
     files,
     manifest,
     namespace,
-    api,
     platform_labels,
     public_pins: publicPins,
     signed_context_sha256: signedContext,
@@ -414,7 +430,7 @@ function* deriveNativePublicationJourneysWithRecords(
   )
     throw new Error("post-sign native prior differs from actual current published seed");
   let journeys: unknown[];
-  let stable = () => {};
+  let stable: (() => NativeJourneyReads<void>) | undefined;
   if (priorRecords.size === 0) {
     const controller = before.input.controller;
     if (
@@ -438,9 +454,10 @@ function* deriveNativePublicationJourneysWithRecords(
     });
     journeys = platform_labels.map(() => journey);
   } else {
-    const reader = createReleasePublicationReader(api),
-      releases = reader.releases(),
-      tags = reader.tags();
+    const releases = (yield { kind: "releases" }).body as ReturnType<
+      PublicationInventory["releases"]
+    >;
+    const tags = (yield { kind: "tags" }).body as ReturnType<PublicationInventory["tags"]>;
     const versions = [
       ...new Set(
         [...priorRecords.values()]
@@ -500,13 +517,16 @@ function* deriveNativePublicationJourneysWithRecords(
         signatures_sha256: binding.signatures_sha256,
       });
     }
-    stable = () => {
-      if (digest(reader.releases()) !== digest(releases) || digest(reader.tags()) !== digest(tags))
+    stable = function* () {
+      if (
+        digest((yield { kind: "releases" }).body) !== digest(releases) ||
+        digest((yield { kind: "tags" }).body) !== digest(tags)
+      )
         throw new Error("publication baseline changed during native attribution");
     };
-    stable();
+    yield* stable();
   }
-  return { journeys, stable };
+  return { journeys, ...(stable ? { stable } : {}) };
 }
 
 export async function createNativePredecessorReader(
@@ -518,6 +538,7 @@ export async function createNativePredecessorReader(
 ): Promise<ReadNativePredecessor> {
   const { createGitHubClient } = await import("./github-client.mts");
   let expected: string | undefined;
+  let inventory: Awaited<ReturnType<typeof createPublicationInventoryWithSdk>> | undefined;
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
     deadline,
@@ -534,6 +555,24 @@ export async function createNativePredecessorReader(
   });
   return async (effect) => {
     guard();
+    if (effect.kind === "releases" || effect.kind === "tags") {
+      inventory ??= await createPublicationInventoryWithSdk({
+        token,
+        deadline,
+        maxBytes: 1024 ** 2,
+        requestTimeoutMs: 15000,
+        async recheck() {
+          guard();
+        },
+        beforeDispatch() {
+          guard();
+          assertTrustedDirectNode("fixed native predecessor inventory");
+          chargeRead();
+        },
+        ...(fetch ? { fetch } : {}),
+      });
+      return { status: 200, body: await inventory[effect.kind]() };
+    }
     if (effect.kind === "source") {
       const proof = await inspectPublishedApplicationSourceWithSdk(
         {

@@ -878,6 +878,8 @@ for (const [file, tests] of [
       "scripts/acquire-release-admission.test.mts",
       "scripts/application-release-feed.test.mts",
       "scripts/application-release-run.test.mts",
+      "scripts/release-native-public-pair.test.mts",
+      "scripts/release-published-source.test.mts",
     ],
   ],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],

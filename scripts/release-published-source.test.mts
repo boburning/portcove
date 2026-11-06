@@ -400,13 +400,27 @@ void test("published source proof aborts a stalled metadata body at the tighter 
   assert.equal(cancelled, true);
 });
 
-void test("native predecessor shares its dispatch owner across source proof and Check routes", async (t) => {
+void test("native predecessor shares its dispatch owner across bracketing inventories, source proof and Check routes", async (t) => {
   const { createNativePredecessorReader } =
     await import("./release-native-publication-admission.mts");
   const f = await fixture(t);
   const routes: string[] = [];
   let charges = 0;
   let exhausted = false;
+  const release = {
+    id: f.publication.id,
+    tag_name: `v${f.publication.version}`,
+    draft: false,
+    prerelease: true,
+    published_at: "2026-11-04T00:00:00Z",
+    updated_at: "2026-11-04T00:00:00Z",
+  };
+  const tag = {
+    id: "R_tag",
+    name: release.tag_name,
+    prefix: "refs/tags/",
+    target: { __typename: "Commit", oid: f.publication.prepared_commit },
+  };
   const read = await createNativePredecessorReader(
     "inert-postsign-reader",
     performance.now() + 5000,
@@ -419,15 +433,39 @@ void test("native predecessor shares its dispatch owner across source proof and 
       const request = new Request(input, init);
       const url = new URL(request.url);
       assert.equal(url.origin, "https://api.github.com");
-      assert.equal(request.method, "GET");
       assert.equal(request.headers.get("authorization"), "token inert-postsign-reader");
       routes.push(url.pathname + url.search);
+      if (url.pathname === "/graphql") {
+        assert.equal(request.method, "POST");
+        return Response.json({
+          data: {
+            repository: {
+              id: "R_fixture",
+              databaseId: 1354613114,
+              nameWithOwner: "boburning/portcove",
+              refs: { totalCount: 1, nodes: [tag], pageInfo: { hasNextPage: false } },
+            },
+          },
+        });
+      }
+      assert.equal(request.method, "GET");
+      if (url.pathname === "/repos/boburning/portcove")
+        return Response.json({
+          id: 1354613114,
+          full_name: "boburning/portcove",
+          node_id: "R_fixture",
+        });
+      if (url.pathname === "/repos/boburning/portcove/releases") return Response.json([release]);
       if (url.pathname === "/repos/boburning/portcove/check-runs/44")
         return Response.json({ id: 44 });
       const result = f.api.request(request.method, url.pathname.slice(1) + url.search);
       return Response.json(result.body, { status: result.status });
     },
   );
+  const beforeReleases = await read({ kind: "releases" });
+  assert.deepEqual(beforeReleases, { status: 200, body: [release] });
+  const beforeTags = await read({ kind: "tags" });
+  assert.deepEqual(beforeTags, { status: 200, body: [tag] });
   assert.deepEqual(await read({ kind: "source", namespace: f.namespace, subject: f.publication }), {
     status: 200,
     body: f.source,
@@ -437,12 +475,16 @@ void test("native predecessor shares its dispatch owner across source proof and 
     status: 200,
     body: { id: 44 },
   });
+  assert.deepEqual(await read({ kind: "releases" }), beforeReleases);
+  assert.deepEqual(await read({ kind: "tags" }), beforeTags);
+  assert.equal(routes.filter((route) => route === "/repos/boburning/portcove").length, 1);
+  assert.deepEqual(routes.slice(-2), [
+    "/repos/boburning/portcove/releases?per_page=100",
+    "/graphql",
+  ]);
   assert.equal(charges, routes.length);
   const before = routes.length;
   exhausted = true;
-  await assert.rejects(
-    read({ kind: "metadata", endpoint: "check-runs/44" }),
-    /fixture shared predecessor budget exhausted/u,
-  );
+  await assert.rejects(read({ kind: "releases" }), /fixture shared predecessor budget exhausted/u);
   assert.equal(routes.length, before);
 });
