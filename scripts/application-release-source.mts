@@ -543,6 +543,14 @@ async function bootstrap() {
       isRecord(commit.tree) &&
       typeof commit.tree.sha === "string",
   );
+  assert.ok(process.env.RUNNER_TEMP);
+  const retained = await materializeInitialApplicationRehearsal(
+    await readApplicationJson(
+      "release/bootstrap-public-inputs/application/initial-site-preimage.json",
+    ),
+    expected.site_preimage_sha256,
+    path.resolve(process.env.RUNNER_TEMP),
+  );
   const registration = await registerApplicationReleaseRun(
     applicationApi,
     execution,
@@ -555,14 +563,6 @@ async function bootstrap() {
     registration.custody.preparation,
     null,
     "bootstrap cannot allocate an executable release",
-  );
-  assert.ok(process.env.RUNNER_TEMP);
-  const retained = await materializeInitialApplicationRehearsal(
-    await readApplicationJson(
-      "release/bootstrap-public-inputs/application/initial-site-preimage.json",
-    ),
-    expected.site_preimage_sha256,
-    path.resolve(process.env.RUNNER_TEMP),
   );
   await writeApplicationJson("work/application-source/source.json", {
     schema_version: 1,
