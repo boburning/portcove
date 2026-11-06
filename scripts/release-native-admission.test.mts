@@ -88,6 +88,7 @@ import {
   deriveNativePublicationJourneys,
   deriveNativePublicationJourneysWithSdk,
   deriveHostedNativePublicationJourneys,
+  createNativeCheckpointEvidenceReader,
   inspectNativeCompletionLineage,
   nativeCompletionUsesHistoricalLineage,
   inspectNativePublicationPredecessor,
@@ -1373,16 +1374,26 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     },
   };
   const schema2 = inspectPublicationAuthorities(locatorPins, 2);
+  const noRead = async () => assert.fail("initial lineage has no predecessor reads");
+  const noProof = { request: noRead, graphql: noRead };
   assert.deepEqual(
     await deriveHostedNativePublicationJourneys(
       { ...input, authority_schema_version: 4, public_pins: schema2 },
       os.tmpdir(),
       performance.now() + 60000,
+      noRead,
+      noProof,
     ),
     journeys,
   );
   await assert.rejects(
-    deriveHostedNativePublicationJourneys(input, os.tmpdir(), performance.now() + 60000),
+    deriveHostedNativePublicationJourneys(
+      input,
+      os.tmpdir(),
+      performance.now() + 60000,
+      noRead,
+      noProof,
+    ),
     /selected/,
   );
   await assert.rejects(
@@ -1390,6 +1401,8 @@ void test("shared data-only journey derivation binds exact prior inventory and r
       { ...input, authority_schema_version: 4, public_pins: schema2 },
       os.tmpdir(),
       performance.now() - 1,
+      noRead,
+      noProof,
     ),
     /deadline/,
   );
@@ -1424,4 +1437,53 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   files.set(`prior/targets/${recordSha}.releases/old.json`, record);
   assert.throws(() => deriveNativePublicationJourneys({ ...input, files }), /prior differs/);
   assert.equal(reads, 0);
+});
+
+void test("historical native proof uses exact one-attempt SDK reads and refuses partial GraphQL evidence", async () => {
+  const { checkpointEvidenceRefQuery } =
+    await import("./release-coordinator-checkpoint-evidence.mts");
+  const checkpoint = "a".repeat(40);
+  const calls: string[] = [];
+  let charged = 0;
+  const proof = await createNativeCheckpointEvidenceReader(
+    "inert-native-proof",
+    performance.now() + 5000,
+    () => {},
+    () => {
+      charged++;
+    },
+    async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-native-proof");
+      calls.push(`${request.method} ${url.pathname}`);
+      return url.pathname === "/graphql"
+        ? Response.json({ data: {}, errors: [{ message: "incomplete" }] })
+        : Response.json({ sha: checkpoint });
+    },
+  );
+  assert.deepEqual(
+    await proof.request("GET", `repos/boburning/portcove/git/commits/${checkpoint}`),
+    {
+      status: 200,
+      body: { sha: checkpoint },
+    },
+  );
+  await assert.rejects(
+    async () => proof.request("PATCH", `repos/boburning/portcove/git/commits/${checkpoint}`),
+    /exact Git object GET/u,
+  );
+  await assert.rejects(
+    async () =>
+      proof.graphql(checkpointEvidenceRefQuery, {
+        name: `refs/tags/portcove-fixture-checkpoint-proof/${checkpoint}`,
+      }),
+    { code: "graphql_error" },
+  );
+  assert.equal(charged, 2);
+  assert.deepEqual(calls, [
+    `GET /repos/boburning/portcove/git/commits/${checkpoint}`,
+    "POST /graphql",
+  ]);
 });

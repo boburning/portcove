@@ -13,7 +13,10 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
-import { coordinatorCheckpointUpdates } from "./release-coordinator-checkpoint-evidence.mts";
+import {
+  checkpointEvidenceRefQuery,
+  coordinatorCheckpointUpdates,
+} from "./release-coordinator-checkpoint-evidence.mts";
 import type { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
 import {
   coordinatorCommandDeadline,
@@ -376,8 +379,6 @@ export function createCheckpointHistoryReader(
   const transport = createJournalSdk(directory, journalCredential(token), deadline, remaining, {
     allowHistoricalJobRead: true,
   });
-  const proofQuery =
-    'query($name:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner ref(qualifiedName:$name){name prefix target{__typename oid}}}}';
   const headQuery =
     'query($state:String!,$intent:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner state:ref(qualifiedName:$state){name prefix target{__typename oid}} intent:ref(qualifiedName:$intent){name prefix target{__typename oid}}}}';
   const names = {
@@ -406,7 +407,7 @@ export function createCheckpointHistoryReader(
       if (
         !(
           (query === headQuery && isDeepStrictEqual(variables, names)) ||
-          (query === proofQuery &&
+          (query === checkpointEvidenceRefQuery &&
             isDeepStrictEqual(variables, {
               name: `refs/tags/${scope}-checkpoint-proof/${expected}`,
             }))

@@ -4,11 +4,13 @@ import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.m
  * not native acceptance. Only the existing current native consumer mints that
  * private qualification after all independently expected inputs match. */
 import { createHash } from "node:crypto";
-import { spawnSync, execFileSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import type { GitHubApiClient } from "./github-api.mts";
+import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
+import { checkpointEvidenceRefQuery } from "./release-coordinator-checkpoint-evidence.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
@@ -33,7 +35,10 @@ import {
   inspectTufPublicationFacts,
 } from "./release-metadata-contract.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { inspectCompactCapacityOperations } from "./release-capacity.mts";
 import {
   deriveNativeQualificationTemplates,
@@ -282,7 +287,7 @@ export function deriveNativePublicationJourneys(input: NativePublicationJourneyI
 }
 
 export async function deriveNativePublicationJourneysWithSdk(
-  input: NativePublicationJourneyInput,
+  input: Omit<NativePublicationJourneyInput, "api">,
   read: ReadNativePredecessor,
 ) {
   return (
@@ -298,11 +303,12 @@ export async function deriveNativePublicationJourneysWithSdk(
  * completed-history verification; exact same-run proof uses signed stage custody
  * without pretending that the original continuity job has finished. */
 export async function deriveHostedNativePublicationJourneys(
-  raw: NativePublicationJourneyInput,
+  raw: Omit<NativePublicationJourneyInput, "api">,
   parent: string,
   deadline: number,
+  readPredecessor: ReadNativePredecessor,
+  checkpointEvidence: CoordinatorCheckpointApi,
   nativeParentReceipt?: object,
-  readPredecessor?: ReadNativePredecessor,
 ) {
   if (raw.authority_schema_version !== 4) throw new Error("selected hosted native source required");
   const active = () => {
@@ -317,7 +323,6 @@ export async function deriveHostedNativePublicationJourneys(
     manifest: structuredClone(raw.manifest),
     platform_labels: [...raw.platform_labels],
     public_pins: structuredClone(raw.public_pins),
-    api: { request: raw.api.request.bind(raw.api), graphql: raw.api.graphql.bind(raw.api) },
     // Selected setup carries the same complete public preimage contract as v2;
     // the owning caller separately admits the actual full schema4 configuration.
     authority_schema_version: 2,
@@ -335,10 +340,7 @@ export async function deriveHostedNativePublicationJourneys(
     }
     return yield* readNativeCheckPredecessor(record);
   });
-  const legacyReader = createLegacyPredecessorReader(input.api);
-  const prepared = readPredecessor
-    ? await runSdkJourney(readPredecessor, sequence)
-    : runLegacyJourney(legacyReader, sequence);
+  const prepared = await runSdkJourney(readPredecessor, sequence);
   active();
   if (!records.length) return prepared.journeys;
   if (records.length !== prepared.journeys.length || ![1, 2].includes(prepared.journeys.length))
@@ -350,7 +352,7 @@ export async function deriveHostedNativePublicationJourneys(
     records,
     { schema_version: 1, namespace: input.namespace },
     deadline,
-    input.api,
+    checkpointEvidence,
     input.checkpointObjects === undefined
       ? undefined
       : { checkpointObjects: input.checkpointObjects },
@@ -361,10 +363,7 @@ export async function deriveHostedNativePublicationJourneys(
       : await collectOriginalNativeParentPredecessors(nativeParentReceipt, ...args);
   if (historical.evidence_scope !== "github.com")
     throw new Error("actual original native history required");
-  if (prepared.stable) {
-    if (readPredecessor) await runSdkJourney(readPredecessor, prepared.stable());
-    else runLegacyJourney(legacyReader, prepared.stable());
-  }
+  if (prepared.stable) await runSdkJourney(readPredecessor, prepared.stable());
   active();
   return prepared.journeys.map((journey, index) => {
     if (!isRecord(journey)) throw new Error("historical native journey unavailable");
@@ -376,7 +375,7 @@ export async function deriveHostedNativePublicationJourneys(
 }
 
 function* deriveNativePublicationJourneysWithRecords(
-  input: NativePublicationJourneyInput,
+  input: Omit<NativePublicationJourneyInput, "api">,
   resolveRecord: (record: Record<string, unknown>) => NativeJourneyReads<unknown>,
 ): NativeJourneyReads<{ journeys: unknown[]; stable?: () => NativeJourneyReads<void> }> {
   const {
@@ -534,8 +533,9 @@ export async function createNativePredecessorReader(
   token: string,
   deadline: number,
   guard: () => void,
-  chargeRead: () => void,
+  chargeRead: () => void = () => {},
   fetch?: typeof globalThis.fetch,
+  maxBytes = 1024 ** 2,
 ): Promise<ReadNativePredecessor> {
   const { createGitHubClient } = await import("./github-client.mts");
   let expected: string | undefined;
@@ -543,7 +543,7 @@ export async function createNativePredecessorReader(
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
     deadline,
-    maxBytes: 1024 ** 2,
+    maxBytes,
     requestTimeoutMs: 15000,
     allowRequest(method, url) {
       guard();
@@ -560,7 +560,7 @@ export async function createNativePredecessorReader(
       inventory ??= await createPublicationInventoryWithSdk({
         token,
         deadline,
-        maxBytes: 1024 ** 2,
+        maxBytes,
         requestTimeoutMs: 15000,
         async recheck() {
           guard();
@@ -579,7 +579,7 @@ export async function createNativePredecessorReader(
         {
           token,
           deadline,
-          maxBytes: 1024 ** 2,
+          maxBytes,
           requireDirect: true,
           guard,
           beforeDispatch: chargeRead,
@@ -599,6 +599,74 @@ export async function createNativePredecessorReader(
     });
     guard();
     return { status: response.status, body: response.data };
+  };
+}
+
+/** Exact historical proof reads share the predecessor dispatch owner. */
+export async function createNativeCheckpointEvidenceReader(
+  token: string,
+  deadline: number,
+  guard: () => void,
+  chargeRead: () => void = () => {},
+  fetch?: typeof globalThis.fetch,
+  maxBytes = 1024 ** 2,
+): Promise<CoordinatorCheckpointApi> {
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    maxBytes,
+    requestTimeoutMs: 15000,
+    allowRequest() {
+      guard();
+      assertTrustedDirectNode("fixed native checkpoint proof");
+      chargeRead();
+      return true;
+    },
+    ...(fetch ? { fetch } : {}),
+  });
+  const policy = () => ({
+    replay: "once" as const,
+    attempts: 0,
+    deadline: Math.min(deadline, coordinatorCommandDeadline() ?? Infinity),
+  });
+  return {
+    async request(method, endpoint, body) {
+      if (
+        method !== "GET" ||
+        body !== undefined ||
+        !/^repos\/boburning\/portcove\/git\/(?:commits|trees|blobs)\/[a-f0-9]{40}$/u.test(endpoint)
+      )
+        throw new Error("native checkpoint proof requires exact Git object GET");
+      const response = await client.request(`GET /${endpoint}`, {
+        request: { portcove: policy() },
+      });
+      guard();
+      return { status: response.status, body: response.data };
+    },
+    async graphql(query, variables) {
+      if (
+        query !== checkpointEvidenceRefQuery ||
+        Object.keys(variables).join(",") !== "name" ||
+        typeof variables.name !== "string" ||
+        !/^refs\/tags\/portcove-[a-z0-9-]+-checkpoint-proof\/[a-f0-9]{40}$/u.test(variables.name)
+      )
+        throw new Error("native checkpoint proof requires exact read-only ref query");
+      const response = await client.request("POST /graphql", {
+        query,
+        variables,
+        request: { portcove: policy() },
+      });
+      guard();
+      const envelope: unknown = response.data;
+      if (
+        response.status !== 200 ||
+        !isRecord(envelope) ||
+        ("errors" in envelope && (!Array.isArray(envelope.errors) || envelope.errors.length > 0))
+      )
+        throw new Error("native checkpoint proof ref response unavailable");
+      return { data: envelope.data };
+    },
   };
 }
 
@@ -796,31 +864,6 @@ async function collectNativePublicationPair(
       { flag: "wx", mode: 0o600 },
     );
     const token = process.env.GH_TOKEN;
-    const runner = createGitHubRunner({
-      cwd: directory,
-      timeoutMs: 15000,
-      maxBuffer: 1024 * 1024,
-      spawn: (command, args, settings) =>
-        spawnSync(command, args, {
-          ...settings,
-          timeout: remaining(),
-          env: {
-            PATH: process.env.PATH,
-            SystemRoot: process.env.SystemRoot,
-            GH_TOKEN: token,
-            GH_HOST: "github.com",
-            HOME: directory,
-            USERPROFILE: directory,
-            GH_CONFIG_DIR: directory,
-          },
-        }),
-    });
-    const client = new GitHubApiClient((args, input) => {
-      remaining();
-      const result = runner([...args, "--hostname", "github.com"], input);
-      remaining();
-      return result;
-    });
     let reads = 0;
     const chargeRead = (message = "post-sign native read budget exhausted") => {
       if (++reads > 160) throw new Error(message);
@@ -840,22 +883,6 @@ async function collectNativePublicationPair(
         chargeRead,
         afterRead: remaining,
       });
-    const api = {
-      request: (method: string, endpoint: string, body?: unknown) => {
-        if (method !== "GET" || body != null)
-          throw new Error("post-sign native source is bounded GET only");
-        chargeRead("post-sign native source is bounded GET only");
-        const result = client.request(method, endpoint);
-        remaining();
-        return result;
-      },
-      graphql: (query: string, variables: Readonly<Record<string, unknown>>) => {
-        chargeRead();
-        const result = client.graphql(query, variables);
-        remaining();
-        return result;
-      },
-    };
     phase = "independent-native-journey";
     let journeyInput = before.input;
     if (
@@ -926,15 +953,19 @@ async function collectNativePublicationPair(
       public_pins: publicPins,
       authority_schema_version: authorities.schema_version,
       checkpointObjects,
-      api,
     };
     const journeys = selectedHosted
       ? await deriveHostedNativePublicationJourneys(
           journeyArguments,
           directory,
           hostedDeadline,
-          undefined,
           readPredecessor,
+          await createNativeCheckpointEvidenceReader(
+            token ?? "",
+            hostedDeadline,
+            remaining,
+            chargeRead,
+          ),
         )
       : await deriveNativePublicationJourneysWithSdk(journeyArguments, readPredecessor);
     const templates = selectedHosted

@@ -49,7 +49,11 @@ import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
-import { deriveHostedNativePublicationJourneys } from "./release-native-publication-admission.mts";
+import {
+  createNativeCheckpointEvidenceReader,
+  createNativePredecessorReader,
+  deriveHostedNativePublicationJourneys,
+} from "./release-native-publication-admission.mts";
 import { inspectSelectedPublicationAuthorityConfiguration } from "./release-authority-configuration.mts";
 
 import { retainNativeSourceDeclarations } from "./release-native-source-provider.mts";
@@ -256,12 +260,36 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
       },
     };
   };
+  const predecessorReaders = async (phaseDeadline: number) => {
+    const cutoff = Math.min(phaseDeadline, performance.now() + remaining(120000));
+    const guard = () => {
+      remaining(1);
+    };
+    const read = await createNativePredecessorReader(
+      credential.token,
+      cutoff,
+      guard,
+      undefined,
+      directFetch,
+      2 * 1024 ** 2,
+    );
+    const proof = await createNativeCheckpointEvidenceReader(
+      credential.token,
+      cutoff,
+      guard,
+      undefined,
+      directFetch,
+      2 * 1024 ** 2,
+    );
+    return { read, proof };
+  };
   return {
     parent,
     deadline,
     remaining,
     api,
     collectEvidence,
+    predecessorReaders,
     download,
     readPostSignMetadata,
     downloadPostSignArchive,
@@ -824,8 +852,9 @@ export async function readActualHostedNativePostSignJourney(inputsReceipt: objec
         throw new Error("original signed repository digest absent");
       const signedContextSha256 = inputs.publication.repository_sha256;
       const platforms = nativePlatformsForReleaseProfile(applicationReleaseProfile(configuration));
-      const journeys = await withCoordinatorDeadline(deadline, () =>
-        deriveHostedNativePublicationJourneys(
+      const journeys = await withCoordinatorDeadline(deadline, async () => {
+        const { read, proof } = await original.source.predecessorReaders(deadline);
+        return deriveHostedNativePublicationJourneys(
           {
             files,
             coordinator_input: current.input,
@@ -836,13 +865,14 @@ export async function readActualHostedNativePostSignJourney(inputsReceipt: objec
             public_pins: configuration.publication,
             authority_schema_version: configuration.schema_version,
             checkpointObjects: original.source.checkpointObjects,
-            api: original.source.api,
           },
           directory,
           deadline,
+          read,
+          proof,
           original.parent,
-        ),
-      );
+        );
+      });
       active();
       if (journeys.length !== platforms.length)
         throw new Error("complete hosted journey platform pair required");
