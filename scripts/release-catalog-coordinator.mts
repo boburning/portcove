@@ -19,6 +19,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
@@ -52,7 +54,7 @@ import {
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import {
   materializeCatalogPublicationSource,
-  readCatalogPublicationSourceBytes,
+  readCatalogPublicationSourceBytesAsync,
 } from "./release-catalog-source.mts";
 import {
   inspectActualCatalogPublication,
@@ -331,8 +333,18 @@ export async function runFixedCatalogCoordinatorConfiguration(
       };
       const sourceCommit = pending?.opportunity.source_commit ?? mainHead();
       stage = "fixed-inert-source-and-Core";
+      const sourceProvider = await createReleaseCustodyProvider({
+        token: readerToken,
+        deadline,
+        maxBytes: 16 * 1024 ** 2,
+        afterRead: check,
+        fetch(input, init) {
+          assertTrustedDirectNode("fixed catalog authoring source");
+          return globalThis.fetch(input, init);
+        },
+      });
       const source = await materializeCatalogPublicationSource(
-        api,
+        sourceProvider,
         sourceCommit,
         directory,
         deadline,
@@ -345,7 +357,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         );
       const published = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
       if (!pending && published) {
-        const previous = readCatalogPublicationSourceBytes(api, published.source_commit, deadline);
+        const previous = await readCatalogPublicationSourceBytesAsync(
+          sourceProvider,
+          published.source_commit,
+          deadline,
+        );
         if (!previous.request || previous.source.tree !== published.source_tree)
           return held(
             directory,
@@ -377,11 +393,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         inspection.inspection,
         files,
       );
-      const pins = authorities.catalog.public_source,
-        initialRaw = api.request("GET", `${repository}/git/commits/${pins.commit}`);
-      if (initialRaw.status !== 200)
-        throw new Error("appointed initial catalog source unavailable");
-      const initialCommit = inspectRemoteCommitObject(initialRaw.body, pins.commit),
+      const pins = authorities.catalog.public_source;
+      const initialCommit = inspectRemoteCommitObject(
+          await sourceProvider.commit(pins.commit),
+          pins.commit,
+        ),
         initial = { commit: pins.commit, tree: initialCommit.tree, root_sha256: pins.root.sha256 },
         initialization = inspectCatalogInitialization(input.catalog_initialization),
         seed = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
