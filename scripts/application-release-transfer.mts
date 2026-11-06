@@ -109,7 +109,7 @@ async function receivePackageArchive(
     const archive = await readBoundedPublicBuildInputFile(scratch, archiveName, identity.bytes);
     assert.equal(archive.length, identity.bytes);
     assert.equal(createHash("sha256").update(archive).digest("hex"), identity.sha256);
-    if (performance.now() >= inherited) throw new Error("application package deadline exhausted");
+    if (performance.now() >= deadline) throw new Error("application package deadline exhausted");
     await extractApplicationPackageArchive(archive, directory, expected.version, phase);
   } finally {
     await rm(scratch, { recursive: true, force: true });

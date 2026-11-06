@@ -2182,6 +2182,19 @@ void test("production controller admission source and workflow retain their requ
   }
 });
 
+void test("locked SDK and provider changes select the fixed application package acquisition", () => {
+  for (const file of [
+    "package.json",
+    "pnpm-lock.yaml",
+    "scripts/github-client.mts",
+    "scripts/github-artifact-download.mts",
+    "scripts/release-custody-provider.mts",
+  ]) {
+    const { selection } = planFor([file]);
+    assert.ok(selection.nodeTests.has("scripts/application-release-artifacts.test.mts"), file);
+  }
+});
+
 void test("Windows application release workflow and fixed owner changes select their ordinary contracts", () => {
   for (const file of [
     ".github/workflows/application-release.yml",
