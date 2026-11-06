@@ -1195,7 +1195,7 @@ export function capacityRecoveryJobReader(value: { deadline?: number }) {
   };
 }
 
-type RecoveryMutationControls = (() => void) | { readCurrent: () => Promise<void> };
+export type RecoveryMutationControls = (() => void) | { readCurrent: () => Promise<void> };
 
 /** GET-only recovery remains independent. Explicit SDK control reads must be
  * awaited immediately before the corresponding journal write. */

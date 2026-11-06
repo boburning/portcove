@@ -1565,3 +1565,57 @@ void test("actual Pages recovery awaits the same SDK controls at its journal fen
   assert.equal(result.checkpoint, "read-back");
   assert.deepEqual(calls, ["sdk", "sdk", "sdk"]);
 });
+
+void test("coordinator journal rechecks its cutoff after the awaited SDK mutation controls", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function guardedCoordinatorJournal(");
+  const end = source.indexOf("/** Provider inventory facts only", start);
+  assert.ok(start > 0 && end > start);
+  const calls: string[] = [];
+  const bind = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "; guardedCoordinatorJournal;",
+    {
+      createCoordinatorJournalApi: () => ({
+        async request(method: string) {
+          calls.push(method);
+        },
+        async graphql() {
+          calls.push("CAS");
+        },
+      }),
+    },
+  ) as (
+    directory: string,
+    budget: object,
+    controls: { readCurrent: () => Promise<void> },
+  ) => { request(method: string): Promise<void>; graphql(query: string): Promise<void> };
+  const ready = Promise.withResolvers<void>();
+  let expired = false;
+  const journal = bind(
+    "/inert",
+    {
+      monotonicDeadline: 100,
+      check() {
+        if (expired) throw new Error("original cutoff expired");
+      },
+    },
+    {
+      async readCurrent() {
+        calls.push("controls");
+        await ready.promise;
+      },
+    },
+  );
+  const pending = journal.request("POST");
+  assert.deepEqual(calls, ["controls"]);
+  expired = true;
+  ready.resolve();
+  await assert.rejects(pending, /original cutoff expired/u);
+  assert.deepEqual(calls, ["controls"]);
+  expired = false;
+  await journal.graphql("mutation { exactCAS }");
+  assert.deepEqual(calls, ["controls", "controls", "CAS"]);
+});
