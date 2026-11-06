@@ -1457,20 +1457,20 @@ async function performAdmissionHandshake(
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
+  const diagnosticControls =
+    !onAdmitted && !building && (phase === "admission" || phase === "payload");
   const controlReader = building
     ? "admitted-aggregate"
     : publicationCompletion
       ? "publication-application"
-      : phase === "payload" && onAdmitted && compiler && establishNative && deadline !== undefined
+      : phase === "payload" &&
+          (diagnosticControls ||
+            (onAdmitted && compiler && establishNative && deadline !== undefined))
         ? "payload"
-        : phase === "admission" && !onAdmitted
+        : diagnosticControls
           ? "diagnostic-admission"
           : undefined;
-  if (
-    controlReader !== undefined &&
-    controlReader !== "diagnostic-admission" &&
-    deadline === undefined
-  )
+  if (controlReader !== undefined && !diagnosticControls && deadline === undefined)
     throw new Error("fixed admission controls require the original deadline");
   const workflow = await readProductionControllerWorkflowBytes();
   const reader = await authenticateControlReaderJob(env, workflow, {
@@ -1527,7 +1527,7 @@ async function performAdmissionHandshake(
         ...(controlReader === undefined ? {} : { controlReader }),
         ...(deadline !== undefined
           ? { deadline }
-          : controlReader === "diagnostic-admission"
+          : diagnosticControls
             ? { deadline: performance.now() + 120000 }
             : {}),
       });
