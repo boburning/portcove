@@ -1053,6 +1053,53 @@ void test("prior ambiguous dispatch requires exact readback before a later POST;
   );
   assert.equal(skipped.records[0]!.phase, "prior-wake-no-dispatch-observed");
 });
+void test("prior provider-skipped workflow and fixed job establish no dispatch without steps", async () => {
+  for (const [runConclusion, jobConclusion, provedAbsent] of [
+    ["skipped", "skipped", true],
+    ["failure", "skipped", false],
+    ["skipped", "failure", false],
+  ] as const) {
+    const f = fixture();
+    f.priorFailure();
+    const runs = f.api.runs;
+    f.api.runs = async (...args) => {
+      const result = await runs(...args);
+      assert.ok(isRecord(result) && Array.isArray(result.workflow_runs));
+      const rows: unknown[] = result.workflow_runs;
+      return {
+        ...result,
+        workflow_runs: rows.map((run) =>
+          isRecord(run) && run.id === 41 ? { ...run, conclusion: runConclusion } : run,
+        ),
+      };
+    };
+    const jobs = f.api.jobs;
+    f.api.jobs = async (id) => {
+      const result = await jobs(id);
+      if (id !== "41") return result;
+      assert.ok(isRecord(result) && Array.isArray(result.jobs));
+      const rows: unknown[] = result.jobs;
+      const job = rows[0];
+      assert.ok(isRecord(job));
+      return { ...result, jobs: [{ ...job, conclusion: jobConclusion, steps: [] }] };
+    };
+    const result = reconcilePreviousWakes(
+      inspectControllerWakeConfiguration(f.config),
+      f.env,
+      f.api,
+      f.record,
+    );
+    if (provedAbsent) {
+      await result;
+      assert.equal(f.records[0]!.phase, "prior-wake-no-dispatch-observed");
+    } else {
+      await assert.rejects(result, /prior wake dispatch step identity unavailable/u);
+      assert.deepEqual(f.records, []);
+    }
+    assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+  }
+});
+
 void test("invalid and expired wake deadline refuses before collection", async () => {
   for (const deadline of [NaN, -1]) {
     const f = fixture();

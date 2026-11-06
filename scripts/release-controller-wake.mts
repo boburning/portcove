@@ -505,6 +505,15 @@ export async function reconcilePreviousWakes(
         !Array.isArray(jobs.jobs[0].steps)
       )
         throw new Error("prior wake fixed job readback unavailable");
+      if (run.conclusion === "skipped" || jobs.jobs[0].conclusion === "skipped") {
+        if (
+          run.conclusion === "skipped" &&
+          jobs.jobs[0].conclusion === "skipped" &&
+          jobs.jobs[0].steps.length === 0
+        )
+          return null;
+        throw new Error("prior wake dispatch step identity unavailable");
+      }
       const steps = jobs.jobs[0].steps.filter(
         (step: unknown) =>
           isRecord(step) && step.name === "Dispatch retained immutable controller intent",
@@ -513,7 +522,17 @@ export async function reconcilePreviousWakes(
         throw new Error("prior wake dispatch step identity unavailable");
       return steps[0];
     };
-    const nativeStep = config.schema_version === 5 ? await readDispatchStep() : undefined;
+    const nativeStep =
+      config.schema_version === 5 || run.conclusion === "skipped"
+        ? await readDispatchStep()
+        : undefined;
+    if (nativeStep === null) {
+      await record("prior-wake-no-dispatch-observed", {
+        wake_run_id: run.id,
+        scope: "provider skipped the fixed job before any step ran",
+      });
+      continue;
+    }
     if (nativeStep?.conclusion === "skipped" && run.conclusion === "success") {
       await record("prior-wake-boundary-observed", {
         wake_run_id: run.id,
@@ -586,7 +605,7 @@ export async function reconcilePreviousWakes(
       return;
     }
     const step = nativeStep ?? (await readDispatchStep());
-    if (step.conclusion === "skipped") {
+    if (step?.conclusion === "skipped") {
       await record("prior-wake-no-dispatch-observed", {
         wake_run_id: run.id,
         provider_step: step,
