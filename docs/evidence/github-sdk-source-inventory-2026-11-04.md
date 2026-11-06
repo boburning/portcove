@@ -69,6 +69,11 @@ is held and its current external closure admits only the pinned YAML dependency.
 The held reviewed-input and pre-tool launcher contracts remain part of the
 retirement inventory. The standalone reviewed-input `read` mode had no maintained
 caller and is retired.
+On main, the obsolete Actions archive branch of `github-binary.mts` has been
+removed. The module still supplies exact release-asset readback for rehearsal
+publication and recovery. The protected r5 ref retains its original archive
+reader and remains in the retirement inventory.
+
 The maintained-source guard checks recognized CLI API patterns and caps the
 number of legacy references in each recorded source file. The listed legacy
 users remain migration work.

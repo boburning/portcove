@@ -2693,9 +2693,17 @@ for (const file of ["package.json", "pnpm-lock.yaml", "scripts/github-client.mts
     "scripts/roadmap-publish.test.mts",
   ]);
 
+explicitNodeTests.set("scripts/github-binary.mts", [
+  "scripts/github-client.test.mts",
+  "scripts/release-admitted-aggregate-controller.test.mts",
+  "scripts/release-artifact-archive.test.mts",
+  "scripts/release-publication-inputs.test.mts",
+]);
+
 for (const file of [
   "package.json",
   "pnpm-lock.yaml",
+  "scripts/github-binary.mts",
   "scripts/github-client.mts",
   "scripts/release-custody-provider.mts",
   "scripts/upstream-release-transfer.mts",
