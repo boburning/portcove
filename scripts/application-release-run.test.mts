@@ -66,7 +66,13 @@ function fixture(mode = "valid") {
       assert.ok(value);
       if (method === "PATCH") {
         assert.ok(isRecord(body));
-        assert.deepEqual(Object.keys(body), ["body"]);
+        if ("tag_name" in body) {
+          assert.deepEqual(Object.keys(body).sort(), ["body", "tag_name", "target_commitish"]);
+          assert.equal(body.tag_name, value.tag_name);
+          assert.equal(body.target_commitish, value.target_commitish);
+        } else {
+          assert.deepEqual(Object.keys(body), ["body"]);
+        }
         mutations.push({ method, body: structuredClone(body) });
         if (mode !== "patch-refused") value.body = body.body;
         if (mode === "patch-clock")
@@ -96,8 +102,15 @@ function fixture(mode = "valid") {
     async createDraft(body: Record<string, unknown>) {
       return api.request("POST", "repos/boburning/portcove/releases", body);
     },
-    async appendNotes(id: number, body: string) {
-      return api.request("PATCH", `repos/boburning/portcove/releases/${id}`, { body });
+    async appendNotes(
+      id: number,
+      body: string,
+      draftIdentity?: { tag_name: string; target_commitish: string },
+    ) {
+      return api.request("PATCH", `repos/boburning/portcove/releases/${id}`, {
+        body,
+        ...draftIdentity,
+      });
     },
   };
   const readRelease = async (id: number) => (await registration.release(id)).body;
@@ -155,6 +168,7 @@ void test("bootstrap successor retains the appointed empty draft and its origina
     "drift",
     "missing-inventory",
     "inventory-drift",
+    "inventory-tag-drift",
   ] as const) {
     const f = fixture();
     const first = await registerApplicationReleaseRun(
@@ -174,6 +188,9 @@ void test("bootstrap successor retains the appointed empty draft and its origina
     };
     if (fault === "notes") draft.body = String(draft.body) + "changed";
     if (fault === "missing-inventory") f.registration.releaseNotes = async () => [];
+    if (fault === "inventory-tag-drift") {
+      f.registration.releaseNotes = async () => [{ ...draft, tag_name: "untagged-fixture" }];
+    }
     if (fault === "inventory-drift") {
       f.registration.releaseNotes = async () => {
         const original = String(draft.body);
@@ -213,6 +230,8 @@ void test("bootstrap successor retains the appointed empty draft and its origina
       assert.equal(resumed.release_id, first.release_id);
       assert.equal(resumed.custody.source, source);
       assert.equal(resumed.custody.source_tree, tree);
+      assert.equal(f.mutations[1]?.body.tag_name, `portcove-production-candidate-${opportunity}`);
+      assert.equal(f.mutations[1]?.body.target_commitish, source);
       assert.equal(draft.target_commitish, source);
       assert.deepEqual(resumed.custody.runs, [
         ...first.custody.runs,

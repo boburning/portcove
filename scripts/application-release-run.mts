@@ -534,7 +534,11 @@ type ApplicationRunRegistrationProvider = {
   releaseNotes: () => Promise<Record<string, unknown>[]>;
   release: (id: number) => Promise<RegistrationResponse>;
   createDraft: (body: Record<string, unknown>) => Promise<RegistrationResponse>;
-  appendNotes: (id: number, body: string) => Promise<RegistrationResponse>;
+  appendNotes: (
+    id: number,
+    body: string,
+    draftIdentity?: { tag_name: string; target_commitish: string },
+  ) => Promise<RegistrationResponse>;
 };
 
 export async function createApplicationRunRegistrationProvider(): Promise<ApplicationRunRegistrationProvider> {
@@ -573,7 +577,8 @@ export async function createApplicationRunRegistrationProvider(): Promise<Applic
     releaseNotes: () => readReleaseNotesWithSdk({ token, deadline, guard }),
     release: (id) => request(`GET ${exactRelease(id)}`),
     createDraft: (body) => request(`POST /${prefix}/releases`, body),
-    appendNotes: (id, body) => request(`PATCH ${exactRelease(id)}`, { body }),
+    appendNotes: (id, body, draftIdentity) =>
+      request(`PATCH ${exactRelease(id)}`, { body, ...draftIdentity }),
   };
 }
 
@@ -714,6 +719,7 @@ export async function registerApplicationReleaseRun(
     assert.ok(
       existing &&
         existing.id === emptyBootstrapDraft.release_id &&
+        existing.tag_name === candidateTag &&
         typeof existing.body === "string",
     );
     assert.equal(
@@ -795,7 +801,13 @@ export async function registerApplicationReleaseRun(
     try {
       const response = await request(() =>
         existing
-          ? provider.appendNotes(Number(existing.id), body)
+          ? provider.appendNotes(
+              Number(existing.id),
+              body,
+              emptyBootstrapDraft
+                ? { tag_name: candidateTag, target_commitish: source }
+                : undefined,
+            )
           : provider.createDraft({
               tag_name: candidateTag,
               target_commitish: source,
