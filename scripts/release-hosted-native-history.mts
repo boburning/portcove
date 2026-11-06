@@ -12,7 +12,7 @@ import type {
   CatalogAnchorMetadataProvider,
   HistoricalJobProvider,
 } from "./release-custody-provider.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import { hydrateRetainedCoordinatorCheckpointExport } from "./release-coordinator-recovery.mts";
 import { readCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
 import {
@@ -201,7 +201,7 @@ type PredecessorArguments = [
   rawRecords: readonly unknown[],
   rawConfiguration: unknown,
   deadline: number,
-  api: CoordinatorRemoteApi,
+  api: CoordinatorCheckpointApi,
   options?: {
     checkpointObjects?: (deadline: number) => Promise<CatalogAnchorMetadataProvider>;
     checkpoint?: Parameters<typeof authenticateCoordinatorCheckpointEvidence>[6];
@@ -261,7 +261,7 @@ async function collectHostedNativePredecessors(
   rawRecords: readonly unknown[],
   rawConfiguration: unknown,
   deadline: number,
-  api: CoordinatorRemoteApi,
+  api: CoordinatorCheckpointApi,
   options: {
     checkpointObjects?: (deadline: number) => Promise<CatalogAnchorMetadataProvider>;
     checkpoint?: Parameters<typeof authenticateCoordinatorCheckpointEvidence>[6];
@@ -330,7 +330,7 @@ async function collectHostedNativePredecessors(
               }
             : {}),
         };
-  const provider: CoordinatorRemoteApi = {
+  const provider: CoordinatorCheckpointApi = {
     request: api.request.bind(api),
     graphql: api.graphql.bind(api),
   };

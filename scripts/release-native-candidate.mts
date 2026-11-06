@@ -67,7 +67,10 @@ import {
   prepareNativeQualificationCheck,
   collectNativeReleaseQualification,
 } from "./release-native-acceptance.mts";
-import { deriveNativePublicationJourneys } from "./release-native-publication-admission.mts";
+import {
+  createNativePredecessorReader,
+  deriveNativePublicationJourneysWithSdk,
+} from "./release-native-publication-admission.mts";
 import { inspectNativeQualificationCandidate } from "./release-native-qualification-contract.mts";
 import { nativeQualificationCheckName } from "./release-native-qualification-contract.mts";
 
@@ -667,6 +670,55 @@ async function sourceTransport(parent: Parent, directory: string) {
         { credential, deadline, fetch: fixedFetch, recheck },
         assertUnchanged,
       ),
+    async readPublicationJourneys(
+      input: Parameters<typeof deriveNativePublicationJourneysWithSdk>[0],
+    ) {
+      await recheck();
+      const deadline = Math.min(
+        coordinatorCommandDeadline() ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      );
+      const predecessor = await createNativePredecessorReader(
+        token,
+        deadline,
+        checkToolIdentity,
+        undefined,
+        fixedFetch,
+        2 * 1024 ** 2,
+      );
+      const journeys = await deriveNativePublicationJourneysWithSdk(input, predecessor);
+      await recheck();
+      return journeys;
+    },
+    async checkpointObjects() {
+      const deadline = Math.min(
+        coordinatorCommandDeadline() ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      );
+      const scoped = (maxBytes: number) =>
+        createReleaseCustodyProvider({
+          token,
+          deadline,
+          maxBytes,
+          fetch: fixedFetch,
+          afterRead: checkToolIdentity,
+        });
+      const objects = await scoped(2 * 1024 ** 2);
+      let blobs: ReturnType<typeof scoped> | undefined;
+      return {
+        commit: (sha: string) => objects.commit(sha),
+        tree: (sha: string, recursive?: boolean) => objects.tree(sha, recursive),
+        async blob(sha: string) {
+          blobs ??= scoped(8 * 1024 ** 2);
+          return (await blobs).blob(sha);
+        },
+      };
+    },
+    readCheckMetadata: (route: string) =>
+      readPostSignMetadata(
+        `/repos/boburning/portcove/${route}`,
+        performance.now() + remainingNativeParentBudget(),
+      ),
     readPostSignInventory,
     readPostSignArtifact,
     downloadPostSignArchive,
@@ -744,7 +796,7 @@ const selections = new WeakMap<
     recovery: ReturnType<typeof nativeInvocationIdentity>["counters"];
     recover: Awaited<ReturnType<typeof sourceTransport>>["recover"];
     recheckSource: Awaited<ReturnType<typeof sourceTransport>>["recheck"];
-    api: GitHubApiClient;
+    readCheckMetadata: Awaited<ReturnType<typeof sourceTransport>>["readCheckMetadata"];
     declarations: Awaited<ReturnType<typeof sourceTransport>>["declarations"];
   }
 >();
@@ -842,10 +894,12 @@ export async function readActualNativePostSignController(parentReceipt: object) 
           `github-actions:boburning/portcove:${String(candidate.version)}:tuf-timestamp-envelope`,
         ),
   );
+  let checkpointObjects: Awaited<ReturnType<typeof source.checkpointObjects>> | undefined;
   for (const group of groups) {
     for (const proof of group.attempts) {
+      checkpointObjects ??= await source.checkpointObjects();
       const operation = await hydrateRetainedCoordinatorOperation(before.repository, proof, {
-        api: source.api,
+        provider: checkpointObjects,
       });
       raws.push({ checkpoint: proof.checkpoint, operation });
     }
@@ -1327,7 +1381,7 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
   if (digest(fileInventory) !== digest(manifest.files))
     throw new Error("native context files changed after authenticated keyless assembly");
-  const journeys = deriveNativePublicationJourneys({
+  const journeys = await original.source.readPublicationJourneys({
     files,
     coordinator_input: current.input,
     manifest,
@@ -1336,7 +1390,6 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     platform_labels: [selected.parent.descriptor.platform_label],
     public_pins: inspectPublicationAuthorities(authorities.publication, authorities.schema_version),
     authority_schema_version: authorities.schema_version,
-    api: original.source.api,
   });
   const journey = journeys[0];
   let predecessorRecord: Record<string, unknown> | null = null;
@@ -2020,7 +2073,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
       if (digest(inventory) !== verified.publication.repository_sha256)
         throw new Error("native signed repository changed after package selection");
     },
-    api: original.source.api,
+    readCheckMetadata: original.source.readCheckMetadata,
     declarations: original.source.declarations,
   });
   await requireActualNativeCandidate(receipt);
@@ -2231,7 +2284,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
     recovery: invocation.counters,
     recover: source.recover,
     recheckSource: source.recheck,
-    api: source.api,
+    readCheckMetadata: source.readCheckMetadata,
     declarations: source.declarations,
   });
   packages.clear();
@@ -2316,21 +2369,20 @@ export async function reconcileActualNativeCheck(
     value.parent.authority_configuration,
   );
   const { report } = plan.wire;
-  const endpoint = `repos/boburning/portcove/commits/${report.candidate.source_commit}/check-runs?check_name=${encodeURIComponent(nativeQualificationCheckName)}&filter=all&per_page=100`;
-  const response = retained.api.request("GET", endpoint);
+  const endpoint = `commits/${report.candidate.source_commit}/check-runs?check_name=${encodeURIComponent(nativeQualificationCheckName)}&filter=all&per_page=100`;
+  const response = await retained.readCheckMetadata(endpoint);
   if (
-    response.status !== 200 ||
-    !isRecord(response.body) ||
-    !Number.isSafeInteger(response.body.total_count) ||
-    typeof response.body.total_count !== "number" ||
-    response.body.total_count < 0 ||
-    response.body.total_count > 100 ||
-    !Array.isArray(response.body.check_runs) ||
-    response.body.check_runs.length !== response.body.total_count
+    !isRecord(response) ||
+    !Number.isSafeInteger(response.total_count) ||
+    typeof response.total_count !== "number" ||
+    response.total_count < 0 ||
+    response.total_count > 100 ||
+    !Array.isArray(response.check_runs) ||
+    response.check_runs.length !== response.total_count
   )
     throw new Error("native Check readback inventory is incomplete; preserve original attempt");
   const issuer = value.parent.authority_configuration.apps.native_qualification.app_id;
-  const matches = response.body.check_runs.filter(
+  const matches = response.check_runs.filter(
     (raw: unknown) =>
       isRecord(raw) &&
       isRecord(raw.app) &&
@@ -2366,7 +2418,7 @@ export async function reconcileActualNativeCheck(
       compatibility: fixed.compatibility,
       journey: plan.prepared.request.journey,
     },
-    { api: retained.api },
+    { read: retained.readCheckMetadata },
   );
   await retained.recheckSource();
   return Object.freeze({

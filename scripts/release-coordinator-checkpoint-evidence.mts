@@ -278,6 +278,9 @@ export function inspectCoordinatorCheckpointEvidence(
   };
 }
 
+export const checkpointEvidenceRefQuery =
+  'query($name:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner ref(qualifiedName:$name){name prefix target{__typename oid}}}}';
+
 /** Read the exact retained proof, including a second matching ref observation.
  * No history traversal, artifact retention dependency, default credentials or
  * signature authority. The caller passes an independently selected checkpoint
@@ -303,10 +306,7 @@ export async function readCoordinatorCheckpointEvidence(
   const snapshot = async () => {
     active();
     requests++;
-    const response = await api.graphql(
-      'query($name:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner ref(qualifiedName:$name){name prefix target{__typename oid}}}}',
-      { name },
-    );
+    const response = await api.graphql(checkpointEvidenceRefQuery, { name });
     active();
     const repository = isRecord(response.data) ? response.data.repository : null;
     const ref = isRecord(repository) ? repository.ref : null;
