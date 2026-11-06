@@ -909,6 +909,11 @@ async function controlSdkReader(
   };
 }
 
+export async function readPublicationPauseWithSdk(options: ControlSdkOptions) {
+  const run = await controlSdkReader(options);
+  return run(publicationPause());
+}
+
 export async function readMaintenanceControlsWithSdk(
   options: ControlSdkOptions,
   reserve?: ReturnType<typeof createFixedControlReadAllowance>,

@@ -193,6 +193,8 @@ export async function readIndependentSemanticCheckInventoryWithSdk(
     checkToken?: string;
     deadline: number;
     guard: () => void;
+    maxBytes?: number;
+    requestTimeoutMs?: number;
     fetch?: typeof globalThis.fetch;
   },
   configuration: unknown,
@@ -210,7 +212,10 @@ export async function readIndependentSemanticCheckInventoryWithSdk(
     createGitHubClient({
       credential: { kind: "explicit", token },
       deadline,
-      maxBytes: 2 * 1024 * 1024,
+      maxBytes: options.maxBytes ?? 2 * 1024 ** 2,
+      ...(options.requestTimeoutMs === undefined
+        ? {}
+        : { requestTimeoutMs: options.requestTimeoutMs }),
       allowRequest(method, url) {
         options.guard();
         return method === "GET" && url.href === expectedUrl;

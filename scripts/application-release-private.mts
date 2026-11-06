@@ -25,10 +25,10 @@ import {
   verifyApplicationReleaseTrust,
 } from "./application-release-policy.mts";
 import { readApplicationJobBudget } from "./application-release-budget.mts";
-import { readPublicationPause } from "./release-control-inputs.mts";
+import { readPublicationPauseWithSdk } from "./release-control-inputs.mts";
 import { semanticReviewCheckName } from "./release-control-phases.mts";
 import {
-  readIndependentSemanticCheckInventory,
+  readIndependentSemanticCheckInventoryWithSdk,
   selectLatestApplicationSemanticCheck,
 } from "./release-semantic-disposition-reader.mts";
 import {
@@ -36,6 +36,7 @@ import {
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import {
+  fixedReleaseReaderToken,
   readOnlyReleaseChildEnvironment,
   withReadOnlyReleaseChildren,
 } from "./release-readonly-child-environment.mts";
@@ -95,6 +96,8 @@ import {
 import { inspectSiteGeneration } from "./release-site-generation.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import { performance } from "node:perf_hooks";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { setTimeout as pause } from "node:timers/promises";
 import {
   applicationNativeHarness,
@@ -141,8 +144,9 @@ import type { ApplicationMetadataPublicationBinding } from "./application-releas
 import {
   inspectApplicationRunCustody,
   readRegisteredApplicationRuns,
+  createApplicationRunRegistrationProvider,
   inspectApplicationReleaseReference,
-  readApplicationBudgetOwner,
+  readActualApplicationBudgetOwner,
   assertApplicationCustodyMetadataExtension,
   readApplicationMetadataContextPlan,
   retainApplicationDraftAssembly,
@@ -226,14 +230,28 @@ export async function readNativeApplicationSource(directory = sourceDirectory) {
   return source;
 }
 
-function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
+function applicationWorkerControlOptions() {
+  return {
+    token: fixedReleaseReaderToken(),
+    deadline: Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000),
+    guard: () => assertTrustedDirectNode("fixed application worker controls"),
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+  };
+}
+
+async function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
   const producer = {
     schema_version: 2,
     purpose: "application",
     review_app_id: 5555053,
     review_check_name: semanticReviewCheckName,
   };
-  const records = readIndependentSemanticCheckInventory(applicationApi, producer, original);
+  const records = await readIndependentSemanticCheckInventoryWithSdk(
+    applicationWorkerControlOptions(),
+    producer,
+    original,
+  );
   const latest = selectLatestApplicationSemanticCheck(records.records);
   assert.ok(latest && isRecord(semantic));
   assert.equal(latest.id, semantic.check_id);
@@ -241,7 +259,7 @@ function assertCurrentApplicationSemantic(original: string, semantic: unknown) {
   assert.equal(latest.conclusion, "success");
   assert.ok(isRecord(latest.output) && typeof latest.output.summary === "string");
   assert.equal(sha256(Buffer.from(latest.output.summary)), semantic.summary_sha256);
-  records.assertUnchanged();
+  await records.assertUnchanged();
 }
 
 async function guard(
@@ -260,11 +278,11 @@ async function guard(
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
   const spending = inspectApplicationSpendingAppointment(process.env);
-  const pause = readPublicationPause(applicationApi);
+  const pause = await readPublicationPauseWithSdk(applicationWorkerControlOptions());
   assert.equal(pause.publication_paused, false, "publication paused");
   if (source.purpose === "application-release") {
     assert.ok(typeof source.original_source === "string");
-    assertCurrentApplicationSemantic(source.original_source, source.semantic);
+    await assertCurrentApplicationSemantic(source.original_source, source.semantic);
   }
   if (source.purpose === "metadata-bootstrap")
     inspectApplicationBootstrapSource(source, bootstrapAppointment());
@@ -337,8 +355,8 @@ async function guard(
     for (const key of ["version", "prepared_commit", "prepared_tree", "intent_sha256"] as const)
       assert.equal(expected.preparation[key], source.prepared[key]);
   }
-  const registered = readRegisteredApplicationRuns(
-    applicationApi,
+  const registered = await readRegisteredApplicationRuns(
+    await createApplicationRunRegistrationProvider(),
     Number(source.run_custody.release_id),
     expected.opportunity,
     expected.source,
@@ -353,12 +371,12 @@ async function guard(
       "member",
       "forward renewal must retain its original cost owner",
     );
-    const owner = readApplicationBudgetOwner(applicationApi, {
+    const owner = await readActualApplicationBudgetOwner({
       release_id: Number(source.run_custody.release_id),
       custody: registered,
     });
     if (owner.custody.preparation)
-      assertCurrentApplicationSemantic(owner.custody.source, source.renewal_semantic);
+      await assertCurrentApplicationSemantic(owner.custody.source, source.renewal_semantic);
   }
   const known = registered.runs.map((run) => run.id);
   assert.deepEqual(JSON.parse(process.env.PORTCOVE_KNOWN_RELEASE_RUNS ?? "null"), known);
@@ -1926,22 +1944,23 @@ async function deployBootstrapSite(readOnly = false) {
           preimage.provider,
           "public deployment changed after preflight",
         );
-        const response = applicationApi.request(
-          "GET",
-          `repos/boburning/portcove/actions/artifacts/${artifactId}`,
-        );
-        assert.equal(response.status, 200);
+        const provider = await createReleaseCustodyProvider({
+          token: fixedReleaseReaderToken(),
+          deadline,
+          requestTimeoutMs: 30000,
+          maxBytes: 8 * 1024 ** 2,
+          beforeDispatch: () => assertTrustedDirectNode("fixed application Pages artifact read"),
+        });
+        const observed = await provider.artifact(artifactId);
         assert.ok(
-          isRecord(response.body) &&
-            response.body.expired === false &&
-            isRecord(response.body.workflow_run),
+          isRecord(observed) && observed.expired === false && isRecord(observed.workflow_run),
         );
-        assert.equal(response.body.id, artifact.id);
-        assert.equal(response.body.name, artifact.name);
-        assert.equal(response.body.size_in_bytes, artifact.bytes);
-        assert.equal(response.body.digest, `sha256:${String(artifact.sha256)}`);
-        assert.equal(response.body.workflow_run.head_sha, current.source);
-        assert.equal(response.body.workflow_run.id, Number(current.run_id));
+        assert.equal(observed.id, artifact.id);
+        assert.equal(observed.name, artifact.name);
+        assert.equal(observed.size_in_bytes, artifact.bytes);
+        assert.equal(observed.digest, `sha256:${String(artifact.sha256)}`);
+        assert.equal(observed.workflow_run.head_sha, current.source);
+        assert.equal(observed.workflow_run.id, Number(current.run_id));
         if (preimageKind === "prior") {
           assert.ok(isRecord(preimage.site));
           const previous = inspectSiteGeneration(preimage.site, site.previous_generation!);
@@ -2671,11 +2690,11 @@ async function readForwardRenewalPreimage(
   assert.ok(isRecord(source.run_custody));
   const custody = inspectApplicationRunCustody(source.run_custody.custody);
   assert.equal(custody.budget?.kind, "member");
-  const owner = readApplicationBudgetOwner(applicationApi, {
+  const owner = await readActualApplicationBudgetOwner({
     release_id: Number(source.run_custody.release_id),
     custody,
   });
-  const original = readApplicationBudgetOwner(applicationApi, authority);
+  const original = await readActualApplicationBudgetOwner(authority);
   assert.equal(
     owner.release_id,
     original.release_id,

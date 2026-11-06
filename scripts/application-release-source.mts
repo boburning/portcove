@@ -25,12 +25,13 @@ import {
 } from "./release-semantic-disposition-reader.mts";
 import { readIndependentSemanticReview, readPublicationPause } from "./release-control-inputs.mts";
 import {
+  createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
   retainApplicationPreparation,
   inspectApplicationQualificationIdentity,
   readApplicationRunNotes,
   registerApplicationBudgetRun,
-  readApplicationBudgetOwner,
+  readActualApplicationBudgetOwner,
   inspectApplicationReleaseReference,
 } from "./application-release-run.mts";
 import { readApplicationJobBudget } from "./application-release-budget.mts";
@@ -341,7 +342,7 @@ async function prepare() {
   }
   const beforeWrite = beforeSourceWrite;
   const registration = await registerApplicationReleaseRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     execution,
     original,
     commit.tree.sha,
@@ -480,7 +481,7 @@ async function recoverImmutableFeed() {
   const selected = await readApplicationSemanticSelection(original);
   assert.ok(selected.opportunity.meaningful && !selected.opportunity.documentation_only);
   const registration = await registerApplicationReleaseRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     execution,
     original,
     selected.tree,
@@ -556,7 +557,7 @@ async function bootstrap() {
     path.resolve(process.env.RUNNER_TEMP),
   );
   const registration = await registerApplicationReleaseRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     execution,
     execution.source,
     commit.tree.sha,
@@ -619,7 +620,7 @@ async function renewPublishedMetadata() {
       typeof commit.tree.sha === "string",
   );
   const registration = await registerApplicationReleaseRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     execution,
     execution.source,
     commit.tree.sha,
@@ -719,7 +720,7 @@ async function renewUnservedMetadata() {
   };
   const opportunity = releaseCanonicalDigest(basis);
   assert.equal(process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY, opportunity);
-  const owner = readApplicationBudgetOwner(applicationApi, authority);
+  const owner = await readActualApplicationBudgetOwner(authority);
   const linked = await registerApplicationBudgetRun(
     applicationApi,
     authority,
@@ -729,7 +730,7 @@ async function renewUnservedMetadata() {
   );
   const semantic = await retainedApplicationSemantic(owner.custody);
   const registration = await registerApplicationReleaseRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     execution,
     owner.custody.source,
     owner.custody.source_tree,
@@ -835,7 +836,7 @@ async function recoverImmutableMetadataFeed() {
       beforeSourceRecord,
     );
   const registration = await registerApplicationReleaseRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     execution,
     notes.custody.source,
     notes.custody.source_tree,
@@ -844,7 +845,7 @@ async function recoverImmutableMetadataFeed() {
     "immutable-metadata-only",
     notes.custody.budget,
   );
-  const owner = readApplicationBudgetOwner(applicationApi, registration);
+  const owner = await readActualApplicationBudgetOwner(registration);
   const semantic = forward ? await retainedApplicationSemantic(owner.custody) : undefined;
   const packet = {
     schema_version: 1,

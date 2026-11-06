@@ -872,7 +872,11 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-publication-inventory.mts",
-    ["scripts/acquire-release-admission.test.mts", "scripts/application-release-feed.test.mts"],
+    [
+      "scripts/acquire-release-admission.test.mts",
+      "scripts/application-release-feed.test.mts",
+      "scripts/application-release-run.test.mts",
+    ],
   ],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
   ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
@@ -880,6 +884,7 @@ for (const [file, tests] of [
     "scripts/release-custody-provider.mts",
     [
       "scripts/application-release-feed.test.mts",
+      "scripts/application-release-publication.test.mts",
       "scripts/application-release-context.test.mts",
       "scripts/release-catalog-source.test.mts",
       "scripts/release-catalog-coordinator.test.mts",
@@ -2289,6 +2294,18 @@ for (const file of [
     ...new Set([...(explicitNodeTests.get(file) ?? []), ...applicationReleaseTests]),
   ]);
 
+for (const file of [
+  "package.json",
+  "pnpm-lock.yaml",
+  "scripts/github-client.mts",
+  "scripts/release-control-inputs.mts",
+  "scripts/release-semantic-disposition-reader.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/application-release-budget.test.mts",
+  ]);
+
 const workflowTests = new Map([
   [
     "hosted-native-continuity.yml",
@@ -2418,6 +2435,7 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/application-release-context.test.mts",
     "scripts/application-release-feed.test.mts",
+    "scripts/application-release-run.test.mts",
     "scripts/application-release-site.test.mts",
     "scripts/application-release-publication.test.mts",
     "scripts/release-control-handshake.test.mts",
@@ -2592,6 +2610,8 @@ for (const file of [
 
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/application-release-feed.test.mts",
+  "scripts/application-release-publication.test.mts",
+  "scripts/application-release-run.test.mts",
   "scripts/application-release-site.test.mts",
   "scripts/release-classification-request.test.mts",
   "scripts/release-catalog-authorities.test.mts",

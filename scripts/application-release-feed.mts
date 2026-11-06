@@ -14,14 +14,15 @@ import {
   withCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
-import { applicationApi, sha256 } from "./application-release-io.mts";
+import { sha256 } from "./application-release-io.mts";
 import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
 import {
   inspectApplicationRunCustody,
   assertApplicationCustodyMetadataExtension,
   readApplicationRunNotes,
   inspectApplicationReleaseReference,
-  readApplicationBudgetOwner,
+  readApplicationBudgetOwnerAsync,
+  createApplicationReleaseMetadataReader,
 } from "./application-release-run.mts";
 import type { ApplicationRunCustody } from "./application-release-run.mts";
 import type { ApplicationReleaseReference } from "./application-release-run.mts";
@@ -36,7 +37,6 @@ import type { ApplicationMetadataPublicationBinding } from "./application-releas
 import type { ApplicationMetadataRenewalBasis } from "./application-release-publication.mts";
 import { inspectSiteArtifactArchive } from "./release-site-deployment.mts";
 import { readReleaseNotesWithSdk } from "./release-publication-inventory.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import {
   createApplicationFeedReader,
   readActualApplicationPagesState,
@@ -754,45 +754,44 @@ export async function readApplicationPriorPublication(
 export async function readApplicationPendingLineage(
   first: ApplicationReleaseReference,
   scratch: string,
-  transport: {
-    api: Pick<CoordinatorRemoteApi, "request">;
+  transport?: {
+    readRelease: (id: number) => Promise<unknown>;
     readMetadata: typeof readApplicationImmutableMetadata;
-  } = {
-    api: applicationApi,
-    readMetadata: readApplicationImmutableMetadata,
   },
 ) {
   const nodes: (Awaited<ReturnType<typeof readApplicationImmutableMetadata>> & PendingCohort)[] =
     [];
-  const started = performance.now();
+  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
+  const active = () => {
+    assert.ok(performance.now() < deadline, "pending renewal lineage exceeds its fixed deadline");
+  };
+  const source = transport ?? (await createPendingLineageTransport(deadline));
   let reference: ApplicationReleaseReference | undefined =
     inspectApplicationReleaseReference(first);
   let ownerId: number | undefined;
   while (reference) {
-    assert.ok(
-      nodes.length < 3 && performance.now() - started < 120000,
-      "pending renewal lineage exceeds its fixed bound",
-    );
+    active();
+    assert.ok(nodes.length < 3, "pending renewal lineage exceeds its fixed bound");
     assert.ok(
       !nodes.some((node) => node.release_id === reference?.release_id),
       "pending renewal lineage cycle",
     );
-    const response = transport.api.request(
-      "GET",
-      `repos/boburning/portcove/releases/${reference.release_id}`,
-    );
-    assert.equal(response.status, 200);
-    assert.ok(isRecord(response.body) && response.body.id === reference.release_id);
-    const notes = readApplicationRunNotes(response.body.body);
+    const release = await source.readRelease(reference.release_id);
+    active();
+    assert.ok(isRecord(release) && release.id === reference.release_id);
+    const notes = readApplicationRunNotes(release.body);
     assert.ok(notes && notes.custody.opportunity === reference.opportunity);
     const directory = path.join(scratch, `lineage-${nodes.length}`);
     await mkdir(directory);
     const expected: PendingCohort = { release_id: reference.release_id, custody: notes.custody };
-    const metadata = await transport.readMetadata(expected, directory);
+    const metadata = await withCoordinatorDeadline(deadline, () =>
+      source.readMetadata(expected, directory),
+    );
     assert.ok(
       isRecord(metadata.metadata) && metadata.metadata.kind === "application-metadata-publication",
     );
-    const owner = readApplicationBudgetOwner(transport.api, expected);
+    const owner = await readApplicationBudgetOwnerAsync(source.readRelease, expected);
+    active();
     assert.ok(typeof owner.release_id === "number");
     if (ownerId === undefined) ownerId = owner.release_id;
     else assert.equal(owner.release_id, ownerId, "forward renewal changed its original cost owner");
@@ -866,8 +865,15 @@ export async function readApplicationPendingLineage(
         ? undefined
         : inspectApplicationReleaseReference(metadata.metadata.renewal_parent);
   }
-  assert.ok(performance.now() - started < 120000, "pending renewal lineage verification was late");
+  active();
   return nodes;
+}
+
+async function createPendingLineageTransport(deadline: number) {
+  return {
+    readRelease: await createApplicationReleaseMetadataReader(deadline),
+    readMetadata: readApplicationImmutableMetadata,
+  };
 }
 
 /** Declared join only. The caller authenticates both immutable assemblies and
