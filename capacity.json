@@ -10,7 +10,7 @@
       "product": "Actions",
       "public_repository": true,
       "repository_id": 1354613114,
-      "resource_policy_sha256": "4478b4306285088ebf3ef3e9fc4faf0dcad2684edead5a3983a357d9623ecc3c",
+      "resource_policy_sha256": "6f92340f267492fb38f0aea414639ac9d478bbb6e37461debbc6225816283c7d",
       "runner_class": "standard-public",
       "scope": "account",
       "stop_usage": true
@@ -18,9 +18,9 @@
     "operation": null,
     "prior_operations": [],
     "ratification": {
-      "active": false,
-      "boundary_sha256": "e2b07fbc80d82a00f752f9b71330ffda6e8bfb9b4f951825b3af86f93695d84a",
-      "resource_policy_sha256": "4478b4306285088ebf3ef3e9fc4faf0dcad2684edead5a3983a357d9623ecc3c",
+      "active": true,
+      "boundary_sha256": "a1c456af92b1f23b657119ab8fbb0d7d67d6ace119b7cc6aa7e1448487005cf7",
+      "resource_policy_sha256": "6f92340f267492fb38f0aea414639ac9d478bbb6e37461debbc6225816283c7d",
       "selection": "slice4-d2-c6470ec28ba9addb0f70d9f86953322d835bb8c0"
     }
   },
