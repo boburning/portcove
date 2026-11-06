@@ -2675,6 +2675,22 @@ for (const file of ["package.json", "pnpm-lock.yaml", "scripts/github-client.mts
     "scripts/roadmap-publish.test.mts",
   ]);
 
+for (const file of [
+  "package.json",
+  "pnpm-lock.yaml",
+  "scripts/github-client.mts",
+  "scripts/release-custody-provider.mts",
+  "scripts/github-artifact-download.mts",
+  "scripts/upstream-release-transfer.mts",
+  "scripts/upstream-release-runtime.mts",
+  "scripts/upstream-release-recovery.mts",
+  ".github/workflows/upstream-release-rehearsal.yml",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/upstream-release-rehearsal.test.mts",
+  ]);
+
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/application-release-feed.test.mts",
   "scripts/application-release-publication.test.mts",

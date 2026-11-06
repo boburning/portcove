@@ -29,7 +29,6 @@ void test("maintained sources do not add GitHub CLI API bypasses outside recorde
     ["scripts/release-semantic-worker.mts", 4],
     ["scripts/release-signing-job-budget.mts", 4],
     ["scripts/upstream-release-rehearsal.mts", 1],
-    ["scripts/upstream-release-transfer.mts", 1],
   ]);
   const sources = globSync(
     [
