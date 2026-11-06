@@ -4773,6 +4773,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     { fileExists: () => false },
   );
   assert.ok(artifactDownload.nodeTests.has("scripts/ci-health.test.mts"));
+  assert.ok(artifactDownload.nodeTests.has("scripts/upstream-release-rehearsal.test.mts"));
   assert.ok(artifactDownload.nodeTests.has("scripts/observer-checkpoint-artifact.test.mts"));
   for (const path of [
     "scripts/observer-checkpoint-artifact.mts",
