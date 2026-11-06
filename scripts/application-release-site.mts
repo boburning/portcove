@@ -67,6 +67,10 @@ export async function readActualApplicationPagesState(deadline = performance.now
 
 type PagesRead<T> = Generator<string, T, GitHubMetadataResponse>;
 
+function* readPagesResponse(suffix: string): PagesRead<GitHubMetadataResponse> {
+  return yield `repos/boburning/portcove/${suffix}`;
+}
+
 function readPages<T>(api: GitHubRestReader, requests: PagesRead<T>) {
   let step = requests.next();
   while (!step.done) step = requests.next(api.request("GET", step.value));
@@ -96,7 +100,7 @@ export function readApplicationPagesStateAsync(
 
 function* applicationPagesState() {
   function* get(suffix: string): PagesRead<unknown> {
-    const result = yield `repos/boburning/portcove/${suffix}`;
+    const result = yield* readPagesResponse(suffix);
     assert.equal(result.status, 200);
     return result.body;
   }
@@ -193,7 +197,7 @@ function* applicationPagesExecution(state: ReturnType<typeof readApplicationPage
     jobId = Number(match[2]);
   assert.ok(Number.isSafeInteger(runId) && Number.isSafeInteger(jobId));
   function* get(suffix: string): PagesRead<Record<string, unknown>> {
-    const response = yield `repos/boburning/portcove/${suffix}`;
+    const response = yield* readPagesResponse(suffix);
     assert.equal(response.status, 200);
     assert.ok(isRecord(response.body));
     return response.body;
@@ -255,8 +259,9 @@ function* applicationPagesExecution(state: ReturnType<typeof readApplicationPage
   assert.equal(deployment.environment, "github-pages");
   assert.equal(deployment.sha, state.source_commit);
   assert.equal(deployment.ref, state.ref);
-  const statuses: GitHubMetadataResponse =
-    yield `repos/boburning/portcove/deployments/${state.deployment_id}/statuses?per_page=1`;
+  const statuses = yield* readPagesResponse(
+    `deployments/${state.deployment_id}/statuses?per_page=1`,
+  );
   assert.equal(statuses.status, 200);
   assert.ok(
     Array.isArray(statuses.body) && statuses.body.length === 1 && isRecord(statuses.body[0]),
