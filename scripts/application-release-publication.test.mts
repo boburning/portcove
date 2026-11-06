@@ -39,6 +39,7 @@ import {
   inspectBootstrapSiteArchive,
   publishBootstrapRelease,
   createApplicationMetadataPublicationProvider,
+  createPreparedApplicationPublicationProvider,
   publishApplicationMetadataRelease,
   inspectApplicationMetadataPublicationReceipt,
 } from "./application-release-publication.mts";
@@ -301,7 +302,16 @@ function ordinaryFixture(mode = "valid") {
     },
   };
   const finalTransport = {
-    api,
+    async open() {
+      return {
+        async readMetadata(endpoint: string) {
+          return api.request("GET", endpoint);
+        },
+        async publish(body: Record<string, unknown>) {
+          api.request("PATCH", `repos/boburning/portcove/releases/${expected.release_id}`, body);
+        },
+      };
+    },
     async authenticatePreparation(value: Buffer) {
       events.push("attestation");
       assert.ok(JSON.parse(value.toString("utf8")));
@@ -2945,4 +2955,55 @@ void test("metadata publication uses the fixed SDK route and dispatches a lost P
     "upload:application-metadata.json",
     "publish",
   ]);
+});
+
+void test("ordinary publication retains the actual asset Link fence and reads back a lost SDK PATCH", async (t) => {
+  const f = ordinaryFixture("publish-lost");
+  const receipt = Buffer.from(JSON.stringify(await f.prepare()));
+  const fixtureProvider = await f.finalTransport.open();
+  const origin = "https://api.github.com";
+  const calls: string[] = [];
+  let incomplete = true;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, origin);
+      assert.equal(request.headers.get("authorization"), "token inert-ordinary-publication");
+      calls.push(`${request.method} ${url.pathname}${url.search}`);
+      if (request.method === "PATCH") {
+        const body: unknown = await request.json();
+        assert.ok(isRecord(body));
+        await fixtureProvider.publish(body);
+        return Response.json({});
+      }
+      assert.equal(request.method, "GET");
+      const response = await fixtureProvider.readMetadata(url.pathname.slice(1) + url.search);
+      const headers = new Headers();
+      if (incomplete && url.pathname.endsWith("/assets"))
+        headers.set("Link", `<${url.origin}${url.pathname}?page=2>; rel="next"`);
+      return Response.json(response.body, { status: response.status ?? 200, headers });
+    },
+  );
+  const publish = () =>
+    publishPreparedApplicationRelease(f.expected, receipt, {
+      ...f.finalTransport,
+      open: (deadline) =>
+        createPreparedApplicationPublicationProvider(
+          "inert-ordinary-publication",
+          f.expected,
+          () => {},
+          deadline,
+        ),
+    });
+  await assert.rejects(publish(), /incomplete product asset inventory/u);
+  assert.equal(calls.filter((request) => request.startsWith("PATCH ")).length, 0);
+  incomplete = false;
+  const settled = await publish();
+  assert.equal(settled.tag, "v0.1.0-alpha.3");
+  assert.equal(calls.filter((request) => request.startsWith("PATCH ")).length, 1);
+  assert.equal(f.writes.filter((write) => write === "publish").length, 1);
+  assert.ok(calls.at(-1)?.endsWith("/git/ref/tags/v0.1.0-alpha.3"));
 });

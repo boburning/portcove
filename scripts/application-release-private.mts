@@ -123,6 +123,7 @@ import {
   readExpiredApplicationDraftAssets,
   createApplicationAssetUploader,
   createApplicationMetadataPublicationProvider,
+  createPreparedApplicationPublicationProvider,
   verifyApplicationDraftRecoveryBackup,
   readStagedDraftRecoveryBackup,
   removeExpiredApplicationDraftAssets,
@@ -1090,7 +1091,13 @@ async function publishOrdinaryMetadata() {
   const received = await receiveOrdinaryPreparation(source);
   const { expected, directory, preparation } = received;
   const result = await publishPreparedApplicationRelease(expected, preparation, {
-    api: applicationApi,
+    open: (deadline) =>
+      createPreparedApplicationPublicationProvider(
+        fixedReleaseReaderToken(),
+        expected,
+        () => assertProtectionWriteWindow(),
+        deadline,
+      ),
     authenticatePreparation: received.authenticatePreparation,
     async beforeWrite() {
       const prepared = await readApplicationJson(path.join(directory, "prepared.json"), 128 * 1024);
