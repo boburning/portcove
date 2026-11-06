@@ -968,6 +968,42 @@ void test("uncooperative admission cannot extend SDK cancellation or its origina
   }
 });
 
+void test("an expired monotonic deadline settles the reservation before actual dispatch", async () => {
+  let clock = 1000;
+  let sends = 0;
+  const settled: GitHubAttemptObservation[] = [];
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: 2000,
+    now: () => clock,
+    reserve() {
+      clock = 2001;
+      return {
+        consumeBytes() {},
+        settle(observation) {
+          settled.push(observation);
+        },
+      };
+    },
+    fetch: async () => {
+      sends++;
+      return Response.json({});
+    },
+  });
+  await assert.rejects(
+    client.request("POST /repos/example/repo/issues", {
+      data: { title: "fixture" },
+      request: { portcove: once() },
+    }),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(sends, 0);
+  assert.deepEqual(
+    settled.map(({ dispatched, bytes }) => ({ dispatched, bytes })),
+    [{ dispatched: false, bytes: 0 }],
+  );
+});
+
 void test("late unused-reservation cleanup retains its failure without replacing cancellation or leaking the credential", async () => {
   const token = "prefixless-synthetic-cleanup-secret";
   let entered!: () => void, release!: () => void;

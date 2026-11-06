@@ -47,6 +47,7 @@ import {
 } from "./release-site-readback.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import {
   inspectPublishedMetadata,
   assertMetadataRenewalBinding,
@@ -234,11 +235,12 @@ export async function prepareControllerReleaseSigningContext(
     payload.context.facts.configuration.namespace !== authorities.namespace
   )
     throw new Error("release context namespace differs from actual admission");
+  const credential = { token: fixedReleaseReaderToken() };
   const snapshot = () =>
     readRemoteCoordinatorSnapshot(
       outputParent,
       { schema_version: 1, namespace: authorities.namespace },
-      { transport: { cwd: outputParent, deadline } },
+      { transport: { credential, deadline } },
     );
   const before = await snapshot();
   if (before.checkpoint !== payload.settlement.checkpoint)

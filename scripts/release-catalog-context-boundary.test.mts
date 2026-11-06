@@ -271,13 +271,20 @@ void test("actual context getter checks renewed maintenance only after delayed s
     ),
     start = source.indexOf("async function readContext("),
     end = source.indexOf("export async function readActualCatalogSigningContextFiles(", start),
+    snapshotStart = source.indexOf("async function snapshot("),
+    snapshotEnd = source.indexOf(
+      "export async function prepareActualCatalogSigningContext(",
+      snapshotStart,
+    ),
     receipt = {},
     descriptor = catalogPublicationFixture();
+  assert(start >= 0 && end > start && snapshotStart >= 0 && snapshotEnd > snapshotStart);
   let now = 59000,
     eligible = true,
     returns = 0;
   const calls: string[] = [],
     tools = {},
+    credential = { token: "inert-retained-catalog-reader" },
     inspectionReceipt = {};
   const maintenance = () => ({
     pause: {},
@@ -286,6 +293,7 @@ void test("actual context getter checks renewed maintenance only after delayed s
   });
   const owned = {
     deadline: 170000,
+    credential,
     configuration_sha256: "fixed",
     facts: { descriptor, semantic_proof_sha256: "proof" },
     binding: {},
@@ -323,7 +331,10 @@ void test("actual context getter checks renewed maintenance only after delayed s
       },
     },
   };
-  const run = runInNewContext(stripTypeScriptTypes(source.slice(start, end)) + "\nreadContext", {
+  const contextSource = stripTypeScriptTypes(
+    source.slice(snapshotStart, snapshotEnd) + source.slice(start, end),
+  );
+  const run = runInNewContext(contextSource + "\nreadContext", {
     contexts: new WeakMap([[receipt, owned]]),
     path,
     performance: { now: () => now },
@@ -343,9 +354,28 @@ void test("actual context getter checks renewed maintenance only after delayed s
     readCatalogPublicationBundle: async () => new Map(),
     assertControllerCatalogPublisherScope: () => {},
     createFixedControlReadAllowance: () => () => ({}),
-    verifyState: async () => {
+    assertCatalogPublicationBaseline: () => descriptor,
+    readRemoteCoordinatorSnapshot: async (
+      directory: string,
+      configuration: { namespace: string },
+      options: {
+        transport: {
+          credential: unknown;
+          deadline: number;
+          requireDirect: boolean;
+          cwd?: string;
+        };
+      },
+    ) => {
+      assert.equal(directory, owned.directory);
+      assert.equal(configuration.namespace, owned.session.namespace);
+      assert.equal(options.transport.credential, credential);
+      assert.equal(options.transport.deadline, owned.deadline);
+      assert.equal(options.transport.requireDirect, true);
+      assert.equal(options.transport.cwd, undefined);
       calls.push("state");
       now = 61000;
+      return { checkpoint: owned.session.checkpoint, input: { catalog_publication: descriptor } };
     },
     requirePublishedCatalogCompleteSite: async () => {
       calls.push("site");

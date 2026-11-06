@@ -345,6 +345,8 @@ export async function createGitHubClient(options: GitHubClientOptions) {
                 "request_refused",
                 "Anonymous GitHub request contains credentials",
               );
+            if (now() >= deadline)
+              throw new GitHubApiError("deadline_exceeded", "GitHub dispatch deadline exhausted");
             observation.dispatched = true;
             let response: Response;
             try {

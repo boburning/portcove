@@ -82,6 +82,7 @@ type Owned = {
   session: Session;
   directory: string;
   deadline: number;
+  credential: { token: string };
   files: ReturnType<typeof inventory>;
   facts: ReturnType<typeof inspectCatalogSigningFacts>;
   binding: ReturnType<typeof inspectCatalogSigningBinding>["binding"];
@@ -160,7 +161,7 @@ async function snapshot(owned: Owned) {
   return readRemoteCoordinatorSnapshot(
     owned.directory,
     { schema_version: 1, namespace: owned.session.namespace },
-    { transport: { cwd: owned.directory, deadline: owned.deadline } },
+    { transport: { credential: owned.credential, deadline: owned.deadline, requireDirect: true } },
   );
 }
 async function verifyState(owned: Owned) {
@@ -215,7 +216,7 @@ async function prepareContext(session: Session, parent: string) {
     directory = path.join(work, "context");
   await mkdir(directory, { mode: 0o700 });
   const reserve = createFixedControlReadAllowance(),
-    token = fixedReleaseReaderToken(),
+    credential = { token: fixedReleaseReaderToken() },
     authorities = await requireControllerCatalogJobAuthorities("coordinator"),
     pins = authorities.catalog.public_source;
   if (
@@ -225,7 +226,7 @@ async function prepareContext(session: Session, parent: string) {
   )
     throw new Error("catalog context ratified authority differs");
   const metadata = await createReleaseCustodyProvider({
-    token,
+    token: credential.token,
     deadline,
     reserve,
     beforeDispatch: () => assertTrustedDirectNode("fixed catalog signing context"),
@@ -289,7 +290,7 @@ async function prepareContext(session: Session, parent: string) {
   const state = await readRemoteCoordinatorSnapshot(
       directory,
       { schema_version: 1, namespace: session.namespace },
-      { transport: { cwd: directory, deadline } },
+      { transport: { credential, deadline, requireDirect: true, reserve } },
     ),
     seed = inspectPublishedCatalogMetadata(state.input.published_catalog_metadata);
   if (
@@ -369,6 +370,7 @@ async function prepareContext(session: Session, parent: string) {
       session,
       directory,
       deadline,
+      credential,
       files: inventory(files),
       facts,
       binding,
