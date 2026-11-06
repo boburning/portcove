@@ -832,21 +832,41 @@ Complete each proposal through the existing Codex issue/PR delivery process:
    Inspect every manifest, catalog, alias and override. Match the directly consumed
    browser provider to the target's bundled Vitest; verify every upgrade even when
    the migrator updates it automatically. Coordinate the trusted Pack identity
-   in `scripts/release-controller-tools.mts` and qualify the existing public
-   controller tool build fixtures on Linux and Windows. The builder, manifest
-   producer and validator require that exact identity.
+   in `scripts/release-controller-tools.mts`. Run the fixed controller Pack
+   identity test before publishing the upgrade.
 
-4. Preserve the 1440-minute/non-strict pnpm policy. Remove migrator-added
-   minimumReleaseAgeExclude entries for the bundle. pnpm 12's frozen-install
-   policy verification rejects even explicitly selected releases younger than
-   that window; wait for eligibility instead of bypassing it. Preserve allowBuilds restrictions and worktree
-   hook/signing adapters. Frozen-install, inspect `pnpm exec vp toolchain`, then
-   run checks, units/browser tests, build, affected cache/portability checks and
-   invalidated native acceptance.
+   `node --test --test-name-pattern="fixed controller Pack identity" scripts/release-controller-tools.test.mts`
+
+   Qualify the existing public controller tool build fixtures on Linux and
+   Windows. The builder, manifest producer and validator require that exact
+   identity.
+
+4. Preserve the 1440-minute/non-strict pnpm policy and remove migrator-added
+   `minimumReleaseAgeExclude` entries for the bundle. Preserve allowBuilds
+   restrictions and worktree hook/signing adapters. Run
+   `pnpm install --frozen-lockfile` against the final manifests and lockfile and
+   record its successful exit before publishing the candidate. If pnpm's
+   frozen-install policy rejects a release that is still too young, record the
+   release-age wait and defer the push until the package is eligible and the
+   same command passes. Inspect `pnpm exec vp toolchain`, then run checks,
+   units/browser tests, build, affected cache/portability checks and invalidated
+   native acceptance.
 5. Commit the coherent result in that worktree. Integrate it into the owned
-   proposal branch through normal Git merge and explicit conflict review; retain
-   the verified complete manifest/lock result. Obtain separate non-writing review,
-   complete exact-head CI, guarded merge and remote readback.
+   proposal branch through normal Git merge and explicit conflict review, keeping
+   the verified complete manifest/lock result. Before the first upgrade push,
+   run the hosted selector `node scripts/select-ci-plan.mts` locally with the
+   candidate's full committed diff. Use `GITHUB_EVENT_NAME=pull_request`,
+   `PORTCOVE_BASE_SHA` set to the reviewed target, `PORTCOVE_HEAD_SHA` set to the
+   candidate, and `GITHUB_SHA` set to the candidate if it already includes the
+   target or to the locally composed merge commit. Set
+   `PORTCOVE_FAST_VALIDATION_ACTIVATED=true` and
+   `PORTCOVE_PROSE_POLICY_ACTIVATED=true` as in the ordinary PR workflow.
+   Create `work/ci-plan` and set `GITHUB_OUTPUT` to an absolute file path there
+   to capture the selector's workflow outputs. Check
+   `work/ci-plan/validation-plan.json` for the expected obligations across the
+   full diff, including changes brought in from the proposal branch. Obtain
+   separate non-writing review, complete required CI on the published head, then
+   perform the guarded merge and remote readback.
 
 Repository postUpgradeTasks are not used: arbitrary commands are blocked by
 Renovate's default hosting policy, and no administrator allowedCommands support
