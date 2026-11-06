@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner } from "./github-api.mts";
 import { GitHubApiError } from "./github-operation.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { readGitHubReleaseAsset } from "./github-binary.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { requireActualPublicationControllerContext } from "./acquire-release-admission.mts";
 import { requireReservedPublicationCompletion } from "./production-aggregate-steps.mts";
@@ -144,7 +144,7 @@ void test("shared publication deadline bounds actual subprocess settings and ref
   await withCoordinatorDeadline(1000, async () => assert.equal(runner(["api", "fixed"]), "safe"));
   await withCoordinatorDeadline(1000, async () => {
     assert.equal(
-      readGitHubArtifactArchive("repos/boburning/portcove/actions/artifacts/1/zip", {
+      readGitHubReleaseAsset("repos/boburning/portcove/releases/assets/1", {
         cwd: process.cwd(),
         maxBytes: 22,
         timeoutMs: 120000,

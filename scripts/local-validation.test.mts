@@ -4768,11 +4768,18 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has(`scripts/${name}.test.mts`), file);
     assert.ok(existsSync(new URL(`../scripts/${name}.test.mts`, import.meta.url)));
   }
+  const releaseAsset = classifyChanges([{ status: "M", path: "scripts/github-binary.mts" }], {
+    fileExists: () => false,
+  });
+  assert.ok(releaseAsset.nodeTests.has("scripts/github-client.test.mts"));
+  assert.ok(releaseAsset.nodeTests.has("scripts/release-artifact-archive.test.mts"));
+  assert.ok(releaseAsset.nodeTests.has("scripts/upstream-release-rehearsal.test.mts"));
   const artifactDownload = classifyChanges(
     [{ status: "M", path: "scripts/github-artifact-download.mts" }],
     { fileExists: () => false },
   );
   assert.ok(artifactDownload.nodeTests.has("scripts/ci-health.test.mts"));
+  assert.ok(artifactDownload.nodeTests.has("scripts/upstream-release-rehearsal.test.mts"));
   assert.ok(artifactDownload.nodeTests.has("scripts/observer-checkpoint-artifact.test.mts"));
   for (const path of [
     "scripts/observer-checkpoint-artifact.mts",
