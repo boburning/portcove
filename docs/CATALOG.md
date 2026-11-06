@@ -2056,6 +2056,11 @@ the package before generating the entrypoint.
 [Native lifecycle corpus](../crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json),
 [independent enrollment](../crates/portcove-core/src/testdata/route-enrollment-expectations.json).
 
+Fixture-only enrollment edits select both route inventories and every generated
+managed and prepared lifecycle case. The independent Windows archive inventory
+selects its shared release-selection case. Changes to authored title records
+still select the full Core inventory.
+
 Optional authoring-only `gba_staged_archive_v1` expands the reviewed Windows
 staged GitHub archive layout used by the upstream GBA picker. Record the
 four-character game code used by the packaged diagnostics and whether the
