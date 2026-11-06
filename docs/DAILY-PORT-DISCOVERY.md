@@ -76,6 +76,24 @@ confirmed this policy on October 28, 2026. Software changes retain the repositor
 independent review and CI requirements. Changed request or primary evidence stops
 delivery; prepare a fresh proposal instead of overwriting an in-flight issue.
 
+A candidate whose initial upstream repository metadata lookup returns HTTP 404
+can receive a **candidate hold** when it has no unfinished delivery or uncertain
+write. The versioned `proposal-bound-v2` receipt keeps that ordered slot, the
+observed status, repository identity, timestamp and resume condition. A slot
+held before primary evidence was available has an explicit unbound primary.
+Other evidence endpoints and failures still follow the existing admission and
+recovery rules. A repository 404 establishes inaccessibility to the executor.
+
+A pass finishes with `complete_with_holds` when all eligible candidates verify
+and the remaining candidates have recorded holds. Actions succeeds and reports
+held and pending counts separately. Ordinary events leave those candidates
+parked. An explicit owner `process` dispatch checks the exact repository ID and
+primary evidence again. It may bind previously unbound evidence before delivery,
+while a changed prior binding still requires explicit reconciliation. Previously
+verified deliveries carry forward as historical evidence on ordinary resume.
+Held slots remain part of the original logical batch and its full-doctor
+obligation at final completion.
+
 A partly created batch whose primary evidence changes can use an explicit owner
 reconciliation. After the finite old Actions job terminates, withdraw its owner
 proposal by prepending a dated explanation while retaining the original proposal
@@ -118,8 +136,12 @@ rebinding, provider retry, scheduler or model reviewer.
 
 The executor serializes repository-wide and drains retained proposal comments,
 so GitHub's replaceable pending workflow slot cannot erase a request. Explicit
-owner dispatch in `process` mode resumes the same queue. Every creation attempt
-has a durable bot receipt before POST and a stable marker in the issue. An
+owner dispatch in `process` mode resumes the same queue. The executor records `preflight` before candidate creation checks, then
+publishes and reads back `create-attempted` after those checks and before POST.
+A quota or inventory interruption during preflight can resume from fresh reads
+even if publishing the failure was impossible. The final checkpoint changes
+only the receipt comment, whose revision is distinct from issue semantics in
+the intake inventory. Every creation uses a stable issue marker. An
 ambiguous POST without a confirmed marker remains held; it is never recaptured.
 Confirmed issues recover through `normalize-port`, preserving owner changes by
 refusing mismatched bodies. Exactly one active item, the complete issue body,

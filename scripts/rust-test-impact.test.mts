@@ -16,6 +16,7 @@ import {
   runWorkspaceRustImpact,
 } from "./rust-test-impact.mts";
 import { buildValidationPlan, linuxRuntimeDiagnosticsRequired } from "./validation-plan.mts";
+import { baselineContractTests, baselineIntegrityCommands } from "./ci-baseline.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -1287,6 +1288,47 @@ void test("an explicitly mapped addition uses its reviewed focused group", () =>
     ["catalog-contract"],
   );
   assert.match(selected.reason, /added or modified Rust path/u);
+});
+
+void test("route fixture changes retain both enrollment inventories and release selection", () => {
+  const fixtures = [
+    "crates/portcove-core/catalog/route-enrollment.generated.json",
+    "crates/portcove-core/src/testdata/accepted-route-expectations.generated.json",
+    "crates/portcove-core/src/testdata/managed-route-tests.generated.rs",
+    "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
+    "crates/portcove-core/src/testdata/route-enrollment-expectations.json",
+  ];
+  const selection = "crates/portcove-core/src/testdata/windows-archive-release-selection.json";
+  for (const fixture of fixtures) {
+    const fixturePlan = workspacePlan([fixture]);
+    assert.ok(fixturePlan.groups.includes("catalog"), fixture);
+    assert.ok(
+      baselineContractTests(fixturePlan).includes("scripts/catalog-route-facts.test.mts"),
+      fixture,
+    );
+    assert.ok(
+      baselineIntegrityCommands(fixturePlan).some(
+        ([script, flag]) => script === "scripts/generate-catalog.mts" && flag === "--check",
+      ),
+      fixture,
+    );
+    const [group, ...rest] = selectWorkspaceRustImpact(workspacePlan([fixture, selection]));
+    assert.equal(group?.id, "portcove-core:route-enrollment-fixtures", fixture);
+    assert.match(group?.filter ?? "", /managed_native_\(declared_\|declaration_inventory/u);
+    assert.match(
+      group?.filter ?? "",
+      /prepared_guide_adoption_\(declared_\|declaration_inventory/u,
+    );
+    assert.deepEqual(
+      rest.map((entry) => entry.id),
+      ["portcove-core:windows-archive-selection-fixture"],
+    );
+  }
+  const authored = "crates/portcove-core/catalog/ports/body-harvest-recompiled.json";
+  assert.equal(
+    selectWorkspaceRustImpact(workspacePlan([...fixtures, selection, authored]))[0]?.filter,
+    "package(=portcove-core)",
+  );
 });
 
 void test("one unmapped path makes an otherwise focused mixed change broad", () => {

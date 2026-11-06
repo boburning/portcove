@@ -13,6 +13,14 @@ const scriptPath = fileURLToPath(import.meta.url);
 
 export const validationPlanVersion = 3;
 
+export const routeEnrollmentInputs = new Set([
+  "crates/portcove-core/catalog/route-enrollment.generated.json",
+  "crates/portcove-core/src/testdata/accepted-route-expectations.generated.json",
+  "crates/portcove-core/src/testdata/managed-route-tests.generated.rs",
+  "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
+  "crates/portcove-core/src/testdata/route-enrollment-expectations.json",
+]);
+
 export const fastGroups = Object.freeze([
   "catalog",
   "dependency-review",
@@ -799,7 +807,7 @@ function classifyPath(file: string): PathOwnership {
       "native-or-ipc-contract",
     );
     match(
-      file.startsWith("crates/portcove-core/catalog/"),
+      file.startsWith("crates/portcove-core/catalog/") || routeEnrollmentInputs.has(file),
       "catalog",
       ["catalog", "rust", "rust-quality"],
       "catalog-contract",
@@ -1037,6 +1045,7 @@ function classifyAuditPath(file: string): PathOwnership {
       !documentationRaster &&
       (file === "crates/portcove-core/catalog/catalog.json" ||
         file.startsWith("crates/portcove-core/catalog/") ||
+        routeEnrollmentInputs.has(file) ||
         /(?:catalog|retcomm|source-provenance)/iu.test(file)),
     "catalog",
     ["catalog", "rust", "rust-quality"],
