@@ -420,8 +420,11 @@ async function preparePayloadSigning(
           archives: facts.archives,
           evidence: {},
         });
+        const transport = prerequisites
+          ? { credential: { token: fixedReleaseReaderToken() }, deadline: prerequisites.deadline }
+          : { cwd: directory };
         const readReservation = () =>
-          readRemoteCoordinatorSnapshot(directory, coordinator, { transport: { cwd: directory } });
+          readRemoteCoordinatorSnapshot(directory, coordinator, { transport });
         const retainReservation = async (name: string) => {
           await requireReservedAggregate(descriptor, await readReservation());
           await writeFile(

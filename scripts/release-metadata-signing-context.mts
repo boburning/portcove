@@ -27,6 +27,7 @@ import { requireControllerApplicationJobPublicationAuthorities } from "./release
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { inspectCapacityOperation } from "./release-capacity.mts";
 import {
   capacityExecutorIdentity,
@@ -52,6 +53,7 @@ type Owned = {
   session: Session;
   directory: string;
   deadline: number;
+  credential: { token: string };
   files: ReturnType<typeof inventory>;
   descriptor:
     | Awaited<ReturnType<typeof inspectPreparedMetadataRenewal>>["descriptor"]
@@ -96,7 +98,7 @@ async function snapshot(owned: Owned) {
   return readRemoteCoordinatorSnapshot(
     owned.directory,
     { schema_version: 1, namespace: owned.session.namespace },
-    { transport: { cwd: owned.directory, deadline: owned.deadline } },
+    { transport: { credential: owned.credential, deadline: owned.deadline } },
   );
 }
 async function verifyState(owned: Owned, state: Awaited<ReturnType<typeof snapshot>>) {
@@ -224,6 +226,7 @@ export async function prepareCoordinatorSigningContext(
     session,
     directory,
     deadline,
+    credential: { token: fixedReleaseReaderToken() },
     files: inventory(source),
     descriptor: prepared.descriptor,
     control_facts: {
