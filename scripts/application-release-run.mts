@@ -13,7 +13,6 @@ import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import type { inspectApplicationReleaseExecution } from "./application-release-policy.mts";
 import {
   parseVersionClassification,
@@ -851,19 +850,6 @@ export async function retainApplicationPreparation(
 
 /** Resolve the one native cost owner. Membership is a reference, never a copy
  * of another cost ledger, and owner chains/cycles are not accepted. */
-export function readApplicationBudgetOwner(
-  api: Pick<CoordinatorRemoteApi, "request">,
-  context: ApplicationBudgetContext,
-): ApplicationBudgetContext {
-  const custody = inspectApplicationRunCustody(context.custody);
-  if (custody.budget?.kind !== "member") return { ...context, custody };
-  const link = custody.budget;
-  assert.notEqual(context.release_id, link.owner_release_id);
-  const response = api.request("GET", `${prefix}/releases/${link.owner_release_id}`);
-  assert.equal(response.status, 200);
-  return inspectApplicationBudgetOwner(response.body, link, custody);
-}
-
 export async function readApplicationBudgetOwnerAsync(
   readRelease: (id: number) => Promise<unknown>,
   context: ApplicationBudgetContext,
@@ -1167,14 +1153,18 @@ export function assertApplicationCustodyMetadataExtension(
 
 /** Read the original native owner before preparing bytes. Callers cannot appoint
  * a clock or version floor; only preserved producer reservations select reuse. */
-export function readApplicationMetadataContextPlan(
-  api: Pick<CoordinatorRemoteApi, "request">,
+export async function readApplicationMetadataContextPlan(
+  provider: Pick<ApplicationReleaseNotesProvider, "release">,
   context: ApplicationBudgetContext,
   execution: Execution,
 ) {
-  const original = readApplicationBudgetOwner(api, context);
+  const original = await readApplicationBudgetOwnerAsync(async (id) => {
+    const response = await provider.release(id);
+    assert.equal(response.status, 200);
+    return response.body;
+  }, context);
   assert.ok(typeof original.release_id === "number" && original.release_id > 0);
-  const response = api.request("GET", `${prefix}/releases/${original.release_id}`);
+  const response = await provider.release(original.release_id);
   assert.equal(response.status, 200);
   assert.ok(
     isRecord(response.body) &&
@@ -1219,13 +1209,13 @@ export function readApplicationMetadataContextPlan(
 /** One guarded notes append BEFORE context upload/key access. Ambiguity is read
  * back once; neither a POST, version reuse, nor another writer is retried. */
 export async function retainApplicationMetadataContext(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   execution: Execution,
   reservation: ApplicationMetadataContextReservation,
   beforeWrite: () => Promise<void>,
 ) {
-  const plan = readApplicationMetadataContextPlan(api, context, execution);
+  const plan = await readApplicationMetadataContextPlan(provider, context, execution);
   assert.equal(reservation.opportunity, context.custody.opportunity);
   assert.equal(reservation.run_id, execution.run_id);
   assert.equal(reservation.run_attempt, execution.run_attempt);
@@ -1240,18 +1230,18 @@ export async function retainApplicationMetadataContext(
       ? plan.owner.custody.metadata_contexts
       : [...(plan.owner.custody.metadata_contexts ?? []), reservation],
   });
-  return writeApplicationMetadataNotes(api, plan.owner, next, beforeWrite);
+  return writeApplicationMetadataNotes(provider, plan.owner, next, beforeWrite);
 }
 
 /** Retain the exact attested pair before either asset can be staged. */
 export async function retainApplicationDraftAssembly(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   execution: Execution,
   assembly: ApplicationDraftAssembly,
   beforeWrite: () => Promise<void>,
 ) {
-  const { owner } = readApplicationMetadataContextPlan(api, context, execution);
+  const { owner } = await readApplicationMetadataContextPlan(provider, context, execution);
   const reservation = owner.custody.metadata_contexts?.at(-1);
   assert.ok(reservation);
   assert.equal(reservation.context_sha256, assembly.context_sha256);
@@ -1269,19 +1259,19 @@ export async function retainApplicationDraftAssembly(
     ...owner.custody,
     draft_assemblies: existing ? history : [...history, assembly],
   });
-  return writeApplicationMetadataNotes(api, owner, next, beforeWrite);
+  return writeApplicationMetadataNotes(provider, owner, next, beforeWrite);
 }
 
 /** Reuse the original cost owner and the guarded, read-back notes writer.
  * The fixed caller verifies the provider artifact bytes and current draft before writing. */
 export async function retainApplicationDraftRecovery(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   execution: Execution,
   recovery: ApplicationDraftRecovery,
   beforeWrite: () => Promise<void>,
 ) {
-  const { owner } = readApplicationMetadataContextPlan(api, context, execution);
+  const { owner } = await readApplicationMetadataContextPlan(provider, context, execution);
   const reservation = owner.custody.metadata_contexts?.at(-1);
   assert.ok(reservation);
   assert.equal(reservation.context_sha256, recovery.replacement_context_sha256);
@@ -1300,20 +1290,20 @@ export async function retainApplicationDraftRecovery(
     ...owner.custody,
     draft_recoveries: existing ? history : [...history, recovery],
   });
-  return writeApplicationMetadataNotes(api, owner, next, beforeWrite);
+  return writeApplicationMetadataNotes(provider, owner, next, beforeWrite);
 }
 
 /** The fixed workflow serializes release actors. A read-back claim is spent
  * even if the worker is interrupted before requesting DELETE. */
 export async function claimApplicationDraftAssetRemoval(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   execution: Execution,
   recovery: ApplicationDraftRecovery,
   assetId: number,
   beforeWrite: () => Promise<void>,
 ) {
-  const { owner } = readApplicationMetadataContextPlan(api, context, execution);
+  const { owner } = await readApplicationMetadataContextPlan(provider, context, execution);
   const reservation = owner.custody.metadata_contexts?.at(-1);
   assert.ok(reservation);
   assert.equal(reservation.context_sha256, recovery.replacement_context_sha256);
@@ -1341,7 +1331,7 @@ export async function claimApplicationDraftAssetRemoval(
       },
     ],
   });
-  const written = await writeApplicationMetadataNotes(api, owner, next, beforeWrite);
+  const written = await writeApplicationMetadataNotes(provider, owner, next, beforeWrite);
   return { release_id: written.release_id, notes: written.notes };
 }
 
@@ -1352,36 +1342,35 @@ export function applicationReleaseNotesPreimage(release: Record<string, unknown>
 }
 
 async function writeApplicationMetadataNotes(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   owner: { release_id: number; custody: ApplicationRunCustody },
   next: ApplicationRunCustody,
   beforeWrite: () => Promise<void>,
 ) {
   const started = performance.now();
-  const endpoint = `${prefix}/releases/${owner.release_id}`;
-  const get = () => {
-    const result = api.request("GET", endpoint);
+  const get = async () => {
+    const result = await provider.release(owner.release_id);
     assert.equal(result.status, 200);
     assert.ok(performance.now() - started < 120000);
     assert.ok(isRecord(result.body) && result.body.id === owner.release_id);
     return result.body;
   };
-  const before = get(),
+  const before = await get(),
     parsed = readApplicationRunNotes(before.body);
   assert.ok(parsed);
   assert.deepEqual(parsed.custody, owner.custody, "metadata owner preimage changed");
   const body = notes(next, parsed.before, parsed.after);
   await beforeWrite();
-  assert.deepEqual(get(), before, "metadata owner changed during admission");
+  assert.deepEqual(await get(), before, "metadata owner changed during admission");
   if (body !== before.body) {
     try {
-      const result = api.request("PATCH", endpoint, { body });
+      const result = await provider.appendNotes(owner.release_id, body);
       assert.equal(result.status, 200);
     } catch {
       /* Exact readback resolves an ambiguous write; no repeated PATCH. */
     }
   }
-  const after = get();
+  const after = await get();
   assert.equal(after.body, body, "metadata reservation outcome unknown; retain versions and hold");
   assert.deepEqual(
     applicationReleaseNotesPreimage(after),

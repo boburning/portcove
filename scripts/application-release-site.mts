@@ -10,7 +10,7 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectSiteGeneration } from "./release-site-generation.mts";
 import { isTerminalPagesFailure } from "./release-pages-provider.mts";
 import type { createPagesProviderTransport } from "./release-pages-provider.mts";
-import type { GitHubMetadataResponse, GitHubRestReader } from "./github-operation.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
 
 export async function createApplicationFeedReader(token: string, originalDeadline: number) {
   const deadline = Math.min(originalDeadline, coordinatorCommandDeadline() ?? Infinity);
@@ -71,12 +71,6 @@ function* readPagesResponse(suffix: string): PagesRead<GitHubMetadataResponse> {
   return yield `repos/boburning/portcove/${suffix}`;
 }
 
-function readPages<T>(api: GitHubRestReader, requests: PagesRead<T>) {
-  let step = requests.next();
-  while (!step.done) step = requests.next(api.request("GET", step.value));
-  return step.value;
-}
-
 async function readPagesAsync<T>(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
   requests: PagesRead<T>,
@@ -88,10 +82,6 @@ async function readPagesAsync<T>(
 
 /** Same narrow provider projection used by the independently appointed initial
  * preimage. A generation marker alone cannot identify the deployment actor. */
-export function readApplicationPagesState(api: GitHubRestReader) {
-  return readPages(api, applicationPagesState());
-}
-
 export function readApplicationPagesStateAsync(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
 ) {
@@ -151,7 +141,7 @@ function* applicationPagesState() {
 }
 
 export function assertBootstrapPagesActor(
-  state: ReturnType<typeof readApplicationPagesState>,
+  state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
   generation: string,
   runs: readonly { id: string; control_commit: string; control_ref: string }[],
 ) {
@@ -183,12 +173,14 @@ export function assertBootstrapPagesActor(
  * Facts only; the caller must still authenticate immutable assembly and TUF. */
 export function readApplicationPagesExecution(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
-  state: ReturnType<typeof readApplicationPagesState>,
+  state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
 ) {
   return readPagesAsync(read, applicationPagesExecution(state));
 }
 
-function* applicationPagesExecution(state: ReturnType<typeof readApplicationPagesState>) {
+function* applicationPagesExecution(
+  state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
+) {
   const match = state.log_url.match(
     /^https:\/\/github\.com\/boburning\/portcove\/actions\/runs\/([1-9][0-9]*)\/job\/([1-9][0-9]*)$/u,
   );

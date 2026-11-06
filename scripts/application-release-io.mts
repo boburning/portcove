@@ -1,7 +1,7 @@
 /** Bounded native provider I/O shared by the fixed release jobs. No scheduling,
  * state authority, credential selection or execution grant lives here. */
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { verifyGitHubRelease } from "./github-cli.mts";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile, appendFile } from "node:fs/promises";
 import path from "node:path";
@@ -20,12 +20,12 @@ import {
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 export const applicationRepository = "repos/boburning/portcove";
-export const applicationApi = new GitHubApiClient(
+const preToolApplicationApi = new GitHubApiClient(
   createGitHubRunner({ timeoutMs: 30000, maxBuffer: 8 * 1024 ** 2 }),
 );
 export const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-export const applicationGet = (suffix: string) => {
-  const response = applicationApi.request("GET", `${applicationRepository}/${suffix}`);
+const readPreToolApplicationMetadata = (suffix: string) => {
+  const response = preToolApplicationApi.request("GET", `${applicationRepository}/${suffix}`);
   assert.equal(response.status, 200);
   return response.body;
 };
@@ -51,13 +51,13 @@ export async function applicationOutput(name: string, value: string | number | b
   assert.ok(process.env.GITHUB_OUTPUT);
   await appendFile(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
 }
-export function applicationGh(args: string[]) {
-  return execFileSync("gh", args, {
-    env: readOnlyReleaseChildEnvironment(),
-    encoding: "utf8",
-    timeout: 120000,
-    maxBuffer: 2 * 1024 ** 2,
-    stdio: ["pipe", "pipe", "pipe"],
+export function verifyApplicationRelease(tag: string, deadline: number) {
+  const environment = readOnlyReleaseChildEnvironment();
+  return verifyGitHubRelease("boburning/portcove", tag, {
+    cwd: process.cwd(),
+    timeoutMs: Math.min(120000, Math.floor(deadline - performance.now())),
+    maxBytes: 2 * 1024 ** 2,
+    ...(environment === undefined ? {} : { environment }),
   });
 }
 type ApplicationDataExpectation = {
@@ -110,7 +110,7 @@ async function receiveApplicationDataFrom(
   const metadataDeadline = Math.min(originalDeadline, performance.now() + 30000);
   let metadata: unknown;
   if (token === undefined) {
-    metadata = applicationGet(`actions/artifacts/${expected.id}`);
+    metadata = readPreToolApplicationMetadata(`actions/artifacts/${expected.id}`);
   } else {
     const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
     const provider = await createReleaseCustodyProvider({

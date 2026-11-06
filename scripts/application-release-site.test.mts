@@ -7,7 +7,7 @@ import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import {
   executeBootstrapPages,
   createApplicationFeedReader,
-  readApplicationPagesState,
+  readApplicationPagesStateAsync,
   readActualApplicationPagesState,
   assertBootstrapPagesActor,
   readApplicationPagesExecution,
@@ -303,7 +303,7 @@ void test("pending status is bounded, terminal failure cannot succeed, and publi
     assert.equal(f.events.filter((e) => e === "POST").length, 1);
   }
 });
-void test("Pages actor projection binds latest successful deployment, fixed repository settings, ref and registered run", () => {
+void test("Pages actor projection binds latest successful deployment, fixed repository settings, ref and registered run", async () => {
   const ref = "portcove-production-controller-windows-fixture";
   const replies = [
     {
@@ -321,12 +321,11 @@ void test("Pages actor projection binds latest successful deployment, fixed repo
       },
     ],
   ];
-  const state = readApplicationPagesState({
-    request(method) {
-      assert.equal(method, "GET");
-      return { status: 200, headers: new Map(), body: replies.shift() };
-    },
-  });
+  const state = await readApplicationPagesStateAsync(async () => ({
+    status: 200,
+    headers: new Map(),
+    body: replies.shift(),
+  }));
   const runs = [{ id: "123", control_commit: control, control_ref: `refs/tags/${ref}` }];
   assert.doesNotThrow(() => assertBootstrapPagesActor(state, site.generation, runs));
   for (const change of [

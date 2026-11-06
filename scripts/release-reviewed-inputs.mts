@@ -35,6 +35,7 @@ import {
 } from "./release-control-phases.mts";
 import {
   observeReleaseInputProtections,
+  createProtectionObservationReader,
   observeCatalogMaintenanceProtections,
   requireReleaseInputWriterPolicy,
   prepareProductionProtectionHandoff,
@@ -529,25 +530,12 @@ async function runOperation(
           coordinatorCommandDeadline() ?? Infinity,
           performance.now() + Date.parse(observerIdentity.expires_at) - Date.now(),
         );
-        const { createGitHubClient } = await import("./github-client.mts");
-        const client = await createGitHubClient({
-          credential: { kind: "explicit", token: appToken },
+        readProtection = await createProtectionObservationReader({
+          token: appToken,
           deadline,
           maxBytes: 2 * 1024 ** 2,
-          allowRequest(method, url) {
-            if (method !== "GET" || !/^\/repos\/boburning\/portcove(?:\/|$)/u.test(url.pathname))
-              return false;
-            requireObserver();
-            return true;
-          },
+          guard: requireObserver,
         });
-        readProtection = async (endpoint, observationDeadline) => {
-          const response = await client.request(`GET /${endpoint}`, {
-            request: { portcove: { replay: "once", attempts: 0, deadline: observationDeadline } },
-          });
-          requireObserver();
-          return { status: response.status, body: response.data as unknown };
-        };
       }
       result = catalogPurpose
         ? await observeCatalogMaintenanceProtections(readProtection, {
