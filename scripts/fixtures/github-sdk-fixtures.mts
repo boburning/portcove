@@ -10,7 +10,7 @@ export async function fixtureGitHub(
     headers: Headers;
     body: unknown;
   }) => unknown,
-  options: Pick<GitHubClientOptions, "reserve"> = {},
+  options: Pick<GitHubClientOptions, "reserve" | "allowRequest"> = {},
 ) {
   return await createGitHubClient({
     ...options,

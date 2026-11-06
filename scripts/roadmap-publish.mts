@@ -89,6 +89,30 @@ export function createPublicationApi(sdk: Sdk): PublicationApi {
   };
 }
 
+export function allowRoadmapPublicationRequest(method: string, url: URL) {
+  const numericPrefix = "/repositories/1354613114";
+  const named = url.pathname.startsWith(`${prefix}/`);
+  const numeric = url.pathname.startsWith(`${numericPrefix}/`);
+  if (!named && !numeric) return false;
+  const route = url.pathname.slice((named ? prefix : numericPrefix).length);
+  // GitHub Link headers use the stable numeric repository path for list pages.
+  if (method === "GET") {
+    return (
+      route === "/issues/2414/comments" ||
+      /^\/actions\/runs\/[1-9]\d*\/artifacts$/u.test(route) ||
+      route === "/actions/workflows/roadmap-report.yml/runs" ||
+      (named &&
+        (/^\/issues\/comments\/[1-9]\d*$/u.test(route) ||
+          /^\/actions\/runs\/[1-9]\d*(?:\/attempts\/[1-9]\d*)?$/u.test(route)))
+    );
+  }
+  return (
+    named &&
+    ((method === "POST" && route === "/issues/2414/comments") ||
+      (method === "PATCH" && /^\/issues\/comments\/[1-9]\d*$/u.test(route)))
+  );
+}
+
 async function publicationSdk() {
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   if (!token) throw new Error("Hosted report publication requires its explicit credential");
@@ -97,19 +121,7 @@ async function publicationSdk() {
     credential: { kind: "explicit", token },
     deadline: performance.now() + 10 * 60_000,
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-    allowRequest: (method, url) => {
-      const route = url.pathname.slice(prefix.length);
-      if (!url.pathname.startsWith(`${prefix}/`)) return false;
-      if (method === "POST") return route === "/issues/2414/comments";
-      if (method === "PATCH") return /^\/issues\/comments\/[1-9]\d*$/u.test(route);
-      return (
-        method === "GET" &&
-        (route === "/issues/2414/comments" ||
-          /^\/issues\/comments\/[1-9]\d*$/u.test(route) ||
-          /^\/actions\/runs\/[1-9]\d*(?:\/artifacts|\/attempts\/[1-9]\d*)?$/u.test(route) ||
-          route === "/actions/workflows/roadmap-report.yml/runs")
-      );
-    },
+    allowRequest: allowRoadmapPublicationRequest,
     reserve: () => {
       const exhausted = () =>
         new GitHubApiError("budget_exhausted", "Publication metadata allowance exhausted");
