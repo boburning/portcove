@@ -789,8 +789,13 @@ export async function readRegisteredApplicationRuns(
   return parsed.custody;
 }
 
+type ApplicationReleaseNotesProvider = Pick<
+  ApplicationRunRegistrationProvider,
+  "release" | "appendNotes"
+>;
+
 export async function retainApplicationPreparation(
-  api: CoordinatorRemoteApi,
+  provider: ApplicationReleaseNotesProvider,
   releaseId: number,
   expected: ApplicationRunCustody,
   preparation: Preparation,
@@ -811,7 +816,7 @@ export async function retainApplicationPreparation(
     expected.runs.map((run) => run.id),
     { release_id: releaseId, custody: expected },
   );
-  const before = api.request("GET", `${prefix}/releases/${releaseId}`);
+  const before = await provider.release(releaseId);
   assert.equal(before.status, 200);
   assert.ok(isRecord(before.body) && before.body.id === releaseId);
   const parsed = readApplicationRunNotes(before.body.body);
@@ -830,11 +835,11 @@ export async function retainApplicationPreparation(
     assert.equal(before.body.immutable, false);
     const body = notes(next, parsed.before, parsed.after);
     try {
-      api.request("PATCH", `${prefix}/releases/${releaseId}`, { body });
+      await provider.appendNotes(releaseId, body);
     } catch {
       /* Readback decides; no repeated mutation. */
     }
-    const after = api.request("GET", `${prefix}/releases/${releaseId}`);
+    const after = await provider.release(releaseId);
     assert.equal(after.status, 200);
     assert.ok(isRecord(after.body) && after.body.id === releaseId);
     assert.equal(after.body.body, body, "preparation custody outcome unknown; no retry or reset");
@@ -926,19 +931,20 @@ function inspectApplicationBudgetOwner(
  * This accounting write grants no private work. Older code rejects schema2 rather than
  * silently dropping related costs. A failed/lost PATCH is read back once. */
 export async function registerApplicationBudgetRun(
-  api: Pick<CoordinatorRemoteApi, "request">,
+  provider: ApplicationReleaseNotesProvider,
   context: ApplicationBudgetContext,
   opportunity: string,
   execution: Execution,
   beforeRecord: () => Promise<void>,
 ) {
   assert.match(opportunity, /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u);
-  const owner = readApplicationBudgetOwner(api, context);
-  assert.ok(
-    typeof owner.release_id === "number" &&
-      Number.isSafeInteger(owner.release_id) &&
-      owner.release_id > 0,
-  );
+  const owner = await readApplicationBudgetOwnerAsync(async (id) => {
+    const response = await provider.release(id);
+    assert.equal(response.status, 200);
+    return response.body;
+  }, context);
+  const releaseId = owner.release_id;
+  assert.ok(typeof releaseId === "number" && Number.isSafeInteger(releaseId) && releaseId > 0);
   assert.notEqual(opportunity, owner.custody.opportunity);
   const budget = owner.custody.budget;
   assert.ok(budget === undefined || budget.kind === "owner");
@@ -956,30 +962,29 @@ export async function registerApplicationBudgetRun(
     schema_version: owner.custody.metadata_contexts ? 3 : 2,
     budget: { kind: "owner", scopes: nextScopes },
   });
-  const endpoint = `${prefix}/releases/${owner.release_id}`;
-  const get = () => {
-    const response = api.request("GET", endpoint);
+  const get = async () => {
+    const response = await provider.release(releaseId);
     assert.equal(response.status, 200);
-    assert.ok(isRecord(response.body) && response.body.id === owner.release_id);
+    assert.ok(isRecord(response.body) && response.body.id === releaseId);
     assert.equal(response.body.target_commitish, owner.custody.source);
     return response.body;
   };
-  const before = get();
+  const before = await get();
   const parsed = readApplicationRunNotes(before.body);
   assert.ok(parsed);
   assert.deepEqual(parsed.custody, owner.custody, "native cost owner changed before linking");
   const body = notes(next, parsed.before, parsed.after);
   await beforeRecord();
   if (body !== before.body) {
-    assert.deepEqual(get(), before, "native cost owner preimage changed");
+    assert.deepEqual(await get(), before, "native cost owner preimage changed");
     try {
-      const result = api.request("PATCH", endpoint, { body });
+      const result = await provider.appendNotes(releaseId, body);
       assert.equal(result.status, 200);
     } catch {
       /* Readback alone resolves an ambiguous note update. */
     }
   }
-  const after = get();
+  const after = await get();
   assert.equal(after.body, body, "native cost registration unknown; no retry/reset");
   assert.deepEqual(
     applicationReleaseNotesPreimage(after),
@@ -987,10 +992,10 @@ export async function registerApplicationBudgetRun(
     "cost registration changed another release field",
   );
   return {
-    owner: { release_id: owner.release_id, custody: next },
+    owner: { release_id: releaseId, custody: next },
     membership: {
       kind: "member" as const,
-      owner_release_id: owner.release_id,
+      owner_release_id: releaseId,
       owner_opportunity: owner.custody.opportunity,
     },
     authority: "none" as const,

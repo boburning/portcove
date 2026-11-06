@@ -445,7 +445,7 @@ async function prepare() {
     history,
   );
   const custody = await retainApplicationPreparation(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     registration.release_id,
     registration.custody,
     {
@@ -763,7 +763,7 @@ async function renewUnservedMetadata() {
   assert.equal(process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY, opportunity);
   const owner = await readActualApplicationBudgetOwner(authority);
   const linked = await registerApplicationBudgetRun(
-    applicationApi,
+    await createApplicationRunRegistrationProvider(),
     authority,
     opportunity,
     execution,
@@ -870,7 +870,7 @@ async function recoverImmutableMetadataFeed() {
   // uses a smaller tail. Persist the authorized execution before full admission.
   if (notes.custody.budget?.kind === "member")
     await registerApplicationBudgetRun(
-      applicationApi,
+      await createApplicationRunRegistrationProvider(),
       expected,
       opportunity,
       execution,

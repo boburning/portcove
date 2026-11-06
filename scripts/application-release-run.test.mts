@@ -323,7 +323,7 @@ void test("one mechanical preparation is retained exactly and cannot be silently
     published_versions: ["0.1.0-alpha.2"],
   };
   const retained = await retainApplicationPreparation(
-    f.api,
+    f.registration,
     10,
     registered.custody,
     preparation,
@@ -333,13 +333,13 @@ void test("one mechanical preparation is retained exactly and cannot be silently
   assert.deepEqual(readApplicationRunNotes(f.releases[0]!.body)?.custody, retained);
   const writes = f.mutations.length;
   assert.deepEqual(
-    await retainApplicationPreparation(f.api, 10, retained, preparation, f.guard),
+    await retainApplicationPreparation(f.registration, 10, retained, preparation, f.guard),
     retained,
   );
   assert.equal(f.mutations.length, writes);
   await assert.rejects(
     retainApplicationPreparation(
-      f.api,
+      f.registration,
       10,
       retained,
       { ...preparation, version: "0.1.0-alpha.4" },
@@ -348,7 +348,7 @@ void test("one mechanical preparation is retained exactly and cannot be silently
   );
   await assert.rejects(
     retainApplicationPreparation(
-      f.api,
+      f.registration,
       10,
       retained,
       {
@@ -448,7 +448,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
   const memberOpportunity = "d".repeat(64);
   await assert.rejects(
     registerApplicationBudgetRun(
-      f.api,
+      f.registration,
       { release_id: 10, custody: initial.custody },
       memberOpportunity,
       { ...execution, run_id: "124" },
@@ -460,7 +460,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
   assert.equal(f.mutations.length, 1);
   assert.deepEqual(f.releases[0], before);
   const linked = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     { release_id: 10, custody: initial.custody },
     memberOpportunity,
     { ...execution, run_id: "124" },
@@ -482,7 +482,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
   );
   const writes = f.mutations.length;
   const repeated = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     linked.owner,
     memberOpportunity,
     { ...execution, run_id: "124" },
@@ -507,7 +507,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
     }),
   );
   const expanded = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     linked.owner,
     "e".repeat(64),
     { ...execution, run_id: "125" },
@@ -516,7 +516,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
   const totalWrites = f.mutations.length;
   await assert.rejects(
     registerApplicationBudgetRun(
-      f.api,
+      f.registration,
       expanded.owner,
       "f".repeat(64),
       { ...execution, run_id: "126" },
@@ -538,7 +538,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   );
   const opportunity = "d".repeat(64);
   const firstLink = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     owner,
     opportunity,
     { ...execution, run_id: "124" },
@@ -562,7 +562,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   const beforeMember = structuredClone(f.releases[1]);
   const recovery = { ...execution, run_id: "125" };
   const linked = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     member,
     opportunity,
     recovery,
@@ -588,7 +588,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   assert.deepEqual(readApplicationBudgetOwner(f.api, member), linked.owner);
   const writes = f.mutations.length;
   const retry = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     member,
     opportunity,
     recovery,
@@ -626,7 +626,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   );
   await assert.rejects(() =>
     registerApplicationBudgetRun(
-      f.api,
+      f.registration,
       completed,
       opportunity,
       { ...execution, run_id: "126" },
@@ -649,7 +649,7 @@ void test("unknown native cost registration keeps the old owner and never retrie
   const before = structuredClone(f.releases[0]);
   await assert.rejects(
     registerApplicationBudgetRun(
-      f.api,
+      f.registration,
       { release_id: 10, custody: initial.custody },
       "d".repeat(64),
       { ...execution, run_id: "124" },
@@ -799,7 +799,7 @@ void test("related metadata contexts retain the original owner history and every
   const memberActor = { ...execution, run_id: "124" },
     opportunity = "d".repeat(64);
   const linked = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     {
       release_id: owner.release_id,
       custody: readApplicationRunNotes(f.releases[0]!.body)!.custody,
