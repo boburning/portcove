@@ -24,7 +24,7 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
       (suffix === "pages" ||
         /^deployments\/[1-9][0-9]*$/u.test(suffix) ||
         /^actions\/(?:jobs\/[1-9][0-9]*|runs\/[1-9][0-9]*\/attempts\/[1-3])$/u.test(suffix) ||
-        /^git\/ref\/tags\/(?:portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})|v[0-9][a-z0-9.+-]{1,127})$/u.test(
+        /^git\/ref\/tags\/(?:portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})|v[0-9][A-Za-z0-9.+-]{1,127})$/u.test(
           suffix,
         ))
     );

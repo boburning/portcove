@@ -6,6 +6,7 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import {
   executeBootstrapPages,
+  createApplicationFeedReader,
   readApplicationPagesState,
   readActualApplicationPagesState,
   assertBootstrapPagesActor,
@@ -375,4 +376,29 @@ void test("actual Pages observation aborts a stalled first response at the inher
   );
   assert.equal(calls, 1);
   assert.equal(cancelled, true);
+});
+
+void test("the exact feed tag route retains uppercase SemVer metadata", async (t) => {
+  const tag = "v1.2.3-beta.Build+Commit";
+  let calls = 0;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(
+        request.url,
+        `https://api.github.com/repos/boburning/portcove/git/ref/tags/${tag}`,
+      );
+      assert.equal(request.headers.get("authorization"), "token inert-feed-tag");
+      calls++;
+      return Response.json({ ref: `refs/tags/${tag}`, object: { type: "commit", sha: control } });
+    },
+  );
+  const read = await createApplicationFeedReader("inert-feed-tag", performance.now() + 5000);
+  assert.deepEqual((await read(`repos/boburning/portcove/git/ref/tags/${tag}`)).body, {
+    ref: `refs/tags/${tag}`,
+    object: { type: "commit", sha: control },
+  });
+  assert.equal(calls, 1);
 });
