@@ -167,14 +167,14 @@ void test("native draft registration precedes private work and a same-run retry 
   assert.deepEqual(f.guards, [[], ["123"]]);
   assert.equal(f.mutations.length, 1);
   assert.deepEqual(
-    readRegisteredApplicationRuns(f.api, 10, source, source, tree, execution),
+    await readRegisteredApplicationRuns(f.registration, 10, source, source, tree, execution),
     first.custody,
   );
-  assert.throws(() =>
-    readRegisteredApplicationRuns(f.api, 10, source, source, "d".repeat(40), execution),
+  await assert.rejects(() =>
+    readRegisteredApplicationRuns(f.registration, 10, source, source, "d".repeat(40), execution),
   );
-  assert.throws(() =>
-    readRegisteredApplicationRuns(f.api, 10, source, source, tree, {
+  await assert.rejects(() =>
+    readRegisteredApplicationRuns(f.registration, 10, source, source, tree, {
       ...execution,
       source: "f".repeat(40),
     }),

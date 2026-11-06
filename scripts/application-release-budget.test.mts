@@ -462,13 +462,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
     let body: unknown;
     if (endpoint === "repos/boburning/portcove" || suffix.startsWith("git/"))
       return pause.api.request(method, endpoint, input);
-    if (suffix === "releases/11")
-      body = {
-        id: 11,
-        target_commitish: source,
-        body: `<!-- portcove-application-runs-v1\n${JSON.stringify(member)}\n-->`,
-      };
-    else if (suffix === "releases/10") body = ownerRelease();
+    if (suffix === "releases/10") body = ownerRelease();
     else throw new Error(`unexpected legacy request: ${suffix}`);
     return { status: 200, headers: new Map<string, string>(), body };
   });
@@ -481,6 +475,12 @@ void test("forward metadata maintenance counts original executions, refuses miss
     const suffix = (url.pathname + url.search).replace(/^\/repos\/boburning\/portcove\//u, "");
     let body: unknown;
     if (suffix === "releases/10") body = ownerRelease();
+    else if (suffix === "releases/11")
+      body = {
+        id: 11,
+        target_commitish: source,
+        body: `<!-- portcove-application-runs-v1\n${JSON.stringify(member)}\n-->`,
+      };
     else if (suffix === "actions/workflows/application-release.yml")
       body = { id: 7, path: ".github/workflows/application-release.yml" };
     else if (

@@ -762,8 +762,8 @@ export async function registerApplicationReleaseRun(
   };
 }
 
-export function readRegisteredApplicationRuns(
-  api: CoordinatorRemoteApi,
+export async function readRegisteredApplicationRuns(
+  provider: Pick<ApplicationRunRegistrationProvider, "release">,
   releaseId: number,
   opportunity: string,
   source: string,
@@ -771,7 +771,7 @@ export function readRegisteredApplicationRuns(
   execution: Execution,
 ) {
   assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
-  const response = api.request("GET", `${prefix}/releases/${releaseId}`);
+  const response = await provider.release(releaseId);
   assert.equal(response.status, 200);
   assert.ok(isRecord(response.body) && response.body.id === releaseId);
   assert.equal(response.body.target_commitish, source, "native release source anchor changed");

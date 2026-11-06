@@ -141,6 +141,7 @@ import type { ApplicationMetadataPublicationBinding } from "./application-releas
 import {
   inspectApplicationRunCustody,
   readRegisteredApplicationRuns,
+  createApplicationRunRegistrationProvider,
   inspectApplicationReleaseReference,
   readActualApplicationBudgetOwner,
   assertApplicationCustodyMetadataExtension,
@@ -337,8 +338,8 @@ async function guard(
     for (const key of ["version", "prepared_commit", "prepared_tree", "intent_sha256"] as const)
       assert.equal(expected.preparation[key], source.prepared[key]);
   }
-  const registered = readRegisteredApplicationRuns(
-    applicationApi,
+  const registered = await readRegisteredApplicationRuns(
+    await createApplicationRunRegistrationProvider(),
     Number(source.run_custody.release_id),
     expected.opportunity,
     expected.source,
