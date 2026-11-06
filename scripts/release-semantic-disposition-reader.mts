@@ -325,7 +325,7 @@ function* checkInventory(
       let total: number | null = null;
       const rows: Record<string, unknown>[] = [];
       for (let page = 1; page <= 10; page++) {
-        const response = yield* get(
+        const response: GitHubMetadataResponse = yield* get(
           `repos/boburning/portcove/check-suites/${suite.id}/check-runs?check_name=${encodeURIComponent(semanticReviewCheckName)}&filter=all&per_page=100&page=${page}`,
         );
         const runs = response.body;
