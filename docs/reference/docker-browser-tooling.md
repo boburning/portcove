@@ -28,8 +28,9 @@ or `clean` with the same arguments. No global Vite+ or Corepack is required
 by this host route. The deliberately failing `probe` command returns nonzero.
 `exact` accepts literal desktop test files. Put every option before `--files`.
 The host checks that each path is a regular test file in the selected Git commit
-before Docker admission. The guest uses the maintained exact selector to
-reconcile executed files. The default `suite` runs the canonical browser and
+before Docker admission. The guest resolves Vitest project membership from
+the selected source and uses the maintained exact selector to reconcile
+executed files. The default `suite` runs the canonical browser and
 forced-colors projects freshly.
 
 `--commit` is mandatory and names a full committed SHA available locally.

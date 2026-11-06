@@ -24,12 +24,12 @@ FROM base AS system
 RUN --mount=type=bind,from=workspace,source=/portcove/browser-deps,target=/opt/browser-deps \
     /opt/browser-deps/node /opt/browser-deps/playwright-core/cli.js install-deps chromium \
     && SUDO_FORCE_REMOVE=yes apt-get purge -y sudo \
-    && rm -rf /var/lib/apt/lists/* /etc/sudoers.d
-RUN dpkg-query -W > /portcove/installed-system-packages.txt
+    && rm -rf /var/lib/apt/lists/* /etc/sudoers.d \
+    && dpkg-query -W > /portcove/installed-system-packages.txt
 
 FROM system
-COPY --link --from=workspace /home/vp/ /home/vp/
-COPY --link --from=workspace /workspace/ /workspace/
+COPY --chown=vp:vp --from=workspace /home/vp/ /home/vp/
+COPY --chown=vp:vp --from=workspace /workspace/ /workspace/
 ARG SOURCE_COMMIT
 ARG SOURCE_TREE
 USER vp
