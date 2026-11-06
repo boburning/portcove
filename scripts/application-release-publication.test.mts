@@ -40,6 +40,7 @@ import {
   publishBootstrapRelease,
   createApplicationMetadataPublicationProvider,
   createPreparedApplicationPublicationProvider,
+  createPreparedApplicationPublicationReader,
   publishApplicationMetadataRelease,
   inspectApplicationMetadataPublicationReceipt,
 } from "./application-release-publication.mts";
@@ -469,7 +470,11 @@ ${JSON.stringify(f.expected.custody)}
   };
   const downloaded: number[] = [];
   const transport = {
-    api: f.prepareTransport.api,
+    open: () => f.finalTransport.open(),
+    async readReleaseByTag(tag: string) {
+      assert.equal(tag, `v${prep.version}`);
+      return f.release;
+    },
     async authenticateRelease(
       expected: Parameters<typeof inspectApplicationReleaseAttestation>[1],
     ) {
@@ -506,20 +511,17 @@ ${JSON.stringify(f.expected.custody)}
     record_sha256: "4".repeat(64),
     promotion_sha256: "5".repeat(64),
   };
-  const predecessorTransport = {
-    ...transport,
-    api: {
-      request(...args: Parameters<typeof transport.api.request>) {
-        if (args[1] === `repos/boburning/portcove/releases/tags/v${prep.version}`)
-          return { status: 200, headers: new Map(), body: f.release };
-        return transport.api.request(...args);
+  await assert.rejects(
+    readApplicationWindowsPredecessorAssets(predecessor, {
+      ...transport,
+      deadline: performance.now() - 1,
+      async readReleaseByTag() {
+        assert.fail("an expired Windows owner cannot dispatch the tag lookup");
       },
-    },
-  };
-  const previousFiles = await readApplicationWindowsPredecessorAssets(
-    predecessor,
-    predecessorTransport,
+    }),
+    /predecessor Release deadline exhausted/u,
   );
+  const previousFiles = await readApplicationWindowsPredecessorAssets(predecessor, transport);
   assert.deepEqual(
     [...previousFiles.keys()],
     selected.map((asset) => asset.name),
@@ -531,7 +533,7 @@ ${JSON.stringify(f.expected.custody)}
         ...predecessor,
         installer_sha256: "9".repeat(64),
       },
-      predecessorTransport,
+      transport,
     ),
   );
   downloaded.length = 0;
@@ -681,14 +683,32 @@ void test("authenticated release record binds source, inventory, both public pac
   );
 });
 
-void test("ordinary immutable feed authenticates upstream release inclusion before all ten physical bytes without temporary preparation", async () => {
+void test("ordinary immutable feed authenticates upstream release inclusion before all ten physical bytes without temporary preparation", async (t) => {
   const f = ordinaryFixture();
   const prepared = await f.prepare();
   await f.publish(prepared);
   f.events.length = 0;
   const writes = [...f.writes];
+  const fixtureProvider = await f.finalTransport.open();
+  const routes: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-immutable-feed");
+      const route = url.pathname.slice(1) + url.search;
+      routes.push(route);
+      const result = await fixtureProvider.readMetadata(route);
+      return Response.json(result.body, { status: result.status ?? 200 });
+    },
+  );
   const result = await readImmutableApplicationRelease(f.expected, {
-    api: f.prepareTransport.api,
+    open: (expected, deadline) =>
+      createPreparedApplicationPublicationReader("inert-immutable-feed", expected, deadline),
     async authenticateRelease(identity) {
       assert.equal(f.events.includes("physical"), false);
       inspectApplicationReleaseAttestation(upstreamReleaseAttestation(identity), identity);
@@ -707,6 +727,13 @@ void test("ordinary immutable feed authenticates upstream release inclusion befo
   assert.equal(result.receipt.assets.length, 10);
   assert.equal(result.receipt.authority, "none");
   assert.deepEqual(f.writes, writes);
+  const release = `repos/boburning/portcove/releases/${f.expected.release_id}`;
+  const exactObservation = [
+    release,
+    `${release}/assets?per_page=100&page=1`,
+    `repos/boburning/portcove/git/ref/tags/${result.receipt.tag}`,
+  ];
+  assert.deepEqual(routes, [...exactObservation, ...exactObservation]);
 });
 
 void test("upstream release attestation interpretation refuses foreign identities, wrong commit or incomplete/duplicate assets", () => {
@@ -761,7 +788,7 @@ void test("ordinary feed refuses untrusted release proofs, drafts, substituted o
     const writes = [...f.writes];
     await assert.rejects(
       readImmutableApplicationRelease(f.expected, {
-        api: f.prepareTransport.api,
+        open: () => f.finalTransport.open(),
         async authenticateRelease(identity) {
           if (mode === "release-proof") throw new Error("untrusted release inclusion");
           inspectApplicationReleaseAttestation(upstreamReleaseAttestation(identity), identity);

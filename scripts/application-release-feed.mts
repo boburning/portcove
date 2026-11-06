@@ -622,8 +622,14 @@ export function createFixedApplicationReleaseAssetReader(
   assert.ok(scratch && path.isAbsolute(scratch), "private application asset scratch required");
   const credential = { kind: "explicit" as const, token: fixedReleaseReaderToken() };
   const originalDeadline = Math.min(deadline, coordinatorCommandDeadline() ?? Infinity);
-  return (id: number, maxBytes: number) =>
-    readApplicationReleaseAssetFileBytes(id, maxBytes, scratch, credential, originalDeadline);
+  return (id: number, maxBytes: number, phaseDeadline = Infinity) =>
+    readApplicationReleaseAssetFileBytes(
+      id,
+      maxBytes,
+      scratch,
+      credential,
+      Math.min(originalDeadline, phaseDeadline),
+    );
 }
 
 async function readApplicationReleaseAssetFileBytes(

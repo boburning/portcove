@@ -619,32 +619,25 @@ export function inspectPreparedApplicationPublication(
   return { ...identity, assets, site_generation: raw.site_generation };
 }
 
-/** The caller authenticates preparation first, then supplies current publication
- * eligibility/fresh protection. GitHub permits name/label/state asset updates,
- * not byte replacement: exact IDs+size+digest preserve the attested byte objects.
- * Public byte downloads are mandatory again before feed advancement. */
-export async function publishPreparedApplicationRelease(
+async function openApplicationPublicationRead<
+  T extends Pick<PublicationMetadataProvider, "readMetadata">,
+>(
   expected: ApplicationPublicationExpected,
-  preparation: Buffer,
-  transport: {
-    open: (deadline: number) => Promise<PublicationMetadataProvider>;
-    authenticatePreparation: (bytes: Buffer) => Promise<void>;
-    beforeWrite: () => Promise<() => void>;
-  },
+  open: (deadline: number) => Promise<T>,
+  inheritedDeadline = Infinity,
 ) {
-  assert.ok(preparation.length > 0 && preparation.length <= 128 * 1024);
-  const receipt = inspectPreparedApplicationPublication(
-    JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(preparation)),
-    expected,
-  );
-  await transport.authenticatePreparation(preparation);
   const identity = applicationPublicationIdentity(expected);
-  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
-  const provider = await transport.open(deadline);
+  const deadline = Math.min(
+    inheritedDeadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
   const root = `repos/boburning/portcove/releases/${expected.release_id}`;
   let requests = 0;
   const within = () =>
     assert.ok(performance.now() < deadline, "application publication phase deadline exhausted");
+  within();
+  const provider = await open(deadline);
   const charge = () => {
     within();
     assert.ok(
@@ -671,6 +664,32 @@ export async function publishPreparedApplicationRelease(
       await get(`repos/boburning/portcove/git/ref/tags/${identity.tag}`),
       identity,
     );
+  return { ...identity, provider, release, assets, inspectTag, deadline, within, charge };
+}
+
+/** The caller authenticates preparation first, then supplies current publication
+ * eligibility/fresh protection. GitHub permits name/label/state asset updates,
+ * not byte replacement: exact IDs+size+digest preserve the attested byte objects.
+ * Public byte downloads are mandatory again before feed advancement. */
+export async function publishPreparedApplicationRelease(
+  expected: ApplicationPublicationExpected,
+  preparation: Buffer,
+  transport: {
+    open: (deadline: number) => Promise<PublicationMetadataProvider>;
+    authenticatePreparation: (bytes: Buffer) => Promise<void>;
+    beforeWrite: () => Promise<() => void>;
+  },
+) {
+  assert.ok(preparation.length > 0 && preparation.length <= 128 * 1024);
+  const receipt = inspectPreparedApplicationPublication(
+    JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(preparation)),
+    expected,
+  );
+  await transport.authenticatePreparation(preparation);
+  const { provider, release, assets, inspectTag, charge } = await openApplicationPublicationRead(
+    expected,
+    (deadline) => transport.open(deadline),
+  );
   let current = await release();
   assert.deepEqual(await assets(), receipt.assets);
   await inspectTag();
@@ -1058,11 +1077,13 @@ export async function readApplicationWindowsCandidateAssets(
   expected: ApplicationPublicationExpected,
   generation: string,
   transport: {
-    api: PublicationApi;
+    open: ApplicationPublicationReadTransport["open"];
+    readReleaseByTag: (tag: string, deadline: number) => Promise<unknown>;
+    deadline?: number;
     authenticateRelease: (
       expected: Parameters<typeof inspectApplicationReleaseAttestation>[1],
     ) => Promise<void>;
-    readAsset: (id: number, maximum: number) => Promise<Buffer>;
+    readAsset: ApplicationPublicationReadTransport["readAsset"];
   },
 ) {
   const candidate = inspectApplicationWindowsCandidate(raw, expected, generation);
@@ -1085,9 +1106,14 @@ export async function readApplicationWindowsPredecessorAssets(
   transport: WindowsPairTransport,
 ) {
   const tag = `v${predecessor.version}`;
-  const response = transport.api.request("GET", `repos/boburning/portcove/releases/tags/${tag}`);
-  assert.equal(response.status, 200);
-  const raw = response.body;
+  const deadline = Math.min(
+    transport.deadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 30000,
+  );
+  assert.ok(performance.now() < deadline, "application predecessor Release deadline exhausted");
+  const raw = await transport.readReleaseByTag(tag, deadline);
+  assert.ok(performance.now() < deadline, "application predecessor Release deadline exhausted");
   assert.ok(
     isRecord(raw) && typeof raw.id === "number" && Number.isSafeInteger(raw.id) && raw.id > 0,
   );
@@ -1132,11 +1158,15 @@ async function readImmutableWindowsPair(
   transport: WindowsPairTransport,
   select: (inventory: ApplicationAsset[]) => readonly ApplicationAsset[],
 ) {
-  const remote = applicationPublicationReader(transport.api, expected, 120000);
-  const before = remote.release();
+  const remote = await openApplicationPublicationRead(
+    expected,
+    (deadline) => transport.open(expected, deadline),
+    transport.deadline,
+  );
+  const before = await remote.release();
   assert.equal(before.draft, false);
-  remote.inspectTag(false);
-  const inventory = remote.assets();
+  await remote.inspectTag();
+  const inventory = await remote.assets();
   assert.equal(
     inventory.length,
     remote.names.length,
@@ -1152,15 +1182,15 @@ async function readImmutableWindowsPair(
   remote.within();
   const files = new Map<string, Buffer>();
   for (const asset of selected) {
-    const bytes = await transport.readAsset(asset.id, asset.bytes);
+    const bytes = await transport.readAsset(asset.id, asset.bytes, remote.deadline);
     remote.within();
     assert.equal(bytes.length, asset.bytes);
     assert.equal(sha256(bytes), asset.sha256, "immutable Windows candidate bytes differ");
     files.set(asset.name, bytes);
   }
-  assert.deepEqual(remote.release(), before);
-  assert.deepEqual(remote.assets(), inventory);
-  remote.inspectTag(false);
+  assert.deepEqual(await remote.release(), before);
+  assert.deepEqual(await remote.assets(), inventory);
+  await remote.inspectTag();
   return files;
 }
 
@@ -1171,28 +1201,30 @@ async function readImmutableWindowsPair(
 export async function readImmutableApplicationRelease(
   expected: ApplicationPublicationExpected,
   transport: {
-    api: PublicationApi;
+    open: ApplicationPublicationReadTransport["open"];
     authenticateRelease: (
       expected: Parameters<typeof inspectApplicationReleaseAttestation>[1],
     ) => Promise<void>;
-    readAsset: (id: number, maximum: number) => Promise<Buffer>;
+    readAsset: ApplicationPublicationReadTransport["readAsset"];
     authenticateContents: (
       files: ReadonlyMap<string, Buffer>,
       inspected: ReturnType<typeof inspectApplicationPublicationFiles>,
     ) => Promise<void>;
   },
 ) {
-  const remote = applicationPublicationReader(transport.api, expected, 120000);
-  const before = remote.release();
+  const remote = await openApplicationPublicationRead(expected, (deadline) =>
+    transport.open(expected, deadline),
+  );
+  const before = await remote.release();
   assert.equal(before.draft, false, "feed requires published immutable assets");
   assert.equal(before.immutable, true);
-  const assets = remote.assets();
+  const assets = await remote.assets();
   assert.deepEqual(
     assets.map((asset) => asset.name),
     remote.names,
   );
   assert.ok(assets.reduce((total, asset) => total + asset.bytes, 0) <= 2 * 1024 ** 3);
-  remote.inspectTag(false);
+  await remote.inspectTag();
   await transport.authenticateRelease({
     release_id: expected.release_id,
     tag: remote.tag,
@@ -1203,7 +1235,7 @@ export async function readImmutableApplicationRelease(
   const files = new Map<string, Buffer>();
   for (const asset of assets) {
     remote.within();
-    const bytes = await transport.readAsset(asset.id, asset.bytes);
+    const bytes = await transport.readAsset(asset.id, asset.bytes, remote.deadline);
     remote.within();
     assert.ok(Buffer.isBuffer(bytes));
     assert.equal(bytes.length, asset.bytes);
@@ -1213,9 +1245,13 @@ export async function readImmutableApplicationRelease(
   const inspected = inspectApplicationPublicationFiles(expected, files);
   await transport.authenticateContents(files, inspected);
   remote.within();
-  assert.deepEqual(remote.release(), before, "immutable release changed during byte verification");
-  assert.deepEqual(remote.assets(), assets);
-  remote.inspectTag(false);
+  assert.deepEqual(
+    await remote.release(),
+    before,
+    "immutable release changed during byte verification",
+  );
+  assert.deepEqual(await remote.assets(), assets);
+  await remote.inspectTag();
   return {
     site: inspected.receipt.site,
     files: inspected.site_files,
@@ -2031,6 +2067,14 @@ export function inspectApplicationMetadataPublicationReceipt(
     );
   return receipt;
 }
+type ApplicationPublicationReadTransport = {
+  open: (
+    expected: ApplicationPublicationExpected,
+    deadline: number,
+  ) => Promise<Pick<PublicationMetadataProvider, "readMetadata">>;
+  readAsset: (id: number, maximum: number, deadline: number) => Promise<Buffer>;
+};
+
 type PublicationMetadataProvider = {
   readMetadata: (endpoint: string) => Promise<ReturnType<PublicationApi["request"]>>;
   publish: (body: Record<string, unknown>) => Promise<void>;
@@ -2077,11 +2121,20 @@ export function createPreparedApplicationPublicationProvider(
   );
 }
 
+export function createPreparedApplicationPublicationReader(
+  token: string,
+  expected: ApplicationPublicationExpected,
+  deadline: number,
+): Promise<Pick<PublicationMetadataProvider, "readMetadata">> {
+  const { tag } = applicationPublicationIdentity(expected);
+  return createApplicationPublicationProvider(token, expected.release_id, tag, undefined, deadline);
+}
+
 async function createApplicationPublicationProvider(
   token: string,
   releaseId: number,
   tag: string,
-  assertWindow: () => void,
+  assertWindow: (() => void) | undefined,
   deadline: number,
 ): Promise<PublicationMetadataProvider> {
   assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
@@ -2103,7 +2156,7 @@ async function createApplicationPublicationProvider(
       if (url.origin !== "https://api.github.com") return false;
       const endpoint = url.pathname.slice(1) + url.search;
       if (method === "GET") return readable.has(endpoint);
-      if (method !== "PATCH" || endpoint !== root) return false;
+      if (!assertWindow || method !== "PATCH" || endpoint !== root) return false;
       assertWindow();
       return true;
     },

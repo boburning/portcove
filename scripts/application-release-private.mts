@@ -124,6 +124,7 @@ import {
   createApplicationAssetUploader,
   createApplicationMetadataPublicationProvider,
   createPreparedApplicationPublicationProvider,
+  createPreparedApplicationPublicationReader,
   verifyApplicationDraftRecoveryBackup,
   readStagedDraftRecoveryBackup,
   removeExpiredApplicationDraftAssets,
@@ -1294,7 +1295,8 @@ async function prepareOrdinaryFeed() {
   let predecessor: ReturnType<typeof selectApplicationWindowsPredecessor> | undefined;
   let recordSha: string | undefined;
   const input = await readImmutableApplicationRelease(expected, {
-    api: applicationApi,
+    open: (expected, deadline) =>
+      createPreparedApplicationPublicationReader(fixedReleaseReaderToken(), expected, deadline),
     async authenticateRelease(identity) {
       const verified: unknown = JSON.parse(
         applicationGh([
@@ -2057,7 +2059,23 @@ export async function preparePublicWindowsCandidate(
   assert.deepEqual(readback.provider, discovered.state);
   assert.equal(input.public_readback_sha256, readback.evidence_sha256);
   const transport: Parameters<typeof readApplicationWindowsCandidateAssets>[3] = {
-    api: applicationApi,
+    deadline,
+    open: (expected, phaseDeadline) =>
+      createPreparedApplicationPublicationReader(
+        fixedReleaseReaderToken(),
+        expected,
+        phaseDeadline,
+      ),
+    async readReleaseByTag(tag, phaseDeadline) {
+      const provider = await createReleaseCustodyProvider({
+        token: fixedReleaseReaderToken(),
+        deadline: phaseDeadline,
+        maxBytes: 8 * 1024 ** 2,
+        requestTimeoutMs: 30000,
+        beforeDispatch: () => assertTrustedDirectNode("fixed application predecessor Release"),
+      });
+      return provider.releaseByTag(tag);
+    },
     async authenticateRelease(identity) {
       const verified: unknown = JSON.parse(
         applicationGh([
