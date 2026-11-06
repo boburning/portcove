@@ -1360,7 +1360,7 @@ for (const controlReader of [
     assert.equal(reads.at(-1), reads[0]);
     assert.equal(control.mutations(), priorMutations);
     const callsPerObservation = reads.length - 1;
-    if (classification) {
+    if (classification && controlReader !== "coordinator-application") {
       const start = reads.length;
       let charged = 0;
       let elapsed = 0;

@@ -853,7 +853,8 @@ async function authenticateControlSource(
           controlReader !== "publication-application" &&
           controlReader !== "site-application" &&
           !coordinatorApplication) ||
-        (coordinatorApplication && accounting !== undefined) ||
+        (coordinatorApplication &&
+          (limits.reserve !== undefined || limits.admission !== undefined)) ||
         sdkReaderToken === undefined ||
         sdkDeadline === undefined ||
         !readSdkProducer
@@ -877,11 +878,12 @@ async function authenticateControlSource(
         return protection;
       };
       const protection = requireCurrent();
+      const maximumBytes = (coordinatorApplication ? 16 : 2) * 1024 ** 2;
       const { classification, pause, capacity } = await readApplicationControlsWithSdk(
         {
           token,
           deadline,
-          maxBytes: Math.min(limits.maxBytes ?? 2 * 1024 ** 2, 2 * 1024 ** 2),
+          maxBytes: Math.min(limits.maxBytes ?? maximumBytes, maximumBytes),
           requestTimeoutMs: 15000,
           guard() {
             requireCurrent();
@@ -890,7 +892,6 @@ async function authenticateControlSource(
           },
           fetch,
           ...(limits.admission && { accounting: limits.admission }),
-          ...(coordinatorApplication ? { maxBytes: 16 * 1024 ** 2 } : {}),
         },
         config,
         opportunity,
