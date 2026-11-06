@@ -2049,6 +2049,12 @@ per-title outcomes, checking independently reviewed expected launch vectors or
 accepted member observations. An ordinary fitting title needs no production Rust
 or per-title test wrapper. Independent observations and custom behavioral tests
 remain necessary where their scope differs from the shared route.
+For a managed-native case, record the independently observed executable and
+immutable members in the shared native lifecycle corpus and enroll the stable
+ID and managed role in the independent expectations. Review those facts against
+the package before generating the entrypoint.
+[Native lifecycle corpus](../crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json),
+[independent enrollment](../crates/portcove-core/src/testdata/route-enrollment-expectations.json).
 
 Optional authoring-only `gba_staged_archive_v1` expands the reviewed Windows
 staged GitHub archive layout used by the upstream GBA picker. Record the

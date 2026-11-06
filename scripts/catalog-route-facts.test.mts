@@ -255,6 +255,24 @@ void test("rendered literal arguments preserve Core-readable guide bytes and esc
 void test("ordinary declarations generate distinct bounded title tests without authored Rust", () => {
   const source = readCatalogSource(catalogRoot);
   const rendered = renderRouteTests(source.records);
+  const expected = [
+    "route-enrollment-expectations.json",
+    "accepted-route-expectations.generated.json",
+  ].flatMap((file) => {
+    const envelope = JSON.parse(
+      readFileSync(resolve("crates/portcove-core/src/testdata", file), "utf8"),
+    ) as { cases: { port_id: string; managed_native: boolean }[] };
+    return envelope.cases.map(({ port_id, managed_native }) => [port_id, managed_native] as const);
+  });
+  const actual = new Map(
+    routeEnrollment(source.records).cases.map(({ port_id, managed_native }) => [
+      port_id,
+      managed_native,
+    ]),
+  );
+  const expectedRoles = new Map(expected);
+  assert.equal(expectedRoles.size, expected.length, "independent enrollment IDs must be unique");
+  assert.deepEqual(actual, expectedRoles, "independent lifecycle enrollment");
   for (const kind of ["prepared", "managed"] as const) {
     assert.equal(
       readFileSync(
