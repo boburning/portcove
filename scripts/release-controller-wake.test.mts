@@ -1053,6 +1053,48 @@ void test("prior ambiguous dispatch requires exact readback before a later POST;
   );
   assert.equal(skipped.records[0]!.phase, "prior-wake-no-dispatch-observed");
 });
+void test("prior provider-skipped workflow and fixed job establish no dispatch without steps", async () => {
+  for (const [runConclusion, jobConclusion, provedAbsent] of [
+    ["skipped", "skipped", true],
+    ["failure", "skipped", false],
+    ["skipped", "failure", false],
+  ] as const) {
+    const f = fixture();
+    f.priorFailure();
+    const runs = f.api.runs;
+    f.api.runs = async (...args) => {
+      const result = await runs(...args);
+      return {
+        ...result,
+        workflow_runs: result.workflow_runs.map((run) =>
+          run.id === 41 ? { ...run, conclusion: runConclusion } : run,
+        ),
+      };
+    };
+    const jobs = f.api.jobs;
+    f.api.jobs = async (id) => {
+      const result = await jobs(id);
+      return id === "41"
+        ? { ...result, jobs: [{ ...result.jobs[0], conclusion: jobConclusion, steps: [] }] }
+        : result;
+    };
+    const result = reconcilePreviousWakes(
+      inspectControllerWakeConfiguration(f.config),
+      f.env,
+      f.api,
+      f.record,
+    );
+    if (provedAbsent) {
+      await result;
+      assert.equal(f.records[0]!.phase, "prior-wake-no-dispatch-observed");
+    } else {
+      await assert.rejects(result, /prior wake dispatch step identity unavailable/u);
+      assert.deepEqual(f.records, []);
+    }
+    assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+  }
+});
+
 void test("invalid and expired wake deadline refuses before collection", async () => {
   for (const deadline of [NaN, -1]) {
     const f = fixture();
