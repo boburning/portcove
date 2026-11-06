@@ -5427,7 +5427,13 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("payload");
         fs::create_dir(&root).unwrap();
-        fs::write(root.join("game.exe"), b"trusted executable").unwrap();
+        let executable = root.join("game.exe");
+        fs::write(&executable, b"trusted executable").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+        }
         let mut qualification = InstallQualification::test("game.exe");
         qualification.platform = Platform::current().unwrap();
         qualification.persistent_file_patterns = vec![crate::PersistentFilePattern {
