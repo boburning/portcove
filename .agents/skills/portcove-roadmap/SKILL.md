@@ -15,8 +15,9 @@ Verify actual overlapping writers; the retired board grants no work.
 Intake: search canonical owners first. Use `capture-feature` then `promote
 <draft-item-id> --spec-file <path>`, or `capture-port`/`normalize-port`. Keep issues
 finite and preserve parentage, completed work and genuine prerequisites; parentage
-alone is not a blocker. Before rewriting a specification, preserve its old body
-in dated linked history, refresh the preimage and reject concurrent changes.
+alone is not a blocker. Before posting history for a rewrite, run
+`roadmap-edit.mts --spec-file <path> --check`. Then preserve the old body in
+dated linked history, refresh the live preimage and reject concurrent changes.
 
 Mutations: use authorized scoped `set`, `move` or intake, read back exact issue
 and Project state, and finish `doctor --issue <number>` for affected records.

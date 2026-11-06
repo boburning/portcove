@@ -151,6 +151,7 @@ import {
   setManyJournalName,
   setManyPreviewJournalName,
 } from "./roadmap-batch-progress.mts";
+import type { SetManyExpectedIdentity } from "./roadmap-batch-progress.mts";
 import type { SetManyProgress } from "./roadmap-batch-progress.mts";
 import { access, readFile } from "node:fs/promises";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
@@ -210,10 +211,15 @@ export interface RoadmapConfig {
 export interface RoadmapFieldTransition {
   from: string | null;
   to: string;
+  expected_identity?: SetManyExpectedIdentity;
 }
 export interface SetManySpecification {
   schema_version: 1;
-  updates: { target: string; fields: Record<string, RoadmapFieldTransition> }[];
+  updates: {
+    target: string;
+    fields: Record<string, RoadmapFieldTransition>;
+    expected_content?: { content_id: string; kind: string };
+  }[];
   assignments: number;
 }
 export interface SetManyAssignment extends RoadmapFieldTransition {
@@ -268,7 +274,7 @@ export interface SetManyClient<Context = unknown> {
   sampleGraphqlRate(): Promise<SetManyRate>;
   planSetMany(spec: unknown): Promise<SetManyPlan<Context>>;
   refreshSetManyPlan?(spec: unknown): Promise<SetManyPlan<Context>>;
-  validateSetManyBindings?(assignments: readonly SetManyAssignment[]): Promise<void>;
+  validateSetManyBindings?(assignments: readonly SetManyAssignment[]): Promise<unknown>;
   verifySetMany(plan: SetManyPlan<Context>): Promise<SetManyReadback[]>;
   applySetMany(plan: SetManyPlan<Context>, changes: SetManyAssignment[]): Promise<unknown>;
 }
@@ -338,7 +344,12 @@ export function validateSetManySpec(config: RoadmapConfig, spec: unknown): SetMa
   let assignments = 0;
   const suppliedUpdates: unknown[] = spec.updates;
   const updates = suppliedUpdates.map((update, updateIndex) => {
-    requireExactKeys(update, ["fields", "target"], `set-many update ${updateIndex + 1}`);
+    const hasBinding = isRecord(update) && "expected_content" in update;
+    requireExactKeys(
+      update,
+      hasBinding ? ["fields", "target", "expected_content"] : ["fields", "target"],
+      `set-many update ${updateIndex + 1}`,
+    );
     ensureString(update.target, `set-many update ${updateIndex + 1} target`);
     if (targets.has(update.target)) throw new Error(`duplicate set-many target: ${update.target}`);
     targets.add(update.target);
@@ -354,7 +365,13 @@ export function validateSetManySpec(config: RoadmapConfig, spec: unknown): SetMa
     for (const [fieldName, transition] of Object.entries(update.fields)) {
       const definition = config.fields.find((field) => field.name === fieldName);
       if (!definition) throw new Error(`Project field not found: ${fieldName}`);
-      requireExactKeys(transition, ["from", "to"], `${update.target} ${fieldName} transition`);
+      const pinned = isRecord(transition) && "expected_identity" in transition;
+      requireExactKeys(
+        transition,
+        pinned ? ["from", "to", "expected_identity"] : ["from", "to"],
+        `${update.target} ${fieldName} transition`,
+      );
+
       if (
         transition.from !== null &&
         (typeof transition.from !== "string" || !definition.options.includes(transition.from))
@@ -368,8 +385,59 @@ export function validateSetManySpec(config: RoadmapConfig, spec: unknown): SetMa
         );
       if (transition.from === transition.to)
         throw new Error(`${update.target} ${fieldName} transition does not change the value`);
-      fields[fieldName] = { from: transition.from, to: transition.to };
+      const expected = transition.expected_identity;
+      if (pinned) {
+        requireExactKeys(
+          expected,
+          ["project_id", "field_id", "from_option_id", "option_id"],
+          "set-many expected field identity",
+        );
+        if (
+          !hasBinding ||
+          typeof expected.project_id !== "string" ||
+          !expected.project_id ||
+          typeof expected.field_id !== "string" ||
+          !expected.field_id ||
+          typeof expected.option_id !== "string" ||
+          !expected.option_id ||
+          (transition.from === null
+            ? expected.from_option_id !== null
+            : typeof expected.from_option_id !== "string" || !expected.from_option_id)
+        )
+          throw new Error("set-many expected field identity is invalid");
+        fields[fieldName] = {
+          from: transition.from,
+          to: transition.to,
+          expected_identity: {
+            project_id: expected.project_id,
+            field_id: expected.field_id,
+            option_id: expected.option_id,
+            from_option_id: expected.from_option_id as string | null,
+          },
+        };
+      } else {
+        fields[fieldName] = { from: transition.from, to: transition.to };
+      }
+
       assignments += 1;
+    }
+    const binding = update.expected_content;
+    if (hasBinding) {
+      requireExactKeys(binding, ["content_id", "kind"], "set-many expected content");
+      if (
+        typeof binding.content_id !== "string" ||
+        !binding.content_id ||
+        (binding.kind !== "Issue" && binding.kind !== "DraftIssue")
+      )
+        throw new Error("set-many expected content identity is invalid");
+      return {
+        target: update.target,
+        fields,
+        expected_content: {
+          content_id: binding.content_id,
+          kind: binding.kind,
+        },
+      };
     }
     return { target: update.target, fields };
   });
@@ -424,7 +492,7 @@ function setManyEvidence(plan: SetManyPlan, state: SetManyState) {
 }
 
 async function phasedQuota(
-  client: SetManyClient,
+  client: Pick<SetManyClient, "sampleGraphqlRate">,
   phase: string,
   evidence: Record<string, unknown>,
   required = 110,
@@ -448,7 +516,7 @@ function planFromAssignments<Context>(
   };
 }
 async function prepareDurableSetMany<Context>(
-  client: SetManyClient<Context>,
+  client: Pick<SetManyClient<Context>, "sampleGraphqlRate" | "planSetMany">,
   config: RoadmapConfig,
   spec: unknown,
   journal: SetManyJournal,
@@ -465,6 +533,7 @@ async function prepareDurableSetMany<Context>(
       Object.entries(update.fields).map(([fieldName, transition]) => ({
         target: update.target,
         fieldName,
+        expected_content: update.expected_content,
         ...transition,
       })),
     );
@@ -477,7 +546,12 @@ async function prepareDurableSetMany<Context>(
           row.target !== actual.target ||
           row.fieldName !== actual.fieldName ||
           row.from !== actual.from ||
-          row.to !== actual.to
+          row.to !== actual.to ||
+          observationHash(row.expected_identity ?? null) !==
+            observationHash(actual.expected_identity ?? null) ||
+          (row.expected_content &&
+            observationHash(row.expected_content) !==
+              observationHash(actual.target_identity ?? null))
         );
       })
     )
@@ -543,17 +617,127 @@ async function prepareDurableSetMany<Context>(
   return planFromAssignments(context, rows);
 }
 function specificationForAssignments(rows: readonly SetManyAssignment[]) {
-  const updates = new Map<
-    string,
-    { target: string; fields: Record<string, RoadmapFieldTransition> }
-  >();
+  const updates = new Map<string, SetManySpecification["updates"][number]>();
   for (const row of rows) {
-    const update = updates.get(row.target) ?? { target: row.target, fields: {} };
-    update.fields[row.fieldName] = { from: row.from, to: row.to };
+    const update = updates.get(row.target) ?? {
+      target: row.target,
+      fields: {},
+      ...(row.expected_identity ? { expected_content: row.target_identity! } : {}),
+    };
+    update.fields[row.fieldName] = {
+      from: row.from,
+      to: row.to,
+      ...(row.expected_identity ? { expected_identity: row.expected_identity } : {}),
+    };
+    if (row.expected_identity) update.expected_content = row.target_identity!;
     updates.set(row.target, update);
   }
   return { schema_version: 1, updates: [...updates.values()] };
 }
+export async function inspectSetManyRecovery(
+  client: Pick<
+    RoadmapClient,
+    "validateSetManyBindings" | "readSetManyItems" | "sampleGraphqlRate" | "planSetMany"
+  >,
+  config: RoadmapConfig,
+  spec: unknown,
+  journal: SetManyJournal,
+) {
+  const saved = journal.planning;
+  if (!saved || saved.next_update !== validateSetManySpec(config, spec).updates.length)
+    throw new Error("Recovery requires a complete applied-operation preflight");
+  // With a complete saved preflight this validates the specification and returns
+  // its retained bindings without staging any progress.
+  const plan = await prepareDurableSetMany<ProjectContext>(client, config, spec, journal);
+  const rows = [...plan.pending, ...plan.alreadyApplied];
+  journal.assertBindings(rows);
+  const verified = new Set(journal.journal?.verified);
+  const residual: SetManyAssignment[] = [];
+  const fields: {
+    target: string;
+    itemId: string;
+    fieldName: string;
+    state: "desired" | "original" | "conflicting" | "unreadable";
+    observed?: string | null;
+    reason?: string;
+  }[] = [];
+  for (let offset = 0; offset < rows.length; offset += maximumMutationChunkAssignments) {
+    const chunk = rows.slice(offset, offset + maximumMutationChunkAssignments);
+    let values: Map<string, RoadmapFieldValue[]>;
+    let current: ProjectContext;
+    try {
+      if (chunk.some((row) => !row.target_identity || !row.mutation_identity))
+        throw new Error("Retained Project item, content or option identity is unavailable");
+      current = await client.validateSetManyBindings(chunk);
+      values = await client.readSetManyItems({ pending: chunk, alreadyApplied: [] });
+    } catch (error) {
+      const reason = sanitizeOperationError(error).message;
+      for (const { target, itemId, fieldName } of chunk)
+        fields.push({ target, itemId, fieldName, state: "unreadable", reason });
+      continue;
+    }
+    for (const row of chunk) {
+      const { target, itemId, fieldName, from, to } = row;
+      const fieldId = row.mutation_identity!.field_id;
+      const item = values.get(itemId);
+      const matches = item?.filter((value) => value.field?.id === fieldId);
+      const value = matches?.[0];
+      if (!matches || matches.length > 1 || (value && typeof value.name !== "string")) {
+        fields.push({
+          target,
+          itemId,
+          fieldName,
+          state: "unreadable",
+          reason: "Exact field value is unavailable",
+        });
+        continue;
+      }
+      const observed = typeof value?.name === "string" ? value.name : null;
+      let state: (typeof fields)[number]["state"] = "conflicting";
+      if (observed === to && value?.optionId === row.mutation_identity!.option_id) {
+        state = "desired";
+      } else if (observed === from && !verified.has(assignmentKey(row))) {
+        const originalOption = plan.context.fields
+          .find((candidate) => candidate.id === fieldId)
+          ?.options?.find((option) => option.name === from);
+        const currentOption = current.fields
+          .find((candidate) => candidate.id === fieldId)
+          ?.options?.find((option) => option.name === from);
+        if (from !== null && (!originalOption?.id || originalOption.id !== currentOption?.id)) {
+          fields.push({
+            target,
+            itemId,
+            fieldName,
+            state: "unreadable",
+            reason: "Original option binding is unavailable",
+          });
+          continue;
+        }
+        if (from === null || value?.optionId === originalOption?.id) {
+          state = "original";
+          residual.push({
+            ...row,
+            target: itemId,
+            expected_identity: {
+              ...row.mutation_identity!,
+              from_option_id: originalOption?.id ?? null,
+            },
+          });
+        }
+      }
+      fields.push({ target, itemId, fieldName, state, observed });
+    }
+  }
+  const partial = fields.some(({ state }) => state === "unreadable" || state === "conflicting");
+  return {
+    schema_version: 1,
+    operation: "roadmap.set-many.recovery",
+    status: partial ? "partial" : "observed",
+    fields,
+    residual_spec: residual.length ? specificationForAssignments(residual) : null,
+  };
+}
+
 function validateSetManyItemBinding(
   node: unknown,
   projectId: unknown,
@@ -1261,7 +1445,9 @@ export function parseArguments(argv: readonly string[]) {
     const name = separator < 0 ? token : token.slice(0, separator);
     const inline = separator < 0 ? undefined : token.slice(separator + 1);
     if (
-      ["--apply", "--json", "--summary", "--help", "--linux-beta-706"].includes(name) &&
+      ["--apply", "--recover", "--json", "--summary", "--help", "--linux-beta-706"].includes(
+        name,
+      ) &&
       inline === undefined
     ) {
       options[name] = true;
@@ -1288,7 +1474,7 @@ Usage:
   node scripts/roadmap.mts capture-feature --title <title> [planning field options]
   node scripts/roadmap.mts promote <draft-item-id> [--spec-file <path>]
   node scripts/roadmap.mts set <item-or-issue> [field options]
-  node scripts/roadmap.mts set-many --spec-file <path> [--apply] [--json]
+  node scripts/roadmap.mts set-many --spec-file <path> [--apply | --recover] [--json]
   node scripts/roadmap.mts move <item> --before <item>
   node scripts/roadmap.mts next [--json]
   node scripts/roadmap.mts context --issue <number> --runner <identity> [--coordination-pr <number>] [--consumed-file <path> | --consumed-comment <url>] [--reservation-comment <url>] [--json]
@@ -1347,7 +1533,7 @@ const roadmapCommandGuidance: Readonly<Record<string, readonly [string, string]>
     "set <item-or-issue> --status 'In progress'",
   ],
   "set-many": [
-    "Plan bounded field transitions from a specification file. --apply performs the guarded changes and readback; --json retains machine output.",
+    "Plan bounded field transitions from a specification file. --apply performs guarded changes. --recover inspects an applied journal and emits JSON with a residual specification. --json retains machine output.",
     "set-many --spec-file work/field-transitions.json",
   ],
   move: [
@@ -3338,6 +3524,7 @@ export class RoadmapClient {
       )
         throw new Error("set-many field or option identity changed during final continuation");
     }
+    return context;
   }
   async planSetMany(spec: unknown): Promise<SetManyPlan<ProjectContext>> {
     const validated = validateSetManySpec(this.config, spec);
@@ -3347,6 +3534,12 @@ export class RoadmapClient {
     const itemFields = new Set<string>();
     for (const update of validated.updates) {
       const item = await this.directProjectItem(update.target);
+      if (
+        update.expected_content &&
+        (item.content?.id !== update.expected_content.content_id ||
+          item.content?.__typename !== update.expected_content.kind)
+      )
+        throw new Error(`set-many expected content changed for ${update.target}`);
       for (const [fieldName, transition] of Object.entries(update.fields)) {
         const key = `${item.id}\0${fieldName}`;
         if (itemFields.has(key))
@@ -3354,6 +3547,19 @@ export class RoadmapClient {
         itemFields.add(key);
         const observed = fieldValue(item, fieldName) ?? null;
         const mutation = this.fieldMutationInput(context, item.id, fieldName, transition.to);
+        const expected = transition.expected_identity;
+        if (
+          expected &&
+          (mutation.projectId !== expected.project_id ||
+            mutation.fieldId !== expected.field_id ||
+            mutation.value.singleSelectOptionId !== expected.option_id ||
+            (transition.from !== null &&
+              this.fieldMutationInput(context, item.id, fieldName, transition.from).value
+                .singleSelectOptionId !== expected.from_option_id))
+        )
+          throw new Error(
+            `set-many expected field or option identity changed for ${update.target} ${fieldName}`,
+          );
         const planned = {
           mutation_identity: {
             project_id: mutation.projectId,
@@ -3464,7 +3670,9 @@ export class RoadmapClient {
 
   async verifySetMany<
     Change extends Pick<SetManyAssignment, "itemId" | "fieldName" | "to"> &
-      Partial<Pick<SetManyAssignment, "mutation_identity">>,
+      Partial<Pick<SetManyAssignment, "mutation_identity" | "expected_identity">> & {
+        from?: unknown;
+      },
   >(plan: { pending: readonly Change[]; alreadyApplied: readonly Change[]; context?: unknown }) {
     const items = await this.readSetManyItems(plan);
     return [...plan.pending, ...plan.alreadyApplied].map((change) => {
@@ -3478,6 +3686,18 @@ export class RoadmapClient {
         if (value && typeof value.optionId !== "string")
           throw new Error("set-many option identity is unavailable");
         const observed = value?.name ?? null;
+        if (
+          change.expected_identity &&
+          observed === change.from &&
+          (value?.optionId ?? null) !== change.expected_identity.from_option_id
+        )
+          throw new Error("set-many source option identity changed before readback");
+        if (
+          change.expected_identity &&
+          observed === change.to &&
+          value?.optionId !== change.expected_identity.option_id
+        )
+          throw new Error("set-many target option identity changed before readback");
         return {
           ...change,
           observed,
@@ -4755,14 +4975,17 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
     if (parsed.command === "set-many") {
       if (parsed.positionals.length)
         throw new Error(
-          "Usage: roadmap.mts set-many --spec-file <path> [--apply] [--json]. Run with --help for an example.",
+          "Usage: roadmap.mts set-many --spec-file <path> [--apply | --recover] [--json]. Run with --help for an example.",
         );
       if ("--apply" in parsed.options && parsed.options["--apply"] !== true)
         throw new Error("--apply does not accept a value");
       if ("--json" in parsed.options && parsed.options["--json"] !== true)
         throw new Error("--json does not accept a value");
+      const recover = "--recover" in parsed.options;
+      if (recover && (parsed.options["--recover"] !== true || "--apply" in parsed.options))
+        throw new Error("--recover is a read-only flag and cannot be combined with --apply");
       for (const option of Object.keys(parsed.options)) {
-        if (!["--apply", "--json", "--spec-file"].includes(option))
+        if (!["--apply", "--json", "--spec-file", "--recover"].includes(option))
           throw new Error(`unsupported set-many option: ${option}`);
       }
       const specPath = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
@@ -4772,7 +4995,7 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
         path.join(
           path.dirname(roadmapLockPath()),
           "set-many",
-          parsed.options["--apply"] === true
+          recover || parsed.options["--apply"] === true
             ? setManyJournalName(specPath)
             : setManyPreviewJournalName(specPath, input, config),
         ),
@@ -4780,6 +5003,12 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
         input,
         config,
       );
+      if (recover) {
+        const report = await inspectSetManyRecovery(client, config, spec, journal);
+        console.log(JSON.stringify(report));
+        if (report.status === "partial") process.exitCode = 1;
+        return;
+      }
       const result = await executeSetMany({
         client,
         config,
@@ -5030,7 +5259,12 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
     const args = process.argv.slice(2);
-    if (args[0] === "set-many" && !args.includes("--help") && !args.includes("-h")) {
+    if (
+      args[0] === "set-many" &&
+      !args.includes("--help") &&
+      !args.includes("-h") &&
+      !args.includes("--recover")
+    ) {
       const parsed = parseArguments(args);
       const spec = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
       const scope = createRoadmapRequestScope({
@@ -5049,9 +5283,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
       });
     } else await main(args);
   } catch (error) {
+    const recovery = process.argv[2] === "set-many" && process.argv.slice(3).includes("--recover");
     const json =
-      ["set-many", "context", "next"].includes(process.argv[2] ?? "") &&
-      process.argv.slice(3).includes("--json");
+      recovery ||
+      (["set-many", "context", "next"].includes(process.argv[2] ?? "") &&
+        process.argv.slice(3).includes("--json"));
     const safeError = sanitizeOperationError(error);
     const diagnosis = doctorFailureDiagnostics(error);
     let diagnosticEvidence: string | null = null;
@@ -5076,7 +5312,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
       console.log(
         JSON.stringify(
           githubOperationEnvelope({
-            operation: `roadmap.${process.argv[2]}`,
+            operation: recovery ? "roadmap.set-many.recovery" : `roadmap.${process.argv[2]}`,
             status: qualificationField(error, "operationStatus") ?? "failed",
             summary: safeError.message,
             evidence: {

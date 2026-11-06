@@ -19,7 +19,11 @@ import { fileURLToPath } from "node:url";
 import { writeGitHubBody, validateGitHubBody } from "./github-body.mts";
 import type { BodyApi, BodyWriteOptions } from "./github-body.mts";
 import { sanitizeOperationError } from "./github-operation.mts";
-import { isRoadmapSpecification, validateLiveRoadmapReplacement } from "./roadmap-authoring.mts";
+import {
+  isRoadmapSpecification,
+  validateLiveRoadmapReplacement,
+  validateRoadmapBodyChange,
+} from "./roadmap-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 import config from "../.github/roadmap.json" with { type: "json" };
 
@@ -236,38 +240,67 @@ export async function editRoadmapBatch(
 }
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-function loadBodyEdits(specPath: string, directory: string) {
+function loadBodyEdits(specPath: string, directory?: string) {
   const spec: unknown = JSON.parse(readSetManyInput(specPath).toString("utf8"));
   if (!Array.isArray(spec)) throw new Error("Batch specification must be an array");
   const read = (file: string) =>
     new TextDecoder("utf-8", { fatal: true }).decode(readSetManyInput(path.resolve(root, file)));
-  return spec.map((value: unknown, index) => {
-    if (
-      !isRecord(value) ||
-      typeof value.body_file !== "string" ||
-      typeof value.previous_body_file !== "string"
-    )
-      throw new Error("Invalid batch entry");
-    const bodyFile = value.body_file,
-      previousFile = value.previous_body_file;
-    return {
-      operation: "issue-edit",
-      target: value.target,
-      get body() {
-        return validateGitHubBody(read(bodyFile));
-      },
-      get previousBody() {
-        return read(previousFile);
-      },
-      observe: (observation: unknown) =>
-        writeFileSync(
-          path.join(directory, `${index}-${Date.now()}-${randomUUID()}.json`),
-          JSON.stringify(observation),
-          { flag: "wx" },
-        ),
-    };
-  });
+  return spec.map((value: unknown, index) => ({
+    operation: "issue-edit",
+    get target() {
+      if (
+        !isRecord(value) ||
+        !/^[1-9]\d*$/u.test(String(value.target)) ||
+        !Number.isSafeInteger(Number(value.target))
+      ) {
+        throw new Error("Expected a positive issue number");
+      }
+      return Number(value.target);
+    },
+    get body() {
+      if (!isRecord(value) || typeof value.body_file !== "string")
+        throw new Error("Expected a body_file path");
+      return validateGitHubBody(read(value.body_file));
+    },
+    get previousBody() {
+      if (!isRecord(value) || typeof value.previous_body_file !== "string")
+        throw new Error("Expected a previous_body_file path");
+      return read(value.previous_body_file);
+    },
+    ...(directory
+      ? {
+          observe: (observation: unknown) =>
+            writeFileSync(
+              path.join(directory, `${index}-${Date.now()}-${randomUUID()}.json`),
+              JSON.stringify(observation),
+              { flag: "wx" },
+            ),
+        }
+      : {}),
+  }));
 }
+
+function checkBodyEdits(specPath: string) {
+  const edits = loadBodyEdits(specPath);
+  if (!edits.length) throw new Error("Batch requires positive distinct issue edits");
+  const seen = new Set<number>();
+  const failures: string[] = [];
+  for (const [index, edit] of edits.entries()) {
+    let label = `Entry ${index + 1}`;
+    try {
+      const number = edit.target;
+      label = `Issue #${number}`;
+      if (seen.has(number)) throw new Error("Duplicate issue");
+      seen.add(number);
+      validateRoadmapBodyChange(edit.previousBody, edit.body);
+    } catch (error) {
+      failures.push(`${label} — ${sanitizeOperationError(error).message}`);
+    }
+  }
+  if (failures.length) throw new Error(failures.join("\n"));
+  console.log(`Checked ${edits.length} proposed issue bodies locally.`);
+}
+
 function inputIdentity(edits: readonly BodyWriteOptions[]) {
   return bodyOperationHash({
     contract: 1,
@@ -463,22 +496,38 @@ async function runBodyEdits(specPath: string, scope: ReturnType<typeof createRoa
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    if (process.argv.length !== 4 || process.argv[2] !== "--spec-file")
-      throw new Error(
-        "Usage: roadmap-edit.mts --spec-file FILE (JSON array of {target, body_file, previous_body_file})",
-      );
-    const spec = path.resolve(root, process.argv[3]!);
-    const scope = createRoadmapRequestScope({ allowMutations: true });
-    await continueRoadmapCapacity(() => runBodyEdits(spec, scope), {
-      deadline: scope.deadline,
-      monotonicNow: scope.now,
-      identity: () =>
-        bodyOperationHash({
-          input: inputIdentity(loadBodyEdits(spec, path.join(root, "work/roadmap-edit"))),
-          configuration: readSetManyInput(path.join(root, ".github/roadmap.json")).toString("utf8"),
-        }),
-      observe: (error) => retainRoadmapQuotaDeferral(root, error),
-    });
+    const args = process.argv.slice(2);
+    const check = args.includes("--check");
+    const positionals = args.filter((arg) => arg !== "--check");
+    const usage =
+      "Usage: roadmap-edit.mts --spec-file FILE [--check] (JSON array of {target, body_file, previous_body_file})";
+    if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
+      console.log(usage);
+    } else if (
+      positionals.length !== 2 ||
+      positionals[0] !== "--spec-file" ||
+      args.length !== positionals.length + Number(check)
+    ) {
+      throw new Error(usage);
+    } else {
+      const spec = path.resolve(root, positionals[1]!);
+      if (check) checkBodyEdits(spec);
+      else {
+        const scope = createRoadmapRequestScope({ allowMutations: true });
+        await continueRoadmapCapacity(() => runBodyEdits(spec, scope), {
+          deadline: scope.deadline,
+          monotonicNow: scope.now,
+          identity: () =>
+            bodyOperationHash({
+              input: inputIdentity(loadBodyEdits(spec, path.join(root, "work/roadmap-edit"))),
+              configuration: readSetManyInput(path.join(root, ".github/roadmap.json")).toString(
+                "utf8",
+              ),
+            }),
+          observe: (error) => retainRoadmapQuotaDeferral(root, error),
+        });
+      }
+    }
   } catch (error) {
     console.error(sanitizeOperationError(error).message);
     process.exitCode = 1;

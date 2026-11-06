@@ -46,6 +46,12 @@ export function readSetManyInput(file: string, maximum = maximumSetManyInputByte
     closeSync(descriptor);
   }
 }
+export interface SetManyExpectedIdentity {
+  project_id: string;
+  field_id: string;
+  from_option_id: string | null;
+  option_id: string;
+}
 export interface Transition {
   target: string;
   itemId: string;
@@ -53,6 +59,7 @@ export interface Transition {
   from: string | null;
   to: string;
   observed: unknown;
+  expected_identity?: SetManyExpectedIdentity;
   mutation_identity?: { project_id: string; field_id: string; option_id: string };
   target_identity?: { content_id: string; kind: string };
 }
@@ -351,12 +358,10 @@ export class SetManyJournal {
   get hasFinalVerification() {
     return this.journal?.final_verification !== undefined;
   }
-  observe(progress: SetManyProgress) {
-    if (digest(readSetManyInput(this.inputFile)) !== this.inputHash)
-      throw new Error("set-many specification changed during continuation; no further mutation");
+  assertBindings(assignments: readonly Transition[]) {
     const bindingsHash = digest(
       JSON.stringify(
-        progress.assignments
+        assignments
           .map(({ itemId, fieldName, from, to, mutation_identity }) => ({
             itemId,
             fieldName,
@@ -372,12 +377,19 @@ export class SetManyJournal {
       throw new Error(
         "set-many resolved Project item/field identities changed; preserve and reconcile",
       );
-    const assignmentKeys = new Set(progress.assignments.map(key));
+    const assignmentKeys = new Set(assignments.map(key));
     if (
       previous &&
       [...previous.verified, ...previous.uncertain].some((id) => !assignmentKeys.has(id))
     )
       throw new Error("set-many journal contains foreign verified or uncertain assignments");
+    return bindingsHash;
+  }
+  observe(progress: SetManyProgress) {
+    if (digest(readSetManyInput(this.inputFile)) !== this.inputHash)
+      throw new Error("set-many specification changed during continuation; no further mutation");
+    const bindingsHash = this.assertBindings(progress.assignments);
+    const previous = this.journal;
     const desired = new Set(
       progress.assignments.filter((change) => change.observed === change.to).map(key),
     );
