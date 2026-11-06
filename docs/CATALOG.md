@@ -2087,7 +2087,8 @@ For a new compatible-release selection case, add the stable title ID to
 `cases` in the shared Windows archive fixture. Set its `inventory` to a key
 in `inventories` with at least two releases in oldest-to-newest order.
 Record one independently identified exact asset name per release in
-`selected_assets`. Keep the full observed release inventories and label
+`selected_assets`. Set `channel` for a route that selects outside the default
+stable channel. Keep the full observed release inventories and label
 controlled successors in the title evidence. Reuse an inventory when another
 title selects from the same releases. Use `other_zip_assets` to identify
 competing ZIPs outside the enrolled routes by inventory, zero-based release

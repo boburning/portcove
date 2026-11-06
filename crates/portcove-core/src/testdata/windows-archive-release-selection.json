@@ -31,6 +31,14 @@
         "BodyHarvestRecompiled-v1.0.0-Windows.zip",
         "BodyHarvestRecompiled-v1.0.1-Windows.zip"
       ]
+    },
+    "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger": {
+      "inventory": "spaceranger",
+      "channel": "beta",
+      "selected_assets": [
+        "SpaceRanger-v0.1.0-windows-x64.zip",
+        "SpaceRanger-v0.1.1-windows-x64.zip"
+      ]
     }
   },
   "inventories": {
@@ -246,6 +254,40 @@
             "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
+      }
+    ],
+    "spaceranger": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/woodys-workshop/SpaceRanger/releases/download/v0.1.0/SpaceRanger-v0.1.0-windows-x64.zip",
+            "digest": "sha256:bfe1a4f5eadcea9c3bd1b134857756150037369c29f993108cae88c5f394ca7b",
+            "id": 633915777,
+            "name": "SpaceRanger-v0.1.0-windows-x64.zip",
+            "size": 15997071
+          }
+        ],
+        "draft": false,
+        "id": 410583338,
+        "prerelease": true,
+        "published_at": "2026-10-12T13:48:42Z",
+        "tag_name": "v0.1.0"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://downloads.example.invalid/SpaceRanger-v0.1.1-windows-x64.zip",
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "id": 900000011,
+            "name": "SpaceRanger-v0.1.1-windows-x64.zip",
+            "size": 15997071
+          }
+        ],
+        "draft": false,
+        "id": 900000010,
+        "prerelease": true,
+        "published_at": "2026-10-25T00:00:00Z",
+        "tag_name": "v0.1.1"
       }
     ]
   },

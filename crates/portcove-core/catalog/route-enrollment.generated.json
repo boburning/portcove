@@ -171,6 +171,18 @@
         ]
       },
       "managed_native": false
+    },
+    {
+      "port_id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the complete spaceranger-config folder beside SpaceRanger.exe, including the validated ROM copy, settings, Controller Pak and its recovery siblings"
+        ],
+        "executable": "SpaceRanger.exe"
+      },
+      "managed_native": true
     }
   ]
 }
