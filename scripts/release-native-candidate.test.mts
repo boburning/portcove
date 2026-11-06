@@ -335,6 +335,84 @@ void test("post-sign source run comes from exact completed timestamp candidate o
   );
 });
 
+void test("actual installed post-sign source uses locked SDK for exact context and role proof archives", async (t) => {
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const entry = new URL("./release-native-candidate.mts", import.meta.url).href;
+  const capacity = new URL("./release-capacity.mts", import.meta.url).href;
+  const code = String.raw`
+import assert from 'node:assert/strict';
+import {registerHooks} from 'node:module';
+import {writeFile, readdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import path from 'node:path';
+import {capacityDigest as digest} from ${JSON.stringify(capacity)};
+const root=process.argv[1],hash=b=>createHash('sha256').update(b).digest('hex'),bytes=Buffer.alloc(22),sha256=hash(bytes),revision='a'.repeat(40),ref='refs/tags/portcove-production-controller-fixture';
+const token='fixed_native_source_fixture_token', gh=path.join(root,'fixed-gh'), tokenFile=path.join(root,'source-token');
+await writeFile(gh,'inert verifier',{mode:0o700});await writeFile(tokenFile,token,{mode:0o600});
+process.env.GH_TOKEN='unrelated-ambient-token';
+const candidate={phase:'publishing',source_commit:'b'.repeat(40),prepared_commit:'c'.repeat(40),prepared_tree:'d'.repeat(40),frozen_opportunity:{fixed:true},version:'0.1.0-beta.1',transient_retries:0,substantive_repairs:0,release_run:{run_id:999,attempt:1,revision:'c'.repeat(40)}};
+const {phase,prepared_tree,frozen_opportunity,release_run,...subject}=candidate;
+const identity={before_checkpoint:'d'.repeat(40),candidate:subject,destination:'github-actions:boburning/portcove:0.1.0-beta.1:tuf-timestamp-envelope',executor_nonce:'e'.repeat(64),executor_identity:{actor_id:'123',check_run_id:'456',controller_revision:revision,execution_ref:ref,job_id:789,role:'tuf-timestamp',run_attempt:1,run_id:'12345',workflow:'.github/workflows/application-update-production.yml'},receipt_limit:1,kind:'upload',sequence:1,policy_sha256:'f'.repeat(64),ratification_sha256:'1'.repeat(64)};
+const operation={...identity,id:digest(identity),outcome:'succeeded',completed_effects:[{remote_identity:'artifact:fixture',evidence_sha256:'2'.repeat(64)}],recovery:null,failure_evidence:null};
+const parentReceipt={}, parent={descriptor:{capture_root:root,controller_revision:revision,namespace:'portcove-fixture'},transport_configuration:{github_cli:{path:gh,sha256:hash(Buffer.from('inert verifier'))},source_read_token:tokenFile},controller_tree:'e'.repeat(40),authority_configuration:{},recheck:async()=>{}};
+const roles=['releases','preview','stable','snapshot','timestamp'], files=new Map(['trusted-root.json','offline-targets.json','payload.json'].map(name=>[name,Buffer.from(name)]));
+const names=['trusted-payload-signing-context','trusted-payload-signing-context-attestation',...roles.flatMap(role=>['trusted-tuf-'+role+'-output','trusted-tuf-'+role+'-attestation'])];
+const rows=names.map((name,i)=>({id:i+100,name:name+'-12345-1',expired:false,size_in_bytes:22,digest:'sha256:'+sha256,workflow_run:{id:12345,repository_id:1354613114,head_repository_id:1354613114,head_sha:revision}}));
+let mode='',reads=0,wire=[],deliveries=[];
+const download=async(item,opts,directory)=>opts.download('repos/boburning/portcove/actions/artifacts/'+item.id+'/zip',{cwd:directory,maxBytes:22,timeoutMs:30000});
+globalThis.nativeProofFixture={
+ parent:async receipt=>{assert.equal(receipt,parentReceipt);return parent},
+ recover:async()=>({checkpoint:'7'.repeat(40),repository:root,input:{active_candidate:candidate,controller:{capacity_attempt:{schema_version:2,operation,prior_operations:[]}}}}),
+ pins:()=>({public_source:{root:{sha256:hash(files.get('trusted-root.json'))},offline_targets:{sha256:hash(files.get('offline-targets.json'))},payload_key_registry:{sha256:hash(files.get('payload.json'))}}}),
+ inspect:archive=>{assert.deepEqual(archive,bytes);return {files,manifest_sha256:'f'.repeat(64),manifest:{facts_sha256:'a'.repeat(64),binding:{fixed:true},facts:{opportunity:candidate.frozen_opportunity,assembly:{}}}}},
+ assembly:async()=>({accepted:{release_profile:'initial-beta-win-linux',source_commit:candidate.prepared_commit,source_tree:candidate.prepared_tree,version:candidate.version,run_id:'999',run_attempt:1}}),
+ context:async(directory,expected,_deadline,opts)=>{assert.equal(typeof opts.spawn,'function');assert.deepEqual(await download(expected.artifact,opts,directory),bytes);assert.deepEqual(await download(expected.bundle,opts,directory),bytes);return {directory}},
+ role:async(directory,expected,_deadline,opts)=>{assert.equal(typeof opts.spawn,'function');assert.deepEqual(await download(expected.artifact,opts,directory),bytes);assert.deepEqual(await download(expected.bundle,opts,directory),bytes);return {envelope:{role:expected.role}}},
+};
+const mocks={
+ './release-native-parent.mts':'export const requireActualNativeParent=globalThis.nativeProofFixture.parent;export const remainingNativeParentBudget=(cap=2070000)=>cap;',
+ './release-coordinator-recovery.mts':'export const recoverRemoteCoordinator=globalThis.nativeProofFixture.recover;export const hydrateRetainedCoordinatorOperation=()=>{throw Error("unexpected historical hydrate")};',
+ './release-authority-configuration.mts':'export const inspectNativePrepublicationAuthorities=()=>({});export const inspectPublicationAuthorities=globalThis.nativeProofFixture.pins;',
+ './release-signing-context-artifact.mts':'export const inspectSigningContextArchive=globalThis.nativeProofFixture.inspect;export const receiveSigningContextArtifact=globalThis.nativeProofFixture.context;',
+ './release-tuf-role-artifact.mts':'export const readAttestedTufRoleArtifact=globalThis.nativeProofFixture.role;',
+ './trusted-release-assembly.mts':'export const inspectTrustedAssemblyInput=globalThis.nativeProofFixture.assembly;',
+};
+registerHooks({resolve(specifier,context,next){if(context.parentURL===${JSON.stringify(entry)}&&mocks[specifier])return {url:'native-proof:'+specifier,shortCircuit:true};return next(specifier,context)},load(url,context,next){if(url.startsWith('native-proof:'))return {format:'module',source:mocks[url.slice('native-proof:'.length)],shortCircuit:true};return next(url,context)}});
+globalThis.fetch=async(input,init)=>{
+ const url=new URL(input instanceof Request?input.url:input),headers=new Headers(init.headers);assert.equal(init.redirect,'manual');
+ if(url.origin==='https://productionresultssa1.blob.core.windows.net'){assert.equal(init.credentials,'omit');assert.equal(headers.has('authorization'),false);deliveries.push(url.pathname);return new Response(mode==='short'?bytes.subarray(0,21):bytes)}
+ assert.equal(url.origin,'https://api.github.com');assert.equal(headers.get('authorization'),'token '+token);wire.push(url.pathname);
+ const endpoint='/repos/boburning/portcove/actions';
+ if(url.pathname===endpoint+'/runs/12345/artifacts'){
+  assert.equal(url.search,'?per_page=100');reads++;
+  const artifacts=structuredClone(rows);
+  if(mode==='drift'&&reads===2)artifacts[0].digest='sha256:'+'0'.repeat(64);
+  return Response.json({total_count:artifacts.length,artifacts});
+ }
+ const id=Number(url.pathname.split('/').at(-2));
+ assert.equal(url.pathname,endpoint+'/artifacts/'+id+'/zip');assert.ok(id>=100&&id<=111);
+ return new Response(null,{status:302,headers:{location:'https://productionresultssa1.blob.core.windows.net/actions-results/'+id+'?sig=fixture'}});
+};
+const api=await import(${JSON.stringify(entry)});
+for(const scenario of ['ok','drift','short']){
+ mode=scenario;reads=0;wire=[];deliveries=[];
+ const source=await api.readActualNativePostSignController(parentReceipt);
+ if(scenario==='ok'){
+  const result=await api.readActualNativePostSignPublicInputs(source);
+  assert.equal(result.authority,'none');assert.equal(result.roles.length,5);
+  assert.ok(!(await readdir(result.directory)).some(name=>name.startsWith('native-proof-archive-')));
+ }else await assert.rejects(api.readActualNativePostSignPublicInputs(source));
+ const count=scenario==='short'?1:12;
+ assert.equal(deliveries.length,count);assert.equal(new Set(deliveries).size,count);
+ assert.equal(reads,scenario==='short'?1:2);
+ assert.equal(wire.length,deliveries.length+reads);
+}
+`;
+  await promisify(execFile)(process.execPath, ["--input-type=module", "--eval", code, f.root], {
+    timeout: 15000,
+  });
+});
+
 void test("native duplicate identity binds the actual tuple and existing bounded recovery counters", () => {
   const report = nativeQualificationFixture();
   const prepare = (nonce: string) =>

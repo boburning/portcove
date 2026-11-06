@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -11,7 +11,7 @@ import {
   prepareNativeQualificationCheck,
   verifiedNativeReleaseQualification,
 } from "./release-native-acceptance.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   nativePrepublicationProfile,
   nativePrepublicationPending,
@@ -90,45 +90,39 @@ function fixture(
     repository: { id: 1354613114, full_name: "boburning/portcove" },
   };
   const calls: string[] = [];
-  const api: GitHubRestReader = {
-    request(method, endpoint) {
-      assert.equal(method, "GET");
-      calls.push(endpoint);
-      return {
-        status: 200,
-        headers: new Map(),
-        body: endpoint.includes("check-runs/")
-          ? check
-          : endpoint.includes("check-suites/")
-            ? suite
-            : endpoint.includes("/contents/")
-              ? {
-                  type: "file",
-                  path: report.producer.harness.path,
-                  encoding: "base64",
-                  size: harnessBytes.length,
-                  content: harnessBytes.toString("base64"),
-                  sha: createHash("sha1")
-                    .update(Buffer.from(`blob ${harnessBytes.length}\0`))
-                    .update(harnessBytes)
-                    .digest("hex"),
-                }
-              : endpoint.endsWith(report.producer.source_commit)
-                ? { sha: report.producer.source_commit, tree: { sha: report.producer.source_tree } }
-                : {
-                    sha: report.candidate.source_commit,
-                    tree: { sha: report.candidate.source_tree },
-                  },
-      };
-    },
+  const read = async (route: string) => {
+    const endpoint = `repos/boburning/portcove/${route}`;
+    calls.push(endpoint);
+    return endpoint.includes("check-runs/")
+      ? check
+      : endpoint.includes("check-suites/")
+        ? suite
+        : endpoint.includes("/contents/")
+          ? {
+              type: "file",
+              path: report.producer.harness.path,
+              encoding: "base64",
+              size: harnessBytes.length,
+              content: harnessBytes.toString("base64"),
+              sha: createHash("sha1")
+                .update(Buffer.from(`blob ${harnessBytes.length}\0`))
+                .update(harnessBytes)
+                .digest("hex"),
+            }
+          : endpoint.endsWith(report.producer.source_commit)
+            ? { sha: report.producer.source_commit, tree: { sha: report.producer.source_tree } }
+            : {
+                sha: report.candidate.source_commit,
+                tree: { sha: report.candidate.source_tree },
+              };
   };
-  return { expected, check, suite, calls, api, prepared, harnessBytes };
+  return { expected, check, suite, calls, read, prepared, harnessBytes };
 }
 void test("fixed maintained Node worker report traverses the exact harness source route without widening script selection", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-worker-consumer-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const f = fixture("payload-signing", false, false, true);
-  const receipt = await collectNativeReleaseQualification(root, f.expected, { api: f.api });
+  const receipt = await collectNativeReleaseQualification(root, f.expected, { read: f.read });
   assert.equal(receipt.evidence_scope, "injected-provider");
   assert.ok(
     f.calls.includes(
@@ -158,7 +152,7 @@ void test("injected native Check traversal binds exact distinct stage/producer/p
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const stage of ["payload-signing", "release-publication"] as const) {
     const f = fixture(stage),
-      receipt = await collectNativeReleaseQualification(root, f.expected, { api: f.api });
+      receipt = await collectNativeReleaseQualification(root, f.expected, { read: f.read });
     assert.equal(receipt.evidence_scope, "injected-provider");
     assert.equal(receipt.stage, stage);
     assert.equal(f.calls.length, 7);
@@ -183,12 +177,12 @@ void test("schema2 native Check consumer requires independently selected exact t
   t.after(() => rm(root, { recursive: true, force: true }));
   const f = fixture("release-publication", true);
   assert.match(f.check.external_id, /^portcove-native-qualification-v2:/u);
-  const receipt = await collectNativeReleaseQualification(root, f.expected, { api: f.api });
+  const receipt = await collectNativeReleaseQualification(root, f.expected, { read: f.read });
   assert.equal(receipt.evidence_scope, "injected-provider");
   await assert.rejects(verifiedNativeReleaseQualification(receipt), /actual provider/u);
   const { native_prepublication_profile: _profile, ...base } = f.expected;
   await assert.rejects(
-    collectNativeReleaseQualification(root, { ...base, schema_version: 1 }, { api: f.api }),
+    collectNativeReleaseQualification(root, { ...base, schema_version: 1 }, { read: f.read }),
     /native qualification refused/u,
   );
   for (const changed of [
@@ -196,13 +190,13 @@ void test("schema2 native Check consumer requires independently selected exact t
     { ...f.expected, stage: "payload-signing", journey: null },
     { ...f.expected, journey: { ...f.expected.journey, signed_context_sha256: "0".repeat(64) } },
   ])
-    await assert.rejects(collectNativeReleaseQualification(root, changed, { api: f.api }));
+    await assert.rejects(collectNativeReleaseQualification(root, changed, { read: f.read }));
 });
 void test("initial native Check binds fixed caller bootstrap expectation and cannot satisfy ordinary predecessor expectation", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-initial-inert-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const f = fixture("release-publication", true, true);
-  const receipt = await collectNativeReleaseQualification(root, f.expected, { api: f.api });
+  const receipt = await collectNativeReleaseQualification(root, f.expected, { read: f.read });
   assert.equal(receipt.evidence_scope, "injected-provider");
   await assert.rejects(verifiedNativeReleaseQualification(receipt), /actual provider/u);
   const ordinary = fixture("release-publication", true);
@@ -210,7 +204,7 @@ void test("initial native Check binds fixed caller bootstrap expectation and can
     collectNativeReleaseQualification(
       root,
       { ...f.expected, journey: ordinary.expected.journey },
-      { api: f.api },
+      { read: f.read },
     ),
   );
   if (!f.expected.journey || !("kind" in f.expected.journey))
@@ -222,7 +216,7 @@ void test("initial native Check binds fixed caller bootstrap expectation and can
         ...f.expected,
         journey: { ...f.expected.journey, metadata_bootstrap_sha256: "0".repeat(64) },
       },
-      { api: f.api },
+      { read: f.read },
     ),
   );
 });
@@ -233,7 +227,7 @@ void test("native Check accepts provider timestamp normalization but refuses wro
   normalized.check.started_at = normalized.check.started_at.replace(".000Z", "Z");
   normalized.check.completed_at = normalized.check.completed_at.replace(".000Z", "Z");
   assert.equal(
-    (await collectNativeReleaseQualification(root, normalized.expected, { api: normalized.api }))
+    (await collectNativeReleaseQualification(root, normalized.expected, { read: normalized.read }))
       .evidence_scope,
     "injected-provider",
   );
@@ -282,7 +276,7 @@ void test("native Check accepts provider timestamp normalization but refuses wro
     const f = fixture();
     change(f);
     await assert.rejects(
-      collectNativeReleaseQualification(root, f.expected, { api: f.api }),
+      collectNativeReleaseQualification(root, f.expected, { read: f.read }),
       /retain/u,
     );
   }
@@ -291,37 +285,31 @@ void test("native consumer freezes inputs, refuses provider drift and preserves 
   const root = await mkdtemp(path.join(os.tmpdir(), "native-consumer-drift-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const frozen = fixture();
-  const api: GitHubRestReader = {
-    request(method, endpoint) {
-      const result = frozen.api.request(method, endpoint);
-      if (frozen.calls.length === 1) frozen.expected.check_id = 123;
-      return result;
-    },
+  const read = async (route: string) => {
+    const result = await frozen.read(route);
+    if (frozen.calls.length === 1) frozen.expected.check_id = 123;
+    return result;
   };
   assert.equal(
-    (await collectNativeReleaseQualification(root, frozen.expected, { api })).check_id,
+    (await collectNativeReleaseQualification(root, frozen.expected, { read })).check_id,
     987,
   );
   const drift = fixture();
-  const changed: GitHubRestReader = {
-    request(method, endpoint) {
-      if (drift.calls.length === 5) drift.check.conclusion = "cancelled";
-      return drift.api.request(method, endpoint);
-    },
+  const changed = async (route: string) => {
+    if (drift.calls.length === 5) drift.check.conclusion = "cancelled";
+    return drift.read(route);
   };
   await assert.rejects(
-    collectNativeReleaseQualification(root, drift.expected, { api: changed }),
+    collectNativeReleaseQualification(root, drift.expected, { read: changed }),
     /retain/u,
   );
   const secret = "sentinel-secret-must-not-be-retained";
-  const failing: GitHubRestReader = {
-    request() {
-      throw new Error(secret);
-    },
+  const failing = async () => {
+    throw new Error(secret);
   };
   let directory = "";
   try {
-    await collectNativeReleaseQualification(root, fixture().expected, { api: failing });
+    await collectNativeReleaseQualification(root, fixture().expected, { read: failing });
   } catch (error) {
     assert.ok(error instanceof Error);
     directory = error.message.split("retain ")[1]!;
@@ -347,47 +335,76 @@ void test("native expectation rejects extra metadata and conflated issuers befor
   ]) {
     const f = fixture();
     mutate(f);
-    await assert.rejects(collectNativeReleaseQualification(root, f.expected, { api: f.api }));
+    await assert.rejects(collectNativeReleaseQualification(root, f.expected, { read: f.read }));
     assert.equal(f.calls.length, 0);
     assert.deepEqual(await readdir(root), []);
   }
 });
-void test("actual default REST branch pins github.com and bounded scrubbed transport under ambient host/config", async (t) => {
+function nativeReaderEnvironment(t: test.TestContext) {
+  const previous = { ...process.env };
+  process.env.GH_HOST = "ambient.invalid";
+  process.env.GH_TOKEN = "fixed-native-check-reader";
+  t.after(() => {
+    for (const key of ["GH_HOST", "GH_TOKEN"])
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+  });
+}
+void test("actual locked SDK default binds exact Check, suite and immutable sources then awaits retained readback", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-consumer-transport-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const f = fixture(),
-    previous = process.env.GH_HOST;
-  process.env.GH_HOST = "ambient.invalid";
-  t.after(() => {
-    if (previous === undefined) delete process.env.GH_HOST;
-    else process.env.GH_HOST = previous;
-  });
-  let calls = 0;
-  const receipt = await collectNativeReleaseQualification(root, f.expected, {
-    spawn: (_command, args, settings) => {
-      calls++;
-      assert.equal(args[0], "api");
-      assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-      assert.equal(args[args.indexOf("--method") + 1], "GET");
-      assert.equal(settings.maxBuffer, 512 * 1024);
-      assert.equal(settings.timeout, 15000);
-      assert.equal(settings.env?.GH_HOST, "github.com");
-      assert.equal(settings.env?.NODE_OPTIONS, undefined);
-      assert.equal(settings.env?.HTTPS_PROXY, undefined);
-      assert.ok(String(settings.env?.HOME).startsWith(root));
-      const endpoint = args.find((part) => part.startsWith("repos/boburning/portcove/"));
-      assert.ok(endpoint);
-      const body = f.api.request("GET", endpoint).body;
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-        stderr: "",
-      };
-    },
-  });
-  assert.equal(calls, 7);
-  assert.equal(receipt.evidence_scope, "injected-provider");
-  await assert.rejects(verifiedNativeReleaseQualification(receipt), /actual provider/u);
+  nativeReaderEnvironment(t);
+  const f = fixture();
+  let tamper: string | undefined;
+  const fetcher: typeof globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(init?.method, "GET");
+    assert.equal(init.redirect, "manual");
+    assert.equal(new Headers(init.headers).get("authorization"), "token fixed-native-check-reader");
+    assert.ok(url.pathname.startsWith("/repos/boburning/portcove/"));
+    if (tamper && url.pathname.endsWith("/check-suites/456")) await writeFile(tamper, "{}");
+    process.env.GH_TOKEN = "unrelated-rotated-token";
+    return Response.json(
+      await f.read(url.pathname.slice("/repos/boburning/portcove/".length) + url.search),
+    );
+  };
+  t.mock.method(globalThis, "fetch", fetcher);
+  const receipt = await collectNativeReleaseQualification(root, f.expected);
+  assert.equal(receipt.evidence_scope, "github.com");
+  assert.equal(f.calls.length, 7);
+  const result = await verifiedNativeReleaseQualification(receipt);
+  assert.equal(result.check?.id, f.expected.check_id);
+  assert.deepEqual(
+    f.calls.map((endpoint) => endpoint.replace("repos/boburning/portcove/", "")),
+    [
+      "check-runs/987",
+      "check-suites/456",
+      `git/commits/${f.expected.producer.source_commit}`,
+      `git/commits/${f.expected.candidate.source_commit}`,
+      `contents/${f.expected.producer.harness.path}?ref=${f.expected.producer.source_commit}`,
+      "check-runs/987",
+      "check-suites/456",
+      "check-runs/987",
+      "check-suites/456",
+    ],
+  );
+  const [directory] = await readdir(root);
+  const retained = path.join(root, directory!, "expected.json");
+  const original = await readFile(retained);
+  tamper = retained;
+  await assert.rejects(
+    verifiedNativeReleaseQualification(receipt),
+    /native retained proof changed/u,
+  );
+  tamper = undefined;
+  await writeFile(retained, original);
+  f.check.conclusion = "cancelled";
+  await assert.rejects(verifiedNativeReleaseQualification(receipt));
+  await assert.rejects(
+    verifiedNativeReleaseQualification(structuredClone(receipt)),
+    /actual provider/u,
+  );
 });
 void test("Checks wire uses documented whole seconds without changing fractional native capture or digest", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-consumer-seconds-"));
@@ -404,12 +421,12 @@ void test("Checks wire uses documented whole seconds without changing fractional
   report.producer.harness.sha256 = f.prepared.report.producer.harness.sha256;
   const boundPrepared = prepareNativeQualificationCheck(report);
   Object.assign(f.check, boundPrepared.body);
-  const receipt = await collectNativeReleaseQualification(root, f.expected, { api: f.api });
+  const receipt = await collectNativeReleaseQualification(root, f.expected, { read: f.read });
   assert.equal(receipt.evidence_scope, "injected-provider");
   assert.equal(receipt.report_sha256, boundPrepared.body.external_id.split(":")[1]);
   f.check.completed_at = "2026-10-20T12:00:07Z";
   await assert.rejects(
-    collectNativeReleaseQualification(root, f.expected, { api: f.api }),
+    collectNativeReleaseQualification(root, f.expected, { read: f.read }),
     /retain/u,
   );
 });
@@ -424,70 +441,64 @@ void test("native source closure refuses changed or incomplete exact harness byt
     { size: 256 * 1024 + 1 },
   ]) {
     const f = fixture();
-    const api: GitHubRestReader = {
-      request(method, endpoint) {
-        const response = f.api.request(method, endpoint);
-        if (endpoint.includes("/contents/")) Object.assign(response.body as object, patch);
-        return response;
-      },
+    const read = async (route: string) => {
+      const body = await f.read(route);
+      if (route.startsWith("contents/")) Object.assign(body, patch);
+      return body;
     };
-    await assert.rejects(collectNativeReleaseQualification(root, f.expected, { api }), /retain/u);
+    await assert.rejects(collectNativeReleaseQualification(root, f.expected, { read }), /retain/u);
   }
-  const f = fixture();
-  await assert.rejects(
-    collectNativeReleaseQualification(root, f.expected, {
-      api: {
-        request() {
-          return { status: 404, headers: new Map(), body: null };
-        },
-      },
-    }),
-    /retain/u,
-  );
-  await assert.rejects(
-    collectNativeReleaseQualification(root, f.expected, {
-      spawn: () => ({
-        status: null,
-        stdout: "",
-        stderr: "never-retain-token",
-        error: Object.assign(new Error("overflow"), { code: "ENOBUFS" }),
-      }),
-    }),
-    /retain/u,
-  );
 });
-void test("native collector preserves a caller phase deadline before and after actual default transport", async (t) => {
+void test("locked native provider refuses HTTP failures, metadata overflow and an inherited deadline through a stalled body", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-consumer-deadline-"));
   t.after(() => rm(root, { recursive: true, force: true }));
+  nativeReaderEnvironment(t);
+  const keepAlive = setInterval(() => {}, 1000);
+  t.after(() => clearInterval(keepAlive));
   const f = fixture();
-  let calls = 0;
-  const spawn: NonNullable<Parameters<typeof collectNativeReleaseQualification>[2]>["spawn"] = (
-    _command,
-    args,
-    settings,
-  ) => {
-    calls++;
-    assert.ok(
-      typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 50,
-    );
-    const endpoint = args.find((part) => part.startsWith("repos/boburning/portcove/"));
-    assert.ok(endpoint);
-    const body = f.api.request("GET", endpoint).body;
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 65);
-    return { status: 0, stderr: "", stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(body)}` };
-  };
   await assert.rejects(
-    collectNativeReleaseQualification(root, f.expected, { deadline: performance.now() - 1, spawn }),
+    collectNativeReleaseQualification(root, f.expected, { deadline: performance.now() - 1 }),
     /deadline/u,
   );
-  assert.equal(calls, 0);
-  assert.deepEqual(await readdir(root), []);
   await assert.rejects(
-    collectNativeReleaseQualification(root, f.expected, {
-      deadline: performance.now() + 50,
-      spawn,
-    }),
-    /retain/u,
+    withCoordinatorDeadline(performance.now() + 5000, () =>
+      collectNativeReleaseQualification(root, f.expected, { deadline: Infinity }),
+    ),
+    /deadline/u,
   );
-  assert.equal(calls, 1);
+  assert.deepEqual(await readdir(root), []);
+  for (const fault of ["http", "limit", "stall"] as const) {
+    let calls = 0;
+    let cancelled = false;
+    const mock = t.mock.method(globalThis, "fetch", async () => {
+      calls++;
+      if (fault === "http") return Response.json(null, { status: 404 });
+      if (fault === "limit") return Response.json("x".repeat(512 * 1024));
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array([123]));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    });
+    try {
+      await assert.rejects(
+        withCoordinatorDeadline(performance.now() + (fault === "stall" ? 350 : 5000), () =>
+          collectNativeReleaseQualification(root, f.expected, {
+            deadline: performance.now() + 10000,
+          }),
+        ),
+        /retain/u,
+      );
+      assert.equal(calls, 1);
+      if (fault === "stall") assert.ok(cancelled);
+    } finally {
+      mock.mock.restore();
+    }
+  }
 });

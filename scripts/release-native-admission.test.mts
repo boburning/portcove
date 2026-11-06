@@ -502,18 +502,40 @@ void test("native proof artifact discovery brackets inert bytes with exact sourc
             },
           })
         : { runArtifacts: page };
-    const result = await readHostedNativeProofArtifact(
-      metadata,
-      expected,
-      process.cwd(),
-      deadline,
-      (endpoint, options) => {
-        downloads++;
-        assert.equal(endpoint, "repos/boburning/portcove/actions/artifacts/10/zip");
-        assert.equal(options.maxBytes, bytes.length);
-        return mode === "digest" ? Buffer.alloc(bytes.length) : bytes;
-      },
-    );
+    const token = "inert-native-artifact";
+    const result = await readHostedNativeProofArtifact(metadata, expected, deadline, {
+      token,
+      ...(mode === "ok"
+        ? {
+            async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+              const url = new URL(input instanceof Request ? input.url : input);
+              const headers = new Headers(init?.headers);
+              if (url.origin === "https://api.github.com") {
+                downloads++;
+                assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/10/zip");
+                assert.equal(headers.get("authorization"), `token ${token}`);
+                return new Response(null, {
+                  status: 302,
+                  headers: {
+                    location:
+                      "https://productionresultssa10.blob.core.windows.net/actions-results/native?sig=synthetic",
+                  },
+                });
+              }
+              assert.equal(init?.credentials, "omit");
+              assert.equal(headers.has("authorization"), false);
+              return new Response(Uint8Array.from(bytes));
+            },
+          }
+        : {
+            async download(artifact: { id: number; bytes: number }, bound: number) {
+              downloads++;
+              assert.deepEqual(artifact, { id: 10, bytes: bytes.length });
+              assert.equal(bound, deadline);
+              return mode === "digest" ? Buffer.alloc(bytes.length) : bytes;
+            },
+          }),
+    });
     assert.equal(reads, 2);
     assert.equal(downloads, 1);
     assert.equal(result.authority, "none");

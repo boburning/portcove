@@ -8,7 +8,7 @@ import { applicationReleaseProfile } from "./release-authority-configuration.mts
  * existing collector; it cannot supply a native receipt or admission result. */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import {
@@ -27,6 +27,8 @@ import {
 } from "./release-native-candidate.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readGitHubArtifactArchive, readGitHubReleaseAsset } from "./github-binary.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   recoverRemoteCoordinator,
   hydrateRetainedCoordinatorOperation,
@@ -122,6 +124,64 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
         return result;
       },
     });
+  const credential = { kind: "explicit" as const, token: childEnvironment.GH_TOKEN ?? "" };
+  const directFetch: typeof globalThis.fetch = (input, init) => {
+    remaining(1);
+    assertTrustedDirectNode("hosted native post-sign archive");
+    return globalThis.fetch(input, init);
+  };
+  const readPostSignMetadata = async (endpoint: string) => {
+    const requestDeadline = performance.now() + remaining(15000);
+    const { createGitHubClient } = await import("./github-client.mts");
+    const client = await createGitHubClient({
+      credential,
+      deadline: requestDeadline,
+      maxBytes: 2 * 1024 ** 2,
+      fetch: directFetch,
+      allowRequest(method, url) {
+        if (method !== "GET" || url.pathname + url.search !== `/${endpoint}`) return false;
+        remaining(1);
+        return true;
+      },
+    });
+    const response = await client.request(`GET /${endpoint}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    remaining(1);
+    if (response.status !== 200) throw new Error("original signed artifact metadata unavailable");
+    return response.data as unknown;
+  };
+  const downloadPostSignArchive = async (
+    item: { id: number; bytes: number; sha256: string },
+    root: string,
+    cap: number,
+  ) => {
+    const transferDeadline = performance.now() + remaining(cap);
+    const scratch = await mkdtemp(path.join(root, "post-sign-archive-"));
+    let bytes: Buffer;
+    try {
+      const filename = path.join(scratch, "archive.zip");
+      await downloadGitHubArtifactArchiveFile(
+        `repos/boburning/portcove/actions/artifacts/${item.id}/zip`,
+        filename,
+        { credential, deadline: transferDeadline, maxBytes: item.bytes, fetch: directFetch },
+      );
+      remaining(1);
+      if (performance.now() >= transferDeadline)
+        throw new Error("original signed artifact transfer deadline exhausted");
+      bytes = await readControllerToolFile(filename, item.bytes);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    remaining(1);
+    if (
+      performance.now() >= transferDeadline ||
+      bytes.length !== item.bytes ||
+      hash(bytes) !== item.sha256
+    )
+      throw new Error("original signed artifact archive changed");
+    return bytes;
+  };
   const downloadAsset: typeof readGitHubReleaseAsset = (endpoint, options) =>
     readGitHubReleaseAsset(endpoint, {
       ...options,
@@ -213,6 +273,8 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     api,
     collectEvidence,
     download,
+    readPostSignMetadata,
+    downloadPostSignArchive,
     downloadAsset,
     recover,
     checkpointObjects,
@@ -664,13 +726,10 @@ export async function readActualHostedNativePostSignInventory(receipt: object) {
   const original = await requireActualHostedNativePostSignController(receipt);
   const state = postSignSources.get(receipt)!;
   try {
-    const response = state.source.api.request(
-      "GET",
+    const body = await state.source.readPostSignMetadata(
       `repos/boburning/portcove/actions/runs/${original.controller.run_id}/artifacts?per_page=100`,
     );
-    state.source.remaining(1);
-    if (response.status !== 200) throw new Error("original signed artifact inventory unavailable");
-    const inventory = inspectNativePostSignArtifactInventory(response.body, original.controller);
+    const inventory = inspectNativePostSignArtifactInventory(body, original.controller);
     await requireActualHostedNativePostSignController(receipt);
     return inventory;
   } catch (error) {
@@ -683,16 +742,11 @@ export async function readActualHostedNativePostSignContextArchive(receipt: obje
   const inventory = await readActualHostedNativePostSignInventory(receipt);
   const state = postSignSources.get(receipt)!;
   try {
-    const bytes = state.source.download(
-      `repos/boburning/portcove/actions/artifacts/${inventory.context.id}/zip`,
-      {
-        cwd: state.directory,
-        maxBytes: inventory.context.bytes,
-        timeoutMs: state.source.remaining(30000),
-      },
+    const bytes = await state.source.downloadPostSignArchive(
+      inventory.context,
+      state.directory,
+      30000,
     );
-    if (bytes.length !== inventory.context.bytes || hash(bytes) !== inventory.context.sha256)
-      throw new Error("original signed context archive changed");
     const after = await readActualHostedNativePostSignInventory(receipt);
     if (releaseCanonicalDigest(after) !== releaseCanonicalDigest(inventory))
       throw new Error("original signed artifact inventory changed during context acquisition");
@@ -963,21 +1017,19 @@ export async function acquireActualHostedNativePostSignPackage(journeyReceipt: o
       )
         throw new Error("one original signed platform archive required");
       const endpoint = `repos/boburning/portcove/actions/artifacts/${archives[0].artifact_id}`;
-      const read = () => {
-        original.source.remaining(1);
-        const response = original.source.api.request("GET", endpoint);
-        original.source.remaining(1);
-        if (response.status !== 200) throw new Error("original signed package archive unavailable");
-        return response.body;
-      };
-      const before = read();
+      const read = () => original.source.readPostSignMetadata(endpoint);
+      const before = await read();
       const metadata = await inspectNativePostSignPackageMetadata(facts, platform, before);
       phase = "bounded-package-acquisition";
-      const archive = original.source.download(`${endpoint}/zip`, {
-        cwd: directory,
-        maxBytes: metadata.archive.bytes,
-        timeoutMs: original.source.remaining(120000),
-      });
+      const archive = await original.source.downloadPostSignArchive(
+        {
+          id: metadata.archive.artifact_id,
+          bytes: metadata.archive.bytes,
+          sha256: metadata.archive.sha256,
+        },
+        directory,
+        120000,
+      );
       const retained: {
         value?: {
           identity: Selected["identity"]["candidate"]["package"] & { platform_label: string };
@@ -1002,7 +1054,7 @@ export async function acquireActualHostedNativePostSignPackage(journeyReceipt: o
         },
       );
       if (!retained.value) throw new Error("original signed updater package absent");
-      const after = read();
+      const after = await read();
       await inspectNativePostSignPackageMetadata(facts, platform, after);
       if (releaseCanonicalDigest(before) !== releaseCanonicalDigest(after))
         throw new Error("original signed package provider identity changed");
