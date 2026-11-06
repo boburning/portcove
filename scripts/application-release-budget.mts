@@ -405,6 +405,22 @@ const retainedBootstrapRuns = [
   },
 ];
 
+const contextOnlyBootstrap = {
+  id: 42301931007,
+  source: "9754d288e74eae61915086522d9aa49adbd59d55",
+  tag: "portcove-production-controller-windows-20261105r13",
+  milliseconds: 162_000,
+  jobs: ["context / execute", "source", "tools"],
+} as const;
+
+function isContextOnlyBootstrap(run: Record<string, unknown>) {
+  return (
+    run.id === contextOnlyBootstrap.id &&
+    run.head_sha === contextOnlyBootstrap.source &&
+    run.head_branch === contextOnlyBootstrap.tag
+  );
+}
+
 function successorBootstrapRef(ref: string) {
   const revision =
     /^refs\/tags\/portcove-production-controller-windows-20261105r([1-9][0-9]{1,5})$/u.exec(ref);
@@ -478,7 +494,11 @@ export function permitsBudgetedEmptyBootstrap(
         run.control_ref === execution.ref &&
         row.status === "in_progress"
       );
-    return row.status === "completed" && row.conclusion === "failure";
+    return (
+      row.status === "completed" &&
+      (row.conclusion === "failure" ||
+        (row.conclusion === "success" && isContextOnlyBootstrap(row)))
+    );
   });
 }
 
@@ -608,6 +628,23 @@ export async function readApplicationJobBudget(
           prior.milliseconds,
           "bootstrap predecessor cost changed",
         );
+    }
+    if (budgetedBootstrap && !current && isContextOnlyBootstrap(run)) {
+      const evidence = observations[0]?.jobs;
+      assert.ok(isRecord(evidence) && Array.isArray(evidence.jobs));
+      const names: string[] = [];
+      for (const job of evidence.jobs as unknown[]) {
+        assert.ok(isRecord(job));
+        if (job.conclusion === "skipped") continue;
+        assert.ok(job.status === "completed" && job.conclusion === "success");
+        assert.ok(typeof job.name === "string");
+        names.push(job.name);
+      }
+      assert.deepEqual(
+        names.sort((a, b) => a.localeCompare(b)),
+        contextOnlyBootstrap.jobs,
+      );
+      assert.equal(result.actual_milliseconds, contextOnlyBootstrap.milliseconds);
     }
     actual += result.actual_milliseconds;
     remaining += result.remaining_declared_minutes;

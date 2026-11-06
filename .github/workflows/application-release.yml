@@ -507,7 +507,7 @@ jobs:
           retention-days: 7
           overwrite: false
   protection_metadata:
-    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}
     needs: [source, tools, context]
     permissions:
       contents: read
@@ -525,7 +525,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   releases:
-    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.protection_metadata.result == 'success' }}
     needs: [source, tools, context, protection_metadata]
     permissions:
       contents: read
@@ -548,7 +548,7 @@ jobs:
       protection_artifact: ${{ needs.protection_metadata.outputs.artifact }}
       protection_attempt: ${{ needs.protection_metadata.outputs.attempt }}
   preview:
-    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.protection_metadata.result == 'success' }}
     needs: [source, tools, context, protection_metadata]
     permissions:
       contents: read
@@ -571,7 +571,7 @@ jobs:
       protection_artifact: ${{ needs.protection_metadata.outputs.artifact }}
       protection_attempt: ${{ needs.protection_metadata.outputs.attempt }}
   stable:
-    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.protection_metadata.result == 'success' }}
     needs: [source, tools, context, protection_metadata]
     permissions:
       contents: read
@@ -594,7 +594,7 @@ jobs:
       protection_artifact: ${{ needs.protection_metadata.outputs.artifact }}
       protection_attempt: ${{ needs.protection_metadata.outputs.attempt }}
   protection_snapshot:
-    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable]
     permissions:
       contents: read
@@ -612,7 +612,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   snapshot:
-    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.protection_snapshot.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable, protection_snapshot]
     permissions:
       contents: read
@@ -637,7 +637,7 @@ jobs:
       signed_roles: >-
         {"releases":{"id":"${{ needs.releases.outputs.artifact }}","attempt":${{ needs.releases.outputs.attempt }}},"preview":{"id":"${{ needs.preview.outputs.artifact }}","attempt":${{ needs.preview.outputs.attempt }}},"stable":{"id":"${{ needs.stable.outputs.artifact }}","attempt":${{ needs.stable.outputs.attempt }}}}
   protection_timestamp:
-    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable, snapshot]
     permissions:
       contents: read
@@ -655,7 +655,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   timestamp:
-    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' && needs.protection_timestamp.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable, snapshot, protection_timestamp]
     permissions:
       contents: read
@@ -680,7 +680,7 @@ jobs:
       signed_roles: >-
         {"releases":{"id":"${{ needs.releases.outputs.artifact }}","attempt":${{ needs.releases.outputs.attempt }}},"preview":{"id":"${{ needs.preview.outputs.artifact }}","attempt":${{ needs.preview.outputs.attempt }}},"stable":{"id":"${{ needs.stable.outputs.artifact }}","attempt":${{ needs.stable.outputs.attempt }}},"snapshot":{"id":"${{ needs.snapshot.outputs.artifact }}","attempt":${{ needs.snapshot.outputs.attempt }}}}
   assemble:
-    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' && needs.timestamp.result == 'success' }}
     needs: [source, tools, context, releases, preview, stable, snapshot, timestamp]
     permissions:
       contents: read
@@ -701,7 +701,7 @@ jobs:
       signed_roles: >-
         {"releases":{"id":"${{ needs.releases.outputs.artifact }}","attempt":${{ needs.releases.outputs.attempt }}},"preview":{"id":"${{ needs.preview.outputs.artifact }}","attempt":${{ needs.preview.outputs.attempt }}},"stable":{"id":"${{ needs.stable.outputs.artifact }}","attempt":${{ needs.stable.outputs.attempt }}},"snapshot":{"id":"${{ needs.snapshot.outputs.artifact }}","attempt":${{ needs.snapshot.outputs.attempt }}},"timestamp":{"id":"${{ needs.timestamp.outputs.artifact }}","attempt":${{ needs.timestamp.outputs.attempt }}}}
   draft_recovery:
-    if: ${{ (inputs.mode == 'prepare' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'prepare' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' }}
     needs: [source, tools, assemble]
     runs-on: ubuntu-22.04
     timeout-minutes: 2
