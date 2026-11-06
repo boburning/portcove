@@ -438,17 +438,36 @@ jobs:
           PORTCOVE_TOOL_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
           PORTCOVE_TOOL_ARTIFACT_SHA256: ${{ steps.upload.outputs.artifact-digest }}
         run: node scripts/release-controller-tool-bootstrap.mts bind-upload
+      - name: Retain bounded Windows runtime diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-windows-runtime-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/hosted-continuity-evidence/windows-runtime.json
+            work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json
+            work/hosted-continuity-evidence/windows-runtime-incomplete.json
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
+      - name: Retain bounded Windows compiler diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-windows-compiler-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ~/.pct-*/ct-*/failure.json
+            ~/.pct-*/ct-*/tools/manifest.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
       - name: Retain only bounded bootstrap diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: trusted-controller-tools-windows-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            work/hosted-continuity-evidence/windows-runtime.json
-            work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json
-            work/hosted-continuity-evidence/windows-runtime-incomplete.json
-            ~/.pct-*/ct-*/failure.json
-            ~/.pct-*/ct-*/tools/manifest.json
             ${{ runner.temp }}/controller-tools-windows-predicate.json
             ${{ runner.temp }}/controller-tool-binding-*/expected.json
             ${{ runner.temp }}/controller-tool-binding-*/provider-before.json
