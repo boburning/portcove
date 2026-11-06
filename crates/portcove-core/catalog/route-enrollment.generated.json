@@ -27,6 +27,18 @@
       "managed_native": true
     },
     {
+      "port_id": "dune-ii-dune-dynasty",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the complete personal Dune Dynasty profile or the actual executable-side data and configuration of your prepared copy"
+        ],
+        "executable": "dunedynasty.exe"
+      },
+      "managed_native": true
+    },
+    {
       "port_id": "gamebreaker20xx-fullrumble-ps1-slus01068",
       "prepared_player": {
         "executable": "FullRumble.exe",
