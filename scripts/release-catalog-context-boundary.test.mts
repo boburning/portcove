@@ -387,6 +387,7 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
       capacity: {},
       resource_policy_matches_controller: true,
     };
+  const allowance = () => {};
   const run = runInNewContext(
     stripTypeScriptTypes(`let source, round=0, observed=-Infinity; ${source.slice(start, end)}`) +
       "\nguard",
@@ -433,8 +434,9 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
         return {};
       },
       reservation: () => {},
-      fixedApi: () => ({}),
-      recheckCatalogSemanticProof: () => {
+      createFixedControlReadAllowance: () => allowance,
+      recheckFixedCatalogSemanticProof: async (...args: unknown[]) => {
+        assert.equal(args.at(-1), allowance);
         events.push("Check");
         now = 61000;
       },
@@ -442,7 +444,8 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
         events.push("renew");
         return {
           evidence_scope: "github.com",
-          readMaintenance: () => {
+          readSdkMaintenance: async (reserve: unknown) => {
+            assert.equal(reserve, allowance);
             events.push("maintenance-LAST");
             if (!eligible) throw new Error("final protection expired");
             return current;

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
+import { createFixedControlReadAllowance } from "./release-control-inputs.mts";
+import { isRecord } from "./runtime-values.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
@@ -75,12 +78,15 @@ function configuration() {
     },
   };
 }
-function runtime(catalogCoverage = true) {
+function runtime(
+  catalogCoverage = true,
+  phase: "coordinator" | "catalog-timestamp" = "coordinator",
+) {
   const control = releaseControlInputsFixture(capacityDocumentFixture());
   const observation = catalogCoverage
     ? catalogProtectionFixture(control.head())
     : protectionFixture(control.head());
-  const actual = liveControlRuntimeFixture(observation, undefined, "coordinator", true);
+  const actual = liveControlRuntimeFixture(observation, undefined, phase, true);
   const config = configuration();
   config.apps.dispatch.actor_id = actual.policy.actor_id;
   const policy = {
@@ -298,6 +304,63 @@ void test("catalog OIDC control source is purpose-separated and retains existing
   await assert.rejects(
     authenticateCatalogReleaseControlSource(changed, f.actual.workflow, f.actual.options),
     /changed after ratification/,
+  );
+});
+void test("fixed catalog maintenance joins SDK pause and capacity reads with original observer identity", async (t) => {
+  const f = runtime(true, "catalog-timestamp");
+  const { observerApi, ...options } = f.actual.options;
+  const original = await authenticateCatalogReleaseControlSource(
+    f.environment,
+    f.actual.workflow,
+    f.actual.options,
+  );
+  const expected = original.readMaintenance(f.control.api);
+  const routes: string[] = [];
+  let expireOnObserver = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-catalog-controls");
+      routes.push(url.pathname);
+      if (url.pathname === "/graphql") {
+        assert.equal(request.method, "POST");
+        const wire: unknown = await request.json();
+        assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+        assert.equal(wire.variables.ref, "refs/heads/portcove-release-pause");
+        return Response.json({ data: f.control.api.graphql(wire.query, wire.variables).data });
+      }
+      assert.equal(request.method, "GET");
+      const route = url.pathname.slice(1) + url.search;
+      if (route.includes("/actions/jobs/")) {
+        if (expireOnObserver) f.actual.advance(60001);
+        const job = observerApi.request("GET", route);
+        return Response.json(job.body, { status: job.status });
+      }
+      const result = f.control.api.request("GET", route);
+      return Response.json(result.body, { status: result.status ?? 500 });
+    },
+  );
+  const source = await authenticateCatalogReleaseControlSource(
+    { ...f.environment, GH_TOKEN: "inert-catalog-controls" },
+    f.actual.workflow,
+    { ...options, controlReader: "catalog-maintenance", deadline: performance.now() + 5000 },
+  );
+  await assert.rejects(source.readSdkMaintenance(), /scoped maintenance reader unavailable/u);
+  const observed = await source.readSdkMaintenance(createFixedControlReadAllowance());
+  assert.equal(observed.purpose, "catalog-signing-controls");
+  assert.equal(observed.facts_sha256, expected.facts_sha256);
+  assert.equal(routes[0], "/repos/boburning/portcove/actions/jobs/600");
+  assert.equal(routes.at(-1), routes[0]);
+  assert.equal(routes.filter((route) => route === "/graphql").length, 4);
+  assert.equal(f.control.mutations(), 0);
+  expireOnObserver = true;
+  await assert.rejects(
+    source.readSdkMaintenance(createFixedControlReadAllowance()),
+    /fresh|expired/u,
   );
 });
 void test("selected full catalog controls retain actual fixed reader and isolated observer verification without a Classification App", async () => {

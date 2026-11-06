@@ -744,6 +744,7 @@ for (const [file, tests] of [
   [
     "scripts/release-catalog-signing.mts",
     [
+      "scripts/release-catalog-authorities.test.mts",
       "scripts/release-catalog-signing.test.mts",
       "scripts/release-catalog-recovery.test.mts",
       "scripts/release-catalog-context-boundary.test.mts",
@@ -872,6 +873,7 @@ for (const [file, tests] of [
       "scripts/release-catalog-source.test.mts",
       "scripts/release-catalog-coordinator.test.mts",
       "scripts/release-capacity-executor.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
       "scripts/release-live-control-admission.test.mts",
       "scripts/release-metadata-site-controller.test.mts",
       "scripts/release-catalog-site-controller.test.mts",
@@ -2518,7 +2520,19 @@ for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attesta
     "scripts/release-hosted-native-acceptance.test.mts",
   ]);
 
+for (const file of [
+  "scripts/release-control-inputs.mts",
+  "scripts/release-live-control-admission.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-catalog-authorities.test.mts",
+    "scripts/release-catalog-signing.test.mts",
+  ]);
+
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
+  "scripts/release-catalog-authorities.test.mts",
+  "scripts/release-catalog-signing.test.mts",
   "scripts/release-live-control-admission.test.mts",
   "scripts/release-metadata-site-controller.test.mts",
   "scripts/release-coordinator-recovery.test.mts",
