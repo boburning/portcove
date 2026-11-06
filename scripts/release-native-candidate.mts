@@ -9,8 +9,8 @@ import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
 import { retainNativeSourceDeclarations } from "./release-native-source-provider.mts";
 import { spawnSync } from "node:child_process";
-import { lstatSync, readFileSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { constants, lstatSync, readFileSync, unlinkSync, type BigIntStats } from "node:fs";
+import { link, lstat, mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { EventEmitter } from "node:events";
@@ -21,8 +21,12 @@ import {
   remainingNativeParentBudget,
 } from "./release-native-parent.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive, readGitHubReleaseAsset } from "./github-binary.mts";
-import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
+import { readGitHubArtifactArchive } from "./github-binary.mts";
+import {
+  downloadGitHubArtifactArchiveFile,
+  downloadGitHubReleaseAssetFile,
+} from "./github-artifact-download.mts";
+import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -467,10 +471,9 @@ async function sourceTransport(parent: Parent, directory: string) {
       coordinatorCommandDeadline() ?? Infinity,
       performance.now() + remainingNativeParentBudget(cap),
     );
-  const readPostSignInventory = async (run: string, phaseDeadline: number) => {
+  const readPostSignMetadata = async (endpoint: string, phaseDeadline: number) => {
     await recheck();
     const deadline = postSignDeadline(phaseDeadline, 15000);
-    const endpoint = `/repos/boburning/portcove/actions/runs/${run}/artifacts?per_page=100`;
     const { createGitHubClient } = await import("./github-client.mts");
     const client = await createGitHubClient({
       credential,
@@ -490,6 +493,16 @@ async function sourceTransport(parent: Parent, directory: string) {
     if (response.status !== 200 || performance.now() >= deadline)
       throw new Error("post-sign artifact inventory unavailable");
     return response.data as unknown;
+  };
+  const readPostSignInventory = (run: string, deadline: number) =>
+    readPostSignMetadata(
+      `/repos/boburning/portcove/actions/runs/${run}/artifacts?per_page=100`,
+      deadline,
+    );
+  const readPostSignArtifact = (id: number, deadline: number) => {
+    if (!Number.isSafeInteger(id) || id < 1)
+      throw new Error("native signed platform archive identity unavailable");
+    return readPostSignMetadata(`/repos/boburning/portcove/actions/artifacts/${id}`, deadline);
   };
   const downloadPostSignArchive = async (
     item: { id: number; bytes: number; sha256: string },
@@ -520,7 +533,6 @@ async function sourceTransport(parent: Parent, directory: string) {
     return bytes;
   };
   const download = opaque(readGitHubArtifactArchive);
-  const downloadAsset = opaque(readGitHubReleaseAsset);
   const recover = () =>
     recoverRemoteCoordinator(
       directory,
@@ -627,9 +639,36 @@ async function sourceTransport(parent: Parent, directory: string) {
     metadata,
     declarations,
     download,
+    readPublicRelease: (version: string, deadline: number) =>
+      readNativeImmutableReleaseSnapshot(
+        version,
+        { credential, deadline, fetch: fixedFetch, recheck },
+        true,
+      ),
+    retainPublicReleaseAsset: (
+      asset: ReturnType<typeof inspectPublicImmutableReleaseAsset>,
+      root: string,
+      slot: "prior" | "candidate" | "parked",
+      deadline: number,
+      assertUnchanged: () => Promise<void>,
+    ) =>
+      retainNativeImmutableReleaseAsset(
+        asset,
+        root,
+        slot,
+        { credential, deadline, fetch: fixedFetch, recheck },
+        assertUnchanged,
+      ),
     readPostSignInventory,
+    readPostSignArtifact,
     downloadPostSignArchive,
-    downloadAsset,
+    acquirePredecessor: (record: unknown, candidate: unknown, root: string) =>
+      acquireNativePredecessorRelease(record, candidate, root, {
+        credential,
+        deadline: performance.now() + remainingNativeParentBudget(),
+        fetch: fixedFetch,
+        recheck,
+      }),
     recover,
     recheck,
     verifier,
@@ -1490,6 +1529,249 @@ export function inspectPublicImmutableReleaseAsset(
   });
 }
 
+type NativeImmutableReleaseSource = {
+  credential: Extract<GitHubCredential, { kind: "explicit" }>;
+  deadline: number;
+  fetch: typeof globalThis.fetch;
+  recheck: () => void | Promise<void>;
+};
+
+export async function readNativeImmutableReleaseSnapshot(
+  version: string,
+  options: NativeImmutableReleaseSource,
+  pageSize100 = false,
+) {
+  if (!/^[0-9]+[.][0-9]+[.][0-9]+(?:-[A-Za-z0-9.-]+)?$/u.test(version))
+    throw new Error("native immutable Release version refused");
+  const deadline = Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity);
+  const repository = "/repos/boburning/portcove";
+  const tag = `${repository}/releases/tags/${encodeURIComponent(`v${version}`)}`;
+  const { createGitHubClient } = await import("./github-client.mts");
+  let admittedRoute = tag;
+  const api = await createGitHubClient({
+    credential: options.credential,
+    deadline,
+    maxBytes: 2 * 1024 * 1024,
+    fetch: options.fetch,
+    allowRequest: (method, url) => method === "GET" && url.pathname + url.search === admittedRoute,
+  });
+  const guard = async () => {
+    await options.recheck();
+    if (performance.now() >= deadline) throw new Error("native predecessor lifetime exhausted");
+  };
+  const get = async (route: string) => {
+    await guard();
+    admittedRoute = route;
+    const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
+    try {
+      const response = await api.request(`GET ${route}`, { request: { portcove: policy } });
+      await guard();
+      if (response.status !== 200) throw new Error("native predecessor Release unavailable");
+      return response;
+    } finally {
+      await policy.admissionSettled;
+    }
+  };
+  const release: unknown = (await get(tag)).data;
+  if (!isRecord(release) || !Number.isSafeInteger(release.id) || Number(release.id) < 1)
+    throw new Error("native predecessor Release unavailable");
+  const assetsRoute = `${repository}/releases/${String(release.id)}/assets`;
+  const numericRoute = `/repositories/1354613114/releases/${String(release.id)}/assets`;
+  const assets: unknown[] = [];
+  const ids = new Set<number>();
+  let route = pageSize100 ? `${assetsRoute}?per_page=100` : assetsRoute;
+  for (let page = 1; ; page++) {
+    const response = await get(route);
+    const entries: unknown = response.data;
+    if (!Array.isArray(entries) || assets.length + entries.length > 64)
+      throw new Error("native predecessor immutable asset inventory exceeds its bound");
+    for (const asset of entries as unknown[]) {
+      if (
+        !isRecord(asset) ||
+        typeof asset.id !== "number" ||
+        !Number.isSafeInteger(asset.id) ||
+        asset.id < 1 ||
+        ids.has(asset.id)
+      )
+        throw new Error("native predecessor asset inventory ambiguous");
+      ids.add(asset.id);
+      assets.push(asset);
+    }
+    const header = response.headers.link;
+    let next: string | undefined;
+    if (header !== undefined) {
+      if (typeof header !== "string")
+        throw new Error("native predecessor immutable asset pagination is malformed");
+      const pattern = /<([^>]+)>;\s*rel="([^"]+)"/gu;
+      const relations = [...header.matchAll(pattern)];
+      const nextRelations = relations.filter((match) => match[2]?.split(/\s+/u).includes("next"));
+      if (
+        !relations.length ||
+        header.replace(pattern, "").replace(/[,\s]/gu, "") ||
+        nextRelations.length > 1
+      )
+        throw new Error("native predecessor immutable asset pagination is malformed");
+      next = nextRelations[0]?.[1];
+    }
+    if (!next) return { release, assets };
+    const url = URL.parse(next, "https://api.github.com");
+    if (
+      !url ||
+      entries.length === 0 ||
+      assets.length >= 64 ||
+      url.origin !== "https://api.github.com" ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      (url.pathname !== assetsRoute && url.pathname !== numericRoute) ||
+      url.searchParams.size !== (pageSize100 ? 2 : 1) ||
+      (pageSize100 && url.searchParams.get("per_page") !== "100") ||
+      url.searchParams.get("page") !== String(page + 1)
+    )
+      throw new Error("native predecessor immutable asset pagination changed scope");
+    route = url.pathname + url.search;
+  }
+}
+
+async function retainNativeImmutableReleaseAsset(
+  asset: ReturnType<typeof inspectPublicImmutableReleaseAsset>,
+  directory: string,
+  prefix: "predecessor" | "prior" | "candidate" | "parked",
+  options: NativeImmutableReleaseSource,
+  assertUnchanged: () => Promise<void>,
+) {
+  if (path.basename(asset.filename) !== asset.filename)
+    throw new Error("native immutable asset filename refused");
+  const deadline = Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity);
+  const guard = async () => {
+    await options.recheck();
+    if (performance.now() >= deadline) throw new Error("native predecessor lifetime exhausted");
+  };
+  const transferDeadline = Math.min(deadline, performance.now() + 120000);
+  const scratch = await mkdtemp(path.join(directory, "native-predecessor-"));
+  const filename = path.join(directory, `${prefix}-${asset.filename}`);
+  const sameFile = (left: BigIntStats, right: BigIntStats) =>
+    left.isFile() && right.isFile() && left.dev === right.dev && left.ino === right.ino;
+  const sameVersion = (left: BigIntStats, right: BigIntStats) =>
+    sameFile(left, right) &&
+    left.size === right.size &&
+    left.mtimeNs === right.mtimeNs &&
+    left.ctimeNs === right.ctimeNs;
+  let published: BigIntStats | undefined;
+  try {
+    try {
+      const source = path.join(scratch, "asset");
+      await guard();
+      const downloaded = await downloadGitHubReleaseAssetFile(asset.id, source, {
+        credential: options.credential,
+        deadline: transferDeadline,
+        maxBytes: asset.bytes,
+        fetch: options.fetch,
+      });
+      await guard();
+      if (downloaded.bytes !== asset.bytes || downloaded.sha256 !== asset.sha256)
+        throw new Error("native predecessor bytes differ from exact Tough identity");
+      const owned = await open(
+        source,
+        constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+      );
+      try {
+        if (!sameVersion(downloaded.identity, await owned.stat({ bigint: true })))
+          throw new Error("native predecessor scratch file changed");
+        await assertUnchanged();
+        await guard();
+        if (!sameVersion(downloaded.identity, await lstat(source, { bigint: true })))
+          throw new Error("native predecessor scratch file changed");
+        await link(source, filename);
+        published = downloaded.identity;
+        const before = await owned.stat({ bigint: true });
+        if (
+          !sameFile(published, before) ||
+          before.size !== BigInt(asset.bytes) ||
+          !sameVersion(before, await lstat(filename, { bigint: true }))
+        )
+          throw new Error("native predecessor retained file changed");
+        const sha256 = createHash("sha256");
+        const buffer = Buffer.alloc(64 * 1024);
+        let bytes = 0;
+        while (bytes <= asset.bytes) {
+          if (performance.now() >= deadline)
+            throw new Error("native predecessor lifetime exhausted");
+          const { bytesRead } = await owned.read(
+            buffer,
+            0,
+            Math.min(buffer.length, asset.bytes - bytes + 1),
+            null,
+          );
+          if (!bytesRead) break;
+          bytes += bytesRead;
+          sha256.update(buffer.subarray(0, bytesRead));
+        }
+        if (
+          bytes !== asset.bytes ||
+          sha256.digest("hex") !== asset.sha256 ||
+          !sameVersion(before, await owned.stat({ bigint: true })) ||
+          !sameVersion(before, await lstat(filename, { bigint: true }))
+        )
+          throw new Error("native predecessor retained bytes changed");
+      } finally {
+        await owned.close();
+      }
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    await guard();
+    const retained = await lstat(filename, { bigint: true });
+    if (
+      !published ||
+      !sameFile(published, retained) ||
+      retained.size !== BigInt(asset.bytes) ||
+      retained.mtimeNs !== published.mtimeNs ||
+      retained.nlink !== 1n ||
+      performance.now() >= deadline
+    )
+      throw new Error("native predecessor retained file or lifetime changed");
+    return { path: filename, bytes: asset.bytes, sha256: asset.sha256, version: asset.version };
+  } catch (error) {
+    if (published) {
+      const existing = lstatSync(filename, { bigint: true, throwIfNoEntry: false });
+      if (existing && sameFile(published, existing)) unlinkSync(filename);
+    }
+    throw error;
+  }
+}
+
+/** Retain an exact immutable predecessor under its owner's original reader and
+ * lifetime. The numeric asset identifier never establishes native acceptance. */
+export async function acquireNativePredecessorRelease(
+  record: unknown,
+  candidate: unknown,
+  directory: string,
+  options: NativeImmutableReleaseSource,
+) {
+  if (
+    !isRecord(record) ||
+    typeof record.version !== "string" ||
+    !/^[0-9]+[.][0-9]+[.][0-9]+(?:-[A-Za-z0-9.-]+)?$/u.test(record.version)
+  )
+    throw new Error("native actual predecessor record absent");
+  const version = record.version;
+  const read = async () => {
+    const snapshot = await readNativeImmutableReleaseSnapshot(version, options);
+    return inspectNativePredecessorReleaseAsset(
+      record,
+      candidate,
+      snapshot.release,
+      snapshot.assets,
+    );
+  };
+  const asset = await read();
+  return retainNativeImmutableReleaseAsset(asset, directory, "predecessor", options, async () => {
+    if (digest(asset) !== digest(await read()))
+      throw new Error("native predecessor provider state changed");
+  });
+}
+
 /** The same installed parent owns signed-input/Tough verification, exact opaque
  * package acquisition and the report2 request. It never imports a journey or
  * substitutes a successful native/admission result for byte custody. */
@@ -1509,19 +1791,21 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
   );
   if (rows.length !== 1 || !isRecord(rows[0]) || typeof rows[0].artifact_id !== "number")
     throw new Error("native signed platform archive absent");
-  const endpoint = `repos/boburning/portcove/actions/artifacts/${rows[0].artifact_id}`;
-  const read = () => {
-    const response = original.source.api.request("GET", endpoint);
-    if (response.status !== 200) throw new Error("native exact package archive unavailable");
-    return response.body;
-  };
-  const before = read(),
+  const artifactId = rows[0].artifact_id;
+  const deadline = performance.now() + remainingNativeParentBudget();
+  const read = () => original.source.readPostSignArtifact(artifactId, deadline);
+  const before = await read(),
     identity = await inspectNativePostSignPackageMetadata(facts, platform, before);
-  const archiveBytes = original.source.download(`${endpoint}/zip`, {
-    cwd: verified.directory,
-    maxBytes: identity.archive.bytes,
-    timeoutMs: remainingNativeParentBudget(120000),
-  });
+  const archiveBytes = await original.source.downloadPostSignArchive(
+    {
+      id: identity.archive.artifact_id,
+      bytes: identity.archive.bytes,
+      sha256: identity.archive.sha256,
+    },
+    verified.directory,
+    120000,
+    deadline,
+  );
   let retained: { identity: Identity; bytes: Buffer } | undefined;
   await discoverReleaseArtifactFiles(
     archiveBytes,
@@ -1541,7 +1825,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
     },
   );
   if (!retained) throw new Error("native signed updater package missing");
-  const after = read();
+  const after = await read();
   await inspectNativePostSignPackageMetadata(facts, platform, after);
   if (digest(before) !== digest(after))
     throw new Error("native exact package provider identity changed");
@@ -1576,65 +1860,11 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
   );
   let predecessor: { path: string; bytes: number; sha256: string; version: string } | undefined;
   if (isRecord(verified.journey) && "predecessor" in verified.journey) {
-    const record = verified.predecessor_record;
-    if (!record || typeof record.version !== "string")
-      throw new Error("native actual predecessor record absent");
-    const releaseEndpoint = `repos/boburning/portcove/releases/tags/${encodeURIComponent(`v${record.version}`)}`;
-    const readRelease = () => {
-      const response = original.source.api.request("GET", releaseEndpoint);
-      if (
-        response.status !== 200 ||
-        !isRecord(response.body) ||
-        typeof response.body.id !== "number"
-      )
-        throw new Error("native predecessor Release unavailable");
-      const assets = original.source.api.paginateRest(
-        `repos/boburning/portcove/releases/${response.body.id}/assets`,
-        {
-          identity: (item: unknown) => {
-            if (!isRecord(item) || typeof item.id !== "number")
-              throw new Error("native asset identity absent");
-            return String(item.id);
-          },
-          label: "native predecessor immutable assets",
-        },
-      );
-      return { release: response.body, assets };
-    };
-    const before = readRelease();
-    const asset = inspectNativePredecessorReleaseAsset(
-      record,
+    predecessor = await original.source.acquirePredecessor(
+      verified.predecessor_record,
       verified.journey.predecessor,
-      before.release,
-      before.assets,
+      verified.directory,
     );
-    const bytes = original.source.downloadAsset(
-      `repos/boburning/portcove/releases/assets/${asset.id}`,
-      {
-        cwd: verified.directory,
-        maxBytes: asset.bytes,
-        timeoutMs: remainingNativeParentBudget(120000),
-      },
-    );
-    if (bytes.length !== asset.bytes || hash(bytes) !== asset.sha256)
-      throw new Error("native predecessor bytes differ from exact Tough identity");
-    const after = readRelease();
-    const repeated = inspectNativePredecessorReleaseAsset(
-      record,
-      verified.journey.predecessor,
-      after.release,
-      after.assets,
-    );
-    if (digest(asset) !== digest(repeated))
-      throw new Error("native predecessor provider state changed");
-    const filename = `predecessor-${asset.filename}`;
-    await writeFile(path.join(verified.directory, filename), bytes, { flag: "wx", mode: 0o600 });
-    predecessor = {
-      path: path.join(verified.directory, filename),
-      bytes: asset.bytes,
-      sha256: asset.sha256,
-      version: asset.version,
-    };
   }
   const packagePath = path.join(verified.directory, packageIdentity.candidate.package.filename);
   await writeFile(packagePath, retained.bytes, { flag: "wx", mode: 0o600 });

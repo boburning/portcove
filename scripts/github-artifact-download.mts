@@ -1,4 +1,5 @@
-import { open, unlink } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { open, unlink, type FileHandle } from "node:fs/promises";
 import { createGitHubClient, retainedGitHubHeaders } from "./github-client.mts";
 import type {
   GitHubClientOptions,
@@ -187,15 +188,19 @@ export async function downloadGitHubArtifactArchive(
   return Buffer.concat(chunks, bytes);
 }
 
-/** Exact numeric Release asset lookup for bounded documents such as the SBOM. */
-export async function downloadGitHubReleaseAsset(id: number, options: ArtifactDownloadOptions) {
+async function transferGitHubReleaseAsset(
+  id: number,
+  options: ArtifactDownloadOptions,
+  maximum: number,
+  receive: (chunk: Uint8Array) => void | Promise<void>,
+) {
   const { credential, deadline, maxBytes, fetch, signal } = options;
   if (
     !Number.isSafeInteger(id) ||
     id < 1 ||
     !Number.isSafeInteger(maxBytes) ||
     maxBytes < 1 ||
-    maxBytes > 16 * 1024 * 1024 ||
+    maxBytes > maximum ||
     !Number.isFinite(deadline) ||
     deadline - performance.now() > 120000
   )
@@ -215,14 +220,13 @@ export async function downloadGitHubReleaseAsset(id: number, options: ArtifactDo
     ...(fetch ? { fetch } : {}),
     ...(signal ? { signal } : {}),
   });
-  const chunks: Uint8Array[] = [];
   let bytes = 0;
-  const receive = (chunk: Uint8Array) => {
-    chunks.push(chunk);
+  const accept = async (chunk: Uint8Array) => {
+    await receive(chunk);
     bytes += chunk.byteLength;
   };
   const policy = downloadRequestPolicy(options);
-  policy.binaryResponse = { maxBytes, receive };
+  policy.binaryResponse = { maxBytes, receive: accept };
   let lookup;
   try {
     lookup = await api.request(`GET ${pathname}`, { request: { portcove: policy } });
@@ -238,15 +242,44 @@ export async function downloadGitHubReleaseAsset(id: number, options: ArtifactDo
       )
     )
       throw new GitHubApiError("redirect_refused", "GitHub release asset delivery address refused");
-    await transferSignedDelivery(delivery, options, receive);
+    await transferSignedDelivery(delivery, options, accept);
   }
   if (bytes !== maxBytes)
     throw new GitHubApiError("invalid_response", "GitHub release asset byte count differs");
-  const body = Buffer.concat(chunks, bytes);
   if (signal?.aborted) throw new GitHubApiError("cancelled", "GitHub release asset cancelled");
   if (performance.now() >= deadline)
     throw new GitHubApiError("deadline_exceeded", "GitHub release asset deadline exhausted");
-  return body;
+  return bytes;
+}
+
+/** Exact numeric Release asset lookup for bounded documents such as the SBOM. */
+export async function downloadGitHubReleaseAsset(id: number, options: ArtifactDownloadOptions) {
+  const chunks: Uint8Array[] = [];
+  const bytes = await transferGitHubReleaseAsset(id, options, 16 * 1024 * 1024, (chunk) => {
+    chunks.push(chunk);
+  });
+  return Buffer.concat(chunks, bytes);
+}
+
+/** Large immutable Release assets remain file-backed. */
+export async function downloadGitHubReleaseAssetFile(
+  id: number,
+  filename: string,
+  options: ArtifactDownloadOptions,
+) {
+  return writeExclusiveDownload(filename, async (file) => {
+    const digest = createHash("sha256");
+    const bytes = await transferGitHubReleaseAsset(
+      id,
+      options,
+      512 * 1024 * 1024,
+      async (chunk) => {
+        await file.writeFile(chunk);
+        digest.update(chunk);
+      },
+    );
+    return { bytes, sha256: digest.digest("hex"), identity: await file.stat({ bigint: true }) };
+  });
 }
 
 /** Stream an exact admitted archive into an exclusively owned scratch file.
@@ -256,22 +289,33 @@ export async function downloadGitHubArtifactArchiveFile(
   filename: string,
   options: ArtifactDownloadOptions,
 ) {
+  return writeExclusiveDownload(filename, async (file) => {
+    const bytes = await transferGitHubArtifactArchive(
+      endpoint,
+      options,
+      512 * 1024 * 1024,
+      (chunk) => file.writeFile(chunk),
+    );
+    if (bytes !== options.maxBytes)
+      throw new GitHubApiError("invalid_response", "GitHub artifact byte count differs");
+  });
+}
+
+async function writeExclusiveDownload<T>(
+  filename: string,
+  transfer: (file: FileHandle) => Promise<T>,
+) {
   const file = await open(filename, "wx", 0o600);
   let complete = false;
   try {
+    let result: T;
     try {
-      const bytes = await transferGitHubArtifactArchive(
-        endpoint,
-        options,
-        512 * 1024 * 1024,
-        (chunk) => file.writeFile(chunk),
-      );
-      if (bytes !== options.maxBytes)
-        throw new GitHubApiError("invalid_response", "GitHub artifact byte count differs");
+      result = await transfer(file);
     } finally {
       await file.close();
     }
     complete = true;
+    return result;
   } finally {
     if (!complete) await unlink(filename);
   }
