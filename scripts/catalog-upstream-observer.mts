@@ -561,7 +561,7 @@ export async function advanceCatalogObservations(
     source.repository === template.repository &&
     source.ports.some((port) => port.id === template.port_id);
   const configuredTurn = (source: (typeof sources)[number]) =>
-    options.prioritizeConfigured &&
+    options.prioritizeConfigured === true &&
     isConfigured(source) &&
     state.sources[source.key]?.attempted_sequence !== state.sequence;
   const pending = sources
