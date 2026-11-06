@@ -868,6 +868,8 @@ for (const [file, tests] of [
     "scripts/release-custody-provider.mts",
     [
       "scripts/application-release-context.test.mts",
+      "scripts/release-catalog-source.test.mts",
+      "scripts/release-catalog-coordinator.test.mts",
       "scripts/release-capacity-executor.test.mts",
       "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-native-presign-readiness.test.mts",
@@ -2429,6 +2431,7 @@ for (const file of [
     "scripts/release-coordinator-remote.test.mts",
     "scripts/release-hosted-native-history.test.mts",
     "scripts/release-catalog-coordinator.test.mts",
+    "scripts/release-catalog-source.test.mts",
     "scripts/release-coordinator-driver.test.mts",
     "scripts/release-coordinator-recovery.test.mts",
     "scripts/release-metadata-context-recovery.test.mts",

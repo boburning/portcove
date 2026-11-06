@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
+import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 import {
   inspectRemoteCommitObject,
   inspectRemoteGitObject,
@@ -39,23 +40,56 @@ export function readCatalogPublicationSourceBytes(
   sourceCommit: string,
   deadline: number,
 ) {
+  const source = catalogPublicationSourceReads(sourceCommit, deadline);
+  let step = source.next();
+  while (!step.done) {
+    const { kind, sha } = step.value;
+    const response = api.request(
+      "GET",
+      `${repository}/git/${kind}s/${sha}${kind === "tree" ? "?recursive=1" : ""}`,
+    );
+    check(deadline);
+    if (response.status !== 200) throw new Error("catalog source unavailable");
+    step = source.next(response.body);
+  }
+  return step.value;
+}
+
+export async function readCatalogPublicationSourceBytesAsync(
+  provider: CatalogAnchorMetadataProvider,
+  sourceCommit: string,
+  deadline: number,
+) {
+  const source = catalogPublicationSourceReads(sourceCommit, deadline);
+  let step = source.next();
+  while (!step.done) {
+    const { kind, sha } = step.value;
+    step = source.next(await provider[kind](sha));
+  }
+  return step.value;
+}
+
+type CatalogSourceRequest = { kind: keyof CatalogAnchorMetadataProvider; sha: string };
+
+function* catalogPublicationSourceReads(sourceCommit: string, deadline: number) {
   if (!/^[a-f0-9]{40}$/u.test(sourceCommit)) throw new Error("exact catalog source required");
   let reads = 0,
     total = 0;
-  const get = (route: string) => {
+  const get = function* (
+    request: CatalogSourceRequest,
+  ): Generator<CatalogSourceRequest, unknown, unknown> {
     check(deadline);
     if (++reads > 2051) throw new Error("catalog source read bound exhausted");
-    const response = api.request("GET", route);
+    const body = yield request;
     check(deadline);
-    if (response.status !== 200) throw new Error("catalog source unavailable");
-    return response.body;
+    return body;
   };
   const commit = inspectRemoteCommitObject(
-    get(`${repository}/git/commits/${sourceCommit}`),
+    yield* get({ kind: "commit", sha: sourceCommit }),
     sourceCommit,
   );
   const tree = inspectReleaseSourceTree(
-    get(`${repository}/git/trees/${commit.tree}?recursive=1`),
+    yield* get({ kind: "tree", sha: commit.tree }),
     commit.tree,
   );
   const requestPath = `${catalogPublicationSourcePrefix}request.json`;
@@ -73,10 +107,10 @@ export function readCatalogPublicationSourceBytes(
       authority: "none" as const,
     };
   }
-  const read = (entry: { mode: string; type: string; oid: string }, bound = 128 * 1024) => {
+  const read = function* (entry: { mode: string; type: string; oid: string }, bound = 128 * 1024) {
     if (entry.mode !== "100644" || entry.type !== "blob")
       throw new Error("catalog source must be regular inert Git blobs");
-    const raw = get(`${repository}/git/blobs/${entry.oid}`);
+    const raw = yield* get({ kind: "blob", sha: entry.oid });
     if (
       !isRecord(raw) ||
       raw.sha !== entry.oid ||
@@ -98,7 +132,7 @@ export function readCatalogPublicationSourceBytes(
       throw new Error("catalog source total exceeds bound");
     return bytes;
   };
-  const requestBytes = read(requestEntry);
+  const requestBytes = yield* read(requestEntry);
   if (requestBytes.length > 16384) throw new Error("catalog authoring request exceeds bound");
   const requestText = requestBytes.toString("utf8");
   if (!Buffer.from(requestText, "utf8").equals(requestBytes))
@@ -136,7 +170,7 @@ export function readCatalogPublicationSourceBytes(
       throw new Error("catalog source contains unlisted content or exceeds context file bound");
     files.set(
       relative,
-      read(
+      yield* read(
         entry,
         relative === "policy/official/catalog.listings.json" ? 8 * 1024 ** 2 : 128 * 1024,
       ),
@@ -163,13 +197,13 @@ export function readCatalogPublicationSourceBytes(
 }
 
 export async function materializeCatalogPublicationSource(
-  api: GitHubRestReader,
+  provider: CatalogAnchorMetadataProvider,
   sourceCommit: string,
   privateParent: string,
   deadline: number,
 ) {
   if (!path.isAbsolute(privateParent)) throw new Error("absolute private catalog parent required");
-  const selected = readCatalogPublicationSourceBytes(api, sourceCommit, deadline);
+  const selected = await readCatalogPublicationSourceBytesAsync(provider, sourceCommit, deadline);
   if (!selected.request) return selected;
   check(deadline);
   const directory = await mkdtemp(path.join(privateParent, "catalog-source-"));
