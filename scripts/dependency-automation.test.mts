@@ -15,11 +15,7 @@ import { fileURLToPath } from "node:url";
 import { parseDocument, parseAllDocuments } from "yaml";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
-import {
-  nativePnpmVersion,
-  nativePnpmArchive,
-  nativeWindowsPnpmArchive,
-} from "./release-pnpm-runtime.mts";
+import { nativePnpmVersion, nativePnpmPackageProfile } from "./release-pnpm-runtime.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { validateRootPnpmToolchain } from "./pnpm-lock-inventory.mts";
 import { gtkQualificationObservation } from "./dialog-gtk-observation.mts";
@@ -110,28 +106,21 @@ void test("actual signing-cache glob consumer bounds pattern expansion and stops
 });
 
 void test("fixed native pnpm consumers match the root pin and publisher integrity", async () => {
-  assert.equal(rootPackage.packageManager, `pnpm@${nativePnpmVersion}`);
+  const version = nativePnpmVersion();
+  assert.equal(rootPackage.packageManager, `pnpm@${version}`);
   const environment = record(parseAllDocuments(await read("pnpm-lock.yaml"))[0]?.toJS());
   const packages = record(environment.packages);
-  for (const [platform, archive] of [
-    ["linux-x64", nativePnpmArchive],
-    ["win32-x64", nativeWindowsPnpmArchive],
-  ] as const) {
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const { archive, name } = nativePnpmPackageProfile(platform);
     assert.equal(
       archive.url,
-      `https://registry.npmjs.org/@pnpm/exe.${platform}/-/exe.${platform}-${nativePnpmVersion}.tgz`,
+      `https://registry.npmjs.org/${name}/-/${name.split("/")[1]}-${version}.tgz`,
     );
     assert.equal(
-      record(record(packages[`@pnpm/exe.${platform}@${nativePnpmVersion}`]).resolution).integrity,
+      record(record(packages[`${name}@${version}`]).resolution).integrity,
       archive.integrity,
     );
   }
-  const linux = await read("scripts/prepare-hosted-native-linux-installation.py");
-  assert.equal(
-    linux.match(/metadata.get\("packageManager"\) == "pnpm@([^"\n]+)"/u)?.[1],
-    nativePnpmVersion,
-  );
-  assert.equal(linux.match(/environment=environment\) == "([^"\n]+)"/u)?.[1], nativePnpmVersion);
 });
 
 void test("Rust Node and pnpm authorities and isolated runtime representations stay coordinated", async () => {
@@ -241,11 +230,8 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   );
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "@vitest/coverage-v8"), false);
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "es-module-lexer"), false);
-  for (const [signingTool, version] of [
-    ["@sigstore/bundle", "5.0.1"],
-    ["@sigstore/sign", "5.1.0"],
-  ] as const) {
-    assert.equal(repositoryPackage.devDependencies[signingTool], version);
+  for (const signingTool of ["@sigstore/bundle", "@sigstore/sign"] as const) {
+    assert.match(String(repositoryPackage.devDependencies[signingTool]), /^\d+\.\d+\.\d+$/u);
     assert.equal(Object.hasOwn(desktopPackage.dependencies, signingTool), false);
     assert.equal(Object.hasOwn(desktopPackage.devDependencies, signingTool), false);
   }

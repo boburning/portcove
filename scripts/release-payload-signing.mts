@@ -8,6 +8,7 @@ import { chmod, mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { artifactName, loadPackagePolicy } from "./release-package-policy.mts";
 import { updaterIdentity } from "./updater-artifact-inventory.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -330,7 +331,8 @@ export async function signReleasePayload(
       }
     };
     phase = "verify-signer-version";
-    if ((await invoke(["--version"])).stdout.trim() !== "tauri-cli 2.12.2")
+    const signerVersion = fixedReleaseToolDependencies().tauri;
+    if ((await invoke(["--version"])).stdout.trim() !== `tauri-cli ${signerVersion}`)
       throw new Error("Tauri signer version mismatch");
     phase = "sign-payload";
     await beforeSign?.();
@@ -384,7 +386,7 @@ export async function signReleasePayload(
         bytes: Buffer.byteLength(signature),
         sha256: sha(Buffer.from(signature)),
       },
-      signer_version: "2.12.2",
+      signer_version: signerVersion,
       tools,
       authority: "none" as const,
     };

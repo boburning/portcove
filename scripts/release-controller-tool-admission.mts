@@ -1,3 +1,4 @@
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, unlink, writeFile } from "node:fs/promises";
@@ -18,6 +19,7 @@ import {
   controllerToolPlatformProfile,
   controllerToolEntries,
   inspectControllerToolArchive,
+  inspectControllerToolManifest,
   readControllerToolFile,
 } from "./release-controller-tools.mts";
 import {
@@ -152,14 +154,20 @@ export async function verifiedControllerToolPaths(receipt: object) {
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("verified controller tool changed before use");
   }
-  if (
-    hash(await readControllerToolFile(path.join(retained.tools, "manifest.json"), 65536)) !==
-    retained.manifest_sha256
-  )
+  const manifestBytes = await readControllerToolFile(
+    path.join(retained.tools, "manifest.json"),
+    65536,
+  );
+  if (hash(manifestBytes) !== retained.manifest_sha256)
     throw new Error("verified tool manifest changed");
+  const manifest = inspectControllerToolManifest(
+    JSON.parse(manifestBytes.toString("utf8")),
+    profile.platform,
+  );
   return Object.freeze({
     identity: Object.freeze(structuredClone(retained.expected)),
     platform: profile.platform,
+    tauri_cli_version: manifest.tauri_cli_version,
     root: retained.tools,
     node: path.join(retained.tools, `bin/node${profile.suffix}`),
     cli: path.join(retained.tools, `bin/portcove${profile.suffix}`),
@@ -254,6 +262,7 @@ export async function prepareControllerToolPredicate(
     )
       throw new Error("bootstrap upload ZIP changed or exceeded its bound");
     const inspected = inspectControllerToolArchive(archive, {
+      dependencies: fixedReleaseToolDependencies(),
       source_commit: expected.controller_revision,
       source_tree: expected.source_tree,
       platform: profile.platform,
@@ -523,6 +532,7 @@ export async function receiveControllerTools(
     await writeFile(path.join(directory, "tools.zip"), archive, { flag: "wx", mode: 0o600 });
     await writeFile(path.join(directory, "bundle.zip"), bundleArchive, { flag: "wx", mode: 0o600 });
     const inspected = inspectControllerToolArchive(archive, {
+      dependencies: fixedReleaseToolDependencies(),
       source_commit: expected.controller_revision,
       source_tree: expected.source_tree,
       platform: profile.platform,

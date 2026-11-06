@@ -1,4 +1,5 @@
 /** Installed-parent compiler input custody, separate from hosted admission. */
+import { readReleaseToolDependencies } from "./release-tool-dependencies.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -177,6 +178,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
     readTree: async (sha) =>
       (await read(`repos/boburning/portcove/git/trees/${sha}`, deadline)).body,
   });
+  const tauriVersion = readReleaseToolDependencies(selected.parent.controller_root).tauri;
   await selected.source.recheck();
   const capture = await readBoundedPublicBuildInputFile(
     selected.parent.controller_root,
@@ -259,6 +261,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
         interface: inter,
         source_commit: identity.source_commit,
         source_tree: identity.source_tree,
+        tauri_cli_version: tauriVersion,
         run_id: identity.run_id,
         run_attempt: identity.run_attempt,
         job: jobs[0]!,

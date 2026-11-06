@@ -1,3 +1,4 @@
+import { readReleaseToolDependencies } from "./release-tool-dependencies.mts";
 import {
   assertControllerFixtureBuildBudget,
   controllerFixtureBuildAllowanceMilliseconds,
@@ -24,7 +25,6 @@ import {
 } from "./release-controller-tool-build.mts";
 import {
   controllerToolAssets,
-  controllerToolBundler,
   controllerToolSourceAssetMaximumBytes,
   readControllerToolFile,
   controllerToolEntries,
@@ -405,7 +405,40 @@ void test("fixed controller Pack identity matches the trusted workspace release"
   assert.deepEqual(workspace.errors, []);
   const version: unknown = workspace.getIn(["catalog", "vite-plus"]);
   assert.ok(typeof version === "string");
-  assert.equal(controllerToolBundler, `vite-plus@${version}`);
+  assert.equal(readReleaseToolDependencies(process.cwd()).bundler, `vite-plus@${version}`);
+});
+
+void test("a new exact Tauri selection propagates through the manifest and lock without code pins", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-dependency-selection-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "apps/desktop"), { recursive: true });
+  for (const name of ["package.json", "pnpm-workspace.yaml"])
+    await copyFile(path.join(sourceRoot, name), path.join(root, name));
+  const desktop = path.join(root, "apps/desktop/package.json");
+  await copyFile(path.join(sourceRoot, "apps/desktop/package.json"), desktop);
+  const initial = readReleaseToolDependencies(sourceRoot);
+  const replacement = initial.tauri === "2.88.77" ? "2.88.78" : "2.88.77";
+  const lock = await readFile(path.join(sourceRoot, "pnpm-lock.yaml"), "utf8");
+  await writeFile(path.join(root, "pnpm-lock.yaml"), lock);
+  assert.deepEqual(readReleaseToolDependencies(root), initial);
+  const declared = await readFile(desktop, "utf8");
+  await writeFile(
+    desktop,
+    declared.replace(
+      `"@tauri-apps/cli": "${initial.tauri}"`,
+      `"@tauri-apps/cli": "${replacement}"`,
+    ),
+  );
+  assert.throws(() => readReleaseToolDependencies(root), /Tauri CLI lock differs/u);
+  // Model pnpm regeneration of the exact importer, CLI and native binding rows.
+  await writeFile(path.join(root, "pnpm-lock.yaml"), lock.replaceAll(initial.tauri, replacement));
+  const bumped = readReleaseToolDependencies(root);
+  assert.deepEqual(bumped, { ...initial, tauri: replacement });
+  const built = fixture();
+  assert.throws(
+    () => inspectControllerToolArchive(built.archive, { ...built.manifest, dependencies: bumped }),
+    /dependencies differ from fixed checkout/u,
+  );
 });
 
 void test("actual pinned pack bundles fixed CLIs including semver; isolated execution needs no runtime node_modules", async (t) => {
@@ -706,6 +739,11 @@ void test("actual pinned pack inlines dynamic cycles and preserves Unicode modul
     path.join(source, "scripts/cycle.mts"),
     'import {label} from "./imported.mts"; export function echo(value){return value===label?value:"bad"};\n',
   );
+  await writeFile(
+    path.join(source, "scripts/release-tool-dependency-selection.mts"),
+    'export function fixedReleaseToolDependencies(){throw Error("raw selection unavailable")}',
+  );
+  const dependencies = { ...readReleaseToolDependencies(sourceRoot), tauri: "2.88.91" };
   for (const name of [
     ...controllerToolEntries,
     "production-controller-admission-cli",
@@ -713,9 +751,9 @@ void test("actual pinned pack inlines dynamic cycles and preserves Unicode modul
   ])
     await writeFile(
       path.join(source, "scripts", `${name}.mts`),
-      'import {location,check} from "./imported.mts"; export {location}; console.log(JSON.stringify({location,label:await check(),entry:import.meta.url}));\n',
+      'import {location,check} from "./imported.mts"; import {fixedReleaseToolDependencies} from "./release-tool-dependency-selection.mts"; export {location}; console.log(JSON.stringify({location,label:await check(),entry:import.meta.url,dependencies:fixedReleaseToolDependencies()}));\n',
     );
-  await bundleControllerEntries(source, output);
+  await bundleControllerEntries(source, output, "linux-x86_64", dependencies);
   await rm(source, { recursive: true });
   for (const file of [
     ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
@@ -732,6 +770,7 @@ void test("actual pinned pack inlines dynamic cycles and preserves Unicode modul
     assert.equal(result.status, 0, result.stderr);
     const value: unknown = JSON.parse(result.stdout);
     assert.ok(isRecord(value));
+    assert.deepEqual(value.dependencies, dependencies);
     assert.equal(value.label, "😀é");
     assert.equal(fileURLToPath(String(value.location)), path.join(output, "scripts/imported.mts"));
     assert.equal(fileURLToPath(String(value.entry)), bundle);
@@ -954,8 +993,8 @@ function fixture(
     source_tree: "b".repeat(40),
     platform,
     node_version: controllerNodeVersion,
-    bundler: controllerToolBundler,
-    tauri_cli_version: "2.12.2",
+    bundler: readReleaseToolDependencies(process.cwd()).bundler,
+    tauri_cli_version: readReleaseToolDependencies(process.cwd()).tauri,
     files: [...bytes].map(([name, content]) => ({
       path: name,
       bytes: content.length,
@@ -1400,7 +1439,7 @@ void test("Windows tools require explicit platform selection and exact executabl
   assert.throws(
     () =>
       inspectControllerToolManifest(
-        { ...windows.manifest, bundler: "vite-plus@1.4.0" },
+        { ...windows.manifest, bundler: "vite-plus@latest" },
         "windows-x86_64",
       ),
     /fixed controller tool manifest differs/u,

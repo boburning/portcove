@@ -11,7 +11,6 @@ export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
 // Trusted controller identity, independent of the source being bundled.
-export const controllerToolBundler = "vite-plus@1.5.0";
 export const controllerToolEntries = Object.freeze([
   "production-controller-admission",
   "release-control-ready",
@@ -216,8 +215,10 @@ export function inspectControllerToolManifest(
     value.schema_version !== profile.schema_version ||
     value.platform !== profile.platform ||
     value.node_version !== controllerNodeVersion ||
-    value.bundler !== controllerToolBundler ||
-    value.tauri_cli_version !== "2.12.2" ||
+    typeof value.bundler !== "string" ||
+    !/^vite-plus@\d+\.\d+\.\d+$/u.test(value.bundler) ||
+    typeof value.tauri_cli_version !== "string" ||
+    !/^\d+\.\d+\.\d+$/u.test(value.tauri_cli_version) ||
     typeof value.source_commit !== "string" ||
     !/^[a-f0-9]{40}$/.test(value.source_commit) ||
     typeof value.source_tree !== "string" ||
@@ -250,15 +251,20 @@ export function inspectControllerToolManifest(
     source_tree: value.source_tree,
     platform: profile.platform,
     node_version: controllerNodeVersion,
-    bundler: controllerToolBundler,
-    tauri_cli_version: "2.12.2",
+    bundler: value.bundler,
+    tauri_cli_version: value.tauri_cli_version,
     files,
   };
 }
 /** No extraction: every opaque byte is checked before any receiver file write. */
 export function inspectControllerToolArchive(
   raw: Buffer,
-  expected: { source_commit: string; source_tree: string; platform?: ControllerToolPlatform },
+  expected: {
+    source_commit: string;
+    source_tree: string;
+    platform?: ControllerToolPlatform;
+    dependencies?: { bundler: string; tauri: string };
+  },
 ) {
   const profile = controllerToolPlatformProfile(expected.platform ?? "linux-x86_64");
   if (!Buffer.isBuffer(raw) || raw.length < 22 || raw.length > 320 * 1024 ** 2)
@@ -296,6 +302,12 @@ export function inspectControllerToolArchive(
     manifest.source_tree !== expected.source_tree
   )
     throw new Error("controller tool source/tree differs");
+  if (
+    expected.dependencies &&
+    (manifest.bundler !== expected.dependencies.bundler ||
+      manifest.tauri_cli_version !== expected.dependencies.tauri)
+  )
+    throw new Error("controller tool dependencies differ from fixed checkout");
   const files = new Map<string, Buffer>([["manifest.json", manifestBytes]]);
   for (const file of manifest.files) {
     const bytes = read(file.path, file.bytes);

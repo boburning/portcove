@@ -103,5 +103,6 @@ export async function requireVerifiedReleaseCompilerSource(value: object, candid
     preparation: structuredClone(retained.preparation),
     controller: structuredClone(retained.controller),
     tools: retained.tools,
+    tauri_cli_version: tools.tauri_cli_version,
   };
 }

@@ -8,6 +8,10 @@ on:
       - scripts/application-release-run.mts
       - scripts/application-release-source.mts
       - scripts/application-release-tools.mts
+      - scripts/fixtures/audit-zip-fixture.mts
+      - .github/workflows/application-release.yml
+      - .github/workflows/application-release-private.yml
+      - scripts/controller-node-runtime.mts
       - scripts/production-controller-admission.mts
       - scripts/assembler-job-identity.mts
       - scripts/github-*.mts
@@ -42,6 +46,9 @@ on:
       - package.json
       - apps/desktop/package.json
       - release/package-policy.json
+      - scripts/release-tool-dependenc*.mts
+      - patches/@sigstore__sign@*.patch
+      - pnpm-workspace.yaml
       - pnpm-lock.yaml
       - .node-version
   push:
@@ -54,6 +61,10 @@ on:
       - scripts/application-release-run.mts
       - scripts/application-release-source.mts
       - scripts/application-release-tools.mts
+      - scripts/fixtures/audit-zip-fixture.mts
+      - .github/workflows/application-release.yml
+      - .github/workflows/application-release-private.yml
+      - scripts/controller-node-runtime.mts
       - scripts/release-input-protections.mts
       - scripts/assembler-job-identity.mts
       - scripts/qualify-controller-tool-build.mts
@@ -85,6 +96,9 @@ on:
       - package.json
       - apps/desktop/package.json
       - release/package-policy.json
+      - scripts/release-tool-dependenc*.mts
+      - patches/@sigstore__sign@*.patch
+      - pnpm-workspace.yaml
       - pnpm-lock.yaml
       - .node-version
 permissions:

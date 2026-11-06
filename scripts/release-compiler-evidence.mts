@@ -1,3 +1,4 @@
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
@@ -70,6 +71,7 @@ export function inspectReleaseCompilerReport(
     interface: Interface;
     source_commit: string;
     source_tree: string;
+    tauri_cli_version: string;
     run_id: string;
     run_attempt: number;
     job: Evidence["jobs"][number];
@@ -144,7 +146,7 @@ export function inspectReleaseCompilerReport(
     !isRecord(raw.node) ||
     raw.node.version !== `v${controllerNodeVersion}` ||
     !isRecord(raw.tauri) ||
-    raw.tauri.version !== "2.12.2" ||
+    raw.tauri.version !== expected.tauri_cli_version ||
     raw.tauri.native_package !==
       (expected.platform === "windows-x86_64"
         ? "@tauri-apps/cli-win32-x64-msvc"
@@ -442,6 +444,13 @@ export async function collectReleaseCompilerEvidence(
       authority: "none",
       reason: "complete actual compiler report matrix has not been observed",
     };
+  // Actual admission already proved that the candidate's manifest and lock
+  // blobs equal the authenticated controller compiler closure.
+  const tauriVersion =
+    download || spawn
+      ? fixedReleaseToolDependencies().tauri
+      : (await requireVerifiedReleaseCompilerSource(sourceBinding, accepted.source_tree))
+          .tauri_cli_version;
   const directory = await mkdtemp(path.join(privateRoot, "release-compiler-proof-"));
   const retained: { filename: string; bytes: number; sha256: string }[] = [];
   const subjects: { filename: string; sha256: string }[] = [];
@@ -507,6 +516,7 @@ export async function collectReleaseCompilerEvidence(
         interface: inter,
         source_commit: accepted.source_commit,
         source_tree: accepted.source_tree,
+        tauri_cli_version: tauriVersion,
         run_id: accepted.run_id,
         run_attempt: accepted.run_attempt,
         job: jobs[0]!,

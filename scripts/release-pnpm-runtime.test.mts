@@ -38,7 +38,7 @@ function tar(extra?: Buffer, windows = false) {
       Buffer.from(
         JSON.stringify({
           name: windows ? "@pnpm/exe.win32-x64" : "@pnpm/exe.linux-x64",
-          version: nativePnpmVersion,
+          version: nativePnpmVersion(),
         }),
       ),
     ],

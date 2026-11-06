@@ -5,6 +5,7 @@ import { createReadStream, readFileSync } from "node:fs";
 import { copyFile, lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import { workspaceVersion, loadPackagePolicy } from "./release-package-policy.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -298,7 +299,10 @@ async function sign(directory: string) {
       env: { PATH: process.env.PATH, HOME: process.env.HOME, SystemRoot: process.env.SystemRoot },
     });
   try {
-    if (invoke(["--version"]).toString().trim() !== "tauri-cli 2.12.2")
+    if (
+      invoke(["--version"]).toString().trim() !==
+      `tauri-cli ${fixedReleaseToolDependencies().tauri}`
+    )
       throw new Error("wrong signer version");
     invoke(["signer", "generate", "--ci", "--password", "", "--write-keys", key]);
     const payload = path.resolve(output, m.files[0]!.name);
