@@ -7,6 +7,7 @@ import path from "node:path";
 import { sha256 } from "./application-release-io.mts";
 import { isRecord } from "./runtime-values.mts";
 import { collectApplicationNativeReport } from "./release-native-pre-sign-report.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import {
   inspectApplicationNativeExecutionEnvironment,
@@ -23,6 +24,7 @@ import {
   inspectApplicationNativeHost,
   inspectApplicationNativeAcceptance,
   inspectApplicationNativeProducerJob,
+  readApplicationAttemptJobs,
   inspectApplicationPublicInstalledProducer,
   inspectApplicationPublicInstalledProof,
   applicationNativeJobName,
@@ -1050,6 +1052,88 @@ void test("application context data join preserves retained prior records and em
   assert.equal(context.previous_repository, "prior");
   assert.equal(context.versions.timestamp, 2);
   assert.equal(context.versions.targets, 1);
+});
+
+void test("application attempt Jobs use the captured locked SDK scope and refuse continuation", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "application-attempt-jobs-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const originalToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "application-original-job-reader";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+  });
+  let fault = "";
+  const requests: string[] = [];
+  let cancelled = false;
+  const job = {
+    id: 23,
+    runner_id: 5,
+    name: "public_installed",
+    labels: ["windows-2022"],
+    status: "completed",
+    conclusion: "success",
+    run_id: 123,
+    run_attempt: 2,
+    head_sha: "a".repeat(40),
+    started_at: "2026-11-05T01:00:00Z",
+    completed_at: "2026-11-05T01:09:00Z",
+  };
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      requests.push(url.href);
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token application-original-job-reader");
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/123/attempts/2/jobs");
+      assert.deepEqual(Object.fromEntries(url.searchParams), { page: "1", per_page: "100" });
+      if (fault === "stalled")
+        return new Response(
+          new ReadableStream({
+            cancel() {
+              cancelled = true;
+            },
+          }),
+        );
+      return Response.json(
+        { total_count: 1, jobs: [job] },
+        {
+          status: fault === "unavailable" ? 503 : 200,
+          headers: fault === "next" ? { link: '<https://api.github.com/?page=2>; rel="next"' } : {},
+        },
+      );
+    },
+  );
+  await withReadOnlyReleaseChildren(root, async () => {
+    process.env.GH_TOKEN = "different-late-ambient";
+    const read = () => readApplicationAttemptJobs("123", 2);
+    const body = await read();
+    const identity = { run_id: "123", run_attempt: 2, source: job.head_sha };
+    const first = inspectApplicationPublicInstalledProducer(body, identity);
+    assert.deepEqual(inspectApplicationPublicInstalledProducer(await read(), identity), first);
+    assert.equal(requests.length, 2);
+    fault = "next";
+    await assert.rejects(read(), /inventory is incomplete/u);
+    assert.equal(requests.length, 3);
+    fault = "unavailable";
+    await assert.rejects(read(), { status: 503 });
+    assert.equal(requests.length, 4);
+    fault = "stalled";
+    const keepAlive = setTimeout(() => {}, 1000);
+    try {
+      await assert.rejects(readApplicationAttemptJobs("123", 2, performance.now() + 100), {
+        code: "deadline_exceeded",
+      });
+      assert.equal(requests.length, 5);
+      assert.equal(cancelled, true);
+    } finally {
+      clearTimeout(keepAlive);
+    }
+  });
 });
 
 void test("public installed readback requires the exact successful Windows attempt and positive teardown", async () => {

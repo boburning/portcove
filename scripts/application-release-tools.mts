@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   applicationFileIdentity,
   readApplicationJson,
-  receiveApplicationData,
+  receiveApplicationToolData,
   writeApplicationJson,
 } from "./application-release-io.mts";
 import { inspectApplicationReleaseExecution } from "./application-release-policy.mts";
@@ -66,7 +66,7 @@ export async function receiveApplicationTools(id: number, attempt: number) {
   const execution = inspectApplicationReleaseExecution(process.env);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= execution.run_attempt);
   const directory = path.resolve("work/application-tools");
-  await receiveApplicationData(directory, {
+  await receiveApplicationToolData(directory, {
     id,
     name: `application-tools-${execution.run_id}-${attempt}`,
     run_id: execution.run_id,

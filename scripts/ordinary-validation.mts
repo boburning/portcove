@@ -867,6 +867,7 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/application-release-context.test.mts",
       "scripts/release-capacity-executor.test.mts",
       "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-native-presign-readiness.test.mts",
@@ -2260,6 +2261,7 @@ for (const file of [
   "scripts/application-release-source.mts",
   "scripts/application-release-private.mts",
   "scripts/application-release-native-execution.mts",
+  "scripts/application-release-native.mts",
   "scripts/application-release-native-owner.ps1",
   "scripts/release-hosted-native-windows-owner-mechanism.ps1",
   "scripts/native-qualification-account.cs.txt",
@@ -2395,6 +2397,7 @@ for (const file of [
 ])
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
+    "scripts/application-release-context.test.mts",
     "scripts/release-control-handshake.test.mts",
     "scripts/release-capacity-executor.test.mts",
     "scripts/release-hosted-native-windows-runner.test.mts",
@@ -2526,6 +2529,7 @@ explicitNodeTests.set("scripts/github-artifact-download.mts", [
   "scripts/release-hosted-native-job.test.mts",
   "scripts/release-pending-release-recovery.test.mts",
   "scripts/release-pending-result-recovery.test.mts",
+  "scripts/application-release-context.test.mts",
   "scripts/release-compiler-evidence.test.mts",
   "scripts/release-candidate-signing-recovery.test.mts",
   "scripts/release-catalog-continuation.test.mts",

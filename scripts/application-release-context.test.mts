@@ -8,6 +8,7 @@ import {
   inspectInitialApplicationDescriptor,
   prepareInitialApplicationContext,
   unpackApplicationContext,
+  receiveApplicationContext,
   inspectApplicationBootstrapSource,
   applicationContextPriorRepositorySha256,
   applicationMetadataContextIdentity,
@@ -22,7 +23,9 @@ import {
   releaseSigningContextBytes,
 } from "./release-signing-context.mts";
 import { inspectMetadataRenewalDescriptor } from "./release-metadata-contract.mts";
-import { sha256 } from "./application-release-io.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { receiveApplicationData, sha256 } from "./application-release-io.mts";
 import { isRecord } from "./runtime-values.mts";
 
 void test("metadata renewal binds one stable public basis and its exact authenticated-context input", async (t) => {
@@ -382,7 +385,7 @@ void test("every bootstrap consumer binds the exact source purpose, opportunity 
     );
 });
 
-void test("initial context copies only actual public anchors and transfers bytes without granting authority", async () => {
+void test("initial context copies public anchors and the fixed receiver acquires those exact bytes through locked Octokit", async (t) => {
   const f = fixture(),
     parent = await mkdtemp(path.join(os.tmpdir(), "application-context-"));
   try {
@@ -439,6 +442,116 @@ void test("initial context copies only actual public anchors and transfers bytes
       const rejected = path.join(parent, `rejected-${index}`);
       await assert.rejects(unpackApplicationContext(invalid, rejected, expected));
       await assert.rejects(access(rejected));
+    }
+    const archive = createAuditZip([["context-bundle.json", JSON.stringify(packet)]]);
+    const ref = "refs/tags/portcove-production-controller-windows-fixture";
+    const environment = {
+      GH_TOKEN: "fixed-application-job-reader",
+      PORTCOVE_APPLICATION_RELEASE_REVISION: expected.source,
+      PORTCOVE_APPLICATION_RELEASE_REF: ref,
+      PORTCOVE_CONTEXT_ARTIFACT: "55",
+      PORTCOVE_CONTEXT_ATTEMPT: "1",
+      GITHUB_REPOSITORY: "boburning/portcove",
+      GITHUB_REPOSITORY_ID: "1354613114",
+      GITHUB_EVENT_NAME: "workflow_dispatch",
+      GITHUB_REF: ref,
+      GITHUB_REF_PROTECTED: "true",
+      GITHUB_SHA: expected.source,
+      GITHUB_WORKFLOW_SHA: expected.source,
+      GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/application-release.yml@${ref}`,
+      GITHUB_RUN_ID: expected.run_id,
+      GITHUB_RUN_ATTEMPT: "1",
+    };
+    const original = Object.fromEntries(
+      Object.keys(environment).map((key) => [key, process.env[key]]),
+    );
+    const cwd = process.cwd();
+    const dispatches: string[] = [];
+    let fault = "";
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(request.method, "GET");
+        assert.equal(request.redirect, "manual");
+        dispatches.push(url.pathname);
+        if (url.origin === "https://productionresultssa1.blob.core.windows.net") {
+          assert.equal(request.credentials, "omit");
+          assert.equal(request.headers.has("authorization"), false);
+          return new Response(
+            fault === "short" ? archive.subarray(0, archive.length - 1) : archive,
+          );
+        }
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), "token fixed-application-job-reader");
+        assert.equal(url.search, "");
+        if (url.pathname.endsWith("/zip")) {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location:
+                "https://productionresultssa1.blob.core.windows.net/actions-results/fixture?sig=inert",
+            },
+          });
+        }
+        assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/55");
+        process.env.GH_TOKEN = "different-ambient-after-metadata";
+        return Response.json(
+          {
+            id: 55,
+            name: "application-context-123-1",
+            expired: false,
+            size_in_bytes: archive.length,
+            digest: `sha256:${sha256(archive)}`,
+            workflow_run: { id: 123, head_sha: expected.source, repository_id: 1354613114 },
+          },
+          { status: fault === "metadata-status" ? 201 : 200 },
+        );
+      },
+    );
+    try {
+      process.chdir(parent);
+      Object.assign(process.env, environment);
+      await withReadOnlyReleaseChildren(parent, async () => {
+        process.env.GH_TOKEN = "different-ambient-before-metadata";
+        const received = await receiveApplicationContext();
+        for (const [name, bytes] of restored)
+          assert.deepEqual(await readFile(path.join(received, name)), bytes);
+      });
+      assert.deepEqual(dispatches, [
+        "/repos/boburning/portcove/actions/artifacts/55",
+        "/repos/boburning/portcove/actions/artifacts/55/zip",
+        "/actions-results/fixture",
+      ]);
+      process.env.GH_TOKEN = environment.GH_TOKEN;
+      await withReadOnlyReleaseChildren(parent, async () => {
+        const data = {
+          id: 55,
+          name: "application-context-123-1",
+          run_id: expected.run_id,
+          source: expected.source,
+          files: ["context-bundle.json"],
+        };
+        for (const [scenario, requests, reason] of [
+          ["metadata-status", 1, /read unavailable/u],
+          ["short", 3, /byte count differs/u],
+        ] as const) {
+          fault = scenario;
+          dispatches.length = 0;
+          const destination = path.join(parent, scenario);
+          await assert.rejects(receiveApplicationData(destination, data), reason);
+          assert.equal(dispatches.length, requests);
+          await assert.rejects(access(destination), { code: "ENOENT" });
+        }
+      });
+    } finally {
+      process.chdir(cwd);
+      for (const [key, value] of Object.entries(original)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
     }
   } finally {
     await rm(parent, { recursive: true, force: true });
