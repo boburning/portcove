@@ -88,7 +88,6 @@ import {
 import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import {
-  readApplicationPagesState,
   readActualApplicationPagesState,
   assertBootstrapPagesActor,
   executeBootstrapPages,
@@ -125,6 +124,9 @@ import {
   createApplicationMetadataPublicationProvider,
   createPreparedApplicationPublicationProvider,
   createPreparedApplicationPublicationReader,
+  createApplicationDraftPreparationProvider,
+  createApplicationDraftRecoveryReader,
+  removeFixedApplicationDraftAsset,
   verifyApplicationDraftRecoveryBackup,
   readStagedDraftRecoveryBackup,
   removeExpiredApplicationDraftAssets,
@@ -633,6 +635,17 @@ async function receiveDraftRecoveryBackup(expected: Parameters<typeof receiveApp
   return { ...identity, files };
 }
 
+function applicationDraftRecoveryObservation(
+  expected: Parameters<typeof readApplicationDraftRecoveryState>[1],
+) {
+  const token = fixedReleaseReaderToken();
+  return () =>
+    readApplicationDraftRecoveryState(
+      (deadline) => createApplicationDraftRecoveryReader(token, expected, deadline),
+      expected,
+    );
+}
+
 async function prepareDraftRecovery(
   source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
   assemblyDirectory: string,
@@ -652,8 +665,8 @@ async function prepareDraftRecovery(
       attempt: current.run_attempt,
     },
   };
-  const inspect = () => readApplicationDraftRecoveryState(applicationApi, expected);
-  const initial = inspect();
+  const inspect = applicationDraftRecoveryObservation(expected);
+  const initial = await inspect();
   if (
     !initial ||
     !initial.assets.some((asset) => bootstrapAssetNames.some((name) => name === asset.name))
@@ -706,7 +719,7 @@ async function prepareDraftRecovery(
     return;
   const before = async () => {
     await guard(source, false);
-    assert.deepEqual(inspect(), initial, "draft changed before retaining replacement");
+    assert.deepEqual(await inspect(), initial, "draft changed before retaining replacement");
   };
   const owner = await retainApplicationDraftAssembly(
     applicationApi,
@@ -715,7 +728,7 @@ async function prepareDraftRecovery(
     replacement,
     before,
   );
-  const retained = inspect();
+  const retained = await inspect();
   assert.ok(retained);
   assert.deepEqual(retained, {
     ...initial,
@@ -727,7 +740,7 @@ async function prepareDraftRecovery(
   if (existing) {
     await verifyRetainedDraftRecovery(expected, owner, replacement, metadata, retained, existing);
     await guard(source, false);
-    assert.deepEqual(inspect(), retained, "draft changed during backup reuse");
+    assert.deepEqual(await inspect(), retained, "draft changed during backup reuse");
     await applicationOutput("recovery_needed", true);
     return;
   }
@@ -742,7 +755,7 @@ async function prepareDraftRecovery(
       authenticateAssembly: authenticateDraftRecoveryAssembly,
     },
   );
-  assert.deepEqual(inspect(), retained, "draft changed during backup preparation");
+  assert.deepEqual(await inspect(), retained, "draft changed during backup preparation");
   return { owner: { release_id: owner.release_id, custody: owner.custody }, retained, verified };
 }
 
@@ -787,8 +800,8 @@ async function retainDraftRecoveryBackup() {
       attempt: current.run_attempt,
     },
   };
-  const inspect = () => readApplicationDraftRecoveryState(applicationApi, expected);
-  const draft = inspect();
+  const inspect = applicationDraftRecoveryObservation(expected);
+  const draft = await inspect();
   assert.ok(draft);
   assert.equal(releaseCanonicalDigest(draft), process.env.PORTCOVE_DRAFT_BACKUP_DRAFT_SHA256);
   const { owner } = readApplicationMetadataContextPlan(applicationApi, expected, current);
@@ -812,7 +825,7 @@ async function retainDraftRecoveryBackup() {
       owner,
       "recovery owner changed during backup readback",
     );
-    assert.deepEqual(inspect(), draft, "draft changed during backup readback");
+    assert.deepEqual(await inspect(), draft, "draft changed during backup readback");
   });
 }
 
@@ -821,7 +834,7 @@ async function verifyRetainedDraftRecovery(
   owner: ReturnType<typeof readApplicationMetadataContextPlan>["owner"],
   replacement: ReturnType<typeof applicationDraftAssembly>,
   metadata: Buffer,
-  initial: NonNullable<ReturnType<typeof readApplicationDraftRecoveryState>>,
+  initial: NonNullable<Awaited<ReturnType<typeof readApplicationDraftRecoveryState>>>,
   recovery: ApplicationDraftRecovery,
 ) {
   const current = execution();
@@ -877,11 +890,11 @@ async function finishDraftRecovery(
   raw: Record<string, unknown>,
   publication: Parameters<typeof applicationDraftAssembly>[2],
   files: ReadonlyMap<string, Buffer>,
-  beforeWrite: () => Promise<() => void>,
+  beforeWrite: () => Promise<() => void | Promise<void>>,
 ) {
   const current = execution();
-  const inspect = () => readApplicationDraftRecoveryState(applicationApi, expected);
-  const initial = inspect();
+  const inspect = applicationDraftRecoveryObservation(expected);
+  const initial = await inspect();
   if (!initial) return;
   const replacement = applicationDraftAssembly(expected.release_id, raw, publication, files);
   const { owner } = readApplicationMetadataContextPlan(applicationApi, expected, current);
@@ -906,11 +919,16 @@ async function finishDraftRecovery(
     initial,
     recovery,
   );
-  assert.deepEqual(inspect(), initial, "draft changed while authenticating recovery backup");
+  assert.deepEqual(await inspect(), initial, "draft changed while authenticating recovery backup");
+  const token = fixedReleaseReaderToken();
   await removeExpiredApplicationDraftAssets(recovery, old, replacement, {
-    api: applicationApi,
-    inspectDraft() {
-      const draft = inspect();
+    removeAsset: (id, assertFresh) =>
+      removeFixedApplicationDraftAsset(token, id, () => {
+        assertProtectionWriteWindow();
+        assertFresh();
+      }),
+    async inspectDraft() {
+      const draft = await inspect();
       assert.ok(draft && draft.direct === initial.direct);
       return draft;
     },
@@ -1000,13 +1018,14 @@ async function prepareOrdinaryPublication() {
     await readPublicApplicationSiteMarker(prior.receipt.site);
     assert.deepEqual(await discoverActualPublishedApplicationCohort(), discovered);
     await guard(source);
-    return () => {
-      assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+    return async () => {
+      assert.deepEqual(await readActualApplicationPagesState(), discovered.state);
       assertProtectionWriteWindow();
     };
   });
   const result = await prepareApplicationReleaseDraft(expected, files, {
-    api: applicationApi,
+    open: (deadline) =>
+      createApplicationDraftPreparationProvider(fixedReleaseReaderToken(), expected, deadline),
     upload: await createApplicationAssetUploader(process.env.GH_TOKEN),
     retainAssembly(assembly) {
       return retainApplicationDraftAssembly(
@@ -1212,8 +1231,8 @@ async function publishBootstrapMetadata() {
       files,
       async () => {
         const state = await verifyRenewalPreimage();
-        return () => {
-          assert.deepEqual(readApplicationPagesState(applicationApi), state);
+        return async () => {
+          assert.deepEqual(await readActualApplicationPagesState(), state);
           assertProtectionWriteWindow();
         };
       },
