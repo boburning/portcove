@@ -232,7 +232,7 @@ This reads the applied journal and observes the bound Project fields without
 changing GitHub or the journal. The JSON classifies each assignment as
 `desired`, `original`, `conflicting` or `unreadable`. Review the evidence and
 the proposed `residual_spec` before saving it to a new file for guarded
-`set-many --apply`. The residual pins exact Project, item, content, field and option identities and
+`set-many --apply`. The residual pins exact Project, item, content, field and option identities. It
 contains only original values on assignments without prior verified writes.
 Reversals and unreadable values require separate reconciliation. The observation
 does not run doctor or grant authority for another attempt.
@@ -434,10 +434,11 @@ readiness analysis serve migrations and release declarations, not every PR.
 ## Selecting approved work
 
 For persistent runner prompts, keep the role, repository and operating boundaries
-in the prompt and point to this section on current `main`. For example:
-“At pickup or resume, read Selecting approved work in
-docs/PROJECT-GOVERNANCE.md from current remote main, then use the live Roadmap
-and owning issue to select and verify the scope.”
+in the prompt and point to this section on current `main`.
+
+> At pickup or resume, read Selecting approved work in
+> docs/PROJECT-GOVERNANCE.md from current remote main. Use the live Roadmap and
+> owning issue to select and verify the scope.
 
 When reconciling an installed prompt, read back its exact task ID, prompt,
 enabled state and cadence through the task's configuration interface. A card
