@@ -21,6 +21,20 @@ export type { AppRegistrationStore } from "./release-owned-capture-store.mts";
 import type { AppRegistrationStore } from "./release-owned-capture-store.mts";
 const sha = (value: Buffer) => createHash("sha256").update(value).digest("hex");
 
+export async function preflightHostedAppSetupSdk(): Promise<boolean> {
+  try {
+    const { Octokit } = await import("@octokit/core");
+    if (typeof Octokit === "function") return true;
+  } catch {
+    // Keep package loader diagnostics out of the private setup command output.
+  }
+  process.stderr.write(
+    "The locked GitHub SDK is unavailable. Install frozen repository dependencies before App setup.\n",
+  );
+  process.exitCode = 1;
+  return false;
+}
+
 export function inspectAppRegistrationCallback(
   role: HostedReleaseAppRole,
   state: string,

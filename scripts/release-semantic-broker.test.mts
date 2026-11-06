@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import test from "node:test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
@@ -2308,6 +2308,59 @@ void test("storage-writer installation CLI reaches the source guard before priva
     { encoding: "utf8", timeout: 15000, windowsHide: true },
   );
   assert.equal(output.trim(), source);
+});
+
+void test("ordinary App setup CLIs load the SDK after source verification and before private setup", () => {
+  for (const name of ["register-hosted-release-app", "observe-hosted-release-app-installation"]) {
+    const entry = new URL(`./${name}.mts`, import.meta.url);
+    const registration = new URL("./register-hosted-release-app.mts", import.meta.url);
+    const source = "a".repeat(40);
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `
+      import { registerHooks } from "node:module";
+      import { fileURLToPath } from "node:url";
+      const entry = ${JSON.stringify(entry.href)};
+      const registration = ${JSON.stringify(registration.href)};
+      const source = ${JSON.stringify(source)};
+      const data = (module) => ({ url: "data:text/javascript," + encodeURIComponent(module), shortCircuit: true });
+      delete process.env.GITHUB_ACTIONS;
+      delete process.env.SUDO_UID;
+      Object.defineProperty(process, "platform", { value: "linux" });
+      process.getuid = () => 1000;
+      registerHooks({ resolve(spec, context, next) {
+        if (context.parentURL === registration) {
+          if (spec === "node:os") return data("export const userInfo = () => ({username:'boburning', homedir:'/home/boburning'});");
+          if (spec === "node:child_process") return data(
+            "export function execFileSync(_git, args) { if (args.includes('rev-parse')) return " + JSON.stringify(source) +
+            "; if (args.includes('status')) { console.log('source-verified'); return ''; } throw new Error('unexpected Git operation'); }");
+          if (spec === "node:http") return data("export function createServer() { console.log('listener-created'); throw new Error('unexpected listener'); }");
+        }
+        if (spec === "@octokit/core") {
+          console.log("sdk-import");
+          throw new Error("private package-loader diagnostic");
+        }
+        if (spec === "./release-owned-capture-store.mts") return data(
+          "export async function createAppRegistrationStore() { console.log('store-created'); throw new Error('unexpected store'); }" +
+          "export function createCheckpointSigningStore() {} export function createHostedNativeProofStore() {} export function syncRegistrationDirectory() {}");
+        return next(spec, context);
+      } });
+      process.argv = [process.execPath, fileURLToPath(entry), "--role", "storage_writer", "--expected-source", source,
+        ...(entry === registration ? [] : ["--registration-source", source])];
+      await import(entry);
+      `,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stderr);
+    assert.deepEqual(result.stdout.trim().split("\n"), ["source-verified", "sdk-import"]);
+    assert.match(result.stderr, /^The locked GitHub SDK is unavailable\./u);
+    assert.doesNotMatch(result.stderr, /private package-loader diagnostic/u);
+  }
 });
 
 void test("selected actual broker control flow publishes and reconciles both purposes with controlled capture/provider boundaries only", async (t) => {
