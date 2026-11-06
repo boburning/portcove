@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 import { mkdir, writeFile, readdir, lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
 import {
   inspectReleaseSourceTree,
   maximumReleaseSourceCommits,
@@ -51,7 +51,13 @@ export async function materializeSemanticSource(
     base_commit: string;
     published_object: string;
   },
-  api: GitHubRestReader,
+  api: {
+    request(
+      method: "GET",
+      endpoint: string,
+      deadline?: number,
+    ): GitHubMetadataResponse | Promise<GitHubMetadataResponse>;
+  },
   tools: { git_sha256: string; python_sha256: string },
   qualification: { fetchObjects?: (request: FetchRequest) => Promise<void>; git?: string } = {},
 ) {
@@ -324,7 +330,11 @@ export async function materializeSemanticSource(
       throw new Error("semantic source commit/tree binding differs");
     if (trees.has(tree)) continue;
     trees.add(tree);
-    const response = api.request("GET", `repos/boburning/portcove/git/trees/${tree}?recursive=1`);
+    const response = await api.request(
+      "GET",
+      `repos/boburning/portcove/git/trees/${tree}?recursive=1`,
+      deadline,
+    );
     active();
     if (
       response.status !== 200 ||
