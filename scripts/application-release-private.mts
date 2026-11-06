@@ -1944,22 +1944,23 @@ async function deployBootstrapSite(readOnly = false) {
           preimage.provider,
           "public deployment changed after preflight",
         );
-        const response = applicationApi.request(
-          "GET",
-          `repos/boburning/portcove/actions/artifacts/${artifactId}`,
-        );
-        assert.equal(response.status, 200);
+        const { artifact: readArtifact } = await createReleaseCustodyProvider({
+          token: fixedReleaseReaderToken(),
+          deadline,
+          requestTimeoutMs: 30000,
+          maxBytes: 8 * 1024 ** 2,
+          beforeDispatch: () => assertTrustedDirectNode("fixed application Pages artifact read"),
+        });
+        const observed = await readArtifact(artifactId);
         assert.ok(
-          isRecord(response.body) &&
-            response.body.expired === false &&
-            isRecord(response.body.workflow_run),
+          isRecord(observed) && observed.expired === false && isRecord(observed.workflow_run),
         );
-        assert.equal(response.body.id, artifact.id);
-        assert.equal(response.body.name, artifact.name);
-        assert.equal(response.body.size_in_bytes, artifact.bytes);
-        assert.equal(response.body.digest, `sha256:${String(artifact.sha256)}`);
-        assert.equal(response.body.workflow_run.head_sha, current.source);
-        assert.equal(response.body.workflow_run.id, Number(current.run_id));
+        assert.equal(observed.id, artifact.id);
+        assert.equal(observed.name, artifact.name);
+        assert.equal(observed.size_in_bytes, artifact.bytes);
+        assert.equal(observed.digest, `sha256:${String(artifact.sha256)}`);
+        assert.equal(observed.workflow_run.head_sha, current.source);
+        assert.equal(observed.workflow_run.id, Number(current.run_id));
         if (preimageKind === "prior") {
           assert.ok(isRecord(preimage.site));
           const previous = inspectSiteGeneration(preimage.site, site.previous_generation!);
