@@ -7,7 +7,7 @@ metadata:
 ---
 
 Read [the daily investigation contract](../../../docs/DAILY-PORT-DISCOVERY.md).
-Apply its current #1422 owner amendment and the
+Apply the
 [upstream-first ownership boundary](../../../docs/CATALOG.md#integration-ownership)
 when investigating routes: a useful limited integration, upstream dependency or
 product deferral can replace disproportionate downstream engineering. Discovery

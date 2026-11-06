@@ -238,18 +238,14 @@ including when a qualification mode was selected.
 
 ## Authority and setup
 
-Read #177, current #1422 and its latest explicit owner amendment at setup;
-retain their body hashes and refresh when changed. The October 22, 2026
-upstream-first amendment preserves the historical 317 records / 316 distinct
-identities and October 14 deferrals, and replaces the obligation to engineer
-every feasible retained port into full management before Public beta. Apply
-[integration ownership](CATALOG.md#integration-ownership): inspect official
-packages and supported upstream setup before proposing engineering. Monitor
-existing-installation opportunities, upstream dependencies and precise product
-deferrals without reversing them or counting them as delivered integrations.
-Read reconsideration triggers on the affected canonical issues.
-Later intake does not expand Required beta scope. Preserve the approved
-OpenRCT2 #1854 then CorsixTH #1807 sequence and active ownership.
+Read #177 for current discovery acceptance and
+[integration ownership](CATALOG.md#integration-ownership) for route investigation.
+Inspect official packages and supported upstream setup before proposing engineering.
+Monitor existing-installation opportunities, upstream dependencies and precise
+product deferrals. Read reconsideration triggers on the affected canonical issues.
+Record new candidates with neutral release and scheduling fields. Selection from
+the full backlog is a separate [Project decision](PROJECT-GOVERNANCE.md#selecting-approved-work).
+Preserve active ownership.
 
 Reuse #398's configured-upstream observation reports first, checking exact
 source/event/time/completeness and stale/exception fields. Do not change its
