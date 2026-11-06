@@ -2159,6 +2159,14 @@ for (const [file, tests] of [
     ],
   ],
   [".github/roadmap.json", roadmapContractTests],
+  ...[
+    ".github/workflows/roadmap-health.yml",
+    ".github/workflows/roadmap-report.yml",
+    "scripts/roadmap-health.mts",
+    "scripts/roadmap-publish.mts",
+    "scripts/roadmap-report.mts",
+    "scripts/bounded-zip.mts",
+  ].map((file): [string, string[]] => [file, ["scripts/roadmap-publish.test.mts"]]),
   ["scripts/fixtures/roadmap-fixtures.mts", roadmapContractTests],
   ["scripts/repository-issue-inventory.fixture.mts", roadmapContractTests],
   ...[
@@ -2382,7 +2390,11 @@ const workflowTests = new Map([
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
   [
     "configured-upstream-observer.yml",
-    ["scripts/upstream-observer.test.mts", "scripts/catalog-upstream-observer.test.mts"],
+    [
+      "scripts/upstream-observer.test.mts",
+      "scripts/catalog-upstream-observer.test.mts",
+      "scripts/observer-checkpoint-artifact.test.mts",
+    ],
   ],
   [
     "upstream-health.yml",
@@ -2660,6 +2672,7 @@ for (const file of ["package.json", "pnpm-lock.yaml", "scripts/github-client.mts
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/release-native-public-pair.test.mts",
     "scripts/release-semantic-disposition.test.mts",
+    "scripts/roadmap-publish.test.mts",
   ]);
 
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
@@ -2689,6 +2702,9 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 ]);
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
+  "scripts/ci-health.test.mts",
+  "scripts/roadmap-publish.test.mts",
+  "scripts/observer-checkpoint-artifact.test.mts",
   "scripts/updater-artifact-inventory.test.mts",
   "scripts/application-release-feed.test.mts",
   "scripts/application-release-publication.test.mts",
@@ -2735,7 +2751,12 @@ for (const file of [
     ]),
   ]);
 
-for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
+for (const name of [
+  "ci-health",
+  "handoff-evidence",
+  "observer-checkpoint-artifact",
+  "postmerge-ci",
+]) {
   const file = `scripts/${name}.mts`;
   explicitNodeTests.set(file, [...(explicitNodeTests.get(file) ?? []), `scripts/${name}.test.mts`]);
 }

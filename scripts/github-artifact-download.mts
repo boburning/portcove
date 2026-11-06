@@ -16,11 +16,12 @@ type ArtifactDownloadOptions = {
   maxBytes: number;
   fetch?: typeof globalThis.fetch;
   signal?: AbortSignal;
-  /** Accounting for the authenticated lookup only. The signed transfer uses
+  /** Bounds and accounting for the authenticated lookup only. The signed transfer uses
    * the original delivery deadline and never enters the GitHub API budget. */
   lookup?: Pick<GitHubRequestPolicy, "deadline"> &
     Pick<GitHubClientOptions, "reserve"> & {
       elapsed?: (milliseconds: number) => void;
+      requestTimeoutMs?: number;
     };
 };
 
@@ -47,7 +48,8 @@ async function transferGitHubArtifactArchive(
     credential,
     deadline,
     maxBytes: 128 * 1024,
-    ...(maximumDuration > 120000 ? { requestTimeoutMs: maximumDuration } : {}),
+    requestTimeoutMs:
+      options.lookup?.requestTimeoutMs ?? (maximumDuration > 120000 ? maximumDuration : 15000),
     fetch: fetcher,
     ...(options.signal ? { signal: options.signal } : {}),
     observeRedirects: true,
@@ -181,10 +183,11 @@ async function transferSignedDelivery(
 
 export async function downloadGitHubArtifactArchive(
   endpoint: string,
-  options: ArtifactDownloadOptions,
+  options: ArtifactDownloadOptions & { bufferAllowance?: "ci-provenance" },
 ): Promise<Buffer> {
   const chunks: Uint8Array[] = [];
-  const bytes = await transferGitHubArtifactArchive(endpoint, options, 8 * 1024 * 1024, (chunk) => {
+  const maximum = (options.bufferAllowance === "ci-provenance" ? 20 : 8) * 1024 * 1024;
+  const bytes = await transferGitHubArtifactArchive(endpoint, options, maximum, (chunk) => {
     chunks.push(chunk);
   });
   return Buffer.concat(chunks, bytes);
