@@ -231,7 +231,7 @@ export function renderRouteTests(records: readonly AuthoredPort[]) {
     throw new Error("Duplicate generated route test identity.");
   const names = new Set<string>();
   function render(managed: boolean) {
-    const selected = cases.filter((row) => row.managed_native === managed);
+    const selected = managed ? cases.filter((row) => row.managed_native) : cases;
     const constant = managed
       ? "DECLARED_MANAGED_ROUTE_TEST_IDS"
       : "DECLARED_PREPARED_ROUTE_TEST_IDS";

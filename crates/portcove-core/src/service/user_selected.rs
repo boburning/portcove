@@ -1381,7 +1381,6 @@ mod tests {
     fn prepared_guide_adoption_declaration_inventory() {
         let declared = crate::test_fixture::route_enrollment()
             .into_iter()
-            .filter(|case| !case.managed_native)
             .map(|case| case.port_id)
             .collect::<std::collections::BTreeSet<_>>();
         assert_eq!(
@@ -1397,7 +1396,7 @@ mod tests {
         let expectations = crate::test_fixture::route_expectations();
         let case = crate::test_fixture::route_enrollment()
             .into_iter()
-            .find(|case| case.port_id == id && !case.managed_native)
+            .find(|case| case.port_id == id)
             .unwrap();
         let observed = expectations
             .iter()
@@ -1408,6 +1407,13 @@ mod tests {
             observed["arguments"],
             serde_json::to_value(&case.prepared_player.arguments).unwrap()
         );
+        if case.managed_native {
+            let catalog = Catalog::embedded().unwrap();
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.adapter, crate::AdapterKind::NativePortable);
+            assert_ne!(port.release.provider, ReleaseSource::UserPrepared);
+            assert!(catalog.listing(id).unwrap().download_block_reason.is_none());
+        }
         let args = case
             .prepared_player
             .arguments
@@ -2906,11 +2912,6 @@ mod tests {
     }
 
     #[test]
-    fn dune_ii_dune_dynasty_prepared_player_route_2569() {
-        assert_native_portable_with_independent_prepared_route("dune-ii-dune-dynasty");
-    }
-
-    #[test]
     fn might_and_magic_vii_openenroth_prepared_player_route_2885() {
         assert_listing_only_player_route("might-and-magic-vii-openenroth", Some(false));
     }
@@ -2933,13 +2934,6 @@ mod tests {
     #[test]
     fn jazz_jackrabbit_2_jazz2_resurrection_prepared_player_route_2682() {
         assert_listing_only_player_route("jazz-jackrabbit-2-jazz2-resurrection", Some(false));
-    }
-
-    #[test]
-    fn heroes_of_might_and_magic_ii_fheroes2_prepared_player_route_2582() {
-        assert_native_portable_with_independent_prepared_route(
-            "heroes-of-might-and-magic-ii-fheroes2",
-        );
     }
 
     #[test]
@@ -3141,30 +3135,6 @@ mod tests {
             "danielgomesvieira2000-beetle-adventure-racing-recomp",
             Some(false),
         );
-    }
-
-    #[test]
-    fn body_harvest_recompiled_frontend_license_player_route_1448() {
-        assert_native_portable_with_independent_prepared_route("body-harvest-recompiled");
-    }
-
-    fn assert_native_portable_with_independent_prepared_route(id: &str) {
-        let (temporary, mut service, executable, working) = fixture(id);
-        service.catalog = Catalog::embedded().unwrap();
-        assert_eq!(
-            service.catalog.port(id).unwrap().adapter,
-            crate::AdapterKind::NativePortable
-        );
-        let listing = service.catalog.listing(id).unwrap();
-        assert!(listing.manual_setup.is_some());
-        assert!(listing.download_block_reason.is_none());
-        assert!(
-            service
-                .current_user_selected_definition(id)
-                .unwrap()
-                .is_none()
-        );
-        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
     }
 
     #[test]

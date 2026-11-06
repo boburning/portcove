@@ -2051,8 +2051,10 @@ or per-title test wrapper. Independent observations and custom behavioral tests
 remain necessary where their scope differs from the shared route.
 For a managed-native case, record the independently observed executable and
 immutable members in the shared native lifecycle corpus and enroll the stable
-ID and managed role in the independent expectations. Review those facts against
-the package before generating the entrypoint.
+ID, prepared executable and literal arguments, and managed role in the
+independent expectations. Review those facts against the package and upstream
+launch instructions before generating the entrypoints. The managed declaration
+generates both the managed lifecycle and the independent prepared-copy test.
 [Native lifecycle corpus](../crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json),
 [independent enrollment](../crates/portcove-core/src/testdata/route-enrollment-expectations.json).
 

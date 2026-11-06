@@ -282,7 +282,7 @@ void test("ordinary declarations generate distinct bounded title tests without a
       rendered[kind],
     );
     const rows = routeEnrollment(source.records).cases.filter(
-      (row) => row.managed_native === (kind === "managed"),
+      (row) => kind === "prepared" || row.managed_native,
     );
     assert.equal(rendered[kind].match(/#\[(?:tokio::)?test\]/gu)?.length ?? 0, rows.length);
     for (const row of rows) assert.ok(rendered[kind].includes(`(${JSON.stringify(row.port_id)})`));
@@ -295,6 +295,19 @@ void test("ordinary declarations generate distinct bounded title tests without a
     next.prepared.includes('assert_declarative_prepared_player_route("another-fitting-player");'),
   );
   assert.equal(next.managed, rendered.managed);
+  const freshManaged = structuredClone(input("dune-ii-dune-dynasty"));
+  freshManaged.listing.id = "another-fitting-managed-player";
+  const both = renderRouteTests([...source.records, freshManaged]);
+  assert.ok(
+    both.prepared.includes(
+      'assert_declarative_prepared_player_route("another-fitting-managed-player");',
+    ),
+  );
+  assert.ok(
+    both.managed.includes(
+      'assert_declarative_managed_native_route("another-fitting-managed-player").await;',
+    ),
+  );
   assert.throws(() => renderRouteTests([fresh, fresh]), /Duplicate/);
   fresh.listing.id = 'unsafe");panic!("injected';
   assert.throws(() => renderRouteTests([fresh]), /safe literals/);
