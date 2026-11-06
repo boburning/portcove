@@ -42,7 +42,6 @@ import { isRecord } from "./runtime-values.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
   createPublicationInventoryWithSdk,
-  createReleasePublicationReader,
   peelReleaseReference,
 } from "./release-publication-inventory.mts";
 import {
@@ -63,12 +62,11 @@ import {
   createPreparedCheckpointObjectApi,
 } from "./release-coordinator-journal-api.mts";
 import {
-  collectReleaseSourceChanges,
   collectReleaseSourceChangesWithSdk,
   netTreeDeltaScope,
 } from "./release-source-changes.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
-import { hydrateReleasePreparationSource } from "./release-preparation-source.mts";
+import { hydrateReleasePreparationSourceWithSdk } from "./release-preparation-source.mts";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import {
   classifyApplicationVersion,
@@ -164,7 +162,7 @@ import {
 
 import { recoverCandidateSigningCustody } from "./release-candidate-signing-recovery.mts";
 
-type Reader = ReturnType<typeof createReleasePublicationReader>;
+type Reader = Awaited<ReturnType<typeof createPublicationInventoryWithSdk>>;
 type CatalogPreparationInputs = {
   tools: object;
   inspection: Parameters<typeof requireActualCatalogInspection>[0];
@@ -968,6 +966,23 @@ function coordinatorApi(
     return result;
   });
 }
+function coordinatorSourceReadOptions(
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
+  maxBytes: number,
+) {
+  const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
+  return {
+    token: fixedReleaseReaderToken(),
+    deadline: budget.monotonicDeadline,
+    maxBytes,
+    requestTimeoutMs: 15000,
+    currentDeadline: () => performance.now() + budget.remaining(15000),
+    guard: () => {
+      budget.check();
+      if (requireDirect) assertTrustedDirectNode("fixed coordinator source reads");
+    },
+  };
+}
 function coordinatorBootstrapSourceProvider(
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   maxBytes: number,
@@ -1071,8 +1086,8 @@ function guardedCoordinatorJournal(
  * routine Preview, but never bypass its actual cadence. No urgency is inferred. */
 export function deriveCoordinatorPublication(
   tags: Awaited<ReturnType<Reader["tags"]>>,
-  releases: ReturnType<Reader["releases"]>,
-  allocations: ReturnType<Reader["readAllocations"]>["allocations"],
+  releases: Awaited<ReturnType<Reader["releases"]>>,
+  allocations: Awaited<ReturnType<Reader["readAllocations"]>>["allocations"],
   now: string,
   active?: unknown,
 ) {
@@ -1130,7 +1145,7 @@ export function deriveCoordinatorPublication(
  * it must also be the highest published version before reserving a successor.
  * An out-of-order historical publication remains an explicit hold. */
 export function selectCoordinatorPublicationBaseline(
-  releases: ReturnType<Reader["releases"]>,
+  releases: Awaited<ReturnType<Reader["releases"]>>,
   publishedVersions: readonly string[],
 ) {
   const highest = [...publishedVersions].sort(compareApplicationVersionPrecedence).at(-1);
@@ -1258,7 +1273,6 @@ async function coordinateTrustedReleaseAt(
   let phase = "remote-recovery";
   let checkpoint: string | null = null;
   try {
-    const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
     let recovered =
       round?.recovered ??
       (await recoverRemoteCoordinator(directory, selected.remote_configuration, {
@@ -1277,11 +1291,16 @@ async function coordinateTrustedReleaseAt(
     )
       throw new Error("active original frozen opportunity unavailable");
     phase = "complete-publication-and-source";
-    const inventory = createReleasePublicationReader(api);
-    const tags = inventory.tags();
-    const releases = inventory.releases();
-    const { allocations } = inventory.readAllocations(tags, namespace);
-    const changes = collectReleaseSourceChanges(api, opportunity);
+    const sourceOptions = coordinatorSourceReadOptions(budget, 16 * 1024 ** 2);
+    const inventory = await createPublicationInventoryWithSdk({
+      ...sourceOptions,
+      beforeDispatch: sourceOptions.guard,
+      recheck: async () => budget.check(),
+    });
+    const tags = await inventory.tags();
+    const releases = await inventory.releases();
+    const { allocations } = await inventory.readAllocations(tags, namespace);
+    const changes = await collectReleaseSourceChangesWithSdk(sourceOptions, opportunity);
     if (changes.change_set_sha256 !== opportunity.change_set_sha256)
       throw new Error("independent complete source delta differs from reviewed opportunity");
     const workflow = round?.admission?.workflow ?? (await readProductionControllerWorkflowBytes());
@@ -1317,26 +1336,29 @@ async function coordinateTrustedReleaseAt(
       path.join(project, ".github/workflows/release.yml"),
       256 * 1024,
     );
-    hydrateReleasePreparationSource(
+    await hydrateReleasePreparationSourceWithSdk(
       repository,
       {
         source_commit: opportunity.source_commit,
         source_tree: opportunity.source_tree,
       },
-      api,
+      sourceOptions,
       { trustedReleaseWorkflow },
     );
     if (activeOpportunity.source_commit !== opportunity.source_commit) {
-      const activeChanges = collectReleaseSourceChanges(api, activeOpportunity);
+      const activeChanges = await collectReleaseSourceChangesWithSdk(
+        sourceOptions,
+        activeOpportunity,
+      );
       if (activeChanges.change_set_sha256 !== activeOpportunity.change_set_sha256)
         throw new Error("active frozen accumulated source delta differs");
-      hydrateReleasePreparationSource(
+      await hydrateReleasePreparationSourceWithSdk(
         repository,
         {
           source_commit: activeOpportunity.source_commit,
           source_tree: activeOpportunity.source_tree,
         },
-        api,
+        sourceOptions,
         { trustedReleaseWorkflow },
       );
     }
@@ -1498,7 +1520,7 @@ async function coordinateTrustedReleaseAt(
     const assertInventory = async (expectedCheckpoint = checkpoint) => {
       budget.check();
       if (
-        capacityDigest({ tags: inventory.tags(), releases: inventory.releases() }) !==
+        capacityDigest({ tags: await inventory.tags(), releases: await inventory.releases() }) !==
         expectedInventory
       )
         throw new Error("complete publication inventory changed during coordinator admission");
@@ -1710,13 +1732,13 @@ async function coordinateTrustedReleaseAt(
           : { api: legacyJournal! },
       );
       checkpoint = allocated.checkpoint;
-      const ownTags = inventory.tags();
+      const ownTags = await inventory.tags();
       inspectPreparedReceiptInventoryAdvance(tags, ownTags, namespace, {
         version: prepared.version,
         source_commit: prepared.source_commit,
         prepared_commit: prepared.prepared_commit,
       });
-      const ownReleases = inventory.releases();
+      const ownReleases = await inventory.releases();
       if (capacityDigest(ownReleases) !== capacityDigest(releases))
         throw new Error("Release inventory changed during immutable preparation allocation");
       expectedInventory = capacityDigest({ tags: ownTags, releases: ownReleases });
@@ -2039,10 +2061,15 @@ async function prepareTrustedCoordinatorRenewalAt(
     });
     const prepared = await inspectPreparedMetadataRenewal(preparation);
     const api = coordinatorApi(directory, budget, 2 * 1024 * 1024);
-    const inventory = createReleasePublicationReader(api);
-    const tags = inventory.tags();
-    const releases = inventory.releases();
-    const { allocations } = inventory.readAllocations(
+    const sourceOptions = coordinatorSourceReadOptions(budget, 2 * 1024 ** 2);
+    const inventory = await createPublicationInventoryWithSdk({
+      ...sourceOptions,
+      beforeDispatch: sourceOptions.guard,
+      recheck: async () => budget.check(),
+    });
+    const tags = await inventory.tags();
+    const releases = await inventory.releases();
+    const { allocations } = await inventory.readAllocations(
       tags,
       inspectCoordinatorRemoteNamespace(selected.remote_configuration),
     );
@@ -2126,7 +2153,8 @@ async function prepareTrustedCoordinatorRenewalAt(
     if (
       current.checkpoint !== checkpoint ||
       fresh.pause.publication_paused ||
-      capacityDigest({ tags: inventory.tags(), releases: inventory.releases() }) !== inventorySha ||
+      capacityDigest({ tags: await inventory.tags(), releases: await inventory.releases() }) !==
+        inventorySha ||
       capacityDigest(fresh.pause) !== capacityDigest(initial.pause) ||
       capacityDigest(fresh.capacity) !== capacityDigest(initial.capacity)
     )
