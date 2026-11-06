@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readdir, rm, mkdir } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, mkdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1543,6 +1545,119 @@ void test("metadata-only renewal publishes exactly two verified immutable assets
   }
 });
 
+void test("actual immutable metadata recovery uses locked scoped SDK without acquiring the ZIP", async (t) => {
+  const f = renewalFixture();
+  await f.run();
+  const root = await mkdtemp(path.join(tmpdir(), "application-metadata-sdk-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  let attested = 0;
+  t.mock.module("./release-source-attestation.mts", {
+    exports: {
+      async verifyReleaseSourceAttestation(
+        directory: string,
+        filename: string,
+        expected: ReleaseSourceAttestationExpectation,
+      ) {
+        assert.equal(filename, "application-metadata.json");
+        assert.deepEqual(await readFile(path.join(directory, filename)), f.metadata);
+        assert.equal(expected.run_id, "123");
+        assert.equal(expected.run_attempt, 1);
+        assert.equal(expected.subjects.length, 2);
+        attested++;
+      },
+    },
+  });
+  const { readApplicationImmutableMetadata } = (await import(
+    new URL("./application-release-feed.mts?locked-metadata-recovery", import.meta.url).href
+  )) as typeof import("./application-release-feed.mts");
+  const metadata = f.remoteAssets.find((asset) => asset.name === "application-metadata.json");
+  assert.ok(metadata);
+  const original = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "application-immutable-metadata-reader";
+  t.after(() => {
+    if (original === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = original;
+  });
+  const calls: string[] = [];
+  let stalled = false;
+  let cancelled = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(request.method, "GET");
+      const route = url.pathname + url.search;
+      calls.push(route);
+      if (url.origin === "https://release-assets.githubusercontent.com") {
+        assert.equal(request.credentials, "omit");
+        assert.equal(request.headers.has("authorization"), false);
+        if (stalled)
+          return new Response(
+            new ReadableStream({
+              cancel() {
+                cancelled = true;
+              },
+            }),
+          );
+        return new Response(f.metadata);
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(
+        request.headers.get("authorization"),
+        "token application-immutable-metadata-reader",
+      );
+      if (route === `/repos/boburning/portcove/releases/assets/${metadata.id}`) {
+        assert.equal(request.headers.get("accept"), "application/octet-stream");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: "https://release-assets.githubusercontent.com/exact?sig=inert",
+          },
+        });
+      }
+      const response = f.transport.api.request("GET", route.slice(1));
+      assert.equal(response.status, 200);
+      return Response.json(response.body);
+    },
+  );
+  await withReadOnlyReleaseChildren(root, async () => {
+    process.env.GH_TOKEN = "unrelated-ambient-credential";
+    const result = await readApplicationImmutableMetadata(f.expected, root);
+    assert.equal(result.receipt.producer.id, "123");
+    assert.equal(attested, 1);
+    const release = "/repos/boburning/portcove/releases/10";
+    const tag = f.release.tag_name;
+    assert.ok(typeof tag === "string");
+    assert.deepEqual(calls, [
+      release,
+      `${release}/assets?per_page=100&page=1`,
+      `/repos/boburning/portcove/releases/assets/${metadata.id}`,
+      "/exact?sig=inert",
+      release,
+      `/repos/boburning/portcove/git/ref/tags/${tag}`,
+      release,
+    ]);
+    stalled = true;
+    calls.length = 0;
+    const keepAlive = setTimeout(() => {}, 1000);
+    try {
+      await assert.rejects(
+        withCoordinatorDeadline(performance.now() + 150, () =>
+          readApplicationImmutableMetadata(f.expected, root),
+        ),
+        { code: "deadline_exceeded" },
+      );
+      assert.equal(cancelled, true);
+      assert.equal(attested, 1);
+      assert.equal(calls.length, 4);
+    } finally {
+      clearTimeout(keepAlive);
+    }
+  });
+});
+
 void test("fresh-run metadata recovery authenticates its original registered assembly without temporary Actions artifacts", async () => {
   const f = renewalFixture();
   await f.run();
@@ -1583,7 +1698,7 @@ void test("fresh-run metadata recovery authenticates its original registered ass
     assert.equal(attempt, 1);
   };
   const facts = await readRegisteredImmutableApplicationMetadata(f.expected, {
-    api,
+    read: async (endpoint) => api.request("GET", endpoint),
     readAsset: f.transport.readAsset,
     async authenticateAssembly(metadata, subjects, producer, attempt) {
       assert.ok(metadata.equals(f.metadata));

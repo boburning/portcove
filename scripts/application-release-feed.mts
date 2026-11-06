@@ -3,12 +3,16 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { readGitHubReleaseAsset } from "./github-binary.mts";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
-import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { applicationApi, sha256 } from "./application-release-io.mts";
 import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
@@ -158,7 +162,8 @@ export function discoverPublishedApplicationCohort(
 export async function readRegisteredImmutableApplicationMetadata(
   discovered: { release_id: number; custody: ApplicationRunCustody },
   transport: {
-    api: GitHubRestReader;
+    read: (endpoint: string) => Promise<GitHubMetadataResponse>;
+    deadline?: number;
     readAsset: (id: number, maximum: number) => Promise<Buffer>;
     authenticateAssembly: (
       metadata: Buffer,
@@ -171,16 +176,16 @@ export async function readRegisteredImmutableApplicationMetadata(
   const custody = inspectApplicationRunCustody(discovered.custody);
   assert.ok(Number.isSafeInteger(discovered.release_id) && discovered.release_id > 0);
   const root = `repos/boburning/portcove/releases/${discovered.release_id}`;
-  const started = performance.now();
-  const get = (endpoint: string) => {
-    assert.ok(performance.now() - started < 120000, "prior metadata read deadline exhausted");
-    const response = transport.api.request("GET", endpoint);
+  const deadline = Math.min(transport.deadline ?? Infinity, performance.now() + 120000);
+  const get = async (endpoint: string) => {
+    assert.ok(performance.now() < deadline, "prior metadata read deadline exhausted");
+    const response = await transport.read(endpoint);
     assert.equal(response.status, 200);
-    assert.ok(performance.now() - started < 120000, "prior metadata response was late");
+    assert.ok(performance.now() < deadline, "prior metadata response was late");
     return response;
   };
-  const readRelease = () => {
-    const raw = get(root).body;
+  const readRelease = async () => {
+    const raw = (await get(root)).body;
     assert.ok(isRecord(raw));
     assert.equal(raw.id, discovered.release_id);
     assert.equal(raw.draft, false);
@@ -195,8 +200,8 @@ export async function readRegisteredImmutableApplicationMetadata(
       custody,
     };
   };
-  const before = readRelease();
-  const response = get(`${root}/assets?per_page=100&page=1`);
+  const before = await readRelease();
+  const response = await get(`${root}/assets?per_page=100&page=1`);
   assert.ok(!response.headers.get("link"), "prior asset inventory is incomplete");
   assert.ok(
     Array.isArray(response.body) && response.body.length >= 2 && response.body.length <= 64,
@@ -243,7 +248,7 @@ export async function readRegisteredImmutableApplicationMetadata(
   }));
   await transport.authenticateAssembly(bytes, subjects, receipt.producer, receipt.producer_attempt);
   assert.deepEqual(
-    readRelease(),
+    await readRelease(),
     before,
     "immutable prior release changed during provenance verification",
   );
@@ -251,18 +256,18 @@ export async function readRegisteredImmutableApplicationMetadata(
     ? `v${custody.preparation.version}`
     : `portcove-production-candidate-${custody.opportunity}`;
   assert.equal(before.tag_name, tag);
-  const reference = get(`repos/boburning/portcove/git/ref/tags/${tag}`).body;
+  const reference = (await get(`repos/boburning/portcove/git/ref/tags/${tag}`)).body;
   assert.ok(
     isRecord(reference) && reference.ref === `refs/tags/${tag}` && isRecord(reference.object),
   );
   assert.equal(reference.object.type, "commit");
   assert.equal(reference.object.sha, custody.preparation?.prepared_commit ?? custody.source);
   assert.deepEqual(
-    readRelease(),
+    await readRelease(),
     before,
     "immutable metadata custody changed during tag verification",
   );
-  assert.ok(performance.now() - started < 120000, "prior metadata verification was late");
+  assert.ok(performance.now() < deadline, "prior metadata verification was late");
   return { receipt, metadata: raw, assets, authority: "none" as const };
 }
 
@@ -270,11 +275,17 @@ export async function readRegisteredImmutableApplicationMetadata(
  * actor. Unserved recovery uses the registered immutable reader above instead. */
 export async function readImmutableApplicationMetadata(
   discovered: ReturnType<typeof discoverPublishedApplicationCohort>,
-  transport: Parameters<typeof readRegisteredImmutableApplicationMetadata>[1],
+  transport: Omit<Parameters<typeof readRegisteredImmutableApplicationMetadata>[1], "read"> & {
+    api: GitHubRestReader;
+    read?: Parameters<typeof readRegisteredImmutableApplicationMetadata>[1]["read"];
+  },
 ) {
   const started = performance.now();
   assert.deepEqual(readApplicationPagesState(transport.api), discovered.state);
-  const prior = await readRegisteredImmutableApplicationMetadata(discovered, transport);
+  const prior = await readRegisteredImmutableApplicationMetadata(discovered, {
+    ...transport,
+    read: transport.read ?? (async (endpoint) => transport.api.request("GET", endpoint)),
+  });
   assert.deepEqual(
     readApplicationPagesState(transport.api),
     discovered.state,
@@ -559,48 +570,103 @@ export function readImmutableBootstrapFeed(
   return readImmutableApplicationMetadataFeed(expected, transport);
 }
 
-function applicationMetadataTransport(
+function applicationMetadataAttestation(
   scratch: string,
-): Parameters<typeof readRegisteredImmutableApplicationMetadata>[1] {
-  return {
-    api: applicationApi,
-    async readAsset(id, maximum) {
-      return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-        cwd: process.cwd(),
-        maxBytes: maximum,
-        timeoutMs: 30000,
-      });
-    },
-    async authenticateAssembly(metadata, subjects, producer, attempt) {
-      const directory = path.join(scratch, "prior-provenance");
-      await mkdir(directory);
-      await writeFile(path.join(directory, bootstrapAssetNames[1]), metadata, {
-        flag: "wx",
-        mode: 0o600,
-      });
-      await verifyReleaseSourceAttestation(
-        directory,
-        bootstrapAssetNames[1],
-        {
-          source_commit: producer.control_commit,
-          ref: producer.control_ref,
-          run_id: producer.id,
-          run_attempt: attempt,
-          subjects,
-        },
-        { scope: "application-assembly" },
-      );
-    },
+): Parameters<typeof readRegisteredImmutableApplicationMetadata>[1]["authenticateAssembly"] {
+  return async (metadata, subjects, producer, attempt) => {
+    const directory = path.join(scratch, "prior-provenance");
+    await mkdir(directory);
+    await writeFile(path.join(directory, bootstrapAssetNames[1]), metadata, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    await verifyReleaseSourceAttestation(
+      directory,
+      bootstrapAssetNames[1],
+      {
+        source_commit: producer.control_commit,
+        ref: producer.control_ref,
+        run_id: producer.id,
+        run_attempt: attempt,
+        subjects,
+      },
+      { scope: "application-assembly" },
+    );
   };
 }
 
-export function readApplicationImmutableMetadata(
+async function applicationMetadataTransport(
+  expected: { release_id: number; custody: ApplicationRunCustody },
+  scratch: string,
+): Promise<Parameters<typeof readRegisteredImmutableApplicationMetadata>[1]> {
+  const custody = inspectApplicationRunCustody(expected.custody);
+  const release_id = expected.release_id;
+  assert.ok(Number.isSafeInteger(release_id) && release_id > 0);
+  const token = fixedReleaseReaderToken();
+  const credential = { kind: "explicit" as const, token };
+  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
+  const tag = custody.preparation
+    ? `v${custody.preparation.version}`
+    : `portcove-production-candidate-${custody.opportunity}`;
+  const root = `/repos/boburning/portcove/releases/${release_id}`;
+  const admitted = new Set([
+    root,
+    `${root}/assets?per_page=100&page=1`,
+    `/repos/boburning/portcove/git/ref/tags/${tag}`,
+  ]);
+  const fetch: typeof globalThis.fetch = (input, init) => {
+    assertTrustedDirectNode("fixed application immutable metadata");
+    return globalThis.fetch(input, init);
+  };
+  const { createGitHubClient } = await import("./github-client.mts");
+  const { downloadGitHubReleaseAsset } = await import("./github-artifact-download.mts");
+  const client = await createGitHubClient({
+    credential,
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    fetch,
+    allowRequest: (method, url) => method === "GET" && admitted.has(url.pathname + url.search),
+  });
+  const authenticateAssembly = applicationMetadataAttestation(scratch);
+  return {
+    deadline,
+    async read(endpoint) {
+      const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
+      try {
+        const response = await client.request(`GET /${endpoint}`, {
+          request: { portcove: policy },
+        });
+        const link = response.headers.link;
+        return {
+          status: response.status,
+          headers: typeof link === "string" ? new Map([["link", link]]) : new Map(),
+          body: response.data as unknown,
+        };
+      } finally {
+        await policy.admissionSettled;
+      }
+    },
+    readAsset: (id, maximum) =>
+      downloadGitHubReleaseAsset(id, {
+        credential,
+        deadline: Math.min(deadline, performance.now() + 30000),
+        maxBytes: maximum,
+        fetch,
+      }),
+    authenticateAssembly: (...args) =>
+      withCoordinatorDeadline(deadline, () => authenticateAssembly(...args)),
+  };
+}
+
+export async function readApplicationImmutableMetadata(
   expected: { release_id: number; custody: ApplicationRunCustody },
   scratch: string,
 ) {
+  const identity = structuredClone(expected);
   return readRegisteredImmutableApplicationMetadata(
-    expected,
-    applicationMetadataTransport(scratch),
+    identity,
+    await applicationMetadataTransport(identity, scratch),
   );
 }
 
@@ -609,10 +675,10 @@ export async function readApplicationPriorPublication(
   pending?: Parameters<typeof discoverPublishedApplicationCohort>[1],
 ) {
   const discovered = discoverPublishedApplicationCohort(applicationApi, pending);
-  const prior = await readImmutableApplicationMetadata(
-    discovered,
-    applicationMetadataTransport(scratch),
-  );
+  const prior = await readImmutableApplicationMetadata(discovered, {
+    api: applicationApi,
+    ...(await applicationMetadataTransport(discovered, scratch)),
+  });
   return { discovered, prior };
 }
 

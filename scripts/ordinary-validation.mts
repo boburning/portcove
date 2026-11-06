@@ -2259,6 +2259,7 @@ const applicationReleaseTests = ordinaryFamily("application-release-contract-tes
 for (const file of [
   "scripts/application-release-build-inputs.mts",
   "scripts/application-release-io.mts",
+  "scripts/application-release-feed.mts",
   "scripts/application-release-run-title.mts",
   "scripts/application-release-transfer.mts",
   "scripts/application-release-source.mts",
@@ -2402,6 +2403,7 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/application-release-context.test.mts",
     "scripts/application-release-feed.test.mts",
+    "scripts/application-release-publication.test.mts",
     "scripts/release-control-handshake.test.mts",
     "scripts/release-capacity-executor.test.mts",
     "scripts/release-hosted-native-windows-runner.test.mts",
@@ -2531,6 +2533,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
   "scripts/application-release-feed.test.mts",
+  "scripts/application-release-publication.test.mts",
   "scripts/release-native-candidate.test.mts",
   "scripts/release-hosted-native-job.test.mts",
   "scripts/release-pending-release-recovery.test.mts",
