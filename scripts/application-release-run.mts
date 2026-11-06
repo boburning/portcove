@@ -856,10 +856,29 @@ export function readApplicationBudgetOwner(
   assert.notEqual(context.release_id, link.owner_release_id);
   const response = api.request("GET", `${prefix}/releases/${link.owner_release_id}`);
   assert.equal(response.status, 200);
-  assert.ok(isRecord(response.body) && response.body.id === link.owner_release_id);
-  const parsed = readApplicationRunNotes(response.body.body);
+  return inspectApplicationBudgetOwner(response.body, link, custody);
+}
+
+export async function readApplicationBudgetOwnerAsync(
+  readRelease: (id: number) => Promise<unknown>,
+  context: ApplicationBudgetContext,
+): Promise<ApplicationBudgetContext> {
+  const custody = inspectApplicationRunCustody(context.custody);
+  if (custody.budget?.kind !== "member") return { ...context, custody };
+  const link = custody.budget;
+  assert.notEqual(context.release_id, link.owner_release_id);
+  return inspectApplicationBudgetOwner(await readRelease(link.owner_release_id), link, custody);
+}
+
+function inspectApplicationBudgetOwner(
+  release: unknown,
+  link: { owner_release_id: number; owner_opportunity: string },
+  custody: ApplicationRunCustody,
+): ApplicationBudgetContext {
+  assert.ok(isRecord(release) && release.id === link.owner_release_id);
+  const parsed = readApplicationRunNotes(release.body);
   assert.ok(parsed?.custody.budget?.kind === "owner", "native cost owner is missing or chained");
-  assert.equal(response.body.target_commitish, parsed.custody.source);
+  assert.equal(release.target_commitish, parsed.custody.source);
   assert.equal(parsed.custody.opportunity, link.owner_opportunity);
   const scope = parsed.custody.budget.scopes.find(
     (scope) => scope.opportunity === custody.opportunity,

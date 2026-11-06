@@ -1373,22 +1373,14 @@ void test("verified pending lineage retains one cost owner and refuses changed a
     [10, { raw: f.raw, custody: f.custody }],
     [42, { raw: f.parent.raw, custody: parentCustody }],
   ]);
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      const id = Number(endpoint.split("/").at(-1)),
-        state = states.get(id);
-      assert.ok(state);
-      return {
-        status: 200,
-        headers: new Map<string, string>(),
-        body: {
-          id,
-          target_commitish: state.custody.source,
-          body: `<!-- portcove-application-runs-v1\n${JSON.stringify(state.custody)}\n-->`,
-        },
-      };
-    },
+  const readRelease = async (id: number) => {
+    const state = states.get(id);
+    assert.ok(state);
+    return {
+      id,
+      target_commitish: state.custody.source,
+      body: `<!-- portcove-application-runs-v1\n${JSON.stringify(state.custody)}\n-->`,
+    };
   };
   const root = await mkdtemp(path.join(tmpdir(), "forward-lineage-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -1400,7 +1392,7 @@ void test("verified pending lineage retains one cost owner and refuses changed a
       { release_id: 10, opportunity: f.custody.opportunity },
       scratch,
       {
-        api,
+        readRelease,
         async readMetadata(expected) {
           const state = states.get(expected.release_id);
           assert.ok(state);
@@ -2757,4 +2749,48 @@ void test("expired draft recovery verifies either surviving asset against the co
       /still fresh/,
     );
   }
+});
+
+void test("actual pending lineage aborts stalled Release identity before acquiring metadata", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "pending-lineage-deadline-"));
+  const priorToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-pending-lineage";
+  t.after(async () => {
+    if (priorToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = priorToken;
+    await rm(root, { recursive: true, force: true });
+  });
+  let calls = 0;
+  let cancelled = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.url, "https://api.github.com/repos/boburning/portcove/releases/10");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-pending-lineage");
+      calls++;
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(Buffer.from("{"));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    },
+  );
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 500, () =>
+      readApplicationPendingLineage({ release_id: 10, opportunity: "a".repeat(64) }, root),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(calls, 1);
+  assert.equal(cancelled, true);
+  assert.deepEqual(await readdir(root), []);
 });

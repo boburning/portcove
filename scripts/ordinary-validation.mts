@@ -884,6 +884,7 @@ for (const [file, tests] of [
     "scripts/release-custody-provider.mts",
     [
       "scripts/application-release-feed.test.mts",
+      "scripts/application-release-publication.test.mts",
       "scripts/application-release-context.test.mts",
       "scripts/release-catalog-source.test.mts",
       "scripts/release-catalog-coordinator.test.mts",
@@ -2597,6 +2598,7 @@ for (const file of [
 
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/application-release-feed.test.mts",
+  "scripts/application-release-publication.test.mts",
   "scripts/application-release-run.test.mts",
   "scripts/application-release-site.test.mts",
   "scripts/release-classification-request.test.mts",
