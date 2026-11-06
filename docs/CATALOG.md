@@ -117,14 +117,12 @@ consume the smallest proven component or a fitting existing route. Broader
 manifest/build/configuration/container/lifecycle work uses the same owner when
 real consumers justify it. Planned does not commit every speculative enhancement.
 
-The existing seven-slice initial-beta plan keeps its numbering. Slice 1 owns port
-adoption, investigations and already-supported integrations through
+Ongoing port adoption, investigation and maintenance use
 [#2510](https://github.com/boburning/portcove/issues/2510),
 [#2926](https://github.com/boburning/portcove/issues/2926) and canonical port issues.
-Former Slice 2, Console-Family Beta Primitives, is not a separate beta or mandatory
-1.0 campaign. New #135–#138 infrastructure does not gate initial Public beta;
-their approved 1.0 / Planned commitments remain non-gating. Other slices and
-independent protected delivery requirements retain their owners.
+Use the [Project selection rules](PROJECT-GOVERNANCE.md#selecting-approved-work)
+across the entire backlog. Demand-driven adapter work and port delivery proceed
+independently of beta acceptance. Protected delivery retains its existing owners.
 
 [#1422](https://github.com/boburning/portcove/issues/1422) preserves its historical
 317 rows / 316 canonical identities, duplicate mapping, accepted routes and prior
@@ -1367,7 +1365,7 @@ catalog change.
 Declare the offered route's maintenance policy on its existing canonical Port
 issue during admission and subsequent disposition work, independently from its
 operations and qualification. [#1422](https://github.com/boburning/portcove/issues/1422)
-owns cohort reconciliation; completed [#254](https://github.com/boburning/portcove/issues/254)
+owns ongoing rollout and its historical evidence; completed [#254](https://github.com/boburning/portcove/issues/254)
 provides repeatable proposal and evidence preparation, and
 [#246](https://github.com/boburning/portcove/issues/246) owns protected compatible
 delivery. These declarations are not new catalog schema fields or a second

@@ -382,32 +382,13 @@ known safety failure in shipped scope. Reorder or edit Project fields instead
 of rewriting repository documentation. New ports do not automatically expand
 global V1 scope.
 
-The owner's November 3, 2026 decision supersedes the earlier blanket Public beta
-port commitment. The fixed Harbour Masters Windows integration minimum remains
-Required / Public beta: Ship of Harkinian (Shipwright) #58, 2Ship2Harkinian #59,
-SpaghettiKart #60, Starship #61, Ghostship #53, Lighthouse #62 and the existing
-PaperBoat integration #909. Consume completed admissions and exact accepted
-evidence without reopening them or adding universal gameplay/save/device proof.
-Future Harbour Masters projects, forks, libraries, releases and optional features
-do not expand this fixed set.
-
-Other unfinished title-specific completion under this rollout, catalog expansion and full historical/
-all-port completion are Planned / Unscheduled with no promised release. Preserve
-existing priorities, horizons, ownership, statuses, Port stages, acceptance, exact
-operation holds and historical evidence. #1422 retains 317 rows / 316 identities;
-#2510/#2926 retain the frozen 858-identity union and eventual acceptance. They
-remain open until genuinely complete; neither parentage nor references restore a
-beta deadline. No replacement Required 1.0 deadline is assigned. Existing separate later-release requirements, including #42’s finite risk-based representative qualification, remain unchanged. Completed
-outcomes and their historical release fields remain credited.
-
-Ports first finishes the fixed Harbour Masters minimum and actual exposed-operation
-defects, then independently continues useful non-gating integration and maintenance.
-Beta finishes required product/production acceptance and final integration without
-waiting for full-catalog or broad-parent closure. Canonical issue/Project changes
-are the normal handoff; no routine peer acknowledgment or coordinator is required.
-Shared product, preservation, safety and release requirements retain their existing
-finite Required owners. This is release scope, not engineering completion, beta
-readiness or publication authority.
+Initial Public beta is a product-readiness milestone. See the
+[release scope](ROADMAP.md#initial-public-beta). Port additions, title-specific
+maintenance and inventory accounting are release-independent. Use Planned /
+Unscheduled for approved work with no promised release and leave newly captured
+candidates neutral. Preserve prior delivery evidence and historical release records when retiring
+obsolete active associations. A representative evidence case establishes only the behavior and scope
+recorded by the accepting owner.
 
 ## Keeping current specifications readable
 
@@ -441,9 +422,8 @@ Use `roadmap.mts next` as the common execution queue; a Required-only readiness
 view is never the universal task selector. Deferred work remains inactive.
 
 One owner is accountable for each coherent candidate. At clean handoffs favor
-finishing accepted beta outcomes, exact remaining acceptance, demonstrated
-prerequisites for several beta outcomes or fitting frozen-cohort routes, and
-actual delivery bottlenecks. Immediate safety/data-loss problems and broken
+finishing accepted product outcomes, exact remaining acceptance and demonstrated
+shared delivery bottlenecks. Keep useful port work moving during beta preparation. Immediate safety/data-loss problems and broken
 required validation retain precedence. Required alone is not a scheduling
 algorithm; Planned work may be the best accelerator.
 Use existing Priority, Horizon and Project order with relevance, dependencies,
@@ -453,6 +433,19 @@ not block unrelated work. Give each coherent candidate one owner; a clean candid
 waiting for CI, independent review or an external prerequisite permits another
 independent task. Do not create new cloud implementation sessions, a dispatcher,
 lease system or reporting framework. Short-lived non-writing reviewers are allowed.
+
+Choose worthwhile port work from the entire backlog independently of release
+commitment. Start with the Port Pipeline and current canonical issue evidence.
+Consider player value and observed demand, attributable usable upstream artifacts,
+supported managed routes, reuse across integrations, shared gaps worth closing,
+actual investigation and maintenance costs, and concrete acquisition,
+compatibility, process and preservation holds. Retain uncertainty where evidence
+is stale or incomplete. Investigate selected candidates proportionately and batch
+work that actually shares a proven route. Track managed operations and useful
+user-managed fallbacks at their different scopes. Use existing Priority, Horizon,
+readiness and Project order for the active selection. Preserve valuable in-progress
+work and revisit selection at clean handoffs as evidence changes. Intake does not
+expand beta scope and release acceptance does not require exhausting the backlog.
 
 For each selected outcome credit delivered acceptance, name the exact remaining
 gap and select one bounded implementation or proof advancing closure. Identify
@@ -479,7 +472,7 @@ and queue order to record repeated deferrals, without a new scheduler or ledger.
 Preserve actual host/resource guards, applicable review, acceptance and spending boundaries. Choose a suitable model for the task within existing spending authority.
 
 The existing nightly development report leads with accepted beta outcomes advanced,
-frozen-cohort useful-route/final-disposition progress, and actual blockers or
+delivered port integrations and maintenance, and actual blockers or
 acceptance queues. Show material Required and Planned delivery, accepted
 assignments and repeatedly passed-over Ready Now/Next work with reasons and named
 predecessors. Separate scope additions and bookkeeping corrections from delivered
@@ -709,14 +702,14 @@ delivery authority remains required. #52 and #246 have no reciprocal blocker.
 The #917 design system, #921 development-agility consolidation, #925 domain and
 lifecycle foundations and genuinely required supporting work remain Required
 initial beta. Prioritize changes that improve development speed, explicit
-ownership, deterministic testing and safe iteration. The owner-approved
-fixed Harbour Masters integration minimum, repeatable onboarding (#254), truthful operation availability
-(#1168/#1169), account-free artwork (#1155/#208/#206), compatible definition
-delivery (#246), reusable public CLI/reference contracts (#30/#243), manual
-plugin-free Desktop Steam route (#290) and shared Linux/controller/storage/process
-safety remain required. Completed foundations remain consumed proof, not reopened
-work. A representative pilot does not complete eventual rollout acceptance; whole-rollout
-completion is non-gating and does not delay the independently finishable beta minimum.
+ownership, deterministic testing and safe iteration. Connected-folder discovery
+and selected setup (#244), repeatable onboarding (#254), truthful operation
+availability (#1168/#1169), account-free artwork (#1155/#208/#206), compatible
+definition delivery (#246), reusable public CLI/reference contracts (#30/#243),
+manual plugin-free Desktop Steam (#290) and shared Linux/controller/storage/process
+safety remain required. Use representative evidence at each owning requirement's
+scope. A port may depend on a required shared capability. Integrated proof belongs
+with the consuming acceptance owner and title completion stays independent.
 
 Steam Deck (#51/#213–#217/#535), macOS Intel/Apple Silicon (#45/#226), full
 user-ready Playnite (#910), automatic Steam entry management (#292), physical Xbox

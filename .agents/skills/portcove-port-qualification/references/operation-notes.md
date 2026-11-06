@@ -80,7 +80,7 @@ backup or external deletion without a separately accepted ownership transition.
 Use [#254](https://github.com/boburning/portcove/issues/254) for repeatable proposal
 preparation, [#246](https://github.com/boburning/portcove/issues/246) for its independent
 protected progression proof, and [#1422](https://github.com/boburning/portcove/issues/1422)
-for complete cohort use. A maintenance declaration grants no publisher authority,
+for ongoing rollout. A maintenance declaration grants no publisher authority,
 automatic installation, player-choice override or inherited gameplay claim.
 
 Before changing managed runtime creation or replacement, inventory the
