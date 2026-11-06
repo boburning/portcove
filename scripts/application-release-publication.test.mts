@@ -26,6 +26,7 @@ import {
   readStagedDraftRecoveryBackup,
   verifyApplicationDraftRecoveryBackup,
   removeExpiredApplicationDraftAssets,
+  removeFixedApplicationDraftAsset,
   prepareApplicationReleaseDraft,
   publishPreparedApplicationRelease,
   readImmutableApplicationRelease,
@@ -42,6 +43,8 @@ import {
   createPreparedApplicationPublicationProvider,
   createPreparedApplicationPublicationReader,
   createApplicationDraftPreparationProvider,
+  createApplicationDraftRecoveryReader,
+  readApplicationDraftRecoveryState,
   publishApplicationMetadataRelease,
   inspectApplicationMetadataPublicationReceipt,
 } from "./application-release-publication.mts";
@@ -2513,16 +2516,13 @@ void test("expired draft recovery verifies either surviving asset against the co
   let inventory = [oldIds[1]!, retainedAsset];
   const deleted: string[] = [];
   const resumed = await removeExpiredApplicationDraftAssets(recovery, old, replacement, {
-    api: {
-      request(method, endpoint) {
-        assert.equal(method, "DELETE");
-        assert.equal(endpoint, "repos/boburning/portcove/releases/assets/71");
-        deleted.push(endpoint);
-        inventory = [retainedAsset];
-        return { status: 204, headers: new Map(), body: null };
-      },
+    async removeAsset(id, assertFresh) {
+      assert.equal(id, 71);
+      assertFresh();
+      deleted.push(String(id));
+      inventory = [retainedAsset];
     },
-    inspectDraft: () => ({
+    inspectDraft: async () => ({
       release_id: recovery.release_id,
       draft: true,
       immutable: false,
@@ -2664,23 +2664,27 @@ void test("expired draft recovery verifies either surviving asset against the co
         files: new Map([...backup.files, ["unexpected.json", Buffer.from("{}")]]),
       })),
     );
-    for (const mode of ["lost", "refused", "locked", "notes-drift"]) {
+    for (const mode of [
+      "lost",
+      "refused",
+      "locked",
+      "notes-drift",
+      "claim-window",
+      "delete-window",
+    ]) {
       let inventory = [asset];
       let notes = "initial";
       let requested = 0;
       let claimed = false;
       const transport: Parameters<typeof removeExpiredApplicationDraftAssets>[3] = {
-        api: {
-          request(method, endpoint) {
-            assert.equal(method, "DELETE");
-            assert.equal(endpoint, `repos/boburning/portcove/releases/assets/${asset.id}`);
-            assert.ok(claimed);
-            requested++;
-            if (mode === "lost") inventory = [];
-            throw new Error("DELETE response unavailable");
-          },
+        async removeAsset(id, assertFresh) {
+          assert.equal(id, asset.id);
+          assert.ok(claimed);
+          assertFresh();
+          requested++;
+          if (mode === "lost") inventory = [];
         },
-        inspectDraft: () => ({
+        inspectDraft: async () => ({
           release_id: receipt.release_id,
           draft: true,
           immutable: mode === "locked",
@@ -2701,7 +2705,11 @@ void test("expired draft recovery verifies either surviving asset against the co
           };
         },
         async beforeWrite() {
-          return () => {};
+          return async () => {
+            await Promise.resolve();
+            if ((!claimed && mode === "claim-window") || (claimed && mode === "delete-window"))
+              throw new Error("late Pages observation refused the write");
+          };
         },
       };
       const recover = () =>
@@ -3086,4 +3094,75 @@ void test("draft preparation dispatches one exact SDK tag creation and reconcile
   assert.equal(f.writes.filter((entry) => entry === "tag").length, 1);
   assert.equal(observed.filter((entry) => entry.startsWith("POST ")).length, 1);
   assert.equal(observed.at(-1), "GET /repos/boburning/portcove/git/ref/tags/v0.1.0-alpha.3");
+});
+
+void test("fixed draft asset removal refuses an expired wire guard and sends a lost DELETE once", async (t) => {
+  let dispatched = 0;
+  let open = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(
+        request.url,
+        "https://api.github.com/repos/boburning/portcove/releases/assets/71",
+      );
+      assert.equal(request.method, "DELETE");
+      assert.equal(request.headers.get("authorization"), "token inert-draft-removal");
+      dispatched++;
+      throw new TypeError("fixture lost the DELETE acknowledgement");
+    },
+  );
+  const remove = () =>
+    removeFixedApplicationDraftAsset("inert-draft-removal", 71, () => {
+      assert.ok(open, "fixture window expired");
+    });
+  await assert.rejects(remove(), /fixture window expired/u);
+  assert.equal(dispatched, 0);
+  open = true;
+  await remove();
+  assert.equal(dispatched, 1);
+});
+
+void test("actual draft recovery metadata retains the exact SDK preimage and ignores immutable releases", async (t) => {
+  const f = ordinaryFixture();
+  const prepared = await f.prepare();
+  const fixtureProvider = await f.prepareTransport.open();
+  const routes: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-draft-observation");
+      const route = url.pathname.slice(1) + url.search;
+      routes.push(route);
+      const response = await fixtureProvider.readMetadata(route);
+      return Response.json(response.body, { status: response.status ?? 200 });
+    },
+  );
+  const observe = () =>
+    readApplicationDraftRecoveryState(
+      (deadline) =>
+        createApplicationDraftRecoveryReader("inert-draft-observation", f.expected, deadline),
+      f.expected,
+    );
+  const draft = await observe();
+  assert.equal(draft?.direct, true);
+  assert.equal(draft?.notes, f.release.body);
+  assert.deepEqual(draft?.assets, prepared.assets);
+  const release = `repos/boburning/portcove/releases/${f.expected.release_id}`;
+  assert.deepEqual(routes, [
+    release,
+    `${release}/assets?per_page=100&page=1`,
+    `repos/boburning/portcove/git/ref/tags/${prepared.tag}`,
+  ]);
+  await f.publish(prepared);
+  routes.length = 0;
+  assert.equal(await observe(), undefined);
+  assert.deepEqual(routes, [release]);
 });
