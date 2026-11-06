@@ -4,6 +4,7 @@ import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparat
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
+  coordinatorCommandDeadline,
   coordinatorCommandTimeout,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
@@ -12,7 +13,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { risk706GraphDigest } from "./linux-beta-risk-706-profile.mts";
-import { GitHubApiClient } from "./github-api.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 export const approval706 =
@@ -665,11 +670,34 @@ export async function decisionInputs706(
   const approval: unknown = JSON.parse(readFileSync(path.join(cwd, approvalPath), "utf8"));
   if (!isRecord(approval) || typeof approval.approvedAt !== "string")
     throw new Error("#706 approval is absent or out of scope");
-  const api = new GitHubApiClient();
-  const releases = api.paginateRest("repos/boburning/portcove/releases?per_page=100", {
-    identity: (r) => (isRecord(r) && typeof r.id === "number" ? r.id : null),
-    label: "#706 publication inventory",
+  // Preserve the inherited command deadline and the standalone per-page bound.
+  const deadline = coordinatorCommandDeadline() ?? Number.MAX_SAFE_INTEGER;
+  const scopedEnvironment = readOnlyReleaseChildEnvironment();
+  const credential =
+    scopedEnvironment || process.env.GITHUB_ACTIONS === "true"
+      ? { kind: "explicit" as const, token: fixedReleaseReaderToken() }
+      : localDeveloperCredential({ deadline });
+  const { createGitHubClient } = await import("./github-client.mts");
+  const { readPublicationReleases, readPublicationReleaseAssets } =
+    await import("./release-publication-inventory.mts");
+  let expected: string | undefined;
+  const client = await createGitHubClient({
+    credential,
+    deadline,
+    requestTimeoutMs: 15_000,
+    maxBytes: 16 * 1024 ** 2,
+    allowRequest: (method, url) => method === "GET" && url.href === expected,
   });
+  const read = async (url: URL) => {
+    expected = url.href;
+    const response = await client.request(`GET ${url.pathname}${url.search}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    checkCoordinatorDeadline();
+    if (response.status !== 200) throw new Error("#706 publication inventory provider unavailable");
+    return response;
+  };
+  const releases = await readPublicationReleases(read);
   for (const release of releases) {
     if (!isRecord(release) || typeof release.id !== "number" || typeof release.draft !== "boolean")
       throw new Error("#706 release inventory has missing or duplicate identity");
@@ -678,14 +706,9 @@ export async function decisionInputs706(
       typeof release.published_at === "string" &&
       Date.parse(release.published_at) >= Date.parse(approval.approvedAt)
     )
-      release.assets = api.paginateRest(
-        `repos/boburning/portcove/releases/${release.id}/assets?per_page=100`,
-        {
-          identity: (asset) => (isRecord(asset) && typeof asset.id === "number" ? asset.id : null),
-          label: "#706 published asset inventory",
-        },
-      );
+      release.assets = await readPublicationReleaseAssets(release.id, read);
   }
+
   return {
     approval,
     candidate: selectedCandidate,

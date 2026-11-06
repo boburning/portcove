@@ -481,6 +481,12 @@ export async function readReleaseNotesWithSdk(options: {
   return readReleaseInventoryPages(read, inspectReleaseNotes);
 }
 
+export function readPublicationReleases(
+  read: (endpoint: URL) => Promise<{ data: unknown; headers: { link?: unknown } }>,
+) {
+  return readReleaseInventoryPages(read, (row) => row);
+}
+
 export function readPublicationReleaseAssets(
   releaseId: number,
   read: (endpoint: URL) => Promise<{ data: unknown; headers: { link?: unknown } }>,

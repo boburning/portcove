@@ -472,15 +472,36 @@ jobs:
     permissions:
       contents: read
     env:
-      GH_TOKEN: ${{ github.token }}
       PORTCOVE_RELEASE_PROFILE: ${{ needs.identity.outputs.release_profile }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - &setup-release-risk-pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+          run_install: false
+      - &install-release-risk-dependencies
+        name: Install frozen release risk dependencies before credentials
+        shell: bash
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --quiet HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc patches/
+          if test -e .npmrc || test -L .npmrc; then
+            git ls-files --error-unmatch -- .npmrc >/dev/null
+          fi
+          install_home="$RUNNER_TEMP/release-risk-install-home"
+          mkdir -m 700 "$install_home"
+          env -i PATH="$PATH" HOME="$install_home" CI=true pnpm --filter portcove-repository install --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/release-risk-store"
       - uses: ./.github/actions/setup-rust
       - name: Read pinned assembly scanner
         id: assembly-pins
@@ -520,6 +541,8 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
       - name: Bind the SBOM into the final checksum manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: node scripts/finalize-release-assets.mts --assets release-assets-aggregate --inventory release-metadata/release-inventory.json --sbom-subject-checksums release-attestation/sbom-subject-checksums.txt
       - name: Read existing draft metadata without write permission
         if: github.event_name == 'push'
@@ -722,9 +745,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - *setup-release-risk-pnpm
+      - *install-release-risk-dependencies
       - uses: ./.github/actions/setup-rust
       - name: Read pinned security scanner
         id: security-pins

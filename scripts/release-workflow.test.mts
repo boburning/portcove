@@ -136,6 +136,32 @@ void test("write authority is split across isolated attestation and publication 
   assert.doesNotMatch(publishSection, /actions\/checkout|setup-node|node scripts/);
 });
 
+void test("release risk jobs install frozen dependencies before binding their reader token", () => {
+  for (const [name, operation] of [
+    ["assemble", "Bind the SBOM into the final checksum manifest"],
+    ["authorize_publication", "Recheck Linux release authorization before upload"],
+  ] as const) {
+    const selected = steps(name);
+    const checkout = selected.find((step) => String(step.uses).startsWith("actions/checkout@"));
+    assert.ok(isRecord(checkout?.with) && checkout.with["persist-credentials"] === false);
+    const setup = selected.findIndex((step) => String(step.uses).startsWith("pnpm/action-setup@"));
+    const install = selected.findIndex(
+      (step) => step.name === "Install frozen release risk dependencies before credentials",
+    );
+    const risk = selected.findIndex((step) => step.name === operation);
+    assert.ok(setup >= 0 && install > setup && risk > install);
+    assert.deepEqual(selected[install]?.env, { GH_TOKEN: "", GITHUB_TOKEN: "" });
+    assert.match(
+      String(selected[install]?.run),
+      /env -i .* --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile/u,
+    );
+    assert.deepEqual(selected[risk]?.env, { GH_TOKEN: "${{ github.token }}" });
+    const env = workflowData.jobs[name]?.env;
+    assert.ok(!isRecord(env) || !("GH_TOKEN" in env));
+    assert.deepEqual(workflowData.jobs[name]?.permissions, { contents: "read" });
+  }
+});
+
 void test("cheap identity unlocks qualification and builds before the explicit result gate", () => {
   assert.match(identitySection, /actions\/setup-node/);
   assert.doesNotMatch(identitySection, /pnpm install|rust-toolchain|just audit/);
