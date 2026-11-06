@@ -331,12 +331,17 @@ void test("legacy signer refuses empty-middle file patterns before key access", 
     item.catalog,
     JSON.stringify({
       ports: [
-        { persistent_file_patterns: [{ prefix: "demorec.", suffix: "1", allow_empty_middle: true }] },
+        {
+          persistent_file_patterns: [{ prefix: "demorec.", suffix: "1", allow_empty_middle: true }],
+        },
       ],
     }),
   );
   const result = item.run();
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver empty-middle file patterns/u);
+  assert.match(
+    result.stderr,
+    /Format-1 signed catalogs cannot deliver empty-middle file patterns/u,
+  );
   assert.equal(existsSync(item.output), false);
 });
