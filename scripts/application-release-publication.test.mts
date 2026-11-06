@@ -38,6 +38,8 @@ import {
   inspectApplicationPublicationFiles,
   inspectBootstrapSiteArchive,
   publishBootstrapRelease,
+  createApplicationMetadataPublicationProvider,
+  createPreparedApplicationPublicationProvider,
   publishApplicationMetadataRelease,
   inspectApplicationMetadataPublicationReceipt,
 } from "./application-release-publication.mts";
@@ -300,7 +302,16 @@ function ordinaryFixture(mode = "valid") {
     },
   };
   const finalTransport = {
-    api,
+    async open() {
+      return {
+        async readMetadata(endpoint: string) {
+          return api.request("GET", endpoint);
+        },
+        async publish(body: Record<string, unknown>) {
+          api.request("PATCH", `repos/boburning/portcove/releases/${expected.release_id}`, body);
+        },
+      };
+    },
     async authenticatePreparation(value: Buffer) {
       events.push("attestation");
       assert.ok(JSON.parse(value.toString("utf8")));
@@ -1026,55 +1037,59 @@ function fixture(
     reads = 0;
   let writeWindowOpen = true,
     tagReads = 0;
-  const transport: BootstrapPublicationTransport = {
-    api: {
-      request(method, endpoint, body) {
-        const reply = (value: unknown, status = 200) => ({
-          status,
-          body: structuredClone(value),
-          headers: new Map<string, string>(),
-        });
-        if (endpoint.includes("/git/ref/tags/")) {
-          tagReads++;
-          if (mode === "pending-tag" && release.draft)
-            throw new GitHubApiError("http_error", "missing pending ref", { status: 404 });
-          if (mode === "tag-forbidden")
-            throw new GitHubApiError("http_error", "forbidden", { status: 403 });
-          if (mode === "tag-network") throw new Error("connection lost");
-          return mode === "wrong-tag" || (mode === "tag-drift" && tagReads > 1)
-            ? reply({
-                ref: `refs/tags/${String(release.tag_name)}`,
-                object: { type: "commit", sha: "f".repeat(40) },
-              })
-            : reply({
-                ref: `refs/tags/${String(release.tag_name)}`,
-                object: { type: "commit", sha: custody.source },
-              });
-        }
-        if (endpoint.endsWith("/assets?per_page=100&page=1")) {
-          assert.equal(method, "GET");
-          if (
-            (mode === "expired-upload" && guards > 0) ||
-            (mode === "expired-publication" && guards === 3)
-          )
-            writeWindowOpen = false;
-          return reply(remoteAssets);
-        }
-        assert.equal(endpoint, "repos/boburning/portcove/releases/10");
-        if (method === "PATCH") {
-          assert.ok(isRecord(body));
-          mutations.push("publish");
-          assert.deepEqual(body, {
-            draft: false,
-            prerelease: true,
-            make_latest: "false",
-            name: publicationName,
+  function request(method: string, endpoint: string, body?: Record<string, unknown>) {
+    const reply = (value: unknown, status = 200) => ({
+      status,
+      body: structuredClone(value),
+      headers: new Map<string, string>(),
+    });
+    if (endpoint.includes("/git/ref/tags/")) {
+      tagReads++;
+      if (mode === "pending-tag" && release.draft)
+        throw new GitHubApiError("http_error", "missing pending ref", { status: 404 });
+      if (mode === "tag-forbidden")
+        throw new GitHubApiError("http_error", "forbidden", { status: 403 });
+      if (mode === "tag-network") throw new Error("connection lost");
+      return mode === "wrong-tag" || (mode === "tag-drift" && tagReads > 1)
+        ? reply({
+            ref: `refs/tags/${String(release.tag_name)}`,
+            object: { type: "commit", sha: "f".repeat(40) },
+          })
+        : reply({
+            ref: `refs/tags/${String(release.tag_name)}`,
+            object: { type: "commit", sha: custody.source },
           });
-          if (mode !== "publish-refused") Object.assign(release, body, { immutable: true });
-          if (mode === "publish-lost") throw new Error("lost publication response");
-        } else assert.equal(method, "GET");
-        return reply(release);
-      },
+    }
+    if (endpoint.endsWith("/assets?per_page=100&page=1")) {
+      assert.equal(method, "GET");
+      if (
+        (mode === "expired-upload" && guards > 0) ||
+        (mode === "expired-publication" && guards === 3)
+      )
+        writeWindowOpen = false;
+      return reply(remoteAssets);
+    }
+    assert.equal(endpoint, "repos/boburning/portcove/releases/10");
+    if (method === "PATCH") {
+      assert.ok(isRecord(body));
+      mutations.push("publish");
+      assert.deepEqual(body, {
+        draft: false,
+        prerelease: true,
+        make_latest: "false",
+        name: publicationName,
+      });
+      if (mode !== "publish-refused") Object.assign(release, body, { immutable: true });
+      if (mode === "publish-lost") throw new Error("lost publication response");
+    } else assert.equal(method, "GET");
+    return reply(release);
+  }
+  const transport: BootstrapPublicationTransport = {
+    async readMetadata(endpoint) {
+      return request("GET", endpoint);
+    },
+    async publish(body) {
+      request("PATCH", "repos/boburning/portcove/releases/10", body);
     },
     async beforeWrite() {
       guards++;
@@ -1114,6 +1129,7 @@ function fixture(
     contents,
     site,
     transport,
+    request,
     run,
     release,
     remoteAssets,
@@ -1525,7 +1541,7 @@ void test("metadata-only renewal publishes exactly two verified immutable assets
     assert.equal(f.mutations.length, 3, "an immutable retry cannot upload or publish again");
     let provenance = 0;
     const read = await readImmutableApplicationMetadataFeed(f.expected, {
-      read: async (endpoint) => f.transport.api.request("GET", endpoint),
+      read: async (endpoint) => f.request("GET", endpoint),
       readAsset: f.transport.readAsset,
       async authenticateAssembly(assets) {
         assert.equal(assets.size, 2);
@@ -1623,7 +1639,7 @@ void test("actual immutable receivers separate metadata-only recovery from full 
           },
         });
       }
-      const response = f.transport.api.request("GET", route.slice(1));
+      const response = f.request("GET", route.slice(1));
       assert.equal(response.status, 200);
       return Response.json(response.body);
     },
@@ -1737,7 +1753,7 @@ void test("fresh-run metadata recovery authenticates its original registered ass
           !endpoint.includes("deployments"),
       );
       calls.push(endpoint);
-      return f.transport.api.request(method, endpoint);
+      return f.request(method, endpoint);
     },
   };
   const attest = async (
@@ -1993,7 +2009,7 @@ void test("historical metadata reader authenticates both assembly subjects while
         return reply([
           { id: mode === "actor-drift" ? 42 : 41, state: "success", log_url: state.log_url },
         ]);
-      const response = f.transport.api.request("GET", endpoint);
+      const response = f.request("GET", endpoint);
       if (mode === "pagination" && endpoint.includes("/assets?"))
         return {
           ...response,
@@ -2095,7 +2111,7 @@ void test("feed consumes actual immutable bytes with complete assembly authentic
   const input = await readImmutableBootstrapFeed(
     { release_id: 10, custody: f.custody, binding: f.binding },
     {
-      read: async (endpoint) => f.transport.api.request("GET", endpoint),
+      read: async (endpoint) => f.request("GET", endpoint),
       readAsset: f.transport.readAsset,
       async authenticateAssembly(assets) {
         authentications++;
@@ -2153,7 +2169,7 @@ void test("feed refuses unpublished or mutable input, missing/colliding/corrupt 
           binding: mode === "producer" ? { ...f.binding, producer_attempt: 2 } : f.binding,
         },
         {
-          read: async (endpoint) => f.transport.api.request("GET", endpoint),
+          read: async (endpoint) => f.request("GET", endpoint),
           readAsset: f.transport.readAsset,
           async authenticateAssembly() {
             if (mode === "attestation") throw new Error("signature not verified");
@@ -2174,7 +2190,7 @@ void test("feed brackets asset and provenance reads with immutable release custo
         { release_id: 10, custody: f.custody, binding: f.binding },
         {
           async read(endpoint) {
-            const response = f.transport.api.request("GET", endpoint);
+            const response = f.request("GET", endpoint);
             if (mode === "tag" && endpoint.includes("/git/ref/")) {
               assert.ok(isRecord(response.body) && isRecord(response.body.object));
               response.body.object.sha = "f".repeat(40);
@@ -2235,8 +2251,8 @@ void test("metadata expiry during the final Pages readback prevents publication"
   const beforeWrite = f.transport.beforeWrite;
   f.transport.beforeWrite = async (phase) => {
     const assertWindow = await beforeWrite(phase);
-    return () => {
-      assertWindow();
+    return async () => {
+      await assertWindow();
       if (phase === "publish") t.mock.timers.setTime(now + 400 * 86400000);
     };
   };
@@ -2891,4 +2907,103 @@ void test("fixed application upload preserves opaque bytes and refuses replay or
   mode = "expired";
   await assert.rejects(upload(10, "example+test.zip", payload), /fixture upload window expired/u);
   assert.equal(calls, 3);
+});
+
+void test("metadata publication uses the fixed SDK route and dispatches a lost PATCH once", async (t) => {
+  const f = fixture("publish-lost");
+  let open = true;
+  const root = "repos/boburning/portcove/releases/10";
+  const provider = await createApplicationMetadataPublicationProvider(
+    "inert-fixed-metadata-writer",
+    10,
+    f.custody.opportunity,
+    () => assert.ok(open, "fixture publication window expired"),
+    performance.now() + 30_000,
+  );
+  let patches = 0;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      const endpoint = url.pathname.slice(1) + url.search;
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-fixed-metadata-writer");
+      if (request.method === "PATCH") {
+        assert.equal(endpoint, root);
+        patches++;
+        const body: unknown = await request.json();
+        assert.ok(isRecord(body));
+        return Response.json(f.request("PATCH", endpoint, body).body);
+      }
+      const response = f.request("GET", endpoint);
+      return Response.json(response.body, { status: response.status });
+    },
+  );
+  await assert.rejects(provider.readMetadata("repos/boburning/portcove/releases/11"));
+  open = false;
+  await assert.rejects(provider.publish({}), /fixture publication window expired/u);
+  assert.equal(patches, 0);
+  open = true;
+  Object.assign(f.transport, provider);
+  await f.run();
+  assert.equal(patches, 1);
+  assert.equal(f.release.immutable, true);
+  assert.deepEqual(f.mutations, [
+    "upload:application-site.zip",
+    "upload:application-metadata.json",
+    "publish",
+  ]);
+});
+
+void test("ordinary publication retains the actual asset Link fence and reads back a lost SDK PATCH", async (t) => {
+  const f = ordinaryFixture("publish-lost");
+  const receipt = Buffer.from(JSON.stringify(await f.prepare()));
+  const fixtureProvider = await f.finalTransport.open();
+  const origin = "https://api.github.com";
+  const calls: string[] = [];
+  let incomplete = true;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, origin);
+      assert.equal(request.headers.get("authorization"), "token inert-ordinary-publication");
+      calls.push(`${request.method} ${url.pathname}${url.search}`);
+      if (request.method === "PATCH") {
+        const body: unknown = await request.json();
+        assert.ok(isRecord(body));
+        await fixtureProvider.publish(body);
+        return Response.json({});
+      }
+      assert.equal(request.method, "GET");
+      const response = await fixtureProvider.readMetadata(url.pathname.slice(1) + url.search);
+      const headers = new Headers();
+      if (incomplete && url.pathname.endsWith("/assets"))
+        headers.set("Link", `<${url.origin}${url.pathname}?page=2>; rel="next"`);
+      return Response.json(response.body, { status: response.status ?? 200, headers });
+    },
+  );
+  const publish = () =>
+    publishPreparedApplicationRelease(f.expected, receipt, {
+      ...f.finalTransport,
+      open: (deadline) =>
+        createPreparedApplicationPublicationProvider(
+          "inert-ordinary-publication",
+          f.expected,
+          () => {},
+          deadline,
+        ),
+    });
+  await assert.rejects(publish(), /incomplete product asset inventory/u);
+  assert.equal(calls.filter((request) => request.startsWith("PATCH ")).length, 0);
+  incomplete = false;
+  const settled = await publish();
+  assert.equal(settled.tag, "v0.1.0-alpha.3");
+  assert.equal(calls.filter((request) => request.startsWith("PATCH ")).length, 1);
+  assert.equal(f.writes.filter((write) => write === "publish").length, 1);
+  assert.ok(calls.at(-1)?.endsWith("/git/ref/tags/v0.1.0-alpha.3"));
 });
