@@ -1542,8 +1542,8 @@ Make such changes as one reviewed migration: explain the pressure and tradeoffs 
 
 In this document, “thin adapter” means that the CLI and desktop do not reimplement catalog, installation, release, source, or library policy. Adapters may own concerns that exist only at their boundary, including argument and IPC translation, native dialogs, credential-store access, process attachment, and presentation-shaped aggregation. If a boundary concern becomes reusable domain behavior, move it behind the shared authority instead of copying it.
 
-Repository-owned Node tools are migrating from `scripts/github-api.mts` to
-one credential-scoped Octokit factory in `scripts/github-client.mts`.
+Repository-owned Node tools use the credential-scoped Octokit factory in
+`scripts/github-client.mts`.
 The configured SDK owns bounded metadata transport, attempt accounting and
 request evidence. Pure error/result shaping lives in `github-operation.mts`;
 `github-cli.mts` owns eligible local credential resolution and retained bounded
@@ -1553,15 +1553,22 @@ The `capture-port` production REST inventory/intake path and ordinary Aqua,
 handoff, postmerge, repository-settings, CI-health and advisory PR readers use
 this asynchronous boundary. Roadmap inventories/mutations, body edits, PR delivery,
 source provenance, discovery and upstream preparation now use it as well.
-Other callers temporarily retain the legacy transport while #4319 migrates their
-families. Existing artifact-byte acquisition remains separately bounded. Domain
-owners retain authorization, cache eligibility, completeness, reconciliation and
-release policy. SDK endpoint types do not replace runtime validation.
+Release callers use it for journal, run, artifact and publication metadata.
+Fixed workflow operations use a separately configured pinned action. The
+[dated source inventory](evidence/github-sdk-source-inventory-2026-11-04.md)
+tracks the remaining appointed and held legacy users. Bounded byte transfers
+retain their separate owners. Domain owners retain authorization, cache eligibility,
+completeness, reconciliation, runtime validation and release policy.
 
 Automation-facing operations retain their versioned result envelopes and
 sanitized errors. Project mutations remain quota-aware and readback-gated;
 ambiguous writes produce recovery evidence rather than automatic replay. The
 migration grants no publication or activation authority.
+
+Core sends GitHub metadata and device requests through Octocrab over its
+configured reqwest clients. The separate device client is anonymous. Core
+enforces the metadata body limit and operation deadlines, owns credential and
+cache transitions, and applies its existing separate download policy.
 
 The CLI's schema module assembles the transport schema inventory from existing
 Rust `JsonSchema`/Serde definitions. Explicit input and output contracts use

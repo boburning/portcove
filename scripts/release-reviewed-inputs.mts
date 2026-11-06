@@ -100,6 +100,30 @@ export async function retainProtectionObservationOutputs(
   requireFresh();
 }
 
+function requireReviewedInputInvocation() {
+  const mode = process.argv[2];
+  if (
+    (process.argv.length !== 3 &&
+      !(process.argv.length === 4 && mode?.startsWith("observe-production"))) ||
+    (![
+      "admission",
+      "observe",
+      "observe-production",
+      "observe-production-payload",
+      "observe-production-site-publication",
+      "observe-production-release-publication",
+      "persist",
+      "persist-request",
+      "probe-production-request",
+      "probe-production-classification-observer",
+      "persist-production-request",
+      "observe-production-classification",
+    ].includes(mode ?? "") &&
+      !mode?.startsWith("observe-production-"))
+  )
+    throw new Error("fixed reviewed-input operation required");
+}
+
 async function runOperation(
   classification?: {
     namespace: string;
@@ -120,27 +144,6 @@ async function runOperation(
     sharedObserver?.environment ?? { ...process.env };
   const originalDeadline = classification?.deadline ?? sharedObserver?.deadline;
   const mode = process.argv[2];
-  if (
-    (process.argv.length !== 3 &&
-      !(process.argv.length === 4 && mode?.startsWith("observe-production"))) ||
-    (![
-      "admission",
-      "observe",
-      "observe-production",
-      "observe-production-payload",
-      "observe-production-site-publication",
-      "observe-production-release-publication",
-      "persist",
-      "persist-request",
-      "probe-production-request",
-      "probe-production-classification-observer",
-      "persist-production-request",
-      "observe-production-classification",
-      "read",
-    ].includes(mode ?? "") &&
-      !mode?.startsWith("observe-production-"))
-  )
-    throw new Error("fixed reviewed-input operation required");
   if (mode === "admission") {
     const handle = await open(
       new URL("../.github/workflows/release-reviewed-inputs.yml", import.meta.url),
@@ -599,8 +602,7 @@ async function runOperation(
         requireObserver,
       );
     } else {
-      const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =
-        await import("./release-control-inputs.mts");
+      const { persistReviewedClassification } = await import("./release-control-inputs.mts");
       const config: unknown = JSON.parse(environment.PORTCOVE_REVIEW_PRODUCER ?? "null");
       if (mode === "persist-request" || mode === "persist-production-request") {
         const { requireReviewedInputsReleaseAuthorities } =
@@ -730,17 +732,6 @@ async function runOperation(
             config.writer_app_id as number,
           );
         });
-      } else {
-        const opportunity: unknown = JSON.parse(
-          environment.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",
-        );
-        result = {
-          classification: readReviewedClassification(api, config, opportunity),
-          pause: readPublicationPause(api),
-          admission: "hold",
-          capacity: "unconfigured",
-          protection_handoff: "unconfigured",
-        };
       }
     }
     if (!observing)
@@ -878,6 +869,7 @@ async function main() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const run = async () => {
+    requireReviewedInputInvocation();
     if (!process.env.PORTCOVE_STORAGE_APP_TOKEN) return main();
     const directory = process.env.RUNNER_TEMP;
     if (!directory || !path.isAbsolute(directory))

@@ -9,7 +9,7 @@ import { performance } from "node:perf_hooks";
 import { preparationSourcePaths } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectReleaseSourceTree } from "./release-source-changes.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 

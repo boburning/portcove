@@ -1,5 +1,5 @@
 import { performance } from "node:perf_hooks";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 

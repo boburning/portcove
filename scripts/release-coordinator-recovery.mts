@@ -3,9 +3,10 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
+import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 import type { GitHubClientOptions } from "./github-client.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {

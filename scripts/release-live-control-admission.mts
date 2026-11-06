@@ -33,7 +33,7 @@ import {
 } from "./release-control-inputs.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import {
   requireObservedControlArtifact,
   prepareControlReadiness,

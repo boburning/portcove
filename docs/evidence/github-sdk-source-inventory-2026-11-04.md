@@ -35,3 +35,36 @@ This inventory was checked through source imports and targeted integration tests
 import counts do not establish independent networking integrations or completeness.
 No native, protected-release, installed-runtime or activation acceptance is claimed.
 #4306 stays closed; #534's ownership and production pause remain unchanged.
+
+## Follow-up inventory
+
+Current delivery receipts and exact source heads are recorded in [#4319](https://github.com/boburning/portcove/issues/4319).
+The foundation table above describes the initial source boundary.
+
+| Surface                  | Ownership and verification boundary                                                                                                                                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node tooling             | The configured Octokit client supplies bounded metadata and request evidence. Roadmap, discovery, delivery, release inventory and recovery own completeness and readback.                                                           |
+| Workflow-only operations | Fixed trusted scripts use pinned `actions/github-script` with retries and debugging disabled. Workflow permissions and source selection remain with the owning workflow.                                                            |
+| Core GitHub provider     | Octocrab uses the configured reqwest API and anonymous device transports. Core owns the 4 MiB metadata cap, release and credential policy, and the separate download client.                                                        |
+| Local App setup          | Scoped Octokit preserves exact private response custody and preflights the locked SDK before beginning a one-shot attempt.                                                                                                          |
+| Qualification            | The frozen reboot Node acquisition supplies exact archive and tuple evidence to offline Python validation. A live replay requires the original artifact or an owner-ratified replacement.                                           |
+| Binary transfers         | API lookup and authorization stay with the applicable SDK owner. Approved archive and asset downloads retain bounded streaming and identity checks.                                                                                 |
+| Retained CLI operations  | Git, eligible credential resolution and cryptographic attestation verification retain their narrow execution boundaries. The local daily-discovery session resolves its existing CLI login once under its own host and time bounds. |
+
+The legacy transport remains an open retirement item. The upstream rehearsal
+checks out its protected recovery tag, `portcove-upstream-rehearsal-20261104r5`
+at `bf4fd225c5347ec4177afc9235bef5d1ee57e064`. That source, the held
+reviewed-input helper and the semantic worker service path
+have separate source and setup authority. Replacing their runtime requires
+the applicable successor qualification and custody readback under [#534](https://github.com/boburning/portcove/issues/534).
+The WSL worker service path needs a frozen dependency closure provisioned before
+credentials and bound to the exact successor setup and worker revisions. The
+sealed semantic and native Check issuer child needs the SDK closure covered by
+its exact HTTP executable receipt. The connected Windows diagnostic source gate
+is held and its current external closure admits only the pinned YAML dependency.
+The held reviewed-input and pre-tool launcher contracts remain part of the
+retirement inventory. The standalone reviewed-input `read` mode had no maintained
+caller and is retired.
+The maintained-source guard checks recognized CLI API patterns and caps the
+number of legacy references in each recorded source file. The listed legacy
+users remain migration work.
