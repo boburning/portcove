@@ -150,6 +150,7 @@
     "catalog-full-3": {
       "arguments": [
         "--test",
+        "--experimental-test-module-mocks",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]

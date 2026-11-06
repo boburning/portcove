@@ -194,6 +194,7 @@ void test("full repository contracts run the bounded release evidence collector 
   const tokens = commandTokens(requiredFixture(commands[0]));
   assert.equal(tokens[0], "node");
   assert.deepEqual(tokens.filter((token) => token.startsWith("--")).sort(), [
+    "--experimental-test-module-mocks",
     "--test",
     "--test-reporter=./scripts/required-node-test-reporter.mts",
     "--test-timeout=30000",
