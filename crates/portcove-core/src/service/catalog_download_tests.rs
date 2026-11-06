@@ -2111,14 +2111,8 @@ async fn body_harvest_recompiled_resolved_frontend_download_1448() {
 }
 
 #[tokio::test]
-async fn cbfd_recompiled_sciaschi_resolved_frontend_download_1216() {
-    assert_embedded_resolved_frontend_download(
-        "cbfd-recompiled-sciaschi",
-        "V0.1.6",
-        "ConkerRecompiled-V0.1.6-Windows.zip",
-        None,
-    )
-    .await;
+async fn cbfd_recompiled_sciaschi_original_code_hold_before_network_1216() {
+    assert_embedded_player_download_holds(&["cbfd-recompiled-sciaschi"]).await;
 }
 
 #[tokio::test]
