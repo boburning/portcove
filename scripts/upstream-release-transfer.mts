@@ -1,13 +1,14 @@
 /** Bounded data transfer for the one disposable Actions rehearsal. Incoming
  * archives never supply code, tools, paths or extraction policy. */
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   rehearsalExecution,
@@ -98,9 +99,11 @@ export async function receiveRehearsalArtifact(
   id: number,
   directory: string,
   producerAttempt: number,
+  options: { environment?: NodeJS.ProcessEnv; fetch?: typeof globalThis.fetch } = {},
 ) {
-  const origin = rehearsalOrigin();
-  const executor = rehearsalExecution();
+  const environment = options.environment ?? process.env;
+  const origin = rehearsalOrigin(environment);
+  const executor = rehearsalExecution(environment);
   if (kind !== "public-acceptance") {
     const expectedId = {
       unsigned: retainedRehearsal.unsigned_artifact,
@@ -113,38 +116,62 @@ export async function receiveRehearsalArtifact(
       throw new Error("original artifact identity changed; no replacement cohort is admitted");
   }
   if (producerAttempt > executor.run_attempt) throw new Error("artifact producer is in the future");
-  const response: unknown = JSON.parse(
-    execFileSync(
-      "gh",
-      ["api", "--hostname", "github.com", `repos/boburning/portcove/actions/artifacts/${id}`],
-      {
-        encoding: "utf8",
-        timeout: 30000,
-        maxBuffer: 65536,
-      },
-    ),
-  );
-  const producer = kind === "public-acceptance" ? executor : origin;
-  const observed = inspectRehearsalArtifact(response, {
-    id,
-    kind,
-    source: producer.source,
-    run_id: producer.run_id,
-    producer_attempt: producerAttempt,
+  if (
+    !Number.isSafeInteger(id) ||
+    id < 1 ||
+    !Number.isSafeInteger(producerAttempt) ||
+    producerAttempt < 1
+  )
+    throw new Error("exact rehearsal artifact identity is unavailable");
+  const token = environment.GH_TOKEN;
+  if (!token) throw new Error("fixed rehearsal job reader credential is unavailable");
+  const deadline = performance.now() + 150000;
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 65536,
+    ...(options.fetch ? { fetch: options.fetch } : {}),
   });
-  const archive = readGitHubArtifactArchive(
-    `repos/boburning/portcove/actions/artifacts/${id}/zip`,
-    {
-      cwd: process.cwd(),
-      maxBytes: 512 * 1024 ** 2,
-      timeoutMs: 120000,
-    },
-  );
+  const producer = kind === "public-acceptance" ? executor : origin;
+  const inspect = (raw: unknown) =>
+    inspectRehearsalArtifact(raw, {
+      id,
+      kind,
+      source: producer.source,
+      run_id: producer.run_id,
+      producer_attempt: producerAttempt,
+    });
+  const observed = inspect(await provider.artifact(id));
+  const scratch = await mkdtemp(path.join(tmpdir(), "portcove-rehearsal-"));
+  let archive: Buffer;
+  try {
+    const filename = path.join(scratch, "artifact.zip");
+    await downloadGitHubArtifactArchiveFile(
+      `repos/boburning/portcove/actions/artifacts/${id}/zip`,
+      filename,
+      {
+        credential: { kind: "explicit", token },
+        deadline: Math.min(deadline, performance.now() + 120000),
+        maxBytes: observed.archive_bytes,
+        ...(options.fetch ? { fetch: options.fetch } : {}),
+      },
+    );
+    archive = await readFile(filename);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
   if (
     archive.length !== observed.archive_bytes ||
     createHash("sha256").update(archive).digest("hex") !== observed.archive_sha256
   )
     throw new Error("provider archive length/digest changed during transfer");
+  const confirmed = inspect(await provider.artifact(id));
+  if (
+    confirmed.archive_bytes !== observed.archive_bytes ||
+    confirmed.archive_sha256 !== observed.archive_sha256
+  )
+    throw new Error("rehearsal artifact provider identity changed during transfer");
   const names = rehearsalTransferFiles(kind, origin);
   const parsed = inspectBoundedZip(
     archive,
