@@ -2546,6 +2546,7 @@ for (const file of [
 
 explicitNodeTests.set("scripts/application-release-site.mts", [
   ...(explicitNodeTests.get("scripts/application-release-site.mts") ?? []),
+  "scripts/application-release-site.test.mts",
   "scripts/application-release-feed.test.mts",
 ]);
 
