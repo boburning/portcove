@@ -1393,3 +1393,110 @@ void test("actual first bootstrap entry binds the preserved seed before local in
     "failed history permits no local intent or publication",
   );
 });
+
+for (const signed of [true, false]) {
+  void test(`actual Pages recovery uses its ${signed ? "signed SDK" : "legacy synchronous"} journal fence`, async () => {
+    const source = await readFile(
+      new URL("./release-coordinator-driver.mts", import.meta.url),
+      "utf8",
+    );
+    const start = source.indexOf("async function recoverTrustedCoordinatorPages(");
+    const end = source.indexOf("/** Routing only.", start);
+    assert.ok(start > 0 && end > start);
+    const calls: string[] = [];
+    const api = {};
+    const reader = {
+      admitted: {
+        revision: "a",
+        execution_ref: "refs/tags/fixed",
+        actor_id: "7",
+        run_id: 8,
+        run_attempt: 1,
+      },
+      identity: { job_id: 9, check_run_id: "10" },
+    };
+    const controls = signed
+      ? {
+          evidence_scope: "github.com",
+          async readSdkMaintenance(allowance: unknown, options: { deadline: number }) {
+            assert.equal(allowance, undefined);
+            assert.equal(options.deadline, 70000);
+            calls.push("sdk");
+            return { reader: reader.identity };
+          },
+        }
+      : {
+          evidence_scope: "github.com",
+          readMaintenance(activeApi: unknown) {
+            assert.equal(activeApi, api);
+            calls.push("wire-fence");
+            return { reader: reader.identity };
+          },
+        };
+    const recover = runInNewContext(
+      stripTypeScriptTypes(source.slice(start, end)) + "\nrecoverTrustedCoordinatorPages",
+      {
+        selectCoordinatorPendingPagesRecovery: () => ({ operation: { id: "pages" }, expected: {} }),
+        requireControllerApplicationCoordinatorAuthorities: async () => ({ namespace: "fixed" }),
+        inspectCoordinatorRemoteNamespace: () => "fixed",
+        readProductionControllerWorkflowBytes: async () => Buffer.from("fixed"),
+        authenticateControlReaderJob: async () => reader,
+        authenticateCapacityExecutor: async () => ({}),
+        controllerOidcSubject: () => "fixed",
+        capacityDigest: JSON.stringify,
+        usesSignedCheckpointJournal: () => signed,
+        coordinatorApi: () => {
+          assert.equal(signed, false);
+          return api;
+        },
+        authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
+          assert.deepEqual(args.slice(5), [
+            "application",
+            signed ? "metadata-maintenance" : undefined,
+          ]);
+          return controls;
+        },
+        authenticateReleaseControlRound: async (...args: unknown[]) => {
+          assert.equal(args[3], 1);
+          assert.deepEqual(
+            { ...(args[4] as object) },
+            signed
+              ? { deadline: 80000, controlReader: "metadata-maintenance" }
+              : { deadline: 80000 },
+          );
+          return controls;
+        },
+        coordinatorMaintenanceIdentity: JSON.stringify,
+        recoverPendingPagesPublication: async (...args: unknown[]) => {
+          await (args[4] as () => Promise<void>)();
+          if (signed) {
+            assert.equal(args[5], undefined);
+            await (args[6] as () => Promise<void>)();
+          } else {
+            assert.equal(args[6], undefined);
+            assert.equal((args[5] as () => void)(), undefined);
+          }
+          return { settled: { checkpoint: "read-back" } };
+        },
+        path,
+        performance: { now: () => 1000 },
+        process: { env: {} },
+      },
+    ) as (...args: unknown[]) => Promise<Record<string, unknown>>;
+    const result = await recover(
+      "private",
+      {},
+      { checkpoint: "old", repository: "bare", input: {} },
+      {
+        monotonicDeadline: 80000,
+        remaining: () => 69000,
+        check() {},
+      },
+    );
+    assert.equal(result.checkpoint, "read-back");
+    assert.deepEqual(
+      calls,
+      signed ? ["sdk", "sdk", "sdk"] : ["wire-fence", "wire-fence", "wire-fence"],
+    );
+  });
+}

@@ -463,6 +463,16 @@ export async function prepareOwnedNativeCandidateCheckpoint(
   }
 }
 
+/** The authenticated executor owns journal selection before callers bind their
+ * matching live controls. A selection is sticky for this session. */
+export function usesSignedCheckpointJournal(session: ExecutorSession) {
+  const value = sessions.get(session);
+  if (!value) throw new Error("actual executor required before journal selection");
+  capacityExecutorIdentity(session);
+  value.requiresSignedJournal ||= inspectSelectedJournalRequirement({ ...process.env });
+  return value.requiresSignedJournal || value.journalBinding !== undefined;
+}
+
 /** Reuse only this actual session's same head. A stopped/ambiguous history is
  * never rebound, and legacy callers cannot use this to select a job journal. */
 export async function ensureOwnedCheckpointJournalHistory(
@@ -475,9 +485,7 @@ export async function ensureOwnedCheckpointJournalHistory(
   if (!value) throw new Error("actual executor required before journal selection");
   if (value.nativePreparing || value.nativeCheckpoint)
     throw new Error("native phase owns executor until exact checkpoint settlement");
-  capacityExecutorIdentity(session);
-  value.requiresSignedJournal ||= inspectSelectedJournalRequirement({ ...process.env });
-  if (!value.requiresSignedJournal && value.journalBinding === undefined) return false;
+  if (!usesSignedCheckpointJournal(session)) return false;
   if (value.journalBinding === undefined)
     await authenticateOwnedCheckpointJournalHistory(session, repository, expected);
   await publishOwnedSignedCoordinatorCheckpoint(session, repository, expected, currentControls);

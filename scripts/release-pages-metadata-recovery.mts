@@ -138,6 +138,7 @@ export async function recoverPublishedPagesMetadata(
   phaseDeadline: number,
   freshBoundary: () => Promise<void>,
   beforeMutation?: () => void,
+  beforeSignedMutation?: () => Promise<void>,
 ) {
   const check = () => {
     if (!Number.isFinite(phaseDeadline) || performance.now() >= phaseDeadline)
@@ -165,17 +166,21 @@ export async function recoverPublishedPagesMetadata(
   const directory = await mkdtemp(path.join(privateParent, "pages-metadata-readback-"));
   try {
     await freshBoundary();
-    const checkpointControls = async () => {
-      if (!beforeMutation)
-        throw new Error("selected Pages recovery requires original live mutation controls");
-      beforeMutation();
-    };
+    const checkpointControls =
+      beforeSignedMutation ??
+      (async () => {
+        if (!beforeMutation)
+          throw new Error("selected Pages recovery requires original live mutation controls");
+        beforeMutation();
+      });
     const signedJournal = await ensureOwnedCheckpointJournalHistory(
       executor,
       raw.repository,
       raw.checkpoint,
       checkpointControls,
     );
+    if (beforeSignedMutation && !signedJournal)
+      throw new Error("selected Pages control reader requires its signed checkpoint journal");
     const result = await withCoordinatorDeadline(phaseDeadline, () =>
       recoverOwnedPublishedMetadata(
         executor,
