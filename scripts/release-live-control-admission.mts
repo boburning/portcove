@@ -387,7 +387,7 @@ async function authenticateControlSource(
   if (identity.job_id === producer.job_id || identity.check_run_id === producer.check_run_id)
     throw new Error("protection observer and control reader must be separate jobs");
   const observerApi =
-    sdkReaderToken === undefined
+    sdkObserverToken === undefined
       ? (options.observerApi ??
         new GitHubApiClient((args, input) =>
           createGitHubRunner({

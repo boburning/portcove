@@ -116,7 +116,7 @@ export async function recoverActualCatalogSitePublication(
     output_parent: string;
     deadline: number;
   },
-  guards?: { refresh: () => Promise<void>; beforeMutation: () => void },
+  guards?: { refresh: () => Promise<void>; beforeMutation: () => Promise<void> },
 ) {
   const input = structuredClone(raw);
   remaining(input.deadline);

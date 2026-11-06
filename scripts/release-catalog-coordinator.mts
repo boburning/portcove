@@ -609,13 +609,17 @@ export async function runFixedCatalogCoordinatorConfiguration(
         authority: process.env.PORTCOVE_CATALOG_AUTHORITIES,
         admission: process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
       };
-      const beforeMutation = async () => {
-        check();
+      const requireSelectedEnvironment = () => {
         if (
           process.env.PORTCOVE_CATALOG_AUTHORITIES !== environment.authority ||
-          process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION !== environment.admission ||
-          (!pending && (await mainHead()) !== sourceCommit)
+          process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION !== environment.admission
         )
+          throw new Error("catalog source/configuration changed before mutation");
+      };
+      const beforeMutation = async () => {
+        check();
+        requireSelectedEnvironment();
+        if (!pending && (await mainHead()) !== sourceCommit)
           throw new Error("catalog source/configuration changed before mutation");
         const currentTags = await publicationReader.tags(),
           currentReleases = await publicationReader.releases(),
@@ -648,6 +652,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
         }
         if (catalogCoordinatorMaintenanceIdentity(await readMaintenance()) !== stable)
           throw new Error("catalog maintenance changed before neutral request mutation");
+        requireSelectedEnvironment();
         check();
       };
       const checkpointControls = async () => {
