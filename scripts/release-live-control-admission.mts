@@ -628,6 +628,47 @@ async function authenticateControlSource(
         throw new Error("observer job changed during maintenance acquisition");
       return maintenanceFacts(protection, pause, capacity);
     },
+    async readCatalogRecoveryMaintenance(
+      token: string,
+      reserve: ReturnType<typeof createFixedControlReadAllowance>,
+    ) {
+      if (
+        purpose !== "catalog-publication" ||
+        phase !== "coordinator" ||
+        phaseDeadline === undefined ||
+        !observerApi ||
+        !token ||
+        token !== env.GH_TOKEN
+      )
+        throw new Error("catalog recovery requires the original fixed maintenance reader");
+      const protection = beginMaintenance();
+      const deadline = Math.min(
+        phaseDeadline,
+        performance.now() +
+          (Math.min(
+            Date.parse(identity.expires_at),
+            Date.parse(protection.observed_at) + inputProtectionFreshnessMilliseconds,
+          ) -
+            now()),
+      );
+      const { pause, capacity } = await readMaintenanceControlsWithSdk(
+        {
+          token,
+          deadline,
+          guard() {
+            guard();
+            assertTrustedDirectNode("fixed catalog recovery controls");
+          },
+          maxBytes: 4 * 1024 ** 2,
+          requestTimeoutMs: 15000,
+        },
+        reserve,
+      );
+      guard();
+      if (producerReadback() !== producerIdentity)
+        throw new Error("observer job changed during maintenance acquisition");
+      return maintenanceFacts(protection, pause, capacity);
+    },
     async readSdkMaintenance(
       catalogAllowance?: ReturnType<typeof createFixedControlReadAllowance>,
       coordinator?: { deadline: number; signingContext?: true; maxBytes?: number },

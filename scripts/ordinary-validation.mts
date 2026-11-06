@@ -800,7 +800,11 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-catalog-recovery.mts",
-    ["scripts/release-catalog-continuation.test.mts", "scripts/release-catalog-recovery.test.mts"],
+    [
+      "scripts/release-catalog-continuation.test.mts",
+      "scripts/release-catalog-recovery.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
+    ],
   ],
   [
     "scripts/release-catalog-site-controller.mts",
@@ -2590,6 +2594,7 @@ for (const file of [
 ])
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-catalog-authorities.test.mts",
     "scripts/release-live-control-admission.test.mts",
     "scripts/release-metadata-signing-context.test.mts",
   ]);

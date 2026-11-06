@@ -350,6 +350,18 @@ async function catalogContinuationBehavior(
       controls = { evidence_scope: "github.com", readMaintenance: () => ({}) };
     const executionEnvironment = process.env;
     executionEnvironment.GH_TOKEN = "inert-catalog-continuation";
+    let asyncMaintenanceReads = 0;
+    Object.assign(controls, {
+      async readCatalogRecoveryMaintenance(
+        token: string,
+        reserve: () => { settle(observation: { dispatched: boolean }): void },
+      ) {
+        assert.equal(token, "inert-catalog-continuation");
+        reserve().settle({ dispatched: true });
+        asyncMaintenanceReads++;
+        return {};
+      },
+    });
     const toolsReceipt = Object.freeze({ kind: "inert-tool-receipt" });
     const contextReceipt = Object.freeze({ kind: "inert-context-receipt" });
     const receivedRoles: object[] = [];
@@ -636,6 +648,7 @@ async function catalogContinuationBehavior(
       "catalog continuation entry must reach the exact recovered decision",
     );
     assert.equal(sdkReads, 40);
+    assert.ok(asyncMaintenanceReads > 1, "initial and refreshed maintenance must use SDK");
     assert.deepEqual(calls, [
       "original-context",
       "original-definitions",
@@ -946,14 +959,14 @@ void test("actual continuation guard renews and checks maintenance LAST after de
     changed = false;
   const initial = {
       evidence_scope: "github.com",
-      readMaintenance: () => {
+      readCatalogRecoveryMaintenance: async () => {
         events.push("old-maintenance");
         return "stable";
       },
     },
     fresh = {
       evidence_scope: "github.com",
-      readMaintenance: () => {
+      readCatalogRecoveryMaintenance: async () => {
         events.push("final-maintenance");
         return changed ? "changed" : "stable";
       },
@@ -972,7 +985,8 @@ void test("actual continuation guard renews and checks maintenance LAST after de
       checkpoint,
       descriptor,
       stable: "stable",
-      api: {},
+      readerToken: "inert-catalog-continuation",
+      reserve() {},
       recoveryTransport: {},
       digest,
       path,

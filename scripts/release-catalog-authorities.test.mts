@@ -373,6 +373,42 @@ for (const phase of ["catalog-timestamp", "coordinator"] as const)
     assert.equal(routes.filter((route) => route === "/graphql").length, 4);
     assert.equal(f.control.mutations(), 0);
     if (coordinator) {
+      const mixed = await authenticateCatalogReleaseControlSource(
+        { ...f.environment, GH_TOKEN: "inert-catalog-controls" },
+        f.actual.workflow,
+        { ...f.actual.options, deadline: performance.now() + 3000 },
+      );
+      const start = routes.length;
+      let dispatched = 0;
+      const reserveMixed = () => ({
+        consumeBytes() {},
+        settle(observation: { dispatched: boolean }) {
+          if (observation.dispatched) dispatched++;
+        },
+      });
+      await assert.rejects(
+        mixed.readCatalogRecoveryMaintenance("different-token", reserveMixed),
+        /original fixed maintenance reader/u,
+      );
+      assert.equal(routes.length, start);
+      const mixedFacts = await mixed.readCatalogRecoveryMaintenance(
+        "inert-catalog-controls",
+        reserveMixed,
+      );
+      assert.equal(mixedFacts.facts_sha256, expected.facts_sha256);
+      assert.equal(dispatched, routes.length - start);
+      assert.ok(dispatched > 0);
+      assert.ok(routes.slice(start).every((route) => !route.includes("/actions/jobs/")));
+      const beforeExhaustion = routes.length;
+      await assert.rejects(
+        mixed.readCatalogRecoveryMaintenance("inert-catalog-controls", () => {
+          throw new Error("catalog continuation read budget exhausted");
+        }),
+        /catalog continuation read budget exhausted/u,
+      );
+      assert.equal(routes.length, beforeExhaustion);
+      assert.equal(mixed.readMaintenance(f.control.api).facts_sha256, expected.facts_sha256);
+      assert.equal(f.control.mutations(), 0);
       const shared = createFixedControlReadAllowance();
       const provider = await createReleaseCustodyProvider({
         token: "inert-catalog-controls",

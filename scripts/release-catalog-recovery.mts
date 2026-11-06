@@ -293,8 +293,9 @@ export async function continueActualCatalogPublication(
       GH_HOST: "github.com",
       GH_PROMPT_DISABLED: "1",
     });
+    const readerToken = environment.GH_TOKEN ?? "";
     const recoveryTransport = {
-      credential: { token: environment.GH_TOKEN ?? "" },
+      credential: { token: readerToken },
       deadline: originalDeadline,
     };
     const spawn: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"] = (
@@ -308,6 +309,15 @@ export async function continueActualCatalogPublication(
       reads++;
       return () => {
         reads--;
+      };
+    };
+    const reserve = () => {
+      const release = chargeRead();
+      return {
+        consumeBytes() {},
+        settle(observation: { dispatched: boolean }) {
+          if (!observation.dispatched) release();
+        },
       };
     };
     const api = new GitHubApiClient((args, body) => {
@@ -432,7 +442,9 @@ export async function continueActualCatalogPublication(
         round = 0;
       if (controls.evidence_scope !== "github.com")
         throw new Error("actual catalog maintenance controls required");
-      const stable = catalogCoordinatorMaintenanceIdentity(controls.readMaintenance(api));
+      const stable = catalogCoordinatorMaintenanceIdentity(
+        await controls.readCatalogRecoveryMaintenance(readerToken, reserve),
+      );
       const executor = await authenticateCapacityExecutor(
         "coordinator",
         {
@@ -476,11 +488,14 @@ export async function continueActualCatalogPublication(
         }
         if (
           controls.evidence_scope !== "github.com" ||
-          catalogCoordinatorMaintenanceIdentity(controls.readMaintenance(api)) !== stable
+          catalogCoordinatorMaintenanceIdentity(
+            await controls.readCatalogRecoveryMaintenance(readerToken, reserve),
+          ) !== stable
         )
           throw new Error("catalog continuation controls changed");
         signingContextRemaining(originalDeadline, 15000);
       };
+      // The legacy journal mutation still requires a synchronous final fence.
       const beforeMutation = () => {
         signingContextRemaining(originalDeadline, 15000);
         for (const [name, value] of Object.entries(protectedEnvironment))
@@ -505,7 +520,7 @@ export async function continueActualCatalogPublication(
       );
       phase = "original-attested-context-and-four-roles";
       const metadata = await createReleaseCustodyProvider({
-        token: environment.GH_TOKEN ?? "",
+        token: readerToken,
         deadline: originalDeadline,
         maxBytes: 4 * 1024 ** 2,
         chargeRead,
@@ -539,7 +554,7 @@ export async function continueActualCatalogPublication(
       const contextOp = operations.get("context")!,
         before = await observe(contextOp, "context");
       const archive = await acquireSigningContextArchive(directory, before.artifact, {
-        token: environment.GH_TOKEN ?? "",
+        token: readerToken,
         deadline: originalDeadline,
         charge: chargeRead,
       });
