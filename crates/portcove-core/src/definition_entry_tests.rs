@@ -464,6 +464,16 @@ fn inspect(value: &Value) -> Result<DefinitionEntryInspection> {
 }
 
 #[test]
+fn indexed_entries_refuse_embedded_only_empty_middle_patterns() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("opentyrian-opentyrian").unwrap();
+    let entry = entry_for_port(port);
+    let error = inspect(&entry).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(error.message.contains("embedded-only"));
+}
+
+#[test]
 fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog

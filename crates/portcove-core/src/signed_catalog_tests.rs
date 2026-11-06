@@ -469,6 +469,7 @@ fn signed_runtime_updates_can_change_artifacts_but_not_execution_or_mutable_owne
                 .push(crate::PersistentFilePattern {
                     prefix: "profile_".into(),
                     suffix: ".sav".into(),
+                    allow_empty_middle: false,
                 }),
             _ => port.bundled_runtime.clear(),
         }

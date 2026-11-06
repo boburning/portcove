@@ -150,6 +150,15 @@ impl DefinitionContentIndex {
                 "entry port identity or complete typed projection is invalid",
             ));
         }
+        if port
+            .persistent_file_patterns
+            .iter()
+            .any(|pattern| pattern.allow_empty_middle)
+        {
+            return Err(PortcoveError::unsupported(
+                "empty-middle persistent file patterns are currently embedded-only",
+            ));
+        }
         if !retained && !port.release.managed_build.is_empty() {
             return Err(crate::cartridge_build::retired_creation());
         }

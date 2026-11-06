@@ -1131,6 +1131,7 @@ impl Catalog {
                     .chain(generated_metadata.iter().map(String::as_str))
                     .any(|relative| pattern.matches(relative));
                 if !runtime_file_patterns_allowed
+                    || pattern.allow_empty_middle
                     || runtime_file_patterns
                         .iter()
                         .any(|existing: &&crate::PersistentFilePattern| existing.overlaps(pattern))

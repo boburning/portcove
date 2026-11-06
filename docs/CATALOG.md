@@ -1900,8 +1900,12 @@ at least one character between them, and never recurses or behaves as a general
 glob. Matching files are omitted from immutable verification but are not
 enumerated, backed up or restored. By contrast, `persistent_file_patterns` uses
 the same bounded syntax for player-owned files that must participate in those
-persistence operations, while `runtime_mutable_paths` remains the exact-path
-form for disposable runtime output. Catalog validation rejects overlapping or
+persistence operations. A current reader may opt a persistent pattern into
+matching its concatenated prefix and suffix with `allow_empty_middle: true`.
+It still matches regular files only and retains executable and critical-file
+refusals. Indexed definition admission rejects the option until its semantics
+can be negotiated with readers. `runtime_mutable_paths` remains the exact-path form for
+disposable runtime output. Catalog validation rejects overlapping or
 duplicate rules and conflicts with executable, source, metadata, exact-runtime
 or persistent declarations. This contract cannot claim files in roaming AppData
 or another external user-profile directory; such state needs an upstream
