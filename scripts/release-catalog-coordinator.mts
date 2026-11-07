@@ -60,6 +60,8 @@ import {
 } from "./release-catalog-inspection.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
 import { inspectCatalogInitialization } from "./release-catalog-publication-contract.mts";
+import { authenticateStandaloneBootstrapAdoption } from "./release-catalog-bootstrap-adoption.mts";
+import { standaloneBootstrapAdoption } from "./release-metadata-contract.mts";
 import {
   currentPublishedSite,
   inspectPublishedCatalogMetadata,
@@ -255,6 +257,212 @@ export async function runFixedCatalogCoordinatorConfiguration(
           transport: journalTransport,
         }),
         input = recovered.input;
+      const checkDirectSource = () => {
+        check();
+        assertTrustedDirectNode("fixed catalog authoring source");
+      };
+      const openPublicationReader = () =>
+        createPublicationInventoryWithSdk({
+          token: readerToken,
+          deadline,
+          maxBytes: 16 * 1024 ** 2,
+          recheck: async () => check(),
+          beforeDispatch: checkDirectSource,
+        });
+      const observeControls = async (subjectSha256: string) => {
+        const runId = reader.admitted.run_id;
+        if (!runId) throw new Error("catalog coordinator run identity unavailable");
+        const ready = path.join(directory, "ready-coordinator.json");
+        await writeFile(
+          ready,
+          `${JSON.stringify(prepareControlReadiness(reader.identity, subjectSha256, "coordinator"))}\n`,
+          { flag: "wx", mode: 0o600 },
+        );
+        await retainControlStepLocator(ready, "coordinator", 0);
+        const observation = await waitForControlArtifact(
+          directory,
+          "observation",
+          {
+            phase: "coordinator",
+            controller_revision: reader.admitted.revision,
+            controller_ref: reader.admitted.execution_ref,
+            run_id: runId,
+            run_attempt: reader.admitted.run_attempt,
+          },
+          {
+            deadline: Date.now() + Math.floor(deadline - performance.now()),
+            phaseDeadline: deadline,
+          },
+        );
+        const controls = await authenticateCatalogReleaseControlSource(
+          { ...process.env, GH_TOKEN: readerToken },
+          workflow,
+          {
+            phase: "coordinator",
+            deadline,
+            observedArtifact: observation,
+            controlReader: "catalog-maintenance",
+          },
+        );
+        requireAuthenticatedCatalogControlSource(controls, "coordinator");
+        if (controls.evidence_scope !== "github.com")
+          throw new Error("actual catalog controls required");
+        const readMaintenance = () =>
+          controls.readSdkMaintenance(undefined, { deadline, maxBytes: 16 * 1024 ** 2 });
+        const observed = await readMaintenance(),
+          stable = catalogCoordinatorMaintenanceIdentity(observed);
+        if (
+          observed.reader.job_id !== reader.identity.job_id ||
+          observed.reader.check_run_id !== reader.identity.check_run_id
+        )
+          throw new Error("catalog controls came from another job");
+        return { controls, readMaintenance, observed, stable };
+      };
+      const publishCheckpoint = async (
+        next: Record<string, unknown>,
+        checkpointControls: () => Promise<void>,
+      ) => {
+        const executor = await authenticateCapacityExecutor(
+          "coordinator",
+          {
+            audience: "portcove-capacity-executor",
+            subject: controllerOidcSubject(
+              reader.admitted.execution_ref,
+              "production-release-coordinator",
+            ),
+            controller_revision: reader.admitted.revision,
+            controller_ref: reader.admitted.execution_ref,
+            actor_id: reader.admitted.actor_id,
+            run_id: reader.admitted.run_id,
+            run_attempt: reader.admitted.run_attempt,
+          },
+          directory,
+          deadline,
+        );
+        const signedJournal = await ensureOwnedCheckpointJournalHistory(
+          executor,
+          recovered.repository,
+          recovered.checkpoint,
+          checkpointControls,
+        );
+        const publishLegacy = async (checkpoint: string) => {
+          const journal = createCoordinatorJournalApi(directory, deadline),
+            guarded = {
+              request: async (...args: Parameters<typeof journal.request>) => {
+                check();
+                if (args[0] !== "GET") await checkpointControls();
+                const result = await journal.request(...args);
+                check();
+                return result;
+              },
+              graphql: async (...args: Parameters<typeof journal.graphql>) => {
+                check();
+                if (/^\s*mutation\b/u.test(args[0])) await checkpointControls();
+                const result = await journal.graphql(...args);
+                check();
+                return result;
+              },
+            };
+          return publishCoordinatorCheckpoint(
+            recovered.repository,
+            checkpoint,
+            selected.remote_configuration,
+            { api: guarded },
+          );
+        };
+        const persisted = await checkpointReleaseOpportunity(
+          recovered.repository,
+          recovered.checkpoint,
+          next,
+        );
+        if (signedJournal)
+          await publishOwnedSignedCoordinatorCheckpoint(
+            executor,
+            recovered.repository,
+            persisted.checkpoint,
+            checkpointControls,
+          );
+        else await publishLegacy(persisted.checkpoint);
+        const readback = await readRemoteCoordinatorSnapshot(
+          directory,
+          selected.remote_configuration,
+          { transport: journalTransport },
+        );
+        if (readback.checkpoint !== persisted.checkpoint)
+          throw new Error("catalog journal CAS readback differs; retain original");
+        return readback;
+      };
+      if (
+        input.published_metadata == null &&
+        input.metadata_bootstrap != null &&
+        capacityDigest(input.metadata_bootstrap) ===
+          standaloneBootstrapAdoption.abandoned_descriptor_sha256 &&
+        input.active_candidate === null &&
+        !unresolved(input)
+      ) {
+        stage = "standalone-application-bootstrap-readback";
+        const { metadata, assertCurrent } = await authenticateStandaloneBootstrapAdoption(
+          directory,
+          tools,
+          deadline,
+        );
+        const { readMaintenance, stable } = await observeControls(
+          capacityDigest({ checkpoint: recovered.checkpoint, standalone_bootstrap: metadata }),
+        );
+        const publicationReader = await openPublicationReader();
+        const readInventory = async () => {
+          const tags = await publicationReader.tags();
+          const releases = await publicationReader.releases();
+          const { allocations } = await publicationReader.readAllocations(
+            tags,
+            authorities.namespace,
+          );
+          return { tags, releases, allocations };
+        };
+        const inventory = await readInventory();
+        const inventorySha256 = capacityDigest(inventory);
+        const checkpointControls = async () => {
+          check();
+          const observed = await readMaintenance();
+          if (
+            observed.pause.publication_paused ||
+            !observed.resource_policy_matches_controller ||
+            catalogCoordinatorMaintenanceIdentity(observed) !== stable ||
+            (await requireControllerCatalogCoordinatorAuthorities()).configuration_sha256 !==
+              authorities.configuration_sha256
+          )
+            throw new Error(
+              "catalog controls changed before standalone bootstrap journal adoption",
+            );
+          if (capacityDigest(await readInventory()) !== inventorySha256)
+            throw new Error(
+              "publication inventory changed before standalone bootstrap journal adoption",
+            );
+          await assertCurrent();
+          check();
+        };
+        const now = new Date().toISOString();
+        const next = {
+          ...input,
+          now,
+          publication: deriveCoordinatorPublication(
+            inventory.tags,
+            inventory.releases,
+            inventory.allocations,
+            now,
+          ),
+          published_metadata: metadata,
+        };
+        stage = "standalone-application-bootstrap-CAS";
+        const readback = await publishCheckpoint(next, checkpointControls);
+        if (capacityDigest(readback.input.published_metadata) !== capacityDigest(metadata))
+          throw new Error("standalone bootstrap journal adoption readback differs");
+        return held(
+          directory,
+          readback.checkpoint,
+          "exact standalone application bootstrap adopted; next wake can review catalog",
+        );
+      }
       const pending = inspectCatalogReviewRequest(input.catalog_review_request),
         history = inspectCatalogReviewDisposition(input.catalog_review_disposition),
         replacement = !pending && history !== null;
@@ -263,7 +471,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
         input.review_request != null ||
         input.review_disposition != null ||
         input.metadata_renewal != null ||
-        input.metadata_bootstrap != null
+        (input.metadata_bootstrap != null && input.published_metadata == null)
       )
         return held(
           directory,
@@ -298,10 +506,6 @@ export async function runFixedCatalogCoordinatorConfiguration(
         )
           throw new Error("fixed default-main catalog source unavailable");
         return ref.object.sha;
-      };
-      const checkDirectSource = () => {
-        check();
-        assertTrustedDirectNode("fixed catalog authoring source");
       };
       const sourceProvider = await createReleaseCustodyProvider({
         token: readerToken,
@@ -470,57 +674,10 @@ export async function runFixedCatalogCoordinatorConfiguration(
           "frozen catalog request awaits automatic independent semantic worker",
         );
       stage = "neutral-request-control-and-CAS";
-      const ready = path.join(directory, "ready-coordinator.json");
-      await writeFile(
-        ready,
-        `${JSON.stringify(prepareControlReadiness(reader.identity, capacityDigest({ checkpoint: recovered.checkpoint, request }), "coordinator"))}\n`,
-        { flag: "wx", mode: 0o600 },
+      const { controls, readMaintenance, observed, stable } = await observeControls(
+        capacityDigest({ checkpoint: recovered.checkpoint, request }),
       );
-      await retainControlStepLocator(ready, "coordinator", 0);
-      const observation = await waitForControlArtifact(
-        directory,
-        "observation",
-        {
-          phase: "coordinator",
-          controller_revision: reader.admitted.revision,
-          controller_ref: reader.admitted.execution_ref,
-          run_id: reader.admitted.run_id,
-          run_attempt: reader.admitted.run_attempt,
-        },
-        {
-          deadline: Date.now() + Math.floor(deadline - performance.now()),
-          phaseDeadline: deadline,
-        },
-      );
-      const controls = await authenticateCatalogReleaseControlSource(
-        { ...process.env, GH_TOKEN: readerToken },
-        workflow,
-        {
-          phase: "coordinator",
-          deadline,
-          observedArtifact: observation,
-          controlReader: "catalog-maintenance",
-        },
-      );
-      requireAuthenticatedCatalogControlSource(controls, "coordinator");
-      if (controls.evidence_scope !== "github.com")
-        throw new Error("actual catalog controls required");
-      const readMaintenance = () =>
-        controls.readSdkMaintenance(undefined, { deadline, maxBytes: 16 * 1024 ** 2 });
-      const observed = await readMaintenance(),
-        stable = catalogCoordinatorMaintenanceIdentity(observed);
-      if (
-        observed.reader.job_id !== reader.identity.job_id ||
-        observed.reader.check_run_id !== reader.identity.check_run_id
-      )
-        throw new Error("catalog controls came from another job");
-      const publicationReader = await createPublicationInventoryWithSdk({
-        token: readerToken,
-        deadline,
-        maxBytes: 16 * 1024 ** 2,
-        recheck: async () => check(),
-        beforeDispatch: checkDirectSource,
-      });
+      const publicationReader = await openPublicationReader();
       const tags = await publicationReader.tags();
       const releases = await publicationReader.releases();
       const { allocations } = await publicationReader.readAllocations(tags, authorities.namespace);
@@ -658,75 +815,9 @@ export async function runFixedCatalogCoordinatorConfiguration(
       const checkpointControls = async () => {
         await beforeMutation();
       };
-      const executor = await authenticateCapacityExecutor(
-        "coordinator",
-        {
-          audience: "portcove-capacity-executor",
-          subject: controllerOidcSubject(
-            reader.admitted.execution_ref,
-            "production-release-coordinator",
-          ),
-          controller_revision: reader.admitted.revision,
-          controller_ref: reader.admitted.execution_ref,
-          actor_id: reader.admitted.actor_id,
-          run_id: reader.admitted.run_id,
-          run_attempt: reader.admitted.run_attempt,
-        },
-        directory,
-        deadline,
-      );
-      const signedJournal = await ensureOwnedCheckpointJournalHistory(
-        executor,
-        recovered.repository,
-        recovered.checkpoint,
-        checkpointControls,
-      );
-      const publishLegacy = async (checkpoint: string) => {
-        const journal = createCoordinatorJournalApi(directory, deadline),
-          guarded = {
-            request: async (...args: Parameters<typeof journal.request>) => {
-              check();
-              if (args[0] !== "GET") await beforeMutation();
-              const result = await journal.request(...args);
-              check();
-              return result;
-            },
-            graphql: async (...args: Parameters<typeof journal.graphql>) => {
-              check();
-              if (/^\s*mutation\b/u.test(args[0])) await beforeMutation();
-              const result = await journal.graphql(...args);
-              check();
-              return result;
-            },
-          };
-        return publishCoordinatorCheckpoint(
-          recovered.repository,
-          checkpoint,
-          selected.remote_configuration,
-          { api: guarded },
-        );
-      };
       if (negativeReceipt) await requireActualCatalogReviewDisposition(negativeReceipt, deadline);
-      const persisted = await checkpointReleaseOpportunity(
-        recovered.repository,
-        recovered.checkpoint,
-        next,
-      );
-      if (signedJournal)
-        await publishOwnedSignedCoordinatorCheckpoint(
-          executor,
-          recovered.repository,
-          persisted.checkpoint,
-          checkpointControls,
-        );
-      else await publishLegacy(persisted.checkpoint);
-      const readback = await readRemoteCoordinatorSnapshot(
-        directory,
-        selected.remote_configuration,
-        { transport: journalTransport },
-      );
+      const readback = await publishCheckpoint(next, checkpointControls);
       if (
-        readback.checkpoint !== persisted.checkpoint ||
         capacityDigest(inspectCatalogReviewRequest(readback.input.catalog_review_request)) !==
           capacityDigest(frozen) ||
         (negativeReceipt &&
