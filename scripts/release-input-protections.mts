@@ -671,6 +671,14 @@ export function requireApplicationReleaseProtectionDigest(
 ) {
   const policy = requireReleaseImmutabilityPolicy(raw, now);
   if (!bootstrap) return policy.inventory_sha256;
+  return protectionFingerprint(bootstrapProtectionInventory(raw));
+}
+
+function protectionFingerprint(value: unknown) {
+  return createHash("sha256").update(canonical(value)).digest("hex");
+}
+
+function bootstrapProtectionInventory(raw: unknown) {
   if (
     !isRecord(raw) ||
     !isRecord(raw.inventory) ||
@@ -686,7 +694,20 @@ export function requireApplicationReleaseProtectionDigest(
     delete detail.current_user_can_bypass;
     return detail;
   });
-  return createHash("sha256")
-    .update(canonical({ ...raw.inventory, rulesets }))
-    .digest("hex");
+  return { ...raw.inventory, rulesets, branches: raw.inventory.branches };
+}
+
+/** Digests only. These distinguish provider projections without exposing the
+ * inventory or changing the appointed protection equality. */
+export function bootstrapProtectionFingerprints(raw: unknown) {
+  const { rulesets, branches, ...settings } = bootstrapProtectionInventory(raw);
+  return {
+    rulesets: protectionFingerprint(rulesets),
+    ruleset_count: rulesets.length,
+    refs: protectionFingerprint(branches.map((row: unknown) => isRecord(row) && row.ref)),
+    effective: protectionFingerprint(
+      branches.map((row: unknown) => isRecord(row) && row.effective_rules),
+    ),
+    settings: protectionFingerprint(settings),
+  };
 }
