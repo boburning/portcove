@@ -74,6 +74,38 @@ release or a production update feed.
 
 ## Upstream-first release integration
 
+### Ordinary application publication
+
+GitHub Actions jobs, protected environment tags, concurrency, artifacts and
+attestations provide runner isolation, exact source admission, serialization and
+producer identity. GitHub Releases provides immutable payload custody after
+publication. Portcove verifies the approved source and version, exact package
+inventory and prepared Release before making it public. The independent semantic
+decision applies to the complete source delta. GitHub review and attestation can
+bind reviewer or producer identity. Portcove release policy determines which
+version that delta can receive.
+
+The maintained Tauri CLI builds the NSIS package and provides detached payload
+signatures. The installed client also authenticates signed TUF metadata and
+enforces freshness, replay refusal and release channel policy. That metadata
+and the isolated signing roles remain part of the application trust boundary.
+
+The first ordinary executable publication of a newly appointed controller uses
+the complete authenticated predecessor read from feed preparation. Under the
+shared publication concurrency group, the final guard checks the exact public
+marker between reads of the same settled serving actor. This keeps a repeated
+whole-site download out of the protection window. The publisher still checks the
+exact artifact, active admission, current pause, source and budget, and the
+fresh protection fingerprint after OIDC and before native create. The existing
+post-create and independent readback verify the complete successor byte set.
+Exceptional recovery retains its full predecessor and outcome checks.
+
+GitHub's Pages artifact action prepares the deployment archive. The maintained
+Pages deploy action handles native create, observation and cancellation, but
+exposes no hook between obtaining OIDC and issuing create. The bounded Pages
+API call retains that guard point. Native deployment identity, Actions admission
+and authenticated public bytes are separate evidence.
+
 ### November 4, 2026 rehearsal record
 
 The following records the rehearsal state and instructions at the inspected
