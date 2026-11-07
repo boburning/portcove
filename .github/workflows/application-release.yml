@@ -590,7 +590,7 @@ jobs:
     with:
       operation: observe
       phase: metadata
-      timeout_minutes: 1
+      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -685,7 +685,7 @@ jobs:
     with:
       operation: observe
       phase: snapshot
-      timeout_minutes: 1
+      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -732,7 +732,7 @@ jobs:
     with:
       operation: observe
       phase: timestamp
-      timeout_minutes: 1
+      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -992,7 +992,7 @@ jobs:
     with:
       operation: observe
       phase: publication
-      timeout_minutes: 1
+      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -1201,7 +1201,7 @@ jobs:
     with:
       operation: observe
       phase: feed
-      timeout_minutes: 1
+      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}

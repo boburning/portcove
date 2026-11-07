@@ -105,7 +105,7 @@ void test("bootstrap cannot execute the ordinary preparation branch and each pat
     "metadata-bootstrap",
   );
   assert.equal(app.remaining_declared_minutes, 140);
-  assert.equal(bootstrap.remaining_declared_minutes, 49);
+  assert.equal(bootstrap.remaining_declared_minutes, 59);
   for (const name of [
     "package / package",
     "protection_payload / execute",
@@ -749,6 +749,7 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
   let drift = false;
   let currentSourceDone = false;
   let unexpectedContextOnlyJob = false;
+  let unexpectedTimeoutConclusion = false;
   const charged = new Set<number>();
   t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
     assert.equal(init.method, "GET");
@@ -785,6 +786,35 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
       head_sha: row.head_sha,
       conclusion,
     });
+    if (id === 42330828127) {
+      const rows = [
+        [128276714370, "source", 31],
+        [128276860078, "tools", 131],
+        [128277402232, "context / execute", 34],
+        [128277555273, "protection_metadata / execute", 49],
+        [128277773517, "preview / execute", 33],
+        [128277773532, "releases / execute", 29],
+        [128277773538, "stable / execute", 28],
+        [128277929443, "protection_snapshot / execute", 63],
+      ] as const;
+      return Response.json(
+        jobs(
+          rows.map(([jobId, name, seconds]) => ({
+            ...observedJob(
+              name,
+              0,
+              seconds,
+              jobId === 128277929443
+                ? unexpectedTimeoutConclusion
+                  ? "failure"
+                  : "cancelled"
+                : "success",
+            ),
+            id: jobId,
+          })),
+        ),
+      );
+    }
     if (id === Number(execution.run_id))
       return Response.json(jobs(currentSourceDone ? [observedJob("source", 0, 1, "success")] : []));
     if (id === 42264854396)
@@ -823,12 +853,12 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
   const sourceBudget = await inspect();
   assert.equal(sourceBudget.attempts, 4);
   assert.equal(sourceBudget.actual_milliseconds, 229_000);
-  assert.equal(sourceBudget.remaining_declared_minutes, 49);
+  assert.equal(sourceBudget.remaining_declared_minutes, 59);
   assert.deepEqual(charged, new Set(runs.map((row) => row.id)));
   currentSourceDone = true;
   const privateBudget = await inspect();
   assert.equal(privateBudget.actual_milliseconds, 230_000);
-  assert.equal(privateBudget.remaining_declared_minutes, 47);
+  assert.equal(privateBudget.remaining_declared_minutes, 57);
   drift = true;
   await assert.rejects(inspect, /bootstrap predecessor cost changed/u);
   // Reuse the actual reader against the original r12 failure and a successor.
@@ -873,7 +903,7 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
   );
   assert.equal(nextBudget.attempts, 5);
   assert.equal(nextBudget.actual_milliseconds, 431_000);
-  assert.equal(nextBudget.remaining_declared_minutes, 47);
+  assert.equal(nextBudget.remaining_declared_minutes, 57);
   runs[runs.length - 1]!.status = "completed";
   runs[runs.length - 1]!.conclusion = "failure";
   execution.ref = "refs/tags/" + tag(14);
@@ -933,6 +963,39 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
   assert.equal((await inspectReconciled()).actual_milliseconds, 593_000);
   unexpectedContextOnlyJob = true;
   await assert.rejects(inspectReconciled, /releases \/ execute/u);
+  unexpectedContextOnlyJob = false;
+  runs.splice(runs.length - 1, 0, {
+    id: 42330828127,
+    head_sha: "678133294e5ea5a39935c26958a064ec7dc8976a",
+    head_branch: tag(23),
+    status: "completed",
+    conclusion: "cancelled",
+    run_attempt: 1,
+  });
+  const timeoutOwner = {
+    ...reconciled,
+    custody: inspectApplicationRunCustody({
+      ...reconciled.custody,
+      runs: runs.slice(1).map((row) => ({
+        id: String(row.id),
+        control_commit: row.head_sha,
+        control_ref: "refs/tags/" + row.head_branch,
+      })),
+    }),
+  };
+  const inspectTimeout = () =>
+    readApplicationJobBudget(
+      timeoutOwner.custody.runs.map((row) => row.id),
+      "metadata-bootstrap",
+      "ordinary",
+      timeoutOwner,
+    );
+  assert.equal((await inspectTimeout()).actual_milliseconds, 991_000);
+  unexpectedTimeoutConclusion = true;
+  await assert.rejects(inspectTimeout);
+  unexpectedTimeoutConclusion = false;
+  runs[3].conclusion = "cancelled";
+  await assert.rejects(inspectTimeout);
 });
 
 void test("budgeted bootstrap binds every successor to complete failed history without a run-count ceiling", () => {
