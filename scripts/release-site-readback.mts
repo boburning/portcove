@@ -450,7 +450,7 @@ export async function materializeInitialApplicationRehearsal(
   raw: unknown,
   expectedDescriptorSha256: string,
   privateParent: string,
-  options: { read?: InitialSiteRead; fetch?: typeof fetch } = {},
+  options: { read?: InitialSiteRead; fetch?: typeof fetch; deadline?: number } = {},
 ) {
   if (
     !digest(expectedDescriptorSha256) ||
@@ -501,7 +501,13 @@ export async function materializeInitialApplicationRehearsal(
     (await realpath(privateParent)) !== privateParent
   )
     throw new Error("initial site parent is linked or unavailable");
-  const deadline = Math.min(performance.now() + 120000, coordinatorCommandDeadline() ?? Infinity);
+  const deadline = Math.min(
+    performance.now() + 120000,
+    coordinatorCommandDeadline() ?? Infinity,
+    options.deadline ?? Infinity,
+  );
+  if (!Number.isFinite(deadline) || performance.now() >= deadline)
+    throw new Error("initial rehearsal readback deadline exhausted");
   const readMetadata = options.read ?? (await createInitialSiteReader(deadline, 30000, 65536));
   let requests = 0;
   const get = async (suffix: string) => {

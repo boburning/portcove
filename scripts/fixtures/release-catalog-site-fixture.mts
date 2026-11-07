@@ -29,6 +29,16 @@ try {
   const bytes = Buffer.from("inert target: no Tough authority");
   await writeFile(path.join(repository, "metadata", "timestamp.json"), bytes);
   const inventory = [{ path: "metadata/timestamp.json", bytes: bytes.length, sha256: hash(bytes) }];
+  const rehearsalDirectory = path.join(root, "rehearsal");
+  const rehearsalPath = "rehearsal/41788540335-1/application/metadata/timestamp.json";
+  const rehearsalBytes = Buffer.from("retained fixture rehearsal");
+  await mkdir(path.join(rehearsalDirectory, path.dirname(rehearsalPath)), { recursive: true });
+  await writeFile(path.join(rehearsalDirectory, ".nojekyll"), "");
+  await writeFile(path.join(rehearsalDirectory, rehearsalPath), rehearsalBytes);
+  const rehearsalInventory = digest([
+    { path: ".nojekyll", bytes: 0, sha256: hash(Buffer.alloc(0)) },
+    { path: rehearsalPath, bytes: rehearsalBytes.length, sha256: hash(rehearsalBytes) },
+  ]);
   const descriptor = {
     schema_version: 1,
     kind: "catalog-publication",
@@ -108,7 +118,8 @@ try {
     posts = 0,
     bootstrapReads = 0,
     custodyReads = 0,
-    failCustody = false;
+    failCustody = false,
+    driftRehearsal = false;
   const install = (name: string, exports: object) =>
     mock.module(new URL(`../${name}.mts`, import.meta.url).href, { namedExports: exports });
   install("release-catalog-signing", {
@@ -159,6 +170,10 @@ try {
         setup_plan_sha256: initialization.setup_plan_sha256,
         historical_preimage_sha256: initialization.initial_site_preimage_sha256,
         source: { source_tree: initialization.source_tree },
+        rehearsal: {
+          directory: rehearsalDirectory,
+          inventory_sha256: driftRehearsal ? "0".repeat(64) : rehearsalInventory,
+        },
         authority: "none",
       };
     },
@@ -312,6 +327,16 @@ try {
     artifactRoute,
   ]);
   // This fetch is another explicitly controlled byte boundary.
+  assert.deepEqual(
+    prepared.generation.files.find((file) => file.path === rehearsalPath),
+    { path: rehearsalPath, bytes: rehearsalBytes.length, sha256: hash(rehearsalBytes) },
+  );
+  driftRehearsal = true;
+  await assert.rejects(
+    deployment.verifyPriorPublicSite(prepared.session),
+    /rehearsal inventory changed/u,
+  );
+  driftRehearsal = false;
   const marker = Buffer.from(JSON.stringify(prepared.generation));
   process.env.GH_TOKEN = token;
   globalThis.fetch = async (value) => {
@@ -319,7 +344,13 @@ try {
     const url = value,
       pathname = new URL(url).pathname.replace(/^\/portcove\//u, "");
     const body =
-      pathname === "publication.json" ? marker : pathname === ".nojekyll" ? Buffer.alloc(0) : bytes;
+      pathname === "publication.json"
+        ? marker
+        : pathname === ".nojekyll"
+          ? Buffer.alloc(0)
+          : pathname === rehearsalPath
+            ? rehearsalBytes
+            : bytes;
     return Object.defineProperty(new Response(body), "url", { value: url });
   };
   try {

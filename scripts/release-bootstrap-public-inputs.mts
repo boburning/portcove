@@ -24,6 +24,7 @@ import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 import { inspectBootstrapCatalogPins } from "./release-metadata-signing-contract.mts";
 import {
+  materializeInitialApplicationRehearsal,
   requirePublishedCatalogCompleteSite,
   readPublicApplicationSite,
 } from "./release-site-readback.mts";
@@ -220,7 +221,7 @@ export async function readBootstrapPublicSource(
     },
     generatedAt,
     deadline,
-    true,
+    "application",
   );
   return { publication, ...result };
 }
@@ -256,6 +257,7 @@ export async function readCatalogBootstrapPublicSource(
       },
       generatedAt,
       deadline,
+      "catalog",
     )),
   };
 }
@@ -266,7 +268,7 @@ async function readPinnedBootstrapSource(
   pins: Record<string, { path: string; bytes: number; sha256: string }>,
   generatedAt: string,
   deadline: number,
-  allowCatalogOnly = false,
+  scope: "application" | "catalog",
 ) {
   let reads = 0;
   const get = async (read: () => Promise<unknown>) => {
@@ -310,27 +312,34 @@ async function readPinnedBootstrapSource(
     files.set(name, bytes);
   }
   const preimage = files.get("initial_site_preimage")!;
-  const historical =
-    allowCatalogOnly && bootstrapPreimageCatalogPins(preimage, generatedAt) !== null
+  const raw: unknown = JSON.parse(preimage.toString("utf8"));
+  const rehearsal =
+    scope === "catalog" && isRecord(raw) && raw.kind === "retained-application-rehearsal-preimage"
+      ? raw
+      : null;
+  const historical = rehearsal
+    ? null
+    : scope === "application" && bootstrapPreimageCatalogPins(preimage, generatedAt) !== null
       ? inspectCatalogOnlyBootstrapPreimage(preimage, generatedAt)
       : inspectHistoricalBootstrapPreimage(preimage, generatedAt);
   return {
     files,
     historical,
+    rehearsal,
     source_tree: commit.tree,
     api_reads: reads,
     authority: "none" as const,
   };
 }
 
-/** Actual protected catalog configuration selects the historical preimage;
- * fresh provider and exact public-route absence are independently re-observed.
- * This is retained input evidence only, never a publication capability. Call
- * again immediately before the sole Pages effect; absence is not reusable. */
+/** The protected source pin selects the initial site preimage. Observe the
+ * provider and exact public routes afresh before composition and before the
+ * sole Pages effect. The raw Git blob pin authenticates the parsed descriptor. */
 export async function readConfiguredCatalogBootstrapSite(
   provider: BootstrapSiteMetadataProvider & CatalogAnchorMetadataProvider,
   generatedAt: string,
   phaseDeadline: number,
+  privateParent: string,
 ) {
   check(phaseDeadline);
   const authorities = await withCoordinatorDeadline(phaseDeadline, () =>
@@ -347,7 +356,15 @@ export async function readConfiguredCatalogBootstrapSite(
     generatedAt,
     phaseDeadline,
   );
-  const current = await readConfiguredBootstrapSite(provider, phaseDeadline);
+  const rehearsal = source.rehearsal
+    ? await materializeInitialApplicationRehearsal(
+        source.rehearsal,
+        digest(source.rehearsal),
+        privateParent,
+        { deadline: phaseDeadline },
+      )
+    : null;
+  const current = rehearsal ? null : await readConfiguredBootstrapSite(provider, phaseDeadline);
   check(phaseDeadline);
   return {
     configuration_sha256,
@@ -356,6 +373,7 @@ export async function readConfiguredCatalogBootstrapSite(
     historical_preimage_sha256: authorities.catalog.public_source.initial_site_preimage!.sha256,
     source,
     current,
+    rehearsal,
     authority: "none" as const,
   };
 }
