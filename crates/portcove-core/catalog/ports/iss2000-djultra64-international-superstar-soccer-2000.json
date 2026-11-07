@@ -4,10 +4,10 @@
     "id": "iss2000-djultra64-international-superstar-soccer-2000",
     "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
     "original_game_title": "International Superstar Soccer 2000",
-    "summary": "This early project describes PAL career and training support, with alignment and rendering issues. Upstream’s Windows observation reaches only the intro, and its close test was cancelled. Gameplay and normal exit remain unconfirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+    "summary": "An early native port of the European International Superstar Soccer 2000 release with portable Windows and Linux setup packages.",
     "project_url": "https://github.com/djultra64/ISS2000",
-    "platforms": ["linux-x86-64"],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/djultra64/ISS2000",
     "manual_setup": {
       "steps": [
@@ -17,16 +17,27 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "The v0.7.1 README describes portable packages for selecting your own ROM. This guide has not confirmed the exact package files or source revision; check the project’s instructions for the package you choose."
+          "instruction": "Extract the complete ZIP into a writable folder. Run iss2000.exe on Windows or launch.sh on Linux, then select the supported original in the upstream picker. Use a Vulkan-capable GPU. The Linux package requires GLIBC 2.38 and GLIBCXX 3.4.32 or newer."
         }
       ],
       "warnings": [
-        "This early project describes PAL career and training support, with alignment and rendering issues. Upstream’s Windows observation reaches only the intro, and its close test was cancelled. Gameplay and normal exit remain unconfirmed.",
-        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
+        "Upstream’s Windows smoke test reached the title screen, but the normal window-close request did not finish. Use the upstream setup route. Portcove has not observed normal exit, gameplay or save recovery."
       ],
-      "help_url": "https://github.com/djultra64/ISS2000"
+      "help_url": "https://github.com/djultra64/ISS2000",
+      "references": [
+        {
+          "title": "Keep your original and saves",
+          "instruction": "The upstream player keeps its imported original, settings and saves under data/ beside the executable. Keep your original separately and back up the data folder before replacing the package."
+        }
+      ]
     },
-    "issue_number": 3584
+    "issue_number": 3584,
+    "release_url": "https://github.com/djultra64/ISS2000/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["ISS2000-Windows-", ".zip"],
+      "linux-x86-64": ["ISS2000-Linux-", ".zip"]
+    },
+    "recommended_download_channel": "stable"
   },
   "upstream_lineage": {
     "format_version": 1,

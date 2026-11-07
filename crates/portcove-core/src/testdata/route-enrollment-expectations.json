@@ -138,6 +138,18 @@
       "arguments": [],
       "managed_arguments": ["--data-dir", "profile"],
       "managed_native": true
+    },
+    {
+      "port_id": "snprecomp-wootbeer-sin-and-punishment",
+      "executable": "SnPRecompiled.exe",
+      "arguments": [],
+      "managed_native": false
+    },
+    {
+      "port_id": "jetforcegemini-recomp-vibintoast-jet-force-gemini",
+      "executable": "JetForceGeminiRecompiled.exe",
+      "arguments": [],
+      "managed_native": false
     }
   ]
 }

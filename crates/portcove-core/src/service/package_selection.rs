@@ -343,6 +343,46 @@ mod tests {
     }
 
     #[test]
+    fn n64_picker_listings_recommend_the_observed_desktop_archives() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let cases = [
+            (
+                "snprecomp-wootbeer-sin-and-punishment",
+                "SnPRecompiled-0.2.10-windows.zip",
+                "SnPRecompiled-0.2.10-linux-x86_64.tar.gz",
+                "SnPRecompiled-0.2.10-android.apk",
+            ),
+            (
+                "jetforcegemini-recomp-vibintoast-jet-force-gemini",
+                "JFG-1.3.2-windows-x64-portable.zip",
+                "JFG-1.3.2-linux-x86_64-portable.tar.gz",
+                "JFG-1.3.2-linux-x86_64.AppImage",
+            ),
+            (
+                "iss2000-djultra64-international-superstar-soccer-2000",
+                "ISS2000-Windows-0.7.1.zip",
+                "ISS2000-Linux-0.7.1.zip",
+                "SHA256SUMS-0.7.1.txt",
+            ),
+        ];
+        for (id, windows, linux, other) in cases {
+            let listing = catalog.listing(id).unwrap();
+            let mut assets = [asset(1, windows), asset(2, linux), asset(3, other)];
+            assets[1].can_extract = true;
+            for (platform, expected) in
+                [(Platform::WindowsX86_64, 1u64), (Platform::LinuxX86_64, 2)]
+            {
+                let hints = &listing.download_asset_hints[&platform];
+                assert_eq!(
+                    recommend_packages(&assets, platform, hints, true).1,
+                    Some(expected.into()),
+                    "{id} on {platform:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn separate_license_compliance_archive_is_not_a_player_variant() {
         let hints = ["InfiniteUndiscoveryRecomp-".into(), ".zip".into()];
         let assets = [

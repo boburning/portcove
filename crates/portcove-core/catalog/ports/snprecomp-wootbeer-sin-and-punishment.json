@@ -4,10 +4,10 @@
     "id": "snprecomp-wootbeer-sin-and-punishment",
     "name": "Sin and Punishment — snprecomp (wootbeer)",
     "original_game_title": "Sin and Punishment",
-    "summary": "The project describes native gameplay, translation and enhancements. Complete stage and campaign coverage are unknown; Linux gameplay is untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
     "project_url": "https://github.com/wootbeer/snprecomp",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/wootbeer/snprecomp",
     "manual_setup": {
       "steps": [
@@ -17,16 +17,35 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Follow the README’s release instructions: extract SnPRecompiled.exe and choose your own supported ROM. A Linux tar.gz is published but untested. Source-build instructions are separate."
+          "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game."
+        },
+        {
+          "title": "Use the prepared Linux copy",
+          "instruction": "After completing upstream setup, select the SnPRecompiled binary as the executable and its containing folder as the working directory. Choose Play when you want to start that external copy. The .exe in the next step is for Windows."
         }
       ],
       "warnings": [
-        "The project describes native gameplay, translation and enhancements. Complete stage and campaign coverage are unknown; Linux gameplay is untested.",
-        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
+        "Upstream marks the Linux and Steam Deck routes untested. Portcove has not observed native setup or gameplay."
       ],
-      "help_url": "https://github.com/wootbeer/snprecomp"
+      "help_url": "https://github.com/wootbeer/snprecomp",
+      "references": [
+        {
+          "title": "Keep the right saves",
+          "instruction": "Keep the installed snprecomp profile and your original files before replacing the package. On Linux, the default profile is ~/.config/snprecomp. The portable.txt mode stores data with the application. Japanese and English profiles have separate saves."
+        },
+        {
+          "title": "Upstream Android setup",
+          "instruction": "The upstream ARM64 APK is separate from the desktop packages. It needs Android 9 or newer and Vulkan descriptor indexing. Follow the upstream release guide, then use its system file picker. The app copies your ROM into its own storage. Keep your external original and app data, and update only with the same package identity and signer. Portcove does not install or update this APK."
+        }
+      ]
     },
-    "issue_number": 3564
+    "issue_number": 3564,
+    "release_url": "https://github.com/wootbeer/snprecomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["SnPRecompiled-", "-windows.zip"],
+      "linux-x86-64": ["SnPRecompiled-", "-linux-x86_64.tar.gz"]
+    },
+    "recommended_download_channel": "stable"
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -39,5 +58,16 @@
       }
     },
     "decisions": []
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "SnPRecompiled.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the existing snprecomp profile or the application folder when portable.txt is present"
+      ]
+    }
   }
 }

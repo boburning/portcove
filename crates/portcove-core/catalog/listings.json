@@ -26424,12 +26424,13 @@
       "id": "iss2000-djultra64-international-superstar-soccer-2000",
       "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
       "original_game_title": "International Superstar Soccer 2000",
-      "summary": "This early project describes PAL career and training support, with alignment and rendering issues. Upstream’s Windows observation reaches only the intro, and its close test was cancelled. Gameplay and normal exit remain unconfirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+      "summary": "An early native port of the European International Superstar Soccer 2000 release with portable Windows and Linux setup packages.",
       "project_url": "https://github.com/djultra64/ISS2000",
       "platforms": [
+        "windows-x86-64",
         "linux-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/djultra64/ISS2000",
       "manual_setup": {
         "steps": [
@@ -26439,16 +26440,33 @@
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "The v0.7.1 README describes portable packages for selecting your own ROM. This guide has not confirmed the exact package files or source revision; check the project’s instructions for the package you choose."
+            "instruction": "Extract the complete ZIP into a writable folder. Run iss2000.exe on Windows or launch.sh on Linux, then select the supported original in the upstream picker. Use a Vulkan-capable GPU. The Linux package requires GLIBC 2.38 and GLIBCXX 3.4.32 or newer."
           }
         ],
         "warnings": [
-          "This early project describes PAL career and training support, with alignment and rendering issues. Upstream’s Windows observation reaches only the intro, and its close test was cancelled. Gameplay and normal exit remain unconfirmed.",
-          "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
+          "Upstream’s Windows smoke test reached the title screen, but the normal window-close request did not finish. Use the upstream setup route. Portcove has not observed normal exit, gameplay or save recovery."
         ],
-        "help_url": "https://github.com/djultra64/ISS2000"
+        "help_url": "https://github.com/djultra64/ISS2000",
+        "references": [
+          {
+            "title": "Keep your original and saves",
+            "instruction": "The upstream player keeps its imported original, settings and saves under data/ beside the executable. Keep your original separately and back up the data folder before replacing the package."
+          }
+        ]
       },
-      "issue_number": 3584
+      "issue_number": 3584,
+      "release_url": "https://github.com/djultra64/ISS2000/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ISS2000-Windows-",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "ISS2000-Linux-",
+          ".zip"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "itc-recomp-spooky098529-import-tuner-challenge",
@@ -27000,13 +27018,14 @@
       "id": "jetforcegemini-recomp-vibintoast-jet-force-gemini",
       "name": "Jet Force Gemini — JetForceGemini-Recomp (VibinToast)",
       "original_game_title": "Jet Force Gemini",
-      "summary": "Upstream claims full playability, modern controls and texture-pack support. Portcove has not completed a playthrough. This repository differs from the TK22 project and uses a DKR-derived runtime; their relationship and compatibility are not fully confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/VibinToast/JetForceGemini-Recomp",
+      "summary": "Native Jet Force Gemini with a US ROM picker, portable packages and a separate Linux AppImage.",
+      "project_url": "https://github.com/VibinToast/JetForceGemini-Recompiled",
       "platforms": [
+        "windows-x86-64",
         "linux-x86-64"
       ],
-      "availability": "unknown",
-      "setup_url": "https://github.com/VibinToast/JetForceGemini-Recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/VibinToast/JetForceGemini-Recompiled",
       "manual_setup": {
         "steps": [
           {
@@ -27015,16 +27034,49 @@
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "Follow the README for Windows or Linux archives, a Linux AppImage or a local source build. Select your own ROM in the player and keep saves for each package separately."
+            "instruction": "Extract the complete portable archive to a writable folder, then open JetForceGeminiRecompiled.exe on Windows or JetForceGeminiRecompiled on Linux. Select your original ROM in the launcher. Keep the executable with its bundled assets."
+          },
+          {
+            "title": "Use the prepared Linux copy",
+            "instruction": "For the prepared portable tarball, select JetForceGeminiRecompiled as the executable and its containing folder as the working directory. Choose Play when you want to start that external copy. The .exe in the next step is for Windows."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select JetForceGeminiRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
-          "Upstream claims full playability, modern controls and texture-pack support. Portcove has not completed a playthrough. This repository differs from the TK22 project and uses a DKR-derived runtime; their relationship and compatibility are not fully confirmed.",
-          "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
+          "The Windows upstream updater can replace and restart the executable. End the Portcove Play session before using that updater from the standalone player. Keep the data of other Jet Force Gemini implementations separate."
         ],
-        "help_url": "https://github.com/VibinToast/JetForceGemini-Recomp"
+        "help_url": "https://github.com/VibinToast/JetForceGemini-Recompiled",
+        "references": [
+          {
+            "title": "Choose the Linux package and keep its data",
+            "instruction": "The portable tarball keeps data in its own folder. The optional AppImage stores data in ~/.local/share/JetForceGeminiRecompiled. For Steam Deck, follow the upstream guide and start the AppImage through Steam for its controller handling."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: the portable executable’s containing folder, including saves, settings, mods and texture packs. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
+        ]
       },
-      "issue_number": 3580
+      "issue_number": 3580,
+      "release_url": "https://github.com/VibinToast/JetForceGemini-Recompiled/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "JFG-",
+          "-windows-x64-portable.zip"
+        ],
+        "linux-x86-64": [
+          "JFG-",
+          "-linux-x86_64-portable.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "jgrennison-openttd-patches",
@@ -43845,10 +43897,13 @@
       "id": "snprecomp-wootbeer-sin-and-punishment",
       "name": "Sin and Punishment — snprecomp (wootbeer)",
       "original_game_title": "Sin and Punishment",
-      "summary": "The project describes native gameplay, translation and enhancements. Complete stage and campaign coverage are unknown; Linux gameplay is untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
       "project_url": "https://github.com/wootbeer/snprecomp",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/wootbeer/snprecomp",
       "manual_setup": {
         "steps": [
@@ -43858,16 +43913,53 @@
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "Follow the README’s release instructions: extract SnPRecompiled.exe and choose your own supported ROM. A Linux tar.gz is published but untested. Source-build instructions are separate."
+            "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game."
+          },
+          {
+            "title": "Use the prepared Linux copy",
+            "instruction": "After completing upstream setup, select the SnPRecompiled binary as the executable and its containing folder as the working directory. Choose Play when you want to start that external copy. The .exe in the next step is for Windows."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select SnPRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
-          "The project describes native gameplay, translation and enhancements. Complete stage and campaign coverage are unknown; Linux gameplay is untested.",
-          "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
+          "Upstream marks the Linux and Steam Deck routes untested. Portcove has not observed native setup or gameplay."
         ],
-        "help_url": "https://github.com/wootbeer/snprecomp"
+        "help_url": "https://github.com/wootbeer/snprecomp",
+        "references": [
+          {
+            "title": "Keep the right saves",
+            "instruction": "Keep the installed snprecomp profile and your original files before replacing the package. On Linux, the default profile is ~/.config/snprecomp. The portable.txt mode stores data with the application. Japanese and English profiles have separate saves."
+          },
+          {
+            "title": "Upstream Android setup",
+            "instruction": "The upstream ARM64 APK is separate from the desktop packages. It needs Android 9 or newer and Vulkan descriptor indexing. Follow the upstream release guide, then use its system file picker. The app copies your ROM into its own storage. Keep your external original and app data, and update only with the same package identity and signer. Portcove does not install or update this APK."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: the existing snprecomp profile or the application folder when portable.txt is present. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
+        ]
       },
-      "issue_number": 3564
+      "issue_number": 3564,
+      "release_url": "https://github.com/wootbeer/snprecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SnPRecompiled-",
+          "-windows.zip"
+        ],
+        "linux-x86-64": [
+          "SnPRecompiled-",
+          "-linux-x86_64.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "socom-native-blvckburn-socom-u-s-navy-seals",
