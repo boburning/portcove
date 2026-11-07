@@ -322,6 +322,7 @@ namespace Portcove.ReferenceClient
             if (updates.Any(value => !(
                 (value.Availability == "not_offered" && value.DefinitionReason == null && new[] { "route_not_offered", "not_installed", "unsupported_platform" }.Contains(value.Reason)) ||
                 (value.Availability == "waiting" && value.Reason == "review_required" && value.DefinitionReason == null) ||
+                (schema >= 88 && value.Availability == "held" && value.Reason == "route_not_offered" && value.DefinitionReason == null) ||
                 (value.Availability == "held" && value.Reason == "definition_ineligible" && value.DefinitionReason != null))))
                 throw new InvalidOperationException("Portcove status update decision requires a current reviewed candidate before execution.");
             if (decisions.Any(value => value.Action == "backup_create" || value.Action == "backup_restore"))
