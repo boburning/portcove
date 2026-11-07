@@ -773,6 +773,8 @@ jobs:
       contents: read
       actions: read
       checks: read
+      pages: read
+      deployments: read
       id-token: write
       attestations: write
     uses: ./.github/workflows/application-release-assembly.yml

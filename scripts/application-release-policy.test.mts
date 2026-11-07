@@ -35,6 +35,19 @@ function controlFixture(): NodeJS.ProcessEnv {
   };
 }
 
+void test("assembly can read the retained Pages and deployment preimage", async () => {
+  for (const [file, prefix] of [
+    [applicationReleaseWorkflow, ["jobs", "assemble", "permissions"]],
+    [".github/workflows/application-release-assembly.yml", ["permissions"]],
+  ] as const) {
+    const document = parseDocument(await readFile(new URL(`../${file}`, import.meta.url), "utf8"));
+    assert.deepEqual(document.errors, []);
+    assert.equal(document.getIn([...prefix, "pages"]), "read");
+    assert.equal(document.getIn([...prefix, "deployments"]), "read");
+    assert.equal(document.getIn([...prefix, "contents"]), "read");
+  }
+});
+
 void test("paused diagnosis isolates the observer credential and rejects reruns", async () => {
   const workflow = parseDocument(
     await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),

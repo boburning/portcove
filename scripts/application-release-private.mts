@@ -3177,16 +3177,22 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
   }
 }
 
+let assemblyStage = "source";
+
 async function assembleMetadata() {
+  assemblyStage = "source";
   const source = await readNativeApplicationSource();
   if (source.purpose === "metadata-renewal")
     assert.equal(source.execution_path, "metadata-maintenance");
+  assemblyStage = "context";
   const context = await receiveApplicationContext();
+  assemblyStage = "reservation";
   await assertReservedApplicationContext(source, context);
   const configuration = await readApplicationJson(path.join(context, "context.json"), 65536);
   assert.ok(isRecord(configuration));
   if (source.purpose === "metadata-renewal")
     assertApplicationRenewalContext(await readBoundedReleaseContextFiles(context), source);
+  assemblyStage = "signed-roles";
   const signed = await receiveSignedRoles(context, [
     "releases",
     "preview",
@@ -3197,7 +3203,14 @@ async function assembleMetadata() {
       ? ["targets"]
       : []),
   ]);
-  await guard(source, false, { useRegisteredBootstrapSource: true });
+  assemblyStage = "release-guard";
+  await guard(source, false, {
+    useRegisteredBootstrapSource: true,
+    markStage(next) {
+      assemblyStage = next;
+    },
+  });
+  assemblyStage = "native-assembly";
   const scratch = path.join(process.env.RUNNER_TEMP ?? "", "application-assembly");
   await mkdir(scratch);
   const config = path.join(scratch, "assemble.json");
@@ -3221,6 +3234,7 @@ async function assembleMetadata() {
   assert.ok(isRecord(raw));
   await writeApplicationJson("work/application-assembly/assembly.json", raw);
   if (source.purpose === "metadata-bootstrap") {
+    assemblyStage = "publication-contract";
     const descriptor = assertMetadataBootstrapPublication(
       await readApplicationJson(path.join(context, "initial-bootstrap.json")),
       raw.publication,
@@ -3235,6 +3249,7 @@ async function assembleMetadata() {
       appointedPreimage,
       "initial whole-site preimage requires its separate setup appointment",
     );
+    assemblyStage = "site-preimage";
     const retained = await materializeInitialApplicationRehearsal(
       await readApplicationJson(
         "release/bootstrap-public-inputs/application/initial-site-preimage.json",
@@ -3244,6 +3259,7 @@ async function assembleMetadata() {
     );
     const output = path.resolve("work/application-site");
     await mkdir(output);
+    assemblyStage = "site-composition";
     const site = await composeSiteFiles({
       previous: null,
       expected_previous_generation: null,
@@ -3369,7 +3385,17 @@ export { guard as guardApplicationReleaseSource };
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     await main();
-  } catch {
+  } catch (error) {
+    if (process.argv[2] === "assemble") {
+      const status =
+        error instanceof GitHubApiError &&
+        Number.isInteger(error.status) &&
+        Number(error.status) >= 400 &&
+        Number(error.status) <= 599
+          ? ` (HTTP ${error.status})`
+          : "";
+      console.error(`Application assembly refused at ${assemblyStage}${status}.`);
+    }
     console.error("Fixed application role failed; private subprocess output is not retained.");
     process.exitCode = 1;
   }
