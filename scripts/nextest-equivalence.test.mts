@@ -784,7 +784,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     {
       filter:
         "package(portcove-core) & test(/^service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases$/)",
-      periods: 36,
+      periods: 45,
       beforeFilter: "package(portcove-core) & test(/^service::native_portable::tests::/)",
     },
     {

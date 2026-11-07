@@ -2066,12 +2066,14 @@ void test("preparation reports all declared route projections across the current
   );
   assert.ok(routeRecords.some((record) => record.integration === undefined));
   assert.ok(gbaRecords.length > 0);
+  assert.ok(records.some((record) => record.psx_managed_windows_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
     const expected = [];
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
+    if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,

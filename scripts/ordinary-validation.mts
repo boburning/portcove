@@ -433,15 +433,15 @@ for (const [file, tests] of [
     "scripts/catalog-authoring-inspector.mts",
     ["scripts/prepare-port.test.mts", ...catalogGeneratorContractTests],
   ],
-  [
-    "scripts/catalog-authoring.mts",
+  ...["catalog-authoring", "catalog-psx-managed-windows"].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
     [
       "scripts/prepare-port.test.mts",
       ...catalogAuthoringContractTests,
       "scripts/catalog-staged-check.test.mts",
       "scripts/precommit-check.test.mts",
     ],
-  ],
+  ]),
   ...[
     "release-controller-configuration",
     "release-controller-job",

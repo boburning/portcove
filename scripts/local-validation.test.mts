@@ -3480,9 +3480,13 @@ void test("catalog generator families retain shared inputs and narrow authoring 
     "scripts/catalog-proposal-comparison.test.mts",
     "scripts/catalog-artwork-dispatch.test.mts",
   ];
+  const authoringModules = [
+    "scripts/catalog-authoring.mts",
+    "scripts/catalog-psx-managed-windows.mts",
+  ];
   for (const file of [
     "scripts/generate-catalog.mts",
-    "scripts/catalog-authoring.mts",
+    ...authoringModules,
     "scripts/catalog-authoring-inspector.mts",
     "scripts/inspect-igdb-artwork.mts",
     "scripts/upstream-lineage.mts",
@@ -3525,7 +3529,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
         checkout: "b".repeat(40),
       });
       const hosted = baselineContractTests(plan, { fileExists: () => false });
-      const expected = file === "scripts/catalog-authoring.mts" ? authoring : broad;
+      const expected = authoringModules.includes(file) ? authoring : broad;
       const label = JSON.stringify(input);
       for (const required of expected) {
         assert.ok(local.nodeTests.has(required), "local " + required + ": " + label);
@@ -3535,7 +3539,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
           "hosted " + required + ": " + label,
         );
       }
-      if (file === "scripts/catalog-authoring.mts") {
+      if (authoringModules.includes(file)) {
         assert.deepEqual(
           [...local.nodeTests].filter((selected) => broad.includes(selected)).sort(),
           [...authoring].sort(),

@@ -30,6 +30,13 @@ BIOS requirements, and external save locations. Reuse the matching staging and
 preservation evidence. A different writer layout needs an explicit integration
 and applicable qualification. See [catalog authoring](../../../docs/CATALOG.md#adding-or-changing-a-port).
 
+Use `psx_managed_windows_v1: true` for the reviewed GitHub PSXRecomp Windows kit
+with a generated player, retail SCPH-1001 BIOS and matching data layout. Keep
+the exact disc and BIOS bindings, package selector, generated executable and
+independent fixture expectations explicit. Inspect the expanded definition with
+the Core repository proposal inspector. See the PSX example in
+[catalog authoring](../../../docs/CATALOG.md#adding-or-changing-a-port).
+
 Use the existing `prepare-port.mts` feedback and reviewed per-ID record, followed
 by `generate-catalog.mts`. Shared explanations and distinct lifecycle entrypoints
 are generated. Before pushing direct integration or summary edits,
