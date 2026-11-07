@@ -101,3 +101,34 @@ rerelease data, and custom profiles. Shared lifecycle fixtures use inert
 original, save, settings and history bytes. The archive and source were
 inspected without running the player. Real setup, save compatibility,
 gameplay and protected delivery remain unverified.
+
+## vkQuake managed Windows follow-up — November 7, 2026
+
+The [1.36.0](https://github.com/Novum/vkQuake/releases/tag/1.36.0) and
+[1.37.0](https://github.com/Novum/vkQuake/releases/tag/1.37.0) Windows x64 ZIPs
+matched their GitHub digests and passed ZIP CRC checks. Both have the same
+package member names. The 1.37.0 archive is 5,762,231 bytes with SHA-256
+`c2f9a6c591c119681ada626aed029719871790bd8208bbae08b58185b62a7d83`.
+It contains a root AMD64 `vkQuake.exe`, libraries, symbols and a notice.
+Players supply their own classic Quake PAKs. The fixture inventories cover
+the selected x64 ZIP and the excluded ARM64 ZIP in both releases.
+
+The prepared-copy assessment identified a store or multiuser profile fallback
+that can write to the discovered base. The managed classic route uses the
+executable directory and `-basedir . -nosteam`. Explicit base selection
+skips store discovery and the profile fallback. The Steam flag skips Steam
+initialization. Ordinary startup omits the debug log flag, and upstream
+packages its Release build. The current source writes global `vkQuake.cfg`
+and `history.txt` at the base, with game-local config and saves under `id1`.
+Core preserves those three coordinates using the shared native archive
+lifecycle. The prepared-copy route still covers store and multiuser profiles,
+rerelease, mods, expansions and custom bases.
+[Earlier write-root assessment](https://github.com/boburning/portcove/issues/2697#issuecomment-6697254020),
+[filesystem and Steam selection](https://github.com/Novum/vkQuake/blob/749b4fd43fe8b8554b34163dc9469c4a08a4def1/Quake/common.c),
+[Windows package workflow](https://github.com/Novum/vkQuake/blob/749b4fd43fe8b8554b34163dc9469c4a08a4def1/.github/workflows/build-windows.yml).
+
+Reassess compatibility if the player stops honoring the explicit base,
+changes its write coordinates, or replaces its own runtime. Release
+selection replays observed inventories with unchanged rules. Lifecycle
+fixtures use inert files. No upstream player, original game data, native
+setup, save compatibility or gameplay was exercised.

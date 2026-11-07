@@ -1708,6 +1708,42 @@
       ],
       "release": "v0.8.2",
       "scope": "Actual official Windows x64 archive member names and PE architecture. Owned original, settings, save and history probes and fixture successor archives are synthetic."
+    },
+    {
+      "issue": 2697,
+      "port_id": "quake-vkquake",
+      "repository": "Novum/vkQuake",
+      "channel": "stable",
+      "runtime_folder": "",
+      "selected_executable": "vkQuake.exe",
+      "selected_asset": "vkQuake-1.37.0_windows_x64.zip",
+      "archive_sha256": "c2f9a6c591c119681ada626aed029719871790bd8208bbae08b58185b62a7d83",
+      "immutable_members": [
+        "LICENSE.txt",
+        "SDL3.dll",
+        "libFLAC-8.dll",
+        "libmad-0.dll",
+        "libmikmod-3.dll",
+        "libmpg123-0.dll",
+        "libogg-0.dll",
+        "libopus-0.dll",
+        "libopusfile-0.dll",
+        "libvorbis-0.dll",
+        "libvorbisfile-3.dll",
+        "libxmp.dll",
+        "vkQuake.exe",
+        "vkQuake.pdb"
+      ],
+      "persistent_probes": [
+        "id1/pak0.pak",
+        "id1/pak1.pak",
+        "id1/vkQuake.cfg",
+        "id1/slot.sav",
+        "vkQuake.cfg",
+        "history.txt"
+      ],
+      "release": "1.37.0",
+      "scope": "Observed official Windows x64 archive members and PE architecture. Owned original, configuration, save, history and successor archive bytes are synthetic."
     }
   ]
 }

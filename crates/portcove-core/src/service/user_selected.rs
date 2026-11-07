@@ -2362,11 +2362,6 @@ mod tests {
     }
 
     #[test]
-    fn vkquake_prepared_player_route_2697() {
-        assert_listing_only_player_route("quake-vkquake", Some(false));
-    }
-
-    #[test]
     fn fallout1_ce_prepared_player_route_2573() {
         assert_listing_only_player_route("fallout-fallout-community-edition", Some(false));
     }

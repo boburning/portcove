@@ -155,6 +155,18 @@
       "managed_native": true
     },
     {
+      "port_id": "quake-vkquake",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual prepared Quake directory and any store, multiuser or custom profile directories"
+        ],
+        "executable": "vkQuake.exe"
+      },
+      "managed_native": true
+    },
+    {
       "port_id": "retropulse03-winback-n64recomp",
       "prepared_player": {
         "executable": "WinBackRecompiled.exe",
