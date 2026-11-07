@@ -333,6 +333,53 @@ void test("catalog maintenance authenticates pause and exact catalog environment
   requireCatalogMaintenancePolicy(observation, controllerRef);
   assert.ok(paths.every((path) => !path.includes("portcove-release-inputs")));
   assert.throws(() => requireReleaseInputWriterPolicy(observation, 202));
+  // Retained immutable-controller rulesets must not crowd out the complete
+  // catalog/environment stability observations.
+  const retained = Array.from({ length: 40 }, (_, index) => ({
+    ...rule(index + 3, ["creation", "update", "deletion"], []),
+    conditions: { ref_name: { include: [`refs/tags/controller-retained-${index}`], exclude: [] } },
+  }));
+  const dense = [...rules, ...retained];
+  const densePaths: string[] = [];
+  const denseRead = async (endpoint: string) => {
+    densePaths.push(endpoint);
+    if (endpoint.includes("/rulesets?")) return { status: 200, body: dense };
+    const detail = /\/rulesets\/(\d+)\?/u.exec(endpoint);
+    if (detail) {
+      const row = dense.find((value) => value.id === Number(detail[1]));
+      assert.ok(row);
+      return { status: 200, body: row };
+    }
+    return read(endpoint);
+  };
+  const complete = await observeCatalogMaintenanceProtections(denseRead);
+  requireCatalogMaintenancePolicy(complete, controllerRef);
+  assert.equal(complete.inventory.rulesets.length, dense.length);
+  assert.equal(complete.api_requests, densePaths.length);
+  assert.ok(complete.api_requests > 80, "dense inventory exceeds the former catalog envelope");
+  for (const name of catalogProtectionEnvironments) {
+    assert.equal(densePaths.filter((entry) => entry.endsWith(`/environments/${name}`)).length, 2);
+    assert.equal(
+      densePaths.filter((entry) =>
+        entry.includes(`/environments/${name}/deployment-branch-policies?`),
+      ).length,
+      2,
+    );
+  }
+  dense.push(
+    ...Array.from({ length: 30 }, (_, index) => ({
+      ...rule(index + 100, ["creation", "update", "deletion"], []),
+      conditions: {
+        ref_name: { include: [`refs/tags/controller-overflow-${index}`], exclude: [] },
+      },
+    })),
+  );
+  densePaths.length = 0;
+  await assert.rejects(
+    observeCatalogMaintenanceProtections(denseRead),
+    /observation bound exhausted/,
+  );
+  assert.equal(densePaths.length, 128 + 4 * catalogProtectionEnvironments.length);
   assert.throws(() =>
     requireCatalogMaintenancePolicy(
       {

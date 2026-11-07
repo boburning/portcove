@@ -177,9 +177,14 @@ async function observeProtections(
     ...(journalBranch === undefined ? [] : [journalBranch]),
   ];
   let requests = 0;
-  // Application publication observes two complete inventories, including
-  // retained immutable controller rulesets. Keep the catalog envelope intact.
-  const requestLimit = purpose === "application" && releasePublication ? 128 : 80;
+  // Both publication readers retain complete immutable-controller inventories.
+  // Catalog adds two reads per environment in each stability observation.
+  const requestLimit =
+    purpose === "catalog-publication"
+      ? 128 + 4 * catalogProtectionEnvironments.length
+      : releasePublication
+        ? 128
+        : 80;
   const deadline = performance.now() + 120_000;
   const get = async (suffix: string) => {
     if (++requests > requestLimit || performance.now() >= deadline)
