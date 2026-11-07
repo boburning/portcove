@@ -1,3 +1,4 @@
+import { annotateCatalogGuideCopy } from "./catalog-guide-copy-impact.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -1688,5 +1689,80 @@ void test("unrelated CLI fixtures cannot suppress artwork or advertised capabili
       workspacePlan([artwork, "crates/portcove-core/src/unknown.rs"]),
       map,
     ).some((entry) => entry.filter === "package(=portcove-cli)"),
+  );
+});
+
+void test("guide reference copy narrows Rust only for complete matching projections", () => {
+  const root = "crates/portcove-core/catalog/";
+  const files = [
+    `${root}catalog-current-authoring.json`,
+    `${root}catalog.json`,
+    `${root}listings.json`,
+    `${root}ports/sample.json`,
+  ];
+  const plan = workspacePlan(files);
+  const changes = plan.changes.map((change) => ({
+    ...change,
+    oldMode: "100644",
+    newMode: "100644",
+  }));
+  const document = (file: string, instruction: string) => {
+    const manual_setup = { references: [{ title: "Updates", instruction }] };
+    if (file.endsWith("/ports/sample.json"))
+      return { listing: { id: "sample", manual_setup }, integration: { channels: ["stable"] } };
+    if (file.endsWith("/listings.json")) return { listings: [{ id: "sample", manual_setup }] };
+    return { ports: [{ id: "sample", presentation: { manual_setup } }] };
+  };
+  const before = (file: string) =>
+    JSON.stringify(document(file, "old guide")).replace(/\}$/u, ',"opaque":9007199254740991}');
+  const after = (file: string) =>
+    JSON.stringify(document(file, "new guide")).replace(/\}$/u, ',"opaque":9007199254740991}');
+  const annotate = (candidate = changes, postimage = after) =>
+    annotateCatalogGuideCopy(candidate, before, postimage);
+  const withProof = (entries: ReturnType<typeof annotate>) =>
+    buildValidationPlan({
+      ...plan.identities,
+      mergeBase: plan.identities.merge_base,
+      eventName: "pull_request",
+      changes: entries,
+    });
+  const [first] = changes;
+  assert.ok(first);
+  const annotated = annotate();
+  assert.equal(annotated.filter((change) => change.guide_copy).length, 4);
+  const guided = withProof(annotated);
+  assert.deepEqual(
+    selectWorkspaceRustImpact(guided, undefined, after).map((group) => group.id),
+    ["portcove-core:catalog-guide-copy", "portcove-cli:catalog-guide-copy"],
+  );
+  const usesBroadCore = (candidate: typeof guided, checkout = after) =>
+    selectWorkspaceRustImpact(candidate, undefined, checkout).some(
+      (group) => group.filter === "package(=portcove-core)",
+    );
+  assert.ok(usesBroadCore(guided, before), "stale checkout");
+  assert.ok(usesBroadCore(withProof([first, ...annotated.slice(1)])), "missing proof");
+  for (const postimage of [
+    (file: string) => (file === files[2] ? before(file) : after(file)),
+    (file: string) =>
+      file === files[3] ? after(file).replace("9007199254740991", "9007199254740992") : after(file),
+    (file: string) => (file === files[3] ? after(file).replace("stable", "beta") : after(file)),
+    (file: string) =>
+      file === files[3] ? after(file).replace('"id":', '"id":"extra","id":') : after(file),
+  ]) {
+    assert.ok(usesBroadCore(withProof(annotate(changes, postimage)), postimage));
+  }
+  assert.ok(
+    usesBroadCore(
+      withProof(
+        annotate([
+          ...changes,
+          {
+            ...first,
+            oldPath: `${root}route-enrollment.generated.json`,
+            newPath: `${root}route-enrollment.generated.json`,
+          },
+        ]),
+      ),
+    ),
   );
 });

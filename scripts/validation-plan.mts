@@ -45,6 +45,23 @@ export type ValidationGroup = (typeof fastGroups)[number];
 export type ValidationArea = (typeof validationAreas)[number];
 export type ValidationPlatform = "primary-host" | (typeof qualificationPlatforms)[number];
 export type ReleaseQualificationProfile = ReleaseProfile;
+export interface GuideCopyProof {
+  kind: "catalog-guide-reference-copy-v1";
+  before: string;
+  after: string;
+}
+
+export function isGuideCopyProof(value: unknown): value is GuideCopyProof {
+  return (
+    isRecord(value) &&
+    value.kind === "catalog-guide-reference-copy-v1" &&
+    [value.before, value.after].every(
+      (hash) => typeof hash === "string" && /^[a-f0-9]{64}$/u.test(hash),
+    ) &&
+    value.before !== value.after
+  );
+}
+
 export interface ValidationChange {
   status: string;
   oldMode: string | null;
@@ -52,6 +69,7 @@ export interface ValidationChange {
   oldPath: string;
   newPath: string;
   nextest_equivalence?: NextestProof;
+  guide_copy?: GuideCopyProof;
 }
 export interface ValidationChangeInput {
   status: string;
@@ -63,6 +81,7 @@ export interface ValidationChangeInput {
   // Raw local change discovery retains this property with undefined for non-renames.
   previousPath?: string | undefined;
   nextest_equivalence?: NextestProof;
+  guide_copy?: GuideCopyProof;
 }
 export interface PathOwnership {
   path: string;
@@ -1310,13 +1329,14 @@ export function buildValidationPlan({
             : "area-routed-fast-validation",
     changed_files: changedFiles,
     changes: normalizedChanges.map(
-      ({ status, oldMode, newMode, oldPath, newPath, nextest_equivalence }) => ({
+      ({ status, oldMode, newMode, oldPath, newPath, nextest_equivalence, guide_copy }) => ({
         status,
         oldMode: oldMode ?? null,
         newMode: newMode ?? null,
         oldPath,
         newPath,
         ...(nextest_equivalence ? { nextest_equivalence } : {}),
+        ...(guide_copy ? { guide_copy } : {}),
       }),
     ),
     areas,
@@ -1394,6 +1414,8 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
       throw new Error("unsafe or missing validation file mode");
     if (change.nextest_equivalence !== undefined && !isNextestProof(change.nextest_equivalence))
       throw new Error("invalid nextest equivalence proof");
+    if (change.guide_copy !== undefined && !isGuideCopyProof(change.guide_copy))
+      throw new Error("invalid catalog guide copy proof");
   }
   if (!Array.isArray(plan.paths)) throw new Error("validation plan paths must be an array");
   for (const entry of plan.paths) assertPathOwnership(entry);

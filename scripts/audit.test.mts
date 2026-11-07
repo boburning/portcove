@@ -1,3 +1,4 @@
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import { isRecord } from "./runtime-values.mts";
 import type { TestContext } from "node:test";
 import type { InventoryFile, RepositoryInventory } from "./validation-evidence.mts";
@@ -286,43 +287,27 @@ void test("candidate coverage constants cannot authorize their own reduced trans
   );
   mkdirSync(path.join(root, "scripts"));
   mkdirSync(path.join(root, ".github/workflows"), { recursive: true });
-  for (const filename of [
-    "scripts/audit.mts",
-    "scripts/audit-contract.mts",
-    "scripts/validation-evidence.mts",
-    "scripts/repository-path.mts",
-    "scripts/runtime-values.mts",
-    "scripts/select-ci-plan.mts",
-    "scripts/nextest-equivalence.mts",
-    "scripts/validation-platforms.mts",
-    "scripts/postmerge-ci.mts",
-    "scripts/workflow-provenance.mts",
-    "scripts/validation-plan.mts",
-    "scripts/release-package-policy.mts",
-    "scripts/release-native-source-contract.mts",
-    "scripts/windows-helper-checks.mts",
-    "scripts/node-test-suites.json",
-    "scripts/native-helper-dependencies.mts",
-    "scripts/development-evidence.mts",
-    "scripts/retained-evidence.mts",
-    "scripts/qualification-coverage.mts",
-    "scripts/qualification-rustdoc.mts",
-    "scripts/rustdoc-outcomes.mts",
-    "scripts/qualification-nextest.mts",
-    "scripts/nextest-outcomes.mts",
-    "scripts/nextest-skip-routes.mts",
-    "scripts/report-summary.mts",
-    "scripts/bounded-summary.mts",
-    "scripts/fallow-summary.mts",
-    ".github/qualification-coverage.json",
-    ".github/workflows/ci.yml",
-  ]) {
-    let contents = readFileSync(new URL(`../${filename}`, import.meta.url), "utf8");
+  const sourceRoot = fileURLToPath(new URL("../", import.meta.url));
+  const { modules } = readFixtureModuleClosure(
+    sourceRoot,
+    ["scripts/audit.mts", "scripts/validation-plan.mts"],
+    { includeDynamicImports: false },
+  );
+  for (const { path: filename, bytes } of modules) {
+    let contents = bytes.toString("utf8");
     if (filename === "scripts/validation-plan.mts") {
       contents = contents.replace(/  "rust",\r?\n/u, "").replace(/  "windows-x86_64",\r?\n/u, "");
     }
-    writeFileSync(path.join(root, filename), contents);
+    const destination = path.join(root, filename);
+    mkdirSync(path.dirname(destination), { recursive: true });
+    writeFileSync(destination, contents);
   }
+  for (const filename of [
+    "scripts/node-test-suites.json",
+    ".github/qualification-coverage.json",
+    ".github/workflows/ci.yml",
+  ])
+    cpSync(path.join(sourceRoot, filename), path.join(root, filename));
   const runner = `
     import assert from 'node:assert/strict';
     import {buildValidationPlan, digestValidationPlan, fastGroups, qualificationPlatforms, validateQualificationBinding} from './scripts/validation-plan.mts';

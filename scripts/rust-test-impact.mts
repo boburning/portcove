@@ -1,3 +1,4 @@
+import { hasCatalogGuideCopy, readGuideCopyBlob } from "./catalog-guide-copy-impact.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptions } from "node:child_process";
 import type { ValidationPlan, ValidationChangeInput } from "./validation-plan.mts";
@@ -434,6 +435,7 @@ function definitionImplementation(file: string) {
 export function selectWorkspaceRustImpact(
   plan: ValidationPlan,
   map: RustImpactMap | null = readRustTestImpactMap(),
+  readCheckout = (file: string) => readGuideCopyBlob(path.join(projectRoot, file)),
 ): WorkspaceImpactGroup[] {
   validateValidationPlan(plan);
   if (plan.mode === "blocked" || !plan.groups.includes("rust"))
@@ -467,6 +469,22 @@ export function selectWorkspaceRustImpact(
         id: "workspace",
         filter: "all()",
         reason: "shared or unknown inputs require the complete workspace",
+      },
+    ];
+  if (map && plan.mode === "fast" && hasCatalogGuideCopy(plan.changes, readCheckout))
+    return [
+      {
+        id: "portcove-core:catalog-guide-copy",
+        packageName: "portcove-core",
+        filter:
+          "package(=portcove-core) & (test(/^catalog::/) | test(/::prepared_guide_adoption_/))",
+        reason: "Guide copy changes retain catalog invariants and prepared guide consumers",
+      },
+      {
+        id: "portcove-cli:catalog-guide-copy",
+        packageName: "portcove-cli",
+        filter: "package(=portcove-cli) & test(/^human_presentation::/)",
+        reason: "Guide copy changes retain CLI presentation consumers",
       },
     ];
   const changesByPackage = new Map<string, RustImpactChange[]>();

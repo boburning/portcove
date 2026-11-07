@@ -10,6 +10,7 @@ import { errorCode, errorMessage } from "./runtime-values.mts";
 interface GitOptions {
   cwd?: string;
   timeoutMs?: number;
+  maxBuffer?: number;
   encoding?: "buffer" | "utf8";
   spawn?: (
     command: string,
@@ -26,16 +27,23 @@ export function runCheckedGit(args: unknown, options?: GitOptions & { encoding?:
 export function runCheckedGit(args: unknown, options: GitOptions = {}): string | Buffer {
   if (!literalArguments(args) || !args.length || args.some((arg) => arg.includes("\0")))
     throw new TypeError("Git arguments must be a nonempty array of literal strings");
-  const { spawn = spawnSync, cwd = process.cwd(), timeoutMs = 30_000 } = options;
+  const {
+    spawn = spawnSync,
+    cwd = process.cwd(),
+    timeoutMs = 30_000,
+    maxBuffer = 1024 * 1024,
+  } = options;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60_000)
     throw new RangeError("Git timeout must be from 1 through 60000 milliseconds");
+  if (!Number.isSafeInteger(maxBuffer) || maxBuffer < 1 || maxBuffer > 16 * 1024 * 1024)
+    throw new RangeError("Git output bound must be from 1 byte through 16 MiB");
   const result = spawn("git", args, {
     cwd,
     encoding: options.encoding === "buffer" ? null : "utf8",
     shell: false,
     windowsHide: true,
     timeout: timeoutMs,
-    maxBuffer: 1024 * 1024,
+    maxBuffer,
   });
   if (result.error || result.status !== 0) {
     const error = commandFailure(

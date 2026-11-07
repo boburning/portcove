@@ -45,6 +45,14 @@ configuration is compared with a TOML parser: a proven comment/format-only chang
 retains cheap contracts; changed semantics, missing parser, parse failure or
 incomplete inputs retain normal workspace validation.
 
+For a single catalog title, the Rust impact selector can focus a guide reference
+wording edit when the authored record and all three generated projections contain
+the same instruction changes. The comparison uses both Git revisions and the
+Rust producer verifies the generated plan against the actual checkout bytes.
+Catalog generation, catalog invariants, prepared guide lifecycle and CLI
+presentation checks still apply. Changes to route facts, guide structure,
+enrollment or other inputs use ordinary affected-input selection.
+
 ### Review scope
 
 Independent non-writing review is required for substantive behavior and higher

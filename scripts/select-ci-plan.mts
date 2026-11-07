@@ -1,3 +1,4 @@
+import { catalogGuideCopyMaxBytes, decodeGuideCopyBlob } from "./catalog-guide-copy-impact.mts";
 import { validateChangedPath as normalizePath } from "./repository-path.mts";
 import type { ExecFileSyncOptions } from "node:child_process";
 import type {
@@ -8,7 +9,7 @@ import type {
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import type { PostmergeReuseBinding } from "./postmerge-ci.mts";
 import { discoverPostmergeReuse } from "./postmerge-ci.mts";
-import { annotateNextest } from "./nextest-equivalence.mts";
+import { annotateChanges } from "./validation-change-proofs.mts";
 import { execFileSync } from "node:child_process";
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -173,10 +174,22 @@ export function discoverCiPlan(
       encoding: "buffer",
       maxBuffer: 16 * 1024 * 1024,
     });
-    const changes = annotateNextest(
+    const changes = annotateChanges(
       parseRawDiff(raw),
-      (file) => String(runGit(["show", `${mergeBase}:${file}`], { encoding: "utf8" })),
-      (file) => String(runGit(["show", `${head}:${file}`], { encoding: "utf8" })),
+      (file) =>
+        decodeGuideCopyBlob(
+          runGit(["show", `${mergeBase}:${file}`], {
+            encoding: "buffer",
+            maxBuffer: catalogGuideCopyMaxBytes,
+          }),
+        ),
+      (file) =>
+        decodeGuideCopyBlob(
+          runGit(["show", `${head}:${file}`], {
+            encoding: "buffer",
+            maxBuffer: catalogGuideCopyMaxBytes,
+          }),
+        ),
     );
     const plan = buildValidationPlan({ changes, eventName, base, mergeBase, head, checkout });
     if (plan.mode === "prose" && !proseOnlyEnabled) {
