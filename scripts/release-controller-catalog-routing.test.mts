@@ -311,8 +311,10 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     if (endpoint === "repos/boburning/portcove")
       body = { id: 1354613114, full_name: "boburning/portcove" };
     else if (endpoint.includes("/rulesets?")) body = rules;
-    else if (endpoint.includes("/rulesets/")) body = rules[endpoint.includes("/1?") ? 0 : 1];
-    else if (endpoint.includes("/git/ref/heads/")) {
+    else if (endpoint.includes("/rulesets/")) {
+      const id = Number(/\/rulesets\/(\d+)\?/u.exec(endpoint)?.[1]);
+      body = rules.find((rule) => rule.id === id);
+    } else if (endpoint.includes("/git/ref/heads/")) {
       assert.ok(endpoint.endsWith(branch));
       body = { ref: `refs/heads/${branch}`, object: { type: "commit", sha: "a".repeat(40) } };
     } else if (endpoint.includes("/rules/branches/"))
@@ -407,7 +409,62 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     "production-release-coordinator",
     "production-release-protection-observer",
   ]);
+  const retainedTag = "portcove-production-controller-catalog-20261028r2";
+  const retainedRule = {
+    ...rule(90, ["creation", "update", "deletion"], []),
+    target: "tag",
+    conditions: { ref_name: { include: [`refs/tags/${retainedTag}`], exclude: [] } },
+  };
+  environments[0]!.policies.push({ id: 88, name: retainedTag, type: "tag" });
+  const withoutImmutableRule = await observeCatalogMaintenanceProtections(read);
+  assert.throws(
+    () => requireCatalogMaintenancePolicy(withoutImmutableRule, controllerRef),
+    /additional tag lacks exact immutable protection/u,
+  );
+  rules.push(retainedRule);
+  const shared = await observeCatalogMaintenanceProtections(read);
+  assert.notEqual(
+    requireCatalogMaintenancePolicy(shared, controllerRef).environment_policy_sha256,
+    requireCatalogMaintenancePolicy(observation, controllerRef).environment_policy_sha256,
+  );
+  retainedRule.bypass_actors.push({
+    actor_type: "Integration",
+    actor_id: 123,
+    bypass_mode: "always",
+  });
+  const withBypass = await observeCatalogMaintenanceProtections(read);
+  assert.throws(
+    () => requireCatalogMaintenancePolicy(withBypass, controllerRef),
+    /additional tag lacks exact immutable protection/u,
+  );
+  retainedRule.bypass_actors.pop();
+  environments[0]!.policies.pop();
+  rules.pop();
+  const applicationTag = "portcove-production-controller-windows-20261105r10";
+  const applicationRule = {
+    ...retainedRule,
+    conditions: { ref_name: { include: [`refs/tags/${applicationTag}`], exclude: [] } },
+  };
+  const applicationSelector = { id: 88, name: applicationTag, type: "tag" };
+  rules.push(applicationRule);
+  environments[0]!.policies.push(applicationSelector);
+  requireCatalogMaintenancePolicy(await observeCatalogMaintenanceProtections(read), controllerRef);
+  environments[0]!.policies.pop();
+  environments[1]!.policies.push(applicationSelector);
+  const signerExtra = await observeCatalogMaintenanceProtections(read);
+  assert.throws(
+    () => requireCatalogMaintenancePolicy(signerExtra, controllerRef),
+    /outside retained appointments/u,
+  );
+  environments[1]!.policies.pop();
+  rules.pop();
   for (const mutate of [
+    (row: (typeof environments)[number]) => {
+      row.policies.push({ ...row.policies[0]!, id: 88 });
+    },
+    (row: (typeof environments)[number]) => {
+      row.policies.push({ id: 88, name: "portcove-production-controller-*", type: "tag" });
+    },
     (row: (typeof environments)[number]) => {
       row.environment.can_admins_bypass = true;
     },
