@@ -58,7 +58,8 @@
     "alexbeav-tony-hawk-s-pro-skater-3-recomp-usa-psx",
     "alexbeav-tony-hawk-s-pro-skater-4-recomp-usa-psx",
     "alexbeav-monster-rancher-2-recomp-usa-psx",
-    "alexbeav-nightmare-creatures-recomp-usa-psx"
+    "alexbeav-nightmare-creatures-recomp-usa-psx",
+    "alexbeav-bloody-roar-ii-recomp-usa-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -301,6 +302,7 @@
     "alexbeav-tony-hawk-s-pro-skater-3-recomp",
     "alexbeav-tony-hawk-s-pro-skater-4-recomp",
     "alexbeav-monster-rancher-2-recomp",
-    "alexbeav-nightmare-creatures-recomp"
+    "alexbeav-nightmare-creatures-recomp",
+    "alexbeav-bloody-roar-ii-recomp"
   ]
 }

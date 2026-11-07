@@ -6,7 +6,7 @@
     "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
     "issue_number": 438,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp#readme",
     "artwork": {
@@ -21,11 +21,11 @@
       "steps": [
         {
           "title": "Download and unpack the setup kit",
-          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
         },
         {
           "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+          "instruction": "Use your own Destruction Derby 2 (USA) disc (SCUS-94350) in a layout supported by the kit. The upstream wizard can use its included OpenBIOS or a compatible retail BIOS. Keep the CUE and every referenced track together if using a CUE/BIN copy. Follow the original-file instructions included with the kit you downloaded."
         },
         {
           "title": "Build the game and add it to Portcove",
@@ -44,7 +44,9 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/releases",
     "download_asset_hints": {
       "windows-x86-64": ["Destruction-Derby-2-Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Destruction-Derby-2-Recomp-", "-linux-x64.zip"]
+      "linux-x86-64": ["Destruction-Derby-2-Recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["Destruction-Derby-2-Recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["Destruction-Derby-2-Recomp-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable"
   }
