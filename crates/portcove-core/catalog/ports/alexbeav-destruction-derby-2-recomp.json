@@ -3,10 +3,11 @@
   "listing": {
     "id": "alexbeav-destruction-derby-2-recomp",
     "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "original_game_title": "Destruction Derby 2",
+    "summary": "Build and play Destruction Derby 2 on Windows or Linux with your own matching USA disc. Portcove uses the kit’s bundled OpenBIOS. The upstream setup kit remains a separate route.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
     "issue_number": 438,
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp#readme",
     "artwork": {
@@ -49,5 +50,77 @@
       "macos-aarch64": ["Destruction-Derby-2-Recomp-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/destruction-derby-2-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["Destruction-Derby-2-Recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["Destruction-Derby-2-Recomp-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-destruction-derby-2-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Destruction_Derby_2_Recompiled.exe"],
+      "linux-x86-64": ["Destruction_Derby_2_Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-destruction-derby-2-recomp-usa-psx",
+          "label": "Destruction Derby 2 (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350). Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. The managed route uses the kit’s bundled OpenBIOS. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved."
+    }
   }
 }

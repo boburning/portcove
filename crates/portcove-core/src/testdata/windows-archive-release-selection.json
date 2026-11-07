@@ -241,6 +241,45 @@
         "track_count": 1,
         "track_sha1": "75a13364ae026fe555e9c666c7c3434e5b403cc8",
         "generated_executable": "Bloody_Roar_II__Recompiled.exe"
+      },
+      "linux_selected_assets": [
+        "bloody-roar-ii-recomp-0.1.2-linux-x64.zip",
+        "bloody-roar-ii-recomp-999.123.456-linux-x64.zip"
+      ]
+    },
+    "alexbeav-destruction-derby-2-recomp": {
+      "inventory": "alexbeav-destruction-derby-2-recomp",
+      "selected_assets": [
+        "Destruction-Derby-2-Recomp-0.3.6-windows-x64.zip",
+        "Destruction-Derby-2-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Destruction-Derby-2-Recomp-0.3.6-linux-x64.zip",
+        "Destruction-Derby-2-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCUS-94350",
+        "track_count": 19,
+        "track_sha1": "d52c60282b7ae07639b8fd61b0ab8d35b28a3327",
+        "generated_executable": "Destruction_Derby_2_Recompiled.exe",
+        "openbios": true
+      }
+    },
+    "alexbeav-destruction-derby-raw-recomp": {
+      "inventory": "alexbeav-destruction-derby-raw-recomp",
+      "selected_assets": [
+        "destructionderbyraw-0.1.0-windows-x64.zip",
+        "destructionderbyraw-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "destructionderbyraw-0.1.0-linux-x64.zip",
+        "destructionderbyraw-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00912",
+        "track_count": 13,
+        "track_sha1": "131463c47379b9a38888f548a44f43dcc6e7f959",
+        "generated_executable": "Destruction_Derby_Raw.exe"
       }
     }
   },
@@ -2212,6 +2251,151 @@
             "browser_download_url": "https://downloads.example.invalid/bloody-roar-ii-recomp-999.123.456-windows-x64.zip",
             "size": 29900000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999810951,
+            "name": "bloody-roar-ii-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/bloody-roar-ii-recomp-999.123.456-linux-x64.zip",
+            "size": 29900000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "alexbeav-destruction-derby-2-recomp": [
+      {
+        "id": 382786353,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:35Z",
+        "assets": [
+          {
+            "id": 544444628,
+            "name": "Destruction-Derby-2-Recomp-0.3.6-linux-x64.zip",
+            "size": 28048004,
+            "digest": "sha256:5f0143b49bae03bd03a5e2539b8a9b7b4f88cdca54ebd4843b6a18b9d4eb4e60",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/releases/download/v0.3.6/Destruction-Derby-2-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544444726,
+            "name": "Destruction-Derby-2-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25791955,
+            "digest": "sha256:fee56a153b65ea0a76801dbf2a68473403021ed1217072e0302f1ac4735cdfef",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/releases/download/v0.3.6/Destruction-Derby-2-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544444842,
+            "name": "Destruction-Derby-2-Recomp-0.3.6-macos-x64.zip",
+            "size": 26137302,
+            "digest": "sha256:a4df50b4243a9e8b82fd7bb15dba5e25af42b5fb391cef26fa68c189f7df80c4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/releases/download/v0.3.6/Destruction-Derby-2-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544444935,
+            "name": "Destruction-Derby-2-Recomp-0.3.6-windows-x64.zip",
+            "size": 30153915,
+            "digest": "sha256:e910b57deca529abaa24d96b14f763d0a468942c279c2d07c2da2398260d3cc3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/releases/download/v0.3.6/Destruction-Derby-2-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999920000,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999930000,
+            "name": "Destruction-Derby-2-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Destruction-Derby-2-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999930001,
+            "name": "Destruction-Derby-2-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Destruction-Derby-2-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-destruction-derby-raw-recomp": [
+      {
+        "id": 388659492,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:35:22Z",
+        "assets": [
+          {
+            "id": 564078031,
+            "name": "destructionderbyraw-0.1.0-linux-x64.zip",
+            "size": 24986708,
+            "digest": "sha256:d6b968fe9f116cc49e98f4d1077449a94c17439c3a4175e75a98cc38fb7ade25",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/releases/download/v0.1.0/destructionderbyraw-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564078041,
+            "name": "destructionderbyraw-0.1.0-macos-arm64.zip",
+            "size": 23755094,
+            "digest": "sha256:b4cf455728b9d22ccc82816a8e3839335f18418c9a1773fef5b57cc53d30f08e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/releases/download/v0.1.0/destructionderbyraw-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564078032,
+            "name": "destructionderbyraw-0.1.0-macos-x64.zip",
+            "size": 24351778,
+            "digest": "sha256:b8b08b62462b3a9e9ccbada0e373eaf7c4b26d736a24006a7a924eb436b79bf8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/releases/download/v0.1.0/destructionderbyraw-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564078040,
+            "name": "destructionderbyraw-0.1.0-windows-x64.zip",
+            "size": 27059877,
+            "digest": "sha256:52397048849c696cdddadcba938a51e0253e06473df085c522a6a53e99c13993",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/releases/download/v0.1.0/destructionderbyraw-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564078038,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2643,
+            "digest": "sha256:e12617e730a6a20c8ae97dced5e405f13e3cbb6aee5990e16159f754585f7c68",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564078060,
+            "name": "SHA256SUMS.txt",
+            "size": 521,
+            "digest": "sha256:e1b9086b41265e85e09bb15b6a1dd06cc7bf384d9bffbb5d9366890f32492684",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999920001,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999930002,
+            "name": "destructionderbyraw-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/destructionderbyraw-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999930003,
+            "name": "destructionderbyraw-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/destructionderbyraw-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -2636,17 +2820,32 @@
     {
       "inventory": "alexbeav-bloody-roar-ii-recomp",
       "release_index": 0,
-      "asset": "bloody-roar-ii-recomp-0.1.2-linux-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-bloody-roar-ii-recomp",
-      "release_index": 0,
       "asset": "bloody-roar-ii-recomp-0.1.2-macos-arm64.zip"
     },
     {
       "inventory": "alexbeav-bloody-roar-ii-recomp",
       "release_index": 0,
       "asset": "bloody-roar-ii-recomp-0.1.2-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-destruction-derby-2-recomp",
+      "release_index": 0,
+      "asset": "Destruction-Derby-2-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-destruction-derby-2-recomp",
+      "release_index": 0,
+      "asset": "Destruction-Derby-2-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-destruction-derby-raw-recomp",
+      "release_index": 0,
+      "asset": "destructionderbyraw-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-destruction-derby-raw-recomp",
+      "release_index": 0,
+      "asset": "destructionderbyraw-0.1.0-macos-x64.zip"
     }
   ]
 }

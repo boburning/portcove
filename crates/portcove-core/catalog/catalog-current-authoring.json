@@ -1158,8 +1158,28 @@
         "authority": "alexbeavs-ps1-ports/bloody-roar-ii-recomp",
         "authority_ref": "a8332fc2144184f9d30d8e946b34c77b0114f0d7",
         "reviewed_at": "2026-11-07",
-        "claim": "Official Windows v0.1.2 ZIP asset 544444855 matched publisher SHA-256 8cc8dccbbed28b68c11a1108b170377b235c50b6da880e27db989e49b4c65eda and passed CRC and safe-entry checks. The packaged game, identity, project manifest and title build files match tagged source. The source declares one USA data track for SCUS-94424 and requires retail SCPH-1001. CMake generates Bloody_Roar_II__Recompiled.exe. Framework and UI match the reviewed Monster Rancher 2 Windows kit except for the two AMD64 emitter binaries. Native generation, gameplay and saves are unobserved.",
+        "claim": "Official Windows v0.1.2 ZIP asset 544444855 matched publisher SHA-256 8cc8dccbbed28b68c11a1108b170377b235c50b6da880e27db989e49b4c65eda and passed CRC and safe-entry checks. The packaged game, identity, project manifest and title build files match tagged source. The source declares one USA data track for SCUS-94424 and requires retail SCPH-1001. CMake generates Bloody_Roar_II__Recompiled.exe. Framework and UI match the reviewed Monster Rancher 2 Windows kit except for the two AMD64 emitter binaries. Native generation, gameplay and saves are unobserved. Official Linux v0.1.2 linux-x64 ZIP asset 544444484 (27796218 bytes, SHA-256 a3e5422e00fd5c768c09f4e4e8fb97586a5fcfb2877d18419897e2b66ad0da89) also matched provider metadata and passed CRC and safe-entry checks. Its game, identity, manifest, build files and CLI match the Windows package after line-ending normalization. The managed Linux route builds Bloody_Roar_II__Recompiled with the registered toolchain and uses the same ownership contract. No Linux generation or launch was observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/a8332fc2144184f9d30d8e946b34c77b0114f0d7/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-destruction-derby-2-recomp-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/destruction-derby-2-recomp",
+        "authority_ref": "888d09093702abed87411cd43c28b4a20866dba9",
+        "reviewed_at": "2026-11-07",
+        "claim": "Official v0.3.6 windows-x64 ZIP asset 544444935 (30153915 bytes, SHA-256 e910b57deca529abaa24d96b14f763d0a468942c279c2d07c2da2398260d3cc3); linux-x64 ZIP asset 544444628 (28048004 bytes, SHA-256 5f0143b49bae03bd03a5e2539b8a9b7b4f88cdca54ebd4843b6a18b9d4eb4e60) matched provider metadata and passed CRC and safe-entry checks. Packaged game, identity, manifest, build files and CLI agree across Windows and Linux after line-ending normalization. Source declares SCUS-94350 with 19 tracks and first data-track SHA-1 d52c60282b7ae07639b8fd61b0ab8d35b28a3327. The managed kit generates Destruction_Derby_2_Recompiled with bundled OpenBIOS. No native generation, launch, gameplay, full-disc identity or saves were observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/blob/888d09093702abed87411cd43c28b4a20866dba9/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-destruction-derby-raw-recomp-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/destruction-derby-raw-recomp",
+        "authority_ref": "33ab1fb744a1c4fdc48626e2e5dfde17b07667cd",
+        "reviewed_at": "2026-11-07",
+        "claim": "Official v0.1.0 windows-x64 ZIP asset 564078040 (27059877 bytes, SHA-256 52397048849c696cdddadcba938a51e0253e06473df085c522a6a53e99c13993); linux-x64 ZIP asset 564078031 (24986708 bytes, SHA-256 d6b968fe9f116cc49e98f4d1077449a94c17439c3a4175e75a98cc38fb7ade25) matched provider metadata and passed CRC and safe-entry checks. Packaged game, identity, manifest, build files and CLI agree across Windows and Linux after line-ending normalization. Source declares SLUS-00912 with 13 tracks and first data-track SHA-1 131463c47379b9a38888f548a44f43dcc6e7f959. The managed kit generates Destruction_Derby_Raw with retail SCPH-1001 BIOS. No native generation, launch, gameplay, full-disc identity or saves were observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/33ab1fb744a1c4fdc48626e2e5dfde17b07667cd/game.toml",
         "live_url": null
       }
     ],
@@ -9237,6 +9257,96 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-destruction-derby-2-recomp-usa-psx",
+        "label": "Destruction Derby 2 (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Destruction Derby 2 (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SCUS-94350"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  19
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "d52c60282b7ae07639b8fd61b0ab8d35b28a3327",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-destruction-derby-2-recomp-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-destruction-derby-2-recomp-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-destruction-derby-raw-recomp-usa-psx",
+        "label": "Destruction Derby Raw (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Destruction Derby Raw (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00912"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  13
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "131463c47379b9a38888f548a44f43dcc6e7f959",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-destruction-derby-raw-recomp-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-destruction-derby-raw-recomp-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -12977,6 +13087,10 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "8cc8dccbbed28b68c11a1108b170377b235c50b6da880e27db989e49b4c65eda"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "a3e5422e00fd5c768c09f4e4e8fb97586a5fcfb2877d18419897e2b66ad0da89"
           }
         ],
         "aliases": [],
@@ -13004,6 +13118,103 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "8cc8dccbbed28b68c11a1108b170377b235c50b6da880e27db989e49b4c65eda"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "a3e5422e00fd5c768c09f4e4e8fb97586a5fcfb2877d18419897e2b66ad0da89"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-destruction-derby-2-recomp-game-source",
+        "port_id": "alexbeav-destruction-derby-2-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-destruction-derby-2-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-destruction-derby-2-recomp-static-contract"
+        ],
+        "authority_ref": "888d09093702abed87411cd43c28b4a20866dba9",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/blob/888d09093702abed87411cd43c28b4a20866dba9/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "e910b57deca529abaa24d96b14f763d0a468942c279c2d07c2da2398260d3cc3"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "5f0143b49bae03bd03a5e2539b8a9b7b4f88cdca54ebd4843b6a18b9d4eb4e60"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-destruction-derby-raw-recomp-game-source",
+        "port_id": "alexbeav-destruction-derby-raw-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-destruction-derby-raw-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-destruction-derby-raw-recomp-static-contract"
+        ],
+        "authority_ref": "33ab1fb744a1c4fdc48626e2e5dfde17b07667cd",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/33ab1fb744a1c4fdc48626e2e5dfde17b07667cd/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "52397048849c696cdddadcba938a51e0253e06473df085c522a6a53e99c13993"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d6b968fe9f116cc49e98f4d1077449a94c17439c3a4175e75a98cc38fb7ade25"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-destruction-derby-raw-recomp-bios-source",
+        "port_id": "alexbeav-destruction-derby-raw-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-destruction-derby-raw-recomp-static-contract"
+        ],
+        "authority_ref": "33ab1fb744a1c4fdc48626e2e5dfde17b07667cd",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/33ab1fb744a1c4fdc48626e2e5dfde17b07667cd/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "52397048849c696cdddadcba938a51e0253e06473df085c522a6a53e99c13993"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d6b968fe9f116cc49e98f4d1077449a94c17439c3a4175e75a98cc38fb7ade25"
           }
         ],
         "aliases": [],
@@ -24888,14 +25099,15 @@
     {
       "id": "alexbeav-bloody-roar-ii-recomp",
       "name": "Bloody Roar II / Alexbeav PSXRecomp",
-      "summary": "Build and play Bloody Roar II on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Bloody Roar II on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -24907,6 +25119,10 @@
           "windows-x86-64": [
             "bloody-roar-ii-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "bloody-roar-ii-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -24914,6 +25130,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Bloody_Roar_II__Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Bloody_Roar_II__Recompiled"
         ]
       },
       "persistent_paths": [
@@ -25007,6 +25226,271 @@
           "image_id": "co489q",
           "image_sha256": "1d9da18c25e734f649a742ed62e39893226d02633e7d65ec18752fd6b4736072",
           "game_slug": "bloody-roar-2",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-destruction-derby-2-recomp",
+      "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
+      "summary": "Build and play Destruction Derby 2 on Windows or Linux with your own matching USA disc. Portcove uses the kit’s bundled OpenBIOS. The upstream setup kit remains a separate route.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/destruction-derby-2-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Destruction-Derby-2-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Destruction-Derby-2-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-destruction-derby-2-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Destruction_Derby_2_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Destruction_Derby_2_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-destruction-derby-2-recomp-usa-psx",
+            "label": "Destruction Derby 2 (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350). Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. The managed route uses the kit’s bundled OpenBIOS. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Destruction Derby 2",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Use your own Destruction Derby 2 (USA) disc (SCUS-94350) in a layout supported by the kit. The upstream wizard can use its included OpenBIOS or a compatible retail BIOS. Keep the CUE and every referenced track together if using a CUE/BIN copy. Follow the original-file instructions included with the kit you downloaded."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 1170,
+          "cover_id": 123322,
+          "image_id": "co2n5m",
+          "image_sha256": "1b2115d1d64e40d85cab358306d7bedefbc6d557b3920b077e21df9e713edaf1",
+          "game_slug": "destruction-derby-2",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-destruction-derby-raw-recomp",
+      "name": "Destruction Derby Raw / Alexbeav PSXRecomp",
+      "summary": "Build and play Destruction Derby Raw on Windows or Linux with your own matching USA disc and retail SCPH-1001 BIOS. The upstream setup kit remains a separate route.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/destruction-derby-raw-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "destructionderbyraw-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "destructionderbyraw-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-destruction-derby-raw-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Destruction_Derby_Raw.exe"
+        ],
+        "linux-x86-64": [
+          "Destruction_Derby_Raw"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-destruction-derby-raw-recomp-usa-psx",
+            "label": "Destruction Derby Raw (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own complete matching 13-track USA CHD (SLUS-00912). Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Supply your own matching retail SCPH-1001 BIOS separately. The managed route does not activate the kit’s optional diagnostics. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Destruction Derby Raw",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Use your own Destruction Derby Raw (USA) disc (SLUS-00912) with all 13 tracks and a retail SCPH-1001 BIOS. Keep the CUE and every referenced track together if using a CUE/BIN copy. Follow the original-file instructions included with the kit you downloaded."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 1169,
+          "cover_id": 371176,
+          "image_id": "co7yeg",
+          "image_sha256": "57552e4b598b6db052e91116fc2f2ac97f58dd7c6e68b3515182966fb7974124",
+          "game_slug": "destruction-derby-raw",
           "match_kind": "underlying-game"
         }
       },

@@ -4216,7 +4216,7 @@
     {
       "id": "alexbeav-bloody-roar-ii-recomp",
       "name": "Bloody Roar II / Alexbeav PSXRecomp",
-      "summary": "Build and play Bloody Roar II on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Bloody Roar II on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "original_game_title": "Bloody Roar II",
       "project_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp",
       "issue_number": 432,
@@ -4581,7 +4581,8 @@
     {
       "id": "alexbeav-destruction-derby-2-recomp",
       "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Destruction Derby 2",
+      "summary": "Build and play Destruction Derby 2 on Windows or Linux with your own matching USA disc. Portcove uses the kit’s bundled OpenBIOS. The upstream setup kit remains a separate route.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
       "issue_number": 438,
       "platforms": [
@@ -4650,7 +4651,8 @@
     {
       "id": "alexbeav-destruction-derby-raw-recomp",
       "name": "Destruction Derby Raw / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Destruction Derby Raw",
+      "summary": "Build and play Destruction Derby Raw on Windows or Linux with your own matching USA disc and retail SCPH-1001 BIOS. The upstream setup kit remains a separate route.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp",
       "issue_number": 1590,
       "platforms": [
