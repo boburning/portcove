@@ -25324,6 +25324,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350). Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. The managed route uses the kit’s bundled OpenBIOS. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Destruction Derby 2",
         "manual_setup": {
           "steps": [
             {
@@ -25457,6 +25458,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own complete matching 13-track USA CHD (SLUS-00912). Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Supply your own matching retail SCPH-1001 BIOS separately. The managed route does not activate the kit’s optional diagnostics. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Destruction Derby Raw",
         "manual_setup": {
           "steps": [
             {

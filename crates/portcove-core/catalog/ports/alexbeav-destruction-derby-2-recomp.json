@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-destruction-derby-2-recomp",
     "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
+    "original_game_title": "Destruction Derby 2",
     "summary": "Build and play Destruction Derby 2 on Windows or Linux with your own matching USA disc. Portcove uses the kit’s bundled OpenBIOS. The upstream setup kit remains a separate route.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
     "issue_number": 438,
