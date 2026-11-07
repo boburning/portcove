@@ -6,12 +6,12 @@
     "summary": "A Vulkan Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",
     "project_url": "https://github.com/Novum/vkQuake",
-    "platforms": [],
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Novum/vkQuake",
     "issue_number": 2697,
     "manual_setup": {
-      "help_url": "https://github.com/Novum/vkQuake/tree/749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+      "help_url": "https://github.com/Novum/vkQuake#installation",
       "steps": [
         {
           "title": "Prepare the existing vkQuake copy",
@@ -26,7 +26,17 @@
         "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
         "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
         "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
+      ],
+      "references": [
+        {
+          "title": "Use an upstream Linux, Mac or Windows ARM64 package",
+          "instruction": "On Linux x86-64, download the official AppImage and mark it executable. Use a Vulkan-capable driver, your own Quake data, and lowercase id1 and pak filenames. On Intel or Apple Silicon Mac, follow the upstream Mac Source Ports link, keep vkQuake.app together and put your own id1 folder beside it. On Windows ARM64, use the official windows_arm64 ZIP and keep vkQuake.exe and its libraries together with your own data. Maintain these copies upstream and preserve their actual game-data and preference locations."
+        }
       ]
+    },
+    "release_url": "https://github.com/Novum/vkQuake/releases",
+    "download_asset_hints": {
+      "linux-x86-64": ["vkquake-", "-x86_64.appimage"]
     }
   },
   "upstream_lineage": {

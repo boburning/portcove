@@ -425,6 +425,88 @@ mod tests {
     }
 
     #[test]
+    fn classic_engine_sibling_guides_select_packages_across_releases() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let openmw_releases = [
+            [
+                "openmw-0.50.0-Linux-64Bit.tar.gz",
+                "OpenMW-0.50.0-macos-amd64.dmg",
+                "OpenMW-0.50.0-macos-arm64.dmg",
+                "openmw-0.50.0-Linux-64Bit-debug.tar.gz",
+            ],
+            [
+                "openmw-0.51.0-Linux-64Bit.tar.gz",
+                "OpenMW-0.51.0-macOS-x86_64.dmg",
+                "OpenMW-0.51.0-macOS-arm64.dmg",
+                "openmw-0.51.0-Linux-64Bit-debug.tar.gz",
+            ],
+        ];
+        let openmw = catalog
+            .listing("the-elder-scrolls-iii-morrowind-openmw")
+            .unwrap();
+        for [linux, intel, arm, debug] in openmw_releases {
+            let mut assets = [
+                asset(1, linux),
+                asset(2, intel),
+                asset(3, arm),
+                asset(4, debug),
+            ];
+            assets[0].can_extract = true;
+            assets[3].can_extract = true;
+            for (platform, expected) in [
+                (Platform::LinuxX86_64, 1u64),
+                (Platform::MacosX86_64, 2),
+                (Platform::MacosAarch64, 3),
+            ] {
+                let hints = &openmw.download_asset_hints[&platform];
+                assert_eq!(
+                    recommend_packages(&assets, platform, hints, true).1,
+                    Some(expected.into())
+                );
+            }
+        }
+        let openrct2 = catalog.listing("openrct2-openrct2").unwrap();
+        let vkquake = catalog.listing("quake-vkquake").unwrap();
+        for names in [
+            [
+                "OpenRCT2-v0.5.6-macos-universal.zip",
+                "OpenRCT2-v0.5.6-android.apk",
+            ],
+            [
+                "OpenRCT2-v0.5.7-macos-universal.zip",
+                "OpenRCT2-v0.5.7-android.apk",
+            ],
+        ] {
+            let assets = [asset(1, names[0]), asset(2, names[1])];
+            for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+                let hints = &openrct2.download_asset_hints[&platform];
+                assert_eq!(
+                    recommend_packages(&assets, platform, hints, true).1,
+                    Some(1.into())
+                );
+            }
+        }
+        let platform = Platform::LinuxX86_64;
+        for names in [
+            [
+                "vkQuake-1.36.0-x86_64.AppImage",
+                "vkQuake-1.36.0_windows_arm64.zip",
+            ],
+            [
+                "vkQuake-1.37.0-x86_64.AppImage",
+                "vkQuake-1.37.0_windows_arm64.zip",
+            ],
+        ] {
+            let assets = [asset(1, names[0]), asset(2, names[1])];
+            let hints = &vkquake.download_asset_hints[&platform];
+            assert_eq!(
+                recommend_packages(&assets, platform, hints, true).1,
+                Some(1.into())
+            );
+        }
+    }
+
+    #[test]
     fn macos_arm_shorthand_selects_apple_silicon_and_keeps_older_arm_distinct() {
         let catalog = crate::Catalog::embedded().unwrap();
         let mut assets = [

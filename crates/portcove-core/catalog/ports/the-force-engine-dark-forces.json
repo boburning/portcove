@@ -16,6 +16,23 @@
       "image_sha256": "ec562b66d9bbd3c705ce7d7925535727010203326179b1d73da2085cbad48ab9",
       "game_slug": "star-wars-dark-forces",
       "match_kind": "underlying-game"
+    },
+    "platforms": ["linux-x86-64"],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Set up Dark Forces on Linux",
+          "instruction": "Use the upstream-recommended Flathub package io.github.theforceengine.tfe on desktop Linux or through Discover in Steam Deck Desktop Mode. Supply your own installed PC Dark Forces data. The Flatpak can read the default Steam game folder or use your copy, including DARK.GOB, in ~/.var/app/io.github.theforceengine.tfe/data/. Follow the upstream Linux guide to build the engine yourself if you use a different distribution route."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/TheForceEngine/TheForceEngine#linux",
+      "references": [
+        {
+          "title": "Preserve your Linux game profile",
+          "instruction": "Flatpak settings, pilots and saves are under ~/.var/app/io.github.theforceengine.tfe/config/. Keep its data/ folder too if it contains your original files. A native Linux build normally uses ~/.local/share/TheForceEngine or the configured TFE_DATA_HOME. Keep your actual pilot, saves, settings, mods and original PC data before replacing the engine. Use Flathub or upstream for replacement. This Linux guide is separate from Portcove’s managed Windows route."
+        }
+      ]
     }
   },
   "integration": {

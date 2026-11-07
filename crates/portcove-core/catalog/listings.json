@@ -2482,8 +2482,25 @@
         "match_kind": "underlying-game"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up Dark Forces on Linux",
+            "instruction": "Use the upstream-recommended Flathub package io.github.theforceengine.tfe on desktop Linux or through Discover in Steam Deck Desktop Mode. Supply your own installed PC Dark Forces data. The Flatpak can read the default Steam game folder or use your copy, including DARK.GOB, in ~/.var/app/io.github.theforceengine.tfe/data/. Follow the upstream Linux guide to build the engine yourself if you use a different distribution route."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/TheForceEngine/TheForceEngine#linux",
+        "references": [
+          {
+            "title": "Preserve your Linux game profile",
+            "instruction": "Flatpak settings, pilots and saves are under ~/.var/app/io.github.theforceengine.tfe/config/. Keep its data/ folder too if it contains your original files. A native Linux build normally uses ~/.local/share/TheForceEngine or the configured TFE_DATA_HOME. Keep your actual pilot, saves, settings, mods and original PC data before replacing the engine. Use Flathub or upstream for replacement. This Linux guide is separate from Portcove’s managed Windows route."
+          }
+        ]
+      },
       "availability": "unknown"
     },
     {
@@ -35752,9 +35769,9 @@
       "project_url": "https://github.com/OpenRCT2/OpenRCT2",
       "issue_number": 1854,
       "availability": "packages",
-      "setup_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md",
+      "setup_url": "https://docs.openrct2.io/en/latest/",
       "original_game_title": "RollerCoaster Tycoon 2",
-      "release_url": "https://github.com/OpenRCT2/OpenRCT2/releases/tag/v0.5.6",
+      "release_url": "https://github.com/OpenRCT2/OpenRCT2/releases",
       "manual_setup": {
         "steps": [
           {
@@ -35763,7 +35780,21 @@
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md"
+        "help_url": "https://docs.openrct2.io/en/latest/",
+        "references": [
+          {
+            "title": "Use OpenRCT2 on Mac",
+            "instruction": "Download the official macos-universal ZIP for Intel or Apple Silicon. Unzip it, keep OpenRCT2.app together and open it to select your original RCT2 data. Keep the settings, saves and content under ~/Library/Application Support/OpenRCT2, including any custom data location. Maintain this copy outside Portcove."
+          },
+          {
+            "title": "Use the external Windows ARM64 or Linux package",
+            "instruction": "Choose the official Windows portable ARM64 ZIP on Windows ARM64. Keep the entire folder with openrct2.exe. On Linux, use the upstream x86-64 AppImage or the Flatpak documented by OpenRCT2. Follow upstream to select your original data. Preserve the actual OpenRCT2 profile before upgrading. Keep package-manager or upstream updates separate from a Portcove installation."
+          },
+          {
+            "title": "Set up OpenRCT2 on Android",
+            "instruction": "Use the upstream Android APK for Android 7 or newer on arm64, ARMv7 or x86-64. Copy your installed RCT2 data to the shared-storage rct2 folder. The app requests All files access on Android 11 and later, or storage permission on older Android, for the original files and its openrct2 profile. Back up that profile and your originals. Follow upstream to install or update the app with the same Android package identity and signer."
+          }
+        ]
       },
       "artwork": {
         "game_id": 331,
@@ -35775,8 +35806,18 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
-      ]
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "download_asset_hints": {
+        "macos-x86-64": [
+          "-macos-universal.zip"
+        ],
+        "macos-aarch64": [
+          "-macos-universal.zip"
+        ]
+      }
     },
     {
       "id": "openspideyps1-gtteancum-spider-man",
@@ -40194,13 +40235,16 @@
       "original_game_title": "Quake",
       "project_url": "https://github.com/Novum/vkQuake",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown",
       "setup_url": "https://github.com/Novum/vkQuake",
       "issue_number": 2697,
       "manual_setup": {
-        "help_url": "https://github.com/Novum/vkQuake/tree/749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+        "help_url": "https://github.com/Novum/vkQuake#installation",
         "steps": [
           {
             "title": "Copy your own classic Quake data beside the managed player",
@@ -40215,7 +40259,7 @@
             "instruction": "Standalone copies can write beneath the prepared base/game directories, but store selection or -multiuser uses the actual SDL vkQuake preference directory (normally APPDATA/vkQuake on Windows). Preserve that actual root and basedirs.txt, global vkQuake.cfg, game-local configs, saves/autosaves/screenshots/demos, all base/id1/mod files, the complete runtime and unknowns. Keep relevant existing Steam/GOG/Epic/Nightdive and Steam-userdata/custom roots too; another runtime folder is not proof of independent state."
           },
           {
-            "title": "Select the prepared player",
+            "title": "Select the prepared Windows player",
             "instruction": "Select vkQuake.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
@@ -40226,6 +40270,10 @@
           "A Vulkan-capable GPU and driver are required. Use a separately prepared copy for store discovery, rerelease data, expansions, mods, multiuser settings or custom base directories. Real save compatibility across versions remains unverified."
         ],
         "references": [
+          {
+            "title": "Use an upstream Linux, Mac or Windows ARM64 package",
+            "instruction": "On Linux x86-64, download the official AppImage and mark it executable. Use a Vulkan-capable driver, your own Quake data, and lowercase id1 and pak filenames. On Intel or Apple Silicon Mac, follow the upstream Mac Source Ports link, keep vkQuake.app together and put your own id1 folder beside it. On Windows ARM64, use the official windows_arm64 ZIP and keep vkQuake.exe and its libraries together with your own data. Maintain these copies upstream and preserve their actual game-data and preference locations."
+          },
           {
             "title": "Registration ownership and removal",
             "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
@@ -40238,6 +40286,13 @@
             "title": "Managed runtime ownership",
             "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, vkQuake.cfg, history.txt. Its backup does not include external profiles."
           }
+        ]
+      },
+      "release_url": "https://github.com/Novum/vkQuake/releases",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "vkquake-",
+          "-x86_64.appimage"
         ]
       }
     },
@@ -49124,6 +49179,17 @@
         "windows-x86-64": [
           "OpenMW-",
           "-Windows-x64.exe"
+        ],
+        "linux-x86-64": [
+          "-linux-64bit.tar.gz"
+        ],
+        "macos-x86-64": [
+          "openmw-",
+          ".dmg"
+        ],
+        "macos-aarch64": [
+          "openmw-",
+          ".dmg"
         ]
       },
       "manual_setup": {
@@ -49138,7 +49204,7 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. The Linux and Mac instructions below use the upstream launcher outside Portcove."
           }
         ],
         "warnings": [
@@ -49149,11 +49215,22 @@
           {
             "title": "Keep your originals and game data",
             "instruction": "Windows normally keeps OpenMW configuration, logs, saves and screenshots under the actual Documents/My Games/OpenMW folder. Custom configuration/user-data paths and external mod/data directories remain part of your setup. Preserve those actual locations, selected originals and load order with the player closed before upstream updates. OpenMW saves and original-engine saves are separate formats; keep their creating runtime rather than assuming conversion."
+          },
+          {
+            "title": "Set up OpenMW on Linux x86-64",
+            "instruction": "Use the non-debug Linux-64Bit tarball. The inspected build requires glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. For an older host, check the upstream-documented distro or Flatpak route. Keep the complete extracted tarball directory together and start its openmw-launcher to finish the wizard. Use the upstream launcher for Play. Preserve configuration and logs in ~/.config/openmw and saves in ~/.local/share/openmw, or their actual XDG locations. The Flatpak has separate configuration and data under ~/.var/app/org.openmw.OpenMW."
+          },
+          {
+            "title": "Set up OpenMW on Mac",
+            "instruction": "Use the official Intel or Apple Silicon DMG for your Mac. Copy OpenMW.app out of the disk image and open it to finish the wizard and select your owned Morrowind files. Preserve ~/Library/Preferences/openmw and ~/Library/Application Support/openmw, plus any custom configuration, saves, mods and original-data locations. OpenMW-CS is the separate editor."
           }
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
