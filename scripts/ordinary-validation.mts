@@ -610,10 +610,6 @@ for (const [file, tests] of [
   ],
   ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
   [
-    "scripts/release-application-review-selection.mts",
-    ["scripts/release-coordinator-driver.test.mts", "scripts/release-tuf-controller.test.mts"],
-  ],
-  [
     "scripts/release-coordinator-driver.mts",
     [
       "scripts/release-catalog-coordinator.test.mts",

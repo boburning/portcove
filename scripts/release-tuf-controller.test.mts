@@ -334,8 +334,8 @@ void test("closed fixed DAG serialization cannot substitute arbitrary tool, cont
       ...input.admission_configuration,
       release_profile: "initial-beta-windows-x86_64-v1",
       public_build_inputs: {},
-      qualified_application: nomination,
     },
+    appointed_qualified_application: nomination,
   };
   assert.deepEqual(prepareFixedControllerConfiguration(nominatedInput), {
     ...coordinator,
@@ -351,13 +351,22 @@ void test("closed fixed DAG serialization cannot substitute arbitrary tool, cont
     },
     {
       ...nominatedInput,
-      admission_configuration: {
-        ...nominatedInput.admission_configuration,
-        qualified_application: { ...nomination, source_commit: "main" },
-      },
+      appointed_qualified_application: { ...nomination, source_commit: "main" },
     },
   ])
     assert.throws(() => prepareFixedControllerConfiguration(changed), /qualified/u);
+  assert.throws(
+    () =>
+      prepareFixedControllerConfiguration({
+        ...input,
+        operation: "coordinator",
+        admission_configuration: {
+          ...nominatedInput.admission_configuration,
+          qualified_application: nomination,
+        },
+      }),
+    /not accepted from coordinator configuration/u,
+  );
   const { projectFixedControllerJobOutputs } = await import("./release-controller-job-output.mts");
   const oldContext = { ...context, run_id: "12344" };
   const retainedRoles = roles.map((role, index) => ({

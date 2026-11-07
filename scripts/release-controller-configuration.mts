@@ -18,7 +18,7 @@ import {
 import { inspectCatalogRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
 import { inspectTufRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
 import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
-import { inspectQualifiedApplicationReview } from "./release-application-review-selection.mts";
+import { inspectQualifiedApplicationReview } from "./release-authority-configuration-contract.mts";
 
 type Fixed = {
   controller_revision: string;
@@ -136,6 +136,7 @@ export function prepareFixedControllerConfiguration(input: {
   fixed: Fixed;
   needs: unknown;
   admission_configuration: unknown;
+  appointed_qualified_application?: unknown;
   native_locators?: unknown;
   payload_public_key_sha256?: unknown;
 }) {
@@ -202,7 +203,9 @@ export function prepareFixedControllerConfiguration(input: {
     !(typeof operation === "string" && operation.startsWith("catalog-"))
   )
     throw new Error("catalog cannot select application operation");
-  if (Object.hasOwn(admission, "qualified_application")) {
+  if (Object.hasOwn(admission, "qualified_application"))
+    throw new Error("qualified neutral selection is not accepted from coordinator configuration");
+  if (Object.hasOwn(input, "appointed_qualified_application")) {
     if (
       purpose !== "application" ||
       operation !== "coordinator" ||
@@ -210,7 +213,7 @@ export function prepareFixedControllerConfiguration(input: {
       admission.release_profile !== "initial-beta-windows-x86_64-v1" ||
       !isRecord(admission.public_build_inputs) ||
       Object.keys(admission).sort().join(",") !==
-        "namespace,public_build_inputs,qualified_application,release_profile,schema_version"
+        "namespace,public_build_inputs,release_profile,schema_version"
     )
       throw new Error(
         "qualified neutral selection requires the fixed Windows application coordinator",
@@ -218,7 +221,9 @@ export function prepareFixedControllerConfiguration(input: {
     return {
       remote_configuration: { schema_version: 1, namespace: admission.namespace },
       tools,
-      qualified_application: inspectQualifiedApplicationReview(admission.qualified_application),
+      qualified_application: inspectQualifiedApplicationReview(
+        input.appointed_qualified_application,
+      ),
     };
   }
   if (operation === "coordinator")

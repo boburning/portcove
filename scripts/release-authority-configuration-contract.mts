@@ -407,6 +407,30 @@ function inspectSelectedHostedNative(raw: unknown, profile: unknown = "initial-b
   };
 }
 
+export type QualifiedApplicationReview = {
+  source_commit: string;
+  run_id: number;
+  run_attempt: number;
+};
+
+export function inspectQualifiedApplicationReview(raw: unknown): QualifiedApplicationReview {
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !== "run_attempt,run_id,source_commit" ||
+    typeof raw.source_commit !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(raw.source_commit) ||
+    typeof raw.run_id !== "number" ||
+    !Number.isSafeInteger(raw.run_id) ||
+    raw.run_id < 1 ||
+    typeof raw.run_attempt !== "number" ||
+    !Number.isSafeInteger(raw.run_attempt) ||
+    raw.run_attempt < 1 ||
+    raw.run_attempt > 3
+  )
+    throw new Error("exact qualified application request fields differ");
+  return { source_commit: raw.source_commit, run_id: raw.run_id, run_attempt: raw.run_attempt };
+}
+
 /** Full purpose-scoped selected record. Two measured Apps belong only to its
  * common journal projection. Fixed hosted job identity is verified separately;
  * neither this parser nor a key/configuration digest grants acceptance. */
@@ -434,6 +458,7 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
               ? ["public_build_inputs", "release_profile"]
               : []),
             ...(Object.hasOwn(value, "linux_risk_profile") ? ["linux_risk_profile"] : []),
+            ...(Object.hasOwn(value, "qualified_application") ? ["qualified_application"] : []),
           ]
         : ["catalog"]),
     ]
@@ -457,6 +482,13 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
       throw new Error("selected application release profile differs");
     if (value.release_profile !== undefined && value.linux_risk_profile !== undefined)
       throw new Error("Windows-only application profile cannot select Linux publication risk");
+    const qualified = Object.hasOwn(value, "qualified_application")
+      ? inspectQualifiedApplicationReview(value.qualified_application)
+      : undefined;
+    if (qualified && value.release_profile !== "initial-beta-windows-x86_64-v1")
+      throw new Error(
+        "qualified neutral selection requires appointed Windows application authority",
+      );
     if (value.native_prepublication_profile !== nativePrepublicationProfile)
       throw new Error("selected native prepublication profile differs");
     const publicInputs =
@@ -480,6 +512,7 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
             public_build_inputs: publicInputs!,
           }),
       hosted_native: inspectSelectedHostedNative(value.hosted_native, value.release_profile),
+      ...(qualified ? { qualified_application: qualified } : {}),
       ...(value.linux_risk_profile === undefined
         ? {}
         : {
@@ -606,16 +639,21 @@ export function requireFixedControllerJobSourceConfiguration(
   requireAdmittedProductionSource(source, releaseControlPhaseProfile(phase).reader_job, purpose);
   const selected =
     isRecord(raw) && (raw.schema_version === 4 || raw.kind === "two-app-fixed-jobs-v1");
-  const namespace = selected
-    ? inspectBoundSelectedPublicationAuthorities(raw, source, purpose).configuration.journal
-        .namespace
+  const appointed = selected
+    ? inspectBoundSelectedPublicationAuthorities(raw, source, purpose).configuration
+    : undefined;
+  const namespace = appointed
+    ? appointed.journal.namespace
     : (purpose === "application"
         ? inspectBoundControllerAuthorities(JSON.stringify(raw), source)
         : inspectBoundCatalogControllerAuthorities(raw, source)
       ).namespace;
+  const qualified =
+    appointed?.purpose === "application" ? appointed.qualified_application : undefined;
   return Object.freeze({
     purpose,
     namespace,
+    ...(qualified ? { qualified_application: Object.freeze(qualified) } : {}),
     actor_id: source.actor_id,
     authority_configuration_sha256: source.authority_configuration_sha256!,
     grant_sha256: source.grant_sha256!,

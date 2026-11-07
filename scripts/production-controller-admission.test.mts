@@ -92,6 +92,46 @@ void test("Windows application authority binds its exact selected native set and
     ).configuration,
     selected,
   );
+  const nomination = { source_commit: "a".repeat(40), run_id: 42407004590, run_attempt: 1 };
+  const appointed = inspectSelectedPublicationAuthorityConfiguration({
+    ...proposal,
+    qualified_application: nomination,
+  });
+  assert.ok(appointed.purpose === "application");
+  assert.deepEqual(appointed.qualified_application, nomination);
+  const oldGrant = { ...source, authority_configuration_sha256: releaseCanonicalDigest(selected) };
+  const exactGrant = {
+    ...source,
+    authority_configuration_sha256: releaseCanonicalDigest(appointed),
+  };
+  assert.throws(
+    () => inspectBoundSelectedPublicationAuthorities(appointed, oldGrant, "application"),
+    /ratification/u,
+  );
+  assert.deepEqual(
+    inspectBoundSelectedPublicationAuthorities(appointed, exactGrant, "application").configuration,
+    appointed,
+  );
+  assert.throws(
+    () =>
+      inspectBoundSelectedPublicationAuthorities(
+        {
+          ...appointed,
+          qualified_application: { ...nomination, run_attempt: 2 },
+        },
+        exactGrant,
+        "application",
+      ),
+    /ratification/u,
+  );
+  assert.throws(
+    () =>
+      inspectSelectedPublicationAuthorityConfiguration({
+        ...broad,
+        qualified_application: nomination,
+      }),
+    /appointed Windows application authority/u,
+  );
 });
 import {
   inspectReleaseAuthorityConfiguration,

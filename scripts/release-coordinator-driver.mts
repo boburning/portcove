@@ -2,8 +2,8 @@ import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readWindowsApplicationQualification } from "./application-release-qualification.mts";
 import { readApplicationSourceCommitObjects } from "./application-release-source-git.mts";
 import { createWakeProvider } from "./release-wake-provider.mts";
-import { inspectQualifiedApplicationReview } from "./release-application-review-selection.mts";
-import type { QualifiedApplicationReview } from "./release-application-review-selection.mts";
+import { inspectQualifiedApplicationReview } from "./release-authority-configuration-contract.mts";
+import type { QualifiedApplicationReview } from "./release-authority-configuration-contract.mts";
 import {
   fixedReleaseReaderToken,
   readOnlyReleaseChildEnvironment,
@@ -134,6 +134,7 @@ import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPublishedApplicationSourceWithSdk } from "./release-published-source.mts";
 import {
   requireControllerApplicationCoordinatorAuthorities,
+  requireControllerJobSourceConfiguration,
   requireControllerApplicationCoordinatorPublicationAuthorities,
 } from "./release-authority-configuration.mts";
 import {
@@ -3569,6 +3570,7 @@ async function requestTrustedSemanticReviewAt(
       transport: budget.journalTransport(),
     });
     checkpoint = recovered.checkpoint;
+    let recheckQualifiedSource: (() => void) | undefined;
     if (qualified) {
       phase = "exact-qualified-neutral-request-gate";
       if (
@@ -3593,6 +3595,16 @@ async function requestTrustedSemanticReviewAt(
           checkpoint,
           authority: "none",
         };
+      const appointed = await requireControllerJobSourceConfiguration("coordinator");
+      const binding = appointed.binding;
+      if (
+        binding.purpose !== "application" ||
+        binding.namespace !== namespace ||
+        !binding.qualified_application ||
+        capacityDigest(binding.qualified_application) !== capacityDigest(qualified)
+      )
+        throw new Error("qualified application differs from the source-appointed authority");
+      recheckQualifiedSource = appointed.recheck;
     }
     if (!qualified && selectCoordinatorPendingContextRecovery(recovered.input)) {
       phase = "actual-terminal-context-readback-recovery";
@@ -3785,6 +3797,31 @@ async function requestTrustedSemanticReviewAt(
       baselineReleases,
       publication.published_versions,
     );
+    const readImmutableBaseline = async () => {
+      if (!qualified) return undefined;
+      guard();
+      const provider = await createReleaseCustodyProvider({
+        token,
+        deadline: sourceOptions.deadline,
+        requestTimeoutMs: 15000,
+        maxBytes: sourceOptions.maxBytes,
+        beforeDispatch: guard,
+      });
+      const release = await provider.release(baselineRelease.id);
+      guard();
+      if (
+        !isRecord(release) ||
+        release.immutable !== true ||
+        release.draft !== false ||
+        release.id !== baselineRelease.id ||
+        release.tag_name !== baselineRelease.tag_name ||
+        release.prerelease !== baselineRelease.prerelease ||
+        release.published_at !== baselineRelease.published_at ||
+        release.updated_at !== baselineRelease.updated_at
+      )
+        throw new Error("qualified application requires the exact immutable published baseline");
+    };
+    await readImmutableBaseline();
     const baseline = tags.find((ref) => ref.name === `v${baseVersion}`);
     if (!baseline) throw new Error("published baseline tag absent");
     const baselinePrepared = peelReleaseReference(baseline);
@@ -3947,6 +3984,8 @@ async function requestTrustedSemanticReviewAt(
     const checkpointControls = {
       async readCurrent() {
         budget.check();
+        recheckQualifiedSource?.();
+        await readImmutableBaseline();
         if ((await readMaintenance()).facts_sha256 !== observed.facts_sha256)
           throw new Error("neutral request controls changed immediately before journal CAS");
         budget.check();
