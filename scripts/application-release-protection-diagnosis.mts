@@ -9,6 +9,7 @@ import { readPublicationPauseWithSdk } from "./release-control-inputs.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   bootstrapProtectionFingerprints,
+  bootstrapProtectionRulesetFieldFingerprints,
   createApplicationProtectionObservationReader,
   observeReleaseInputProtections,
   requireApplicationReleaseProtectionDigest,
@@ -83,6 +84,13 @@ async function run() {
   } finally {
     console.log(JSON.stringify({ kind: "paused-protection-diagnosis", stage, ...fingerprints }));
   }
+  if (stage === "digest-mismatch")
+    console.log(
+      JSON.stringify({
+        kind: "paused-protection-ruleset-fields",
+        ...bootstrapProtectionRulesetFieldFingerprints(result),
+      }),
+    );
   assert.equal(stage, "match");
 }
 
