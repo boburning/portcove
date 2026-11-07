@@ -65,6 +65,7 @@ import {
   readImmutableBootstrapFeed,
   readImmutableApplicationMetadataFeed,
   readImmutableApplicationMetadata,
+  assertRecoveredApplicationBootstrapPriorExpiry,
   readRegisteredImmutableApplicationMetadata,
   discoverPublishedApplicationCohort,
   assertApplicationForwardPreimage,
@@ -74,6 +75,37 @@ import {
 
 // Inert release bytes and an injected provider: protocol tests, never native,
 // detached-signature, assembly-attestation or production qualification.
+
+void test("served bootstrap online expiry is admissible only for forward metadata renewal", () => {
+  const expires = {
+    targets: "2027-01-30T00:00:00Z",
+    releases: "2027-01-30T00:00:00Z",
+    preview: "2026-11-13T00:00:00Z",
+    stable: "2026-11-13T00:00:00Z",
+    snapshot: "2026-11-13T00:00:00Z",
+    timestamp: "2026-11-08T02:32:54Z",
+  };
+  const cutoff = Date.parse(expires.timestamp);
+  assert.doesNotThrow(() =>
+    assertRecoveredApplicationBootstrapPriorExpiry(expires, undefined, cutoff - 1),
+  );
+  assert.throws(
+    () => assertRecoveredApplicationBootstrapPriorExpiry(expires, undefined, cutoff),
+    /recovered bootstrap metadata is expired/u,
+  );
+  assert.doesNotThrow(() =>
+    assertRecoveredApplicationBootstrapPriorExpiry(expires, "renew-served-metadata", cutoff),
+  );
+  assert.throws(
+    () =>
+      assertRecoveredApplicationBootstrapPriorExpiry(
+        expires,
+        "renew-served-metadata",
+        Date.parse(expires.targets),
+      ),
+    /recovered bootstrap metadata is expired/u,
+  );
+});
 
 function fixtureContextExtension(
   custody: ApplicationRunCustody,

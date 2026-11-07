@@ -1346,7 +1346,11 @@ async function publishBootstrapMetadata(
     const verifyRenewalPreimage = async () => {
       if (!publicPrior) {
         if (source.renewal_parent === undefined)
-          publicPrior = await readApplicationPriorPublication(scratch);
+          publicPrior = await readApplicationPriorPublication(
+            scratch,
+            undefined,
+            "renew-served-metadata",
+          );
         else {
           const forward = await readForwardRenewalPreimage(source, scratch);
           lineage = forward.lineage;
@@ -1864,7 +1868,11 @@ async function prepareBootstrapFeed() {
         lineage[0]!.receipt.publication.repository_sha256,
         input.publication.repository_sha256,
       );
-      const { discovered, prior } = await readApplicationPriorPublication(verifier, lineage);
+      const { discovered, prior } = await readApplicationPriorPublication(
+        verifier,
+        lineage,
+        source.renewal_parent === undefined ? "renew-served-metadata" : undefined,
+      );
       const basis = inspectApplicationRenewalSource(source);
       assert.equal(prior.receipt.site.generation, basis.site_generation);
       assert.equal(input.site.previous_generation, basis.site_generation);
@@ -3291,7 +3299,13 @@ async function prepareApplicationPrior(
     source.renewal_parent === undefined
       ? undefined
       : await readForwardRenewalPreimage(source, scratch);
-  const { discovered, prior } = forward ?? (await readApplicationPriorPublication(scratch));
+  const { discovered, prior } =
+    forward ??
+    (await readApplicationPriorPublication(
+      scratch,
+      undefined,
+      source.purpose === "metadata-renewal" ? "renew-served-metadata" : undefined,
+    ));
   const priorRepository =
     forward?.authority.receipt.publication.repository_sha256 ??
     prior.receipt.publication.repository_sha256;
@@ -3778,7 +3792,13 @@ async function assembleMetadata() {
       source.renewal_parent === undefined
         ? undefined
         : await readForwardRenewalPreimage(source, scratch);
-    const { discovered, prior } = forward ?? (await readApplicationPriorPublication(scratch));
+    const { discovered, prior } =
+      forward ??
+      (await readApplicationPriorPublication(
+        scratch,
+        undefined,
+        source.purpose === "metadata-renewal" ? "renew-served-metadata" : undefined,
+      ));
     const priorRepository = prior.receipt.publication.repository_sha256;
     assert.ok(typeof priorRepository === "string");
     if (source.purpose === "metadata-renewal") {

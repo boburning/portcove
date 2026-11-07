@@ -295,6 +295,24 @@ export async function readRegisteredImmutableApplicationMetadata(
   return { receipt, metadata: raw, assets, authority: "none" as const };
 }
 
+/** Expired online metadata can identify the exact served renewal preimage.
+ * It supplies no current consumer authority. */
+export function assertRecoveredApplicationBootstrapPriorExpiry(
+  expires: Readonly<ReturnType<typeof inspectTufPublicationFacts>["expires"]>,
+  intent?: "renew-served-metadata",
+  now = Date.now(),
+) {
+  assert.ok(
+    Object.entries(expires).every(
+      ([role, value]) =>
+        Date.parse(value) > now ||
+        (intent === "renew-served-metadata" &&
+          ["releases", "preview", "stable", "snapshot", "timestamp"].includes(role)),
+    ),
+    "recovered bootstrap metadata is expired",
+  );
+}
+
 /** A served prior additionally binds the immutable receipt to the actual Pages
  * actor. Unserved recovery uses the registered immutable reader above instead. */
 export async function readImmutableApplicationMetadata(
@@ -302,6 +320,7 @@ export async function readImmutableApplicationMetadata(
   transport: Parameters<typeof readRegisteredImmutableApplicationMetadata>[1] & {
     readPages: () => ReturnType<typeof readActualApplicationPagesState>;
   },
+  intent?: "renew-served-metadata",
 ) {
   const started = performance.now();
   assert.deepEqual(await transport.readPages(), discovered.state);
@@ -333,20 +352,15 @@ export async function readImmutableApplicationMetadata(
         },
       ],
     );
-    const fresh = () =>
-      assert.ok(
-        Object.values(prior.receipt.publication.expires).every(
-          (expires) => Date.parse(expires) > Date.now(),
-        ),
-        "recovered bootstrap metadata is expired",
-      );
-    fresh();
+    const assertExpiry = () =>
+      assertRecoveredApplicationBootstrapPriorExpiry(prior.receipt.publication.expires, intent);
+    assertExpiry();
     const publicSite = await readPublicApplicationSite(
       prior.receipt.site,
       Math.min(transport.deadline ?? Infinity, started + 120000),
     );
     assert.equal(publicSite.generation, original.generation);
-    fresh();
+    assertExpiry();
   }
   assert.deepEqual(
     await transport.readPages(),
@@ -818,13 +832,18 @@ export async function readApplicationImmutableMetadata(
 export async function readApplicationPriorPublication(
   scratch: string,
   pending?: Parameters<typeof discoverPublishedApplicationCohort>[1],
+  intent?: "renew-served-metadata",
 ) {
   const discovered = await discoverActualPublishedApplicationCohort(pending);
   const transport = await applicationMetadataTransport(discovered, scratch);
-  const prior = await readImmutableApplicationMetadata(discovered, {
-    ...transport,
-    readPages: () => readActualApplicationPagesState(transport.deadline),
-  });
+  const prior = await readImmutableApplicationMetadata(
+    discovered,
+    {
+      ...transport,
+      readPages: () => readActualApplicationPagesState(transport.deadline),
+    },
+    intent,
+  );
   return { discovered, prior };
 }
 

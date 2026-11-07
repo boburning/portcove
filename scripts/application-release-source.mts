@@ -740,7 +740,11 @@ async function renewPublishedMetadata() {
   await mkdir(scratch);
   // The existing reader authenticates the actual immutable assembly. The Rust
   // context factory later authenticates all physical repository bytes.
-  const { discovered, prior } = await readApplicationPriorPublication(scratch);
+  const { discovered, prior } = await readApplicationPriorPublication(
+    scratch,
+    undefined,
+    "renew-served-metadata",
+  );
   const basis = {
     schema_version: 1,
     kind: "application-metadata-renewal-basis",
