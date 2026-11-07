@@ -269,13 +269,21 @@
   }
   @container library-query (max-width: 25rem) {
     .game-hero-continue .game-hero-body {
-      padding: 20px 20px 32px;
+      padding: 16px 20px 32px;
     }
     .game-hero-continue .continue-title {
       font-size: 1.25rem;
     }
     .game-hero-continue .continue-actions {
       gap: 14px;
+    }
+  }
+}
+
+@layer utilities {
+  @container library-query (max-width: 25rem) {
+    .game-hero-continue .game-hero-content {
+      gap: 8px;
     }
   }
 }

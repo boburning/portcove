@@ -923,7 +923,7 @@
   .collection-cover .collection-main {
     padding-block-end: 10px;
   }
-  .collection-result-summary > button {
+  .library-query-tools[data-view="library"] .collection-result-summary > button {
     min-block-size: 24px;
     padding-block: 0;
     background: transparent;
@@ -933,15 +933,15 @@
     color: var(--color-text-secondary);
   }
   .collection-cover .collection-identity:hover .collection-art {
-    border-color: rgba(163, 184, 213, 0.48);
-    box-shadow: 0 13px 26px rgb(0 0 0 / 33.3%);
+    border-color: var(--color-library-art-hover-border);
+    box-shadow: var(--shadow-library-art-hover);
   }
   .collection-cover .collection-personal-actions {
     inset-block-start: 6px;
   }
   .collection-cover .collection-favorite[aria-pressed="true"],
   .collection-cover .collection-favorite[aria-pressed="true"]:hover {
-    color: #ffaaa2;
+    color: var(--color-library-favorite-selected);
   }
   @media (forced-colors: active) {
     .collection-cover .collection-favorite[aria-pressed="true"],
@@ -988,13 +988,13 @@
   }
   .collection-cover .collection-favorite,
   .collection-cover .collection-favorite:hover {
-    color: #e7e9ee;
-    background: rgb(25 27 32 / 91%);
+    color: var(--color-library-favorite-ink);
+    background: var(--color-library-favorite-surface);
   }
   .collection-cover .collection-favorite[aria-pressed="true"],
   .collection-cover .collection-favorite[aria-pressed="true"]:hover {
-    color: #ffaaa2;
-    background: rgb(25 27 32 / 91%);
+    color: var(--color-library-favorite-selected);
+    background: var(--color-library-favorite-surface);
   }
   @media (forced-colors: active) {
     .collection-cover .collection-favorite,
