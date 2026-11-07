@@ -76,7 +76,7 @@ import {
 // Inert release bytes and an injected provider: protocol tests, never native,
 // detached-signature, assembly-attestation or production qualification.
 
-test("served bootstrap online expiry is admissible only for forward metadata renewal", () => {
+void test("served bootstrap online expiry is admissible only for forward metadata renewal", () => {
   const expires = {
     targets: "2027-01-30T00:00:00Z",
     releases: "2027-01-30T00:00:00Z",
