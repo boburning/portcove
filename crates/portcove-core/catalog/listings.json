@@ -2307,6 +2307,14 @@
       "original_game_title": "Ace Combat 3: Electrosphere",
       "variant_label": "Japan · two discs",
       "issue_number": 427,
+      "artwork": {
+        "game_id": 14751,
+        "cover_id": 391208,
+        "image_id": "co8duw",
+        "image_sha256": "83ee46d9cc823edc47e620bfa455a37f6147cd2b8f0dc8823580000b250d476a",
+        "game_slug": "ace-combat-3-electrosphere",
+        "match_kind": "underlying-game"
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -32107,6 +32115,14 @@
         "warnings": [
           "Use the exact own-ROM Virtua Fighter set and preserve every active data/ROM root; another arcade title or edition does not establish permission or save compatibility."
         ]
+      },
+      "artwork": {
+        "game_id": 423261,
+        "cover_id": 616416,
+        "image_id": "cod7mo",
+        "image_sha256": "65ef1720b7965db3771aac24988a968e06ec445171d385d5015d5631945147ba",
+        "game_slug": "virtua-fighter-recomp",
+        "match_kind": "port"
       }
     },
     {
