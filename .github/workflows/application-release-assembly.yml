@@ -39,6 +39,8 @@ permissions:
   contents: read
   actions: read
   checks: read
+  pages: read
+  deployments: read
   id-token: write
   attestations: write
 jobs:
