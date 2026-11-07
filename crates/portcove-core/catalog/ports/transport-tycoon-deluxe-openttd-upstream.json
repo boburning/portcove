@@ -3,12 +3,12 @@
   "listing": {
     "id": "transport-tycoon-deluxe-openttd-upstream",
     "name": "Transport Tycoon Deluxe (OpenTTD (upstream))",
-    "summary": "Upstream route: Mature native reimplementation with free replacement data or original retail data. Limits: Established upstream OpenTTD engine; independent from JGR PatchPack and uses free replacement or owned original data. Upstream platforms: Official Windows/Linux/macOS package routes; macOS universal support documented. Selected Windows/Linux release artifact CPUs unknown in frozen audit. Original data: OpenTTD needs base graphics and sound data. Use the free OpenGFX/OpenSFX sets (OpenMSX supplies optional music), or copy original DOS/Windows Transport Tycoon Deluxe CD graphics/sound files into baseset/. Original commercial TTD assets are optional when using the free sets; original TTD music can be copied separately. Portcove setup/gameplay not verified.",
+    "summary": "Play OpenTTD with free base graphics or your own Transport Tycoon Deluxe files. Official Linux, Mac and Windows packages use upstream setup. Keep OpenTTD and JGR Patch Pack as separate variants.",
     "original_game_title": "Transport Tycoon Deluxe",
     "project_url": "https://github.com/OpenTTD/OpenTTD",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/OpenTTD/OpenTTD",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://wiki.openttd.org/en/Manual/Installation",
     "artwork": {
       "game_id": 5502,
       "cover_id": 85659,
@@ -19,7 +19,7 @@
     },
     "issue_number": 2716,
     "manual_setup": {
-      "help_url": "https://github.com/OpenTTD/OpenTTD/tree/14ec60f248547d4d062a1160f0fc26d742319888",
+      "help_url": "https://wiki.openttd.org/en/Manual/Installation",
       "steps": [
         {
           "title": "Prepare the upstream OpenTTD variant",
@@ -45,8 +45,19 @@
       "warnings": [
         "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
         "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+      ],
+      "references": [
+        {
+          "title": "Get the official OpenTTD package for your host",
+          "instruction": "Use the upstream downloads page and its published SHA-256. The stable channel has a Linux x86-64 generic tar.xz, an Intel and Apple Silicon universal Mac DMG or ZIP, and Windows ZIPs or installers for x86-64 and ARM64. The reviewed Linux player needs glibc 2.28 and libstdc++ with GLIBCXX_3.4.22. Use your system archive tool and keep the entire extracted folder or OpenTTD.app. Open the official executable or app directly and complete its base-graphics setup."
+        },
+        {
+          "title": "Keep the actual OpenTTD config and save roots",
+          "instruction": "The Linux generic build normally uses ~/.config/openttd and ~/.local/share/openttd, or the corresponding XDG locations. An older ~/.openttd profile or an existing -c config choice can change where it writes. On Mac preserve ~/Library/Application Support/OpenTTD and any custom location. Keep openttd.cfg, private.cfg, secrets.cfg and all actual saves and content private and backed up. These upstream copies stay under player ownership."
+        }
       ]
-    }
+    },
+    "release_url": "https://www.openttd.org/downloads/openttd-releases/latest"
   },
   "upstream_lineage": {
     "format_version": 1,

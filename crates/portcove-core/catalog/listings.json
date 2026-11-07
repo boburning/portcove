@@ -14667,9 +14667,9 @@
       "project_url": "https://github.com/CorsixTH/CorsixTH",
       "issue_number": 1807,
       "availability": "packages",
-      "setup_url": "https://github.com/CorsixTH/CorsixTH/blob/v0.70.1/README.md",
+      "setup_url": "https://github.com/CorsixTH/CorsixTH/wiki/Getting-Started",
       "original_game_title": "Theme Hospital",
-      "release_url": "https://github.com/CorsixTH/CorsixTH/releases/tag/v0.70.1",
+      "release_url": "https://github.com/CorsixTH/CorsixTH/releases",
       "manual_setup": {
         "steps": [
           {
@@ -14680,7 +14680,21 @@
         "warnings": [
           "This project has not been verified for play through Portcove."
         ],
-        "help_url": "https://github.com/CorsixTH/CorsixTH/blob/v0.70.1/README.md"
+        "help_url": "https://github.com/CorsixTH/CorsixTH/wiki/Getting-Started",
+        "references": [
+          {
+            "title": "Set up CorsixTH on Linux",
+            "instruction": "Use the official x86-64 AppImage. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
+          },
+          {
+            "title": "Set up CorsixTH on Mac",
+            "instruction": "Open the upstream DMG and copy CorsixTH.app out of it. The reviewed bundle contains Intel and Apple Silicon binaries. Open the app and select your Theme Hospital data. Keep the complete bundle and open the app directly to play."
+          },
+          {
+            "title": "Keep the actual CorsixTH profile",
+            "instruction": "The regular Linux and Mac builds normally use ~/.config/CorsixTH, or CorsixTH under XDG_CONFIG_HOME. A config.path.txt override can change that. Keep config.txt, hotkeys.txt, Saves, campaigns and any custom music or data paths. The Flatpak has a separate config tree under ~/.var/app/com.corsixth.corsixth. Close CorsixTH and preserve the actual profile and originals before updating the external copy."
+          }
+        ]
       },
       "artwork": {
         "game_id": 127904,
@@ -14691,8 +14705,25 @@
         "match_kind": "port"
       },
       "platforms": [
-        "windows-x86-64"
-      ]
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "CorsixTH-v",
+          "-x86_64.AppImage"
+        ],
+        "macos-x86-64": [
+          "CorsixTH-",
+          ".dmg"
+        ],
+        "macos-aarch64": [
+          "CorsixTH-",
+          ".dmg"
+        ]
+      }
     },
     {
       "id": "cosmic-recomp-extremestonegg-ben-10-ultimate-alien-cosmic-destruction",
@@ -17308,12 +17339,21 @@
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2563,
       "availability": "packages",
-      "setup_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
+      "setup_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
       "release_url": "https://github.com/diasurgical/DevilutionX/releases",
       "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "devilutionx-windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "devilutionx-linux-x86_64.appimage"
+        ],
+        "macos-x86-64": [
+          "devilutionx-macOS-universal.dmg"
+        ],
+        "macos-aarch64": [
+          "devilutionx-macOS-universal.dmg"
         ]
       },
       "manual_setup": {
@@ -17336,14 +17376,31 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and Android instructions below."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/README.md"
+        "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
+        "references": [
+          {
+            "title": "Prepare DevilutionX on Linux",
+            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. If you choose the x86-64 tar.xz, extract it yourself, keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Diablo in the upstream game mode if Hellfire data are also present."
+          },
+          {
+            "title": "Prepare DevilutionX on Mac",
+            "instruction": "Use the upstream macOS-universal DMG on Intel or Apple Silicon. Copy devilutionX.app out of the image and keep the complete bundle. Put the matching MPQs in ~/Library/Application Support/diasurgical/devilution unless you already use a custom directory. Select Diablo in the upstream game mode if Hellfire data are also present. On either desktop platform, preserve the actual config, character saves and original files, including overrides. The upstream license governs use of the external copy."
+          },
+          {
+            "title": "Import your game files on Android",
+            "instruction": "Install the official DevilutionX app from the upstream release or Google Play. Use Import Data in the app to choose your files. Import your full Diablo DIABDAT.MPQ and select Diablo if Hellfire data are also present. The app copies the selected files into its external files directory, usually Android/data/org.diasurgical.devilutionx/files. Keep your originals and preserve that directory’s actual game data, saves and settings before replacing or removing the app. Use the same distribution channel for updates so the Android package signer remains compatible."
+          }
+        ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -17354,7 +17411,7 @@
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2564,
       "availability": "packages",
-      "setup_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
+      "setup_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
       "artwork": {
         "game_id": 8175,
         "cover_id": 95334,
@@ -17368,6 +17425,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "devilutionx-windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "devilutionx-linux-x86_64.appimage"
+        ],
+        "macos-x86-64": [
+          "devilutionx-macOS-universal.dmg"
+        ],
+        "macos-aarch64": [
+          "devilutionx-macOS-universal.dmg"
         ]
       },
       "manual_setup": {
@@ -17390,14 +17456,31 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and Android instructions below."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/README.md"
+        "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
+        "references": [
+          {
+            "title": "Prepare DevilutionX on Linux",
+            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. If you choose the x86-64 tar.xz, extract it yourself, keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal."
+          },
+          {
+            "title": "Prepare DevilutionX on Mac",
+            "instruction": "Use the upstream macOS-universal DMG on Intel or Apple Silicon. Copy devilutionX.app out of the image and keep the complete bundle. Put the matching MPQs in ~/Library/Application Support/diasurgical/devilution unless you already use a custom directory. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal. On either desktop platform, preserve the actual config, character saves and original files, including overrides. The upstream license governs use of the external copy."
+          },
+          {
+            "title": "Import your game files on Android",
+            "instruction": "Install the official DevilutionX app from the upstream release or Google Play. Use Import Data in the app to choose your files. Import your full Diablo DIABDAT.MPQ and all four Hellfire MPQs listed above, then select Hellfire in the app. The app copies the selected files into its external files directory, usually Android/data/org.diasurgical.devilutionx/files. Keep your originals and preserve that directory’s actual game data, saves and settings before replacing or removing the app. Use the same distribution channel for updates so the Android package signer remains compatible."
+          }
+        ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -35623,7 +35706,7 @@
       "project_url": "https://github.com/OpenLoco/OpenLoco",
       "issue_number": 1855,
       "availability": "packages",
-      "setup_url": "https://github.com/OpenLoco/OpenLoco/blob/v26.09/README.md",
+      "setup_url": "https://github.com/OpenLoco/OpenLoco#readme",
       "artwork": {
         "game_id": 10737,
         "cover_id": 218442,
@@ -35632,7 +35715,7 @@
         "game_slug": "chris-sawyers-locomotion",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/OpenLoco/OpenLoco/releases/tag/v26.09",
+      "release_url": "https://github.com/OpenLoco/OpenLoco/releases",
       "manual_setup": {
         "steps": [
           {
@@ -35641,12 +35724,34 @@
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/OpenLoco/OpenLoco/blob/v26.09/README.md"
+        "help_url": "https://github.com/OpenLoco/OpenLoco#readme",
+        "references": [
+          {
+            "title": "Set up OpenLoco on Linux",
+            "instruction": "Use the official x86-64 AppImage. The reviewed player needs glibc 2.28 or newer. Make it executable and run it directly to select your installed Locomotion directory containing Data/g1.DAT. Preserve the whole profile under ~/.config/OpenLoco or the actual XDG_CONFIG_HOME location. Keep separately selected saves, landscapes, custom objects and original-game folders."
+          },
+          {
+            "title": "Set up OpenLoco on Apple Silicon",
+            "instruction": "Use the upstream macos-arm64 ZIP. If downloading through Portcove, clear “Extract the archive after downloading”. Extract it with the system archive tool and keep the entire OpenLoco.app bundle. Upstream describes this build as unsigned and unnotarized. Follow its Mac instructions if Gatekeeper blocks it. Start it directly, select the Locomotion directory containing Data/g1.DAT and preserve ~/Library/Application Support/OpenLoco and custom locations. You manage this external copy and its updates."
+          }
+        ]
       },
       "original_game_title": "Chris Sawyer's Locomotion",
       "platforms": [
-        "windows-x86-64"
-      ]
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "OpenLoco-",
+          "-linux-x64.AppImage"
+        ],
+        "macos-aarch64": [
+          "OpenLoco-",
+          "-macos-arm64.zip"
+        ]
+      }
     },
     {
       "id": "openport-labs-galaxy-android",
@@ -35679,6 +35784,14 @@
         "windows-x86-64": [
           "OpenRA-",
           "x64-winportable.zip"
+        ],
+        "macos-x86-64": [
+          "OpenRA-",
+          ".dmg"
+        ],
+        "macos-aarch64": [
+          "OpenRA-",
+          ".dmg"
         ]
       },
       "manual_setup": {
@@ -35692,8 +35805,12 @@
             "instruction": "Choose Play explicitly to open that game’s own content screen. OpenRA can import your original media or offer its minimal content download; review that choice in OpenRA. No content installer or helper is started by discovery or by saving launch details."
           },
           {
-            "title": "Use the native upstream launcher on other systems",
-            "instruction": "On Linux, choose the AppImage for the game you want and prepare it using upstream instructions; retain the game-specific launcher. On macOS, install the desired game application from the disk image and retain its application bundle. These formats use upstream setup; Portcove does not extract or execute an AppImage, disk image, installer or shell helper automatically."
+            "title": "Choose the matching OpenRA game on Linux",
+            "instruction": "Choose the stable x86-64 AppImage named for Red Alert, Tiberian Dawn or Dune 2000. Make the complete AppImage executable and open it outside Portcove to finish that game’s content setup. Each AppImage starts its own game by default. Keep server and utility commands for their separate tasks."
+          },
+          {
+            "title": "Choose the matching OpenRA application on Mac",
+            "instruction": "The stable upstream DMG contains a separate Red Alert, Tiberian Dawn and Dune 2000 application. The reviewed launchers include Intel and Apple Silicon. Copy the complete app you want out of the DMG and open it to finish content setup. Open that app directly to play and preserve its actual OpenRA profile."
           }
         ],
         "warnings": [
@@ -51188,12 +51305,17 @@
     {
       "id": "transport-tycoon-deluxe-openttd-upstream",
       "name": "Transport Tycoon Deluxe (OpenTTD (upstream))",
-      "summary": "Upstream route: Mature native reimplementation with free replacement data or original retail data. Limits: Established upstream OpenTTD engine; independent from JGR PatchPack and uses free replacement or owned original data. Upstream platforms: Official Windows/Linux/macOS package routes; macOS universal support documented. Selected Windows/Linux release artifact CPUs unknown in frozen audit. Original data: OpenTTD needs base graphics and sound data. Use the free OpenGFX/OpenSFX sets (OpenMSX supplies optional music), or copy original DOS/Windows Transport Tycoon Deluxe CD graphics/sound files into baseset/. Original commercial TTD assets are optional when using the free sets; original TTD music can be copied separately. Portcove setup/gameplay not verified.",
+      "summary": "Play OpenTTD with free base graphics or your own Transport Tycoon Deluxe files. Official Linux, Mac and Windows packages use upstream setup. Keep OpenTTD and JGR Patch Pack as separate variants.",
       "original_game_title": "Transport Tycoon Deluxe",
       "project_url": "https://github.com/OpenTTD/OpenTTD",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenTTD/OpenTTD",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://wiki.openttd.org/en/Manual/Installation",
       "artwork": {
         "game_id": 5502,
         "cover_id": 85659,
@@ -51204,7 +51326,7 @@
       },
       "issue_number": 2716,
       "manual_setup": {
-        "help_url": "https://github.com/OpenTTD/OpenTTD/tree/14ec60f248547d4d062a1160f0fc26d742319888",
+        "help_url": "https://wiki.openttd.org/en/Manual/Installation",
         "steps": [
           {
             "title": "Prepare the upstream OpenTTD variant",
@@ -51230,8 +51352,19 @@
         "warnings": [
           "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
           "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+        ],
+        "references": [
+          {
+            "title": "Get the official OpenTTD package for your host",
+            "instruction": "Use the upstream downloads page and its published SHA-256. The stable channel has a Linux x86-64 generic tar.xz, an Intel and Apple Silicon universal Mac DMG or ZIP, and Windows ZIPs or installers for x86-64 and ARM64. The reviewed Linux player needs glibc 2.28 and libstdc++ with GLIBCXX_3.4.22. Use your system archive tool and keep the entire extracted folder or OpenTTD.app. Open the official executable or app directly and complete its base-graphics setup."
+          },
+          {
+            "title": "Keep the actual OpenTTD config and save roots",
+            "instruction": "The Linux generic build normally uses ~/.config/openttd and ~/.local/share/openttd, or the corresponding XDG locations. An older ~/.openttd profile or an existing -c config choice can change where it writes. On Mac preserve ~/Library/Application Support/OpenTTD and any custom location. Keep openttd.cfg, private.cfg, secrets.cfg and all actual saves and content private and backed up. These upstream copies stay under player ownership."
+          }
         ]
-      }
+      },
+      "release_url": "https://www.openttd.org/downloads/openttd-releases/latest"
     },
     {
       "id": "triaevum-ocarina-of-time-3d",
