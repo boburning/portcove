@@ -486,6 +486,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       periods: 18,
     },
     {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
+        "package(portcove-cli) & binary(machine_contract) & test(/^game_file_query_uses_core_refresh_and_truthful_operation_events$/)",
+      periods: 12,
+    },
+    {
       platform: "x86_64-unknown-linux-gnu",
       filter:
         "package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)",
