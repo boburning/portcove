@@ -20,6 +20,7 @@ import { performance } from "node:perf_hooks";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
 import { inspectNativeWslBoundary } from "./release-native-wsl-boundary.mts";
+import { sealedCheckSdkFilename } from "./release-sealed-check-sdk.mts";
 
 type Setup = Awaited<ReturnType<typeof requirePinnedLocalNativeSetup>>;
 /** Reserve thirty seconds inside the existing 35-minute installed task limit.
@@ -223,6 +224,15 @@ export function inspectWindowsNativeParentSetup(raw: unknown) {
     native_issuer: transport.native_issuer.private_key,
     source_reader: transport.source_read_token,
     source_tool: transport.github_cli.path,
+    ...(descriptor.issuer_sdk_bundle
+      ? {
+          issuer_sdk: path.win32.join(
+            String(raw.controller_root),
+            "scripts",
+            sealedCheckSdkFilename,
+          ),
+        }
+      : {}),
     ...(publicBoundary
       ? { public_boundary: descriptor.public_journey!.public_account_boundary!.path }
       : {}),

@@ -48,6 +48,7 @@ if ($pathsBytes.Length -gt 8192) { throw 'Native custody path inventory exceeds 
 $paths = [Text.UTF8Encoding]::new($false,$true).GetString($pathsBytes) | ConvertFrom-Json
 $expectedPathNames=@('authorities','boundary','capture','controller','descriptor','installation','native_issuer','source_reader','source_tool')
 if($paths.PSObject.Properties.Name -ccontains 'public_boundary'){$expectedPathNames+=@('public_boundary')}
+if($paths.PSObject.Properties.Name -ccontains 'issuer_sdk'){$expectedPathNames+=@('issuer_sdk')}
 if ((@($paths.PSObject.Properties.Name | Sort-Object) -join ',') -cne (($expectedPathNames|Sort-Object)-join ',')) { throw 'Native custody path inventory differs' }
 $custody = [ordered]@{}
 foreach ($name in $expectedPathNames) {

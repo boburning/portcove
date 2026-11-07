@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -22,6 +22,7 @@ import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
 import { inspectNativeCheckRecoveryPlan } from "./release-native-candidate.mts";
 import { bundleSealedCheckSdkIssuer } from "./release-controller-tool-build.mts";
+import { sealedCheckSdkFilename, verifySealedCheckSdkBundle } from "./release-sealed-check-sdk.mts";
 
 void test("actual broker transport envelope round trips through the existing original-attempt recovery contract", () => {
   const report = nativeQualificationFixture(),
@@ -264,7 +265,7 @@ void test("sealed SDK successor and isolated bundle preserve the private CLI pip
     fileURLToPath(new URL("../", import.meta.url)),
     output,
   );
-  const bundle = "release-semantic-issuer-sdk-http.bundle.mjs";
+  const bundle = sealedCheckSdkFilename;
   assert.deepEqual(await readdir(output), ["scripts"]);
   assert.deepEqual(await readdir(path.join(output, "scripts")), [bundle]);
   const bytes = await readFile(path.join(output, "scripts", bundle));
@@ -272,6 +273,9 @@ void test("sealed SDK successor and isolated bundle preserve the private CLI pip
     bytes: bytes.length,
     sha256: createHash("sha256").update(bytes).digest("hex"),
   });
+  const verified = await verifySealedCheckSdkBundle(output, identity);
+  assert.equal(verified, path.join(output, "scripts", bundle));
+  await assert.rejects(verifySealedCheckSdkBundle(output, { ...identity, path: verified }));
   const spawn = (entry: string, source: string, input: string) =>
     spawnSync(
       process.execPath,
@@ -293,7 +297,7 @@ void test("sealed SDK successor and isolated bundle preserve the private CLI pip
   const malformed = `globalThis.fetch = async () => new Response("{ malformed inert-check-token");`;
   for (const entry of [
     fileURLToPath(new URL("./release-semantic-issuer-sdk-http.mts", import.meta.url)),
-    path.join(output, "scripts", bundle),
+    verified,
   ]) {
     const success = spawn(entry, ok, exactInput);
     assert.ifError(success.error);
@@ -314,6 +318,13 @@ void test("sealed SDK successor and isolated bundle preserve the private CLI pip
       );
     }
   }
+  const changed = Buffer.from(bytes);
+  changed[0] = (changed[0] ?? 0) ^ 1;
+  await writeFile(verified, changed);
+  await assert.rejects(
+    verifySealedCheckSdkBundle(output, identity),
+    /differs from installed custody/u,
+  );
 });
 
 void test("native handoff recovery preserves original phase and rejects truncated, repeated or changed attempts", async () => {
