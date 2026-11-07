@@ -340,6 +340,8 @@ void test("bootstrap appointment binds protection and refs across observer princ
   const now = Date.now();
   const ruleset = {
     id: 42,
+    created_at: "2026-10-28T07:42:05.000-04:00",
+    updated_at: "2026-11-06T20:45:09.273-05:00",
     bypass_actors: [{ actor_id: 7, actor_type: "Integration", bypass_mode: "always" }],
     rules: [{ type: "deletion" }],
     current_user_can_bypass: "always",
@@ -367,7 +369,14 @@ void test("bootstrap appointment binds protection and refs across observer princ
   const owner = proof(inventory);
   const observer = proof({
     ...inventory,
-    rulesets: [{ ...ruleset, current_user_can_bypass: "never" }],
+    rulesets: [
+      {
+        ...ruleset,
+        created_at: "2026-10-28T11:42:05.000Z",
+        updated_at: "2026-11-07T01:45:09.273Z",
+        current_user_can_bypass: "never",
+      },
+    ],
   });
   const appointed = requireApplicationReleaseProtectionDigest(owner, true, now);
   const fingerprints = bootstrapProtectionFingerprints(owner);
@@ -403,6 +412,37 @@ void test("bootstrap appointment binds protection and refs across observer princ
     assert.match(digest, /^[a-f0-9]{64}$/u);
 
   assert.equal(requireApplicationReleaseProtectionDigest(observer, true, now), appointed);
+  for (const updated_at of ["2026-11-07T01:45:09.274Z", "2026-11-07T01:45:09.273-05:00"]) {
+    assert.notEqual(
+      requireApplicationReleaseProtectionDigest(
+        proof({
+          ...inventory,
+          rulesets: [{ ...ruleset, updated_at }],
+        }),
+        true,
+        now,
+      ),
+      appointed,
+    );
+  }
+  for (const updated_at of [
+    "2026-02-30T01:45:09.273Z",
+    "2026-11-07T01:45:09.2734Z",
+    "2026-11-07T01:45:09.273",
+  ]) {
+    assert.throws(
+      () =>
+        requireApplicationReleaseProtectionDigest(
+          proof({
+            ...inventory,
+            rulesets: [{ ...ruleset, updated_at }],
+          }),
+          true,
+          now,
+        ),
+      /bootstrap ruleset timestamp is malformed/u,
+    );
+  }
   assert.equal(
     requireApplicationReleaseProtectionDigest(owner, false, now),
     owner.inventory_sha256,
