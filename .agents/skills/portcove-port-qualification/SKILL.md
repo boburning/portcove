@@ -31,14 +31,17 @@ preservation evidence. A different writer layout needs an explicit integration
 and applicable qualification. See [catalog authoring](../../../docs/CATALOG.md#adding-or-changing-a-port).
 
 Use the existing `prepare-port.mts` feedback and reviewed per-ID record, followed
-by `generate-catalog.mts`; shared explanations and distinct lifecycle entrypoints
-are generated. Reuse accepted inspections with the existing paired package
+by `generate-catalog.mts`. Shared explanations and distinct lifecycle entrypoints
+are generated. Before pushing direct integration or summary edits,
+[inspect the generated operational catalog](../../../docs/CATALOG.md#check-the-generated-operational-catalog).
+Reuse accepted inspections with the existing paired package
 observation options to derive descriptive metadata and expected member facts.
 Independent initial acceptance remains necessary. Covered ordinary releases use
 the existing dynamic resolver and applicable integrity checks, with no new
 version/applicability row, guide rewrite, wrapper or routine agent approval.
 See `crates/portcove-core/catalog/ports/nhl-94-genesis-ninety-four.json` for a
-prepared route retaining explicit retail-ROM and save/state limitations.
+managed and prepared routes with an upstream retail-ROM picker, explicit
+default data paths and independent release and lifecycle fixtures.
 
 A discovery-only listing needs a stable implementation identity, truthful name,
 summary and attributable public origin. Unknown availability, missing artwork or
