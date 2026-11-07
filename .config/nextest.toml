@@ -920,6 +920,14 @@ filter = 'package(portcove-core) & (test(/^service::shipwright_persistence_tests
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI 42401774573/1 Windows partition 4 hit the 30s outer limit in
+# this fixture, which repeats setup, backup and launch checks for two variants.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::shipwright_persistence_tests::optional_current_settings_preserve_only_the_retained_artifact_save_correction$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Windows run b18a97d2 observed 22.42s of setup before installer start.
 # These two retention fixtures then allow 15s to reach the real partial-copy
 # barrier, so a 30s outer cap can preempt intervention/drain assertions.
