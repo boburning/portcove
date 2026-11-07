@@ -251,10 +251,12 @@
 }
 
 @layer utilities {
-  .game-hero-continue .game-hero-credits-slot:not(:has(details[open])) {
-    position: absolute;
-    inset-inline-end: 12px;
-    inset-block-end: 4px;
+  @container library-query (width > 14rem) {
+    .game-hero-continue .game-hero-credits-slot:not(:has(details[open])) {
+      position: absolute;
+      inset-inline-end: 12px;
+      inset-block-end: 4px;
+    }
   }
   .game-hero-continue .game-hero-credits {
     padding: 0 12px 8px;
@@ -284,6 +286,14 @@
   @container library-query (max-width: 25rem) {
     .game-hero-continue .game-hero-content {
       gap: 8px;
+    }
+  }
+}
+
+@layer utilities {
+  @container library-query (width <= 14rem) {
+    .game-hero-continue .game-hero-body {
+      padding-block-end: 12px;
     }
   }
 }
