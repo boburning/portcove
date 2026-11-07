@@ -19,7 +19,15 @@ export const routeEnrollmentInputs = new Set([
   "crates/portcove-core/src/testdata/managed-route-tests.generated.rs",
   "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
   "crates/portcove-core/src/testdata/route-enrollment-expectations.json",
+  "crates/portcove-core/src/testdata/retained-prepared-enrollment.json",
+  "crates/portcove-core/src/testdata/retained-prepared-tests.generated.rs",
 ]);
+
+export function isRetainedPreparedFixturePath(file: string) {
+  return /^crates\/portcove-core\/src\/testdata\/[a-z0-9-]+-retained-selected-\d{4}-\d{2}-\d{2}\.json$/u.test(
+    file,
+  );
+}
 
 export const fastGroups = Object.freeze([
   "catalog",
@@ -825,7 +833,9 @@ function classifyPath(file: string): PathOwnership {
       "native-or-ipc-contract",
     );
     match(
-      file.startsWith("crates/portcove-core/catalog/") || routeEnrollmentInputs.has(file),
+      file.startsWith("crates/portcove-core/catalog/") ||
+        routeEnrollmentInputs.has(file) ||
+        isRetainedPreparedFixturePath(file),
       "catalog",
       ["catalog", "rust", "rust-quality"],
       "catalog-contract",
@@ -1064,6 +1074,7 @@ function classifyAuditPath(file: string): PathOwnership {
       (file === "crates/portcove-core/catalog/catalog.json" ||
         file.startsWith("crates/portcove-core/catalog/") ||
         routeEnrollmentInputs.has(file) ||
+        isRetainedPreparedFixturePath(file) ||
         /(?:catalog|retcomm|source-provenance)/iu.test(file)),
     "catalog",
     ["catalog", "rust", "rust-quality"],

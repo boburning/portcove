@@ -35,6 +35,15 @@
           "filter": "test(/^service::native_portable::tests::managed_native_(declared_|declaration_inventory$)/) | test(/^service::user_selected::tests::prepared_guide_adoption_(declared_|declaration_inventory$)/)"
         },
         {
+          "id": "retained-prepared-enrollment",
+          "reason": "retained fixture enrollment uses the complete user-selected test family, including historical case names",
+          "paths": [
+            "crates/portcove-core/src/testdata/retained-prepared-enrollment.json",
+            "crates/portcove-core/src/testdata/retained-prepared-tests.generated.rs"
+          ],
+          "filter": "test(/^service::user_selected::tests::/)"
+        },
+        {
           "id": "native-engine-adoption-fixture",
           "reason": "the observed native engine corpus feeds retained release selection and retained, generated managed, and ready staged lifecycle cases",
           "paths": ["crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json"],

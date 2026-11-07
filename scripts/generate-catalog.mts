@@ -1,3 +1,4 @@
+import { renderRetainedPreparedTests } from "./catalog-retained-prepared.mts";
 import { acceptedPlayerRouteExpectations } from "./package-player-observation.mts";
 import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
@@ -43,6 +44,7 @@ const routeTestRoot = join(root, "crates", "portcove-core", "src", "testdata");
 const routeTestPaths = {
   prepared: join(routeTestRoot, "prepared-route-tests.generated.rs"),
   managed: join(routeTestRoot, "managed-route-tests.generated.rs"),
+  retained: join(routeTestRoot, "retained-prepared-tests.generated.rs"),
 };
 const acceptedRouteExpectationsPath = join(
   routeTestRoot,
@@ -637,12 +639,14 @@ if (preparing) {
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
   const enrollmentOutput = `${JSON.stringify(routeEnrollment(authored.records), null, 2)}\n`;
   const routeTests = renderRouteTests(authored.records);
+  const retainedTests = renderRetainedPreparedTests(routeTestRoot);
   const acceptedRouteExpectationsOutput = `${JSON.stringify(acceptedPlayerRouteExpectations(authored.records), null, 2)}\n`;
   if (process.argv.includes("--check")) {
     if (
       readFileSync(acceptedRouteExpectationsPath, "utf8") !== acceptedRouteExpectationsOutput ||
       readFileSync(routeTestPaths.prepared, "utf8") !== routeTests.prepared ||
       readFileSync(routeTestPaths.managed, "utf8") !== routeTests.managed ||
+      readFileSync(routeTestPaths.retained, "utf8") !== retainedTests ||
       readFileSync(enrollmentPath, "utf8") !== enrollmentOutput ||
       readFileSync(outputPath, "utf8") !== output ||
       readFileSync(sourcePath, "utf8") !== output ||
@@ -655,6 +659,7 @@ if (preparing) {
     writeFileSync(acceptedRouteExpectationsPath, acceptedRouteExpectationsOutput);
     writeFileSync(routeTestPaths.prepared, routeTests.prepared);
     writeFileSync(routeTestPaths.managed, routeTests.managed);
+    writeFileSync(routeTestPaths.retained, retainedTests);
     writeFileSync(enrollmentPath, enrollmentOutput);
     writeFileSync(sourcePath, output);
     writeFileSync(outputPath, output);

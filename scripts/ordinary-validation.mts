@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   routeEnrollmentInputs,
+  isRetainedPreparedFixturePath,
   validateValidationPlan,
   validationOwnershipForPath,
 } from "./validation-plan.mts";
@@ -2437,7 +2438,7 @@ for (const file of [
   ]);
 }
 
-for (const file of routeEnrollmentInputs)
+for (const file of [...routeEnrollmentInputs, "scripts/catalog-retained-prepared.mts"])
   explicitNodeTests.set(file, [
     "scripts/catalog-route-facts.test.mts",
     ...catalogGeneratorContractTests,
@@ -3253,6 +3254,13 @@ function classifyOnePath(
   for (const testFile of explicitNodeTests.get(file) ?? []) {
     selection.scopes.add("tooling");
     addNodeTest(selection, testFile);
+    recognized = true;
+  }
+
+  if (isRetainedPreparedFixturePath(file)) {
+    selection.scopes.add("tooling");
+    addNodeTest(selection, "scripts/catalog-route-facts.test.mts");
+    for (const testFile of catalogGeneratorContractTests) addNodeTest(selection, testFile);
     recognized = true;
   }
 

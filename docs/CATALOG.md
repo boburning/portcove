@@ -2113,6 +2113,14 @@ fixtures separately cover registration, managed runtime replacement and data
 ownership. Ordinary compatible successors use the unchanged authored selectors.
 [Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
 
+When a managed route replaces a strict prepared-only definition, keep the exact
+previous port in a dated `*-retained-selected-YYYY-MM-DD.json` fixture and add
+its ID and fixture basename to `retained-prepared-enrollment.json` in Core's
+testdata directory. The generator enrolls the existing retained registration,
+restart, Play and removal harness for that ID. Older rows can keep a historical
+test name. New rows use the port ID. The independent current-route expectations
+remain separate from the retained creating definition.
+
 The retained native-engine selection cases keep their controlled successor
 inventories and refusal filenames in the
 [native-engine scenario fixture](../crates/portcove-core/src/testdata/native-engine-release-scenarios.json).

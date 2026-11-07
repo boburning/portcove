@@ -112,6 +112,7 @@ export function isolatedGenerator() {
     "settings-qualification.mts",
     "json-values.mts",
     "catalog-route-facts.mts",
+    "catalog-retained-prepared.mts",
     "package-player-observation.mts",
     "upstream-lineage.mts",
     "catalog-authoring-inspector.mts",
@@ -130,6 +131,12 @@ export function isolatedGenerator() {
     "catalog-legacy-additions-fixture.json",
   ])
     copyFileSync(join(catalogRoot, name), join(catalogs, name));
+  const testdata = join(scratch, "crates", "portcove-core", "src", "testdata");
+  mkdirSync(testdata, { recursive: true });
+  writeFileSync(
+    join(testdata, "retained-prepared-enrollment.json"),
+    '{"format_version":1,"cases":[]}',
+  );
   syncFixtureSource(catalogs);
   return {
     scratch,

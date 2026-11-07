@@ -1376,6 +1376,7 @@ mod tests {
     }
 
     include!("../testdata/prepared-route-tests.generated.rs");
+    include!("../testdata/retained-prepared-tests.generated.rs");
 
     #[test]
     fn prepared_guide_adoption_declaration_inventory() {
@@ -1617,19 +1618,7 @@ mod tests {
         let current_adapter = service.catalog.port(id).unwrap().adapter;
         // A new managed offer does not rewrite an existing registration's
         // creating contract. Unreplaced cases continue to bind current data.
-        let retained_fixture = [
-            include_str!("../testdata/reflectionhle-retained-selected-2026-10-28.json"),
-            include_str!("../testdata/crispy-retained-selected-2026-10-29.json"),
-            include_str!("../testdata/crispy-final-doom-retained-selected-2026-10-29.json"),
-            include_str!("../testdata/bstone-retained-selected-2026-10-29.json"),
-            include_str!("../testdata/devilution-retained-selected-2026-10-29.json"),
-            include_str!("../testdata/native-engine-retained-selected-2026-11-02.json"),
-            include_str!("../testdata/aerofoil-retained-selected-2026-11-07.json"),
-            include_str!("../testdata/gba-pokemon-retained-selected-2026-11-05.json"),
-            include_str!("../testdata/gba-ruby-sapphire-retained-selected-2026-11-06.json"),
-        ]
-        .into_iter()
-        .find(|fixture| Catalog::from_json(fixture).unwrap().port(id).is_ok());
+        let retained_fixture = retained_prepared_definition(id);
         if let Some(fixture) = retained_fixture {
             assert!(matches!(
                 current_adapter,
@@ -1901,7 +1890,6 @@ mod tests {
 
     prepared_player_case!(classic_pc_route_1877, "lethal-guitar-rigelengine");
     prepared_player_case!(classic_pc_route_1793, "keriew-augustus");
-    prepared_player_case!(classic_pc_route_1790, "elasota-aerofoil");
     prepared_player_case!(classic_pc_route_1826, "m-x-d-heretic2r");
 
     prepared_player_case!(classic_fps_route_1873, "bodbdearg-psydoom");
@@ -1936,48 +1924,7 @@ mod tests {
     prepared_player_case!(historical_route_sm64coopdx, "super-mario-64-sm64-co-op-dx");
     prepared_player_case!(historical_route_wipeout, "wipeout-phantom-edition");
     prepared_player_case!(historical_route_emerald, "pokemon-emerald-emeraldrecomp");
-    prepared_player_case!(
-        historical_route_firered,
-        "pokemon-firered-fireredleafgreenrecomp"
-    );
-    prepared_player_case!(
-        historical_route_leafgreen,
-        "pokemon-leafgreen-fireredleafgreenrecomp"
-    );
-    prepared_player_case!(historical_route_ruby, "pokemon-ruby-rubysapphirerecomp");
-    prepared_player_case!(
-        historical_route_sapphire,
-        "pokemon-sapphire-rubysapphirerecomp"
-    );
 
-    prepared_player_case!(
-        native_engine_route_2592,
-        "medal-of-honor-allied-assault-openmohaa"
-    );
-    prepared_player_case!(
-        native_engine_route_2593,
-        "medal-of-honor-allied-assault-spearhead-openmohaa"
-    );
-    prepared_player_case!(
-        native_engine_route_2594,
-        "medal-of-honor-allied-assault-breakthrough-openmohaa"
-    );
-    prepared_player_case!(
-        native_engine_route_2565,
-        "doom-3-classic-dude-doom-3-unified-development-engine"
-    );
-    prepared_player_case!(
-        native_engine_route_2566,
-        "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine"
-    );
-    prepared_player_case!(
-        native_engine_route_2612,
-        "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo"
-    );
-    prepared_player_case!(
-        native_engine_route_2611,
-        "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo"
-    );
     prepared_player_case!(
         native_engine_route_2889,
         "perimeter-perimeter-community-engine"
@@ -2201,43 +2148,6 @@ mod tests {
         );
     }
 
-    // Preserve all nine prior route case identities across the managed offer.
-    prepared_player_case!(desktop_prepared_route_2683, "keen-dreams-reflectionhle");
-    prepared_player_case!(
-        desktop_prepared_route_2684,
-        "catacomb-3-d-the-descent-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2685,
-        "the-catacomb-abyss-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2686,
-        "the-catacomb-armageddon-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2687,
-        "the-catacomb-apocalypse-reflectionhle"
-    );
-    prepared_player_case!(desktop_prepared_route_2688, "wolfenstein-3d-reflectionhle");
-    prepared_player_case!(
-        desktop_prepared_route_2689,
-        "spear-of-destiny-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2690,
-        "super-3-d-noah-s-ark-dos-reflectionhle"
-    );
-    prepared_player_case!(desktop_prepared_route_2692, "bio-menace-reflectionhle");
-
-    prepared_player_case!(
-        desktop_prepared_route_2555,
-        "blake-stone-aliens-of-gold-bstone"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2556,
-        "blake-stone-planet-strike-bstone"
-    );
     prepared_player_case!(desktop_prepared_route_2652, "descent-dxx-rebirth");
     prepared_player_case!(desktop_prepared_route_2653, "descent-ii-dxx-rebirth");
     prepared_player_case!(
@@ -2269,26 +2179,10 @@ mod tests {
         desktop_prepared_route_2622,
         "ultima-vii-part-two-serpent-isle-exult"
     );
-    prepared_player_case!(desktop_prepared_route_2563, "diablo-devilutionx");
-    prepared_player_case!(desktop_prepared_route_2564, "diablo-hellfire-devilutionx");
     prepared_player_case!(
         desktop_prepared_route_2616,
         "the-elder-scrolls-iii-morrowind-openmw"
     );
-    prepared_player_case!(desktop_prepared_route_2567, "doom-3-classic-dhewm3");
-    prepared_player_case!(
-        desktop_prepared_route_2568,
-        "doom-3-resurrection-of-evil-classic-dhewm3"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2654,
-        "doom-the-ultimate-doom-crispy-doom-family"
-    );
-    prepared_player_case!(desktop_prepared_route_2655, "doom-ii-crispy-doom-family");
-    prepared_player_case!(desktop_prepared_route_2656, "final-doom-crispy-doom-family");
-    prepared_player_case!(desktop_prepared_route_2657, "heretic-crispy-doom-family");
-    prepared_player_case!(desktop_prepared_route_2662, "hexen-crispy-doom-family");
-    prepared_player_case!(desktop_prepared_route_2663, "strife-crispy-doom-family");
     prepared_player_case!(
         desktop_prepared_route_2643,
         "catacomb-3-d-the-descent-catacombgl"

@@ -1332,6 +1332,37 @@ void test("route fixture changes retain both enrollment inventories and release 
   );
 });
 
+void test("retained prepared enrollment selects the historical user-selected cases", () => {
+  for (const name of [
+    "retained-prepared-enrollment.json",
+    "retained-prepared-tests.generated.rs",
+  ]) {
+    const plan = workspacePlan([`crates/portcove-core/src/testdata/${name}`]);
+    assert.ok(plan.groups.includes("catalog"));
+    assert.ok(baselineContractTests(plan).includes("scripts/catalog-route-facts.test.mts"));
+    assert.deepEqual(
+      selectWorkspaceRustImpact(plan).map((group) => group.filter),
+      ["package(=portcove-core) & (test(/^service::user_selected::tests::/))"],
+    );
+  }
+});
+
+void test("unenrolled fixture paths and retained generator edits still run catalog checks", () => {
+  for (const file of [
+    "crates/portcove-core/src/testdata/new-title-retained-selected-2026-11-07.json",
+    "scripts/catalog-retained-prepared.mts",
+  ]) {
+    const plan = workspacePlan([file]);
+    assert.ok(plan.groups.includes("catalog"));
+    assert.ok(baselineContractTests(plan).includes("scripts/catalog-route-facts.test.mts"));
+    assert.ok(
+      baselineIntegrityCommands(plan).some(
+        ([script, flag]) => script === "scripts/generate-catalog.mts" && flag === "--check",
+      ),
+    );
+  }
+});
+
 void test("native adoption observations select every direct Rust consumer", () => {
   const fixture = "crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json";
   const groups = selectWorkspaceRustImpact(workspacePlan([fixture]));
