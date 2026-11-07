@@ -17,6 +17,7 @@ import type {
   createPagesProviderTransport,
   PagesDeploymentIdentity,
 } from "./release-pages-provider.mts";
+import { PagesCreateAcknowledgementUnavailable } from "./release-pages-provider.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
 
 export async function createApplicationFeedReader(token: string, originalDeadline: number) {
@@ -25,12 +26,15 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
   const allowed = (url: URL) => {
     const suffix = url.pathname.slice(base.length);
     if (suffix === "deployments")
-      return [
-        "?environment=github-pages&per_page=1",
-        "?environment=github-pages&per_page=2",
-        "?environment=github-pages&per_page=3",
-        "?environment=github-pages&per_page=4",
-      ].includes(url.search);
+      return (
+        [
+          "?environment=github-pages&per_page=1",
+          "?environment=github-pages&per_page=2",
+          "?environment=github-pages&per_page=3",
+          "?environment=github-pages&per_page=4",
+        ].includes(url.search) ||
+        /^\?sha=[a-f0-9]{40}&environment=github-pages&per_page=2$/u.test(url.search)
+      );
     if (/^deployments\/[1-9][0-9]*\/statuses$/u.test(suffix)) return url.search === "?per_page=1";
     return (
       !url.search &&
@@ -71,7 +75,12 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
     const response = await client.request(`GET ${url.pathname}${url.search}`, {
       request: { portcove: { replay: "once", attempts: 0 } },
     });
-    return { status: response.status, headers: new Map(), body: response.data as unknown };
+    const link = response.headers.link;
+    return {
+      status: response.status,
+      headers: new Map(typeof link === "string" ? [["link", link]] : []),
+      body: response.data as unknown,
+    };
   };
 }
 
@@ -82,6 +91,33 @@ export async function readActualApplicationPagesState(
 ) {
   const read = await createApplicationFeedReader(fixedReleaseReaderToken(), deadline);
   return readApplicationPagesStateAsync(read, admission, recoverInitialBootstrap);
+}
+
+/** A SHA status can identify a new effect only for a controller with no
+ * earlier Pages admission. The shared publisher group covers the preflight
+ * observation and the later active-job recheck. */
+export async function readApplicationControllerPagesAdmissions(source: string, deadline?: number) {
+  assert.match(source, /^[a-f0-9]{40}$/u);
+  const read = await createApplicationFeedReader(
+    fixedReleaseReaderToken(),
+    deadline ?? performance.now() + 30000,
+  );
+  const response = await read(
+    `repos/boburning/portcove/deployments?sha=${source}&environment=github-pages&per_page=2`,
+  );
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(response.body) && response.body.length <= 2);
+  // Two rows already disqualify first use. A smaller page with an incomplete
+  // inventory cannot establish first use.
+  assert.ok(response.body.length === 2 || !response.headers.get("link"));
+  return response.body.map((row: unknown) => {
+    assert.ok(
+      isRecord(row) && typeof row.id === "number" && Number.isSafeInteger(row.id) && row.id > 0,
+    );
+    assert.equal(row.sha, source);
+    assert.equal(row.environment, "github-pages");
+    return row.id;
+  });
 }
 
 export function applicationPagesIntent(
@@ -318,14 +354,22 @@ export function assertBootstrapPagesActor(
 export function readApplicationPagesExecution(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
   state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
-  currentRecovery?: { run_id: string; run_attempt: number; source: string; ref: string },
+  currentRecovery?: CurrentPagesReadback,
 ) {
   return readPagesAsync(read, applicationPagesExecution(state, currentRecovery));
 }
 
+type CurrentPagesReadback = {
+  run_id: string;
+  run_attempt: number;
+  source: string;
+  ref: string;
+  first_controller_build?: boolean;
+};
+
 function* applicationPagesExecution(
   state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
-  currentRecovery?: { run_id: string; run_attempt: number; source: string; ref: string },
+  currentRecovery?: CurrentPagesReadback,
 ) {
   const match = state.log_url.match(
     /^https:\/\/github\.com\/boburning\/portcove\/actions\/runs\/([1-9][0-9]*)\/job\/([1-9][0-9]*)$/u,
@@ -400,8 +444,19 @@ function* applicationPagesExecution(
   );
   assert.ok(typeof run.head_branch === "string");
   const controlRef = `refs/tags/${run.head_branch}`;
+  const firstControllerReadback =
+    currentRecovery?.first_controller_build === true &&
+    job.run_attempt === 1 &&
+    Array.isArray(job.steps) &&
+    job.steps.some(
+      (step) =>
+        isRecord(step) &&
+        step.name === "Deploy once behind post-OIDC fresh guards and verify exact public bytes" &&
+        step.status === "completed" &&
+        step.conclusion === "success",
+    );
   const activeRecovery =
-    recovery &&
+    (recovery || firstControllerReadback) &&
     currentRecovery?.run_id === String(runId) &&
     currentRecovery.run_attempt === job.run_attempt &&
     currentRecovery.source === job.head_sha &&
@@ -514,6 +569,7 @@ export async function executeBootstrapPages(
     control_commit: string;
     site: unknown;
     prior_effect?: PriorPagesEffect;
+    first_controller_build?: boolean;
     preimage: "initial" | "prior" | "desired" | "recovery-visible";
   },
   options: {
@@ -559,6 +615,10 @@ export async function executeBootstrapPages(
   };
   const prior = expected.prior_effect;
   if (prior) assert.equal(prior.identity.generation, site.generation);
+  if (expected.first_controller_build) {
+    assert.equal(expected.preimage, "prior");
+    assert.equal(prior, undefined);
+  }
   if (expected.preimage === "recovery-visible") assert.ok(prior?.continuation);
   let resolution = "already-public";
   let priorOutcome: Awaited<ReturnType<Provider["status"]>>["outcome"] | null = null;
@@ -625,6 +685,7 @@ export async function executeBootstrapPages(
     if (continueEffect) {
       let entered = false;
       let acknowledged: PagesDeploymentIdentity | undefined;
+      const firstBuild = expected.first_controller_build ? expected.control_commit : undefined;
       try {
         acknowledged = await options.provider.create(
           identity,
@@ -632,18 +693,30 @@ export async function executeBootstrapPages(
             const assertFresh = await options.beforeWrite();
             options.markStage?.("preimage");
             await options.assertPreimage();
+            if (firstBuild) {
+              const preimage = await options.provider.status({ ...identity, id: firstBuild });
+              assert.ok(
+                preimage.outcome === "unknown" && preimage.provider_opaque,
+                "first controller build already has an effect or its lookup is unavailable",
+              );
+            }
             within();
             assertFresh();
             options.markStage?.("post-may-have-started");
             entered = true;
           },
-          prior?.continuation?.build_version,
+          prior?.continuation?.build_version ?? firstBuild,
         );
       } catch (error) {
         if (!entered) throw error;
         if (prior?.continuation) throw error;
+        if (
+          firstBuild &&
+          !(error instanceof PagesCreateAcknowledgementUnavailable && error.status === 200)
+        )
+          throw error;
       }
-      const operation = { ...identity, id: acknowledged?.id ?? identity.generation };
+      const operation = { ...identity, id: acknowledged?.id ?? firstBuild ?? identity.generation };
       if (prior?.continuation) {
         assert.notEqual(operation.id, prior.identity.id, "Pages reused the original deployment ID");
         assert.notEqual(operation.id, site.generation, "Pages returned the original build version");

@@ -12,6 +12,7 @@ import {
 import {
   executeBootstrapPages,
   createApplicationFeedReader,
+  readApplicationControllerPagesAdmissions,
   readApplicationPagesStateAsync,
   readActualApplicationPagesState,
   assertBootstrapPagesActor,
@@ -30,6 +31,89 @@ const body = {
   ],
 };
 const site = { ...body, generation: digest(body) };
+
+void test("a first controller SHA reconciles only a received HTTP 200 with an invalid acknowledgement", async () => {
+  const base = { ...body, previous_generation: "f".repeat(64) };
+  const expected = {
+    artifact_id: 123,
+    control_commit: control,
+    site: { ...base, generation: digest(base) },
+    preimage: "prior" as const,
+    first_controller_build: true,
+  };
+  const run = (preimage = "", lost = false) => {
+    const calls: string[] = [];
+    const provider = createPagesProviderTransport({
+      token: async () => "inert-token",
+      operations: {
+        async observe(id) {
+          assert.equal(id, control);
+          calls.push("status");
+          return { status: 200, body: { status: calls.length === 1 ? preimage : "succeed" } };
+        },
+        async create(request) {
+          assert.equal(request.pages_build_version, control);
+          calls.push("create");
+          if (lost) throw new Error("inert lost response");
+          return { status: 200, body: { id: 123 } };
+        },
+        async cancel() {
+          assert.fail("build lookup does not identify a cancellable operation");
+        },
+      },
+    });
+    const effect = executeBootstrapPages(expected, {
+      provider,
+      async beforeWrite() {
+        return () => {};
+      },
+      async assertPreimage() {},
+      async publicReadback() {
+        calls.push("public");
+        return { generation: expected.site.generation, evidence_sha256: "a".repeat(64) };
+      },
+      async providerReadback() {
+        return { authority: "none" };
+      },
+      async wait() {},
+    });
+    return { calls, effect };
+  };
+  const accepted = run();
+  assert.equal((await accepted.effect).resolution, "recovered-ambiguous-effect");
+  assert.deepEqual(accepted.calls, ["status", "create", "status", "public"]);
+  for (const prior of ["succeed", "deployment_in_progress", "failed", "unrecognized"]) {
+    const existing = run(prior);
+    await assert.rejects(existing.effect, /already has an effect or its lookup is unavailable/u);
+    assert.deepEqual(existing.calls, ["status"]);
+  }
+  const lost = run("", true);
+  await assert.rejects(lost.effect, /outcome ambiguous/u);
+  assert.deepEqual(lost.calls, ["status", "create"]);
+});
+
+void test("controller SHA admission inventory keeps exact scope and refuses an incomplete singleton", async (t) => {
+  const oldToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-reader";
+  t.after(() => {
+    if (oldToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = oldToken;
+  });
+  let next = false;
+  t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0]) => {
+    const request = new Request(input);
+    assert.equal(
+      request.url,
+      `https://api.github.com/repos/boburning/portcove/deployments?sha=${control}&environment=github-pages&per_page=2`,
+    );
+    return Response.json([{ id: 123, sha: control, environment: "github-pages" }], {
+      headers: next ? { link: '<https://api.github.com/next>; rel="next"' } : {},
+    });
+  });
+  assert.deepEqual(await readApplicationControllerPagesAdmissions(control), [123]);
+  next = true;
+  await assert.rejects(readApplicationControllerPagesAdmissions(control));
+});
 
 void test("only the appointed settled r29 failure can identify a successful native bootstrap effect", async () => {
   const r29 = recoveredApplicationBootstrap;

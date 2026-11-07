@@ -2379,6 +2379,16 @@ attested r27 assembly, exact public whole-site bytes and fresh role metadata
 before handing the cohort to the existing signing verifier. Other failed
 admissions still refuse. The original r27 effect remains unknown.
 
+A fresh appointed controller can use its commit SHA for its first application
+feed effect. Preparation requires a complete empty Pages admission inventory
+for that SHA. The final guard rechecks the exact current admission as the only
+entry. An opaque native preimage remains unknown. If the single create returns
+HTTP 200 with an unrecognized acknowledgement, the controller can read the
+native result by that SHA. Advancement requires positive native status, the
+exact current Pages actor, fresh metadata and complete anonymous bytes. The
+readback job checks native success again after the feed job settles. A lost
+response cannot enter this recovery path.
+
 ## Upgrade acceptance and technical previews
 
 The first Windows public beta requires the complete applicable Windows/shared

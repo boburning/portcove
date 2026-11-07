@@ -99,6 +99,7 @@ import {
   assertBootstrapPagesActor,
   executeBootstrapPages,
   applicationPagesIntent,
+  readApplicationControllerPagesAdmissions,
   createApplicationFeedReader,
   readApplicationPagesExecution,
 } from "./application-release-site.mts";
@@ -2040,7 +2041,13 @@ async function preflightBootstrapSite() {
       preimage = { kind: "initial", provider };
     }
   }
-  await guard(source, false);
+  const admissionBudget = await guard(source, false);
+  const firstControllerBuild =
+    hasPrior &&
+    preimage.kind === "prior" &&
+    current.run_attempt === 1 &&
+    admissionBudget.budget.runs.every((run) => run.feed_executions.length === 0) &&
+    (await readApplicationControllerPagesAdmissions(current.source)).length === 0;
   await writeApplicationJson("work/application-site-preflight/plan.json", {
     schema_version: 1,
     kind: hasPrior ? "application-release-site-preflight" : "application-bootstrap-site-preflight",
@@ -2059,7 +2066,7 @@ async function preflightBootstrapSite() {
       current.run_id,
       current.run_attempt,
       pages.artifact.id,
-      recoverInitialBootstrap ? current.source : undefined,
+      recoverInitialBootstrap || firstControllerBuild ? current.source : undefined,
     ),
     ...(recoverInitialBootstrap
       ? { previous_precreate_sha256: failedBootstrapRecovery.evidence_sha256 }
@@ -2077,10 +2084,6 @@ async function deployBootstrapSite(readOnly = false) {
   const markStage = (stage: string) => {
     publicationStage = stage;
   };
-  // Recovery performs its complete live budget read once, after OIDC and before
-  // create. Its fixed historical read-only lookups do not use a write grant.
-  const controls =
-    !recoverInitialBootstrap || readOnly ? await guard(source, false, { markStage }) : undefined;
   publicationStage = "preflight-input";
   const current = execution();
   const attempt = Number(process.env.PORTCOVE_SITE_PREFLIGHT_ATTEMPT);
@@ -2142,12 +2145,21 @@ async function deployBootstrapSite(readOnly = false) {
     typeof artifact.id === "number" && Number.isSafeInteger(artifact.id) && artifact.id > 0,
   );
   const artifactId = artifact.id;
+  assert.ok(isRecord(plan.pages_intent));
+  const firstControllerBuild =
+    !recoverInitialBootstrap && plan.pages_intent.build_version === current.source;
+  if (firstControllerBuild) {
+    assert.equal(plan.preimage.kind, "prior");
+    assert.ok(source.purpose === "application-release" || source.purpose === "metadata-renewal");
+    assert.equal(attempt, 1);
+    assert.equal(current.run_attempt, 1);
+  }
   const intent = applicationPagesIntent(
     site.generation,
     current.run_id,
     attempt,
     artifactId,
-    recoverInitialBootstrap ? current.source : undefined,
+    recoverInitialBootstrap || firstControllerBuild ? current.source : undefined,
   );
   assert.deepEqual(plan.pages_intent, intent);
   const preimageKind = plan.preimage.kind;
@@ -2176,6 +2188,12 @@ async function deployBootstrapSite(readOnly = false) {
         (!recoverInitialBootstrap || run.run_id !== current.run_id) &&
         run.feed_executions.length > 0,
     );
+  // The scoped create paths perform their complete live budget read after
+  // OIDC and before the effect. Read-only lookups cannot grant a write.
+  const controls =
+    readOnly || (!recoverInitialBootstrap && !firstControllerBuild)
+      ? await guard(source, false, { markStage })
+      : undefined;
   const prior = controls ? priorRuns(controls) : [];
   const original = immutableApplicationBootstrap;
   const assertRecovery = (facts: Awaited<ReturnType<typeof guard>>) => {
@@ -2209,7 +2227,7 @@ async function deployBootstrapSite(readOnly = false) {
     { evidence: (entry) => requests.push(entry) },
     deadline,
   );
-  if (readOnly && recoverInitialBootstrap) {
+  if (readOnly && (recoverInitialBootstrap || firstControllerBuild)) {
     const publicationDirectory = path.resolve("work/application-feed-execution");
     await receiveApplicationData(publicationDirectory, {
       id: Number(process.env.PORTCOVE_SITE_PUBLICATION_ARTIFACT),
@@ -2227,16 +2245,35 @@ async function deployBootstrapSite(readOnly = false) {
     assert.ok(isRecord(evidence) && Array.isArray(evidence.requests) && isRecord(effect));
     assert.deepEqual(evidence.intent, intent);
     assert.ok(
-      effect.resolution === "continued-identical-effect" ||
-        effect.resolution === "recovered-original-effect",
+      recoverInitialBootstrap
+        ? effect.resolution === "continued-identical-effect" ||
+            effect.resolution === "recovered-original-effect"
+        : effect.resolution === "new-effect" || effect.resolution === "recovered-ambiguous-effect",
     );
     assert.equal(effect.generation, site.generation);
     const adopted = effect.resolution === "recovered-original-effect";
-    const id = adopted ? original.generation : effect.native_deployment_id;
+    const shaReadback = firstControllerBuild && effect.resolution === "recovered-ambiguous-effect";
+    const id = adopted
+      ? original.generation
+      : shaReadback
+        ? intent.build_version
+        : effect.native_deployment_id;
     assert.ok(typeof id === "string");
     if (adopted) {
       assert.equal(effect.prior_outcome, "succeeded");
       assert.equal(preimageKind, "recovery-visible");
+    } else if (shaReadback) {
+      assert.equal(effect.native_deployment_id, null);
+      const creates = evidence.requests.filter(
+        (request) => isRecord(request) && request.stage === "create",
+      );
+      assert.equal(creates.length, 1);
+      assert.ok(
+        isRecord(creates[0]) &&
+          creates[0].id === id &&
+          creates[0].status === 200 &&
+          isRecord(creates[0].acknowledgement_refusal),
+      );
     } else {
       assert.notEqual(id, original.generation);
       assert.ok(
@@ -2305,6 +2342,7 @@ async function deployBootstrapSite(readOnly = false) {
         control_commit: current.source,
         site,
         ...(priorEffect ? { prior_effect: priorEffect } : {}),
+        ...(firstControllerBuild && !readOnly ? { first_controller_build: true } : {}),
         preimage: readOnly ? "desired" : preimageKind,
       },
       {
@@ -2370,6 +2408,12 @@ async function deployBootstrapSite(readOnly = false) {
             const previous = inspectSiteGeneration(preimage.site, site.previous_generation!);
             await readPublicApplicationSite(previous, deadline);
             await verifyServingActor();
+            if (firstControllerBuild)
+              assert.deepEqual(
+                await readApplicationControllerPagesAdmissions(current.source, deadline),
+                [admissionId],
+                "controller SHA already has a Pages admission",
+              );
             assertCurrentApplicationPublication(plan.publication);
             return;
           }
@@ -2430,11 +2474,11 @@ async function deployBootstrapSite(readOnly = false) {
                 },
           );
           assertBootstrapPagesActor(state, site.generation, custody.runs);
-          if (readOnly && recoverInitialBootstrap) {
+          if (readOnly && (recoverInitialBootstrap || firstControllerBuild)) {
             const settled = await readApplicationPagesExecution(
               await createApplicationFeedReader(fixedReleaseReaderToken(), deadline),
               state,
-              current,
+              { ...current, first_controller_build: firstControllerBuild },
             );
             assert.equal(settled.run.id, current.run_id);
             assert.equal(settled.run.control_commit, current.source);
