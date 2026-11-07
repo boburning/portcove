@@ -1496,3 +1496,12 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_revocation_prevents_child_start_after_reopen$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
+
+# CI 42392696657/1 Windows partition 8 hit its 30s harness limit after
+# both installs and retained-baseline verification. The comparison run
+# passed at 26.870s. Match the existing Intel allowance for this exact
+# case while preserving the launch/refusal assertions and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_launch_boundary_shared_revocation_refuses_before_child_with_valid_baseline$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
