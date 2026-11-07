@@ -1995,6 +1995,45 @@
         "published_at": "2026-10-22T04:42:39Z",
         "tag_name": "v0.6.0"
       }
+    },
+    {
+      "issue": 3392,
+      "port_id": "rustmania-racing-ray-m-w-muppet-racemania",
+      "repository": "Ray-m-w/RustMania-Racing",
+      "channel": "stable",
+      "runtime_folder": "",
+      "selected_executable": "rustmania-racing.exe",
+      "selected_asset": "rustmania-racing-0.1.0-windows-x64.zip",
+      "archive_sha256": "7805fe055dc71f9170c8f269a3a89793fdb00f347fb0e7848a3c27c655b66ac2",
+      "immutable_members": ["README-port.txt", "THIRD-PARTY-LICENSES.txt", "rustmania-racing.exe"],
+      "persistent_probes": [
+        "profile/save.bin",
+        "profile/settings.txt",
+        "crash.txt",
+        "disc-check.txt",
+        "save.bin",
+        "save.bin.bad",
+        "save.bin.tmp",
+        "settings.txt",
+        "saves/card1.mcd"
+      ],
+      "scope": "Official 0.1.0 Windows archive inventory. Lifecycle uses inert contents and a controlled successor. Selection successor v0.1.1 is synthetic.",
+      "release": {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Ray-m-w/RustMania-Racing/releases/download/v0.1.0/rustmania-racing-0.1.0-windows-x64.zip",
+            "digest": "sha256:7805fe055dc71f9170c8f269a3a89793fdb00f347fb0e7848a3c27c655b66ac2",
+            "id": 653494747,
+            "name": "rustmania-racing-0.1.0-windows-x64.zip",
+            "size": 18314957
+          }
+        ],
+        "draft": false,
+        "id": 416450998,
+        "prerelease": false,
+        "published_at": "2026-10-18T12:56:40Z",
+        "tag_name": "v0.1.0"
+      }
     }
   ]
 }

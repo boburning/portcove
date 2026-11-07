@@ -204,6 +204,18 @@
       "managed_native": false
     },
     {
+      "port_id": "rustmania-racing-ray-m-w-muppet-racemania",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual %APPDATA%/MuppetRaceMania profile, portable or custom profile, and the external original disc image"
+        ],
+        "executable": "rustmania-racing.exe"
+      },
+      "managed_native": true
+    },
+    {
       "port_id": "scottjco-wetrix-n64-usa-rev0-recomp",
       "prepared_player": {
         "executable": "Wetrix.exe",

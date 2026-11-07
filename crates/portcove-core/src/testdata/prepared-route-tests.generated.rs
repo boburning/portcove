@@ -17,6 +17,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "quake-ironwail",
     "quake-vkquake",
     "retropulse03-winback-n64recomp",
+    "rustmania-racing-ray-m-w-muppet-racemania",
     "scottjco-wetrix-n64-usa-rev0-recomp",
     "tekrantgaming-muppet-racemania-recompiled",
     "tomba-2-recompiled",
@@ -102,6 +103,11 @@ fn prepared_guide_adoption_declared_quake_vkquake() {
 #[test]
 fn prepared_guide_adoption_declared_retropulse03_winback_n64recomp() {
     assert_declarative_prepared_player_route("retropulse03-winback-n64recomp");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_rustmania_racing_ray_m_w_muppet_racemania() {
+    assert_declarative_prepared_player_route("rustmania-racing-ray-m-w-muppet-racemania");
 }
 
 #[test]

@@ -34618,6 +34618,103 @@
       }
     },
     {
+      "id": "rustmania-racing-ray-m-w-muppet-racemania",
+      "name": "Muppet RaceMania — RustMania Racing (Ray-m-w)",
+      "summary": "Race with the Muppets in RustMania Racing using your own supported USA PlayStation disc image.",
+      "project_url": "https://github.com/Ray-m-w/RustMania-Racing",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "Ray-m-w/RustMania-Racing",
+        "asset_hints": {
+          "windows-x86-64": [
+            "rustmania-racing-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "rustmania-racing.exe"
+        ]
+      },
+      "launch_arguments": [
+        "--data-dir",
+        "profile"
+      ],
+      "persistent_paths": [
+        "profile",
+        "crash.txt",
+        "disc-check.txt",
+        "save.bin",
+        "save.bin.bad",
+        "save.bin.tmp",
+        "settings.txt",
+        "saves"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose Play. If no readable disc is configured, enter the full path to your own supported disc image in the game window. Keep the disc files outside the Portcove runtime. Choose a path without # so the game can remember it in its profile. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: profile, crash.txt, disc-check.txt, save.bin, save.bin.bad, save.bin.tmp, settings.txt, saves. Its backup does not include external profiles. This runtime starts with a separate profile and does not import your external AppData progress. If its profile folder cannot be created, the engine can write beside the player. Portcove preserves the declared fallback files as well. Use a prepared copy for custom paths. Runtime rollback does not establish save compatibility.",
+        "original_game_title": "Muppet RaceMania",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your own Muppet RaceMania USA disc image",
+              "instruction": "Choose Play. If no readable disc is configured, enter the full path to your own supported disc image in the game window. Keep the disc files outside the Portcove runtime. Choose a path without # so the game can remember it in its profile."
+            },
+            {
+              "title": "Keep the original disc image separate",
+              "instruction": "Use your own USA Muppet RaceMania disc (SLUS-01237) as a supported CUE with its matching BIN, or the track BIN. Convert CHD upstream before Play. Keep the files at a stable location outside the runtime. The engine reads them during play and can warn about a nonmatching track digest."
+            },
+            {
+              "title": "Prepare an external copy if you want custom paths",
+              "instruction": "Use the complete official Windows x64 package. Upstream specifies Windows 10 or 11 and a GPU with Vulkan or Direct3D 12. In an external copy, use the in-game disc prompt. Back up the actual AppData profile or your chosen data directory before replacing it."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select rustmania-racing.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Gameplay and real save compatibility remain unverified. Keep the original disc image and back up any existing save separately.",
+            "This runtime starts with a separate profile and does not import your external AppData progress. If its profile folder cannot be created, the engine can write beside the player. Portcove preserves the declared fallback files as well. Use a prepared copy for custom paths. Runtime rollback does not establish save compatibility."
+          ],
+          "help_url": "https://github.com/Ray-m-w/RustMania-Racing",
+          "references": [
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the actual %APPDATA%/MuppetRaceMania profile, portable or custom profile, and the external original disc image. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: profile, crash.txt, disc-check.txt, save.bin, save.bin.bad, save.bin.tmp, settings.txt, saves. Its backup does not include external profiles."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3259,
+          "cover_id": 213837,
+          "image_id": "co4kzx",
+          "image_sha256": "ca8e2b9d66473b86d282d634f4e78fc0c30ded2504db2cc41d90055a1e0d4d6e",
+          "game_slug": "muppet-racemania",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "s-t-a-l-k-e-r-call-of-pripyat-openxray",
       "name": "S.T.A.L.K.E.R.: Call of Pripyat (OpenXRay)",
       "summary": "Prepare S.T.A.L.K.E.R.: Call of Pripyat through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",

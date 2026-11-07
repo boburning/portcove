@@ -42206,7 +42206,7 @@
       "id": "rustmania-racing-ray-m-w-muppet-racemania",
       "name": "Muppet RaceMania — RustMania Racing (Ray-m-w)",
       "original_game_title": "Muppet RaceMania",
-      "summary": "The project reports native 60 Hz widescreen, tick comparisons and HUD reference checks. Full campaign completion has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Race with the Muppets in RustMania Racing using your own supported USA PlayStation disc image.",
       "project_url": "https://github.com/Ray-m-w/RustMania-Racing",
       "platforms": [
         "windows-x86-64"
@@ -42216,19 +42216,41 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Check the required game files",
-            "instruction": "Use your own USA SLUS01237 CUE/BIN and follow the documented CHD conversion if needed. The game digest is checked."
+            "title": "Choose your own Muppet RaceMania USA disc image",
+            "instruction": "Choose Play. If no readable disc is configured, enter the full path to your own supported disc image in the game window. Keep the disc files outside the Portcove runtime. Choose a path without # so the game can remember it in its profile."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use the release or follow the source build. Keep your disc available; its assets are read during play."
+            "title": "Keep the original disc image separate",
+            "instruction": "Use your own USA Muppet RaceMania disc (SLUS-01237) as a supported CUE with its matching BIN, or the track BIN. Convert CHD upstream before Play. Keep the files at a stable location outside the runtime. The engine reads them during play and can warn about a nonmatching track digest."
+          },
+          {
+            "title": "Prepare an external copy if you want custom paths",
+            "instruction": "Use the complete official Windows x64 package. Upstream specifies Windows 10 or 11 and a GPU with Vulkan or Direct3D 12. In an external copy, use the in-game disc prompt. Back up the actual AppData profile or your chosen data directory before replacing it."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select rustmania-racing.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
-          "The project reports native 60 Hz widescreen, tick comparisons and HUD reference checks. Full campaign completion has not been confirmed.",
-          "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
+          "Gameplay and real save compatibility remain unverified. Keep the original disc image and back up any existing save separately.",
+          "This runtime starts with a separate profile and does not import your external AppData progress. If its profile folder cannot be created, the engine can write beside the player. Portcove preserves the declared fallback files as well. Use a prepared copy for custom paths. Runtime rollback does not establish save compatibility."
         ],
-        "help_url": "https://github.com/Ray-m-w/RustMania-Racing"
+        "help_url": "https://github.com/Ray-m-w/RustMania-Racing",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: the actual %APPDATA%/MuppetRaceMania profile, portable or custom profile, and the external original disc image. Back up these locations separately; registration does not migrate or certify their compatibility."
+          },
+          {
+            "title": "Managed runtime ownership",
+            "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: profile, crash.txt, disc-check.txt, save.bin, save.bin.bad, save.bin.tmp, settings.txt, saves. Its backup does not include external profiles."
+          }
+        ]
       },
       "issue_number": 3392,
       "artwork": {
