@@ -70,6 +70,20 @@ export function isGuideCopyProof(value: unknown): value is GuideCopyProof {
   );
 }
 
+export interface CatalogAuthoringProof {
+  kind: "catalog-authoring-equivalence-v1";
+  before: string;
+  after: string;
+}
+
+export function isCatalogAuthoringProof(value: unknown): value is CatalogAuthoringProof {
+  return (
+    isRecord(value) &&
+    value.kind === "catalog-authoring-equivalence-v1" &&
+    isGuideCopyProof({ ...value, kind: "catalog-guide-reference-copy-v1" })
+  );
+}
+
 export interface ValidationChange {
   status: string;
   oldMode: string | null;
@@ -78,6 +92,7 @@ export interface ValidationChange {
   newPath: string;
   nextest_equivalence?: NextestProof;
   guide_copy?: GuideCopyProof;
+  catalog_authoring?: CatalogAuthoringProof;
 }
 export interface ValidationChangeInput {
   status: string;
@@ -90,6 +105,7 @@ export interface ValidationChangeInput {
   previousPath?: string | undefined;
   nextest_equivalence?: NextestProof;
   guide_copy?: GuideCopyProof;
+  catalog_authoring?: CatalogAuthoringProof;
 }
 export interface PathOwnership {
   path: string;
@@ -1340,7 +1356,16 @@ export function buildValidationPlan({
             : "area-routed-fast-validation",
     changed_files: changedFiles,
     changes: normalizedChanges.map(
-      ({ status, oldMode, newMode, oldPath, newPath, nextest_equivalence, guide_copy }) => ({
+      ({
+        status,
+        oldMode,
+        newMode,
+        oldPath,
+        newPath,
+        nextest_equivalence,
+        guide_copy,
+        catalog_authoring,
+      }) => ({
         status,
         oldMode: oldMode ?? null,
         newMode: newMode ?? null,
@@ -1348,6 +1373,7 @@ export function buildValidationPlan({
         newPath,
         ...(nextest_equivalence ? { nextest_equivalence } : {}),
         ...(guide_copy ? { guide_copy } : {}),
+        ...(catalog_authoring ? { catalog_authoring } : {}),
       }),
     ),
     areas,
@@ -1427,6 +1453,11 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
       throw new Error("invalid nextest equivalence proof");
     if (change.guide_copy !== undefined && !isGuideCopyProof(change.guide_copy))
       throw new Error("invalid catalog guide copy proof");
+    if (
+      change.catalog_authoring !== undefined &&
+      !isCatalogAuthoringProof(change.catalog_authoring)
+    )
+      throw new Error("invalid catalog authoring equivalence proof");
   }
   if (!Array.isArray(plan.paths)) throw new Error("validation plan paths must be an array");
   for (const entry of plan.paths) assertPathOwnership(entry);

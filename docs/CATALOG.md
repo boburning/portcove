@@ -2071,8 +2071,14 @@ managed and prepared lifecycle case. The independent Windows archive inventory
 selects its shared release-selection case. A change limited to the native
 lifecycle corpus selects the retained native release-selection cases, retained
 and generated managed lifecycle cases, and managed enrollment inventory.
-Changes to authored title records
-still select the full Core inventory.
+Operational changes to authored title records still select the full Core
+inventory. A diff limited to regular per-title files can use the layout
+conversion check when every record moves to or from a maintained PSX or GBA
+authoring projection and preserves the exact expanded definition and other
+authored facts. The planner binds the proof to checkout bytes. Catalog
+generation, catalog contract tests and the embedded Core invariant still run.
+Mixed changes, raw Rust fixture inputs, and unproven conversions retain the
+normal affected-test selection.
 
 Optional authoring-only `gba_staged_archive_v1` expands the reviewed Windows
 staged GitHub archive layout used by the upstream GBA picker. Record the

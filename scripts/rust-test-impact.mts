@@ -1,4 +1,8 @@
-import { hasCatalogGuideCopy, readGuideCopyBlob } from "./catalog-guide-copy-impact.mts";
+import {
+  hasCatalogAuthoringEquivalence,
+  hasCatalogGuideCopy,
+  readGuideCopyBlob,
+} from "./catalog-guide-copy-impact.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptions } from "node:child_process";
 import type { ValidationPlan, ValidationChangeInput } from "./validation-plan.mts";
@@ -469,6 +473,22 @@ export function selectWorkspaceRustImpact(
         id: "workspace",
         filter: "all()",
         reason: "shared or unknown inputs require the complete workspace",
+      },
+    ];
+  if (
+    map &&
+    plan.mode === "fast" &&
+    plan.groups.includes("catalog") &&
+    hasCatalogAuthoringEquivalence(plan.changes, readCheckout)
+  )
+    return [
+      {
+        id: "portcove-core:catalog-authoring-equivalence",
+        packageName: "portcove-core",
+        filter:
+          "package(=portcove-core) & test(/^catalog::tests::embedded_catalog_is_valid_and_contains_lighthouse$/)",
+        reason:
+          "Authoring layout conversion preserves generated definitions; catalog generation and embedded validation remain required",
       },
     ];
   if (map && plan.mode === "fast" && hasCatalogGuideCopy(plan.changes, readCheckout))
