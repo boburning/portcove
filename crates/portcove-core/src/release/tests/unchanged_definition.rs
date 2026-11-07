@@ -2163,6 +2163,7 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
     .unwrap();
     assert!(!cases.is_empty());
     let mut enrolled = std::collections::BTreeSet::new();
+    let mut selected_zips = std::collections::BTreeSet::new();
     for (id, case) in cases {
         let port = catalog.port(&id).unwrap();
         let channel = case.channel.unwrap_or(ReleaseChannel::Stable);
@@ -2180,7 +2181,11 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
                 .iter()
                 .find(|asset| asset["name"].as_str() == Some(name))
                 .unwrap();
-            assert!(enrolled.insert((case.inventory.clone(), index, name.clone())));
+            assert!(
+                enrolled.insert((id.clone(), index)),
+                "{id}: duplicate release selection enrollment at {index}"
+            );
+            selected_zips.insert((case.inventory.clone(), index, name.clone()));
             let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
             let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
             let selected = GithubReleaseProvider::with_api_root(root)
@@ -2219,12 +2224,18 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
                 let name = asset["name"].as_str().unwrap();
                 if name.ends_with(".zip") {
                     let key = (group.clone(), index, name.to_owned());
-                    assert!(enrolled.remove(&key) ^ other_zips.remove(&key), "{key:?}");
+                    assert!(
+                        selected_zips.remove(&key) ^ other_zips.remove(&key),
+                        "{key:?}"
+                    );
                 }
             }
         }
     }
-    assert!(enrolled.is_empty(), "unmatched selected ZIPs: {enrolled:?}");
+    assert!(
+        selected_zips.is_empty(),
+        "unmatched selected ZIPs: {selected_zips:?}"
+    );
     assert!(
         other_zips.is_empty(),
         "unmatched other ZIPs: {other_zips:?}"

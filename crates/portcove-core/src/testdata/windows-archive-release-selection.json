@@ -63,6 +63,14 @@
       "inventory": "opengothic",
       "channel": "beta",
       "selected_assets": ["opengothic_1.0.3756_win_x64.zip", "opengothic_1.0.3800_win_x64.zip"]
+    },
+    "doom-3-classic-dhewm3": {
+      "inventory": "dhewm3",
+      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"]
+    },
+    "doom-3-resurrection-of-evil-classic-dhewm3": {
+      "inventory": "dhewm3",
+      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"]
     }
   },
   "inventories": {
@@ -847,6 +855,125 @@
           }
         ]
       }
+    ],
+    "dhewm3": [
+      {
+        "id": 335663571,
+        "tag_name": "1.5.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-06-08T13:46:34Z",
+        "assets": [
+          {
+            "id": 441716838,
+            "name": "dhewm3-1.5.5_Linux_amd64.tar.gz",
+            "size": 7534656,
+            "digest": "sha256:793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_Linux_amd64.tar.gz"
+          },
+          {
+            "id": 443191405,
+            "name": "dhewm3-1.5.5_Linux_arm64.tar.gz",
+            "size": 7603628,
+            "digest": "sha256:bf1f62af3c18907a33b77fc261bbed99cc72f684665aab84051c5c5159a86b36",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_Linux_arm64.tar.gz"
+          },
+          {
+            "id": 441742605,
+            "name": "dhewm3-1.5.5_win32.zip",
+            "size": 11382039,
+            "digest": "sha256:7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_win32.zip"
+          },
+          {
+            "id": 441718209,
+            "name": "dhewm3-mods-1.5.5_Linux_amd64.tar.gz",
+            "size": 31430497,
+            "digest": "sha256:c477a59899afb29288042a1dedb92de990054872a5be94b518d9e53049267019",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-mods-1.5.5_Linux_amd64.tar.gz"
+          },
+          {
+            "id": 443191427,
+            "name": "dhewm3-mods-1.5.5_Linux_arm64.tar.gz",
+            "size": 30075210,
+            "digest": "sha256:f50ab2d232123c340d9b4e0291dce2f691de6b84b76cd11bd64eece2a6b1c4f1",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-mods-1.5.5_Linux_arm64.tar.gz"
+          },
+          {
+            "id": 441718346,
+            "name": "dhewm3-mods-1.5.5_win32.zip",
+            "size": 26349455,
+            "digest": "sha256:06b31ad92be6b32810005c96e38665c625d4d726cbfb58a29b6f54381c86a6c8",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-mods-1.5.5_win32.zip"
+          },
+          {
+            "id": 441743548,
+            "name": "dhewm3-wide-guis-v0.2.zip",
+            "size": 389619,
+            "digest": "sha256:e01a5834b0f2d4fb7fb1bcfbceea099db0871469d41faaba57fe19d395045322",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-wide-guis-v0.2.zip"
+          }
+        ]
+      },
+      {
+        "id": 335663571,
+        "tag_name": "1.5.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-06-08T13:46:34Z",
+        "assets": [
+          {
+            "id": 441716838,
+            "name": "dhewm3-1.5.6_Linux_amd64.tar.gz",
+            "size": 7534656,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "browser_download_url": "https://downloads.example.invalid/dhewm3-1.5.6_Linux_amd64.tar.gz"
+          },
+          {
+            "id": 443191405,
+            "name": "dhewm3-1.5.6_Linux_arm64.tar.gz",
+            "size": 7603628,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "browser_download_url": "https://downloads.example.invalid/dhewm3-1.5.6_Linux_arm64.tar.gz"
+          },
+          {
+            "id": 441742605,
+            "name": "dhewm3-1.5.6_win32.zip",
+            "size": 11382039,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "browser_download_url": "https://downloads.example.invalid/dhewm3-1.5.6_win32.zip"
+          },
+          {
+            "id": 441718209,
+            "name": "dhewm3-mods-1.5.6_Linux_amd64.tar.gz",
+            "size": 31430497,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "browser_download_url": "https://downloads.example.invalid/dhewm3-mods-1.5.6_Linux_amd64.tar.gz"
+          },
+          {
+            "id": 443191427,
+            "name": "dhewm3-mods-1.5.6_Linux_arm64.tar.gz",
+            "size": 30075210,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "browser_download_url": "https://downloads.example.invalid/dhewm3-mods-1.5.6_Linux_arm64.tar.gz"
+          },
+          {
+            "id": 441718346,
+            "name": "dhewm3-mods-1.5.6_win32.zip",
+            "size": 26349455,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "browser_download_url": "https://downloads.example.invalid/dhewm3-mods-1.5.6_win32.zip"
+          },
+          {
+            "id": 441743548,
+            "name": "dhewm3-wide-guis-v0.2.zip",
+            "size": 389619,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "browser_download_url": "https://downloads.example.invalid/dhewm3-wide-guis-v0.2.zip"
+          }
+        ],
+        "_fixture_scope": "Synthetic compatible successor from the retained native-engine scenario, not an observed upstream release."
+      }
     ]
   },
   "other_zip_assets": [
@@ -1054,6 +1181,26 @@
       "inventory": "opengothic",
       "release_index": 1,
       "asset": "opengothic_1.0.3800_osx_x64.zip"
+    },
+    {
+      "inventory": "dhewm3",
+      "release_index": 0,
+      "asset": "dhewm3-mods-1.5.5_win32.zip"
+    },
+    {
+      "inventory": "dhewm3",
+      "release_index": 0,
+      "asset": "dhewm3-wide-guis-v0.2.zip"
+    },
+    {
+      "inventory": "dhewm3",
+      "release_index": 1,
+      "asset": "dhewm3-mods-1.5.6_win32.zip"
+    },
+    {
+      "inventory": "dhewm3",
+      "release_index": 1,
+      "asset": "dhewm3-wide-guis-v0.2.zip"
     }
   ]
 }

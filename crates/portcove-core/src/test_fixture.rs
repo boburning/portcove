@@ -865,3 +865,45 @@ pub(crate) fn route_expectations() -> Vec<serde_json::Value> {
     }
     rows
 }
+
+#[cfg(test)]
+pub(crate) fn assert_fixture_archive_prefix(id: &str, folder: &str) {
+    assert!(
+        folder.is_empty() || folder.ends_with('/'),
+        "{id}: runtime_folder {folder:?} must be empty or an archive directory prefix ending in /"
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::assert_fixture_archive_prefix;
+
+    #[test]
+    fn native_archive_fixture_inventory() {
+        let corpus: serde_json::Value = serde_json::from_str(include_str!(
+            "testdata/native-engine-adoption-2026-11-02.json"
+        ))
+        .unwrap();
+        for case in corpus["cases"].as_array().unwrap() {
+            assert_fixture_archive_prefix(
+                case["port_id"].as_str().unwrap(),
+                case["runtime_folder"].as_str().unwrap(),
+            );
+        }
+    }
+
+    #[test]
+    fn native_archive_prefix_requires_directory_separator() {
+        for folder in ["", "runtime/", "runtime/bin/"] {
+            assert_fixture_archive_prefix("valid fixture", folder);
+        }
+        for folder in ["runtime", "runtime\\"] {
+            assert!(
+                std::panic::catch_unwind(|| {
+                    assert_fixture_archive_prefix("invalid fixture", folder);
+                })
+                .is_err()
+            );
+        }
+    }
+}

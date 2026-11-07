@@ -1340,6 +1340,7 @@ void test("native adoption observations select every direct Rust consumer", () =
   );
   const filter = groups[0]?.filter ?? "";
   for (const family of [
+    "test_fixture::tests::native_archive_fixture_inventory",
     "release::tests::unchanged_definition::native_engine_selection_",
     "service::native_portable::tests::native_engine_adoption_",
     "service::native_portable::tests::managed_native_(declared_|declaration_inventory$)",
