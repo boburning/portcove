@@ -131,6 +131,14 @@ export interface PagesRequestEvidence {
   };
 }
 
+export class PagesCreateAcknowledgementUnavailable extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super("Pages POST acknowledgement unavailable; preserve pending intent and require readback");
+    this.status = status;
+  }
+}
+
 function identity(value: unknown): PagesDeploymentIdentity {
   if (
     !isRecord(value) ||
@@ -305,10 +313,7 @@ export function createPagesProviderTransport(
             },
       );
       remaining();
-      if (!acknowledged)
-        throw new Error(
-          "Pages POST acknowledgement unavailable; preserve pending intent and require readback",
-        );
+      if (!acknowledged) throw new PagesCreateAcknowledgementUnavailable(response.status);
       evidence("acknowledged", id, response);
       return {
         ...identity({ ...expected, id }),
