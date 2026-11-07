@@ -2301,6 +2301,12 @@ internal static class ContractTests
         }));
         Check(PortActions.Summary(consume(66, updateHeld)).Contains("publisher revoked"), "schema66 reader presents exact held update definition");
         Reject(() => consume(66, updateStatus("held", "definition_ineligible")), "held update cannot lose its definition reason");
+        var routeHold = consume(88, updateStatus("held", "route_not_offered"));
+        Check(PortActions.UpdateReviewProblem(routeHold, 88).Contains("held: route not offered"),
+            "schema88 acquisition hold is shown as unavailable for update review");
+        Reject(() => PortActions.RequireUpdateReview(routeHold, 88),
+            "schema88 held route cannot open update review");
+        Reject(() => consume(87, routeHold), "older schema cannot emit the acquisition hold tuple");
         Reject(() => consume(66, Json.Parse(Json.Print(new {
             port_actions = new[] {
                 new { action = "rollback", availability = "not_offered", reason = "not_installed" },

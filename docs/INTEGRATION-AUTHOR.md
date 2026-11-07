@@ -293,8 +293,11 @@ GitHub. Consumers of these contracts must preserve and compare the complete
 references, reject mixed providers and unknown record formats, and obtain a
 fresh Core preview before download or registration. The reference Playnite
 client consumes none of those setup identities and exposes no setup command;
-its existing readiness and lifecycle decisions remain owned by Core. Event
-schemas remain independently negotiated at 2–3.
+its existing readiness and lifecycle decisions remain owned by Core. API88
+status can report an update as held with `route_not_offered` when a managed
+acquisition is on hold. The reference client displays the restriction and
+refuses to open update review. Event schemas remain independently negotiated
+at 2–3.
 
 API87 adds Core official-catalog review/enablement projections and Desktop-only
 setup commands bound to the compiled Root, fixed HTTPS source and current library.
