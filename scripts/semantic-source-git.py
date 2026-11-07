@@ -58,7 +58,7 @@ def main():
     phase, objects = value["phase"], value["oids"]
     counts = {
         "commits": (1, 3),
-        "application-commits": (1, 2),
+        "application-commits": (1, 3),
         "application-history": (2, 2),
         "application-commit-batch": (0, 0),
         "blobs": (1, 256),

@@ -741,6 +741,7 @@ export async function runSemanticRuntime(
     [
       "release-semantic-reader-server.mts",
       "release-semantic-reader-core.mts",
+      "release-semantic-source-limits.mts",
       "runtime-values.mts",
     ].map(async (name) => ({ name, bytes: await readFile(new URL(name, import.meta.url)) })),
   );
@@ -998,6 +999,7 @@ async function runLinuxSemanticTask(task: LinuxTask, raw: LinuxSemanticRuntimeCo
     [
       "release-semantic-reader-server.mts",
       "release-semantic-reader-core.mts",
+      "release-semantic-source-limits.mts",
       "runtime-values.mts",
       "semantic-review-model-catalog.json",
     ].map(async (name) => ({ name, bytes: await readFile(new URL(name, import.meta.url)) })),

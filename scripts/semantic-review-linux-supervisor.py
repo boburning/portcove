@@ -49,6 +49,7 @@ RUNTIME = (
     "codex",
     "release-semantic-reader-server.mts",
     "release-semantic-reader-core.mts",
+    "release-semantic-source-limits.mts",
     "runtime-values.mts",
     "semantic-review-model-catalog.json",
 )

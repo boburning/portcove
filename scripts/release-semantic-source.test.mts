@@ -131,8 +131,9 @@ async function fixture(t: { after: (fn: () => Promise<void>) => void }, oversize
       "--no-write-fetch-head",
       "--no-recurse-submodules",
       "--no-auto-maintenance",
-      request.phase === "commits" ? "--filter=tree:0" : "--filter=blob:none",
+      request.phase === "blobs" ? "--filter=blob:none" : "--filter=tree:0",
       ...(request.phase === "commits" ? ["--depth=2049"] : []),
+      ...(request.phase === "application-commits" ? ["--depth=3073"] : []),
       pathToFileURL(origin).href,
       ...request.oids,
     ]);
@@ -153,6 +154,20 @@ async function fixture(t: { after: (fn: () => Promise<void>) => void }, oversize
     },
   };
 }
+
+void test("qualified application materializes an annotated publication using the larger history phase", async (t) => {
+  const f = await fixture(t);
+  const result = await materializeSemanticSource(
+    f.parent,
+    f.expected,
+    f.api,
+    pins,
+    { git: "git", fetchObjects: f.fetchObjects },
+    true,
+  );
+  assert.deepEqual(f.phases, ["application-commits", "blobs"]);
+  assert.equal(result.authority, "none");
+});
 
 void test("empty source cache acquires exact raw non-UTC commits, annotated publication and complete binary snapshots without refs/checkout", async (t) => {
   const f = await fixture(t);

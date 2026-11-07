@@ -756,8 +756,10 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       throw new Error("journal changed during full request recovery");
     await guard();
     let publishedObject = selected.base_commit;
+    let applicationComparison = false;
     if (selected.purpose === "application") {
       const app = inspectReleaseReviewRequest(request)!;
+      applicationComparison = app.qualified_application !== undefined;
       const tag = api.request(
         "GET",
         `${repository}/git/ref/tags/${encodeURIComponent(`v${app.base_version}`)}`,
@@ -782,6 +784,8 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       },
       api,
       { git_sha256: config.source_git_sha256, python_sha256: config.runtime.tools_sha256.python },
+      undefined,
+      applicationComparison,
     );
     await retain("bounded-source-materialized-no-runtime", acquired);
     const source = acquired.repository;

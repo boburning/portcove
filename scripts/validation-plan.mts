@@ -532,6 +532,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-semantic-request-pipeline.mts",
   "scripts/release-semantic-reader.mts",
   "scripts/release-semantic-reader-core.mts",
+  "scripts/release-semantic-source-limits.mts",
   "scripts/release-semantic-reader-server.mts",
   "scripts/release-semantic-broker.mts",
   "scripts/semantic-review-sandbox.ps1",

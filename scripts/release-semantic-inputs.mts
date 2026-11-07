@@ -1,16 +1,24 @@
+import { semanticSourceBlobFits } from "./release-semantic-source-limits.mts";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   collectReleaseSourceChanges,
   maximumReleaseSourceCommits,
+  maximumApplicationSourceCommits,
 } from "./release-source-changes.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
-import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
-import { inspectReleaseReviewRequest } from "./release-review-request.mts";
+import {
+  compareApplicationVersionPrecedence,
+  parseVersionClassification,
+} from "../apps/desktop/scripts/release-version-policy.mts";
+import {
+  inspectReleaseReviewRequest,
+  isApplicationReviewReleaseTag,
+} from "./release-review-request.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
 import {
@@ -49,12 +57,16 @@ export function readSemanticSourceChanges(
   api: GitHubRestReader,
   root: string,
   opportunity: unknown,
+  applicationComparison = false,
 ) {
   if (!isRecord(opportunity) || !oid(opportunity.base_commit) || !oid(opportunity.source_commit))
     throw new Error("semantic source requires exact commits");
+  const maximumCommits = applicationComparison
+    ? maximumApplicationSourceCommits
+    : maximumReleaseSourceCommits;
   const listed = git(root, [
     "rev-list",
-    `--max-count=${maximumReleaseSourceCommits + 1}`,
+    `--max-count=${maximumCommits + 1}`,
     opportunity.source_commit,
     `^${opportunity.base_commit}`,
     "--",
@@ -63,7 +75,7 @@ export function readSemanticSourceChanges(
     .trim()
     .split("\n")
     .filter(Boolean);
-  if (listed.length > maximumReleaseSourceCommits || listed.some((id) => !oid(id)))
+  if (listed.length > maximumCommits || listed.some((id) => !oid(id)))
     throw new Error("semantic commit inventory exceeds bound");
   const ids = [...new Set([opportunity.base_commit, opportunity.source_commit, ...listed])];
   const input = Buffer.from(ids.join("\n") + "\n");
@@ -107,13 +119,17 @@ export function readSemanticSourceChanges(
     cursor += size + 1;
   }
   if (cursor !== bytes.length) throw new Error("semantic commit batch trailing bytes");
-  return collectReleaseSourceChanges(api, opportunity, {
+  const result = collectReleaseSourceChanges(api, opportunity, {
+    applicationComparison,
     readCommitObject(id) {
       const raw = objects.get(id);
       if (!raw) throw new Error("provider comparison commit missing from local bounded inventory");
       return raw;
     },
   });
+  if (applicationComparison && listed.length !== result.commits.length)
+    throw new Error("application Git history differs from the complete provider comparison");
+  return result;
 }
 
 /** Provider readback selects no new baseline policy: the existing coordinator's
@@ -125,6 +141,7 @@ export function readSemanticPublicationBaseline(
   root: string,
   expectedVersion: string,
   namespaceConfiguration?: { schema_version: 1; namespace: string },
+  applicationComparison = false,
 ) {
   const started = performance.now();
   let requests = 0;
@@ -212,13 +229,25 @@ export function readSemanticPublicationBaseline(
       };
     });
   const published = releases
-    .filter((r) => !r.draft && r.published_at !== null)
-    .sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)));
+    .filter(
+      (r) =>
+        !r.draft &&
+        r.published_at !== null &&
+        (!applicationComparison || isApplicationReviewReleaseTag(r.tag)),
+    )
+    .sort((a, b) =>
+      applicationComparison
+        ? compareApplicationVersionPrecedence(b.tag.slice(1), a.tag.slice(1))
+        : String(b.published_at).localeCompare(String(a.published_at)),
+    );
   const selected = published[0];
   if (
     !selected ||
     selected.tag !== `v${expectedVersion}` ||
-    (published[1] && published[1].published_at === selected.published_at)
+    (published[1] &&
+      (applicationComparison
+        ? published[1].tag === selected.tag
+        : published[1].published_at === selected.published_at))
   )
     throw new Error("latest publication differs from existing classification baseline");
   const ref = `${repository}/git/ref/tags/${encodeURIComponent(selected.tag)}`;
@@ -247,6 +276,7 @@ export function readSemanticPublicationBaseline(
     after.id !== selected.id ||
     after.tag_name !== selected.tag ||
     after.draft !== false ||
+    (applicationComparison && after.immutable !== true) ||
     after.published_at !== selected.published_at
   )
     throw new Error("publication baseline changed during readback");
@@ -291,8 +321,20 @@ export function prepareFrozenSemanticInputs(
   rawOpportunity: unknown,
   evidence: { classification: unknown; compatibility: unknown },
   namespaceConfiguration?: { schema_version: 1; namespace: string },
+  rawRequest?: unknown,
 ) {
   const opportunity = validateOpportunity(structuredClone(rawOpportunity));
+  const request = inspectReleaseReviewRequest(rawRequest);
+  if (
+    request &&
+    (request.source_commit !== opportunity.source_commit ||
+      request.source_tree !== opportunity.source_tree ||
+      request.base_commit !== opportunity.base_commit ||
+      request.base_version !==
+        parseVersionClassification(opportunity.classification).base_version ||
+      request.change_set_sha256 !== opportunity.change_set_sha256)
+  )
+    throw new Error("complete opportunity differs from the frozen review request");
   const bundle = freezeSemanticSnapshots(
     api,
     root,
@@ -300,6 +342,8 @@ export function prepareFrozenSemanticInputs(
     parseVersionClassification(opportunity.classification).base_version,
     evidence,
     namespaceConfiguration,
+    undefined,
+    request?.qualified_application !== undefined,
   );
   assertPreviewWithdrawalClassification(
     opportunity.classification,
@@ -486,8 +530,9 @@ export function prepareFrozenSemanticProposalInputs(
       compatibility: "must be assessed from the complete inert source and existing contracts",
     },
     namespaceConfiguration,
+    undefined,
+    request.qualified_application !== undefined,
   );
-  readPreviewWithdrawalSource(bundle);
   proposalPrepared.set(bundle, bundle.bundle_sha256);
   return bundle;
 }
@@ -507,6 +552,7 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
   evidence: { classification: unknown; compatibility: unknown; core_inspection?: unknown },
   namespaceConfiguration?: { schema_version: 1; namespace: string },
   catalogBaseline?: ReturnType<typeof inspectCatalogSemanticOpportunity>["baseline"],
+  applicationComparison = false,
 ) {
   const baseline = catalogBaseline
     ? {
@@ -519,10 +565,16 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
         tree: catalogBaseline.source_tree,
         published_source: undefined,
       }
-    : readSemanticPublicationBaseline(api, root, baseVersion!, namespaceConfiguration);
+    : readSemanticPublicationBaseline(
+        api,
+        root,
+        baseVersion!,
+        namespaceConfiguration,
+        applicationComparison,
+      );
   if (baseline.source_baseline.commit !== opportunity.base_commit)
     throw new Error("opportunity omits accumulated publication delta");
-  const source = readSemanticSourceChanges(api, root, opportunity);
+  const source = readSemanticSourceChanges(api, root, opportunity, applicationComparison);
   if (
     source.change_set_sha256 !== opportunity.change_set_sha256 ||
     source.source_tree !== opportunity.source_tree ||
@@ -585,7 +637,7 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
       !match ||
       match[1] !== objects[index] ||
       !Number.isSafeInteger(size) ||
-      size > 16 * 1024 * 1024 ||
+      !semanticSourceBlobFits(match[1]!, size, applicationComparison) ||
       (total += size + 100) > 192 * 1024 * 1024
     )
       throw new Error("review object preflight exceeded bound");
@@ -597,7 +649,7 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
     const match = /^([a-f0-9]{40}) blob ([0-9]+)$/u.exec(bytes.subarray(cursor, end).toString());
     if (end < cursor || !match || match[1] !== id) throw new Error("review blob batch differs");
     const size = Number(match[2]);
-    if (!Number.isSafeInteger(size) || size > 16 * 1024 * 1024)
+    if (!Number.isSafeInteger(size) || !semanticSourceBlobFits(id, size, applicationComparison))
       throw new Error("review blob exceeds finite bound");
     cursor = end + 1;
     const blob = bytes.subarray(cursor, cursor + size);
@@ -617,6 +669,7 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
   if (cursor !== bytes.length) throw new Error("review blob batch contains trailing data");
   const manifest = {
     schema_version: 1,
+    ...(applicationComparison && { qualified_application_comparison: true as const }),
     opportunity,
     opportunity_sha256: capacityDigest(opportunity),
     baseline,

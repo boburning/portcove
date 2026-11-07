@@ -1,3 +1,4 @@
+import { semanticSourceBlobFits } from "./release-semantic-source-limits.mts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
@@ -8,22 +9,23 @@ import type { GitHubMetadataResponse } from "./github-operation.mts";
 import {
   inspectReleaseSourceTree,
   maximumReleaseSourceCommits,
+  maximumApplicationSourceCommits,
 } from "./release-source-changes.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { semanticSupervisorEnvironment } from "./release-semantic-runtime.mts";
+import { acquireSourceBoundCapacity } from "./resource-capacity.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const oid = (value: string) => /^[a-f0-9]{40}$/u.test(value);
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-const maximumBlob = 16 * 1024 * 1024;
 const maximumSelected = 192 * 1024 * 1024;
 const maximumStored = 512 * 1024 * 1024;
 type FetchRequest = Readonly<{
   repository: string;
   home: string;
   oids: readonly string[];
-  phase: "commits" | "blobs";
+  phase: "commits" | "application-commits" | "blobs";
   timeout_ms: number;
   expires_at: number;
 }>;
@@ -41,9 +43,46 @@ export function semanticSourceResourceEnvironment(
   };
 }
 
+/** Inert acquisition. The qualified application snapshot reuses one existing
+ * analysis slot across the same bounded Git batches. */
+export async function materializeSemanticSource(
+  parent: string,
+  expected: Parameters<typeof acquireSemanticSource>[1],
+  api: Parameters<typeof acquireSemanticSource>[2],
+  tools: Parameters<typeof acquireSemanticSource>[3],
+  qualification?: Parameters<typeof acquireSemanticSource>[4],
+  applicationComparison = false,
+) {
+  const deadline = performance.now() + 120000;
+  const expiresAt = Date.now() + 120000;
+  const reservation =
+    applicationComparison && !qualification?.fetchObjects && process.env.GITHUB_ACTIONS !== "true"
+      ? await acquireSourceBoundCapacity(
+          "analysis",
+          { workspace: process.cwd(), cwd: process.cwd() },
+          { environment: semanticSourceResourceEnvironment(parent), waitMs: 30000 },
+        )
+      : undefined;
+  try {
+    return await acquireSemanticSource(
+      parent,
+      expected,
+      api,
+      tools,
+      qualification,
+      applicationComparison,
+      deadline,
+      expiresAt,
+      reservation?.childEnvironment,
+    );
+  } finally {
+    await reservation?.release();
+  }
+}
+
 /** Inert acquisition only. The optional transport is a disposable qualification
  * seam, never a runtime capture, semantic result, issuer or acceptance source. */
-export async function materializeSemanticSource(
+async function acquireSemanticSource(
   parent: string,
   expected: {
     source_commit: string;
@@ -60,6 +99,10 @@ export async function materializeSemanticSource(
   },
   tools: { git_sha256: string; python_sha256: string },
   qualification: { fetchObjects?: (request: FetchRequest) => Promise<void>; git?: string } = {},
+  applicationComparison = false,
+  deadline = performance.now() + 120000,
+  expiresAt = Date.now() + 120000,
+  reservationEnvironment: NodeJS.ProcessEnv = {},
 ) {
   expected = structuredClone(expected);
   tools = structuredClone(tools);
@@ -75,8 +118,9 @@ export async function materializeSemanticSource(
     !Object.values(tools).every((value) => /^[a-f0-9]{64}$/u.test(value))
   )
     throw new Error("semantic source requires exact fixed identities");
-  const deadline = performance.now() + 120000;
-  const expiresAt = Date.now() + 120000;
+  const maximumCommits = applicationComparison
+    ? maximumApplicationSourceCommits
+    : maximumReleaseSourceCommits;
   const active = () => {
     const left = Math.floor(deadline - performance.now());
     if (left < 1) throw new Error("semantic source acquisition deadline exhausted");
@@ -111,7 +155,7 @@ export async function materializeSemanticSource(
         phase = "peel";
         objects = [operation[2]!.replace(/\^\{commit\}$/u, "")];
       } else if (operation[0] === "rev-list") {
-        phase = "history";
+        phase = applicationComparison ? "application-history" : "history";
         objects = [operation[2]!, operation[3]!.replace(/^\^/u, "")];
       } else if (operation[0] === "cat-file" && operation[1] === "commit") {
         phase = "commit";
@@ -223,7 +267,10 @@ export async function materializeSemanticSource(
     active();
     return total;
   };
-  const fetchObjects = async (phase: "commits" | "blobs", objects: string[]) => {
+  const fetchObjects = async (
+    phase: "commits" | "application-commits" | "blobs",
+    objects: string[],
+  ) => {
     await verifyTools();
     const request: FetchRequest = Object.freeze({
       repository,
@@ -246,7 +293,10 @@ export async function materializeSemanticSource(
         "analysis",
         "/usr/bin/python3",
         ["-I", "-S", "-B", helper, filename],
-        { environment: semanticSourceResourceEnvironment(home), queueDeadline: deadline },
+        {
+          environment: { ...semanticSourceResourceEnvironment(home), ...reservationEnvironment },
+          queueDeadline: deadline,
+        },
       );
       if (status !== 0) throw new Error("bounded semantic source fetch refused; retain attempt");
     }
@@ -256,7 +306,7 @@ export async function materializeSemanticSource(
     if (inRepository(["for-each-ref", "--format=%(refname)"]).length)
       throw new Error("semantic source fetch unexpectedly wrote a ref");
   };
-  await fetchObjects("commits", [
+  await fetchObjects(applicationComparison ? "application-commits" : "commits", [
     ...new Set([expected.source_commit, expected.base_commit, expected.published_object]),
   ]);
   const published = inRepository(["rev-parse", "--verify", `${expected.published_object}^{commit}`])
@@ -266,7 +316,7 @@ export async function materializeSemanticSource(
   const commits = [...new Set([expected.source_commit, expected.base_commit, published])];
   const changed = inRepository([
     "rev-list",
-    `--max-count=${maximumReleaseSourceCommits + 1}`,
+    `--max-count=${maximumCommits + 1}`,
     expected.source_commit,
     `^${expected.base_commit}`,
   ])
@@ -274,7 +324,7 @@ export async function materializeSemanticSource(
     .trim()
     .split("\n")
     .filter(Boolean);
-  if (changed.length > maximumReleaseSourceCommits)
+  if (changed.length > maximumCommits)
     throw new Error("semantic source change history exceeds bound");
   const selectedCommits = [...new Set([...commits, ...changed])];
   const commitRows = inRepository(
@@ -341,7 +391,7 @@ export async function materializeSemanticSource(
       Buffer.byteLength(JSON.stringify(response.body)) > 16 * 1024 * 1024
     )
       throw new Error("semantic source tree response unavailable or oversized");
-    const inventory = inspectReleaseSourceTree(response.body, tree);
+    const inventory = inspectReleaseSourceTree(response.body, tree, applicationComparison);
     if (!isRecord(response.body) || !Array.isArray(response.body.tree))
       throw new Error("semantic source tree missing");
     for (const raw of response.body.tree) {
@@ -355,7 +405,7 @@ export async function materializeSemanticSource(
         typeof raw.size !== "number" ||
         !Number.isSafeInteger(raw.size) ||
         raw.size < 0 ||
-        raw.size > maximumBlob
+        !semanticSourceBlobFits(entry.oid, raw.size, applicationComparison)
       )
         throw new Error("semantic source snapshot contains unsupported or oversized object");
       const prior = blobs.get(entry.oid);

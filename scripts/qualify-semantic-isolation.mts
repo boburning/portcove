@@ -163,6 +163,7 @@ if (mode === "reader-fixture" || mode === "codex-fixture") {
   );
   for (const name of [
     "release-semantic-reader-core.mts",
+    "release-semantic-source-limits.mts",
     "release-semantic-reader-server.mts",
     "runtime-values.mts",
   ])
