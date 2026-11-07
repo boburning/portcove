@@ -618,8 +618,29 @@ export class PullRequestDeliveryClient {
     requiredContexts: string[],
     closureIntent?: unknown,
     mergeMessage?: unknown,
+    binding?: { run: number; attempt: number },
   ) {
-    const state = await this.requiredCheckState(number, head, requiredContexts);
+    const verifyWorkflow = async () => {
+      if (!binding) return;
+      if (
+        !Number.isSafeInteger(binding.run) ||
+        binding.run < 1 ||
+        !Number.isSafeInteger(binding.attempt) ||
+        binding.attempt < 1
+      )
+        throw new Error("Merge requires a positive run and attempt");
+      const workflow = await this.workflowRun(binding.run);
+      if (
+        workflow.id !== binding.run ||
+        workflow.head_sha !== head ||
+        workflow.run_attempt !== binding.attempt ||
+        workflow.status !== "completed" ||
+        workflow.conclusion !== "success"
+      )
+        throw new Error("Merge workflow source, attempt or successful completion differs");
+    };
+    await verifyWorkflow();
+    const state = await this.requiredCheckState(number, head, requiredContexts, binding);
     validateMergeReadiness(number, head, state.pull, state.contexts);
     const message = validateMergeMessage(mergeMessage);
     const closing = await readClosingRelationships(this.sdk, repository, number);
@@ -639,6 +660,7 @@ export class PullRequestDeliveryClient {
       throw new Error(
         "PR body or closing relationships changed before merge; refresh delivery review",
       );
+    await verifyWorkflow();
     let result: unknown = null;
     let requestError: unknown = null;
     try {
@@ -1477,7 +1499,15 @@ const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
   inspect: ["--pr", "--head", "--evidence-file", "--json", "--summary"],
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress"],
   "renovate-check": ["--pr", "--head", "--queue", "--json", "--summary"],
-  merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file", "--json"],
+  merge: [
+    "--pr",
+    "--head",
+    "--run",
+    "--attempt",
+    "--closure-intent-file",
+    "--merge-message-file",
+    "--json",
+  ],
   "prepare-merge": [
     "--pr",
     "--head",
@@ -1913,12 +1943,17 @@ async function main(argv: string[]) {
     return;
   }
   if (command === "merge") {
+    if (Boolean(options["--run"]) !== Boolean(options["--attempt"]))
+      throw new Error("Merge --run and --attempt must be supplied together");
     const merged = await client.merge(
       number,
       head,
       contexts,
       JSON.parse(await readFile(optionText(options, "--closure-intent-file"), "utf8")),
       JSON.parse(await readFile(optionText(options, "--merge-message-file"), "utf8")),
+      options["--run"]
+        ? { run: Number(options["--run"]), attempt: Number(options["--attempt"]) }
+        : undefined,
     );
     const directory = path.join(projectRoot, "work/pr-delivery");
     const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });

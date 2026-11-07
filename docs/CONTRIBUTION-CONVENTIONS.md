@@ -178,7 +178,10 @@ not supply review, native, installed-app or merge authority. Once
 the pull request is ready, conflict-free, reviewed under its applicable contract, authorized,
 and all exact-head contexts are successful, use
 `just pr-merge-rest --pr <number-or-url> --head <reviewed-head> --closure-intent-file <intent.json> --merge-message-file <message.json>` for the routine
-immediate squash merge. It freezes and rechecks the source SHA and required
+immediate squash merge. After a selective retry, also supply the successful
+workflow's `--run <id> --attempt <number>`. This joins complete check and job
+inventories across attempts and checks that the identified workflow remains
+successfully completed before the merge request. It freezes and rechecks the source SHA and required
 contexts, submits that exact SHA, and reads the remote state back before any
 retry or local cleanup. Server-enforced review threads, permissions and
 repository rules remain in force; the helper is a mechanism, not review or
