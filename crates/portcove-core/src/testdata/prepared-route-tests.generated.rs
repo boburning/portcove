@@ -8,6 +8,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "gamebreaker20xx-fullrumble-ps1-slus01068",
     "gothic-ii-night-of-the-raven-opengothic",
     "heroes-of-might-and-magic-ii-fheroes2",
+    "jetforcegemini-recomp-vibintoast-jet-force-gemini",
     "mother-3-mother-3-recomp",
     "mstan-tetrisgbrecomp",
     "n64hub-rayman-2-recomp-n64-usa",
@@ -19,6 +20,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "retropulse03-winback-n64recomp",
     "rustmania-racing-ray-m-w-muppet-racemania",
     "scottjco-wetrix-n64-usa-rev0-recomp",
+    "snprecomp-wootbeer-sin-and-punishment",
     "tekrantgaming-muppet-racemania-recompiled",
     "tomba-2-recompiled",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
@@ -58,6 +60,11 @@ fn prepared_guide_adoption_declared_gothic_ii_night_of_the_raven_opengothic() {
 #[test]
 fn prepared_guide_adoption_declared_heroes_of_might_and_magic_ii_fheroes2() {
     assert_declarative_prepared_player_route("heroes-of-might-and-magic-ii-fheroes2");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_jetforcegemini_recomp_vibintoast_jet_force_gemini() {
+    assert_declarative_prepared_player_route("jetforcegemini-recomp-vibintoast-jet-force-gemini");
 }
 
 #[test]
@@ -113,6 +120,11 @@ fn prepared_guide_adoption_declared_rustmania_racing_ray_m_w_muppet_racemania() 
 #[test]
 fn prepared_guide_adoption_declared_scottjco_wetrix_n64_usa_rev0_recomp() {
     assert_declarative_prepared_player_route("scottjco-wetrix-n64-usa-rev0-recomp");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_snprecomp_wootbeer_sin_and_punishment() {
+    assert_declarative_prepared_player_route("snprecomp-wootbeer-sin-and-punishment");
 }
 
 #[test]
