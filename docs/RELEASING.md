@@ -1637,8 +1637,8 @@ selected objects before downloading and again before aggregate creation. Run
 identity and selected artifact metadata must remain unchanged. Run-level API
 objects still leave original producer jobs and attempts unknown.
 
-`scripts/github-binary.mts` pins transport to `github.com` and enforces byte and
-time limits in the subprocess before returning opaque bytes. Release downloads
+`scripts/github-artifact-download.mts` uses the scoped SDK for GitHub artifact
+lookup and streams the approved delivery with byte and deadline checks. Release downloads
 are bounded by their accepted byte counts, at most 512 MiB each, 2 GiB in total,
 and 120 seconds per download. Collection and assembly have a cooperative
 15-minute overall deadline. Audit reuse shares this transport while retaining
