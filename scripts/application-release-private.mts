@@ -43,7 +43,10 @@ import {
   readOnlyReleaseChildEnvironment,
   withReadOnlyReleaseChildren,
 } from "./release-readonly-child-environment.mts";
-import { payloadSigningEnvironment } from "./release-payload-signing.mts";
+import {
+  payloadSigningEnvironment,
+  preparePayloadSigningEnvironment,
+} from "./release-payload-signing.mts";
 import { receiveApplicationPackages } from "./application-release-transfer.mts";
 import { createApplicationUpdaterInventory } from "./application-release-artifacts.mts";
 import { loadPackagePolicy } from "./release-package-policy.mts";
@@ -3213,6 +3216,7 @@ async function assembleMetadata() {
   assemblyStage = "native-assembly";
   const scratch = path.join(process.env.RUNNER_TEMP ?? "", "application-assembly");
   await mkdir(scratch);
+  const env = await preparePayloadSigningEnvironment(scratch);
   const config = path.join(scratch, "assemble.json");
   await writeApplicationJson(config, {
     schema_version: 1,
@@ -3224,7 +3228,7 @@ async function assembleMetadata() {
     path.join(toolDirectory, "portcove-release-tools"),
     ["assemble-tuf", config],
     {
-      env: payloadSigningEnvironment(scratch),
+      env,
       timeout: 120000,
       maxBuffer: 1024 * 1024,
       stdio: "pipe",

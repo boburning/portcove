@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import {
   assertSignedPayloadVersion,
   payloadSigningEnvironment,
+  preparePayloadSigningEnvironment,
   inspectPayloadSigningRequest,
   signReleasePayload,
 } from "./release-payload-signing.mts";
@@ -19,9 +20,12 @@ import type { PayloadSigningRequest } from "./release-payload-signing.mts";
 
 const run = promisify(execFile);
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-void test("signer environments use owned home/profile/temp and exclude ambient credentials/configuration", () => {
-  const scratch = path.resolve(os.tmpdir(), "owned-signer-work");
-  const env = payloadSigningEnvironment(scratch);
+void test("signer environments use owned home/profile/temp and exclude ambient credentials/configuration", async (t) => {
+  const scratch = await mkdtemp(path.join(os.tmpdir(), "owned-signer-work-"));
+  t.after(() => rm(scratch, { recursive: true, force: true }));
+  const env = await preparePayloadSigningEnvironment(scratch);
+  assert.ok(env.TMPDIR);
+  await mkdtemp(path.join(env.TMPDIR, "datastore-"));
   for (const key of [
     "HOME",
     "USERPROFILE",
