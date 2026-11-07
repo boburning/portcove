@@ -49,7 +49,14 @@
     "diablo-devilutionx-retail-originals",
     "diablo-hellfire-devilutionx-originals",
     "bstone-aliens-of-gold-originals",
-    "bstone-planet-strike-originals"
+    "bstone-planet-strike-originals",
+    "alexbeav-oddworld-abe-s-oddysee-recomp-usa-psx",
+    "alexbeav-syphon-filter-3-recomp-usa-psx",
+    "alexbeav-tenchu-stealth-assassins-recomp-usa-psx",
+    "alexbeav-tony-hawk-s-pro-skater-recomp-usa-psx",
+    "alexbeav-tony-hawk-s-pro-skater-2-recomp-usa-psx",
+    "alexbeav-tony-hawk-s-pro-skater-3-recomp-usa-psx",
+    "alexbeav-tony-hawk-s-pro-skater-4-recomp-usa-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -283,6 +290,13 @@
     "gothic-ii-night-of-the-raven-opengothic",
     "nhl-94-genesis-ninety-four",
     "troyedwardsjr-z2rs",
-    "rustmania-racing-ray-m-w-muppet-racemania"
+    "rustmania-racing-ray-m-w-muppet-racemania",
+    "alexbeav-oddworld-abe-s-oddysee-recomp",
+    "alexbeav-syphon-filter-3-recomp",
+    "alexbeav-tenchu-stealth-assassins-recomp",
+    "alexbeav-tony-hawk-s-pro-skater-recomp",
+    "alexbeav-tony-hawk-s-pro-skater-2-recomp",
+    "alexbeav-tony-hawk-s-pro-skater-3-recomp",
+    "alexbeav-tony-hawk-s-pro-skater-4-recomp"
   ]
 }

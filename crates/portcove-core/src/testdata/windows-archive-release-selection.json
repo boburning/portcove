@@ -103,6 +103,99 @@
     "doom-3-resurrection-of-evil-classic-dhewm3": {
       "inventory": "dhewm3",
       "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"]
+    },
+    "alexbeav-tony-hawk-s-pro-skater-2-recomp": {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
+      "selected_assets": [
+        "tony-hawk-s-pro-skater-2-recomp-0.1.3-windows-x64.zip",
+        "tony-hawk-s-pro-skater-2-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01066",
+        "track_sha1": "f5cb80a7d55aaced7fcc9c5a82a6c28b89dc489a",
+        "track_sha256": "7a69101183b76eadf02336963c6a89822b76aca2b3fa6537288d9f13bf6d16ed",
+        "generated_executable": "Tony_Hawks_Pro_Skater_2_Recompiled.exe"
+      }
+    },
+    "alexbeav-tony-hawk-s-pro-skater-3-recomp": {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
+      "selected_assets": [
+        "tony-hawk-s-pro-skater-3-recomp-0.1.3-windows-x64.zip",
+        "tony-hawk-s-pro-skater-3-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01419",
+        "track_sha1": "757cc517b2d25f6d0112d0d4efa9efdfa2553967",
+        "track_sha256": "674ac2073877922e9a12dbf1117b80109d5a8c8e262075da60f21f4e861fc485",
+        "generated_executable": "Tony_Hawks_Pro_Skater_3_Recompiled.exe"
+      }
+    },
+    "alexbeav-tony-hawk-s-pro-skater-4-recomp": {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
+      "selected_assets": [
+        "tony-hawk-s-pro-skater-4-recomp-0.1.3-windows-x64.zip",
+        "tony-hawk-s-pro-skater-4-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01485",
+        "track_sha1": "4857b347c6aec4180311b8f1beafc281d34a254a",
+        "track_sha256": "c632a348d7013336c2c182f33ea86ac14a7bae0eba3892a7b5f14b9848ddab09",
+        "generated_executable": "Tony_Hawks_Pro_Skater_4_Recompiled.exe"
+      }
+    },
+    "alexbeav-tony-hawk-s-pro-skater-recomp": {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-recomp",
+      "selected_assets": [
+        "tony-hawk-s-pro-skater-recomp-0.1.3-windows-x64.zip",
+        "tony-hawk-s-pro-skater-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00860",
+        "track_sha1": "84fb50ddf68ced4ad8549b51a6dbfdb96650f266",
+        "track_sha256": "f1398cd15138a947fb3d49e1d31c7fe2aae9436ec09e32df917c658ccac30da9",
+        "generated_executable": "Tony_Hawks_Pro_Skater_Recompiled.exe"
+      }
+    },
+    "alexbeav-oddworld-abe-s-oddysee-recomp": {
+      "inventory": "alexbeav-oddworld-abe-s-oddysee-recomp",
+      "selected_assets": [
+        "oddworld-abe-s-oddysee-recomp-0.1.3-windows-x64.zip",
+        "oddworld-abe-s-oddysee-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00190",
+        "track_sha1": "3507fb96d6c5d60f30b1d1b9e4b6dfc468f7cef0",
+        "track_sha256": "1c69fd850763dd784d1bd581ee72b0bda212ba8227b827c3b2d58bf9f82eee45",
+        "generated_executable": "Oddworld__Abe_s_Oddysee_Recompiled.exe",
+        "revision": "Rev 2"
+      }
+    },
+    "alexbeav-syphon-filter-3-recomp": {
+      "inventory": "alexbeav-syphon-filter-3-recomp",
+      "selected_assets": [
+        "syphon-filter-3-recomp-0.1.3-windows-x64.zip",
+        "syphon-filter-3-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCUS-94640",
+        "track_sha1": "4abe30077c2b449ea68239083df7932d47ae0b69",
+        "track_sha256": "2c36429649e50036fd5c9187bdc3ff23e04039499e7cdf1aba5cfd5a3badcb38",
+        "generated_executable": "Syphon_Filter_3_Recompiled.exe"
+      }
+    },
+    "alexbeav-tenchu-stealth-assassins-recomp": {
+      "inventory": "alexbeav-tenchu-stealth-assassins-recomp",
+      "selected_assets": [
+        "tenchu-stealth-assassins-recomp-0.1.3-windows-x64.zip",
+        "tenchu-stealth-assassins-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00706",
+        "track_sha1": "a33ca500872e3471b8d096b21eff3d30a310284c",
+        "track_sha256": "6834c77860ec3d16bc7ed4ba2fd409573e1584adb92c63c0a1e55669963c768a",
+        "generated_executable": "Tenchu_Stealth_Assassins_Recompiled.exe",
+        "revision": "Rev 1"
+      }
     }
   },
   "inventories": {
@@ -1400,6 +1493,489 @@
         ],
         "_fixture_scope": "Synthetic compatible successor from the retained native-engine scenario, not an observed upstream release."
       }
+    ],
+    "alexbeav-tony-hawk-s-pro-skater-2-recomp": [
+      {
+        "id": 399991654,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:47:25Z",
+        "assets": [
+          {
+            "id": 600797027,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2930,
+            "digest": "sha256:7817e3cd628911ed6f94df6f3e912e6eef448477cf36a1875c63e48b3ae89ea5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600797065,
+            "name": "SHA256SUMS.txt",
+            "size": 476,
+            "digest": "sha256:6169af85911fbc6a5b4c565466d4a63757913b9c430e5d8384cb975320b08c23",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/releases/download/v0.1.3/SHA256SUMS.txt"
+          },
+          {
+            "id": 600797029,
+            "name": "tony-hawk-s-pro-skater-2-recomp-0.1.3-linux-x64.zip",
+            "size": 27786614,
+            "digest": "sha256:9952c8298ee8e84cd8a43a75c72291c106b178d77a59d0ae6647af284db9a005",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-2-recomp-0.1.3-linux-x64.zip"
+          },
+          {
+            "id": 600797032,
+            "name": "tony-hawk-s-pro-skater-2-recomp-0.1.3-macos-arm64.zip",
+            "size": 25529924,
+            "digest": "sha256:592704b170ae6befcf4ccd2224de05bdd559b61add5ac64e108a18b3aabf8a80",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-2-recomp-0.1.3-macos-arm64.zip"
+          },
+          {
+            "id": 600797030,
+            "name": "tony-hawk-s-pro-skater-2-recomp-0.1.3-macos-x64.zip",
+            "size": 25878281,
+            "digest": "sha256:03247d8ea2a857d0c6ed7f4252ce787a43e736ed3e1c10222540712c93ab574d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-2-recomp-0.1.3-macos-x64.zip"
+          },
+          {
+            "id": 600797028,
+            "name": "tony-hawk-s-pro-skater-2-recomp-0.1.3-windows-x64.zip",
+            "size": 29893684,
+            "digest": "sha256:3fc8d00777b5e9d13e8de32907f4b290d48a7a68ad0baa140a25de30d268a8f9",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-2-recomp-0.1.3-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700000,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700001,
+            "name": "tony-hawk-s-pro-skater-2-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-2-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "alexbeav-tony-hawk-s-pro-skater-3-recomp": [
+      {
+        "id": 399992193,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:48:09Z",
+        "assets": [
+          {
+            "id": 600798491,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2930,
+            "digest": "sha256:ad22cccf2bbb3d1eb4bf37dba1da259eaac680a4eadac423d154d6fe71be30a3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600798511,
+            "name": "SHA256SUMS.txt",
+            "size": 476,
+            "digest": "sha256:ade7a6b6de4de752824afe6098c3476cdc233384b56feb23a5a6043438975422",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/releases/download/v0.1.3/SHA256SUMS.txt"
+          },
+          {
+            "id": 600798489,
+            "name": "tony-hawk-s-pro-skater-3-recomp-0.1.3-linux-x64.zip",
+            "size": 27786691,
+            "digest": "sha256:9670ddf158bb6e00966e69d45de8161fb53e0cc78d7cae40e979ea9e4bc7558c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-3-recomp-0.1.3-linux-x64.zip"
+          },
+          {
+            "id": 600798495,
+            "name": "tony-hawk-s-pro-skater-3-recomp-0.1.3-macos-arm64.zip",
+            "size": 25530006,
+            "digest": "sha256:4672f58f1b0aa2b158174e8b02a5424542be8eb1b70abad36b873e4d367f0a33",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-3-recomp-0.1.3-macos-arm64.zip"
+          },
+          {
+            "id": 600798488,
+            "name": "tony-hawk-s-pro-skater-3-recomp-0.1.3-macos-x64.zip",
+            "size": 25878361,
+            "digest": "sha256:7b378e776ba5d5c697943ee2cf356f5e46c70e6cdc803682f8838579e29dfffb",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-3-recomp-0.1.3-macos-x64.zip"
+          },
+          {
+            "id": 600798492,
+            "name": "tony-hawk-s-pro-skater-3-recomp-0.1.3-windows-x64.zip",
+            "size": 29893767,
+            "digest": "sha256:ec59e95c4079662fa697b46cb84adebfff321e0fbee56b95d6da8741913ad581",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-3-recomp-0.1.3-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700002,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700003,
+            "name": "tony-hawk-s-pro-skater-3-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-3-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "alexbeav-tony-hawk-s-pro-skater-4-recomp": [
+      {
+        "id": 399992744,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:48:54Z",
+        "assets": [
+          {
+            "id": 600799906,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2930,
+            "digest": "sha256:047c7747771ae2ca883e626925018ab442d5fe3ff834288301c6b3e791c5a06d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600799922,
+            "name": "SHA256SUMS.txt",
+            "size": 476,
+            "digest": "sha256:4c9198a53b699dd08abf10de5db5ea77b95c5429fbda44b4dd95f264c2b75ab0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/releases/download/v0.1.3/SHA256SUMS.txt"
+          },
+          {
+            "id": 600799907,
+            "name": "tony-hawk-s-pro-skater-4-recomp-0.1.3-linux-x64.zip",
+            "size": 27786639,
+            "digest": "sha256:5731d1851c94144aa8c19d648afb2665a4526e28b850a26afb06e72717822234",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-4-recomp-0.1.3-linux-x64.zip"
+          },
+          {
+            "id": 600799910,
+            "name": "tony-hawk-s-pro-skater-4-recomp-0.1.3-macos-arm64.zip",
+            "size": 25529947,
+            "digest": "sha256:7360b84b2e154a4dce2b08c099018fdfb8a5774f0f71bb4ae23c6474f69b13e1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-4-recomp-0.1.3-macos-arm64.zip"
+          },
+          {
+            "id": 600799914,
+            "name": "tony-hawk-s-pro-skater-4-recomp-0.1.3-macos-x64.zip",
+            "size": 25878303,
+            "digest": "sha256:58b26cdb69170e41878540a21b515332058c95569791e52f95ff4300a09e7b7f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-4-recomp-0.1.3-macos-x64.zip"
+          },
+          {
+            "id": 600799909,
+            "name": "tony-hawk-s-pro-skater-4-recomp-0.1.3-windows-x64.zip",
+            "size": 29893717,
+            "digest": "sha256:b227e220e6b1c5ecc3516572cb523cc7f8e1af353b10bbf4cf4ef216a0ed85a6",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-4-recomp-0.1.3-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700004,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700005,
+            "name": "tony-hawk-s-pro-skater-4-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-4-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "alexbeav-tony-hawk-s-pro-skater-recomp": [
+      {
+        "id": 399993233,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:49:36Z",
+        "assets": [
+          {
+            "id": 600801446,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2912,
+            "digest": "sha256:58817945f56d8906844369a9164fc73310a8f86995cfbad901cf0bfaf81c122a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600801477,
+            "name": "SHA256SUMS.txt",
+            "size": 468,
+            "digest": "sha256:d476e3c31700023ecc46acb0911618a14957094ba0633c8d0d99da8b64e30007",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/releases/download/v0.1.3/SHA256SUMS.txt"
+          },
+          {
+            "id": 600801450,
+            "name": "tony-hawk-s-pro-skater-recomp-0.1.3-linux-x64.zip",
+            "size": 27785197,
+            "digest": "sha256:c9e97b03e77f7c2455a6a9fee2fd43712ed6ae13fa7c1023712ae53202a18643",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-recomp-0.1.3-linux-x64.zip"
+          },
+          {
+            "id": 600801447,
+            "name": "tony-hawk-s-pro-skater-recomp-0.1.3-macos-arm64.zip",
+            "size": 25529044,
+            "digest": "sha256:b70ecb1c7f945a2a1fd6de5c5376e3753d0bfe93bd6f502e588295da2f9dd4ab",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-recomp-0.1.3-macos-arm64.zip"
+          },
+          {
+            "id": 600801451,
+            "name": "tony-hawk-s-pro-skater-recomp-0.1.3-macos-x64.zip",
+            "size": 25876876,
+            "digest": "sha256:3c9a28b986be4d1f9c3c1cf928a7d2bd765ade32045ee1baf34bafcc7d3f2f39",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-recomp-0.1.3-macos-x64.zip"
+          },
+          {
+            "id": 600801453,
+            "name": "tony-hawk-s-pro-skater-recomp-0.1.3-windows-x64.zip",
+            "size": 29892259,
+            "digest": "sha256:e1c21f2507629cf16114dd91707e12a5246912dea7a46bde281782c1d3028233",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/releases/download/v0.1.3/tony-hawk-s-pro-skater-recomp-0.1.3-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700006,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700007,
+            "name": "tony-hawk-s-pro-skater-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "alexbeav-oddworld-abe-s-oddysee-recomp": [
+      {
+        "id": 399989720,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:44:32Z",
+        "assets": [
+          {
+            "id": 600791251,
+            "name": "oddworld-abe-s-oddysee-recomp-0.1.3-linux-x64.zip",
+            "size": 27783406,
+            "digest": "sha256:177256f195ba86d4a011db99d6c59cf708fac43f03c655cc5685c470b436512b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/releases/download/v0.1.3/oddworld-abe-s-oddysee-recomp-0.1.3-linux-x64.zip"
+          },
+          {
+            "id": 600791245,
+            "name": "oddworld-abe-s-oddysee-recomp-0.1.3-macos-arm64.zip",
+            "size": 25526682,
+            "digest": "sha256:e4be4d466ce13f755b94fd8930152a016d1db4b75cc282ef7bd9f81725d8d91f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/releases/download/v0.1.3/oddworld-abe-s-oddysee-recomp-0.1.3-macos-arm64.zip"
+          },
+          {
+            "id": 600791249,
+            "name": "oddworld-abe-s-oddysee-recomp-0.1.3-macos-x64.zip",
+            "size": 25875081,
+            "digest": "sha256:f3255475da2f60123dadbd71fa10946ab761895f41fdafda596b14c9227bc3fe",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/releases/download/v0.1.3/oddworld-abe-s-oddysee-recomp-0.1.3-macos-x64.zip"
+          },
+          {
+            "id": 600791246,
+            "name": "oddworld-abe-s-oddysee-recomp-0.1.3-windows-x64.zip",
+            "size": 29890506,
+            "digest": "sha256:f9edfe427e913271937aacb8cd5bc46f33c85bc88d61e1dfe3e05fb7992fa6d4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/releases/download/v0.1.3/oddworld-abe-s-oddysee-recomp-0.1.3-windows-x64.zip"
+          },
+          {
+            "id": 600791247,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2912,
+            "digest": "sha256:0a92e567aba38ac6cda8f6f762823e8539bc6e472f68be3492e675af6538a8ee",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600791273,
+            "name": "SHA256SUMS.txt",
+            "size": 468,
+            "digest": "sha256:c755ee0f8f3a9e621ec9ad8cb8aa2d67058d375792b63f61e48f28671e6bf1c2",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/releases/download/v0.1.3/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999700008,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700009,
+            "name": "oddworld-abe-s-oddysee-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/oddworld-abe-s-oddysee-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "alexbeav-syphon-filter-3-recomp": [
+      {
+        "id": 399990637,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:45:58Z",
+        "assets": [
+          {
+            "id": 600794365,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2849,
+            "digest": "sha256:5c24552b97502d2083f19cf07f2b155ba607873274b376e35664e3da1014bec7",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600794403,
+            "name": "SHA256SUMS.txt",
+            "size": 440,
+            "digest": "sha256:bc807187af8f439fcd25d8d28bad5ec4fbee38d919873ffb43af3a93cdb232f9",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/releases/download/v0.1.3/SHA256SUMS.txt"
+          },
+          {
+            "id": 600794359,
+            "name": "syphon-filter-3-recomp-0.1.3-linux-x64.zip",
+            "size": 27787635,
+            "digest": "sha256:82ec298edfa5b9cb95323523199ad7ee0df73b5a969687c039271509c0540a06",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/releases/download/v0.1.3/syphon-filter-3-recomp-0.1.3-linux-x64.zip"
+          },
+          {
+            "id": 600794361,
+            "name": "syphon-filter-3-recomp-0.1.3-macos-arm64.zip",
+            "size": 25531175,
+            "digest": "sha256:5a42f8f0d336b41b084e0548963716cb01f00ae30a97a9313a78f13c14f235ce",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/releases/download/v0.1.3/syphon-filter-3-recomp-0.1.3-macos-arm64.zip"
+          },
+          {
+            "id": 600794366,
+            "name": "syphon-filter-3-recomp-0.1.3-macos-x64.zip",
+            "size": 25879447,
+            "digest": "sha256:ec56cf2707b658725bea0e8ff05de3ddc182efd3c1056d5231de9dc16d81c2dc",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/releases/download/v0.1.3/syphon-filter-3-recomp-0.1.3-macos-x64.zip"
+          },
+          {
+            "id": 600794363,
+            "name": "syphon-filter-3-recomp-0.1.3-windows-x64.zip",
+            "size": 29894734,
+            "digest": "sha256:48ca990e6390c810c3d802ffa7d1623d50474ad2f791f577e01b930b8b89a636",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/releases/download/v0.1.3/syphon-filter-3-recomp-0.1.3-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700010,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700011,
+            "name": "syphon-filter-3-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/syphon-filter-3-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "alexbeav-tenchu-stealth-assassins-recomp": [
+      {
+        "id": 399991155,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:46:42Z",
+        "assets": [
+          {
+            "id": 600795731,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2945,
+            "digest": "sha256:e246f9f07add2bd5e40a3a9cb947db00f8f0b4bd7995db1108a1d467eb04b48d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600795747,
+            "name": "SHA256SUMS.txt",
+            "size": 476,
+            "digest": "sha256:f2ebe7adc05454614d3a187a016093b83b68db6ba1a65de5aab4fc99b2a1c357",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/releases/download/v0.1.3/SHA256SUMS.txt"
+          },
+          {
+            "id": 600795729,
+            "name": "tenchu-stealth-assassins-recomp-0.1.3-linux-x64.zip",
+            "size": 27781673,
+            "digest": "sha256:70bbc868a1542af53256c2e2f396905f8071fb657adb9dd75d4eb9617d35e205",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/releases/download/v0.1.3/tenchu-stealth-assassins-recomp-0.1.3-linux-x64.zip"
+          },
+          {
+            "id": 600795733,
+            "name": "tenchu-stealth-assassins-recomp-0.1.3-macos-arm64.zip",
+            "size": 25525436,
+            "digest": "sha256:ec0a1f46fab7992c02938d786a38f7d50d5b95ee990519a01de19ec45121af20",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/releases/download/v0.1.3/tenchu-stealth-assassins-recomp-0.1.3-macos-arm64.zip"
+          },
+          {
+            "id": 600795740,
+            "name": "tenchu-stealth-assassins-recomp-0.1.3-macos-x64.zip",
+            "size": 25874520,
+            "digest": "sha256:1c319ad4a7da2ba1e2e97734dec139a34754f5867f5e1c18d2dd04ae6b5f3f54",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/releases/download/v0.1.3/tenchu-stealth-assassins-recomp-0.1.3-macos-x64.zip"
+          },
+          {
+            "id": 600795737,
+            "name": "tenchu-stealth-assassins-recomp-0.1.3-windows-x64.zip",
+            "size": 29887915,
+            "digest": "sha256:9615fe1e90610276d0cd9391d847d62311adde72ebc0e93df17b97508d386976",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/releases/download/v0.1.3/tenchu-stealth-assassins-recomp-0.1.3-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999700012,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999700013,
+            "name": "tenchu-stealth-assassins-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tenchu-stealth-assassins-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -1453,7 +2029,11 @@
       "release_index": 1,
       "asset": "openttd-jgrpp-0.73.5-windows-win32.zip"
     },
-    { "inventory": "aerofoil", "release_index": 0, "asset": "Aerofoil-1.1.7-win64-tools.zip" },
+    {
+      "inventory": "aerofoil",
+      "release_index": 0,
+      "asset": "Aerofoil-1.1.7-win64-tools.zip"
+    },
     {
       "inventory": "body_harvest",
       "release_index": 0,
@@ -1678,6 +2258,111 @@
       "inventory": "dhewm3",
       "release_index": 1,
       "asset": "dhewm3-wide-guis-v0.2.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-2-recomp-0.1.3-linux-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-2-recomp-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-2-recomp-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-3-recomp-0.1.3-linux-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-3-recomp-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-3-recomp-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-4-recomp-0.1.3-linux-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-4-recomp-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-4-recomp-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-recomp-0.1.3-linux-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-recomp-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-tony-hawk-s-pro-skater-recomp",
+      "release_index": 0,
+      "asset": "tony-hawk-s-pro-skater-recomp-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-oddworld-abe-s-oddysee-recomp",
+      "release_index": 0,
+      "asset": "oddworld-abe-s-oddysee-recomp-0.1.3-linux-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-oddworld-abe-s-oddysee-recomp",
+      "release_index": 0,
+      "asset": "oddworld-abe-s-oddysee-recomp-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-oddworld-abe-s-oddysee-recomp",
+      "release_index": 0,
+      "asset": "oddworld-abe-s-oddysee-recomp-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-syphon-filter-3-recomp",
+      "release_index": 0,
+      "asset": "syphon-filter-3-recomp-0.1.3-linux-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-syphon-filter-3-recomp",
+      "release_index": 0,
+      "asset": "syphon-filter-3-recomp-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-syphon-filter-3-recomp",
+      "release_index": 0,
+      "asset": "syphon-filter-3-recomp-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tenchu-stealth-assassins-recomp",
+      "release_index": 0,
+      "asset": "tenchu-stealth-assassins-recomp-0.1.3-linux-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tenchu-stealth-assassins-recomp",
+      "release_index": 0,
+      "asset": "tenchu-stealth-assassins-recomp-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-tenchu-stealth-assassins-recomp",
+      "release_index": 0,
+      "asset": "tenchu-stealth-assassins-recomp-0.1.3-macos-x64.zip"
     }
   ]
 }

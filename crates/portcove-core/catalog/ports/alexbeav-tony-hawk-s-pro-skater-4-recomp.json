@@ -3,10 +3,11 @@
   "listing": {
     "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
     "name": "Tony Hawk's Pro Skater 4 / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "summary": "Build and play Tony Hawk's Pro Skater 4 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+    "original_game_title": "Tony Hawk's Pro Skater 4",
     "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
     "issue_number": 489,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp#readme",
     "artwork": {
@@ -47,5 +48,82 @@
       "linux-x86-64": ["tony-hawk-s-pro-skater-4-recomp-", "-linux-x64.zip"]
     },
     "recommended_download_channel": "stable"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["tony-hawk-s-pro-skater-4-recomp-", "-windows-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-tony-hawk-s-pro-skater-4-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Tony_Hawks_Pro_Skater_4_Recompiled.exe"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-usa-psx",
+          "label": "Tony Hawk's Pro Skater 4 (USA) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-01485) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }
