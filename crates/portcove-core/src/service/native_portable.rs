@@ -590,6 +590,7 @@ mod tests {
             program_name: &str,
             files: &[(&str, &[u8])],
         ) -> ResolvedRelease {
+            crate::test_fixture::assert_fixture_archive_prefix(program_name, folder);
             let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
             zip.start_file(
                 format!("{folder}{program_name}"),

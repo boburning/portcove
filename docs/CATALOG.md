@@ -2052,7 +2052,8 @@ remain necessary where their scope differs from the shared route.
 For a managed-native case, record the independently observed executable and
 immutable members in the shared native lifecycle corpus. Set `runtime_folder`
 to the archive folder prefix with a trailing slash, or to an empty string for a
-root-level executable. List immutable member paths relative to that prefix.
+root-level executable. The fixture inventory and archive builder reject a
+nonempty prefix without its trailing slash. List immutable member paths relative to that prefix.
 Enroll the stable ID, prepared executable and literal arguments, managed role and managed
 literal arguments in the independent expectations. Each route has its own
 argument vector, including an explicit empty vector when applicable. Review
@@ -2102,7 +2103,9 @@ controlled successors in the title evidence. Reuse an inventory when another
 title selects from the same releases. Use `other_zip_assets` to identify
 competing ZIPs outside the enrolled routes by inventory, zero-based release
 index and exact member name. The inventory check requires every ZIP to be
-covered exactly once. Generated route entrypoints and shared lifecycle
+classified exactly once as selected or competing. Several titles may select the
+same archive. Each title keeps independent release selection assertions and
+unique enrollment, while selected asset coverage is deduplicated. Generated route entrypoints and shared lifecycle
 fixtures separately cover registration, managed runtime replacement and data
 ownership. Ordinary compatible successors use the unchanged authored selectors.
 [Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
