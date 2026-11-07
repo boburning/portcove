@@ -711,3 +711,39 @@ export function bootstrapProtectionFingerprints(raw: unknown) {
     settings: protectionFingerprint(settings),
   };
 }
+
+/** Fixed diagnostic field names. Preserve absent versus present and rule order. */
+export function bootstrapProtectionRulesetFieldFingerprints(raw: unknown) {
+  const { rulesets } = bootstrapProtectionInventory(raw);
+  const fields = [
+    "_links",
+    "bypass_actors",
+    "conditions",
+    "created_at",
+    "enforcement",
+    "id",
+    "name",
+    "node_id",
+    "rules",
+    "source",
+    "source_type",
+    "target",
+    "updated_at",
+  ];
+  const known = new Set(fields);
+  return {
+    fields: Object.fromEntries(
+      fields.map((field) => [
+        field,
+        protectionFingerprint(
+          rulesets.map((row) => (Object.hasOwn(row, field) ? [row[field]] : [])),
+        ),
+      ]),
+    ),
+    other: protectionFingerprint(
+      rulesets.map((row) =>
+        Object.fromEntries(Object.entries(row).filter(([key]) => !known.has(key))),
+      ),
+    ),
+  };
+}

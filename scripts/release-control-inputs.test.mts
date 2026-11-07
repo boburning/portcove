@@ -28,6 +28,7 @@ import {
   requireReleaseInputWriterPolicy,
   requireApplicationReleaseProtectionDigest,
   bootstrapProtectionFingerprints,
+  bootstrapProtectionRulesetFieldFingerprints,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import { capacityDigest } from "./release-capacity.mts";
@@ -371,6 +372,19 @@ void test("bootstrap appointment binds protection and refs across observer princ
   const appointed = requireApplicationReleaseProtectionDigest(owner, true, now);
   const fingerprints = bootstrapProtectionFingerprints(owner);
   assert.deepEqual(bootstrapProtectionFingerprints(observer), fingerprints);
+  const fields = bootstrapProtectionRulesetFieldFingerprints(owner);
+  assert.deepEqual(bootstrapProtectionRulesetFieldFingerprints(observer), fields);
+  const actorsChanged = bootstrapProtectionRulesetFieldFingerprints(
+    proof({ ...inventory, rulesets: [{ ...ruleset, bypass_actors: [] }] }),
+  );
+  assert.notEqual(actorsChanged.fields.bypass_actors, fields.fields.bypass_actors);
+  assert.deepEqual(
+    {
+      ...actorsChanged,
+      fields: { ...actorsChanged.fields, bypass_actors: fields.fields.bypass_actors },
+    },
+    fields,
+  );
   const changedRef = bootstrapProtectionFingerprints(
     proof({
       ...inventory,
