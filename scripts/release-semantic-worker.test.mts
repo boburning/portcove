@@ -3,7 +3,7 @@ import { createCatalogReviewRequest } from "./release-catalog-review-request.mts
 import { reviewFrozenCatalogCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, writeFile, readFile, chmod, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -21,6 +21,10 @@ import { reviewFrozenCoordinatorRequest } from "./release-semantic-request-pipel
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { createReleaseReviewRequest } from "./release-review-request.mts";
+import {
+  sealedCheckSdkFilename,
+  verifyLinuxSealedCheckSdkBundle,
+} from "./release-sealed-check-sdk.mts";
 import {
   claimSemanticTechnicalAttempt,
   inspectSemanticTechnicalRecovery,
@@ -159,6 +163,59 @@ void test("selected semantic worker needs only the independent issuer and refuse
   ])
     assert.throws(() => inspectSemanticWorkerConfiguration(bad));
 });
+
+void test("semantic setup appoints exactly one issuer command and carries its SDK identity to the unit", () => {
+  const raw = selectedConfiguration();
+  const { http_modules_sha256, ...issuer } = raw.issuer;
+  const bundle = { bytes: 100, sha256: "a".repeat(64) };
+  const selected = { ...raw, issuer: { ...issuer, issuer_sdk_bundle: bundle } };
+  const actual = inspectSemanticWorkerConfiguration(selected).issuer;
+  assert.ok("issuer_sdk_bundle" in actual);
+  assert.deepEqual(actual.issuer_sdk_bundle, bundle);
+  assert.doesNotThrow(() =>
+    renderSemanticWorkerUnits(selected, "/owned/config.json", "a".repeat(64), "/owned/controller"),
+  );
+  for (const change of [
+    { ...selected.issuer, http_modules_sha256 },
+    { ...selected.issuer, issuer_sdk_bundle: { ...bundle, path: "/mutable/other.mjs" } },
+    { ...selected.issuer, issuer_sdk_bundle: { ...bundle, bytes: 0 } },
+  ])
+    assert.throws(() => inspectSemanticWorkerConfiguration({ ...selected, issuer: change }));
+});
+
+void test(
+  "Linux semantic SDK receiver refuses changed bytes, modes and links",
+  {
+    skip: process.platform !== "linux" || !process.getuid?.(),
+  },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.homedir(), ".portcove-sealed-check-test-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const scripts = path.join(root, "scripts");
+    await mkdir(scripts, { mode: 0o700 });
+    const file = path.join(scripts, sealedCheckSdkFilename);
+    const bytes = Buffer.from("inert");
+    const identity = {
+      bytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
+    await writeFile(file, bytes, { mode: 0o600 });
+    assert.equal(verifyLinuxSealedCheckSdkBundle(root, identity), file);
+    await writeFile(file, "other");
+    assert.throws(
+      () => verifyLinuxSealedCheckSdkBundle(root, identity),
+      /differs from installed custody/u,
+    );
+    await writeFile(file, bytes);
+    await chmod(file, 0o644);
+    assert.throws(() => verifyLinuxSealedCheckSdkBundle(root, identity), /file custody differs/u);
+    await rm(file);
+    const target = path.join(root, "original");
+    await writeFile(target, bytes, { mode: 0o600 });
+    await symlink(target, file);
+    assert.throws(() => verifyLinuxSealedCheckSdkBundle(root, identity));
+  },
+);
 void test("worker setup excludes supplied outcomes/backends and separates the fixed issuer from source/reviewer inputs", () => {
   const raw = configuration();
   const result = inspectSemanticWorkerConfiguration(raw);
