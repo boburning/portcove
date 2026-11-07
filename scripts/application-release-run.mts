@@ -317,6 +317,23 @@ export const emptyApplicationBootstrap = {
   source_tree: "beac77d095fee337fe4ab495e1f73f7250e2464f",
 } as const;
 
+/** Exact immutable assembly and failed feed execution selected for the one
+ * feed-only bootstrap continuation. Its native Pages outcome remains unknown. */
+export const immutableApplicationBootstrap = {
+  ...emptyApplicationBootstrap,
+  assembly: {
+    run_id: "42344706329",
+    producer_attempt: 1,
+    control_commit: "048213f6e30759ac44e7808b3cdd6e9e0e39bfa8",
+    control_ref: "refs/tags/portcove-production-controller-windows-20261105r27",
+  },
+  generation: "1000adca784333dd4ca3b92930b0929ca8e6faf186389b27441c9e3c412245ab",
+  pages_artifact_id: 13562909986,
+  feed_job_id: 128323208649,
+  admission_id: 7617469063,
+  failed_admission_status_id: 21637635759,
+} as const;
+
 export function isEmptyApplicationBootstrapCustody(value: Record<string, unknown>) {
   return (
     value.opportunity === emptyApplicationBootstrap.opportunity &&

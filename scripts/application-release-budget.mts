@@ -12,6 +12,7 @@ import { nextLink } from "./github-operation.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
   emptyApplicationBootstrap,
+  immutableApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
   readApplicationBudgetOwnerAsync,
 } from "./application-release-run.mts";
@@ -335,6 +336,13 @@ const emptyBootstrapContinuation = {
   ],
 } as const;
 
+// These settled protection diagnostics have separate run titles, outside the
+// exact opportunity inventory. They were charged to the retained bootstrap.
+const bootstrapDiagnosticCharges = [
+  { run_id: "42323830177", attempt: 1, milliseconds: 41_000 },
+  { run_id: "42325788961", attempt: 1, milliseconds: 48_000 },
+] as const;
+
 /** The protected ref is an independent owner appointment. The failed source run
  * that predates draft creation is counted from the complete provider inventory. */
 export function permitsEmptyBootstrapContinuation(
@@ -472,12 +480,22 @@ export function permitsBudgetedEmptyBootstrap(
     !isEmptyApplicationBootstrapCustody(owner.custody) ||
     opportunity !== emptyApplicationBootstrap.opportunity ||
     purpose !== "metadata-bootstrap" ||
-    executionPath !== "ordinary" ||
+    (executionPath !== "ordinary" && executionPath !== "bootstrap-recovery") ||
     execution.run_attempt !== 1 ||
     !successorBootstrapRef(execution.ref)
   )
     return false;
   const custody = owner.custody.runs;
+  if (executionPath === "bootstrap-recovery") {
+    const original = immutableApplicationBootstrap.assembly;
+    const predecessor = custody.at(-2);
+    if (
+      predecessor?.id !== original.run_id ||
+      predecessor.control_commit !== original.control_commit ||
+      predecessor.control_ref !== original.control_ref
+    )
+      return false;
+  }
   const first = retainedBootstrapRuns[0]!;
   if (
     custody.length < retainedBootstrapRuns.length ||
@@ -576,6 +594,8 @@ export async function readApplicationJobBudget(
     executionPath,
     owner,
   );
+  if (executionPath === "bootstrap-recovery")
+    assert.ok(budgetedBootstrap, "bootstrap recovery requires its single appointed continuation");
   assert.ok(
     Array.isArray(known) &&
       (known.length <= 3 || budgetedBootstrap) &&
@@ -604,7 +624,9 @@ export async function readApplicationJobBudget(
     executionPath,
     owner,
   );
-  let actual = 0,
+  const retainedDiagnostics =
+    executionPath === "bootstrap-recovery" ? bootstrapDiagnosticCharges : [];
+  let actual = retainedDiagnostics.reduce((sum, charge) => sum + charge.milliseconds, 0),
     remaining = 0,
     attempts = 0;
   const evidence = [];
@@ -709,6 +731,7 @@ export async function readApplicationJobBudget(
     remaining_declared_minutes: remaining,
     attempts,
     opportunities,
+    ...(retainedDiagnostics.length ? { retained_diagnostics: retainedDiagnostics } : {}),
     maximum_minutes: 140,
     headroom: "unknown",
     reservation: false,

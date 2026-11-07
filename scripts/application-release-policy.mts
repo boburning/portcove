@@ -95,6 +95,7 @@ export function applicationReleaseRemainingMinutes(
     executionPath === "ordinary" ||
       executionPath === "immutable-recovery" ||
       executionPath === "metadata-recovery" ||
+      executionPath === "bootstrap-recovery" ||
       executionPath === "metadata-maintenance",
   );
   if (executionPath === "ordinary") return ordinary;
@@ -114,7 +115,11 @@ export function applicationReleaseRemainingMinutes(
   }
   assert.equal(
     purpose,
-    executionPath === "metadata-recovery" ? "metadata-renewal" : "application-release",
+    executionPath === "metadata-recovery"
+      ? "metadata-renewal"
+      : executionPath === "bootstrap-recovery"
+        ? "metadata-bootstrap"
+        : "application-release",
   );
   const names = new Set([
     "source",
@@ -127,7 +132,14 @@ export function applicationReleaseRemainingMinutes(
     "public_installed_readback",
   ]);
   return Object.freeze(
-    Object.fromEntries(Object.entries(ordinary).filter(([name]) => names.has(name))),
+    Object.fromEntries(
+      Object.entries(ordinary)
+        .filter(([name]) => names.has(name))
+        .map(([name, minutes]) => [
+          name,
+          executionPath === "bootstrap-recovery" && name === "feed" ? 16 : minutes,
+        ]),
+    ),
   );
 }
 

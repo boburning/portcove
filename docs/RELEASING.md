@@ -2337,6 +2337,32 @@ those per-release approvals requires a separately reviewed protected controller,
 bounded credentials, negative/recovery tests, and explicit authority; this
 packaging change does not grant it or introduce another manual gate.
 
+### Initial application feed recovery
+
+The protected `recover-bootstrap` mode resumes the initial metadata-only
+release 436818191 under a newly appointed controller. It reads the original
+immutable assets and authenticates both subjects against the original assembly
+attempt. It stages the same complete site, including the retained rehearsal
+files. Its preflight receipt records the repository, site URL, content
+generation, Pages artifact, build version and Actions run attempt before the
+feed job may create a native deployment.
+
+The recovery guard separately verifies the failed original Actions admission
+and the appointed serving deployment. Native cancellation requires an exact
+qualified operation ID. The original bootstrap build lookup has an opaque
+outcome, so recovery records it as unknown and brackets one identical-site
+continuation with bounded native observations, live prior-site verification
+and the existing shared publisher exclusion. A pending native operation or
+inconsistent public state stops this procedure. A new native success, exact
+anonymous public bytes, current authenticated metadata and independent
+settled-job readback are required for acceptance. Request evidence retains
+status codes and request IDs separately from the Actions admission. The prior
+operation's historical outcome remains unknown after a successful continuation.
+
+An expired role or a different site inventory requires a separately qualified
+successor. The recovery job uses its own finite reservation under application140
+and carries the original opportunity charges forward.
+
 ## Upgrade acceptance and technical previews
 
 The first Windows public beta requires the complete applicable Windows/shared

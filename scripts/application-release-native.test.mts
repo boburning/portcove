@@ -1890,7 +1890,7 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
   );
 });
 
-void test("metadata recovery reaches only current feed staging and guarded deployment with no publisher-artifact dependency", async () => {
+void test("immutable metadata recovery reaches only current feed staging and guarded deployment", async () => {
   const workflow: unknown = parse(
     await readFile(".github/workflows/application-release.yml", "utf8"),
   );
@@ -1900,7 +1900,8 @@ void test("metadata recovery reaches only current feed staging and guarded deplo
     assert.ok(
       isRecord(job) &&
         typeof job.if === "string" &&
-        job.if.includes("inputs.mode == 'recover-metadata'"),
+        job.if.includes("inputs.mode == 'recover-metadata'") &&
+        job.if.includes("inputs.mode == 'recover-bootstrap'"),
       name,
     );
   }
@@ -1922,7 +1923,8 @@ void test("metadata recovery reaches only current feed staging and guarded deplo
     assert.ok(
       isRecord(job) &&
         typeof job.if === "string" &&
-        !job.if.includes("inputs.mode == 'recover-metadata'"),
+        !job.if.includes("inputs.mode == 'recover-metadata'") &&
+        !job.if.includes("inputs.mode == 'recover-bootstrap'"),
       name,
     );
   }

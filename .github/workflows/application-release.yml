@@ -16,6 +16,7 @@ on:
             recover,
             renew,
             recover-metadata,
+            recover-bootstrap,
             renew-unserved,
             diagnose-protection,
           ]
@@ -161,7 +162,7 @@ jobs:
           head-ref: ${{ needs.selection.outputs.source }}
           fail-on-severity: high
   source:
-    if: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata') || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved')) && github.repository == 'boburning/portcove' && github.ref_protected && github.sha == vars.PORTCOVE_APPLICATION_RELEASE_REVISION && github.ref == vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+    if: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap') || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved')) && github.repository == 'boburning/portcove' && github.ref_protected && github.sha == vars.PORTCOVE_APPLICATION_RELEASE_REVISION && github.ref == vars.PORTCOVE_APPLICATION_RELEASE_REF }}
     runs-on: ubuntu-22.04
     timeout-minutes: 2
     environment: production-release-admission
@@ -220,7 +221,7 @@ jobs:
           PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
           PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
           PORTCOVE_APPLICATION_PENDING_OPPORTUNITY: ${{ inputs.pending_opportunity }}
-          PORTCOVE_SOURCE_OPERATION: ${{ inputs.mode == 'bootstrap' && 'bootstrap' || inputs.mode == 'recover' && 'recover' || inputs.mode == 'recover-metadata' && 'recover-metadata' || inputs.mode == 'renew-unserved' && 'renew-unserved' || inputs.mode == 'renew' && 'renew' || 'prepare' }}
+          PORTCOVE_SOURCE_OPERATION: ${{ inputs.mode == 'bootstrap' && 'bootstrap' || inputs.mode == 'recover' && 'recover' || inputs.mode == 'recover-metadata' && 'recover-metadata' || inputs.mode == 'recover-bootstrap' && 'recover-bootstrap' || inputs.mode == 'renew-unserved' && 'renew-unserved' || inputs.mode == 'renew' && 'renew' || 'prepare' }}
           PORTCOVE_WAKE_RUN_ID: ${{ inputs.wake_run_id }}
           PORTCOVE_QUALIFICATION_ATTEMPT: ${{ inputs.qualification_attempt }}
           PORTCOVE_QUALIFICATION_RUN: ${{ inputs.qualification_run }}
@@ -338,7 +339,7 @@ jobs:
       classification: ${{ needs.source.outputs.classification }}
       published_versions: ${{ needs.source.outputs.published_versions }}
   tools:
-    if: inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata') || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved')
+    if: inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap') || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved')
     needs: source
     runs-on: ubuntu-22.04
     timeout-minutes: 10
@@ -1080,7 +1081,7 @@ jobs:
           retention-days: 7
           overwrite: false
   feed_prepare:
-    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && ((inputs.mode == 'recover' || inputs.mode == 'recover-metadata') || ((inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && needs.assemble.result == 'success' && needs.publication.result == 'success')) }}
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && ((inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap') || ((inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && needs.assemble.result == 'success' && needs.publication.result == 'success')) }}
     needs: [source, tools, assemble, publication]
     runs-on: ubuntu-22.04
     timeout-minutes: 3
@@ -1162,7 +1163,7 @@ jobs:
           retention-days: 7
           overwrite: false
   protection_feed:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' }}
     needs: [source, tools, feed_prepare]
     permissions:
       contents: read
@@ -1174,7 +1175,7 @@ jobs:
     with:
       operation: observe
       phase: feed
-      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -1182,10 +1183,10 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   feed:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' && needs.protection_feed.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' && needs.protection_feed.result == 'success' }}
     needs: [source, tools, feed_prepare, protection_feed]
     runs-on: ubuntu-22.04
-    timeout-minutes: 2
+    timeout-minutes: ${{ inputs.mode == 'recover-bootstrap' && 16 || 2 }}
     environment: github-pages
     permissions:
       contents: read
@@ -1242,18 +1243,19 @@ jobs:
       - *acquire_application_tools
       - *verify_application_tools
       - id: worker
-        name: Deploy once behind post-OIDC fresh guards and verify exact public bytes
+        name: ${{ inputs.mode == 'recover-bootstrap' && 'Reconcile initial application Pages deployment' || 'Deploy once behind post-OIDC fresh guards and verify exact public bytes' }}
         run: node scripts/application-release-private.bundle.mjs feed
       - id: upload
+        if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: application-site-publication-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/application-site-publication/result.json
-          if-no-files-found: error
+          path: work/application-site-publication
+          if-no-files-found: ignore
           retention-days: 7
           overwrite: false
   readback:
-    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' && needs.feed.result == 'success' }}
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' && needs.feed.result == 'success' }}
     needs: [source, tools, feed_prepare, feed]
     runs-on: ubuntu-22.04
     timeout-minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'recover') && 3 || 5 }}
@@ -1284,6 +1286,7 @@ jobs:
       PORTCOVE_PROTECTION_PHASE: feed
       PORTCOVE_SITE_PREFLIGHT_ARTIFACT: ${{ needs.feed_prepare.outputs.artifact }}
       PORTCOVE_SITE_PREFLIGHT_ATTEMPT: ${{ needs.feed_prepare.outputs.attempt }}
+      PORTCOVE_SITE_PUBLICATION_ARTIFACT: ${{ needs.feed.outputs.artifact }}
     outputs:
       artifact: ${{ steps.upload.outputs.artifact-id }}
       windows_has_predecessor: ${{ steps.worker.outputs.windows_has_predecessor }}

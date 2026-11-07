@@ -25,7 +25,13 @@ const body = {
   ],
 };
 const site = { ...body, generation: digest(body) };
-function fixture(mode = "valid", prior = false, desired = false, ordinary = false) {
+function fixture(
+  mode = "valid",
+  prior = false,
+  desired = false,
+  ordinary = false,
+  continuation = false,
+) {
   const next = { ...body, previous_generation: "f".repeat(64) };
   const targetSite = ordinary ? { ...next, generation: digest(next) } : site;
   const events: string[] = [];
@@ -43,15 +49,15 @@ function fixture(mode = "valid", prior = false, desired = false, ordinary = fals
         events.push("POST");
         assert.deepEqual(input, {
           artifact_id: 42,
-          pages_build_version: targetSite.generation,
+          pages_build_version: continuation ? "9".repeat(64) : targetSite.generation,
           oidc_token: "inert-token",
         });
         if (mode === "lost-ack") throw new Error("ambiguous provider response");
         return {
           status: 200,
           body: {
-            id: targetSite.generation,
-            status_url: `https://api.github.com/repos/boburning/portcove/pages/deployments/${targetSite.generation}`,
+            id: continuation ? "new-native-id" : targetSite.generation,
+            status_url: `https://api.github.com/repos/boburning/portcove/pages/deployments/${continuation ? "new-native-id" : targetSite.generation}`,
             page_url: "https://boburning.github.io/portcove/",
           },
         };
@@ -59,7 +65,32 @@ function fixture(mode = "valid", prior = false, desired = false, ordinary = fals
       async observe(id) {
         events.push("GET");
         polls++;
-        assert.equal(id, targetSite.generation);
+        if (continuation && id === "original-native-id") {
+          if (mode === "auth-failure") return { status: 403, body: null };
+          const status =
+            mode === "cancel-race"
+              ? polls === 1
+                ? "deployment_in_progress"
+                : "succeed"
+              : mode === "cancelled"
+                ? polls === 1
+                  ? "deployment_in_progress"
+                  : "deployment_cancelled"
+                : mode === "still-pending"
+                  ? "deployment_in_progress"
+                  : mode === "terminal"
+                    ? "deployment_failed"
+                    : "";
+          return { status: 200, body: { status } };
+        }
+        assert.equal(id, continuation ? "new-native-id" : targetSite.generation);
+        if (mode === "new-exhausted")
+          return {
+            status: 200,
+            body: {
+              status: events.includes("cancel-new") ? "cancelled" : "deployment_in_progress",
+            },
+          };
         if (mode === "missing") throw new Error("unknown deployment outcome");
         return {
           status: 200,
@@ -73,6 +104,16 @@ function fixture(mode = "valid", prior = false, desired = false, ordinary = fals
           },
         };
       },
+      async cancel(id) {
+        if (mode === "new-exhausted") {
+          assert.equal(id, "new-native-id");
+          events.push("cancel-new");
+          return { status: 204, body: null };
+        }
+        assert.equal(id, "original-native-id");
+        events.push("cancel");
+        return { status: 404, body: null };
+      },
     },
   });
   const run = () =>
@@ -81,11 +122,46 @@ function fixture(mode = "valid", prior = false, desired = false, ordinary = fals
         artifact_id: 42,
         control_commit: control,
         site: targetSite,
-        prior_feed_execution: prior,
-        preimage: desired ? "desired" : ordinary ? "prior" : "initial",
+        ...(prior
+          ? {
+              prior_effect: {
+                identity: {
+                  artifact_id: 12,
+                  controller_revision: control,
+                  generation: mode === "changed" ? "f".repeat(64) : targetSite.generation,
+                  id: continuation ? "original-native-id" : targetSite.generation,
+                },
+                qualified_native_id: continuation && !["opaque", "new-exhausted"].includes(mode),
+                ...(continuation
+                  ? {
+                      continuation: {
+                        build_version: "9".repeat(64),
+                        async beforeCancel() {
+                          events.push("cancel-guard");
+                        },
+                      },
+                    }
+                  : {}),
+              },
+            }
+          : {}),
+        preimage: desired
+          ? continuation
+            ? "recovery-visible"
+            : "desired"
+          : ordinary
+            ? "prior"
+            : "initial",
       },
       {
         provider,
+        ...(mode === "new-exhausted"
+          ? {
+              async beforeCancelNewEffect() {
+                events.push("cancel-new-guard");
+              },
+            }
+          : {}),
         async beforeWrite() {
           events.push("guard");
           if (mode === "paused") throw new Error("paused");
@@ -260,6 +336,33 @@ void test("prior Pages discovery checks the original feed attempt and refuses re
   const settled = await readApplicationPagesExecution(actions.read, actionsState);
   assert.equal(settled.deployment_created_at, actions.deployment.created_at);
   assert.equal(settled.deployed_at, actions.status.created_at);
+  const recovery = admission();
+  Object.assign(recovery.job, {
+    completed_at: "2026-11-04T12:10:00Z",
+    steps: [
+      {
+        name: "Reconcile initial application Pages deployment",
+        status: "completed",
+        conclusion: "success",
+      },
+    ],
+  });
+  Object.assign(recovery.run, { status: "in_progress" });
+  Object.assign(recovery.status, { created_at: "2026-11-04T12:10:01Z" });
+  const current = { run_id: "123", run_attempt: 1, source: control, ref: `refs/tags/${ref}` };
+  assert.equal(
+    (await readApplicationPagesExecution(recovery.read, actionsState, current)).conclusion,
+    "success",
+  );
+  await assert.rejects(readApplicationPagesExecution(recovery.read, actionsState));
+  await assert.rejects(
+    readApplicationPagesExecution(recovery.read, actionsState, { ...current, run_attempt: 2 }),
+  );
+  Object.assign(recovery.run, { status: "completed", updated_at: "2026-11-04T12:11:00Z" });
+  assert.equal(
+    (await readApplicationPagesExecution(recovery.read, actionsState)).conclusion,
+    "success",
+  );
   for (const mutate of [
     (f: ReturnType<typeof admission>) => Object.assign(f.job, { conclusion: "failure" }),
     (f: ReturnType<typeof admission>) => Object.assign(f.job, { head_branch: "main" }),
@@ -349,6 +452,51 @@ void test("pending status is bounded, terminal failure cannot succeed, and publi
     await assert.rejects(f.run());
     assert.equal(f.events.filter((e) => e === "POST").length, 1);
   }
+});
+
+void test("one appointed identical continuation retains unknown, cancelled or terminal history", async () => {
+  for (const [mode, outcome] of [
+    ["opaque", "unknown"],
+    ["cancelled", "cancelled"],
+    ["terminal", "terminal"],
+  ]) {
+    const f = fixture(mode, true, false, false, true);
+    const result = await f.run();
+    assert.equal(result.resolution, "continued-identical-effect");
+    assert.equal(result.prior_outcome, outcome);
+    assert.equal(result.native_deployment_id, "new-native-id");
+    assert.equal(f.events.filter((event) => event === "POST").length, 1);
+    assert.equal(f.events.includes("cancel"), mode === "cancelled");
+  }
+});
+
+void test("an exhausted acknowledged continuation cancels only its returned native operation", async () => {
+  const f = fixture("new-exhausted", true, false, false, true);
+  await assert.rejects(f.run(), /did not settle successfully/u);
+  assert.equal(f.events.filter((event) => event === "POST").length, 1);
+  assert.deepEqual(
+    f.events.filter((event) => event.startsWith("cancel")),
+    ["cancel-new-guard", "cancel-new"],
+  );
+  assert.ok(!f.events.includes("public"));
+});
+
+void test("a cancellation race adopts success, while pending, changed content and expiry refuse", async () => {
+  const raced = fixture("cancel-race", true, false, false, true);
+  assert.equal((await raced.run()).resolution, "recovered-original-effect");
+  assert.ok(raced.events.includes("cancel"));
+  assert.ok(raced.events.includes("public"));
+  assert.ok(!raced.events.includes("POST"));
+  for (const mode of ["still-pending", "changed", "expired", "auth-failure"]) {
+    const f = fixture(mode, true, false, false, true);
+    await assert.rejects(f.run());
+    assert.ok(!f.events.includes("POST"));
+  }
+  const visible = fixture("cancel-race", true, true, false, true);
+  assert.equal((await visible.run()).resolution, "recovered-original-effect");
+  const unconfirmed = fixture("opaque", true, true, false, true);
+  await assert.rejects(unconfirmed.run());
+  assert.ok(!unconfirmed.events.includes("POST"));
 });
 void test("Pages actor projection binds latest successful deployment, fixed repository settings, ref and registered run", async () => {
   const ref = "portcove-production-controller-windows-fixture";
