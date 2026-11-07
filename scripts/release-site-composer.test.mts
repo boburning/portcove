@@ -42,6 +42,32 @@ void test("first application feed and later catalog/application generations reta
   const catalog = path.join(f.root, "retained-catalog");
   await mkdir(path.join(catalog, "metadata"), { recursive: true });
   await writeFile(path.join(catalog, "metadata/timestamp.json"), "inert catalog timestamp");
+  const initialCatalog = {
+    previous: null,
+    expected_previous_generation: null,
+    catalog,
+    catalog_root_sha256: "b".repeat(64),
+    output_parent: f.output,
+    initial_rehearsal: initial,
+  };
+  const catalogFirst = await composeCatalogSiteFiles(initialCatalog);
+  assert.equal(catalogFirst.authority, "none");
+  assert.equal(catalogFirst.generation.previous_generation, null);
+  assert.equal(catalogFirst.generation.application_root_sha256, null);
+  assert.deepEqual(await readFile(path.join(catalogFirst.output, name)), bytes);
+  await assert.rejects(
+    composeCatalogSiteFiles({
+      ...initialCatalog,
+      initial_rehearsal: { ...initial, inventory_sha256: "f".repeat(64) },
+    }),
+  );
+  await assert.rejects(
+    composeCatalogSiteFiles({
+      ...initialCatalog,
+      previous: first.output,
+      expected_previous_generation: first.generation.generation,
+    }),
+  );
   const joined = await composeCatalogSiteFiles({
     previous: first.output,
     expected_previous_generation: first.generation.generation,
@@ -67,6 +93,7 @@ void test("first application feed and later catalog/application generations reta
   await mkdir(path.join(retained, "unknown"));
   await writeFile(path.join(retained, "unknown/file.json"), "{}");
   await assert.rejects(composeSiteFiles({ ...f.request, initial_rehearsal: initial }));
+  await assert.rejects(composeCatalogSiteFiles(initialCatalog));
 });
 
 void test("catalog bootstraps independently and each later component preserves the other's exact bytes", async (t) => {
