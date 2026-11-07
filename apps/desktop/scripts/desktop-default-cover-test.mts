@@ -259,6 +259,11 @@ export async function defaultCoverScenario({
           : null;
         if (firstOfflineControl) {
           await assertEmptyCache(cache);
+          const firstOfflineReport = path.join(output, "default-cover-first-offline.json");
+          await writeFile(firstOfflineReport, JSON.stringify(firstOfflineControl, null, 2), {
+            flag: "wx",
+          });
+          artifacts.push(firstOfflineReport);
           browser = await restart("default-cover-after-first-offline");
         }
         for (const [pass, theme, size] of coverPasses(cacheConditions)) {
@@ -470,6 +475,8 @@ async function observeMissingCover({
     10_000,
     "Unavailable image must retain an honest generated fallback",
   );
+  const card = await browser.findElement(By.css(selector));
+  await executeBrowserScript(browser, (card) => card.scrollIntoView({ block: "center" }), card);
   await captureSettled(screenshot, selector, browser);
   const logical = await catalogValue(invoke);
   assert.deepEqual(
