@@ -1,5 +1,9 @@
 {
   "cases": {
+    "elasota-aerofoil": {
+      "inventory": "aerofoil",
+      "selected_assets": ["Aerofoil-1.1.7-win64.zip", "Aerofoil-1.1.8-win64.zip"]
+    },
     "pokemon-firered-fireredleafgreenrecomp": {
       "inventory": "firered_leafgreen",
       "selected_assets": [
@@ -74,6 +78,54 @@
     }
   },
   "inventories": {
+    "aerofoil": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/elasota/Aerofoil/releases/download/1.1.7/Aerofoil-1.1.7-win64-PDBs.7z",
+            "digest": "sha256:621b65a596987a5c078b1aa503abcfdd64891f299be3249f6fa12a8daaa37b12",
+            "id": 677500730,
+            "name": "Aerofoil-1.1.7-win64-PDBs.7z",
+            "size": 2867885
+          },
+          {
+            "browser_download_url": "https://github.com/elasota/Aerofoil/releases/download/1.1.7/Aerofoil-1.1.7-win64-tools.zip",
+            "digest": "sha256:c57eb270c682772dbcc0324230189ede46cf5a3e452ec51cc4e34501f224b614",
+            "id": 677500643,
+            "name": "Aerofoil-1.1.7-win64-tools.zip",
+            "size": 1036714
+          },
+          {
+            "browser_download_url": "https://github.com/elasota/Aerofoil/releases/download/1.1.7/Aerofoil-1.1.7-win64.zip",
+            "digest": "sha256:53aef334a071118aeca8d824db134fd283d90cba62dbafa1a78e72f5a4f076ef",
+            "id": 677500685,
+            "name": "Aerofoil-1.1.7-win64.zip",
+            "size": 9508687
+          }
+        ],
+        "draft": false,
+        "id": 423997706,
+        "prerelease": false,
+        "published_at": "2026-10-26T08:24:25Z",
+        "tag_name": "1.1.7"
+      },
+      {
+        "id": 999179000,
+        "tag_name": "1.1.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999179001,
+            "name": "Aerofoil-1.1.8-win64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Aerofoil-1.1.8-win64.zip",
+            "size": 9508800,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
     "firered_leafgreen": [
       {
         "id": 425969707,
@@ -977,6 +1029,7 @@
     ]
   },
   "other_zip_assets": [
+    { "inventory": "aerofoil", "release_index": 0, "asset": "Aerofoil-1.1.7-win64-tools.zip" },
     {
       "inventory": "body_harvest",
       "release_index": 0,

@@ -28423,7 +28423,7 @@
     {
       "id": "elasota-aerofoil",
       "name": "Glider PRO / Aerofoil (elasota)",
-      "summary": "Fly through Glider PRO’s houses with Aerofoil’s gamepad support and built-in house editor.",
+      "summary": "Fly through Glider PRO’s houses with Aerofoil’s gamepad support and house editor. Portcove can manage a separate Windows copy or launch one you prepared.",
       "project_url": "https://github.com/elasota/Aerofoil",
       "support_tier": "beta",
       "channels": [
@@ -28432,50 +28432,65 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
-      "automated_tested_platforms": [],
-      "manually_validated_platforms": [],
+      "adapter": "native-portable",
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "elasota/Aerofoil",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "Aerofoil-",
+            "-win64.zip"
+          ]
         }
       },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Aerofoil.exe"
+        ]
+      },
+      "windows_runtime_path_policy": "relative-file-max-path",
+      "persistent_paths": [],
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose the package ending in -win64.zip. Finish setup with Aerofoil.exe inside its Aerofoil folder; the packaged houses are included. Aerofoil stores your houses, saved games, scores and preferences in the Aerofoil folder in your Windows Documents location. Keep that folder when updating. The separate tools ZIP is available for importing additional original-format content. Complete the upstream setup in your permitted working copy before registration. Select the actual Aerofoil.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable.",
+        "manual_preparation": "Choose Play to open the packaged houses. Aerofoil creates its player profile in your Windows Documents location. Use the separate upstream tools and a prepared copy if you want to import and manage other content outside this route. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Choose a short Windows library path so Aerofoil can open all of its packaged files.",
         "original_game_title": "Glider PRO",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use the complete Windows game ZIP",
-              "instruction": "Choose the package ending in -win64.zip. Finish setup with Aerofoil.exe inside its Aerofoil folder; the packaged houses are included."
+              "title": "Play the managed Windows copy",
+              "instruction": "Choose Play to open the packaged houses. Aerofoil creates its player profile in your Windows Documents location. Use the separate upstream tools and a prepared copy if you want to import and manage other content outside this route."
             },
             {
-              "title": "Add the game and manage your files",
-              "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual Aerofoil.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+              "title": "Prepare a separate copy from upstream",
+              "instruction": "Choose the official package ending in -win64.zip and extract it to a separate folder. Keep Aerofoil.exe and its packaged companions together. The tools ZIP is a separate download for importing additional original-format content. For a prepared copy, use documented literal arguments if your chosen version needs them. Close the player before applying upstream updates."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select Aerofoil.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],
           "warnings": [
-            "Keep that folder when updating."
+            "Choose a short Windows library path so Aerofoil can open all of its packaged files."
           ],
           "help_url": "https://github.com/elasota/Aerofoil#about-aerofoil",
           "references": [
             {
               "title": "Keep custom houses and saved games",
-              "instruction": "Aerofoil stores your houses, saved games, scores and preferences in the Aerofoil folder in your Windows Documents location. Keep that folder when updating. The separate tools ZIP is available for importing additional original-format content."
+              "instruction": "Aerofoil stores custom houses, saved games, scores, preferences, logs and exports in the Aerofoil folder in your Windows Documents location. Managed and prepared copies can share this profile. Back it up separately and check compatibility before changing versions."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the actual Aerofoil folder in your Windows Documents location, including custom houses, saves, scores, preferences, logs and exports. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
             }
           ]
         },
