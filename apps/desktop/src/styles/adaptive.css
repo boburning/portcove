@@ -196,7 +196,7 @@
     .compact-library-collections {
       display: block;
     }
-    .page-header h1 {
+    .page-header:not([data-library-header]) h1 {
       font-size: 1.65rem;
     }
     html,
@@ -385,6 +385,7 @@
       .sidebar .brand {
         justify-content: center;
         padding-inline: 0;
+        padding-block-end: 25px;
       }
       .sidebar .brand-avatar {
         width: 36px;
@@ -528,7 +529,7 @@
   }
   @container library-query (max-width: 30rem) {
     [aria-label="Library quick views"] {
-      gap: 12px;
+      gap: 0 8px;
     }
     [aria-label="Library quick views"] .browse-count {
       display: none;
@@ -573,8 +574,9 @@
     [data-library-header] {
       flex-wrap: wrap;
     }
-    [data-library-header] > :first-child {
-      flex-basis: 100%;
+    .page-header[data-library-header] .header-tools {
+      justify-content: flex-start;
+      margin-inline-start: 0;
     }
   }
   @container workspace-header (14rem < width <= 20em) {
@@ -603,6 +605,11 @@
   }
   [data-library-header] > :first-child {
     flex: 1 0 min(100%, 8.5rem);
+  }
+  @media (width <= 359px) {
+    [data-library-header] > :first-child {
+      flex-basis: 100%;
+    }
   }
 }
 

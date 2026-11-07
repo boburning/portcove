@@ -202,6 +202,7 @@ it.each([
   ["dark", 1440, 100],
   ["light", 740, 100],
   ["dark", 390, 100],
+  ["dark", 340, 100],
   ["dark", 240, 100],
   ["light", 320, 200],
   ["light", 960, 200],
@@ -230,6 +231,15 @@ it.each([
       identity.getBoundingClientRect().bottom + 1 >= chips.getBoundingClientRect().bottom;
     expect(factsFitDetails).toBe(true);
     expect(footer.scrollWidth).toBeLessThanOrEqual(footer.clientWidth + 1);
+    const personal = row.querySelector<HTMLElement>(".collection-personal-actions")!;
+    const controls = personal.getBoundingClientRect();
+    const action = footer.getBoundingClientRect();
+    expect(
+      controls.right <= action.left + 1 ||
+        action.right <= controls.left + 1 ||
+        controls.bottom <= action.top + 1 ||
+        action.bottom <= controls.top + 1,
+    ).toBe(true);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
     await expect
       .element(
@@ -244,7 +254,7 @@ it.each([
 it.each(["dark", "light"])(
   "keeps compact %s quick views on one row with accessible hidden counts",
   async (theme) => {
-    await page.viewport(390, 844);
+    await page.viewport(380, 844);
     await mount(theme);
     const group = page.getByRole("group", { name: "Library quick views", exact: true });
     const controls = [...group.element().querySelectorAll<HTMLButtonElement>("button")];

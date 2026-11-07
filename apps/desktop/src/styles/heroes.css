@@ -187,7 +187,7 @@
       padding: 1.5rem;
     }
   }
-  @container library-query (max-width: 40rem) {
+  @container library-query (width <= 32rem) {
     .game-hero-continue .game-hero-content {
       align-items: flex-start;
       flex-direction: column;
@@ -277,7 +277,18 @@
       font-size: 1.25rem;
     }
     .game-hero-continue .continue-actions {
-      gap: 14px;
+      gap: 7px;
+    }
+  }
+  @container library-query (32rem < width <= 43rem) {
+    .game-hero-continue .continue-actions {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+      margin-block-end: 12px;
+    }
+    .game-hero-continue .game-hero-credits-slot:not(:has(details[open])) {
+      inset-block-end: 0;
     }
   }
 }

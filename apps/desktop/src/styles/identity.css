@@ -114,8 +114,8 @@
   .catalog-filter-panel[data-view="library"] {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 12px;
+    align-items: center;
+    gap: 8px 12px;
   }
   .catalog-filter-panel[data-view="library"] > .catalog-filter-heading {
     grid-column: 1 / -1;
@@ -202,10 +202,12 @@
   }
   @container library-query (max-width: 16rem) {
     .catalog-filter-panel[data-view="library"] {
-      grid-template-columns: minmax(0, 1fr);
+      column-gap: 4px;
     }
-    .catalog-filter-panel[data-view="library"] .catalog-filter-actions {
-      grid-column: 1;
+  }
+  @container library-query (width <= 13rem) {
+    .catalog-filter-panel[data-view="library"] {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 }
@@ -234,7 +236,7 @@
     min-block-size: 44px;
   }
   .catalog-filter-panel[data-view="library"] > .catalog-filter-groups {
-    row-gap: 15px;
+    row-gap: 11px;
   }
   @media (forced-colors: active) {
     .library-entry-chips .identity-chip[style] {
