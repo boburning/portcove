@@ -1,14 +1,14 @@
 # One canonical Windows application path. Production remains held until its
 # separately appointed fixed source and private authority are reconciled.
 name: Windows application release
-run-name: ${{ inputs.mode == 'qualify' && format('Windows qualification {0}', github.sha) || (inputs.wake_run_id != '' && format('Application {0} wake {1}', inputs.opportunity, inputs.wake_run_id)) || format('Application {0}', inputs.opportunity) }}
+run-name: ${{ inputs.mode == 'diagnose-protection' && format('Paused protection diagnostic {0}', github.sha) || inputs.mode == 'qualify' && format('Windows qualification {0}', github.sha) || (inputs.wake_run_id != '' && format('Application {0} wake {1}', inputs.opportunity, inputs.wake_run_id)) || format('Application {0}', inputs.opportunity) }}
 on:
   workflow_dispatch:
     inputs:
       mode:
         type: choice
         default: qualify
-        options: [qualify, prepare, bootstrap, recover, renew, recover-metadata, renew-unserved]
+        options: [qualify, prepare, bootstrap, recover, renew, recover-metadata, renew-unserved, diagnose-protection]
         description: Qualification, application preparation, empty bootstrap, immutable executable/metadata feed recovery, or metadata renewal.
       opportunity:
         type: string
@@ -36,6 +36,63 @@ concurrency:
   group: application-update-production-controller
   cancel-in-progress: false
 jobs:
+  protection_diagnosis:
+    if: ${{ inputs.mode == 'diagnose-protection' && github.repository == 'boburning/portcove' &&
+      github.ref_type == 'tag' && github.ref_protected && github.run_attempt == '1' &&
+      github.actor_id == '43177418' && github.ref == vars.PORTCOVE_APPLICATION_RELEASE_REF &&
+      github.sha == vars.PORTCOVE_APPLICATION_RELEASE_REVISION &&
+      vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == '' && vars.PORTCOVE_CONTROLLER_WAKE == '' &&
+      vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' && vars.PORTCOVE_CONTROLLER_ADMISSION == '' &&
+      vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION == '' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 4
+    environment: production-release-protection-observer
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CONTROLLER_WAKE }}
+      PORTCOVE_CATALOG_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CATALOG_CONTROLLER_WAKE }}
+      PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+      PORTCOVE_CATALOG_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION }}
+      PORTCOVE_DIAGNOSTIC_PAUSE: ${{ inputs.pending_opportunity }}
+      PORTCOVE_DIAGNOSTIC_OWNER_DIGEST: ${{ inputs.opportunity }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - name: Install only the frozen observer dependencies
+        env:
+          GH_TOKEN: ""
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify the fixed diagnostic appointment and pause
+        run: node scripts/application-release-protection-diagnosis.mts preflight
+      - id: observer
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: "5555718"
+          private-key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          owner: boburning
+          repositories: portcove
+          permission-administration: write
+      - name: Compare bounded protection fingerprints
+        env:
+          PORTCOVE_OBSERVER_TOKEN: ${{ steps.observer.outputs.token }}
+          PORTCOVE_OBSERVER_INSTALLATION_ID: ${{ steps.observer.outputs.installation-id }}
+        run: node scripts/application-release-protection-diagnosis.mts observe
   selection:
     if: ${{ inputs.mode == 'qualify' && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-22.04
