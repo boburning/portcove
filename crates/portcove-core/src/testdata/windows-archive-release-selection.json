@@ -1,5 +1,12 @@
 {
   "cases": {
+    "rustmania-racing-ray-m-w-muppet-racemania": {
+      "inventory": "rustmania",
+      "selected_assets": [
+        "rustmania-racing-0.1.0-windows-x64.zip",
+        "rustmania-racing-0.1.1-windows-x64.zip"
+      ]
+    },
     "troyedwardsjr-z2rs": {
       "inventory": "z2rs",
       "selected_assets": [
@@ -99,6 +106,40 @@
     }
   },
   "inventories": {
+    "rustmania": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Ray-m-w/RustMania-Racing/releases/download/v0.1.0/rustmania-racing-0.1.0-windows-x64.zip",
+            "digest": "sha256:7805fe055dc71f9170c8f269a3a89793fdb00f347fb0e7848a3c27c655b66ac2",
+            "id": 653494747,
+            "name": "rustmania-racing-0.1.0-windows-x64.zip",
+            "size": 18314957
+          }
+        ],
+        "draft": false,
+        "id": 416450998,
+        "prerelease": false,
+        "published_at": "2026-10-18T12:56:40Z",
+        "tag_name": "v0.1.0"
+      },
+      {
+        "id": 999339200,
+        "tag_name": "v0.1.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999339201,
+            "name": "rustmania-racing-0.1.1-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/rustmania-racing-0.1.1-windows-x64.zip",
+            "size": 18315000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
     "z2rs": [
       {
         "assets": [

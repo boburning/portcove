@@ -9,6 +9,7 @@ const DECLARED_MANAGED_ROUTE_TEST_IDS: &[&str] = &[
     "nhl-94-genesis-ninety-four",
     "quake-ironwail",
     "quake-vkquake",
+    "rustmania-racing-ray-m-w-muppet-racemania",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
     "troyedwardsjr-z2rs",
 ];
@@ -51,6 +52,11 @@ async fn managed_native_declared_quake_ironwail() {
 #[tokio::test]
 async fn managed_native_declared_quake_vkquake() {
     assert_declarative_managed_native_route("quake-vkquake").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_rustmania_racing_ray_m_w_muppet_racemania() {
+    assert_declarative_managed_native_route("rustmania-racing-ray-m-w-muppet-racemania").await;
 }
 
 #[tokio::test]
