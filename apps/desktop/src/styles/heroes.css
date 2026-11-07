@@ -269,7 +269,7 @@
   }
   @container library-query (max-width: 25rem) {
     .game-hero-continue .game-hero-body {
-      padding: 16px 20px 32px;
+      padding: 16px 20px 2rem;
     }
     .game-hero-continue .continue-title {
       font-size: 1.25rem;
