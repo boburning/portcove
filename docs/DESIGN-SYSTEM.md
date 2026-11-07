@@ -609,6 +609,18 @@ rather than clipping. Needs attention still includes repair/readiness needs.
 An unfavorited heart stays visible; More is subordinate until hover/focus on a
 fine pointer and remains visible on touch. Every action retains keyboard access.
 
+Library's intermediate app-window tier uses a 10.25rem sidebar and 1.5rem
+workspace gutters between 47.5rem and 56.25rem. Retrieval wraps according to
+available workspace; its phone controls retain safe text-enlargement fallbacks.
+Cover metadata keeps at least 10px before the footer while retaining bottom
+alignment. Narrow rows keep independent personal actions beside short identity
+stacks where space permits, and naturally grow for long titles. A narrow header
+wraps Add games below the identity before squeezing the heading.
+
+Continue retains its artwork suitability, attribution and focus owners. Closed
+image credits use a compact affordance; opening them grows the shelf to keep all
+attribution reachable. Detail presentation and launch eligibility are unchanged.
+
 The compact rail combines the decorative mascot with the existing Open navigation
 trigger. A folder control opens the existing collection editor; full navigation
 and focus return remain intact. Known-empty collection navigation also offers

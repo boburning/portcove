@@ -217,3 +217,28 @@
     }
   }
 }
+
+@layer utilities {
+  .library-entry-chips .identity-chip[style] {
+    border-color: color-mix(in srgb, var(--identity-ink) 55%, transparent);
+  }
+  :root[data-theme="light"] .library-entry-chips .identity-chip[style] {
+    --identity-ink: color-mix(in srgb, var(--identity-base) 52%, black);
+    background: color-mix(in srgb, var(--identity-base) 9%, var(--color-bg-elevated));
+  }
+  .browse-filter-summary[data-view="library"] .browse-active-filters > button {
+    min-block-size: 32px;
+    padding-block: 4px;
+  }
+  .catalog-filter-panel[data-view="library"] .catalog-filter-actions > button {
+    min-block-size: 44px;
+  }
+  .catalog-filter-panel[data-view="library"] > .catalog-filter-groups {
+    row-gap: 15px;
+  }
+  @media (forced-colors: active) {
+    .library-entry-chips .identity-chip[style] {
+      border-color: CanvasText;
+    }
+  }
+}

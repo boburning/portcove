@@ -610,7 +610,19 @@ it.each([true, false])(
       expect(image.right).toBeLessThanOrEqual(frame.right + 1);
       expect(image.top).toBeGreaterThanOrEqual(frame.top - 1);
       expect(image.bottom).toBeLessThanOrEqual(frame.bottom + 1);
-      expect(image.bottom).toBeLessThanOrEqual(credits.top);
+      // Closed Continue credits can sit beside the image; neither artwork nor
+      // the action may be covered by the disclosure.
+      const action = document.querySelector(".game-hero-content button")!.getBoundingClientRect();
+      expect(credits.width).toBeGreaterThan(0);
+      expect(credits.height).toBeGreaterThan(0);
+      for (const item of [image, action]) {
+        expect(
+          item.left < credits.right &&
+            item.right > credits.left &&
+            item.top < credits.bottom &&
+            item.bottom > credits.top,
+        ).toBe(false);
+      }
     };
     assertContainedMedia();
     await captureParityState(

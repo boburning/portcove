@@ -859,7 +859,7 @@
     background: var(--color-bg-elevated);
     border-color: var(--color-control-border);
   }
-  @container library-query (max-width: 30rem) {
+  @container library-query (max-width: 24.25rem) {
     .library-query-tools[data-view="library"] .browse-toolbar {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -904,7 +904,124 @@
 @layer utilities {
   @media (width <= 22rem) {
     .library-query-tools[data-view="library"] {
-      margin-block-end: 0;
+      margin-block-end: 14px;
+    }
+  }
+}
+
+/* Library parity: retain safe narrow/enlarged reflow and independent controls. */
+@layer utilities {
+  .library-query-tools[data-view="library"] .browse-toolbar {
+    gap: 10px;
+  }
+  .library-query-tools[data-view="library"] .search {
+    min-block-size: 2.5rem;
+  }
+  .library-query-tools[data-view="library"] .browse-toolbar > button {
+    min-block-size: 40px;
+  }
+  .collection-cover .collection-main {
+    padding-block-end: 10px;
+  }
+  .library-query-tools[data-view="library"] .collection-result-summary > button {
+    min-block-size: 24px;
+    padding-block: 0;
+    background: transparent;
+    border-color: transparent;
+  }
+  .library-empty-result p {
+    color: var(--color-text-secondary);
+  }
+  .collection-cover .collection-identity:hover .collection-art {
+    border-color: var(--color-library-art-hover-border);
+    box-shadow: var(--shadow-library-art-hover);
+  }
+  .collection-cover .collection-personal-actions {
+    inset-block-start: 6px;
+  }
+  .collection-cover .collection-favorite[aria-pressed="true"],
+  .collection-cover .collection-favorite[aria-pressed="true"]:hover {
+    color: var(--color-library-favorite-selected);
+  }
+  @media (forced-colors: active) {
+    .collection-cover .collection-favorite[aria-pressed="true"],
+    .collection-cover .collection-favorite[aria-pressed="true"]:hover {
+      color: Highlight;
+    }
+  }
+  @container app-window (30rem < width <= 56.25rem) {
+    .library-query-tools [aria-label="Collection view"] > button > span {
+      display: none;
+    }
+    .library-query-tools [aria-label="Collection view"] > button {
+      padding-inline: 6px;
+    }
+  }
+  @container app-window (width <= 30rem) {
+    .library-query-tools [aria-label="Collection view"] > button > span {
+      display: inline;
+    }
+  }
+  @container collection (12rem < width <= 16rem) {
+    .collection-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .collection-row .collection-personal-actions {
+      grid-column: 2;
+      grid-row: 1;
+      flex-direction: column;
+      align-self: start;
+    }
+  }
+}
+
+@layer utilities {
+  @container app-window (width > 47.5rem) {
+    @container library-query (width > 30rem) {
+      .library-query-tools[data-view="library"] .browse-toolbar > .search {
+        flex-basis: 10rem;
+      }
+    }
+  }
+  @container library-query (width <= 12rem) {
+    .library-query-tools [aria-label="Collection view"] > button > span {
+      display: none;
+    }
+  }
+  .collection-cover .collection-favorite,
+  .collection-cover .collection-favorite:hover {
+    color: var(--color-library-favorite-ink);
+    background: var(--color-library-favorite-surface);
+  }
+  .collection-cover .collection-favorite[aria-pressed="true"],
+  .collection-cover .collection-favorite[aria-pressed="true"]:hover {
+    color: var(--color-library-favorite-selected);
+    background: var(--color-library-favorite-surface);
+  }
+  @media (forced-colors: active) {
+    .collection-cover .collection-favorite,
+    .collection-cover .collection-favorite:hover {
+      color: ButtonText;
+      background: ButtonFace;
+    }
+    .collection-cover .collection-favorite[aria-pressed="true"],
+    .collection-cover .collection-favorite[aria-pressed="true"]:hover {
+      color: Highlight;
+      background: ButtonFace;
+    }
+  }
+}
+
+@layer utilities {
+  .library-query-tools[data-view="library"] .search input {
+    min-block-size: 2.375rem;
+  }
+}
+
+@layer utilities {
+  @container app-window (width <= 47.5rem) {
+    .library-query-tools[data-view="library"] .search {
+      margin-block-end: 2px;
     }
   }
 }
