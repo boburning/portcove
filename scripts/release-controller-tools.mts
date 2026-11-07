@@ -36,7 +36,10 @@ export const controllerToolChildren = Object.freeze([
 ] as const);
 export const controllerToolAssets = Object.freeze([
   "deny.toml",
+  ".github/workflows/application-release.yml",
+  ".github/workflows/application-release-package.yml",
   ".github/workflows/application-update-production.yml",
+  ".github/workflows/ci.yml",
   ".github/workflows/release.yml",
   ".github/repository-ruleset.json",
   ".github/qualification-coverage.json",
@@ -46,6 +49,7 @@ export const controllerToolAssets = Object.freeze([
   "scripts/qualify-hosted-native-linux.py",
   "scripts/native-qualification-linux-supervisor.py",
   "scripts/prepare-hosted-native-linux-installation.py",
+  "scripts/semantic-source-git.py",
 ] as const);
 export const controllerToolPaths = Object.freeze(
   [

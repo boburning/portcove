@@ -2350,6 +2350,7 @@ for (const file of [
   "scripts/application-release-run-title.mts",
   "scripts/application-release-transfer.mts",
   "scripts/application-release-source.mts",
+  "scripts/application-release-source-git.mts",
   "scripts/application-release-private.mts",
   "scripts/application-release-native-execution.mts",
   "scripts/application-release-native.mts",
