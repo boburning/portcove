@@ -2008,7 +2008,12 @@ async function preflightBootstrapSite() {
 
 async function deployBootstrapSite(readOnly = false) {
   const source = await readNativeApplicationSource();
-  const controls = await guard(source, false);
+  publicationStage = "release-guard";
+  const markStage = (stage: string) => {
+    publicationStage = stage;
+  };
+  const controls = await guard(source, false, { markStage });
+  publicationStage = "preflight-input";
   const current = execution();
   const attempt = Number(process.env.PORTCOVE_SITE_PREFLIGHT_ATTEMPT);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
@@ -2087,6 +2092,17 @@ async function deployBootstrapSite(readOnly = false) {
   const prior = hasPrior(controls);
   const deadline = performance.now() + 90000;
   const provider = createPagesProviderTransport({}, deadline);
+  let admissionId: number | undefined;
+  const verifyServingActor = async () => {
+    const { admission_id, ...serving } = await readActualApplicationPagesState(deadline, {
+      ...current,
+      selection: "serving",
+      ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
+    });
+    assert.ok(admission_id !== undefined);
+    assert.deepEqual(serving, preimage.provider, "public deployment changed after preflight");
+    admissionId = admission_id;
+  };
   const result = await executeBootstrapPages(
     {
       artifact_id: artifactId,
@@ -2098,20 +2114,17 @@ async function deployBootstrapSite(readOnly = false) {
     {
       provider,
       deadline,
+      markStage,
       async beforeWrite() {
         assert.equal(readOnly, false, "public readback has no deployment authority");
-        const fresh = await guard(source);
+        const fresh = await guard(source, true, { markStage });
         assert.equal(hasPrior(fresh), false, "earlier feed execution requires read-only recovery");
         if (source.purpose !== "metadata-bootstrap")
           assertCurrentApplicationPublication(plan.publication);
         return assertProtectionWriteWindow;
       },
       async assertPreimage() {
-        assert.deepEqual(
-          await readActualApplicationPagesState(deadline),
-          preimage.provider,
-          "public deployment changed after preflight",
-        );
+        await verifyServingActor();
         const provider = await createReleaseCustodyProvider({
           token: fixedReleaseReaderToken(),
           deadline,
@@ -2133,11 +2146,7 @@ async function deployBootstrapSite(readOnly = false) {
           assert.ok(isRecord(preimage.site));
           const previous = inspectSiteGeneration(preimage.site, site.previous_generation!);
           await readPublicApplicationSite(previous, deadline);
-          assert.deepEqual(
-            await readActualApplicationPagesState(deadline),
-            preimage.provider,
-            "prior site actor changed before ordinary deployment",
-          );
+          await verifyServingActor();
           assertCurrentApplicationPublication(plan.publication);
           return;
         }
@@ -2150,9 +2159,24 @@ async function deployBootstrapSite(readOnly = false) {
         await missing.body?.cancel();
         assert.equal(missing.url, "https://boburning.github.io/portcove/publication.json");
         assert.equal(missing.status, 404, "bootstrap marker appeared after initial preflight");
+        await verifyServingActor();
       },
-      async providerReadback() {
-        const state = await readActualApplicationPagesState(deadline);
+      async providerReadback(resolution) {
+        // Native Pages success is already checked for this artifact and generation.
+        // The following readback job independently requires final Actions success.
+        const newEffect =
+          resolution === "new-effect" || resolution === "recovered-ambiguous-effect";
+        if (newEffect) assert.ok(admissionId !== undefined);
+        const state = await readActualApplicationPagesState(
+          deadline,
+          readOnly
+            ? undefined
+            : {
+                ...current,
+                selection: newEffect ? "current" : "serving",
+                ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
+              },
+        );
         assertBootstrapPagesActor(state, site.generation, custody.runs);
         return state;
       },
@@ -3540,7 +3564,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     await main();
   } catch (error) {
-    if (["assemble", "publication", "publication-prepare"].includes(process.argv[2] ?? "")) {
+    if (
+      ["assemble", "publication", "publication-prepare", "feed", "site-readback"].includes(
+        process.argv[2] ?? "",
+      )
+    ) {
       const status =
         error instanceof GitHubApiError &&
         Number.isInteger(error.status) &&
@@ -3549,6 +3577,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           ? ` (HTTP ${error.status})`
           : "";
       const assembling = process.argv[2] === "assemble";
+      const role =
+        process.argv[2] === "feed" || process.argv[2] === "site-readback"
+          ? process.argv[2]
+          : assembling
+            ? "assembly"
+            : "publication";
       const age =
         publicationProtectionObservedAt === undefined
           ? NaN
@@ -3556,7 +3590,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const observation =
         !assembling && Number.isSafeInteger(age) && age >= 0 ? ` (observation age ${age} ms)` : "";
       console.error(
-        `Application ${assembling ? "assembly" : "publication"} refused at ${assembling ? assemblyStage : publicationStage}${status}${observation}.`,
+        `Application ${role} refused at ${assembling ? assemblyStage : publicationStage}${status}${observation}.`,
       );
     }
     console.error("Fixed application role failed; private subprocess output is not retained.");
