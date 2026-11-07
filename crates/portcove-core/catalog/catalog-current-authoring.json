@@ -1151,6 +1151,16 @@
         "claim": "Official Windows v0.1.3 ZIP asset 600790067 matched publisher SHA-256 d6381ace8b2d1bf6107a88ce71fbbd638e0847b59bc3ff8a766261c1e0f4bcd2 and passed CRC and safe-entry checks. Packaged game.toml and project manifest match tagged source. Catalog identity declares USA SLUS-00582, 26 tracks and a first data-track SHA-1. Packaged setup requires retail SCPH-1001. The reviewed PSX kit builds Nightmare_Creatures_Recompiled.exe. Complete-disc identity, native generation, gameplay and saves are unobserved.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/blob/85b86b419e019647fa961ff41cdc992f7b2e6a72/game.toml",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/bloody-roar-ii-recomp",
+        "authority_ref": "a8332fc2144184f9d30d8e946b34c77b0114f0d7",
+        "reviewed_at": "2026-11-07",
+        "claim": "Official Windows v0.1.2 ZIP asset 544444855 matched publisher SHA-256 8cc8dccbbed28b68c11a1108b170377b235c50b6da880e27db989e49b4c65eda and passed CRC and safe-entry checks. The packaged game, identity, project manifest and title build files match tagged source. The source declares one USA data track for SCUS-94424 and requires retail SCPH-1001. CMake generates Bloody_Roar_II__Recompiled.exe. Framework and UI match the reviewed Monster Rancher 2 Windows kit except for the two AMD64 emitter binaries. Native generation, gameplay and saves are unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/a8332fc2144184f9d30d8e946b34c77b0114f0d7/game.toml",
+        "live_url": null
       }
     ],
     "identities": [
@@ -9182,6 +9192,51 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-bloody-roar-ii-recomp-usa-psx",
+        "label": "Bloody Roar II (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Bloody Roar II (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SCUS-94424"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "75a13364ae026fe555e9c666c7c3434e5b403cc8",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -12895,6 +12950,60 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "d6381ace8b2d1bf6107a88ce71fbbd638e0847b59bc3ff8a766261c1e0f4bcd2"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-bloody-roar-ii-recomp-game-source",
+        "port_id": "alexbeav-bloody-roar-ii-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-bloody-roar-ii-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract"
+        ],
+        "authority_ref": "a8332fc2144184f9d30d8e946b34c77b0114f0d7",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/a8332fc2144184f9d30d8e946b34c77b0114f0d7/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "8cc8dccbbed28b68c11a1108b170377b235c50b6da880e27db989e49b4c65eda"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-bloody-roar-ii-recomp-bios-source",
+        "port_id": "alexbeav-bloody-roar-ii-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-bloody-roar-ii-recomp-v0-1-2-static-contract"
+        ],
+        "authority_ref": "a8332fc2144184f9d30d8e946b34c77b0114f0d7",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/a8332fc2144184f9d30d8e946b34c77b0114f0d7/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "8cc8dccbbed28b68c11a1108b170377b235c50b6da880e27db989e49b4c65eda"
           }
         ],
         "aliases": [],
@@ -24751,6 +24860,133 @@
           "match_kind": "underlying-game"
         }
       }
+    },
+    {
+      "id": "alexbeav-bloody-roar-ii-recomp",
+      "name": "Bloody Roar II / Alexbeav PSXRecomp",
+      "summary": "Build and play Bloody Roar II on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/bloody-roar-ii-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "bloody-roar-ii-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-bloody-roar-ii-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Bloody_Roar_II__Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-bloody-roar-ii-recomp-usa-psx",
+            "label": "Bloody Roar II (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track USA CHD (SCUS-94424) and retail SCPH-1001 BIOS. Portcove checks the first data-track SHA-1 and track count, then builds privately with the registered toolchain. Keep your disc and BIOS separately. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Bloody Roar II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Use your own Bloody Roar II (USA) disc (SCUS-94424) and retail SCPH-1001 BIOS. Keep the CUE and every referenced track together if using a CUE/BIN copy. Follow the original-file instructions included with the kit you downloaded."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 4140,
+          "cover_id": 197342,
+          "image_id": "co489q",
+          "image_sha256": "1d9da18c25e734f649a742ed62e39893226d02633e7d65ec18752fd6b4736072",
+          "game_slug": "bloody-roar-2",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
     },
     {
       "id": "alexbeav-medievil-ii-recomp",
