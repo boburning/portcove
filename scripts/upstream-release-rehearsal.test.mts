@@ -10,7 +10,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import {
-  inspectRehearsalDraftReadback,
   inspectRehearsalFeed,
   inspectRehearsalManifest,
   inspectRehearsalReleaseReadback,
@@ -302,48 +301,6 @@ void test("public feed transfer refuses traversal, links-by-shape, duplicates an
     [{ path: "metadata/root.json", text: "{}", link: "../private" }],
   ])
     assert.throws(() => inspectRehearsalFeed(value));
-});
-
-void test("final draft proof observes publication/tag/asset drift instead of asserting draft status", () => {
-  const files = fixture().files;
-  const tag = `v${fixture().version}`;
-  const expectedDraft = { id: 42, tag, source: expected.source, files };
-  const release = {
-    id: 42,
-    tag_name: tag,
-    target_commitish: expected.source,
-    draft: true,
-    immutable: false,
-    published_at: null,
-    prerelease: true,
-  };
-  const ref = { ref: `refs/tags/${tag}`, object: { type: "commit", sha: expected.source } };
-  const assets = files.map((f) => ({ name: f.name, size: f.bytes, digest: `sha256:${f.sha256}` }));
-  assert.equal(inspectRehearsalDraftReadback(release, ref, assets, expectedDraft).draft, true);
-  for (const delta of [
-    { draft: false },
-    { prerelease: false },
-    { id: 43 },
-    { tag_name: "wrong" },
-    { target_commitish: "c".repeat(40) },
-  ])
-    assert.throws(() =>
-      inspectRehearsalDraftReadback({ ...release, ...delta }, ref, assets, expectedDraft),
-    );
-  assert.throws(() =>
-    inspectRehearsalDraftReadback(
-      release,
-      { ...ref, object: { type: "commit", sha: "c".repeat(40) } },
-      assets,
-      expectedDraft,
-    ),
-  );
-  for (const changed of [
-    assets.slice(1),
-    [...assets, assets[0]],
-    assets.map((a) => ({ ...a, digest: "sha256:" + "c".repeat(64) })),
-  ])
-    assert.throws(() => inspectRehearsalDraftReadback(release, ref, changed, expectedDraft));
 });
 
 function signedFixture() {
@@ -889,19 +846,33 @@ void test("immutable observation refuses missing immutability even with complete
     published_at: "2026-11-04T00:00:00Z",
   };
   const identity = { id: 42, tag, source: expected.source, files };
-  assert.equal(
-    inspectRehearsalReleaseReadback(release, ref, assets, identity, "immutable").immutable,
-    true,
-  );
+  assert.equal(inspectRehearsalReleaseReadback(release, ref, assets, identity).immutable, true);
   for (const delta of [
+    { id: 43 },
+    { tag_name: "wrong" },
+    { prerelease: false },
     { immutable: false },
     { draft: true },
     { published_at: null },
     { target_commitish: "f".repeat(40) },
   ])
     assert.throws(() =>
-      inspectRehearsalReleaseReadback({ ...release, ...delta }, ref, assets, identity, "immutable"),
+      inspectRehearsalReleaseReadback({ ...release, ...delta }, ref, assets, identity),
     );
+  assert.throws(() =>
+    inspectRehearsalReleaseReadback(
+      release,
+      { ...ref, object: { type: "commit", sha: "c".repeat(40) } },
+      assets,
+      identity,
+    ),
+  );
+  for (const changed of [
+    assets.slice(1),
+    [...assets, assets[0]],
+    assets.map((asset) => ({ ...asset, digest: "sha256:" + "c".repeat(64) })),
+  ])
+    assert.throws(() => inspectRehearsalReleaseReadback(release, ref, changed, identity));
 });
 
 void test("diagnostic continuation retains all four failed exposures and counts actual execution", () => {
