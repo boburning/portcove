@@ -144,6 +144,7 @@ import { hostPublicationScenario } from "./desktop-host-publication-test.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
+import { createImageRefusal } from "./desktop-cover-observations.mts";
 import { defaultCoverScenario } from "./desktop-default-cover-test.mts";
 import {
   desktopHarnessDeadlineMs,
@@ -2504,6 +2505,7 @@ async function verifySettingsIndexTheme(theme: string) {
   await captureScenarioScreenshot(`settings-section-index-${theme}`);
 }
 
+let firstOfflineCover: Awaited<ReturnType<typeof createImageRefusal>> | undefined;
 try {
   let preferencesRecoveryFixture:
     | Awaited<ReturnType<typeof preparePreferencesRecoveryFixture>>
@@ -2668,7 +2670,14 @@ try {
     await requireUnusedPort(port + 2);
     originFixture = await createOriginBoundaryFixture();
   }
-  await startDriver();
+  if (
+    process.platform === "win32" &&
+    !nativeAccount &&
+    selection.selected_scenarios.length === 1 &&
+    selection.selected_scenarios[0] === "native-default-cover-cache-conditions"
+  )
+    firstOfflineCover = await createImageRefusal();
+  await startDriver(firstOfflineCover?.environment);
   await connect();
   if (runnerMetadata.acceptance_bindings) {
     assert.equal(
@@ -3683,6 +3692,7 @@ try {
       restart: restartApplication,
       cacheConditions,
       coverPortIds: values["cover-port-id"],
+      ...(cacheConditions && firstOfflineCover ? { firstOffline: firstOfflineCover } : {}),
     });
   }
   await scenario("keyboard-layout", async () => {
@@ -4967,6 +4977,14 @@ try {
   process.exitCode = 1;
 } finally {
   try {
+    await firstOfflineCover?.close().catch((error) => {
+      recordChecks({
+        scenario: "native-first-offline-cover-proxy-cleanup",
+        outcome: "failed",
+        message: errorMessage(error),
+      });
+      process.exitCode = 1;
+    });
     if (linuxSelectedSession) {
       let quitFailure: { error: unknown } | undefined;
       let cleanupError: unknown;

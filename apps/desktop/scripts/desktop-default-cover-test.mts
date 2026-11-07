@@ -22,6 +22,7 @@ type CoverContext = Pick<
   restart: PreparationContext["restartApplication"];
   cacheConditions?: boolean;
   coverPortIds?: readonly string[];
+  firstOffline?: Awaited<ReturnType<typeof createImageRefusal>>;
 };
 interface CoverImage {
   width: number;
@@ -101,6 +102,7 @@ export async function defaultCoverScenario({
   restart,
   cacheConditions = false,
   coverPortIds = [],
+  firstOffline,
 }: CoverContext) {
   await scenario(
     cacheConditions ? "native-default-cover-cache-conditions" : "native-default-cover-display",
@@ -244,6 +246,21 @@ export async function defaultCoverScenario({
           assertDefaultCoverPresentation(rendered);
           return rendered;
         };
+        const firstOfflineControl = firstOffline
+          ? await observeMissingCover({
+              browser,
+              ports: catalog.ports,
+              refusedOrigins: firstOffline.origins,
+              refusedImageRequestsBeforeControl: 0,
+              invoke,
+              captureSettled,
+              screenshot: "default-cover-first-offline",
+            })
+          : null;
+        if (firstOfflineControl) {
+          await assertEmptyCache(cache);
+          browser = await restart("default-cover-after-first-offline");
+        }
         for (const [pass, theme, size] of coverPasses(cacheConditions)) {
           if (cacheConditions && pass === "offline-cached-restart") {
             await verifyMappedCache(catalog.ports, ids, cache);
@@ -308,6 +325,7 @@ export async function defaultCoverScenario({
               detailObservationPortIds: ids.filter((id) => detailIds.has(id)),
               availableMappedCount: catalog.ports.filter((port) => port.presentation?.artwork)
                 .length,
+              firstOfflineControl,
               negativeControl,
               refusedOrigins,
               catalogCount: catalog.ports.length,
@@ -392,6 +410,35 @@ async function missingCacheNegativeControl({
     },
     offlineEnvironment,
   );
+  return observeMissingCover({
+    browser,
+    ports,
+    refusedOrigins,
+    refusedImageRequestsBeforeControl,
+    invoke,
+    captureSettled,
+    screenshot: "default-cover-missing-cache-offline",
+  });
+}
+
+async function observeMissingCover({
+  browser,
+  ports,
+  refusedOrigins,
+  refusedImageRequestsBeforeControl,
+  invoke,
+  captureSettled,
+  screenshot,
+}: Pick<
+  MissingCacheContext,
+  "browser" | "ports" | "refusedOrigins" | "invoke" | "captureSettled"
+> & {
+  refusedImageRequestsBeforeControl: number;
+  screenshot: string;
+}) {
+  const port = ports.find((item) => item.id === "dkr-r");
+  assert.ok(port?.presentation?.artwork, "Negative control requires the maintained DKR mapping");
+  const digest = port.presentation.artwork.image_sha256;
   await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
   await searchForCover(browser, port.name);
   const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
@@ -423,7 +470,7 @@ async function missingCacheNegativeControl({
     10_000,
     "Unavailable image must retain an honest generated fallback",
   );
-  await captureSettled("default-cover-missing-cache-offline", selector, browser);
+  await captureSettled(screenshot, selector, browser);
   const logical = await catalogValue(invoke);
   assert.deepEqual(
     required(required(logical.ports.find((item) => item.id === port.id)).presentation).artwork,
