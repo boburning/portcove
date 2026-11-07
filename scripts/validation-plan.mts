@@ -1,3 +1,5 @@
+import { isGuideCopyProof } from "./catalog-guide-copy-impact.mts";
+import type { GuideCopyProof } from "./catalog-guide-copy-impact.mts";
 import { validateChangedPath as normalizedPath } from "./repository-path.mts";
 import { gzipSync, gunzipSync } from "node:zlib";
 import type { NextestProof } from "./nextest-equivalence.mts";
@@ -52,6 +54,7 @@ export interface ValidationChange {
   oldPath: string;
   newPath: string;
   nextest_equivalence?: NextestProof;
+  guide_copy?: GuideCopyProof;
 }
 export interface ValidationChangeInput {
   status: string;
@@ -63,6 +66,7 @@ export interface ValidationChangeInput {
   // Raw local change discovery retains this property with undefined for non-renames.
   previousPath?: string | undefined;
   nextest_equivalence?: NextestProof;
+  guide_copy?: GuideCopyProof;
 }
 export interface PathOwnership {
   path: string;
@@ -1310,13 +1314,14 @@ export function buildValidationPlan({
             : "area-routed-fast-validation",
     changed_files: changedFiles,
     changes: normalizedChanges.map(
-      ({ status, oldMode, newMode, oldPath, newPath, nextest_equivalence }) => ({
+      ({ status, oldMode, newMode, oldPath, newPath, nextest_equivalence, guide_copy }) => ({
         status,
         oldMode: oldMode ?? null,
         newMode: newMode ?? null,
         oldPath,
         newPath,
         ...(nextest_equivalence ? { nextest_equivalence } : {}),
+        ...(guide_copy ? { guide_copy } : {}),
       }),
     ),
     areas,
@@ -1394,6 +1399,8 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
       throw new Error("unsafe or missing validation file mode");
     if (change.nextest_equivalence !== undefined && !isNextestProof(change.nextest_equivalence))
       throw new Error("invalid nextest equivalence proof");
+    if (change.guide_copy !== undefined && !isGuideCopyProof(change.guide_copy))
+      throw new Error("invalid catalog guide copy proof");
   }
   if (!Array.isArray(plan.paths)) throw new Error("validation plan paths must be an array");
   for (const entry of plan.paths) assertPathOwnership(entry);

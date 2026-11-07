@@ -1,3 +1,8 @@
+import {
+  catalogGuideCopyMaxBytes,
+  decodeGuideCopyBlob,
+  readGuideCopyBlob,
+} from "./catalog-guide-copy-impact.mts";
 import { errorMessage } from "./runtime-values.mts";
 import type { Stats } from "node:fs";
 import type { SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
@@ -14,7 +19,7 @@ import type {
 } from "./validation-evidence.mts";
 import type { PrerequisiteObservation } from "./dev-doctor.mts";
 export type { PrerequisiteObservation } from "./dev-doctor.mts";
-import { annotateNextest } from "./nextest-equivalence.mts";
+import { annotateChanges } from "./validation-change-proofs.mts";
 import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -169,14 +174,21 @@ export function readChangeContext(base = "origin/main") {
     baseSha,
     headSha,
     mergeBase,
-    changes: annotateNextest(
+    changes: annotateChanges(
       [...tracked, ...untracked].map((c) => ({
         ...c,
         oldPath: c.previousPath ?? c.path,
         newPath: c.path,
       })),
-      (file) => git(["show", `${mergeBase}:${file}`]),
-      (file: string) => readFileSync(path.join(projectRoot, file), "utf8"),
+      (file) =>
+        decodeGuideCopyBlob(
+          runCheckedGit(["show", `${mergeBase}:${file}`], {
+            cwd: projectRoot,
+            encoding: "buffer",
+            maxBuffer: catalogGuideCopyMaxBytes,
+          }),
+        ),
+      (file: string) => readGuideCopyBlob(path.join(projectRoot, file)),
     ),
   };
 }
