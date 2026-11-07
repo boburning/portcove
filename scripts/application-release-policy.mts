@@ -67,6 +67,16 @@ export function applicationReleaseBudgetMinutes(purpose: unknown) {
       "public_installed",
     ])
       delete jobs[name];
+    // The bounded observer may collect for two minutes. Bootstrap jobs also
+    // need time for attested-tool setup and positive artifact-upload cleanup.
+    for (const name of [
+      "protection_metadata / execute",
+      "protection_snapshot / execute",
+      "protection_timestamp / execute",
+      "protection_publication / execute",
+      "protection_feed / execute",
+    ])
+      jobs[name] = 3;
   }
   return Object.freeze(jobs);
 }

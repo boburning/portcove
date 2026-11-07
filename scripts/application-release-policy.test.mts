@@ -48,6 +48,24 @@ void test("assembly can read the retained Pages and deployment preimage", async 
   }
 });
 
+void test("bootstrap observer jobs reserve setup and upload time around the bounded collector", async () => {
+  const workflow = parseDocument(
+    await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),
+  );
+  assert.deepEqual(workflow.errors, []);
+  const bootstrap = applicationReleaseBudgetMinutes("metadata-bootstrap");
+  const ordinary = applicationReleaseBudgetMinutes("application-release");
+  for (const name of Object.keys(bootstrap).filter((name) => name.startsWith("protection_"))) {
+    assert.equal(bootstrap[name], 3);
+    assert.equal(ordinary[name], 1);
+    const job = name.split(" / ")[0]!;
+    assert.equal(
+      workflow.getIn(["jobs", job, "with", "timeout_minutes"]),
+      "${{ inputs.mode == 'bootstrap' && 3 || 1 }}",
+    );
+  }
+});
+
 void test("paused diagnosis isolates the observer credential and rejects reruns", async () => {
   const workflow = parseDocument(
     await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),

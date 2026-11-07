@@ -421,6 +421,33 @@ function isContextOnlyBootstrap(run: Record<string, unknown>) {
   );
 }
 
+// The provider annotation on this exact run records a one-minute job timeout.
+// Its cancellation remains historical and does not admit other cancellations.
+const timedOutBootstrap = {
+  id: 42330828127,
+  source: "678133294e5ea5a39935c26958a064ec7dc8976a",
+  tag: "portcove-production-controller-windows-20261105r23",
+  milliseconds: 398_000,
+  jobs: [
+    { id: 128276714370, name: "source", conclusion: "success" },
+    { id: 128276860078, name: "tools", conclusion: "success" },
+    { id: 128277402232, name: "context / execute", conclusion: "success" },
+    { id: 128277555273, name: "protection_metadata / execute", conclusion: "success" },
+    { id: 128277773517, name: "preview / execute", conclusion: "success" },
+    { id: 128277773532, name: "releases / execute", conclusion: "success" },
+    { id: 128277773538, name: "stable / execute", conclusion: "success" },
+    { id: 128277929443, name: "protection_snapshot / execute", conclusion: "cancelled" },
+  ],
+} as const;
+
+function isTimedOutBootstrap(run: Record<string, unknown>) {
+  return (
+    run.id === timedOutBootstrap.id &&
+    run.head_sha === timedOutBootstrap.source &&
+    run.head_branch === timedOutBootstrap.tag
+  );
+}
+
 function successorBootstrapRef(ref: string) {
   const revision =
     /^refs\/tags\/portcove-production-controller-windows-20261105r([1-9][0-9]{1,5})$/u.exec(ref);
@@ -497,6 +524,7 @@ export function permitsBudgetedEmptyBootstrap(
     return (
       row.status === "completed" &&
       (row.conclusion === "failure" ||
+        (row.conclusion === "cancelled" && isTimedOutBootstrap(row)) ||
         (row.conclusion === "success" && isContextOnlyBootstrap(row)))
     );
   });
@@ -645,6 +673,28 @@ export async function readApplicationJobBudget(
         contextOnlyBootstrap.jobs,
       );
       assert.equal(result.actual_milliseconds, contextOnlyBootstrap.milliseconds);
+    }
+    if (budgetedBootstrap && !current && isTimedOutBootstrap(run)) {
+      const proof = observations[0]?.jobs;
+      assert.ok(isRecord(proof) && Array.isArray(proof.jobs));
+      const executed = proof.jobs
+        .filter((job: unknown) => isRecord(job) && job.conclusion !== "skipped")
+        .map((job: unknown) => {
+          assert.ok(isRecord(job) && job.status === "completed");
+          return { id: job.id, name: job.name, conclusion: job.conclusion };
+        })
+        .sort((left, right) => Number(left.id) - Number(right.id));
+      assert.deepEqual(executed, timedOutBootstrap.jobs);
+      assert.equal(result.actual_milliseconds, timedOutBootstrap.milliseconds);
+      const cancelled: unknown = proof.jobs.find(
+        (job: unknown) => isRecord(job) && job.id === 128277929443,
+      );
+      assert.ok(isRecord(cancelled));
+      assert.equal(
+        Date.parse(String(cancelled.completed_at)) - Date.parse(String(cancelled.started_at)),
+        63_000,
+        "bootstrap timeout duration changed",
+      );
     }
     actual += result.actual_milliseconds;
     remaining += result.remaining_declared_minutes;
