@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { isMap, parseDocument } from "yaml";
 import {
   applicationReleaseJobMinutes,
   applicationReleaseBudgetMinutes,
@@ -30,6 +34,35 @@ function controlFixture(): NodeJS.ProcessEnv {
     GITHUB_RUN_ATTEMPT: "1",
   };
 }
+
+void test("paused diagnosis isolates the observer credential and rejects reruns", async () => {
+  const workflow = parseDocument(
+    await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),
+  );
+  assert.deepEqual(workflow.errors, []);
+  assert.equal(
+    workflow.getIn(["jobs", "protection_diagnosis", "environment"]),
+    "production-release-protection-observer",
+  );
+  const job = workflow.getIn(["jobs", "protection_diagnosis"], true);
+  assert.ok(isMap(job));
+  const text = JSON.stringify(job.toJSON());
+  assert.match(text, /"contents":"read"/u);
+  assert.doesNotMatch(text, /upload-artifact|SIGNING_KEY|contents":"write/u);
+  assert.ok(text.indexOf("diagnosis.mts preflight") >= 0);
+  assert.ok(text.indexOf("diagnosis.mts preflight") < text.indexOf("create-github-app-token"));
+  const rejected = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./application-release-protection-diagnosis.mts", import.meta.url)),
+      "preflight",
+    ],
+    { env: { ...controlFixture(), GITHUB_RUN_ATTEMPT: "2" }, encoding: "utf8" },
+  );
+  assert.equal(rejected.status, 1);
+  assert.equal(rejected.stdout, "");
+  assert.equal(rejected.stderr.trim(), "Paused protection diagnostic refused at appointment.");
+});
 
 void test("source and private jobs require the same owner-appointed zero-dollar spending boundary", () => {
   const hash = "f".repeat(64);
