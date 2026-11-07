@@ -7,7 +7,7 @@
     "original_game_title": "Tony Hawk's Pro Skater",
     "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
     "issue_number": 492,
-    "platforms": ["linux-x86-64"],
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp#readme",
     "artwork": {
@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Download and unpack the setup kit",
-          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
         },
         {
           "title": "Supply the matching original files",
@@ -45,7 +45,9 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/releases",
     "download_asset_hints": {
       "windows-x86-64": ["tony-hawk-s-pro-skater-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["tony-hawk-s-pro-skater-recomp-", "-linux-x64.zip"]
+      "linux-x86-64": ["tony-hawk-s-pro-skater-recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["tony-hawk-s-pro-skater-recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["tony-hawk-s-pro-skater-recomp-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable"
   },

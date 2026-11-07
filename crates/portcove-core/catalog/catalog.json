@@ -24914,7 +24914,7 @@
           "steps": [
             {
               "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
             },
             {
               "title": "Supply the matching original files",
@@ -25041,7 +25041,7 @@
           "steps": [
             {
               "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
             },
             {
               "title": "Supply the matching original files",
@@ -25168,7 +25168,7 @@
           "steps": [
             {
               "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
             },
             {
               "title": "Supply the matching original files",
@@ -25295,7 +25295,7 @@
           "steps": [
             {
               "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
             },
             {
               "title": "Supply the matching original files",
@@ -25422,7 +25422,7 @@
           "steps": [
             {
               "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
             },
             {
               "title": "Supply the matching original files",
@@ -25549,7 +25549,7 @@
           "steps": [
             {
               "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
             },
             {
               "title": "Supply the matching original files",
@@ -25676,7 +25676,7 @@
           "steps": [
             {
               "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
             },
             {
               "title": "Supply the matching original files",
@@ -25803,7 +25803,7 @@
           "steps": [
             {
               "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
             },
             {
               "title": "Supply the matching original files",
@@ -25930,7 +25930,7 @@
           "steps": [
             {
               "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
             },
             {
               "title": "Supply the matching original files",
