@@ -39925,10 +39925,12 @@
     {
       "id": "quake-vkquake",
       "name": "Quake (vkQuake)",
-      "summary": "Windows prepared-player route: use a complete permitted vkQuake1.37.0 copy with your own compatible Quake data. Upstream owns preparation, store/data selection, actual profile roots and replacement; Portcove can register this existing copy and start the selected player. Original, mod, save and other-platform qualification remain separate.",
+      "summary": "A Vulkan Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
       "original_game_title": "Quake",
       "project_url": "https://github.com/Novum/vkQuake",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Novum/vkQuake",
       "issue_number": 2697,
@@ -39936,30 +39938,41 @@
         "help_url": "https://github.com/Novum/vkQuake/tree/749b4fd43fe8b8554b34163dc9469c4a08a4def1",
         "steps": [
           {
-            "title": "Keep the complete upstream player",
-            "instruction": "Use an already permitted Windows x64 vkQuake1.37.0 installation or complete official Windows x64 ZIP, including its libraries/resources. Select the native vkQuake.exe player, not the installer, launcher shortcut or dedicated-server invocation. The normal source entry owns the Host_Frame loop in that process. Vulkan-capable hardware is required; this guide does not qualify your GPU or game."
+            "title": "Copy your own classic Quake data beside the managed player",
+            "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside vkQuake.exe before Play. Keep your original copy. Portcove starts the managed copy from this local base with Steam integration disabled."
           },
           {
-            "title": "Finish your own Quake data setup upstream",
-            "instruction": "Prepare your own supported classic or rerelease Quake data using the upstream installer/store discovery or complete portable-copy instructions. Keep actual base/id1 PAKs and selected expansions/mods with their compatible data. Finish the upstream picker and normal start/quit before registration. Do not overwrite your only retained copy while changing engines. Engine licensing does not license original assets or arbitrary mods; Core does not acquire, hash-admit or import these originals."
-          },
-          {
-            "title": "Keep your existing launch settings",
-            "instruction": "Use the actual prepared runtime directory as working directory and the same supported literal arguments as your working setup. Preserve an actually used -basedir plus its absolute path as separate tokens, existing game/edition and -multiuser choices; do not introduce another profile or choose a different store edition merely to register it. Review exact intent/consent, then choose Play separately."
+            "title": "Prepare the existing vkQuake copy",
+            "instruction": "Use a complete permitted Windows x64 copy with its matching libraries and your own compatible Quake data. Finish its upstream setup and start and quit it before registration. The ordinary prepared launch uses no arguments. Keep the actual working folder and any literal arguments already needed for store, expansion, mod, custom base-directory or multiuser choices."
           },
           {
             "title": "Preserve both portable and discovered profile roots",
             "instruction": "Standalone copies can write beneath the prepared base/game directories, but store selection or -multiuser uses the actual SDL vkQuake preference directory (normally APPDATA/vkQuake on Windows). Preserve that actual root and basedirs.txt, global vkQuake.cfg, game-local configs, saves/autosaves/screenshots/demos, all base/id1/mod files, the complete runtime and unknowns. Keep relevant existing Steam/GOG/Epic/Nightdive and Steam-userdata/custom roots too; another runtime folder is not proof of independent state."
           },
           {
-            "title": "Update the game and remove its registration",
-            "instruction": "Close every running copy before changing external files. You manage setup, game replacement, profile changes, data migration and recovery. Keep the working game version and every data folder, update it with the project’s tools, then review and select the changed executable before choosing Play. Portcove monitors only the process you selected and agreed to launch. It does not prevent other copies from running, restrict file access or take over unrelated helpers or replacement processes. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or deletion."
+            "title": "Select the prepared player",
+            "instruction": "Select vkQuake.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
           "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
           "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
-          "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
+          "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile.",
+          "A Vulkan-capable GPU and driver are required. Use a separately prepared copy for store discovery, rerelease data, expansions, mods, multiuser settings or custom base directories. Real save compatibility across versions remains unverified."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: the actual prepared Quake directory and any store, multiuser or custom profile directories. Back up these locations separately; registration does not migrate or certify their compatibility."
+          },
+          {
+            "title": "Managed runtime ownership",
+            "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, vkQuake.cfg, history.txt. Its backup does not include external profiles."
+          }
         ]
       }
     },

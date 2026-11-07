@@ -54,6 +54,10 @@
     "quake-ironwail": {
       "inventory": "ironwail",
       "selected_assets": ["ironwail-0.8.1-win64.zip", "ironwail-0.8.2-win64.zip"]
+    },
+    "quake-vkquake": {
+      "inventory": "vkquake",
+      "selected_assets": ["vkQuake-1.36.0_windows_x64.zip", "vkQuake-1.37.0_windows_x64.zip"]
     }
   },
   "inventories": {
@@ -672,6 +676,82 @@
           }
         ]
       }
+    ],
+    "vkquake": [
+      {
+        "draft": false,
+        "id": 378832702,
+        "prerelease": false,
+        "published_at": "2026-08-29T01:36:38Z",
+        "tag_name": "1.36.0",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.36.0/vkQuake-1.36.0-x86_64.AppImage",
+            "digest": "sha256:f1824b12744b6b343c6155cf5f775df225b9e6c9ee606c95c9363f63f124992a",
+            "id": 534541360,
+            "name": "vkQuake-1.36.0-x86_64.AppImage",
+            "size": 9001464
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.36.0/vkQuake-1.36.0_windows_arm64.zip",
+            "digest": "sha256:e08f8507d7e47dc3e9eee8e26ea5645958ba810e08b5ec8faca8a36d9db12877",
+            "id": 534544138,
+            "name": "vkQuake-1.36.0_windows_arm64.zip",
+            "size": 5871522
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.36.0/vkQuake-1.36.0_windows_x64.zip",
+            "digest": "sha256:243d8c7cd5fb4c2e876bbe927d909dcc89e86d9737f2bf6cebc093f15f5012c3",
+            "id": 534541500,
+            "name": "vkQuake-1.36.0_windows_x64.zip",
+            "size": 5471848
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.36.0/vkQuake-Installer-windows_x64-1.36.0.exe",
+            "digest": "sha256:6e9841253d6ba43475353504369170e7ba0ee342f4be9ff8a62768126d7d03cb",
+            "id": 534541499,
+            "name": "vkQuake-Installer-windows_x64-1.36.0.exe",
+            "size": 4091308
+          }
+        ]
+      },
+      {
+        "draft": false,
+        "id": 410108250,
+        "prerelease": false,
+        "published_at": "2026-10-12T03:36:06Z",
+        "tag_name": "1.37.0",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.37.0/vkQuake-1.37.0-x86_64.AppImage",
+            "digest": "sha256:abf8546316997d16b86fea242d90afc8203fecb9e5016d6262f7bec1f36a5a9e",
+            "id": 632507389,
+            "name": "vkQuake-1.37.0-x86_64.AppImage",
+            "size": 9538040
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.37.0/vkQuake-1.37.0_windows_arm64.zip",
+            "digest": "sha256:3db11ad004979d70faa9f8ffe02b099fb42beebbd8b3cfc10f009542dd119209",
+            "id": 632511099,
+            "name": "vkQuake-1.37.0_windows_arm64.zip",
+            "size": 6184196
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.37.0/vkQuake-1.37.0_windows_x64.zip",
+            "digest": "sha256:c2f9a6c591c119681ada626aed029719871790bd8208bbae08b58185b62a7d83",
+            "id": 632507386,
+            "name": "vkQuake-1.37.0_windows_x64.zip",
+            "size": 5762231
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.37.0/vkQuake-Installer-windows_x64-1.37.0.exe",
+            "digest": "sha256:203af1354c496a9391bfd21177c0a98f9e80ebff764147ab69986c5f25020c3e",
+            "id": 632507385,
+            "name": "vkQuake-Installer-windows_x64-1.37.0.exe",
+            "size": 4276928
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -839,6 +919,16 @@
       "inventory": "ironwail",
       "release_index": 1,
       "asset": "ironwail-0.8.2-win32.zip"
+    },
+    {
+      "inventory": "vkquake",
+      "release_index": 0,
+      "asset": "vkQuake-1.36.0_windows_arm64.zip"
+    },
+    {
+      "inventory": "vkquake",
+      "release_index": 1,
+      "asset": "vkQuake-1.37.0_windows_arm64.zip"
     }
   ]
 }

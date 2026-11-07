@@ -97,6 +97,13 @@
       "arguments": [],
       "managed_arguments": ["-basedir", ".", "-noaddons"],
       "managed_native": true
+    },
+    {
+      "port_id": "quake-vkquake",
+      "executable": "vkQuake.exe",
+      "arguments": [],
+      "managed_arguments": ["-basedir", ".", "-nosteam"],
+      "managed_native": true
     }
   ]
 }
