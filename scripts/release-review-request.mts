@@ -6,6 +6,15 @@ import {
 } from "../apps/desktop/scripts/release-version-policy.mts";
 
 const scope = "portcove-release-net-tree-delta-v1";
+/** These fixed namespaces contain metadata and rehearsal custody, not an
+ * eligible production executable predecessor. */
+export function isApplicationReviewReleaseTag(tag: string) {
+  return (
+    !/^portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(tag) &&
+    !/^v0\.0\.0-rehearsal\.[1-9][0-9]*\.[1-9][0-9]*$/u.test(tag)
+  );
+}
+
 export interface ReleaseReviewRequest {
   schema_version: 1;
   kind: "application-release-semantic-review";
@@ -19,6 +28,7 @@ export interface ReleaseReviewRequest {
   change_set_sha256: string;
   requested_channel: "preview";
   request_id: string;
+  qualified_application?: { run_id: number; run_attempt: number };
 }
 function sha(value: unknown, length: number) {
   if (typeof value !== "string" || value.length !== length || !/^[a-f0-9]+$/u.test(value))
@@ -29,7 +39,10 @@ export function inspectReleaseReviewRequest(raw: unknown): ReleaseReviewRequest 
   if (raw === undefined || raw === null) return null;
   if (
     !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !==
+    Object.keys(raw)
+      .filter((key) => key !== "qualified_application")
+      .sort()
+      .join(",") !==
       "base_commit,base_version,before_checkpoint,change_set_scope,change_set_sha256,kind,request_id,requested_at,requested_channel,schema_version,source_commit,source_tree" ||
     raw.schema_version !== 1 ||
     raw.kind !== "application-release-semantic-review" ||
@@ -50,6 +63,19 @@ export function inspectReleaseReviewRequest(raw: unknown): ReleaseReviewRequest 
     new Date(raw.requested_at).toISOString() !== raw.requested_at
   )
     throw new Error("neutral review request timestamp invalid");
+  const qualification = raw.qualified_application;
+  if (
+    Object.hasOwn(raw, "qualified_application") &&
+    (!isRecord(qualification) ||
+      Object.keys(qualification).sort().join(",") !== "run_attempt,run_id" ||
+      typeof qualification.run_id !== "number" ||
+      !Number.isSafeInteger(qualification.run_id) ||
+      qualification.run_id < 1 ||
+      typeof qualification.run_attempt !== "number" ||
+      !Number.isSafeInteger(qualification.run_attempt) ||
+      qualification.run_attempt < 1)
+  )
+    throw new Error("neutral review qualification identity differs");
   const { request_id, ...identity } = raw;
   if (capacityDigest(identity) !== request_id)
     throw new Error("neutral review request does not bind exact frozen inputs");
@@ -66,6 +92,12 @@ export function inspectReleaseReviewRequest(raw: unknown): ReleaseReviewRequest 
     requested_at: raw.requested_at,
     requested_channel: "preview",
     request_id: sha(request_id, 64),
+    ...(isRecord(qualification) && {
+      qualified_application: {
+        run_id: Number(qualification.run_id),
+        run_attempt: Number(qualification.run_attempt),
+      },
+    }),
   };
 }
 
@@ -80,10 +112,14 @@ export function createReleaseReviewRequest(raw: {
   change_set_sha256: string;
   before_checkpoint: string;
   requested_at: string;
+  qualified_application?: ReleaseReviewRequest["qualified_application"];
 }) {
   const input = structuredClone(raw);
   if (
-    Object.keys(input).sort().join(",") !==
+    Object.keys(input)
+      .filter((key) => key !== "qualified_application")
+      .sort()
+      .join(",") !==
     "base_commit,base_version,before_checkpoint,change_set_sha256,requested_at,source_commit,source_tree"
   )
     throw new Error("neutral review request source fields differ");

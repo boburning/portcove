@@ -98,6 +98,9 @@ export async function configureFixedControllerJob(rawRole: unknown) {
     },
     needs,
     admission_configuration: admission,
+    ...(selected.qualified_application
+      ? { appointed_qualified_application: selected.qualified_application }
+      : {}),
     native_locators: null,
     payload_public_key_sha256: environment.PORTCOVE_PAYLOAD_PUBLIC_KEY_SHA256,
   });

@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 
 import type { FrozenSemanticSnapshot } from "./release-semantic-inputs.mts";
+import {
+  largeApplicationEvidence,
+  semanticSourceBlobFits,
+  semanticSourceBlobLimit,
+} from "./release-semantic-source-limits.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export const semanticReaderServer = "portcove_frozen_bundle";
@@ -28,6 +33,7 @@ export function inspectSemanticReaderIndex(bytes: Buffer, expectedSha256: string
     Buffer.byteLength(JSON.stringify(index.manifest)) > 16 * 1024 * 1024
   )
     throw new Error("materialized reader inventory invalid");
+  const applicationComparison = index.manifest.qualified_application_comparison === true;
   let total = 0;
   const seen = new Set<string>();
   const files = index.files.map((file: unknown) => {
@@ -37,14 +43,17 @@ export function inspectSemanticReaderIndex(bytes: Buffer, expectedSha256: string
       !/^objects\/[a-f0-9]{40}\.data$/u.test(file.name) ||
       seen.has(file.name) ||
       typeof file.data !== "string" ||
-      file.data.length > 24 * 1024 * 1024 ||
+      file.data.length >
+        (applicationComparison && file.name === `objects/${largeApplicationEvidence.oid}.data`
+          ? 4 * Math.ceil(largeApplicationEvidence.bytes / 3)
+          : 24 * 1024 * 1024) ||
       typeof file.sha256 !== "string"
     )
       throw new Error("materialized reader object invalid");
     const data = Buffer.from(file.data, "base64");
     if (
       data.toString("base64") !== file.data ||
-      data.length > 16 * 1024 * 1024 ||
+      !semanticSourceBlobFits(file.name.slice(8, 48), data.length, applicationComparison) ||
       (total += data.length) > 192 * 1024 * 1024 ||
       createHash("sha256").update(data).digest("hex") !== file.sha256 ||
       createHash("sha1").update(`blob ${data.length}\0`).update(data).digest("hex") !==
@@ -312,7 +321,10 @@ export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
       !args.path.includes("\0") &&
       (args.snapshot !== "manifest" || args.path === "manifest.json") &&
       nonnegative(args.offset) &&
-      Number(args.offset) <= 16 * 1024 * 1024 &&
+      Number(args.offset) <=
+        (args.snapshot !== "manifest" && args.path === largeApplicationEvidence.path
+          ? largeApplicationEvidence.bytes
+          : semanticSourceBlobLimit) &&
       nonnegative(args.length) &&
       Number(args.length) > 0 &&
       Number(args.length) <= (tool === "read_text" ? 8192 : pageBytes)

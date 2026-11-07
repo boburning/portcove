@@ -1,4 +1,9 @@
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { readWindowsApplicationQualification } from "./application-release-qualification.mts";
+import { readApplicationSourceCommitObjects } from "./application-release-source-git.mts";
+import { createWakeProvider } from "./release-wake-provider.mts";
+import { inspectQualifiedApplicationReview } from "./release-authority-configuration-contract.mts";
+import type { QualifiedApplicationReview } from "./release-authority-configuration-contract.mts";
 import {
   fixedReleaseReaderToken,
   readOnlyReleaseChildEnvironment,
@@ -122,12 +127,14 @@ import {
   createReleaseReviewRequest,
   inspectReleaseReviewRequest,
   advanceReleaseReviewRecovery,
+  isApplicationReviewReleaseTag,
 } from "./release-review-request.mts";
 import { createReleaseReviewDispositionReceipt } from "./release-semantic-disposition-reader.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPublishedApplicationSourceWithSdk } from "./release-published-source.mts";
 import {
   requireControllerApplicationCoordinatorAuthorities,
+  requireControllerJobSourceConfiguration,
   requireControllerApplicationCoordinatorPublicationAuthorities,
 } from "./release-authority-configuration.mts";
 import {
@@ -3520,6 +3527,7 @@ export async function requestTrustedSemanticReview(
   privateParent: string,
   raw: {
     remote_configuration: unknown;
+    qualified_application?: QualifiedApplicationReview;
     tools?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"];
   },
   phaseDeadline?: number,
@@ -3537,11 +3545,17 @@ async function requestTrustedSemanticReviewAt(
 ) {
   const selected = structuredClone(raw);
   if (
-    !["remote_configuration", "remote_configuration,tools"].includes(
-      Object.keys(selected).sort().join(","),
-    )
+    ![
+      "remote_configuration",
+      "remote_configuration,tools",
+      "qualified_application,remote_configuration,tools",
+    ].includes(Object.keys(selected).sort().join(","))
   )
     throw new Error("neutral review request invocation fields differ");
+  const qualified =
+    selected.qualified_application === undefined
+      ? undefined
+      : inspectQualifiedApplicationReview(selected.qualified_application);
   const namespace = inspectCoordinatorRemoteNamespace(selected.remote_configuration);
   await assertOwnedUnlinkedPath(
     project,
@@ -3556,7 +3570,43 @@ async function requestTrustedSemanticReviewAt(
       transport: budget.journalTransport(),
     });
     checkpoint = recovered.checkpoint;
-    if (selectCoordinatorPendingContextRecovery(recovered.input)) {
+    let recheckQualifiedSource: (() => void) | undefined;
+    if (qualified) {
+      phase = "exact-qualified-neutral-request-gate";
+      if (
+        coordinatorHasUnresolvedEffect(recovered.input) ||
+        selectCoordinatorPendingContextRecovery(recovered.input) ||
+        selectCoordinatorPendingPagesRecovery(recovered.input) ||
+        inspectSettledPagesMetadataHandoff(recovered.input) ||
+        selectCoordinatorCandidateSigningRecovery(recovered.input) ||
+        inspectReleaseReviewRequest(recovered.input.review_request) ||
+        isRecord(recovered.input.active_candidate)
+      )
+        return {
+          decision: "held-existing-release-operation",
+          directory,
+          checkpoint,
+          authority: "none",
+        };
+      if (!inspectPublishedMetadata(recovered.input.published_metadata))
+        return {
+          decision: "held-unadopted-application-feed",
+          directory,
+          checkpoint,
+          authority: "none",
+        };
+      const appointed = await requireControllerJobSourceConfiguration("coordinator");
+      const binding = appointed.binding;
+      if (
+        binding.purpose !== "application" ||
+        binding.namespace !== namespace ||
+        !binding.qualified_application ||
+        capacityDigest(binding.qualified_application) !== capacityDigest(qualified)
+      )
+        throw new Error("qualified application differs from the source-appointed authority");
+      recheckQualifiedSource = appointed.recheck;
+    }
+    if (!qualified && selectCoordinatorPendingContextRecovery(recovered.input)) {
       phase = "actual-terminal-context-readback-recovery";
       return recoverTrustedCoordinatorContext(
         directory,
@@ -3567,8 +3617,9 @@ async function requestTrustedSemanticReviewAt(
       );
     }
     if (
-      selectCoordinatorPendingPagesRecovery(recovered.input) ||
-      inspectSettledPagesMetadataHandoff(recovered.input)
+      !qualified &&
+      (selectCoordinatorPendingPagesRecovery(recovered.input) ||
+        inspectSettledPagesMetadataHandoff(recovered.input))
     ) {
       phase = "actual-terminal-pages-readback-recovery";
       return recoverTrustedCoordinatorPages(
@@ -3579,10 +3630,13 @@ async function requestTrustedSemanticReviewAt(
         selected.tools,
       );
     }
-    if (selectCoordinatorMetadataBootstrap(recovered.input, new Date().toISOString()) !== "closed")
+    if (
+      !qualified &&
+      selectCoordinatorMetadataBootstrap(recovered.input, new Date().toISOString()) !== "closed"
+    )
       return prepareTrustedCoordinatorBootstrapAt(directory, selected, recovered, budget);
     const renewal = selectCoordinatorMetadataRenewal(recovered.input, new Date().toISOString());
-    if (["due", "resume"].includes(renewal)) {
+    if (!qualified && ["due", "resume"].includes(renewal)) {
       if (coordinatorHasUnresolvedEffect(recovered.input))
         return {
           decision: "held-unresolved-effect",
@@ -3605,7 +3659,7 @@ async function requestTrustedSemanticReviewAt(
         { directory, budget, recovered },
       );
     }
-    if (selectCoordinatorCandidateSigningRecovery(recovered.input)) {
+    if (!qualified && selectCoordinatorCandidateSigningRecovery(recovered.input)) {
       phase = "actual-original-candidate-signing-readback";
       return recoverTrustedCoordinatorCandidateSigning(
         directory,
@@ -3616,6 +3670,13 @@ async function requestTrustedSemanticReviewAt(
       );
     }
     const outstanding = inspectReleaseReviewRequest(recovered.input.review_request);
+    if (outstanding?.qualified_application)
+      return {
+        decision: "qualified-review-request-already-retained",
+        directory,
+        checkpoint,
+        authority: "none",
+      };
     if (outstanding)
       return continueTrustedSemanticReview(
         directory,
@@ -3692,7 +3753,32 @@ async function requestTrustedSemanticReviewAt(
         throw new Error("fixed current main source identity unavailable");
       return value.object.sha;
     };
-    const source = await mainHead();
+    const source = qualified?.source_commit ?? (await mainHead());
+    const readQualification = async () => {
+      if (!qualified) return undefined;
+      guard();
+      const reader = await createWakeProvider({
+        credential: { kind: "explicit", token },
+        deadline: sourceOptions.deadline,
+        remainingDeadline: sourceOptions.currentDeadline,
+        maxRequests: 8,
+        maxBytes: 2 * 1024 ** 2,
+        requestTimeoutMs: 10000,
+        apiVersion: "2022-11-28",
+      });
+      const proof = await readWindowsApplicationQualification(reader, qualified.run_id, source, {
+        deadline: sourceOptions.deadline,
+      });
+      guard();
+      if (
+        proof.workflow !== ".github/workflows/application-release.yml" ||
+        proof.workflow_commit !== source ||
+        proof.attempt !== qualified.run_attempt
+      )
+        throw new Error("exact Windows application qualification changed");
+      return proof;
+    };
+    const qualification = await readQualification();
     phase = "complete-publication-baseline-and-source";
     const inventory = await createPublicationInventoryWithSdk({
       ...sourceOptions,
@@ -3703,11 +3789,39 @@ async function requestTrustedSemanticReviewAt(
     const releases = await inventory.releases();
     const { allocations } = await inventory.readAllocations(tags, namespace);
     const now = new Date().toISOString();
-    const publication = deriveCoordinatorPublication(tags, releases, allocations, now);
+    const baselineReleases = qualified
+      ? releases.filter((release) => isApplicationReviewReleaseTag(release.tag_name))
+      : releases;
+    const publication = deriveCoordinatorPublication(tags, baselineReleases, allocations, now);
     const { release: baselineRelease, version: baseVersion } = selectCoordinatorPublicationBaseline(
-      releases,
+      baselineReleases,
       publication.published_versions,
     );
+    const readImmutableBaseline = async () => {
+      if (!qualified) return undefined;
+      guard();
+      const provider = await createReleaseCustodyProvider({
+        token,
+        deadline: sourceOptions.deadline,
+        requestTimeoutMs: 15000,
+        maxBytes: sourceOptions.maxBytes,
+        beforeDispatch: guard,
+      });
+      const release = await provider.release(baselineRelease.id);
+      guard();
+      if (
+        !isRecord(release) ||
+        release.immutable !== true ||
+        release.draft !== false ||
+        release.id !== baselineRelease.id ||
+        release.tag_name !== baselineRelease.tag_name ||
+        release.prerelease !== baselineRelease.prerelease ||
+        release.published_at !== baselineRelease.published_at ||
+        release.updated_at !== baselineRelease.updated_at
+      )
+        throw new Error("qualified application requires the exact immutable published baseline");
+    };
+    await readImmutableBaseline();
     const baseline = tags.find((ref) => ref.name === `v${baseVersion}`);
     if (!baseline) throw new Error("published baseline tag absent");
     const baselinePrepared = peelReleaseReference(baseline);
@@ -3715,7 +3829,8 @@ async function requestTrustedSemanticReviewAt(
     if (
       !isRecord(publishedCommit) ||
       !isRecord(publishedCommit.tree) ||
-      typeof publishedCommit.tree.sha !== "string"
+      typeof publishedCommit.tree.sha !== "string" ||
+      (qualified !== undefined && publishedCommit.sha !== baselinePrepared)
     )
       throw new Error("published baseline tree unavailable");
     const sourceProof = await inspectPublishedApplicationSourceWithSdk(
@@ -3738,12 +3853,28 @@ async function requestTrustedSemanticReviewAt(
         authority: "none",
       };
     }
-    const sourceObject = inspectRemoteCommitObject(await readSource(`commits/${source}`), source);
-    const changes = await collectReleaseSourceChangesWithSdk(sourceOptions, {
-      base_commit: base,
-      source_commit: source,
-      source_tree: sourceObject.tree,
-    });
+    const applicationCommitObjects = qualified
+      ? await readApplicationSourceCommitObjects(base, source, sourceOptions.deadline)
+      : undefined;
+    const sourceBytes = applicationCommitObjects?.get(source);
+    if (qualified && !sourceBytes)
+      throw new Error("qualified application Git commit is unavailable");
+    const sourceObject = inspectRemoteCommitObject(
+      await readSource(`commits/${source}`),
+      source,
+      sourceBytes,
+    );
+    const changes = await collectReleaseSourceChangesWithSdk(
+      {
+        ...sourceOptions,
+        ...(applicationCommitObjects ? { applicationCommitObjects } : {}),
+      },
+      {
+        base_commit: base,
+        source_commit: source,
+        source_tree: sourceObject.tree,
+      },
+    );
     const requestedAt = new Date().toISOString();
     const request = createReleaseReviewRequest({
       before_checkpoint: checkpoint,
@@ -3753,6 +3884,11 @@ async function requestTrustedSemanticReviewAt(
       source_commit: source,
       source_tree: sourceObject.tree,
       change_set_sha256: changes.change_set_sha256,
+      ...(qualified
+        ? {
+            qualified_application: { run_id: qualified.run_id, run_attempt: qualified.run_attempt },
+          }
+        : {}),
     });
     const workflow = await readProductionControllerWorkflowBytes();
     const reader = await authenticateControlReaderJob(process.env, workflow, {
@@ -3832,7 +3968,9 @@ async function requestTrustedSemanticReviewAt(
       transport: budget.journalTransport(),
     });
     if (
-      (await mainHead()) !== source ||
+      (qualified
+        ? capacityDigest(await readQualification()) !== capacityDigest(qualification)
+        : (await mainHead()) !== source) ||
       remote.checkpoint !== checkpoint ||
       fresh.pause.publication_paused ||
       capacityDigest(fresh.pause) !== capacityDigest(observed.pause) ||
@@ -3846,6 +3984,8 @@ async function requestTrustedSemanticReviewAt(
     const checkpointControls = {
       async readCurrent() {
         budget.check();
+        recheckQualifiedSource?.();
+        await readImmutableBaseline();
         if ((await readMaintenance()).facts_sha256 !== observed.facts_sha256)
           throw new Error("neutral request controls changed immediately before journal CAS");
         budget.check();
@@ -4051,7 +4191,9 @@ export async function runFixedCoordinatorConfiguration(
   const input: unknown = structuredClone(raw);
   if (
     !isRecord(input) ||
-    Object.keys(input).sort().join(",") !== "remote_configuration,tools" ||
+    !["remote_configuration,tools", "qualified_application,remote_configuration,tools"].includes(
+      Object.keys(input).sort().join(","),
+    ) ||
     !isRecord(input.tools) ||
     Object.keys(input.tools).sort().join(",") !== "artifact,bundle" ||
     !path.isAbsolute(parent)
@@ -4062,6 +4204,9 @@ export async function runFixedCoordinatorConfiguration(
     {
       remote_configuration: input.remote_configuration,
       tools: input.tools as Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
+      ...(Object.hasOwn(input, "qualified_application")
+        ? { qualified_application: inspectQualifiedApplicationReview(input.qualified_application) }
+        : {}),
     },
     phaseDeadline,
   );
@@ -4081,7 +4226,11 @@ async function runCoordinatorCli() {
     throw new Error("bounded coordinator selection file required");
   const selection: unknown = JSON.parse(await readFile(selectionFile, "utf8"));
   if (!isRecord(selection)) throw new Error("coordinator selection must be an object");
-  if (Object.keys(selection).sort().join(",") === "remote_configuration,tools") {
+  if (
+    ["remote_configuration,tools", "qualified_application,remote_configuration,tools"].includes(
+      Object.keys(selection).sort().join(","),
+    )
+  ) {
     console.log(
       JSON.stringify(await runFixedCoordinatorConfiguration(selection, path.resolve(directory))),
     );

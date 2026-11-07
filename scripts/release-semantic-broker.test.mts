@@ -39,7 +39,10 @@ import {
   prepareCapturedSemanticDisposition,
   requireDirectSemanticDispositionCapture,
 } from "./release-semantic-runtime.mts";
-import { createReleaseReviewRequest } from "./release-review-request.mts";
+import {
+  createReleaseReviewRequest,
+  inspectReleaseReviewRequest,
+} from "./release-review-request.mts";
 import { inspectSemanticProposalResult } from "./release-semantic-proposal.mts";
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
 import {
@@ -1334,6 +1337,7 @@ function fixture() {
     id: 1,
     draft: false,
     tag_name: "v0.1.0-alpha.2",
+    immutable: true,
     published_at: "2026-01-01T00:00:00Z",
   };
   const api = {
@@ -1456,6 +1460,50 @@ void test("frozen source collection binds actual Git blobs, publication and comp
     source_tree: opportunity.source_tree,
     change_set_sha256: opportunity.change_set_sha256,
   });
+  const identity = {
+    before_checkpoint: request.before_checkpoint,
+    requested_at: request.requested_at,
+    base_commit: request.base_commit,
+    base_version: request.base_version,
+    source_commit: request.source_commit,
+    source_tree: request.source_tree,
+    change_set_sha256: request.change_set_sha256,
+  };
+  const qualified = createReleaseReviewRequest({
+    ...identity,
+    qualified_application: { run_id: 42407004590, run_attempt: 1 },
+  });
+  assert.notEqual(qualified.request_id, request.request_id);
+  assert.throws(
+    () =>
+      inspectReleaseReviewRequest({
+        ...qualified,
+        qualified_application: { run_id: 42407004590, run_attempt: 2 },
+      }),
+    /bind exact frozen inputs/,
+  );
+  const evidence = { classification: "fixture", compatibility: "fixture only" };
+  assert.equal(
+    prepareFrozenSemanticInputs(api, root, opportunity, evidence, undefined, qualified).manifest
+      .source.change_set_sha256,
+    qualified.change_set_sha256,
+  );
+  assert.throws(
+    () =>
+      prepareFrozenSemanticInputs(
+        api,
+        root,
+        opportunity,
+        evidence,
+        undefined,
+        createReleaseReviewRequest({
+          ...identity,
+          source_tree: "f".repeat(40),
+          qualified_application: qualified.qualified_application,
+        }),
+      ),
+    /differs from the frozen review request/,
+  );
   const proposedInputs = prepareFrozenSemanticProposalInputs(api, root, request);
   assert.equal(
     requireFrozenSemanticProposalInputs(proposedInputs).manifest.opportunity.request_id,

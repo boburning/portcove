@@ -1499,6 +1499,18 @@ void test("Windows tools require explicit platform selection and exact executabl
   }
   assert.throws(() => controllerToolPlatformProfile("windows-arm64" as ControllerToolPlatform));
 });
+void test("Linux controller retains exact qualified review recipes and raw Git launcher", () => {
+  for (const file of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/application-release.yml",
+    ".github/workflows/application-release-package.yml",
+    "scripts/semantic-source-git.py",
+  ]) {
+    assert.ok(controllerToolPaths.includes(file));
+    assert.ok(!controllerToolPlatformProfile("windows-x86_64").paths.includes(file));
+  }
+});
+
 void test("Core CLI and native WebDriver are mandatory content; changed or missing bytes refuse", () => {
   const f = fixture();
   for (const tool of ["bin/portcove", "bin/tauri-driver"]) {

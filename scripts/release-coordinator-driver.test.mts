@@ -18,6 +18,7 @@ import {
   selectCoordinatorMetadataBootstrap,
   requireActualCoordinatorBootstrapPreparation,
 } from "./release-coordinator-driver.mts";
+import { inspectQualifiedApplicationReview } from "./release-authority-configuration-contract.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { performance } from "node:perf_hooks";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
@@ -725,6 +726,79 @@ void test("late publication bracket permits only the exact two own immutable pre
   );
 });
 
+void test("exact qualified neutral review selection refuses ambiguous source and attempt", () => {
+  const exact = { source_commit: "a".repeat(40), run_id: 42407004590, run_attempt: 1 };
+  assert.deepEqual(inspectQualifiedApplicationReview(exact), exact);
+  for (const wrong of [
+    { ...exact, run_attempt: 0 },
+    { ...exact, run_attempt: 4 },
+    { ...exact, run_id: "42407004590" },
+    { ...exact, source_commit: "main" },
+    { ...exact, workflow: "qualification.yml" },
+  ])
+    assert.throws(() => inspectQualifiedApplicationReview(wrong), /request fields differ/u);
+});
+
+void test("exact qualified neutral request holds unsettled or unadopted state before source reads", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function requestTrustedSemanticReviewAt(");
+  const end = source.indexOf("/** Resolve the exact outstanding request", start);
+  assert.ok(start > 0 && end > start);
+  const checkpoint = "f".repeat(40);
+  let unresolved = false;
+  let active = false;
+  const run = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "; requestTrustedSemanticReviewAt;",
+    {
+      structuredClone,
+      project: "/test",
+      path,
+      inspectQualifiedApplicationReview,
+      assertOwnedUnlinkedPath: async () => {},
+      mkdtemp: async () => "/test/neutral",
+      inspectCoordinatorRemoteNamespace: () => "fixed",
+      recoverRemoteCoordinator: async () => ({
+        checkpoint,
+        input: { active_candidate: active ? {} : null },
+      }),
+      coordinatorHasUnresolvedEffect: () => unresolved,
+      selectCoordinatorPendingContextRecovery: () => null,
+      selectCoordinatorPendingPagesRecovery: () => null,
+      inspectSettledPagesMetadataHandoff: () => null,
+      selectCoordinatorCandidateSigningRecovery: () => null,
+      inspectReleaseReviewRequest: () => null,
+      isRecord: (value: unknown) => typeof value === "object" && value !== null,
+      inspectPublishedMetadata: () => null,
+      CoordinatorRemoteError: Error,
+    },
+  ) as (...args: unknown[]) => Promise<{ decision: string; checkpoint: string }>;
+  const invoke = () =>
+    run(
+      "/test",
+      {
+        remote_configuration: {},
+        tools: {},
+        qualified_application: {
+          source_commit: "a".repeat(40),
+          run_id: 42407004590,
+          run_attempt: 1,
+        },
+      },
+      { journalTransport() {} },
+    );
+  assert.equal((await invoke()).decision, "held-unadopted-application-feed");
+  unresolved = true;
+  assert.equal((await invoke()).decision, "held-existing-release-operation");
+  unresolved = false;
+  active = true;
+  const held = await invoke();
+  assert.equal(held.decision, "held-existing-release-operation");
+  assert.equal(held.checkpoint, checkpoint);
+});
+
 void test("fixed bundled coordinator caller rejects imported routing and expired inherited clock before effects", async () => {
   const { runFixedCoordinatorConfiguration } = await import("./release-coordinator-driver.mts");
   for (const raw of [
@@ -947,10 +1021,10 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
   const wake = source.slice(source.indexOf("async function requestTrustedSemanticReviewAt("));
   assert.ok(
     wake.indexOf("selectCoordinatorMetadataRenewal(") <
-      wake.indexOf("selectCoordinatorCandidateSigningRecovery("),
+      wake.indexOf("if (!qualified && selectCoordinatorCandidateSigningRecovery("),
   );
   assert.ok(
-    wake.indexOf("selectCoordinatorCandidateSigningRecovery(") <
+    wake.indexOf("if (!qualified && selectCoordinatorCandidateSigningRecovery(") <
       wake.indexOf("const outstanding ="),
   );
 });

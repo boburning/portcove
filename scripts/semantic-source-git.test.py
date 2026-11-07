@@ -93,7 +93,7 @@ class GitPolicy(unittest.TestCase):
         self.assertEqual(calls[1][1][1], (64 * 1024**2,) * 2)
 
     def test_application_commit_route_only_extends_the_bounded_treeless_fetch(self):
-        commits = ["a" * 40, "b" * 40]
+        commits = ["a" * 40, "b" * 40, "c" * 40]
         calls = self.run_request({"oids": commits}, phase="application-commits")
         self.assertEqual([name for name, _ in calls], ["limit"] * 4 + ["alarm", "exec"])
         _, args, environment = calls[-1][1]
@@ -101,11 +101,11 @@ class GitPolicy(unittest.TestCase):
         self.assertIn("--depth=3073", args)
         self.assertIn("--no-write-fetch-head", args)
         self.assertIn("http.followRedirects=false", args)
-        self.assertEqual(args[-3:], ["https://github.com/boburning/portcove.git", *commits])
+        self.assertEqual(args[-4:], ["https://github.com/boburning/portcove.git", *commits])
         self.assertEqual(calls[1][1][1], (64 * 1024**2,) * 2)
         self.assertEqual(environment, self.run_request()[-1][1][2])
         with self.assertRaises(ValueError):
-            self.run_request({"oids": [*commits, "c" * 40]}, phase="application-commits")
+            self.run_request({"oids": [*commits, "d" * 40]}, phase="application-commits")
 
     def test_blob_mode_has_fixed_filter_and_larger_still_finite_file_ceiling(self):
         calls = self.run_request(phase="blobs")

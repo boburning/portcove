@@ -116,6 +116,7 @@ export async function reviewFrozenCoordinatorRequest(
       },
     },
     namespace,
+    request,
   );
   await configuration.guard();
   let accepted: Awaited<ReturnType<typeof runSemanticRuntime>>;
