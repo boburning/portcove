@@ -346,6 +346,15 @@ filter = 'package(portcove-cli) & binary(machine_contract) & test(/^game_file_qu
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# Windows CI 42406372509/a1 cut the four-process CLI fixture at 30.029s.
+# The preceding Windows runs passed in 25.075s and 25.433s. Allow 60s
+# for this fixture only and retain all assertions and the existing retry policy.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & binary(machine_contract) & test(/^game_file_query_uses_core_refresh_and_truthful_operation_events$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40791990972/a1 Windows2 cut this full lifecycle fixture at30.145s.
 # The identical Core tree passed29.774s in CI40789820296/a1. Retain all
 # binding/rollback/mutability assertions with the existing exact60s safeguard,
