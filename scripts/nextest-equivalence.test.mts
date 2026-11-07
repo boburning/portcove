@@ -810,7 +810,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "success-output": "immediate",
   });
   const windowsPreparationFixtureFilter =
-    "package(portcove-core) & (test(/^preparation::tests::execution_tests::completed_legacy_setup_keeps_working_without_repeating_setup$/) | test(/^preparation::tests::execution_tests::preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs$/))";
+    "package(portcove-core) & (test(/^preparation::tests::execution_tests::completed_legacy_setup_keeps_working_without_repeating_setup$/) | test(/^preparation::tests::execution_tests::completed_nested_legacy_setup_keeps_its_working_directory$/) | test(/^preparation::tests::execution_tests::preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs$/))";
   assert.deepEqual(overrideFor(windowsPreparationFixtureFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsPreparationFixtureFilter,

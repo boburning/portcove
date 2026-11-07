@@ -90,6 +90,18 @@
       "managed_native": true
     },
     {
+      "port_id": "jetforcegemini-recomp-vibintoast-jet-force-gemini",
+      "prepared_player": {
+        "executable": "JetForceGeminiRecompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the portable executable’s containing folder, including saves, settings, mods and texture packs"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "mother-3-mother-3-recomp",
       "prepared_player": {
         "executable": "Mother3Recomp.exe",
@@ -223,6 +235,18 @@
         "arguments": [],
         "data_locations": [
           "Assets/data.z64, config/user/ and saves/controller1.mpk in the game folder"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "snprecomp-wootbeer-sin-and-punishment",
+      "prepared_player": {
+        "executable": "SnPRecompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the existing snprecomp profile or the application folder when portable.txt is present"
         ]
       },
       "managed_native": false
