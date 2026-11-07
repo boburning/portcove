@@ -54,6 +54,21 @@ pub(crate) fn observation_definition_sha256(port: &PortDefinition) -> Result<Str
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&canonical)?)))
 }
 
+fn check_repository_original_game_title(port: &PortDefinition) -> Result<()> {
+    if !port
+        .presentation
+        .as_ref()
+        .and_then(|presentation| presentation.original_game_title.as_ref())
+        .is_some_and(|title| !title.is_empty())
+    {
+        return Err(PortcoveError::verification(format!(
+            "{}: the repository catalog requires an original game title",
+            port.id
+        )));
+    }
+    Ok(())
+}
+
 fn check_repository_summary(port: &PortDefinition) -> Result<()> {
     if !port.summary.ends_with('.') {
         return Err(PortcoveError::verification(format!(
@@ -91,7 +106,7 @@ impl Catalog {
         Self::inspect_proposal_inner(path, false)
     }
 
-    /// Also apply the repository's authored catalog summary convention.
+    /// Also apply the repository's original game title and summary conventions.
     pub fn inspect_repository_proposal(path: &Path) -> Result<CatalogProposalInspection> {
         Self::inspect_proposal_inner(path, true)
     }
@@ -111,6 +126,7 @@ impl Catalog {
             .iter()
             .map(|port| {
                 if repository_authoring {
+                    check_repository_original_game_title(port)?;
                     check_repository_summary(port)?;
                 }
                 Ok(CatalogProposalPortInspection {
@@ -139,7 +155,7 @@ impl Catalog {
             catalog_schema: catalog.document().schema_version,
             ports,
             scope: if repository_authoring {
-                "inert-catalog-declarations; repository-summary-policy; no trust, acquisition, runtime or publication acceptance"
+                "inert-catalog-declarations; repository-summary-policy; repository-original-game-title-policy; no trust, acquisition, runtime or publication acceptance"
             } else {
                 "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance"
             },
@@ -3380,12 +3396,9 @@ mod tests {
     #[test]
     fn game_titles_describe_ports_without_combining_their_identities() {
         let catalog = Catalog::embedded().unwrap();
-        assert!(catalog.ports().iter().all(|port| {
-            port.presentation
-                .as_ref()
-                .and_then(|presentation| presentation.original_game_title.as_ref())
-                .is_some_and(|title| !title.is_empty())
-        }));
+        for port in catalog.ports() {
+            check_repository_original_game_title(port).unwrap();
+        }
         let majora = catalog
             .ports()
             .iter()
@@ -3609,6 +3622,34 @@ mod tests {
                     .contains(value["ports"][0]["id"].as_str().unwrap())
             );
         }
+    }
+
+    #[test]
+    fn repository_proposal_inspection_requires_original_game_title() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("proposal.json");
+        let mut value: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+        let port = value["ports"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|port| port["id"] == "troyedwardsjr-z2rs")
+            .unwrap();
+        assert!(
+            port["presentation"]
+                .as_object_mut()
+                .unwrap()
+                .remove("original_game_title")
+                .is_some()
+        );
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+
+        assert!(Catalog::inspect_proposal(&path).is_ok());
+        let error = Catalog::inspect_repository_proposal(&path).unwrap_err();
+        assert_eq!(
+            error.message,
+            "troyedwardsjr-z2rs: the repository catalog requires an original game title"
+        );
     }
 
     #[test]
