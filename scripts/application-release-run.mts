@@ -15,6 +15,7 @@ import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mt
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
 import type { inspectApplicationReleaseExecution } from "./application-release-policy.mts";
+import { applicationSourcePacketMaximumBytes } from "./application-release-policy.mts";
 import {
   parseVersionClassification,
   classifyApplicationVersion,
@@ -604,9 +605,68 @@ export async function createApplicationRunRegistrationProvider(): Promise<Applic
   };
 }
 
-type EmptyBootstrapDraft = { release_id: number; notes_sha256: string };
+type BootstrapDraftRecovery = {
+  release_id: number;
+  notes_sha256: string;
+  site_archive?: { id: number; name: "application-site.zip"; bytes: number; sha256: string };
+};
 
-function requireEmptyBootstrapDraft(raw: unknown, expected: EmptyBootstrapDraft) {
+/** Owner-appointed original asset identity, never an incoming archive manifest. */
+export function inspectBootstrapDraftRecovery(raw: unknown): BootstrapDraftRecovery {
+  assert.ok(isRecord(raw));
+  assert.ok(
+    ["notes_sha256,release_id", "notes_sha256,release_id,site_archive"].includes(
+      Object.keys(raw).sort().join(","),
+    ) &&
+      typeof raw.release_id === "number" &&
+      Number.isSafeInteger(raw.release_id) &&
+      raw.release_id > 0 &&
+      typeof raw.notes_sha256 === "string" &&
+      /^[a-f0-9]{64}$/u.test(raw.notes_sha256),
+    "invalid bootstrap draft recovery appointment",
+  );
+  if (Object.hasOwn(raw, "site_archive")) {
+    const asset = raw.site_archive;
+    assert.ok(
+      isRecord(asset) &&
+        Object.keys(asset).sort().join(",") === "bytes,id,name,sha256" &&
+        asset.name === "application-site.zip" &&
+        typeof asset.id === "number" &&
+        Number.isSafeInteger(asset.id) &&
+        asset.id > 0 &&
+        typeof asset.bytes === "number" &&
+        Number.isSafeInteger(asset.bytes) &&
+        asset.bytes > 0 &&
+        // Half of the existing source envelope leaves room for base64 and custody.
+        asset.bytes <= applicationSourcePacketMaximumBytes / 2 &&
+        typeof asset.sha256 === "string" &&
+        /^[a-f0-9]{64}$/u.test(asset.sha256),
+      "invalid original bootstrap site asset",
+    );
+  }
+  return structuredClone(raw) as BootstrapDraftRecovery;
+}
+
+function requireBootstrapDraftAssets(
+  raw: Record<string, unknown>,
+  expected: BootstrapDraftRecovery,
+) {
+  assert.ok(Array.isArray(raw.assets));
+  const assets = raw.assets.map((asset: unknown) => {
+    assert.ok(isRecord(asset) && asset.state === "uploaded");
+    return { id: asset.id, name: asset.name, bytes: asset.size, digest: asset.digest };
+  });
+  const asset = expected.site_archive;
+  assert.deepEqual(
+    assets,
+    asset
+      ? [{ id: asset.id, name: asset.name, bytes: asset.bytes, digest: `sha256:${asset.sha256}` }]
+      : [],
+    "appointed bootstrap asset identity changed; preserve without retry",
+  );
+}
+
+export function requireBootstrapDraft(raw: unknown, expected: BootstrapDraftRecovery) {
   assert.ok(
     isRecord(raw) &&
       raw.id === expected.release_id &&
@@ -614,35 +674,25 @@ function requireEmptyBootstrapDraft(raw: unknown, expected: EmptyBootstrapDraft)
       raw.prerelease === true &&
       raw.immutable === false &&
       Array.isArray(raw.assets) &&
-      raw.assets.length === 0 &&
       typeof raw.body === "string",
-    "appointed bootstrap recovery requires the exact empty draft",
+    "appointed bootstrap recovery requires the exact mutable draft",
   );
+  requireBootstrapDraftAssets(raw, expected);
   assert.equal(createHash("sha256").update(raw.body).digest("hex"), expected.notes_sha256);
 }
 
-export async function resumeEmptyApplicationBootstrap(
+export async function resumeApplicationBootstrapDraft(
   provider: ApplicationRunRegistrationProvider,
   execution: Execution,
   opportunity: string,
   raw: unknown,
   beforeWrite: Parameters<typeof registerApplicationReleaseRun>[5],
 ) {
-  assert.ok(
-    isRecord(raw) &&
-      Object.keys(raw).sort().join(",") === "notes_sha256,release_id" &&
-      typeof raw.release_id === "number" &&
-      Number.isSafeInteger(raw.release_id) &&
-      raw.release_id > 0 &&
-      typeof raw.notes_sha256 === "string" &&
-      /^[a-f0-9]{64}$/u.test(raw.notes_sha256),
-    "invalid empty bootstrap recovery appointment",
-  );
-  const expected = { release_id: raw.release_id, notes_sha256: raw.notes_sha256 };
+  const expected = inspectBootstrapDraftRecovery(raw);
   const response = await provider.release(expected.release_id);
   assert.equal(response.status, 200);
   const draft = response.body;
-  requireEmptyBootstrapDraft(draft, expected);
+  requireBootstrapDraft(draft, expected);
   assert.ok(isRecord(draft));
   const parsed = readApplicationRunNotes(draft.body);
   assert.ok(
@@ -683,7 +733,7 @@ export async function registerApplicationReleaseRun(
   ) => Promise<void>,
   mode: "create-or-resume" | "immutable-only" | "immutable-metadata-only" = "create-or-resume",
   budget?: ApplicationRunBudget,
-  emptyBootstrapDraft?: EmptyBootstrapDraft,
+  emptyBootstrapDraft?: BootstrapDraftRecovery,
 ) {
   const current: Run = {
     id: execution.run_id,
@@ -803,7 +853,7 @@ export async function registerApplicationReleaseRun(
       const fresh = await request(() => provider.release(Number(existing.id)));
       assert.equal(fresh.status, 200);
       assert.ok(isRecord(fresh.body));
-      if (emptyBootstrapDraft) requireEmptyBootstrapDraft(fresh.body, emptyBootstrapDraft);
+      if (emptyBootstrapDraft) requireBootstrapDraft(fresh.body, emptyBootstrapDraft);
       for (const key of [
         "id",
         "body",
@@ -856,7 +906,7 @@ export async function registerApplicationReleaseRun(
   assert.ok(isRecord(readback.body));
   assert.equal(readback.body.body, body, "native run custody readback differs; no retry or reset");
   if (emptyBootstrapDraft) {
-    assert.ok(Array.isArray(readback.body.assets) && readback.body.assets.length === 0);
+    requireBootstrapDraftAssets(readback.body, emptyBootstrapDraft);
   }
   if (existing) {
     for (const key of ["id", "tag_name", "target_commitish", "draft", "immutable", "prerelease"])

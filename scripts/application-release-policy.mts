@@ -8,6 +8,7 @@ import { isRecord } from "./runtime-values.mts";
 
 export const applicationReleaseWorkflow = ".github/workflows/application-release.yml";
 export const applicationReleaseConcurrency = "application-update-production-controller";
+export const applicationSourcePacketMaximumBytes = 1024 * 1024;
 export const applicationReleaseJobMinutes = Object.freeze({
   source: 2,
   tools: 10,
@@ -39,8 +40,8 @@ export const applicationReleaseJobMinutes = Object.freeze({
 });
 
 /** Mutually exclusive execution paths, never an extra resource allowance.
- * Bootstrap retains its original combined five-minute publisher; an ordinary
- * release splits those same five minutes into preparation3/publication2. */
+ * Bootstrap and ordinary release split the same five-minute allowance into
+ * preparation3/publication2; renewal retains its combined publisher. */
 export function applicationReleaseBudgetMinutes(purpose: unknown) {
   assert.ok(
     purpose === "application-release" ||
@@ -48,12 +49,14 @@ export function applicationReleaseBudgetMinutes(purpose: unknown) {
       purpose === "metadata-renewal",
   );
   const jobs: Record<string, number> = { ...applicationReleaseJobMinutes };
-  if (purpose === "application-release") {
+  if (purpose === "application-release" || purpose === "metadata-bootstrap") {
     jobs.publication = 2;
+  } else delete jobs.publication_prepare;
+  if (purpose === "application-release") {
     jobs.readback = 3;
     jobs.public_installed_readback = 2;
     jobs["protection_draft_recovery / execute"] = 1;
-  } else delete jobs.publication_prepare;
+  }
   if (purpose === "metadata-bootstrap") {
     // The empty bootstrap never builds, signs, or installs an executable.
     for (const name of [

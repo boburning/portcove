@@ -82,14 +82,19 @@ void test("native executed feed history survives copied rows and distinguishes u
   assert.equal(failed.feed_executions.length, 1);
 });
 
-void test("bootstrap cannot execute the ordinary preparation branch and each path reserves its actual five-minute publication tail", () => {
+void test("bootstrap charges its draft preparation without extending the reservation or admitting payload work", () => {
   const rows = [{ context: context(1), jobs: jobs([job("publication_prepare", 0, 2)]) }];
   const ordinary = inspectApplicationJobBudget(rows, source, run, true, "application-release");
   assert.equal(ordinary.actual_milliseconds, 2000);
-  assert.throws(
-    () => inspectApplicationJobBudget(rows, source, run, true, "metadata-bootstrap"),
-    /unknown executing release job/u,
+  const preparedBootstrap = inspectApplicationJobBudget(
+    rows,
+    source,
+    run,
+    true,
+    "metadata-bootstrap",
   );
+  assert.equal(preparedBootstrap.actual_milliseconds, 2000);
+  assert.equal(preparedBootstrap.remaining_declared_minutes, 56);
   const app = inspectApplicationJobBudget(
     [{ context: context(1), jobs: jobs([]) }],
     source,

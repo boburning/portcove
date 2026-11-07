@@ -888,7 +888,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   publication_prepare:
-    if: ${{ always() && !cancelled() && inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && needs.draft_recovery.result == 'success' && needs.context.result == 'success' && needs.package.result == 'success' && needs.native.result == 'success' && needs.payload.result == 'success' && (needs.draft_recovery.outputs.needed != 'true' || needs.protection_draft_recovery.result == 'success') }}
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && (inputs.mode == 'bootstrap' || (inputs.mode == 'prepare' && needs.draft_recovery.result == 'success' && needs.context.result == 'success' && needs.package.result == 'success' && needs.native.result == 'success' && needs.payload.result == 'success' && (needs.draft_recovery.outputs.needed != 'true' || needs.protection_draft_recovery.result == 'success'))) }}
     needs:
       [
         source,
@@ -976,17 +976,17 @@ jobs:
         run: node scripts/application-release-private.bundle.mjs publication-prepare
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: work/application-draft-prepared/*.json
+          subject-path: work/application-draft-prepared/*
       - id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: application-draft-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/application-draft-prepared/*.json
+          path: work/application-draft-prepared/*
           if-no-files-found: error
           retention-days: 7
           overwrite: false
   protection_publication:
-    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && (inputs.mode == 'bootstrap' || ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && needs.draft_recovery.result == 'success') || (inputs.mode == 'prepare' && needs.publication_prepare.result == 'success')) }}
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && ((inputs.mode == 'bootstrap' && needs.publication_prepare.result == 'success') || ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && needs.draft_recovery.result == 'success') || (inputs.mode == 'prepare' && needs.publication_prepare.result == 'success')) }}
     needs: [source, tools, assemble, draft_recovery, publication_prepare]
     permissions:
       contents: read
@@ -1006,10 +1006,10 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   publication:
-    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && needs.protection_publication.result == 'success' && (inputs.mode == 'bootstrap' || needs.draft_recovery.result == 'success') && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'prepare' && needs.publication_prepare.result == 'success')) }}
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && needs.protection_publication.result == 'success' && (inputs.mode == 'bootstrap' || needs.draft_recovery.result == 'success') && ((inputs.mode == 'bootstrap' && needs.publication_prepare.result == 'success') || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'prepare' && needs.publication_prepare.result == 'success')) }}
     needs: [source, tools, assemble, draft_recovery, publication_prepare, protection_publication]
     runs-on: ubuntu-22.04
-    timeout-minutes: ${{ inputs.mode == 'prepare' && 2 || 5 }}
+    timeout-minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap') && 2 || 5 }}
     environment: production-release-publication
     permissions:
       contents: write
@@ -1044,8 +1044,7 @@ jobs:
     outputs:
       release_id: ${{ steps.worker.outputs.release_id }}
       site_generation: ${{ steps.worker.outputs.site_generation }}
-      pages_artifact: ${{ steps.pages.outputs.artifact_id }}
-      receipt_artifact: ${{ steps.receipt.outputs.artifact-id || steps.application_receipt.outputs.artifact-id }}
+      receipt_artifact: ${{ steps.application_receipt.outputs.artifact-id }}
       attempt: ${{ steps.worker.outputs.attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1071,36 +1070,6 @@ jobs:
       - id: worker
         name: Authenticate completed byte preparation and publish once behind fresh protection
         run: node scripts/application-release-private.bundle.mjs publication
-      - id: feed
-        if: inputs.mode == 'bootstrap'
-        name: Re-fetch immutable assets and verify assembly provenance before feed staging
-        run: node scripts/application-release-private.bundle.mjs prepare-feed
-      - id: pages
-        if: inputs.mode == 'bootstrap'
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          name: application-pages-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ steps.feed.outputs.feed_directory }}
-          include-hidden-files: true
-          retention-days: 7
-      - id: capture
-        if: inputs.mode == 'bootstrap'
-        name: Verify provider Pages ZIP equals the actual fixed uploader TAR
-        env:
-          PORTCOVE_PAGES_ARTIFACT: ${{ steps.pages.outputs.artifact_id }}
-        run: node scripts/application-release-private.bundle.mjs capture-pages
-      - id: receipt
-        if: inputs.mode == 'bootstrap'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: application-publication-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |-
-            work/application-publication/result.json
-            work/application-feed/receipt.json
-            work/application-feed/pages.json
-          if-no-files-found: error
-          retention-days: 7
-          overwrite: false
       - id: application_receipt
         if: inputs.mode == 'prepare'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1141,9 +1110,6 @@ jobs:
       PORTCOVE_TOOLS_ATTEMPT: ${{ needs.tools.outputs.attempt }}
       PORTCOVE_PROTECTION_PHASE: publication
       PORTCOVE_PUBLICATION_INPUT_ATTEMPT: ${{ needs.assemble.outputs.attempt }}
-      PORTCOVE_PUBLICATION_RECEIPT_ARTIFACT: ${{ needs.publication.outputs.receipt_artifact }}
-      PORTCOVE_PUBLICATION_ATTEMPT: ${{ needs.publication.outputs.attempt }}
-      PORTCOVE_PAGES_ARTIFACT: ${{ needs.publication.outputs.pages_artifact }}
     outputs:
       artifact: ${{ steps.upload.outputs.artifact-id }}
       attempt: ${{ steps.worker.outputs.attempt }}
@@ -1169,26 +1135,23 @@ jobs:
       - *acquire_application_tools
       - *verify_application_tools
       - id: ordinary_feed
-        if: inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')
         name: Verify all immutable public assets and authenticated assembly before feed staging
         run: node scripts/application-release-private.bundle.mjs prepare-feed
       - id: ordinary_pages
-        if: inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           name: application-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ steps.ordinary_feed.outputs.feed_directory }}
           include-hidden-files: true
           retention-days: 7
-      - if: inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')
-        name: Verify the official Pages uploader TAR and provider ZIP
+      - name: Verify the official Pages uploader TAR and provider ZIP
         env:
           PORTCOVE_PAGES_ARTIFACT: ${{ steps.ordinary_pages.outputs.artifact_id }}
         run: node scripts/application-release-private.bundle.mjs capture-pages
       - id: worker
         name: Verify immutable cohort, exact Pages artifact and usable public preimage
         env:
-          PORTCOVE_PAGES_ARTIFACT: ${{ (inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')) && steps.ordinary_pages.outputs.artifact_id || needs.publication.outputs.pages_artifact }}
+          PORTCOVE_PAGES_ARTIFACT: ${{ steps.ordinary_pages.outputs.artifact_id }}
         run: node scripts/application-release-private.bundle.mjs site-preflight
       - id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

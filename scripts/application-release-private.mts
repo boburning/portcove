@@ -21,6 +21,7 @@ import {
 } from "./application-release-io.mts";
 import {
   applicationReleaseTrust,
+  applicationSourcePacketMaximumBytes,
   inspectApplicationSpendingAppointment,
   inspectApplicationReleaseExecution,
   verifyApplicationReleaseTrust,
@@ -141,7 +142,9 @@ import {
   readImmutableApplicationRelease,
   inspectApplicationReleaseAttestation,
   readBootstrapSiteArchive,
+  decodeBootstrapDraftSiteAsset,
   inspectApplicationMetadataPublicationReceipt,
+  inspectBootstrapDraftPreparation,
   assertApplicationPublicationRecord,
   inspectApplicationWindowsCandidate,
   isApplicationWindowsJourneyRecord,
@@ -154,6 +157,7 @@ import type { ApplicationDraftRecovery } from "./application-release-run.mts";
 import type { ApplicationMetadataPublicationBinding } from "./application-release-publication.mts";
 import {
   inspectApplicationRunCustody,
+  inspectBootstrapDraftRecovery,
   readRegisteredApplicationRuns,
   emptyApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
@@ -202,10 +206,21 @@ export async function readNativeApplicationSource(directory = sourceDirectory) {
     run_id: current.run_id,
     source: current.source,
     files: ["source.json"],
-    maximum_file_bytes: 1024 * 1024,
-    maximum_archive_bytes: 1024 * 1024,
+    maximum_file_bytes: applicationSourcePacketMaximumBytes,
+    maximum_archive_bytes: applicationSourcePacketMaximumBytes,
   });
-  const source = await readApplicationJson(path.join(directory, "source.json"));
+  return loadNativeApplicationSource(directory);
+}
+
+/** Later commands in the same fixed job consume its already verified packet. */
+async function loadNativeApplicationSource(directory = sourceDirectory) {
+  const current = execution();
+  const attempt = Number(process.env.PORTCOVE_SOURCE_ATTEMPT);
+  assert.ok(Number.isSafeInteger(attempt) && attempt > 0 && attempt <= current.run_attempt);
+  const source = await readApplicationJson(
+    path.join(directory, "source.json"),
+    applicationSourcePacketMaximumBytes,
+  );
   assert.ok(isRecord(source) && source.schema_version === 1 && source.authority === "none");
   assert.equal(source.control_commit, current.source);
   assert.equal(source.control_ref, current.ref);
@@ -279,7 +294,14 @@ async function guard(
   source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
   protection = true,
   options: {
-    markStage?: (stage: "pause-read" | "custody-read" | "budget-read") => void;
+    markStage?: (
+      stage:
+        | "pause-read"
+        | "custody-read"
+        | "budget-read"
+        | "protection-policy"
+        | "protection-digest",
+    ) => void;
     useRegisteredBootstrapSource?: boolean;
   } = {},
 ) {
@@ -356,14 +378,17 @@ async function guard(
         receipt.attempt === attempt,
     );
     const expectedDigest = process.env.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256;
+    const observation = isRecord(receipt.observation) ? receipt.observation : undefined;
+    publicationProtectionObservedAt =
+      typeof observation?.observed_at === "string" ? observation.observed_at : undefined;
     assertProtectionWriteWindow = () => {
-      assert.equal(
-        requireApplicationReleaseProtectionDigest(
-          receipt.observation,
-          source.purpose === "metadata-bootstrap",
-        ),
-        expectedDigest,
+      markStage?.("protection-policy");
+      const actualDigest = requireApplicationReleaseProtectionDigest(
+        receipt.observation,
+        source.purpose === "metadata-bootstrap",
       );
+      markStage?.("protection-digest");
+      assert.equal(actualDigest, expectedDigest);
     };
     assertProtectionWriteWindow();
   }
@@ -478,6 +503,19 @@ function publicationBinding(
   };
 }
 
+function bootstrapDraftRecovery(source: Record<string, unknown>) {
+  if (source.bootstrap_draft_recovery === undefined) {
+    assert.equal(source.bootstrap_draft_site_base64, undefined);
+    return undefined;
+  }
+  assert.equal(source.purpose, "metadata-bootstrap");
+  const recovery = inspectBootstrapDraftRecovery(source.bootstrap_draft_recovery);
+  assert.ok(recovery.site_archive && isRecord(source.run_custody));
+  assert.equal(recovery.release_id, source.run_custody.release_id);
+  assert.equal(typeof source.bootstrap_draft_site_base64, "string");
+  return { ...recovery, site_archive: recovery.site_archive };
+}
+
 async function stageBootstrapSite() {
   // This is the same key-free assembly job, after standard artifact upload.
   const source = await readApplicationJson(path.join(sourceDirectory, "source.json"));
@@ -497,15 +535,21 @@ async function stageBootstrapSite() {
     return file.path;
   });
   const destination = path.resolve("work/application-publication-assets");
-  const archive = await receiveApplicationData(path.resolve("work/application-site-verified"), {
-    id: Number(process.env.PORTCOVE_SITE_ARTIFACT),
-    name: `application-site-${current.run_id}-${current.run_attempt}`,
-    source: current.source,
-    run_id: current.run_id,
-    files: [...names, "publication.json"],
-    maximum_file_bytes: 64 * 1024 ** 2,
-    retain_archive: path.join(destination, bootstrapAssetNames[0]),
-  });
+  const recovery = bootstrapDraftRecovery(source);
+  let archive: { bytes: number; sha256: string };
+  if (recovery) {
+    const asset = recovery.site_archive;
+    archive = { bytes: asset.bytes, sha256: asset.sha256 };
+  } else
+    archive = await receiveApplicationData(path.resolve("work/application-site-verified"), {
+      id: Number(process.env.PORTCOVE_SITE_ARTIFACT),
+      name: `application-site-${current.run_id}-${current.run_attempt}`,
+      source: current.source,
+      run_id: current.run_id,
+      files: [...names, "publication.json"],
+      maximum_file_bytes: 64 * 1024 ** 2,
+      retain_archive: path.join(destination, bootstrapAssetNames[0]),
+    });
   const common = {
     schema_version: 1,
     authority: "none",
@@ -562,8 +606,17 @@ async function stageBootstrapSite() {
           receipt,
           inspectApplicationRunCustody(source.run_custody.custody),
         );
-  const archiveBytes = await readFile(path.join(destination, bootstrapAssetNames[0]));
+  const archiveBytes = recovery
+    ? decodeBootstrapDraftSiteAsset(recovery, source.bootstrap_draft_site_base64)
+    : await readFile(path.join(destination, bootstrapAssetNames[0]));
   inspectBootstrapSiteArchive(archiveBytes, inspected);
+  if (recovery) {
+    await mkdir(destination, { recursive: true, mode: 0o700 });
+    await writeFile(path.join(destination, bootstrapAssetNames[0]), archiveBytes, {
+      flag: "wx",
+      mode: 0o600,
+    });
+  }
   const metadataPath = path.join(destination, bootstrapAssetNames[1]);
   await writeApplicationJson(metadataPath, receipt);
   if (source.purpose !== "metadata-bootstrap") {
@@ -1002,10 +1055,11 @@ async function finishDraftRecovery(
   });
 }
 
-async function prepareOrdinaryPublication() {
+async function prepareOrdinaryPublication(
+  source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
+) {
   assert.ok(!process.env.PORTCOVE_SIGNING_KEY && !process.env.PORTCOVE_OBSERVER_TOKEN);
-  const current = execution(),
-    source = await readNativeApplicationSource();
+  const current = execution();
   await guard(source, false);
   const expected = ordinaryPublicationExpected(source, current.run_attempt);
   const assembly = await receiveApplicationAssembly();
@@ -1114,58 +1168,54 @@ async function prepareOrdinaryPublication() {
   await applicationOutput("attempt", current.run_attempt);
 }
 
-async function receiveOrdinaryPreparation(
-  source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
-) {
+async function receiveApplicationDraftPreparation(bootstrap: boolean) {
   const current = execution();
   const attempt = Number(process.env.PORTCOVE_DRAFT_ATTEMPT);
-  const expected = ordinaryPublicationExpected(source, attempt);
+  assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
   const directory = path.resolve("work/application-draft-received");
-  const names = ["prepared.json", "prior-site.json"];
+  const names = ["prepared.json", "prior-site.json", ...(bootstrap ? bootstrapAssetNames : [])];
   await receiveApplicationData(directory, {
     id: Number(process.env.PORTCOVE_DRAFT_ARTIFACT),
     name: `application-draft-${current.run_id}-${attempt}`,
     run_id: current.run_id,
     source: current.source,
     files: names,
-    maximum_file_bytes: 128 * 1024,
-    maximum_archive_bytes: 512 * 1024,
+    ...(bootstrap ? {} : { maximum_file_bytes: 128 * 1024, maximum_archive_bytes: 512 * 1024 }),
   });
-  const subjects = await Promise.all(
-    names.map(async (filename) => ({
-      filename,
-      sha256: sha256(await readFile(path.join(directory, filename))),
-    })),
-  );
-  const preparation = await readFile(path.join(directory, "prepared.json"));
+  const attestation = {
+    source_commit: current.source,
+    ref: current.ref,
+    run_id: current.run_id,
+    run_attempt: attempt,
+    subjects: await Promise.all(
+      names.map(async (filename) => ({
+        filename,
+        sha256: sha256(await readFile(path.join(directory, filename))),
+      })),
+    ),
+  };
   return {
-    expected,
     directory,
-    preparation,
+    attempt,
+    attestation,
     authenticatePreparation: async () => {
-      await verifyReleaseSourceAttestation(
-        directory,
-        "prepared.json",
-        {
-          source_commit: current.source,
-          ref: current.ref,
-          run_id: current.run_id,
-          run_attempt: attempt,
-          subjects,
-        },
-        { scope: "application-controller" },
-      );
+      await verifyReleaseSourceAttestation(directory, "prepared.json", attestation, {
+        scope: "application-controller",
+      });
     },
   };
 }
 
-async function publishOrdinaryMetadata() {
+async function publishOrdinaryMetadata(
+  source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
+) {
   assert.ok(!process.env.PORTCOVE_SIGNING_KEY && !process.env.PORTCOVE_OBSERVER_TOKEN);
-  const current = execution(),
-    source = await readNativeApplicationSource();
+  const current = execution();
   await guard(source, false);
-  const received = await receiveOrdinaryPreparation(source);
-  const { expected, directory, preparation } = received;
+  const received = await receiveApplicationDraftPreparation(false);
+  const { directory, attempt } = received;
+  const expected = ordinaryPublicationExpected(source, attempt);
+  const preparation = await readFile(path.join(directory, "prepared.json"));
   const result = await publishPreparedApplicationRelease(expected, preparation, {
     open: (deadline) =>
       createPreparedApplicationPublicationProvider(
@@ -1209,20 +1259,50 @@ async function publishOrdinaryMetadata() {
   await applicationOutput("attempt", current.run_attempt);
 }
 
-async function publishBootstrapMetadata() {
-  const source = await readNativeApplicationSource();
+async function receiveBootstrapPreparation() {
+  const { directory, attestation, authenticatePreparation } =
+    await receiveApplicationDraftPreparation(true);
+  await authenticatePreparation();
+  const prepared = inspectBootstrapDraftPreparation(
+    await readApplicationJson(path.join(directory, "prepared.json"), 128 * 1024),
+    attestation,
+  );
+  return { directory, prepared, attempt: prepared.assembly_attempt };
+}
+
+async function publishBootstrapMetadata(
+  stage: "combined" | "prepare" | "publish",
+  source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
+) {
+  publicationStage = "source";
+  publicationProtectionObservedAt = undefined;
+  const guardSource = (protection = true) =>
+    guard(source, protection, {
+      markStage(next) {
+        publicationStage = next;
+      },
+    });
+  if (stage !== "combined") assert.equal(source.purpose, "metadata-bootstrap");
   if (source.purpose === "metadata-renewal")
     assert.equal(source.execution_path, "metadata-maintenance");
-  await guard(source, false);
+  // The split publisher only reads until its final full guard. Repeating the
+  // custody and budget inventory before those reads spends the fresh window.
+  if (stage !== "publish") await guardSource(false);
   const current = execution();
-  const { directory, attempt } = await receiveApplicationAssembly();
+  publicationStage = stage === "publish" ? "prepared-input" : "assembly-input";
+  const preparedInput = stage === "publish" ? await receiveBootstrapPreparation() : undefined;
+  const input = preparedInput ?? (await receiveApplicationAssembly());
+  const { directory, attempt } = input;
   assert.ok(isRecord(source.run_custody));
   const token = process.env.GH_TOKEN;
   assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
+  const recovery = bootstrapDraftRecovery(source);
   const expected = {
     release_id: Number(source.run_custody.release_id),
     custody: inspectApplicationRunCustody(source.run_custody.custody),
     binding: publicationBinding(source, attempt),
+    ...(preparedInput ? { prepared_assets: preparedInput.prepared.assets } : {}),
+    ...(recovery ? { original_site: recovery.site_archive } : {}),
   };
   const files = new Map(
     await Promise.all(
@@ -1232,6 +1312,7 @@ async function publishBootstrapMetadata() {
     ),
   );
   let verifyPreimage: () => Promise<() => Promise<void>>;
+  let bootstrapPrior: Record<string, unknown> | undefined;
   if (source.purpose === "metadata-renewal") {
     const raw: unknown = JSON.parse(
       new TextDecoder("utf-8", { fatal: true }).decode(files.get(bootstrapAssetNames[1])),
@@ -1262,7 +1343,7 @@ async function publishBootstrapMetadata() {
       assert.equal(raw.prior_repository_sha256, prior.receipt.publication.repository_sha256);
       await readPublicApplicationSiteMarker(prior.receipt.site);
       assert.deepEqual(await discoverActualPublishedApplicationCohort(lineage), discovered);
-      await guard(source);
+      await guardSource();
       return discovered.state;
     };
     verifyPreimage = async () => {
@@ -1293,6 +1374,34 @@ async function publishBootstrapMetadata() {
         };
       },
     );
+  } else if (stage === "publish") {
+    const prior = await readApplicationJson(path.join(directory, "prior-site.json"), 128 * 1024);
+    assert.ok(
+      isRecord(prior) &&
+        Object.keys(prior).sort().join(",") ===
+          "authority,inventory_sha256,preimage_sha256,provider,schema_version",
+    );
+    assert.equal(prior.schema_version, 1);
+    assert.equal(prior.authority, "none");
+    assert.equal(prior.preimage_sha256, bootstrapAppointment().site_preimage_sha256);
+    assert.ok(isRecord(source.bootstrap_preimage) && isRecord(prior.provider));
+    assert.equal(prior.inventory_sha256, source.bootstrap_preimage.inventory_sha256);
+    const inspected = inspectApplicationMetadataPublicationReceipt(
+      JSON.parse(files.get(bootstrapAssetNames[1])!.toString("utf8")),
+      expected.binding,
+      expected.custody,
+    );
+    assert.ok(preparedInput);
+    assert.equal(preparedInput.prepared.release_id, expected.release_id);
+    assert.equal(preparedInput.prepared.site_generation, inspected.site.generation);
+    verifyPreimage = async () => {
+      assert.deepEqual(await readActualApplicationPagesState(deadline), prior.provider);
+      await guardSource();
+      return async () => {
+        assert.deepEqual(await readActualApplicationPagesState(deadline), prior.provider);
+        assertProtectionWriteWindow();
+      };
+    };
   } else {
     verifyPreimage = async () => {
       const descriptor = await readApplicationJson(
@@ -1302,26 +1411,44 @@ async function publishBootstrapMetadata() {
       const scratch = await mkdtemp(
         path.join(process.env.RUNNER_TEMP!, "application-bootstrap-preimage-"),
       );
-      await materializeInitialApplicationRehearsal(
+      const retained = await materializeInitialApplicationRehearsal(
         descriptor,
         bootstrapAppointment().site_preimage_sha256,
         scratch,
       );
-      await guard(source);
+      bootstrapPrior = {
+        schema_version: 1,
+        authority: "none",
+        provider: descriptor.provider,
+        preimage_sha256: bootstrapAppointment().site_preimage_sha256,
+        inventory_sha256: retained.inventory_sha256,
+      };
+      await guardSource(stage !== "prepare");
       return async () => {
         assert.deepEqual(await readActualApplicationPagesState(deadline), descriptor.provider);
-        assertProtectionWriteWindow();
+        if (stage !== "prepare") assertProtectionWriteWindow();
       };
     };
   }
   const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
+  publicationStage = "preimage";
+  if (stage === "prepare") await (await verifyPreimage())();
+  const denyPreparationPublish = () => {
+    throw new Error("draft preparation cannot publish");
+  };
+  publicationStage = "metadata-transport";
   const result = await publishApplicationMetadataRelease(
     {
       ...(await createApplicationMetadataPublicationProvider(
         token,
         expected.release_id,
         expected.custody.opportunity,
-        () => assertProtectionWriteWindow(),
+        stage === "prepare"
+          ? denyPreparationPublish
+          : () => {
+              assertProtectionWriteWindow();
+              publicationStage = "release-publication";
+            },
         deadline,
       )),
       async retainAssembly(assembly) {
@@ -1331,35 +1458,73 @@ async function publishBootstrapMetadata() {
           current,
           assembly,
           async () => {
-            await guard(source, false);
+            await guardSource(false);
           },
         );
       },
       async beforeWrite(phase) {
+        if (stage === "prepare") {
+          assert.equal(phase, "asset", "draft preparation cannot publish");
+          const prior = bootstrapPrior;
+          assert.ok(prior);
+          await guardSource(false);
+          return async () => {
+            assert.deepEqual(await readActualApplicationPagesState(deadline), prior.provider);
+          };
+        }
         if (phase === "publish") return verifyPreimage();
-        await guard(source);
+        await guardSource();
         return assertProtectionWriteWindow;
       },
       readAsset: createFixedApplicationReleaseAssetReader(undefined, deadline),
       upload: await createApplicationAssetUploader(
         token,
-        () => assertProtectionWriteWindow(),
+        stage === "prepare"
+          ? undefined
+          : () => {
+              assertProtectionWriteWindow();
+              publicationStage = "asset-upload";
+            },
         deadline,
       ),
     },
     expected,
     files.get(bootstrapAssetNames[1])!,
     files.get(bootstrapAssetNames[0])!,
+    stage,
   );
+  if (stage === "prepare") {
+    const output = path.resolve("work/application-draft-prepared");
+    await writeApplicationJson(path.join(output, "prepared.json"), {
+      schema_version: 1,
+      authority: "none",
+      kind: "application-bootstrap-draft-preparation",
+      control_commit: current.source,
+      control_ref: current.ref,
+      run_id: current.run_id,
+      producer_attempt: current.run_attempt,
+      assembly_attempt: attempt,
+      release_id: result.release_id,
+      site_generation: result.site_generation,
+      assets: result.assets,
+    });
+    assert.ok(bootstrapPrior);
+    await writeApplicationJson(path.join(output, "prior-site.json"), bootstrapPrior);
+    for (const name of bootstrapAssetNames)
+      await writeFile(path.join(output, name), files.get(name)!, { flag: "wx", mode: 0o600 });
+    await applicationOutput("attempt", current.run_attempt);
+    return;
+  }
   await writeApplicationJson("work/application-publication/result.json", result);
   await applicationOutput("release_id", result.release_id);
   await applicationOutput("site_generation", result.site_generation);
   await applicationOutput("attempt", current.run_attempt);
 }
 
-async function prepareOrdinaryFeed() {
+async function prepareOrdinaryFeed(
+  source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
+) {
   assert.ok(!process.env.PORTCOVE_SIGNING_KEY && !process.env.PORTCOVE_OBSERVER_TOKEN);
-  const source = await readNativeApplicationSource();
   await guard(source, false);
   const current = execution();
   const expected = ordinaryPublicationExpected(source, current.run_attempt);
@@ -1597,8 +1762,7 @@ async function writeFeedInput(
 }
 
 async function prepareBootstrapFeed() {
-  // Bootstrap uses its publisher; renewal/recovery uses key-free feed staging.
-  // Both re-fetch the immutable Release instead of a temporary assembly ZIP.
+  // All metadata modes re-fetch the immutable Release in key-free staging.
   const source = await readApplicationJson(path.join(sourceDirectory, "source.json"));
   assert.ok(isRecord(source));
   await guard(source, false);
@@ -1748,35 +1912,12 @@ async function captureBootstrapPagesArchive() {
 }
 
 async function preflightBootstrapSite() {
-  const source = await readNativeApplicationSource();
-  const localFeed = source.purpose !== "metadata-bootstrap";
-  const hasPrior = localFeed;
-  if (!localFeed) await prepareBootstrapFeed();
+  const source = await loadNativeApplicationSource();
+  const hasPrior = source.purpose !== "metadata-bootstrap";
   const current = execution();
-  const attempt = localFeed
-    ? current.run_attempt
-    : Number(process.env.PORTCOVE_PUBLICATION_ATTEMPT);
+  const attempt = current.run_attempt;
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
-  const publisher = path.resolve("work/application-publisher");
-  if (!localFeed)
-    await receiveApplicationData(publisher, {
-      id: Number(process.env.PORTCOVE_PUBLICATION_RECEIPT_ARTIFACT),
-      name: `application-publication-${current.run_id}-${attempt}`,
-      source: current.source,
-      run_id: current.run_id,
-      files: [
-        "application-publication/result.json",
-        "application-feed/receipt.json",
-        "application-feed/pages.json",
-      ],
-      maximum_file_bytes: 2 * 1024 ** 2,
-      maximum_archive_bytes: 8 * 1024 ** 2,
-    });
-  const captured = await readApplicationJson(
-    localFeed
-      ? "work/application-feed/pages.json"
-      : path.join(publisher, "application-feed/pages.json"),
-  );
+  const captured = await readApplicationJson("work/application-feed/pages.json");
   const feed = await readApplicationJson("work/application-feed/receipt.json", 2 * 1024 ** 2);
   assert.ok(
     isRecord(captured) && isRecord(captured.artifact) && isRecord(captured.tar) && isRecord(feed),
@@ -3181,6 +3322,8 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
 }
 
 let assemblyStage = "source";
+let publicationStage = "source";
+let publicationProtectionObservedAt: string | undefined;
 
 async function assembleMetadata() {
   assemblyStage = "source";
@@ -3360,13 +3503,20 @@ async function main() {
     else if (process.argv[2] === "stage-site") await stageBootstrapSite();
     else if (process.argv[2] === "draft-recovery-stage") await stageDraftRecovery();
     else if (process.argv[2] === "draft-recovery-retain") await retainDraftRecoveryBackup();
-    else if (process.argv[2] === "publication-prepare") await prepareOrdinaryPublication();
-    else if (process.argv[2] === "publication") {
-      if (process.env.PORTCOVE_DRAFT_ARTIFACT) await publishOrdinaryMetadata();
-      else await publishBootstrapMetadata();
+    else if (process.argv[2] === "publication-prepare") {
+      const source = await readNativeApplicationSource();
+      if (source.purpose === "metadata-bootstrap")
+        await publishBootstrapMetadata("prepare", source);
+      else await prepareOrdinaryPublication(source);
+    } else if (process.argv[2] === "publication") {
+      const source = await readNativeApplicationSource();
+      if (source.purpose === "metadata-bootstrap")
+        await publishBootstrapMetadata("publish", source);
+      else if (source.purpose === "application-release") await publishOrdinaryMetadata(source);
+      else await publishBootstrapMetadata("combined", source);
     } else if (process.argv[2] === "prepare-feed") {
       const source = await readNativeApplicationSource();
-      if (source.purpose === "application-release") await prepareOrdinaryFeed();
+      if (source.purpose === "application-release") await prepareOrdinaryFeed(source);
       else await prepareBootstrapFeed();
     } else if (process.argv[2] === "capture-pages") await captureBootstrapPagesArchive();
     else if (process.argv[2] === "site-preflight") await preflightBootstrapSite();
@@ -3390,7 +3540,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     await main();
   } catch (error) {
-    if (process.argv[2] === "assemble") {
+    if (["assemble", "publication", "publication-prepare"].includes(process.argv[2] ?? "")) {
       const status =
         error instanceof GitHubApiError &&
         Number.isInteger(error.status) &&
@@ -3398,7 +3548,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         Number(error.status) <= 599
           ? ` (HTTP ${error.status})`
           : "";
-      console.error(`Application assembly refused at ${assemblyStage}${status}.`);
+      const assembling = process.argv[2] === "assemble";
+      const age =
+        publicationProtectionObservedAt === undefined
+          ? NaN
+          : Date.now() - Date.parse(publicationProtectionObservedAt);
+      const observation =
+        !assembling && Number.isSafeInteger(age) && age >= 0 ? ` (observation age ${age} ms)` : "";
+      console.error(
+        `Application ${assembling ? "assembly" : "publication"} refused at ${assembling ? assemblyStage : publicationStage}${status}${observation}.`,
+      );
     }
     console.error("Fixed application role failed; private subprocess output is not retained.");
     process.exitCode = 1;

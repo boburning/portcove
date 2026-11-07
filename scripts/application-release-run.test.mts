@@ -6,7 +6,8 @@ import {
   readApplicationRunNotes,
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
-  resumeEmptyApplicationBootstrap,
+  resumeApplicationBootstrapDraft,
+  inspectBootstrapDraftRecovery,
   retainApplicationPreparation,
   readRegisteredApplicationRuns,
   registerApplicationBudgetRun,
@@ -21,6 +22,7 @@ import {
 } from "./application-release-run.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { isRecord } from "./runtime-values.mts";
+import { applicationSourcePacketMaximumBytes } from "./application-release-policy.mts";
 
 const source = "a".repeat(40),
   tree = "b".repeat(40);
@@ -212,7 +214,7 @@ void test("bootstrap successor retains the appointed empty draft and its origina
         return structuredClone(f.releases);
       };
     }
-    const recovery = resumeEmptyApplicationBootstrap(
+    const recovery = resumeApplicationBootstrapDraft(
       f.registration,
       next,
       opportunity,
@@ -245,6 +247,78 @@ void test("bootstrap successor retains the appointed empty draft and its origina
       );
     }
   }
+});
+
+void test("bootstrap partial recovery preserves the appointed site asset and refuses drift before registration", async () => {
+  for (const fault of [undefined, "unappointed", "identity", "drift"] as const) {
+    const f = fixture();
+    const first = await registerApplicationReleaseRun(
+      f.registration,
+      execution,
+      source,
+      tree,
+      source,
+      f.guard,
+    );
+    const draft = f.releases[0]!;
+    const asset = { id: 21, name: "application-site.zip", bytes: 123, sha256: "d".repeat(64) };
+    draft.assets = [
+      {
+        id: asset.id,
+        name: asset.name,
+        size: asset.bytes,
+        digest: `sha256:${asset.sha256}`,
+        state: "uploaded",
+      },
+    ];
+    const appointed = {
+      release_id: first.release_id,
+      notes_sha256: createHash("sha256").update(String(draft.body)).digest("hex"),
+      ...(fault === "unappointed" ? {} : { site_archive: asset }),
+    };
+    if (fault === "identity") (draft.assets as { id: number }[])[0]!.id++;
+    const result = resumeApplicationBootstrapDraft(
+      f.registration,
+      { ...execution, run_id: "124" },
+      source,
+      appointed,
+      async () => {
+        if (fault === "drift") draft.assets = [];
+      },
+    );
+    if (fault) {
+      await assert.rejects(result);
+      assert.equal(f.mutations.length, 1);
+    } else {
+      const resumed = await result;
+      assert.equal(resumed.custody.runs.length, 2);
+      assert.deepEqual(draft.assets, [
+        {
+          id: asset.id,
+          name: asset.name,
+          size: asset.bytes,
+          digest: `sha256:${asset.sha256}`,
+          state: "uploaded",
+        },
+      ]);
+      assert.deepEqual(
+        f.mutations.map((row) => row.method),
+        ["POST", "PATCH"],
+      );
+    }
+  }
+  const valid = {
+    release_id: 10,
+    notes_sha256: "a".repeat(64),
+    site_archive: { id: 21, name: "application-site.zip", bytes: 123, sha256: "d".repeat(64) },
+  };
+  for (const asset of [
+    undefined,
+    { ...valid.site_archive, name: "application-metadata.json" },
+    { ...valid.site_archive, bytes: applicationSourcePacketMaximumBytes / 2 + 1 },
+    { ...valid.site_archive, id: "21" },
+  ])
+    assert.throws(() => inspectBootstrapDraftRecovery({ ...valid, site_archive: asset }));
 });
 
 void test("native draft registration precedes private work and a same-run retry preserves its single record", async () => {
