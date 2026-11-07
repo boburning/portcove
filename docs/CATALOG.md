@@ -2050,8 +2050,10 @@ accepted member observations. An ordinary fitting title needs no production Rust
 or per-title test wrapper. Independent observations and custom behavioral tests
 remain necessary where their scope differs from the shared route.
 For a managed-native case, record the independently observed executable and
-immutable members in the shared native lifecycle corpus and enroll the stable
-ID, prepared executable and literal arguments, managed role and managed
+immutable members in the shared native lifecycle corpus. Set `runtime_folder`
+to the archive folder prefix with a trailing slash, or to an empty string for a
+root-level executable. List immutable member paths relative to that prefix.
+Enroll the stable ID, prepared executable and literal arguments, managed role and managed
 literal arguments in the independent expectations. Each route has its own
 argument vector, including an explicit empty vector when applicable. Review
 those facts against the package and upstream

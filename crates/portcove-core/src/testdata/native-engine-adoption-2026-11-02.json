@@ -1674,7 +1674,7 @@
       "port_id": "quake-ironwail",
       "repository": "andrei-drexler/ironwail",
       "channel": "stable",
-      "runtime_folder": "ironwail-0.8.2-win64",
+      "runtime_folder": "ironwail-0.8.2-win64/",
       "selected_executable": "ironwail.exe",
       "selected_asset": "ironwail-0.8.2-win64.zip",
       "archive_sha256": "0e54e9089ce72bad73c288148cfb5474a00b05d9e1da1c8feb0b76665faf7d01",
