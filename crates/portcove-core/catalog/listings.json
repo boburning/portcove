@@ -6581,7 +6581,9 @@
       "issue_number": 465,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp#readme",
@@ -6597,7 +6599,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -6628,6 +6630,14 @@
         "linux-x86-64": [
           "monster-rancher-2-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "monster-rancher-2-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "monster-rancher-2-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6818,7 +6828,9 @@
       "issue_number": 472,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp#readme",
@@ -6834,7 +6846,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -6865,6 +6877,14 @@
         "linux-x86-64": [
           "nightmare-creatures-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "nightmare-creatures-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "nightmare-creatures-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6878,7 +6898,9 @@
       "issue_number": 475,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp#readme",
@@ -6894,7 +6916,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -6925,6 +6947,14 @@
         "linux-x86-64": [
           "oddworld-abe-s-oddysee-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "oddworld-abe-s-oddysee-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "oddworld-abe-s-oddysee-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7815,7 +7845,9 @@
       "issue_number": 484,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp#readme",
@@ -7831,7 +7863,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -7862,6 +7894,14 @@
         "linux-x86-64": [
           "syphon-filter-3-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "syphon-filter-3-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "syphon-filter-3-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7993,7 +8033,9 @@
       "issue_number": 487,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp#readme",
@@ -8009,7 +8051,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -8040,6 +8082,14 @@
         "linux-x86-64": [
           "tenchu-stealth-assassins-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "tenchu-stealth-assassins-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "tenchu-stealth-assassins-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8340,7 +8390,9 @@
       "issue_number": 488,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp#readme",
@@ -8356,7 +8408,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -8387,6 +8439,14 @@
         "linux-x86-64": [
           "tony-hawk-s-pro-skater-2-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "tony-hawk-s-pro-skater-2-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "tony-hawk-s-pro-skater-2-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8400,7 +8460,9 @@
       "issue_number": 493,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp#readme",
@@ -8416,7 +8478,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -8447,6 +8509,14 @@
         "linux-x86-64": [
           "tony-hawk-s-pro-skater-3-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "tony-hawk-s-pro-skater-3-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "tony-hawk-s-pro-skater-3-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8460,7 +8530,9 @@
       "issue_number": 489,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp#readme",
@@ -8476,7 +8548,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -8507,6 +8579,14 @@
         "linux-x86-64": [
           "tony-hawk-s-pro-skater-4-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "tony-hawk-s-pro-skater-4-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "tony-hawk-s-pro-skater-4-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8520,7 +8600,9 @@
       "issue_number": 492,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp#readme",
@@ -8536,7 +8618,7 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
           },
           {
             "title": "Supply the matching original files",
@@ -8567,6 +8649,14 @@
         "linux-x86-64": [
           "tony-hawk-s-pro-skater-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "tony-hawk-s-pro-skater-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "tony-hawk-s-pro-skater-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
