@@ -92,6 +92,21 @@ class GitPolicy(unittest.TestCase):
         )
         self.assertEqual(calls[1][1][1], (64 * 1024**2,) * 2)
 
+    def test_application_commit_route_only_extends_the_bounded_treeless_fetch(self):
+        commits = ["a" * 40, "b" * 40]
+        calls = self.run_request({"oids": commits}, phase="application-commits")
+        self.assertEqual([name for name, _ in calls], ["limit"] * 4 + ["alarm", "exec"])
+        _, args, environment = calls[-1][1]
+        self.assertIn("--filter=tree:0", args)
+        self.assertIn("--depth=3073", args)
+        self.assertIn("--no-write-fetch-head", args)
+        self.assertIn("http.followRedirects=false", args)
+        self.assertEqual(args[-3:], ["https://github.com/boburning/portcove.git", *commits])
+        self.assertEqual(calls[1][1][1], (64 * 1024**2,) * 2)
+        self.assertEqual(environment, self.run_request()[-1][1][2])
+        with self.assertRaises(ValueError):
+            self.run_request({"oids": [*commits, "c" * 40]}, phase="application-commits")
+
     def test_blob_mode_has_fixed_filter_and_larger_still_finite_file_ceiling(self):
         calls = self.run_request(phase="blobs")
         self.assertIn("--filter=blob:none", calls[-1][1][1])
@@ -107,6 +122,8 @@ class GitPolicy(unittest.TestCase):
             ("sizes", [], "cat-file"),
             ("peel", ["a" * 40], "rev-parse"),
             ("history", ["a" * 40, "a" * 40], "rev-list"),
+            ("application-history", ["a" * 40, "b" * 40], "rev-list"),
+            ("application-commit-batch", [], "cat-file"),
             ("kind", ["a" * 40], "cat-file"),
             ("tag", ["a" * 40], "cat-file"),
             ("pack", [], "pack-objects"),
@@ -118,6 +135,10 @@ class GitPolicy(unittest.TestCase):
                 self.assertIn(command, args)
                 if phase == "history":
                     self.assertIn("--max-count=2049", args)
+                if phase == "application-history":
+                    self.assertIn("--max-count=3073", args)
+                if phase == "application-commit-batch":
+                    self.assertIn("--batch", args)
                 self.assertIn("protocol.https.allow=never", args)
                 self.assertFalse(any(arg.startswith("https:") for arg in args))
 

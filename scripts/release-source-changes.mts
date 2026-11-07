@@ -12,7 +12,10 @@ import { isRecord } from "./runtime-values.mts";
 
 export const netTreeDeltaScope = "portcove-release-net-tree-delta-v1";
 export const maximumReleaseSourceCommits = 2048;
-const maximumComparisonPages = Math.ceil(maximumReleaseSourceCommits / 100);
+// The standalone Alpha 2 to Windows Preview comparison spans 2,669 commits and
+// 5,153 tree entries. The other source readers retain their original envelopes.
+export const maximumApplicationSourceCommits = 3072;
+export const maximumApplicationSourceTreeEntries = 6144;
 const base = "repos/boburning/portcove";
 const byteOrder = (left: string, right: string) =>
   Buffer.compare(Buffer.from(left), Buffer.from(right));
@@ -35,7 +38,7 @@ export type ReleaseSourceRead = { endpoint: string; deadline: number };
 export function collectReleaseSourceChanges(
   reader: GitHubRestReader,
   rawOpportunity: unknown,
-  options: { readCommitObject?: (oid: string) => Buffer } = {},
+  options: { readCommitObject?: (oid: string) => Buffer; applicationComparison?: boolean } = {},
 ) {
   const collection = releaseSourceChangeRequests(rawOpportunity, options);
   let step = collection.next();
@@ -54,10 +57,22 @@ export async function collectReleaseSourceChangesWithSdk(
     currentDeadline?: () => number;
     maxBytes?: number;
     requestTimeoutMs?: number;
+    applicationCommitObjects?: ReadonlyMap<string, Buffer>;
   },
   rawOpportunity: unknown,
 ) {
-  const collection = releaseSourceChangeRequests(rawOpportunity, { deadline: options.deadline });
+  const application = options.applicationCommitObjects;
+  const collection = releaseSourceChangeRequests(rawOpportunity, {
+    deadline: options.deadline,
+    ...(application && {
+      applicationComparison: true,
+      readCommitObject(oid: string) {
+        const bytes = application.get(oid);
+        if (!bytes) throw new Error("exact application Git commit is unavailable");
+        return bytes;
+      },
+    }),
+  });
   let step = collection.next();
   let expected: string | undefined;
   const { createGitHubClient } = await import("./github-client.mts");
@@ -96,13 +111,27 @@ export async function collectReleaseSourceChangesWithSdk(
       headers: new Map(typeof link === "string" ? [["link", link]] : []),
     });
   }
-  return step.value;
+  const result = step.value;
+  if (application) {
+    const compared = new Set(result.commits.map(({ oid }) => oid));
+    compared.add(result.base_commit);
+    if (
+      compared.size !== application.size ||
+      [...application.keys()].some((oid) => !compared.has(oid))
+    )
+      throw new Error("application Git history differs from the complete provider comparison");
+  }
+  return result;
 }
 
 /** Sequential exact reads and their single shared completeness validator. */
 export function* releaseSourceChangeRequests(
   rawOpportunity: unknown,
-  options: { readCommitObject?: (oid: string) => Buffer; deadline?: number } = {},
+  options: {
+    readCommitObject?: (oid: string) => Buffer;
+    deadline?: number;
+    applicationComparison?: boolean;
+  } = {},
 ) {
   const opportunity = object(structuredClone(rawOpportunity));
   oid(opportunity.base_commit);
@@ -110,6 +139,10 @@ export function* releaseSourceChangeRequests(
   oid(opportunity.source_tree);
   const before = opportunity.base_commit;
   const source = opportunity.source_commit;
+  const maximumCommits = options.applicationComparison
+    ? maximumApplicationSourceCommits
+    : maximumReleaseSourceCommits;
+  const maximumComparisonPages = Math.ceil(maximumCommits / 100);
   const deadline = Math.min(performance.now() + 120000, options.deadline ?? Infinity);
   let requests = 0;
   const checkTime = () => {
@@ -173,7 +206,7 @@ export function* releaseSourceChangeRequests(
       typeof value.total_commits !== "number" ||
       !Number.isSafeInteger(value.total_commits) ||
       value.total_commits < 0 ||
-      value.total_commits > maximumReleaseSourceCommits ||
+      value.total_commits > maximumCommits ||
       value.ahead_by !== value.total_commits ||
       value.behind_by !== 0 ||
       value.status !== (before === source ? "identical" : "ahead") ||
@@ -238,6 +271,7 @@ export function* releaseSourceChangeRequests(
     return inspectReleaseSourceTree(
       (yield* request(`${base}/git/trees/${id}?recursive=1`)).body,
       id,
+      options.applicationComparison,
     ).entries;
   };
   const oldTree = yield* tree(previous.tree);
@@ -275,7 +309,7 @@ export function* releaseSourceChangeRequests(
 
 /** Reconstruct the complete bounded tree closure. Returned objects are inert
  * digest-verified bytes, not source selection or execution authority. */
-export function inspectReleaseSourceTree(raw: unknown, id: string) {
+export function inspectReleaseSourceTree(raw: unknown, id: string, applicationComparison = false) {
   oid(id);
   const response = object(raw);
   const objects: ReturnType<typeof inspectRemoteGitObject>[] = [];
@@ -283,7 +317,7 @@ export function inspectReleaseSourceTree(raw: unknown, id: string) {
     response.sha !== id ||
     response.truncated !== false ||
     !Array.isArray(response.tree) ||
-    response.tree.length > 5000
+    response.tree.length > (applicationComparison ? maximumApplicationSourceTreeEntries : 5000)
   )
     throw new Error("release source tree is truncated, unavailable or oversized");
   const entries = new Map<string, Entry>();
