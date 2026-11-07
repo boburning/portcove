@@ -1259,6 +1259,15 @@ existing wake configuration. Neither source installation activates these setting
 credentials, protected environments, signing or publication. See the
 [current controller integration](qualification/slice4-complete-controller-integration-2026-10-21.md).
 
+The wake also exposes a no-input manual trigger on protected `main`. An
+appointment can opt into it with the exact `manual_actor_id` in the current
+job-token wake configuration. The worker verifies the original GitHub run and
+triggering identity, preserves push and schedule routing, and uses the same
+retained intent and single job-token dispatch. The reviewed wake workflow
+digest changes the source-bound resource policy even though the existing time
+and spending limits stay fixed. The exact new policy and selected authority
+require ratification before activation.
+
 The source-admission bootstrap uses three **public identity**
 variables: `PORTCOVE_CONTROLLER_REVISION`, `PORTCOVE_CONTROLLER_REF`, and
 `PORTCOVE_CONTROLLER_ADMISSION`. None is configured or authorized by this change.

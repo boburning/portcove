@@ -32,6 +32,25 @@ const prefix = `repos/${repository}`;
 const workflow = ".github/workflows/application-update-wake.yml";
 const nativeWorkflow = ".github/workflows/application-release.yml";
 export const jobTokenDispatchActor = "41898282";
+const manualWakeActor = "43177418";
+const manualWakeLogin = "boburning";
+
+function fixedManualWakeRun(raw: Record<string, unknown>) {
+  return (
+    raw.event === "workflow_dispatch" &&
+    isRecord(raw.actor) &&
+    String(raw.actor.id) === manualWakeActor &&
+    raw.actor.login === manualWakeLogin &&
+    isRecord(raw.triggering_actor) &&
+    String(raw.triggering_actor.id) === manualWakeActor &&
+    raw.triggering_actor.login === manualWakeLogin &&
+    isRecord(raw.repository) &&
+    raw.repository.id === 1354613114 &&
+    raw.repository.full_name === repository &&
+    isRecord(raw.head_repository) &&
+    raw.head_repository.id === 1354613114
+  );
+}
 export const jobTokenDispatchTransport = "github-actions-job-v1";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Api = WakeProvider;
@@ -458,19 +477,25 @@ export async function reconcilePreviousWakes(
   } = {},
 ) {
   const current = await api.run(environment.GITHUB_RUN_ID!);
+  const manual = environment.GITHUB_EVENT_NAME === "workflow_dispatch";
+  const priorManualAuthorized = [config, ...(options.approved_configurations ?? [])].some(
+    (candidate) => candidate.manual_actor_id === manualWakeActor,
+  );
   if (
     !isRecord(current) ||
     String(current.id) !== environment.GITHUB_RUN_ID ||
     current.head_sha !== environment.GITHUB_SHA ||
     current.path !== workflow ||
     current.head_branch !== "main" ||
-    !["push", "schedule"].includes(String(current.event)) ||
+    (manual
+      ? config.manual_actor_id !== manualWakeActor || !fixedManualWakeRun(current)
+      : !["push", "schedule"].includes(String(current.event))) ||
     current.run_attempt !== 1 ||
     !Number.isSafeInteger(current.run_number) ||
     typeof current.created_at !== "string" ||
     !Number.isFinite(Date.parse(current.created_at))
   )
-    throw new Error("wake current automatic run identity unavailable");
+    throw new Error("wake current fixed run identity unavailable");
   const end = Date.parse(current.created_at),
     activation = Date.parse(config.activation_started_at);
   if (activation > end) throw new Error("wake activation starts after current run");
@@ -523,10 +548,12 @@ export async function reconcilePreviousWakes(
     .filter((run) => Number(run.run_number) < Number(current.run_number))
     .sort((a, b) => Number(b.run_number) - Number(a.run_number));
   for (const run of previous) {
+    const manualRun = run.event === "workflow_dispatch";
+    const manualApproved = priorManualAuthorized && fixedManualWakeRun(run);
     if (
       run.path !== workflow ||
       run.head_branch !== "main" ||
-      !["push", "schedule"].includes(String(run.event)) ||
+      (!["push", "schedule"].includes(String(run.event)) && !manualRun) ||
       run.run_attempt !== 1 ||
       run.status !== "completed" ||
       typeof run.head_sha !== "string" ||
@@ -574,7 +601,7 @@ export async function reconcilePreviousWakes(
     const predecessor =
       run.id === options.predecessor?.wake_run_id ? options.predecessor : undefined;
     const nativeStep =
-      config.schema_version === 5 || run.conclusion === "skipped"
+      config.schema_version === 5 || run.conclusion === "skipped" || (manualRun && !manualApproved)
         ? await readDispatchStep()
         : undefined;
     if (predecessor && (run.conclusion !== "success" || nativeStep?.conclusion === "skipped"))
@@ -586,6 +613,8 @@ export async function reconcilePreviousWakes(
       });
       continue;
     }
+    if (manualRun && !manualApproved)
+      throw new Error("prior manual wake started without the appointed initiator");
     if (nativeStep?.conclusion === "skipped" && run.conclusion === "success") {
       await record("prior-wake-boundary-observed", {
         wake_run_id: run.id,
@@ -749,7 +778,10 @@ export function inspectControllerWakeConfiguration(value: unknown) {
     !isRecord(value) ||
     typeof value.schema_version !== "number" ||
     ![2, 3, 4, 5].includes(value.schema_version) ||
-    Object.keys(value).sort().join(",") !==
+    Object.keys(value)
+      .filter((key) => key !== "manual_actor_id")
+      .sort()
+      .join(",") !==
       (value.schema_version >= 4
         ? "activation_started_at,dispatch_actor_id,dispatch_transport,execution_ref,namespace,publication_purpose,revision,schema_version,wake_workflow_sha256,workflow_sha256"
         : value.schema_version === 3
@@ -772,6 +804,11 @@ export function inspectControllerWakeConfiguration(value: unknown) {
     !Number.isFinite(Date.parse(value.activation_started_at))
   )
     throw new Error("ratified wake-up controller tuple unavailable");
+  if (
+    Object.hasOwn(value, "manual_actor_id") &&
+    (value.schema_version < 4 || value.manual_actor_id !== manualWakeActor)
+  )
+    throw new Error("manual wake requires an exact separately appointed initiator");
   if (
     Number(value.schema_version) >= 3 &&
     (typeof value.namespace !== "string" ||
@@ -808,6 +845,7 @@ export function inspectControllerWakeConfiguration(value: unknown) {
       ? { publication_purpose: purpose, namespace: String(value.namespace) }
       : {}),
     ...(value.schema_version >= 4 ? { dispatch_transport: jobTokenDispatchTransport } : {}),
+    ...(value.manual_actor_id === manualWakeActor ? { manual_actor_id: manualWakeActor } : {}),
     execution_ref: value.execution_ref,
     revision: value.revision,
     workflow_sha256: value.workflow_sha256,
@@ -894,13 +932,19 @@ export async function wakeRatifiedController(
     },
   };
   const config = inspectControllerWakeConfiguration(raw);
+  const manual = environment.GITHUB_EVENT_NAME === "workflow_dispatch";
   if (
     environment.GITHUB_ACTIONS !== "true" ||
     environment.GITHUB_SERVER_URL !== "https://github.com" ||
     environment.GITHUB_API_URL !== "https://api.github.com" ||
     environment.GITHUB_REPOSITORY !== repository ||
     environment.GITHUB_REPOSITORY_ID !== "1354613114" ||
-    !["push", "schedule"].includes(environment.GITHUB_EVENT_NAME ?? "") ||
+    (manual
+      ? config.manual_actor_id !== manualWakeActor ||
+        environment.GITHUB_ACTOR_ID !== manualWakeActor ||
+        environment.GITHUB_ACTOR !== manualWakeLogin ||
+        environment.GITHUB_TRIGGERING_ACTOR !== manualWakeLogin
+      : !["push", "schedule"].includes(environment.GITHUB_EVENT_NAME ?? "")) ||
     environment.GITHUB_REF !== "refs/heads/main" ||
     environment.GITHUB_REF_TYPE !== "branch" ||
     environment.GITHUB_REF_PROTECTED !== "true" ||
@@ -912,7 +956,7 @@ export async function wakeRatifiedController(
     environment.RUNNER_ENVIRONMENT !== "github-hosted" ||
     !/^[1-9][0-9]{0,15}$/u.test(environment.GITHUB_RUN_ID ?? "")
   )
-    throw new Error("wake-up is outside its fixed automatic default-branch boundary");
+    throw new Error("wake-up is outside its fixed default-branch boundary");
   let requests = 0;
   const started = performance.now();
   const get = async (operation: () => Promise<unknown>) => {
@@ -932,6 +976,20 @@ export async function wakeRatifiedController(
     identity.private !== false
   )
     throw new Error("wake-up fixed public repository identity differs");
+  if (manual) {
+    const initiatingRun = await get(() => api.run(environment.GITHUB_RUN_ID!));
+    if (
+      !isRecord(initiatingRun) ||
+      !fixedManualWakeRun(initiatingRun) ||
+      String(initiatingRun.id) !== environment.GITHUB_RUN_ID ||
+      initiatingRun.head_sha !== environment.GITHUB_SHA ||
+      initiatingRun.head_branch !== "main" ||
+      initiatingRun.path !== workflow ||
+      initiatingRun.run_attempt !== 1 ||
+      initiatingRun.status !== "in_progress"
+    )
+      throw new Error("manual wake actual provider initiator differs");
+  }
   if (config.schema_version >= 4) {
     const jobs = await get(() => api.jobs(environment.GITHUB_RUN_ID!));
     const job = isRecord(jobs) && Array.isArray(jobs.jobs) ? (jobs.jobs[0] as unknown) : null;
