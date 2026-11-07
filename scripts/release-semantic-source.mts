@@ -60,7 +60,21 @@ export async function materializeSemanticSource(
       ? await acquireSourceBoundCapacity(
           "analysis",
           { workspace: process.cwd(), cwd: process.cwd() },
-          { environment: semanticSourceResourceEnvironment(parent), waitMs: 30000 },
+          {
+            environment: semanticSourceResourceEnvironment(parent),
+            waitMs: 30000,
+            snapshot() {
+              const git = (args: string[]) =>
+                execFileSync("/usr/bin/git", ["--no-replace-objects", ...args], {
+                  encoding: "utf8",
+                  timeout: 5000,
+                  maxBuffer: 64 * 1024,
+                }).trim();
+              if (git(["status", "--porcelain", "--untracked-files=no"]) !== "")
+                throw new Error("semantic worker tracked source differs during acquisition");
+              return git(["rev-parse", "--verify", "HEAD"]);
+            },
+          },
         )
       : undefined;
   try {
