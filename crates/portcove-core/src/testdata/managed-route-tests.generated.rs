@@ -4,6 +4,7 @@ const DECLARED_MANAGED_ROUTE_TEST_IDS: &[&str] = &[
     "body-harvest-recompiled",
     "doom-3-classic-dhewm3",
     "dune-ii-dune-dynasty",
+    "elasota-aerofoil",
     "heroes-of-might-and-magic-ii-fheroes2",
     "quake-ironwail",
     "quake-vkquake",
@@ -23,6 +24,11 @@ async fn managed_native_declared_doom_3_classic_dhewm3() {
 #[tokio::test]
 async fn managed_native_declared_dune_ii_dune_dynasty() {
     assert_declarative_managed_native_route("dune-ii-dune-dynasty").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_elasota_aerofoil() {
+    assert_declarative_managed_native_route("elasota-aerofoil").await;
 }
 
 #[tokio::test]

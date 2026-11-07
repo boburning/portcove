@@ -98,3 +98,33 @@ gameplay do not become new initial-route closure gates. Actual game/player
 startup, gameplay/save-load, installed Desktop and protected unchanged-client
 delivery remain Not run/Not evaluated here. The six retained Direct compatibility
 rows and #1785's evidence-loss integrity hold remain separate and unfinished.
+
+## Aerofoil Windows managed runtime follow-up
+
+The separate managed Windows x64 route uses the official player archive. The
+existing prepared-copy route still supports upstream tools and the player's own
+runtime. The unchanged release hints select `Aerofoil-*-win64.zip` separately
+from the import tools and PDBs. The observed 1.1.7 archive (asset 677500685)
+matches publisher SHA-256
+`53aef334a071118aeca8d824db134fd283d90cba62dbafa1a78e72f5a4f076ef`.
+Its 56 entries pass CRC and include one AMD64 player at
+`Aerofoil/Aerofoil.exe`. The complete package stays together. The existing
+Windows path policy checks the executable and package members against the
+loader's path limit.
+
+The tagged Windows filesystem returns failure when it cannot resolve
+Documents. It does not substitute the runtime directory for user houses, saves,
+preferences, scores, logs or exports. All 20 bundled house documents in the
+observed ZIP have one inline data member. The tagged composite-file reader
+allows reading inline data and refuses opening it for writing. These facts
+support the separate runtime replacement and external profile boundaries.
+Keep a separate copy of the actual Documents profile before changing versions.
+[Windows filesystem](https://github.com/elasota/Aerofoil/blob/fee191e5f7845f042601a4955bdc46d0cfe4ee78/Aerofoil/GpFileSystem_Win32.cpp#L130) ·
+[Composite data reader](https://github.com/elasota/Aerofoil/blob/fee191e5f7845f042601a4955bdc46d0cfe4ee78/PortabilityLayer/FileManager.cpp#L401)
+
+The observed release inventory, independent member expectations and controlled
+1.1.8 successor exercise the existing archive-selection and generated lifecycle
+paths. The retained prepared-copy test uses the exact previous creating
+definition. The successor is synthetic. These fixtures use inert package members and
+exercise Portcove's runtime operations. They do not establish native gameplay,
+external save compatibility or protected publication.

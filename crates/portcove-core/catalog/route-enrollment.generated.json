@@ -39,6 +39,18 @@
       "managed_native": true
     },
     {
+      "port_id": "elasota-aerofoil",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual Aerofoil folder in your Windows Documents location, including custom houses, saves, scores, preferences, logs and exports"
+        ],
+        "executable": "Aerofoil.exe"
+      },
+      "managed_native": true
+    },
+    {
       "port_id": "gamebreaker20xx-fullrumble-ps1-slus01068",
       "prepared_player": {
         "executable": "FullRumble.exe",

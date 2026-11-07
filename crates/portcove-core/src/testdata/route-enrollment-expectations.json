@@ -110,6 +110,13 @@
       "executable": "Gothic2Notr.exe",
       "arguments": [],
       "managed_native": false
+    },
+    {
+      "port_id": "elasota-aerofoil",
+      "executable": "Aerofoil.exe",
+      "arguments": [],
+      "managed_arguments": [],
+      "managed_native": true
     }
   ]
 }
