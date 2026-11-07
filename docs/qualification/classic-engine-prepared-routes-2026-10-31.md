@@ -45,3 +45,25 @@ Selected Jazz Windows ContentResolver uses relative Content/Source/Cache; Prefer
 OpenDUNE selected File_Init/config consumers resolve savedir and Windows roaming profile/fallback; Dune Dynasty selected ConfigA5Init and config consumers resolve original requirements and portable/personal behavior. OpenEnroth options/PathResolver/GameStarter bind separate roots and copying. OpenGothic CommandLine/MainWindow bind -g and relative save files; the inspected chdir branches are Apple-specific, not Windows relocation. fheroes2 System::GetHomeDirectory checks HOME before APPDATA; settings and GameInitConfigDir bind fheroes2.cfg and files/save. OpenTTD HandleBootstrap may offer network base graphics only with the required UI/font/network conditions; fileio/win32 bind actual config/personal/content_download writes. Xash filesystem_engine/searchpath/io bind environment/SDL/CWD root selection, root chdir, separate -rodir/environment root and actual game writepath. None of these consumers authorizes changing an existing working account/path/variant tuple.
 
 No original game, ROM, private save or demo was acquired. No upstream script, compiler, installer, player or game was executed. No installed Desktop, real-save round trip, mod/network/multiplayer, other-platform, physical/human or protected signing/publication observation is established by this batch. Existing stronger requirements and known failures on other owners remain open; no such acceptance is inferred from this packet.
+
+## OpenGothic Windows Preview follow-up — November 7, 2026
+
+The [official v0.92 Windows x64 ZIP](https://github.com/Try/OpenGothic/releases/tag/v0.92)
+matched the published SHA-256
+`78c02c5dc92f8a4f77310eae2872f18ade0d9a3b46706e61e536e908b4249a2f`
+and passed CRC verification. The archive has six root members, including
+AMD64 `Gothic2Notr.exe`. The engine finds player-owned Night of the Raven
+data in the default Steam or Akella location. The prepared-copy route
+continues to cover an explicit `-g` path.
+
+The ready staged archive route preserves `Gothic.ini`, numbered saves and the F11 capture `dbg.png`
+while keeping `log.txt` and `crash.log` with their creating runtime. This uses
+the existing source-free staged archive behavior. A change to original-data
+discovery, write locations, or the selected executable requires reassessment.
+The release selector replays v0.92 and a synthetic successor with the current
+x64 naming pattern. Earlier preview ZIPs used different names. Shared
+lifecycle fixtures use inert writes. Native setup, gameplay and real
+save compatibility remain unverified.
+[Original discovery](https://github.com/Try/OpenGothic/blob/2855fa51957bac9e7ce83f938ec127a0ab3badce/game/utils/installdetect.cpp)
+· [Startup log](https://github.com/Try/OpenGothic/blob/2855fa51957bac9e7ce83f938ec127a0ab3badce/game/main.cpp)
+· [Save writer](https://github.com/Try/OpenGothic/blob/2855fa51957bac9e7ce83f938ec127a0ab3badce/game/mainwindow.cpp).

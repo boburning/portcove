@@ -2907,11 +2907,6 @@ mod tests {
     }
 
     #[test]
-    fn gothic_ii_night_of_the_raven_opengothic_prepared_player_route_2578() {
-        assert_listing_only_player_route("gothic-ii-night-of-the-raven-opengothic", Some(false));
-    }
-
-    #[test]
     fn gsrecomp_collection_player_route_1619() {
         assert_bound_listing_player_route("gsrecomp", "GoldenSunLauncher.exe", &[]);
     }

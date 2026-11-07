@@ -23311,10 +23311,12 @@
     {
       "id": "gothic-ii-night-of-the-raven-opengothic",
       "name": "Gothic II: Night of the Raven (OpenGothic)",
-      "summary": "Play Gothic II: Night of the Raven with your own original files and OpenGothic. Upstream reports the main quest and expansion are completable. Gothic I and 32-bit Union plugins are unsupported. Desktop prerelease routes use Windows DirectX 12/Vulkan, Linux Vulkan or macOS Metal; check the selected package’s CPU requirements. Portcove has not confirmed setup or gameplay.",
+      "summary": "Play Gothic II: Night of the Raven with OpenGothic and your own original game files.",
       "original_game_title": "Gothic II: Night of the Raven",
       "project_url": "https://github.com/Try/OpenGothic",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Try/OpenGothic",
       "artwork": {
@@ -23335,15 +23337,11 @@
           },
           {
             "title": "Preserve the actual working directory as well as game data",
-            "instruction": "Retain the creating working directory and established literal -g argument pointing to the actual absolute Gothic II data root, if used. Automatic discovery is not a reason to change a working data selection."
+            "instruction": "Retain the creating working directory and established literal -g argument pointing to the actual absolute Gothic II data root, if used. Automatic discovery is not a reason to change a working data selection. Finish setup upstream and start and quit the copy before registration. The ordinary prepared launch uses no arguments. Keep any literal arguments your existing copy needs."
           },
           {
-            "title": "Check the working copy before registration",
-            "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its game files or save compatibility."
-          },
-          {
-            "title": "Keep updates and removal under the existing owner",
-            "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+            "title": "Select the prepared player",
+            "instruction": "Select Gothic2Notr.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
@@ -23355,6 +23353,14 @@
           {
             "title": "OpenGothic settings and save locations",
             "instruction": "The selected Windows code uses working-directory Gothic.ini and log.txt, separately from original System/Gothic.ini, and writes save_slot_0.sav/save_slot_N.sav relative to the working directory. Preserve the complete creating working directory, actual original-data root, every save/config/mod and unknown file; do not assume the original vendor save directory contains all OpenGothic state."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: the prepared working directory containing Gothic.ini and save slots; the separately owned original Gothic II installation. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
       }

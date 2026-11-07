@@ -104,6 +104,12 @@
       "arguments": [],
       "managed_arguments": ["-basedir", ".", "-nosteam"],
       "managed_native": true
+    },
+    {
+      "port_id": "gothic-ii-night-of-the-raven-opengothic",
+      "executable": "Gothic2Notr.exe",
+      "arguments": [],
+      "managed_native": false
     }
   ]
 }

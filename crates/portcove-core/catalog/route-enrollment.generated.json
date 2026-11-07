@@ -53,6 +53,19 @@
       "managed_native": false
     },
     {
+      "port_id": "gothic-ii-night-of-the-raven-opengothic",
+      "prepared_player": {
+        "executable": "Gothic2Notr.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the prepared working directory containing Gothic.ini and save slots",
+          "the separately owned original Gothic II installation"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "heroes-of-might-and-magic-ii-fheroes2",
       "prepared_player": {
         "working_directory": "executable-parent",

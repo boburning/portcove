@@ -5,6 +5,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "doom-3-classic-dhewm3",
     "dune-ii-dune-dynasty",
     "gamebreaker20xx-fullrumble-ps1-slus01068",
+    "gothic-ii-night-of-the-raven-opengothic",
     "heroes-of-might-and-magic-ii-fheroes2",
     "mother-3-mother-3-recomp",
     "mstan-tetrisgbrecomp",
@@ -39,6 +40,11 @@ fn prepared_guide_adoption_declared_dune_ii_dune_dynasty() {
 #[test]
 fn prepared_guide_adoption_declared_gamebreaker20xx_fullrumble_ps1_slus01068() {
     assert_declarative_prepared_player_route("gamebreaker20xx-fullrumble-ps1-slus01068");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_gothic_ii_night_of_the_raven_opengothic() {
+    assert_declarative_prepared_player_route("gothic-ii-night-of-the-raven-opengothic");
 }
 
 #[test]

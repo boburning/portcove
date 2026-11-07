@@ -3239,7 +3239,12 @@ mod tests {
             .unwrap();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port(id).unwrap().clone();
-        assert_eq!(port.adapter, AdapterKind::NativePortable);
+        let disposable = case["disposable_probes"].as_array();
+        if disposable.is_some() {
+            assert!(crate::persistence::ready_staged_archive(&port));
+        } else {
+            assert_eq!(port.adapter, AdapterKind::NativePortable);
+        }
         assert!(port.source_profile.is_none());
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -3269,15 +3274,18 @@ mod tests {
             .filter(|path| **path != executable)
             .map(|path| (*path, b"inert immutable companion".as_slice()))
             .collect::<Vec<_>>();
+        let channel = port.channels[0];
         let release = |version, revision| {
-            server.release_with_files(version, revision, folder, executable, &files)
+            let mut release =
+                server.release_with_files(version, revision, folder, executable, &files);
+            release.channel = channel;
+            release
         };
         let provider = Arc::new(Provider(Mutex::new(release("fixture-N", 1))));
         let mut service =
             PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
         service.replace_catalog_for_test(catalog.clone());
         phase("fixture-ready");
-        let channel = port.channels[0];
         phase("install-begin");
         let first = service
             .install(id, Some(channel), None, None, true, |_| {})
@@ -3317,6 +3325,15 @@ mod tests {
             fs::create_dir_all(destination.parent().unwrap()).unwrap();
             fs::write(destination, contents(path)).unwrap();
         }
+        let disposable = disposable
+            .into_iter()
+            .flatten()
+            .map(|path| path.as_str().unwrap())
+            .collect::<Vec<_>>();
+        for path in &disposable {
+            assert!(!first_root.join(path).exists(), "{id}: disposable {path}");
+            fs::write(first_root.join(path), b"inert runtime diagnostic").unwrap();
+        }
         let spec = service
             .prepare_launch_for_install(&port, &first, None, None)
             .unwrap();
@@ -3345,6 +3362,12 @@ mod tests {
                 assert_eq!(
                     fs::read(backup.path.join("data").join(path)).unwrap(),
                     contents(path),
+                    "{id}: backup {path}"
+                );
+            }
+            for path in &disposable {
+                assert!(
+                    !backup.path.join("data").join(path).exists(),
                     "{id}: backup {path}"
                 );
             }
@@ -3408,6 +3431,12 @@ mod tests {
             assert_eq!(
                 fs::read(second.path.join(folder).join(path)).unwrap(),
                 contents(path),
+                "{id}: update {path}"
+            );
+        }
+        for path in &disposable {
+            assert!(
+                !second.path.join(folder).join(path).exists(),
                 "{id}: update {path}"
             );
         }
@@ -3494,6 +3523,24 @@ mod tests {
         );
         assert_eq!(DECLARED_MANAGED_ROUTE_TEST_IDS.len(), declared.len());
     }
+    #[tokio::test]
+    async fn ready_staged_archive_observed_lifecycle_cases() {
+        let corpus: serde_json::Value = serde_json::from_str(include_str!(
+            "../testdata/native-engine-adoption-2026-11-02.json"
+        ))
+        .unwrap();
+        let cases = corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|case| case["disposable_probes"].as_array().is_some())
+            .collect::<Vec<_>>();
+        assert!(!cases.is_empty());
+        for case in cases {
+            assert_native_engine_adoption_lifecycle(case["port_id"].as_str().unwrap()).await;
+        }
+    }
+
     async fn assert_declarative_managed_native_route(id: &str) {
         let corpus: serde_json::Value = serde_json::from_str(include_str!(
             "../testdata/native-engine-adoption-2026-11-02.json"

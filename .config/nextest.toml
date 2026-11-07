@@ -822,6 +822,15 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready
 slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
+# CI 42322928837/1 Windows partition 1 reached the second staging cycle
+# after install, backup and update before the 90.176s harness cutoff.
+# Use the same finite 180s as the ready staged preservation case above.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
 # CI41914595618/a1 Windows7 retained a90.327s harness cutoff in SDLPal's
 # complete lifecycle. This case additionally exercises consented restore and
 # safety backup over six declared data probes. Give only this exact Windows
