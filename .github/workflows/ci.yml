@@ -317,6 +317,7 @@ jobs:
       PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: ${{ github.workspace }}/work/runtime-diagnostics/windows
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
       PORTCOVE_WINDOWS_MANIFEST_SHA256: ${{ needs.fast_rust.outputs.manifest_sha256 }}
+      PORTCOVE_WINDOWS_PRODUCER_ATTEMPT: ${{ needs.fast_rust.outputs.producer_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-rust
