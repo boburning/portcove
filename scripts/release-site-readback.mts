@@ -450,7 +450,12 @@ export async function materializeInitialApplicationRehearsal(
   raw: unknown,
   expectedDescriptorSha256: string,
   privateParent: string,
-  options: { read?: InitialSiteRead; fetch?: typeof fetch; deadline?: number } = {},
+  options: {
+    read?: InitialSiteRead;
+    fetch?: typeof fetch;
+    deadline?: number;
+    admission?: import("./application-release-site.mts").FeedAdmission;
+  } = {},
 ) {
   if (
     !digest(expectedDescriptorSha256) ||
@@ -509,9 +514,11 @@ export async function materializeInitialApplicationRehearsal(
   if (!Number.isFinite(deadline) || performance.now() >= deadline)
     throw new Error("initial rehearsal readback deadline exhausted");
   const readMetadata = options.read ?? (await createInitialSiteReader(deadline, 30000, 65536));
+  const admission = options.admission && { ...options.admission };
+  let admissionId = admission?.deployment_id;
   let requests = 0;
   const get = async (suffix: string) => {
-    if (++requests > 7 || performance.now() >= deadline)
+    if (++requests > (admission ? 11 : 7) || performance.now() >= deadline)
       throw new Error("initial rehearsal provider observation bound exhausted");
     const response = await readMetadata(`repos/boburning/portcove${suffix}`);
     if (
@@ -530,6 +537,25 @@ export async function materializeInitialApplicationRehearsal(
   )
     throw new Error("initial rehearsal repository differs");
   const provider = async () => {
+    if (admission) {
+      const { readApplicationPagesStateAsync } = await import("./application-release-site.mts");
+      const { admission_id, ...observed } = await readApplicationPagesStateAsync(
+        async (endpoint) => ({
+          status: 200,
+          headers: new Map(),
+          body: await get(endpoint.slice("repos/boburning/portcove".length)),
+        }),
+        {
+          ...admission,
+          selection: "serving",
+          ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
+        },
+      );
+      if (admission_id === undefined || capacityDigest(observed) !== capacityDigest(raw.provider))
+        throw new Error("initial rehearsal Pages preimage changed");
+      admissionId = admission_id;
+      return;
+    }
     const pages = await get("/pages");
     const deployments = await get("/deployments?environment=github-pages&per_page=1");
     if (
@@ -605,7 +631,12 @@ export async function materializeInitialApplicationRehearsal(
     await mkdir(path.dirname(destination), { recursive: true });
     await writeFile(destination, bytes, { flag: "wx", mode: 0o600 });
   }
-  return { directory, inventory_sha256: raw.inventory_sha256, authority: "none" as const };
+  return {
+    directory,
+    inventory_sha256: raw.inventory_sha256,
+    ...(admissionId === undefined ? {} : { admission_id: admissionId }),
+    authority: "none" as const,
+  };
 }
 
 /** Independent credential-free HTTP readback of the exact already-authenticated

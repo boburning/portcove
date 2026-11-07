@@ -511,6 +511,29 @@ void test("feed selects the serving actor only behind its exact active Actions a
   const active = { ...current, selection: "current" as const, deployment_id: own.id };
   assert.equal((await readApplicationPagesStateAsync(read(), serving)).deployment_id, old.id);
   assert.equal((await readApplicationPagesStateAsync(read(), active)).deployment_id, own.id);
+  const catalog = { ...serving, role: "site-publication" as const, job_id: job.id };
+  const catalogJob = { ...job, name: "Publish authenticated application site" };
+  assert.equal(
+    (await readApplicationPagesStateAsync(read({ "actions/jobs/456": catalogJob }), catalog))
+      .deployment_id,
+    old.id,
+  );
+  await assert.rejects(readApplicationPagesStateAsync(read(), catalog));
+  await assert.rejects(
+    readApplicationPagesStateAsync(read({ "actions/jobs/456": catalogJob }), {
+      ...catalog,
+      job_id: job.id + 1,
+    }),
+  );
+  await assert.rejects(
+    readApplicationPagesStateAsync(
+      read({
+        "actions/jobs/456": catalogJob,
+        "deployments/10/statuses?per_page=1": [{ ...status, state: "failure" }],
+      }),
+      catalog,
+    ),
+  );
   await assert.rejects(readApplicationPagesStateAsync(read()));
   await assert.rejects(
     readApplicationPagesStateAsync(read(), { ...active, deployment_id: old.id }),

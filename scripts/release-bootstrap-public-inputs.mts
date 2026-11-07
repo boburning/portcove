@@ -340,6 +340,7 @@ export async function readConfiguredCatalogBootstrapSite(
   generatedAt: string,
   phaseDeadline: number,
   privateParent: string,
+  admission?: import("./application-release-site.mts").FeedAdmission,
 ) {
   check(phaseDeadline);
   const authorities = await withCoordinatorDeadline(phaseDeadline, () =>
@@ -356,12 +357,14 @@ export async function readConfiguredCatalogBootstrapSite(
     generatedAt,
     phaseDeadline,
   );
+  if (source.rehearsal && !admission)
+    throw new Error("catalog rehearsal requires an authenticated Pages job admission");
   const rehearsal = source.rehearsal
     ? await materializeInitialApplicationRehearsal(
         source.rehearsal,
         digest(source.rehearsal),
         privateParent,
-        { deadline: phaseDeadline },
+        { deadline: phaseDeadline, ...(admission ? { admission } : {}) },
       )
     : null;
   const current = rehearsal ? null : await readConfiguredBootstrapSite(provider, phaseDeadline);

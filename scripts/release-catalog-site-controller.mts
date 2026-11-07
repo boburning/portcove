@@ -35,7 +35,6 @@ import { inspectCatalogPublicationDescriptor } from "./release-catalog-publicati
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   authenticateCapacityExecutor,
-  capacityExecutorIdentity,
   refreshCapacityExecutor,
   executeOwnedCapacityEffect,
   requireOwnedCapacityPendingBoundary,
@@ -239,19 +238,23 @@ export async function runCatalogSitePublicationController(
         inspectCatalogSiteReservation(snapshot, checkpoint, actual.descriptor);
       };
       reservation(state);
-      const prepared = await prepareCatalogSiteDeploymentFromActualRepository(assemblyReceipt, {
-        repository: state.repository,
-        checkpoint,
-        output_parent: directory,
-        deadline,
-      });
       const executor = await authenticateCapacityExecutor(
         "site-publication",
         identity,
         directory,
         deadline,
       );
-      const producer = capacityExecutorIdentity(executor);
+      const prepared = await prepareCatalogSiteDeploymentFromActualRepository(
+        assemblyReceipt,
+        {
+          repository: state.repository,
+          checkpoint,
+          output_parent: directory,
+          deadline,
+        },
+        executor,
+      );
+      const producer = await refreshCapacityExecutor(executor);
       let round = 0;
       const fresh = async () => {
         remaining(deadline);

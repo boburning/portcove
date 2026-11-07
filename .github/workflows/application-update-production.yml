@@ -1527,6 +1527,7 @@ jobs:
       contents: write
       issues: read
       actions: read
+      deployments: read
       id-token: write
       pages: write
       checks: read

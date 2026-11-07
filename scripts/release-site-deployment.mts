@@ -198,6 +198,8 @@ interface PrivateDeployment {
     initialization?: NonNullable<ReturnType<typeof inspectCatalogInitialization>>;
     bootstrap_readback_sha256?: string;
     initial_rehearsal_inventory_sha256?: string;
+    pages_admission_id?: number;
+    bootstrap_executor?: Awaited<ReturnType<typeof authenticateCapacityExecutor>>;
   };
   previous_generation: Composed["generation"] | null;
   prior_public_readback?: { generation: string; evidence_sha256: string };
@@ -682,6 +684,7 @@ async function retainPreparedSiteDeployment(
 export async function prepareCatalogSiteDeploymentFromActualRepository(
   assembly: object,
   raw: { repository: string; checkpoint: string; output_parent: string; deadline: number },
+  executor?: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
 ) {
   const request = structuredClone(raw);
   remaining(request.deadline, 15000);
@@ -750,9 +753,12 @@ export async function prepareCatalogSiteDeploymentFromActualRepository(
         initialization,
         request.output_parent,
         deadline,
+        executor,
       )
     : null;
   const rehearsal = initialReadback?.rehearsal;
+  if (rehearsal && (!executor || rehearsal.admission_id === undefined))
+    throw new Error("catalog rehearsal Pages admission unavailable");
   const composed = await composeCatalogSiteFiles({
     previous: previous?.directory ?? null,
     expected_previous_generation: prior?.generation_sha256 ?? null,
@@ -792,7 +798,13 @@ export async function prepareCatalogSiteDeploymentFromActualRepository(
       facts,
       prior,
       ...(initialization ? { initialization } : {}),
-      ...(rehearsal ? { initial_rehearsal_inventory_sha256: rehearsal.inventory_sha256 } : {}),
+      ...(rehearsal && executor && rehearsal.admission_id !== undefined
+        ? {
+            initial_rehearsal_inventory_sha256: rehearsal.inventory_sha256,
+            pages_admission_id: rehearsal.admission_id,
+            bootstrap_executor: executor,
+          }
+        : {}),
     },
     deadline,
     generation,
@@ -1101,17 +1113,32 @@ async function readCatalogDeploymentBootstrap(
   initialization: NonNullable<ReturnType<typeof inspectCatalogInitialization>>,
   privateParent: string,
   deadline: number,
+  executor?: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
+  admissionId?: number,
 ) {
   const provider = await createReleaseCustodyProvider({
     token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
     deadline,
     maxBytes: 512 * 1024,
   });
+  const identity = executor ? await refreshCapacityExecutor(executor) : undefined;
+  if (identity && identity.role !== "site-publication")
+    throw new Error("catalog rehearsal requires the site publication executor");
   const readback = await readConfiguredCatalogBootstrapSite(
     provider,
     new Date().toISOString(),
     deadline,
     privateParent,
+    identity && {
+      role: "site-publication",
+      selection: "serving",
+      source: identity.controller_revision,
+      ref: identity.execution_ref,
+      run_id: identity.run_id,
+      run_attempt: identity.run_attempt,
+      job_id: identity.job_id,
+      ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
+    },
   );
   if (
     readback.configuration_sha256 !== subject.publisher_configuration_sha256 ||
@@ -1140,8 +1167,13 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
       catalog.initialization,
       prepared.directory,
       deadline,
+      catalog.bootstrap_executor,
+      catalog.pages_admission_id,
     );
-    if (readback.rehearsal?.inventory_sha256 !== catalog.initial_rehearsal_inventory_sha256)
+    if (
+      readback.rehearsal?.inventory_sha256 !== catalog.initial_rehearsal_inventory_sha256 ||
+      readback.rehearsal?.admission_id !== catalog.pages_admission_id
+    )
       throw new Error("catalog bootstrap rehearsal inventory changed");
     catalog.bootstrap_readback_sha256 = capacityDigest(readback);
     await writeFile(

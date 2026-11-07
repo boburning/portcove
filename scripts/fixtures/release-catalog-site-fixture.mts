@@ -111,6 +111,7 @@ try {
     run_id: "123",
     run_attempt: 1,
     controller_revision: "b".repeat(40),
+    execution_ref: "refs/tags/catalog-fixture",
     job_id: 42,
   };
   const deadline = performance.now() + 20000;
@@ -160,7 +161,15 @@ try {
   });
   install("release-bootstrap-public-inputs", {
     ...bootstrap,
-    readConfiguredCatalogBootstrapSite: async (input: object) => {
+    readConfiguredCatalogBootstrapSite: async (
+      input: object,
+      _generatedAt: string,
+      _deadline: number,
+      _privateParent: string,
+      admission: { job_id: number; deployment_id?: number },
+    ) => {
+      assert.equal(admission.job_id, identity.job_id);
+      assert.equal(admission.deployment_id, bootstrapReads ? 71 : undefined);
       assert.equal(input, bootstrapProvider);
       bootstrapReads++;
       if (bootstrapReads >= expireAtBootstrap) controlsClock = 61;
@@ -172,6 +181,7 @@ try {
         source: { source_tree: initialization.source_tree },
         rehearsal: {
           directory: rehearsalDirectory,
+          admission_id: 71,
           inventory_sha256: driftRehearsal ? "0".repeat(64) : rehearsalInventory,
         },
         authority: "none",
@@ -261,12 +271,16 @@ try {
   const deployment = (await import(
     new URL("../release-site-deployment.mts?controlled-catalog", import.meta.url).href
   )) as typeof import("../release-site-deployment.mts");
-  const prepared = await deployment.prepareCatalogSiteDeploymentFromActualRepository(receipt, {
-    repository: root,
-    checkpoint: "old",
-    output_parent: root,
-    deadline,
-  });
+  const prepared = await deployment.prepareCatalogSiteDeploymentFromActualRepository(
+    receipt,
+    {
+      repository: root,
+      checkpoint: "old",
+      output_parent: root,
+      deadline,
+    },
+    executor as never,
+  );
   const tar = await readFile(prepared.archive);
   zip = createAuditZip([["artifact.tar", tar]]);
   const originalFetch = globalThis.fetch;
