@@ -20,7 +20,6 @@ void test("maintained sources do not add GitHub CLI API bypasses outside recorde
   const remainingLegacy = new Map([
     ["scripts/assembler-job-identity.mts", 5],
     ["scripts/github-api.mts", 2],
-    ["scripts/github-binary.mts", 1],
     ["scripts/release-coordinator-recovery.mts", 7],
     ["scripts/release-live-control-admission.mts", 5],
     ["scripts/release-publication-inventory.mts", 2],
@@ -28,7 +27,6 @@ void test("maintained sources do not add GitHub CLI API bypasses outside recorde
     ["scripts/release-semantic-inputs.mts", 2],
     ["scripts/release-semantic-worker.mts", 4],
     ["scripts/release-signing-job-budget.mts", 4],
-    ["scripts/upstream-release-rehearsal.mts", 1],
   ]);
   const sources = globSync(
     [

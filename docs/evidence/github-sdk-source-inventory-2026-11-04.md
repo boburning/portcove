@@ -51,12 +51,9 @@ The foundation table above describes the initial source boundary.
 | Binary transfers         | API lookup and authorization stay with the applicable SDK owner. Approved archive and asset downloads retain bounded streaming and identity checks.                                                                                 |
 | Retained CLI operations  | Git, eligible credential resolution and cryptographic attestation verification retain their narrow execution boundaries. The local daily-discovery session resolves its existing CLI login once under its own host and time bounds. |
 
-The legacy transport remains an open retirement item. The upstream rehearsal
-checks out its protected recovery tag, `portcove-upstream-rehearsal-20261104r5`
-at `bf4fd225c5347ec4177afc9235bef5d1ee57e064`. That source, the held
-reviewed-input helper and the semantic worker service path
-have separate source and setup authority. Replacing their runtime requires
-the applicable successor qualification and custody readback under [#534](https://github.com/boburning/portcove/issues/534).
+The legacy transport remains open for the held reviewed-input helper,
+shared catalog and recovery paths, and the semantic worker service. Their
+source and setup authority remain separate under [#534](https://github.com/boburning/portcove/issues/534).
 The WSL worker service path needs a frozen dependency closure provisioned before
 credentials and bound to the exact successor setup and worker revisions. The
 sealed semantic and native Check issuer child has a sibling SDK entry point at
@@ -69,10 +66,11 @@ is held and its current external closure admits only the pinned YAML dependency.
 The held reviewed-input and pre-tool launcher contracts remain part of the
 retirement inventory. The standalone reviewed-input `read` mode had no maintained
 caller and is retired.
-On main, the obsolete Actions archive branch of `github-binary.mts` has been
-removed. The module still supplies exact release-asset readback for rehearsal
-publication and recovery. The protected r5 ref retains its original archive
-reader and remains in the retirement inventory.
+The r5 rehearsal has retired as a separate migration gate. Its executable
+workflow and last CLI release-asset reader were removed from main. The historical
+tag still resolves to `bf4fd225c5347ec4177afc9235bef5d1ee57e064`, and #534
+owns the unfinished uninstall and public readback claims.
+[Recorded decision](https://github.com/boburning/portcove/issues/4319#issuecomment-6699780365).
 
 The maintained-source guard checks recognized CLI API patterns and caps the
 number of legacy references in each recorded source file. The listed legacy

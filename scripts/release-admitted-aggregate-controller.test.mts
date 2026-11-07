@@ -44,7 +44,6 @@ import {
   readOnlyReleaseChildEnvironment,
 } from "./release-readonly-child-environment.mts";
 import { createGitHubRunner } from "./github-api.mts";
-import { readGitHubReleaseAsset } from "./github-binary.mts";
 
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const producer = {
@@ -184,16 +183,6 @@ void test("trusted GH read calls inherit the captured job token while candidate 
         return { status: 0, stdout: "HTTP/2 200\r\n\r\n{}", stderr: "" };
       },
     })(["api", "repos/boburning/portcove"]);
-    readGitHubReleaseAsset("repos/boburning/portcove/releases/assets/1", {
-      cwd: root,
-      maxBytes: 22,
-      timeoutMs: 1000,
-      spawn(_command, _args, options) {
-        assert.equal(options.env?.GH_TOKEN, "inert-GH_TOKEN");
-        assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
-        return { status: 0, stdout: Buffer.alloc(22) };
-      },
-    });
   });
   assert.equal(readOnlyReleaseChildEnvironment(), undefined);
   assert.equal(

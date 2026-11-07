@@ -2694,32 +2694,6 @@ for (const file of ["package.json", "pnpm-lock.yaml", "scripts/github-client.mts
     "scripts/roadmap-publish.test.mts",
   ]);
 
-explicitNodeTests.set("scripts/github-binary.mts", [
-  "scripts/github-client.test.mts",
-  "scripts/release-admitted-aggregate-controller.test.mts",
-  "scripts/release-artifact-archive.test.mts",
-  "scripts/release-publication-inputs.test.mts",
-]);
-
-for (const file of [
-  "package.json",
-  "pnpm-lock.yaml",
-  "scripts/github-binary.mts",
-  "scripts/github-client.mts",
-  "scripts/release-custody-provider.mts",
-  "scripts/upstream-release-transfer.mts",
-  "scripts/upstream-release-rehearsal.mts",
-  "scripts/upstream-release-pages.mts",
-  "scripts/upstream-release-publication.mts",
-  "scripts/upstream-release-runtime.mts",
-  "scripts/upstream-release-recovery.mts",
-  ".github/workflows/upstream-release-rehearsal.yml",
-])
-  explicitNodeTests.set(file, [
-    ...(explicitNodeTests.get(file) ?? []),
-    "scripts/upstream-release-rehearsal.test.mts",
-  ]);
-
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/application-release-feed.test.mts",
   "scripts/application-release-publication.test.mts",
@@ -2748,7 +2722,6 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 ]);
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
-  "scripts/upstream-release-rehearsal.test.mts",
   "scripts/ci-health.test.mts",
   "scripts/roadmap-publish.test.mts",
   "scripts/observer-checkpoint-artifact.test.mts",

@@ -322,7 +322,6 @@ void test("coordinator state and remote transport retain protected release quali
     "scripts/release-artifact-archive.mts",
     "scripts/release-artifact-assembly.mts",
     "scripts/bounded-zip.mts",
-    "scripts/github-binary.mts",
     "scripts/assembler-job-identity.mts",
     "scripts/trusted-aggregate-attestation.mts",
     "scripts/production-aggregate-steps.mts",

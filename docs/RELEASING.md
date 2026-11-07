@@ -117,7 +117,12 @@ their original runner, timestamps and steps. Counting both observations duplicat
 about60minutes; actual executed time including the14-second refusal is about61.2.
 The original failures, certificates, signed bytes and baseline remain retained.
 
-The current `upstream-release-rehearsal.yml` is a **fixed public-only diagnostic
+The r5 replay is retired. Its immutable source and failure evidence remain
+available, and #534's maintained application qualification owns the unfinished
+uninstall-preservation and final public readback checks.
+[Recorded retirement decision](https://github.com/boburning/portcove/issues/4319#issuecomment-6699780365).
+
+The retired `upstream-release-rehearsal.yml` was a **fixed public-only diagnostic
 continuation** at `refs/tags/portcove-upstream-rehearsal-20261104r5`. It cannot build
 payloads or predecessors, generate signing keys, write a release or deploy a feed.
 It reuses the exact original r2 artifacts, manifest, acceptance certificate, public
@@ -1632,8 +1637,8 @@ selected objects before downloading and again before aggregate creation. Run
 identity and selected artifact metadata must remain unchanged. Run-level API
 objects still leave original producer jobs and attempts unknown.
 
-`scripts/github-binary.mts` pins transport to `github.com` and enforces byte and
-time limits in the subprocess before returning opaque bytes. Release downloads
+`scripts/github-artifact-download.mts` uses the scoped SDK for GitHub artifact
+lookup and streams the approved delivery with byte and deadline checks. Release downloads
 are bounded by their accepted byte counts, at most 512 MiB each, 2 GiB in total,
 and 120 seconds per download. Collection and assembly have a cooperative
 15-minute overall deadline. Audit reuse shares this transport while retaining

@@ -604,7 +604,6 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-live-control-admission.mts",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
   "scripts/bounded-zip.mts",
-  "scripts/github-binary.mts",
   "scripts/generate-release-downloads.mts",
   "scripts/package-cli.ps1",
   "scripts/package-local.ps1",
