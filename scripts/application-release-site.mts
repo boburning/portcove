@@ -8,8 +8,11 @@ import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mt
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectSiteGeneration } from "./release-site-generation.mts";
-import { isTerminalPagesFailure } from "./release-pages-provider.mts";
-import type { createPagesProviderTransport } from "./release-pages-provider.mts";
+import { immutableApplicationBootstrap } from "./application-release-run.mts";
+import type {
+  createPagesProviderTransport,
+  PagesDeploymentIdentity,
+} from "./release-pages-provider.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
 
 export async function createApplicationFeedReader(token: string, originalDeadline: number) {
@@ -21,6 +24,7 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
       return [
         "?environment=github-pages&per_page=1",
         "?environment=github-pages&per_page=2",
+        "?environment=github-pages&per_page=3",
       ].includes(url.search);
     if (/^deployments\/[1-9][0-9]*\/statuses$/u.test(suffix)) return url.search === "?per_page=1";
     return (
@@ -67,9 +71,26 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
 export async function readActualApplicationPagesState(
   deadline = performance.now() + 120000,
   admission?: FeedAdmission,
+  recoverInitialBootstrap = false,
 ) {
   const read = await createApplicationFeedReader(fixedReleaseReaderToken(), deadline);
-  return readApplicationPagesStateAsync(read, admission);
+  return readApplicationPagesStateAsync(read, admission, recoverInitialBootstrap);
+}
+
+export function applicationPagesIntent(
+  generation: string,
+  runId: string,
+  attempt: number,
+  artifactId: number,
+  continuationSource?: string,
+) {
+  const execution = { generation, run_id: runId, run_attempt: attempt, artifact_id: artifactId };
+  return {
+    repository_id: 1354613114,
+    site_url: "https://boburning.github.io/portcove/",
+    ...execution,
+    build_version: continuationSource ?? generation,
+  };
 }
 
 type PagesRead<T> = Generator<string, T, GitHubMetadataResponse>;
@@ -101,11 +122,12 @@ export type FeedAdmission = {
 export function readApplicationPagesStateAsync(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
   admission?: FeedAdmission,
+  recoverInitialBootstrap = false,
 ) {
-  return readPagesAsync(read, applicationPagesState(admission));
+  return readPagesAsync(read, applicationPagesState(admission, recoverInitialBootstrap));
 }
 
-function* applicationPagesState(admission?: FeedAdmission) {
+function* applicationPagesState(admission?: FeedAdmission, recoverInitialBootstrap = false) {
   function* get(suffix: string): PagesRead<unknown> {
     const result = yield* readPagesResponse(suffix);
     assert.equal(result.status, 200);
@@ -119,7 +141,9 @@ function* applicationPagesState(admission?: FeedAdmission) {
       pages.cname === null &&
       pages.https_enforced === true,
   );
-  const limit = admission?.selection === "serving" ? 2 : 1;
+  const verifyRecoveryPreimage = recoverInitialBootstrap && admission?.selection !== "current";
+  const servingIndex = admission?.selection === "serving" ? 1 : 0;
+  const limit = servingIndex + 1 + Number(verifyRecoveryPreimage);
   const deployments = yield* get(`deployments?environment=github-pages&per_page=${limit}`);
   assert.ok(Array.isArray(deployments) && deployments.length === limit);
   function* actor(raw: unknown) {
@@ -193,9 +217,24 @@ function* applicationPagesState(admission?: FeedAdmission) {
       "Pages environment admission job identity differs",
     );
     if (admission.selection === "serving") {
-      selected = yield* actor(deployments[1]);
+      selected = yield* actor(deployments[limit - 1]);
       assert.notEqual(selected.deployment.id, deployment.id);
     }
+  }
+  if (verifyRecoveryPreimage) {
+    const original = immutableApplicationBootstrap;
+    const prior = servingIndex ? yield* actor(deployments[servingIndex]) : current;
+    assert.equal(prior.deployment.id, original.admission_id);
+    assert.equal(prior.deployment.sha, original.assembly.control_commit);
+    assert.equal(prior.deployment.ref, original.assembly.control_ref.slice("refs/tags/".length));
+    assert.equal(prior.status.id, original.failed_admission_status_id);
+    assert.equal(prior.status.state, "failure");
+    assert.equal(
+      prior.status.log_url,
+      `https://github.com/boburning/portcove/actions/runs/${original.assembly.run_id}/job/${original.feed_job_id}`,
+    );
+    if (!admission) selected = yield* actor(deployments[limit - 1]);
+    assert.notEqual(selected.deployment.id, prior.deployment.id);
   }
   const { deployment, status } = selected;
   if (admission?.selection !== "current") assert.equal(status.state, "success");
@@ -250,12 +289,14 @@ export function assertBootstrapPagesActor(
 export function readApplicationPagesExecution(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
   state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
+  currentRecovery?: { run_id: string; run_attempt: number; source: string; ref: string },
 ) {
-  return readPagesAsync(read, applicationPagesExecution(state));
+  return readPagesAsync(read, applicationPagesExecution(state, currentRecovery));
 }
 
 function* applicationPagesExecution(
   state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
+  currentRecovery?: { run_id: string; run_attempt: number; source: string; ref: string },
 ) {
   const match = state.log_url.match(
     /^https:\/\/github\.com\/boburning\/portcove\/actions\/runs\/([1-9][0-9]*)\/job\/([1-9][0-9]*)$/u,
@@ -296,7 +337,19 @@ function* applicationPagesExecution(
   );
   const start = instant(job.started_at),
     end = instant(job.completed_at);
-  assert.ok(start <= end && end - start <= 2 * 60000, "prior feed exceeded its fixed job budget");
+  const recovery =
+    Array.isArray(job.steps) &&
+    job.steps.some(
+      (step) =>
+        isRecord(step) &&
+        step.name === "Reconcile initial application Pages deployment" &&
+        step.status === "completed" &&
+        step.conclusion === "success",
+    );
+  assert.ok(
+    start <= end && end - start <= (recovery ? 16 : 2) * 60000,
+    "prior feed exceeded its fixed job budget",
+  );
   // Read the original attempt, not a mutable latest rerun projection.
   const run = yield* get(`actions/runs/${runId}/attempts/${job.run_attempt}`);
   assert.equal(run.id, runId);
@@ -316,6 +369,13 @@ function* applicationPagesExecution(
   );
   assert.ok(typeof run.head_branch === "string");
   const controlRef = `refs/tags/${run.head_branch}`;
+  const activeRecovery =
+    recovery &&
+    currentRecovery?.run_id === String(runId) &&
+    currentRecovery.run_attempt === job.run_attempt &&
+    currentRecovery.source === job.head_sha &&
+    currentRecovery.ref === controlRef &&
+    run.status === "in_progress";
   assert.match(
     controlRef,
     /^refs\/tags\/portcove-production-controller-windows-[A-Za-z0-9._-]{1,64}$/u,
@@ -360,11 +420,11 @@ function* applicationPagesExecution(
         status.environment === "github-pages" &&
         status.deployment_url ===
           `https://api.github.com/repos/boburning/portcove/deployments/${state.deployment_id}` &&
-        run.status === "completed" &&
+        (run.status === "completed" || activeRecovery) &&
         instant(run.run_started_at) <= created &&
         created <= start &&
         start <= succeeded &&
-        Math.max(end, succeeded) <= instant(run.updated_at),
+        (activeRecovery || Math.max(end, succeeded) <= instant(run.updated_at)),
       "Pages deployment is outside its claimed original feed job or Actions admission",
     );
   }
@@ -388,23 +448,29 @@ function* applicationPagesExecution(
 
 type Provider = Pick<
   ReturnType<typeof createPagesProviderTransport>,
-  "create" | "observe" | "observeByGeneration"
+  "create" | "status" | "cancel"
 >;
 
-/** Fresh guard is invoked by the native transport AFTER OIDC acquisition.
- * Prior executed feed jobs force read-only recovery, even when status404s.
- * Public bytes and provider actor are both required after status success. */
+type PriorPagesEffect = {
+  identity: PagesDeploymentIdentity;
+  qualified_native_id: boolean;
+  continuation?: { build_version: string; beforeCancel: () => Promise<void> };
+};
+
+/** A prior opaque effect may be followed only by an appointed continuation
+ * of the identical site. Both use independent actor and public-byte checks. */
 export async function executeBootstrapPages(
   expected: {
     artifact_id: number;
     control_commit: string;
     site: unknown;
-    prior_feed_execution: boolean;
-    preimage: "initial" | "prior" | "desired";
+    prior_effect?: PriorPagesEffect;
+    preimage: "initial" | "prior" | "desired" | "recovery-visible";
   },
   options: {
     provider: Provider;
     beforeWrite: () => Promise<() => void>;
+    beforeCancelNewEffect?: () => Promise<void>;
     assertPreimage: () => Promise<void>;
     publicReadback: () => Promise<{ generation: string; evidence_sha256: string }>;
     providerReadback: (resolution: string) => Promise<unknown>;
@@ -424,8 +490,7 @@ export async function executeBootstrapPages(
   const site = inspectSiteGeneration(expected.site, expected.site.generation);
   assert.ok(Number.isSafeInteger(expected.artifact_id) && expected.artifact_id > 0);
   assert.match(expected.control_commit, /^[a-f0-9]{40}$/u);
-  assert.equal(typeof expected.prior_feed_execution, "boolean");
-  assert.ok(["initial", "prior", "desired"].includes(expected.preimage));
+  assert.ok(["initial", "prior", "desired", "recovery-visible"].includes(expected.preimage));
   if (expected.preimage === "prior")
     assert.ok(
       typeof site.previous_generation === "string" &&
@@ -443,44 +508,122 @@ export async function executeBootstrapPages(
     controller_revision: expected.control_commit,
     generation: site.generation,
   };
+  const prior = expected.prior_effect;
+  if (prior) assert.equal(prior.identity.generation, site.generation);
+  if (expected.preimage === "recovery-visible") assert.ok(prior?.continuation);
   let resolution = "already-public";
-  if (expected.preimage !== "desired") {
-    within();
-    let native;
-    if (expected.prior_feed_execution) {
-      // Missing/unknown prior outcome is not permission for another POST.
-      options.markStage?.("prior-effect-observation");
-      native = await options.provider.observeByGeneration(identity);
-      resolution = "recovered-original-effect";
-    } else {
-      let entered = false;
-      try {
-        const created = await options.provider.create(identity, async () => {
-          const assertFresh = await options.beforeWrite();
-          options.markStage?.("preimage");
-          await options.assertPreimage();
-          within();
-          assertFresh();
-          options.markStage?.("post-may-have-started");
-          entered = true;
-        });
-        native = await options.provider.observe({ ...identity, id: created.id });
-        resolution = "new-effect";
-      } catch (error) {
-        if (!entered) throw error;
-        // Only observation follows an ambiguous native POST, never a repeat.
-        native = await options.provider.observeByGeneration(identity);
-        resolution = "recovered-ambiguous-effect";
-      }
-    }
-    for (let index = 0; native.status !== "succeed"; index++) {
-      assert.ok(
-        index < 12 && !isTerminalPagesFailure(native.status),
-        "Pages did not settle successfully; no repost or feed replacement",
-      );
+  let priorOutcome: Awaited<ReturnType<Provider["status"]>>["outcome"] | null = null;
+  let nativeId: string | null = null;
+  const poll = async (
+    operation: PagesDeploymentIdentity,
+    observation: Awaited<ReturnType<Provider["status"]>>,
+    maximum: number,
+    onObservation?: (result: Awaited<ReturnType<Provider["status"]>>) => void,
+    stopAt = deadline,
+  ) => {
+    for (let index = 0; index < maximum; index++) {
+      if (!["pending", "unknown"].includes(observation.outcome)) break;
+      if (performance.now() >= stopAt) break;
       within();
       await options.wait();
-      native = await options.provider.observe({ ...identity, id: native.id });
+      observation = await options.provider.status(operation);
+      onObservation?.(observation);
+    }
+    return observation;
+  };
+  if (expected.preimage !== "desired") {
+    within();
+    let continueEffect = !prior;
+    if (prior) {
+      options.markStage?.("prior-effect-observation");
+      let observation = await options.provider.status(prior.identity);
+      if (
+        prior.continuation &&
+        prior.qualified_native_id &&
+        ["pending", "unknown"].includes(observation.outcome)
+      ) {
+        await options.provider.cancel(prior.identity, prior.continuation.beforeCancel);
+      }
+      let pendingObserved = observation.outcome === "pending";
+      let onlyProviderOpacity = observation.provider_opaque;
+      observation = await poll(
+        prior.identity,
+        observation,
+        prior.continuation ? 2 : 12,
+        (result) => {
+          pendingObserved ||= result.outcome === "pending";
+          onlyProviderOpacity &&= result.provider_opaque;
+        },
+      );
+      priorOutcome = observation.outcome;
+      if (priorOutcome === "succeeded") {
+        resolution = "recovered-original-effect";
+        nativeId = prior.qualified_native_id ? prior.identity.id : null;
+      } else {
+        assert.ok(
+          expected.preimage !== "recovery-visible" &&
+            prior.continuation &&
+            (priorOutcome === "terminal" ||
+              priorOutcome === "cancelled" ||
+              (priorOutcome === "unknown" && !pendingObserved && onlyProviderOpacity)),
+          "Earlier Pages effect could not be reconciled within the lifecycle budget",
+        );
+        assert.notEqual(prior.continuation.build_version, prior.identity.id);
+        assert.notEqual(prior.continuation.build_version, site.generation);
+        continueEffect = true;
+      }
+    }
+    if (continueEffect) {
+      let entered = false;
+      let acknowledged: PagesDeploymentIdentity | undefined;
+      try {
+        acknowledged = await options.provider.create(
+          identity,
+          async () => {
+            const assertFresh = await options.beforeWrite();
+            options.markStage?.("preimage");
+            await options.assertPreimage();
+            within();
+            assertFresh();
+            options.markStage?.("post-may-have-started");
+            entered = true;
+          },
+          prior?.continuation?.build_version,
+        );
+      } catch (error) {
+        if (!entered) throw error;
+        if (prior?.continuation) throw error;
+      }
+      const operation = { ...identity, id: acknowledged?.id ?? identity.generation };
+      if (prior?.continuation) {
+        assert.notEqual(operation.id, prior.identity.id, "Pages reused the original deployment ID");
+        assert.notEqual(operation.id, site.generation, "Pages returned the original build version");
+      }
+      let native = await poll(
+        operation,
+        await options.provider.status(operation),
+        prior?.continuation ? 150 : 12,
+        undefined,
+        options.beforeCancelNewEffect ? deadline - 90_000 : deadline,
+      );
+      if (
+        acknowledged &&
+        options.beforeCancelNewEffect &&
+        ["pending", "unknown"].includes(native.outcome)
+      ) {
+        await options.provider.cancel(operation, options.beforeCancelNewEffect);
+        native = await poll(operation, await options.provider.status(operation), 2);
+      }
+      assert.ok(
+        native.outcome === "succeeded",
+        "Pages did not settle successfully; no repost or feed replacement",
+      );
+      nativeId = acknowledged?.id ?? null;
+      resolution = prior?.continuation
+        ? "continued-identical-effect"
+        : acknowledged
+          ? "new-effect"
+          : "recovered-ambiguous-effect";
     }
   }
   within();
@@ -501,6 +644,8 @@ export async function executeBootstrapPages(
     authority: "none",
     generation: site.generation,
     resolution,
+    prior_outcome: priorOutcome,
+    native_deployment_id: nativeId,
     provider,
     public_readback: readback,
     evidence_sha256: digest({ generation: site.generation, provider, readback }),

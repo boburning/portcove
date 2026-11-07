@@ -455,6 +455,7 @@ export async function materializeInitialApplicationRehearsal(
     fetch?: typeof fetch;
     deadline?: number;
     admission?: import("./application-release-site.mts").FeedAdmission;
+    recoverInitialBootstrap?: boolean;
   } = {},
 ) {
   if (
@@ -518,7 +519,10 @@ export async function materializeInitialApplicationRehearsal(
   let admissionId = admission?.deployment_id;
   let requests = 0;
   const get = async (suffix: string) => {
-    if (++requests > (admission ? 11 : 7) || performance.now() >= deadline)
+    if (
+      ++requests > (admission ? 11 : 7) + (options.recoverInitialBootstrap ? 2 : 0) ||
+      performance.now() >= deadline
+    )
       throw new Error("initial rehearsal provider observation bound exhausted");
     const response = await readMetadata(`repos/boburning/portcove${suffix}`);
     if (
@@ -537,7 +541,7 @@ export async function materializeInitialApplicationRehearsal(
   )
     throw new Error("initial rehearsal repository differs");
   const provider = async () => {
-    if (admission) {
+    if (admission || options.recoverInitialBootstrap) {
       const { readApplicationPagesStateAsync } = await import("./application-release-site.mts");
       const { admission_id, ...observed } = await readApplicationPagesStateAsync(
         async (endpoint) => ({
@@ -545,13 +549,17 @@ export async function materializeInitialApplicationRehearsal(
           headers: new Map(),
           body: await get(endpoint.slice("repos/boburning/portcove".length)),
         }),
-        {
+        admission && {
           ...admission,
           selection: "serving",
           ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
         },
+        options.recoverInitialBootstrap,
       );
-      if (admission_id === undefined || capacityDigest(observed) !== capacityDigest(raw.provider))
+      if (
+        (admission && admission_id === undefined) ||
+        capacityDigest(observed) !== capacityDigest(raw.provider)
+      )
         throw new Error("initial rehearsal Pages preimage changed");
       admissionId = admission_id;
       return;

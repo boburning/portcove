@@ -9,6 +9,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, lstat, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import {
   applicationOutput,
@@ -97,9 +98,13 @@ import {
   readActualApplicationPagesState,
   assertBootstrapPagesActor,
   executeBootstrapPages,
+  applicationPagesIntent,
+  createApplicationFeedReader,
+  readApplicationPagesExecution,
 } from "./application-release-site.mts";
 import { inspectSiteGeneration } from "./release-site-generation.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
+import type { PagesRequestEvidence } from "./release-pages-provider.mts";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
@@ -160,6 +165,7 @@ import {
   inspectBootstrapDraftRecovery,
   readRegisteredApplicationRuns,
   emptyApplicationBootstrap,
+  immutableApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
   createApplicationRunRegistrationProvider,
   inspectApplicationReleaseReference,
@@ -234,6 +240,8 @@ async function loadNativeApplicationSource(directory = sourceDirectory) {
   );
   if (source.execution_path !== undefined) {
     if (source.purpose === "metadata-renewal") inspectApplicationRenewalSource(source);
+    else if (source.purpose === "metadata-bootstrap")
+      assert.equal(source.execution_path, "bootstrap-recovery");
     else {
       assert.equal(source.purpose, "application-release");
       assert.equal(source.execution_path, "immutable-recovery");
@@ -406,6 +414,11 @@ async function guard(
   }
   markStage?.("custody-read");
   const releaseId = Number(source.run_custody.release_id);
+  if (source.execution_path === "bootstrap-recovery") {
+    assert.equal(source.purpose, "metadata-bootstrap");
+    assert.equal(releaseId, immutableApplicationBootstrap.release_id);
+    assert.ok(isEmptyApplicationBootstrapCustody(expected));
+  }
   // The fixed source producer registered this custody and read it back before
   // upload. The key-free context and publication jobs still read the live draft.
   const useSource =
@@ -1767,8 +1780,9 @@ async function prepareBootstrapFeed() {
   assert.ok(isRecord(source));
   await guard(source, false);
   const current = execution();
+  const recoverInitialBootstrap = source.execution_path === "bootstrap-recovery";
   const attempt =
-    source.purpose === "metadata-bootstrap"
+    source.purpose === "metadata-bootstrap" && !recoverInitialBootstrap
       ? Number(process.env.PORTCOVE_PUBLICATION_INPUT_ATTEMPT)
       : current.run_attempt;
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
@@ -1792,7 +1806,9 @@ async function prepareBootstrapFeed() {
                 renewal_parent: declared.renewal_parent,
               }),
         }
-      : declared;
+      : recoverInitialBootstrap
+        ? { ...declared, ...immutableApplicationBootstrap.assembly }
+        : declared;
   const input = await readApplicationImmutableFeed(
     {
       release_id: Number(source.run_custody.release_id),
@@ -1817,6 +1833,10 @@ async function prepareBootstrapFeed() {
       );
     },
   );
+  if (recoverInitialBootstrap) {
+    assert.equal(input.site.generation, immutableApplicationBootstrap.generation);
+    await authenticateApplicationPublicRepository(input.files, input.publication, verifier);
+  }
   if (source.purpose === "metadata-renewal") {
     await authenticateApplicationPublicRepository(input.files, input.publication, verifier);
     const before = await readActualApplicationPagesState();
@@ -1914,6 +1934,7 @@ async function captureBootstrapPagesArchive() {
 async function preflightBootstrapSite() {
   const source = await loadNativeApplicationSource();
   const hasPrior = source.purpose !== "metadata-bootstrap";
+  const recoverInitialBootstrap = source.execution_path === "bootstrap-recovery";
   const current = execution();
   const attempt = current.run_attempt;
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
@@ -1940,6 +1961,10 @@ async function preflightBootstrapSite() {
   assert.deepEqual(pages, captureBody);
   assert.ok(isRecord(feed.site) && typeof feed.site.generation === "string");
   const site = inspectSiteGeneration(feed.site, feed.site.generation);
+  if (recoverInitialBootstrap) {
+    assert.equal(site.generation, immutableApplicationBootstrap.generation);
+    assertCurrentApplicationPublication(feed.publication);
+  }
   assert.ok(isRecord(source.run_custody));
   const custody = inspectApplicationRunCustody(source.run_custody.custody);
   const windowsCandidate =
@@ -1952,11 +1977,18 @@ async function preflightBootstrapSite() {
       : undefined;
   let preimage;
   try {
-    const before = await readActualApplicationPagesState();
-    assertBootstrapPagesActor(before, site.generation, custody.runs);
+    const before = await readActualApplicationPagesState(
+      undefined,
+      undefined,
+      recoverInitialBootstrap,
+    );
+    if (!recoverInitialBootstrap) assertBootstrapPagesActor(before, site.generation, custody.runs);
     await readPublicApplicationSite(site);
-    assert.deepEqual(await readActualApplicationPagesState(), before);
-    preimage = { kind: "desired", provider: before };
+    assert.deepEqual(
+      await readActualApplicationPagesState(undefined, undefined, recoverInitialBootstrap),
+      before,
+    );
+    preimage = { kind: recoverInitialBootstrap ? "recovery-visible" : "desired", provider: before };
   } catch {
     if (hasPrior) {
       const prior = await readApplicationJson("work/application-feed/prior-site.json", 128 * 1024);
@@ -1980,8 +2012,13 @@ async function preflightBootstrapSite() {
         descriptor,
         bootstrapAppointment().site_preimage_sha256,
         path.resolve(process.env.RUNNER_TEMP ?? ""),
+        { recoverInitialBootstrap },
       );
-      const provider = await readActualApplicationPagesState();
+      const provider = await readActualApplicationPagesState(
+        undefined,
+        undefined,
+        recoverInitialBootstrap,
+      );
       assert.deepEqual(provider, descriptor.provider);
       preimage = { kind: "initial", provider };
     }
@@ -2000,6 +2037,13 @@ async function preflightBootstrapSite() {
     site,
     publication: feed.publication,
     pages,
+    pages_intent: applicationPagesIntent(
+      site.generation,
+      current.run_id,
+      current.run_attempt,
+      pages.artifact.id,
+      recoverInitialBootstrap ? current.source : undefined,
+    ),
     preimage,
     ...(windowsCandidate ? { windows_candidate: windowsCandidate } : {}),
   });
@@ -2008,6 +2052,7 @@ async function preflightBootstrapSite() {
 
 async function deployBootstrapSite(readOnly = false) {
   const source = await readNativeApplicationSource();
+  const recoverInitialBootstrap = source.execution_path === "bootstrap-recovery";
   publicationStage = "release-guard";
   const markStage = (stage: string) => {
     publicationStage = stage;
@@ -2072,8 +2117,21 @@ async function deployBootstrapSite(readOnly = false) {
     typeof artifact.id === "number" && Number.isSafeInteger(artifact.id) && artifact.id > 0,
   );
   const artifactId = artifact.id;
+  const intent = applicationPagesIntent(
+    site.generation,
+    current.run_id,
+    attempt,
+    artifactId,
+    recoverInitialBootstrap ? current.source : undefined,
+  );
+  assert.deepEqual(plan.pages_intent, intent);
   const preimageKind = plan.preimage.kind;
-  assert.ok(preimageKind === "initial" || preimageKind === "prior" || preimageKind === "desired");
+  assert.ok(
+    preimageKind === "initial" ||
+      preimageKind === "prior" ||
+      preimageKind === "desired" ||
+      (recoverInitialBootstrap && preimageKind === "recovery-visible"),
+  );
   assert.ok(
     source.purpose === "metadata-bootstrap" ? preimageKind !== "prior" : preimageKind !== "initial",
   );
@@ -2087,103 +2145,293 @@ async function deployBootstrapSite(readOnly = false) {
           site.generation,
         )
       : undefined;
-  const hasPrior = (facts: typeof controls) =>
-    facts.budget.runs.some((run) => run.feed_executions.length > 0);
-  const prior = hasPrior(controls);
-  const deadline = performance.now() + 90000;
-  const provider = createPagesProviderTransport({}, deadline);
+  const priorRuns = (facts: typeof controls) =>
+    facts.budget.runs.filter(
+      (run) =>
+        (!recoverInitialBootstrap || run.run_id !== current.run_id) &&
+        run.feed_executions.length > 0,
+    );
+  const prior = priorRuns(controls);
+  const original = immutableApplicationBootstrap;
+  const assertRecovery = (facts: typeof controls) => {
+    assert.equal(source.purpose, "metadata-bootstrap");
+    assert.equal(plan.release_id, original.release_id);
+    assert.equal(site.generation, original.generation);
+    assert.notEqual(current.source, original.assembly.control_commit);
+    assert.equal(current.run_attempt, 1);
+    assert.deepEqual(priorRuns(facts), prior);
+    assert.equal(prior.length, 1);
+    assert.equal(String(prior[0]?.run_id), original.assembly.run_id);
+    const executions = prior[0]!.feed_executions;
+    assert.equal(executions.length, 1);
+    assert.equal(executions[0]?.attempt, original.assembly.producer_attempt);
+    assert.equal(executions[0]?.conclusion, "failure");
+    assert.ok(Date.now() - Date.parse(String(executions[0]?.completed_at)) >= 10 * 60_000);
+    assertCurrentApplicationPublication(plan.publication);
+  };
+  if (recoverInitialBootstrap) assertRecovery(controls);
+  const deadline =
+    performance.now() + (recoverInitialBootstrap && !readOnly ? 13 * 60_000 : 90_000);
+  const requests: PagesRequestEvidence[] = [];
+  const provider = createPagesProviderTransport(
+    { evidence: (entry) => requests.push(entry) },
+    deadline,
+  );
+  if (readOnly && recoverInitialBootstrap) {
+    const publicationDirectory = path.resolve("work/application-feed-execution");
+    await receiveApplicationData(publicationDirectory, {
+      id: Number(process.env.PORTCOVE_SITE_PUBLICATION_ARTIFACT),
+      name: `application-site-publication-${current.run_id}-${attempt}`,
+      source: current.source,
+      run_id: current.run_id,
+      files: ["pages-evidence.json", "result.json"],
+      maximum_file_bytes: 128 * 1024,
+      maximum_archive_bytes: 256 * 1024,
+    });
+    const evidence = await readApplicationJson(
+      path.join(publicationDirectory, "pages-evidence.json"),
+    );
+    const effect = await readApplicationJson(path.join(publicationDirectory, "result.json"));
+    assert.ok(isRecord(evidence) && Array.isArray(evidence.requests) && isRecord(effect));
+    assert.deepEqual(evidence.intent, intent);
+    assert.ok(
+      effect.resolution === "continued-identical-effect" ||
+        effect.resolution === "recovered-original-effect",
+    );
+    assert.equal(effect.generation, site.generation);
+    const adopted = effect.resolution === "recovered-original-effect";
+    const id = adopted ? original.generation : effect.native_deployment_id;
+    assert.ok(typeof id === "string");
+    if (adopted) {
+      assert.equal(effect.prior_outcome, "succeeded");
+      assert.equal(preimageKind, "recovery-visible");
+    } else {
+      assert.notEqual(id, original.generation);
+      assert.ok(
+        evidence.requests.some(
+          (request) =>
+            isRecord(request) &&
+            request.stage === "acknowledged" &&
+            request.id === id &&
+            request.status === 200,
+        ),
+      );
+    }
+    const native = await provider.status({
+      id,
+      generation: site.generation,
+      artifact_id: adopted ? original.pages_artifact_id : artifactId,
+      controller_revision: adopted ? original.assembly.control_commit : current.source,
+    });
+    assert.equal(native.outcome, "succeeded", "continuation no longer has positive native success");
+  }
   let admissionId: number | undefined;
   const verifyServingActor = async () => {
-    const { admission_id, ...serving } = await readActualApplicationPagesState(deadline, {
-      ...current,
-      selection: "serving",
-      ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
-    });
+    const { admission_id, ...serving } = await readActualApplicationPagesState(
+      deadline,
+      {
+        ...current,
+        selection: "serving",
+        ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
+      },
+      recoverInitialBootstrap,
+    );
     assert.ok(admission_id !== undefined);
     assert.deepEqual(serving, preimage.provider, "public deployment changed after preflight");
     admissionId = admission_id;
   };
-  const result = await executeBootstrapPages(
-    {
-      artifact_id: artifactId,
-      control_commit: current.source,
-      site,
-      prior_feed_execution: prior,
-      preimage: readOnly ? "desired" : preimageKind,
-    },
-    {
-      provider,
-      deadline,
-      markStage,
-      async beforeWrite() {
-        assert.equal(readOnly, false, "public readback has no deployment authority");
-        const fresh = await guard(source, true, { markStage });
-        assert.equal(hasPrior(fresh), false, "earlier feed execution requires read-only recovery");
-        if (source.purpose !== "metadata-bootstrap")
-          assertCurrentApplicationPublication(plan.publication);
-        return assertProtectionWriteWindow;
-      },
-      async assertPreimage() {
-        await verifyServingActor();
-        const provider = await createReleaseCustodyProvider({
-          token: fixedReleaseReaderToken(),
-          deadline,
-          requestTimeoutMs: 30000,
-          maxBytes: 8 * 1024 ** 2,
-          beforeDispatch: () => assertTrustedDirectNode("fixed application Pages artifact read"),
-        });
-        const observed = await provider.artifact(artifactId);
-        assert.ok(
-          isRecord(observed) && observed.expired === false && isRecord(observed.workflow_run),
-        );
-        assert.equal(observed.id, artifact.id);
-        assert.equal(observed.name, artifact.name);
-        assert.equal(observed.size_in_bytes, artifact.bytes);
-        assert.equal(observed.digest, `sha256:${String(artifact.sha256)}`);
-        assert.equal(observed.workflow_run.head_sha, current.source);
-        assert.equal(observed.workflow_run.id, Number(current.run_id));
-        if (preimageKind === "prior") {
-          assert.ok(isRecord(preimage.site));
-          const previous = inspectSiteGeneration(preimage.site, site.previous_generation!);
-          await readPublicApplicationSite(previous, deadline);
-          await verifyServingActor();
-          assertCurrentApplicationPublication(plan.publication);
-          return;
+  const priorEffect =
+    prior.length > 0
+      ? {
+          identity: {
+            id: site.generation,
+            generation: site.generation,
+            artifact_id: recoverInitialBootstrap ? original.pages_artifact_id : artifactId,
+            controller_revision: recoverInitialBootstrap
+              ? original.assembly.control_commit
+              : current.source,
+          },
+          qualified_native_id: false,
+          ...(recoverInitialBootstrap
+            ? {
+                continuation: {
+                  build_version: intent.build_version,
+                  async beforeCancel() {
+                    throw new Error(
+                      "The original bootstrap build version has no qualified native ID",
+                    );
+                  },
+                },
+              }
+            : {}),
         }
-        const missing = await fetch("https://boburning.github.io/portcove/publication.json", {
-          redirect: "error",
-          credentials: "omit",
-          cache: "no-store",
-          signal: AbortSignal.timeout(5000),
-        });
-        await missing.body?.cancel();
-        assert.equal(missing.url, "https://boburning.github.io/portcove/publication.json");
-        assert.equal(missing.status, 404, "bootstrap marker appeared after initial preflight");
-        await verifyServingActor();
+      : undefined;
+  const execute = () =>
+    executeBootstrapPages(
+      {
+        artifact_id: artifactId,
+        control_commit: current.source,
+        site,
+        ...(priorEffect ? { prior_effect: priorEffect } : {}),
+        preimage: readOnly ? "desired" : preimageKind,
       },
-      async providerReadback(resolution) {
-        // Native Pages success is already checked for this artifact and generation.
-        // The following readback job independently requires final Actions success.
-        const newEffect =
-          resolution === "new-effect" || resolution === "recovered-ambiguous-effect";
-        if (newEffect) assert.ok(admissionId !== undefined);
-        const state = await readActualApplicationPagesState(
-          deadline,
-          readOnly
-            ? undefined
-            : {
-                ...current,
-                selection: newEffect ? "current" : "serving",
-                ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
+      {
+        provider,
+        deadline,
+        markStage,
+        ...(recoverInitialBootstrap && !readOnly
+          ? {
+              async beforeCancelNewEffect() {
+                assert.ok(admissionId !== undefined);
+                const active = await readActualApplicationPagesState(deadline, {
+                  ...current,
+                  selection: "current",
+                  deployment_id: admissionId,
+                });
+                assert.equal(active.admission_id, admissionId);
               },
-        );
-        assertBootstrapPagesActor(state, site.generation, custody.runs);
-        return state;
+            }
+          : {}),
+        async beforeWrite() {
+          assert.equal(readOnly, false, "public readback has no deployment authority");
+          const fresh = await guard(source, true, { markStage });
+          if (recoverInitialBootstrap) {
+            assertRecovery(fresh);
+            for (const expiration of Object.values(
+              inspectTufPublicationFacts(plan.publication).expires,
+            ))
+              assert.ok(
+                Date.parse(expiration) - Date.now() > 16 * 60_000,
+                "bootstrap roles lack recovery headroom",
+              );
+          } else
+            assert.equal(
+              priorRuns(fresh).length,
+              0,
+              "earlier feed execution requires read-only recovery",
+            );
+          if (source.purpose !== "metadata-bootstrap")
+            assertCurrentApplicationPublication(plan.publication);
+          return assertProtectionWriteWindow;
+        },
+        async assertPreimage() {
+          await verifyServingActor();
+          const provider = await createReleaseCustodyProvider({
+            token: fixedReleaseReaderToken(),
+            deadline,
+            requestTimeoutMs: 30000,
+            maxBytes: 8 * 1024 ** 2,
+            beforeDispatch: () => assertTrustedDirectNode("fixed application Pages artifact read"),
+          });
+          const observed = await provider.artifact(artifactId);
+          assert.ok(
+            isRecord(observed) && observed.expired === false && isRecord(observed.workflow_run),
+          );
+          assert.equal(observed.id, artifact.id);
+          assert.equal(observed.name, artifact.name);
+          assert.equal(observed.size_in_bytes, artifact.bytes);
+          assert.equal(observed.digest, `sha256:${String(artifact.sha256)}`);
+          assert.equal(observed.workflow_run.head_sha, current.source);
+          assert.equal(observed.workflow_run.id, Number(current.run_id));
+          if (preimageKind === "prior") {
+            assert.ok(isRecord(preimage.site));
+            const previous = inspectSiteGeneration(preimage.site, site.previous_generation!);
+            await readPublicApplicationSite(previous, deadline);
+            await verifyServingActor();
+            assertCurrentApplicationPublication(plan.publication);
+            return;
+          }
+          if (recoverInitialBootstrap) {
+            assert.ok(admissionId !== undefined);
+            const descriptor = await readApplicationJson(
+              "release/bootstrap-public-inputs/application/initial-site-preimage.json",
+            );
+            assert.ok(isRecord(descriptor) && Array.isArray(descriptor.files));
+            for (const file of descriptor.files)
+              assert.ok(site.files.some((entry) => isDeepStrictEqual(entry, file)));
+            await materializeInitialApplicationRehearsal(
+              descriptor,
+              bootstrapAppointment().site_preimage_sha256,
+              path.resolve(process.env.RUNNER_TEMP ?? ""),
+              {
+                deadline,
+                recoverInitialBootstrap,
+                admission: { ...current, selection: "serving", deployment_id: admissionId },
+              },
+            );
+            assertCurrentApplicationPublication(plan.publication);
+          }
+          const missing = await fetch("https://boburning.github.io/portcove/publication.json", {
+            redirect: "error",
+            credentials: "omit",
+            cache: "no-store",
+            signal: AbortSignal.timeout(5000),
+          });
+          await missing.body?.cancel();
+          assert.equal(missing.url, "https://boburning.github.io/portcove/publication.json");
+          assert.equal(missing.status, 404, "bootstrap marker appeared after initial preflight");
+          await verifyServingActor();
+        },
+        async providerReadback(resolution) {
+          // Native Pages success is already checked for this artifact and generation.
+          // The following readback job independently requires final Actions success.
+          const adopted = recoverInitialBootstrap && resolution === "recovered-original-effect";
+          if (adopted) {
+            assert.equal(preimageKind, "recovery-visible");
+            await verifyServingActor();
+          }
+          const newEffect =
+            adopted ||
+            resolution === "new-effect" ||
+            resolution === "recovered-ambiguous-effect" ||
+            resolution === "continued-identical-effect";
+          if (newEffect) assert.ok(admissionId !== undefined);
+          const state = await readActualApplicationPagesState(
+            deadline,
+            readOnly
+              ? undefined
+              : {
+                  ...current,
+                  selection: newEffect ? "current" : "serving",
+                  ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
+                },
+          );
+          assertBootstrapPagesActor(state, site.generation, custody.runs);
+          if (readOnly && recoverInitialBootstrap) {
+            const settled = await readApplicationPagesExecution(
+              await createApplicationFeedReader(fixedReleaseReaderToken(), deadline),
+              state,
+              current,
+            );
+            assert.equal(settled.run.id, current.run_id);
+            assert.equal(settled.run.control_commit, current.source);
+            assert.equal(settled.run.control_ref, current.ref);
+            assert.equal(settled.attempt, current.run_attempt);
+            assert.equal(settled.conclusion, "success");
+          }
+          return state;
+        },
+        async publicReadback() {
+          const receipt = await readPublicApplicationSite(site, deadline);
+          if (recoverInitialBootstrap) assertCurrentApplicationPublication(plan.publication);
+          return receipt;
+        },
+        wait: () => pause(recoverInitialBootstrap ? 4000 : 2000),
       },
-      publicReadback: () => readPublicApplicationSite(site, deadline),
-      wait: () => pause(2000),
-    },
-  );
+    );
+  let result: Awaited<ReturnType<typeof executeBootstrapPages>>;
+  try {
+    result = await execute();
+  } finally {
+    if (!readOnly)
+      await writeApplicationJson("work/application-site-publication/pages-evidence.json", {
+        schema_version: 1,
+        intent,
+        stage: publicationStage,
+        prior_effect: priorEffect?.identity ?? null,
+        requests,
+      });
+  }
   await writeApplicationJson("work/application-site-publication/result.json", result);
   if (readOnly && windowsCandidate) {
     const preparation = custody.preparation;

@@ -35,6 +35,8 @@ import {
   retainApplicationPreparation,
   inspectApplicationQualificationIdentity,
   readApplicationRunNotes,
+  immutableApplicationBootstrap,
+  isEmptyApplicationBootstrapCustody,
   registerApplicationBudgetRun,
   readActualApplicationBudgetOwner,
   inspectApplicationReleaseReference,
@@ -327,18 +329,20 @@ async function beforeSourceWrite(
   await beforeSourceRecord();
   await readApplicationJobBudget(
     knownRunIds,
-    process.argv[2] === "bootstrap"
+    ["bootstrap", "recover-bootstrap"].includes(process.argv[2] ?? "")
       ? "metadata-bootstrap"
       : ["renew", "recover-metadata", "renew-unserved"].includes(process.argv[2] ?? "")
         ? "metadata-renewal"
         : "application-release",
     process.argv[2] === "recover"
       ? "immutable-recovery"
-      : process.argv[2] === "recover-metadata"
-        ? "metadata-recovery"
-        : ["renew", "renew-unserved"].includes(process.argv[2] ?? "")
-          ? "metadata-maintenance"
-          : "ordinary",
+      : process.argv[2] === "recover-bootstrap"
+        ? "bootstrap-recovery"
+        : process.argv[2] === "recover-metadata"
+          ? "metadata-recovery"
+          : ["renew", "renew-unserved"].includes(process.argv[2] ?? "")
+            ? "metadata-maintenance"
+            : "ordinary",
     budgetContext,
   );
 }
@@ -669,6 +673,65 @@ async function bootstrap() {
   await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
 }
 
+/** Bind the same bootstrap descriptor and retained inventory to the original
+ * immutable assembly. Feed staging authenticates both assets before deployment. */
+async function recoverImmutableBootstrapFeed() {
+  const execution = inspectApplicationReleaseExecution(process.env);
+  await beforeSourceRecord();
+  await verifyApplicationReleaseTrust();
+  const original = immutableApplicationBootstrap;
+  const expected = {
+    descriptor_sha256: process.env.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 ?? "",
+    setup_plan_sha256: process.env.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 ?? "",
+    site_preimage_sha256: process.env.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 ?? "",
+  };
+  assert.equal(process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY, original.opportunity);
+  assert.equal(expected.descriptor_sha256, original.opportunity);
+  const raw: unknown = JSON.parse(process.env.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR ?? "null");
+  inspectInitialApplicationDescriptor(raw, expected);
+  const preimage = await readApplicationJson(
+    "release/bootstrap-public-inputs/application/initial-site-preimage.json",
+  );
+  assert.equal(releaseCanonicalDigest(preimage), expected.site_preimage_sha256);
+  assert.ok(isRecord(preimage) && typeof preimage.inventory_sha256 === "string");
+  const release = await (await openApplicationSourceMetadata()).release(original.release_id);
+  assert.ok(isRecord(release) && release.id === original.release_id);
+  assert.equal(release.tag_name, `portcove-production-candidate-${original.opportunity}`);
+  assert.equal(release.target_commitish, original.source);
+  assert.equal(release.draft, false);
+  assert.equal(release.immutable, true);
+  assert.equal(release.prerelease, true);
+  const notes = readApplicationRunNotes(release.body);
+  assert.ok(notes && isEmptyApplicationBootstrapCustody(notes.custody));
+  const registration = await registerApplicationReleaseRun(
+    await createApplicationRunRegistrationProvider(),
+    execution,
+    original.source,
+    original.source_tree,
+    original.opportunity,
+    beforeSourceWrite,
+    "immutable-metadata-only",
+  );
+  assert.equal(registration.release_id, original.release_id);
+  await writeApplicationJson("work/application-source/source.json", {
+    schema_version: 1,
+    authority: "none",
+    purpose: "metadata-bootstrap",
+    execution_path: "bootstrap-recovery",
+    opportunity: original.opportunity,
+    bootstrap_descriptor: raw,
+    bootstrap_appointment: expected,
+    bootstrap_preimage: { inventory_sha256: preimage.inventory_sha256, authority: "none" },
+    run_custody: { release_id: registration.release_id, custody: registration.custody },
+    control_commit: execution.source,
+    control_ref: execution.ref,
+    run_id: execution.run_id,
+    producer_attempt: execution.run_attempt,
+  });
+  await applicationOutput("source_attempt", execution.run_attempt);
+  await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
+}
+
 async function renewPublishedMetadata() {
   const execution = inspectApplicationReleaseExecution(process.env);
   await verifyApplicationReleaseTrust();
@@ -977,6 +1040,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(JSON.stringify(await readCurrentApplicationWakeQualification()));
   else if (command === "prepare") await prepare();
   else if (command === "bootstrap") await bootstrap();
+  else if (command === "recover-bootstrap") await recoverImmutableBootstrapFeed();
   else if (command === "recover") await recoverImmutableFeed();
   else if (command === "renew") await renewPublishedMetadata();
   else if (command === "renew-unserved") await renewUnservedMetadata();

@@ -103,7 +103,17 @@ void test("documented Pages acknowledgement URLs remain fixed and recognized ter
     assert.equal(isTerminalPagesFailure(status), true);
   assert.equal(isTerminalPagesFailure("succeed"), false);
 });
-void test("Pages acknowledgement must echo the exact unique generation build version", async () => {
+void test("Pages uses the returned native ID and requires its matching acknowledgement URL", async () => {
+  const id = "native-operation-123";
+  const actual = createPagesProviderTransport({
+    token: async () => "inert-token",
+    operations: operations({
+      async create() {
+        return response({ ...ack, id, status_url: ack.status_url.replace(ack.id, id) });
+      },
+    }),
+  });
+  assert.equal((await actual.create(expected)).id, id);
   const provider = createPagesProviderTransport({
     token: async () => "inert-token",
     operations: operations({
@@ -114,6 +124,53 @@ void test("Pages acknowledgement must echo the exact unique generation build ver
   });
   await assert.rejects(provider.create(expected), /acknowledgement unavailable/);
   await assert.rejects(provider.create(expected), /already attempted/);
+});
+
+void test("native cancellation targets only the original ID and a 404 remains unknown", async () => {
+  const calls: string[] = [];
+  const evidence: unknown[] = [];
+  const adapter = await createPagesProviderOperations({
+    ...sdkOptions(),
+    fetch: async (input, settings) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      calls.push(`${settings?.method} ${url.pathname}`);
+      return new Response('{"message":"private response"}', {
+        status: 404,
+        headers: { "content-type": "application/json", "x-github-request-id": "ABCD:1234" },
+      });
+    },
+  });
+  const provider = createPagesProviderTransport({
+    operations: adapter,
+    evidence: (entry) => evidence.push(entry),
+  });
+  const original = { ...expected, id: "native-123" };
+  assert.equal(
+    await provider.cancel(original, async () => {
+      calls.push("guard");
+    }),
+    "unknown",
+  );
+  assert.equal((await provider.status(original)).outcome, "unknown");
+  await assert.rejects(
+    provider.cancel(original, async () => {}),
+    /already attempted/u,
+  );
+  assert.deepEqual(calls, [
+    "guard",
+    "POST /repos/boburning/portcove/pages/deployments/native-123/cancel",
+    "GET /repos/boburning/portcove/pages/deployments/native-123",
+  ]);
+  assert.deepEqual(evidence, [
+    { stage: "cancel", id: "native-123", status: 404, request_id: "ABCD:1234" },
+    {
+      stage: "status",
+      id: "native-123",
+      status: 404,
+      request_id: "ABCD:1234",
+      native_outcome: "provider-opaque",
+    },
+  ]);
 });
 void test("controls expiring during token acquisition refuse before the POST and cannot repeat", async () => {
   let clock = 0,

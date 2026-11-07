@@ -2,11 +2,13 @@ import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-enviro
 import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { requestAssemblerToken } from "./assembler-job-identity.mts";
 import { isRecord } from "./runtime-values.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { performance } from "node:perf_hooks";
 
 const endpoint = "repos/boburning/portcove/pages/deployments";
 const publicUrl = "https://boburning.github.io/portcove/";
 const audience = "https://github.com/boburning";
+const deploymentId = /^[A-Za-z0-9_-]{1,128}$/u;
 const terminalFailures = new Set([
   "cancelled",
   "failed",
@@ -22,6 +24,7 @@ export function isTerminalPagesFailure(status: string) {
 interface PagesReply {
   status: number;
   body: unknown;
+  request_id?: string | undefined;
 }
 interface PagesCreateInput {
   artifact_id: number;
@@ -31,6 +34,7 @@ interface PagesCreateInput {
 export interface PagesProviderOperations {
   create(input: PagesCreateInput): Promise<PagesReply>;
   observe(id: string): Promise<PagesReply>;
+  cancel?(id: string): Promise<PagesReply>;
 }
 
 /** HTTP only. Pending intent, final controls and byte acceptance belong to the caller. */
@@ -63,6 +67,10 @@ export async function createPagesProviderOperations(options: {
       return (
         !url.search &&
         ((method === "POST" && url.pathname === `/${endpoint}`) ||
+          (method === "POST" &&
+            /^\/repos\/boburning\/portcove\/pages\/deployments\/[A-Za-z0-9_-]{1,128}\/cancel$/u.test(
+              url.pathname,
+            )) ||
           (method === "GET" &&
             /^\/repos\/boburning\/portcove\/pages\/deployments\/[A-Za-z0-9_-]{1,128}$/u.test(
               url.pathname,
@@ -70,25 +78,33 @@ export async function createPagesProviderOperations(options: {
       );
     },
   });
+  async function request(method: "POST" | "GET", suffix: string, data?: PagesCreateInput) {
+    try {
+      const response = await sdk.request({
+        method,
+        url: `https://api.github.com/${endpoint}${suffix}`,
+        ...(data ? { data } : {}),
+        request: { portcove: { replay: "once", attempts: 0 } },
+      });
+      return {
+        status: response.status,
+        body: response.data as unknown,
+        request_id: response.headers["x-github-request-id"],
+      };
+    } catch (error) {
+      if (!(error instanceof GitHubApiError) || error.status === null) throw error;
+      return { status: error.status, body: null, request_id: error.requestId ?? undefined };
+    }
+  }
   return {
-    async create(input) {
-      const response = await sdk.request({
-        method: "POST",
-        url: `https://api.github.com/${endpoint}`,
-        data: input,
-        request: { portcove: { replay: "once", attempts: 0 } },
-      });
-      return { status: response.status, body: response.data as unknown };
+    create: (input) => request("POST", "", input),
+    observe(id) {
+      if (!deploymentId.test(id)) throw new Error("Pages deployment identity is unavailable");
+      return request("GET", `/${id}`);
     },
-    async observe(id) {
-      if (!/^[A-Za-z0-9_-]{1,128}$/u.test(id))
-        throw new Error("Pages deployment identity is unavailable");
-      const response = await sdk.request({
-        method: "GET",
-        url: `https://api.github.com/${endpoint}/${id}`,
-        request: { portcove: { replay: "once", attempts: 0 } },
-      });
-      return { status: response.status, body: response.data as unknown };
+    cancel(id) {
+      if (!deploymentId.test(id)) throw new Error("Pages deployment identity is unavailable");
+      return request("POST", `/${id}/cancel`);
     },
   };
 }
@@ -98,6 +114,14 @@ export interface PagesDeploymentIdentity {
   artifact_id: number;
   controller_revision: string;
   generation: string;
+}
+
+export interface PagesRequestEvidence {
+  stage: "create" | "acknowledged" | "status" | "cancel";
+  id: string;
+  status: number | null;
+  request_id: string | null;
+  native_outcome?: string;
 }
 
 function identity(value: unknown): PagesDeploymentIdentity {
@@ -129,7 +153,11 @@ function identity(value: unknown): PagesDeploymentIdentity {
  * This instance allows exactly one POST, including when its response is lost.
  * Recovery uses readback; creating a new instance is not retry authorization. */
 export function createPagesProviderTransport(
-  injected: { operations?: PagesProviderOperations; token?: () => Promise<string> } = {},
+  injected: {
+    operations?: PagesProviderOperations;
+    token?: () => Promise<string>;
+    evidence?: (entry: PagesRequestEvidence) => void;
+  } = {},
   deadline?: number,
 ) {
   const remaining = () => {
@@ -151,13 +179,32 @@ export function createPagesProviderTransport(
     (configured ??= createPagesProviderOperations({ deadline: originalDeadline, environment }));
   const scope = capturedOperations || tokenProvider ? "injected-provider" : "github.com";
   let attempted = false;
+  const cancellationAttempts = new Set<string>();
+  const evidence = (
+    stage: PagesRequestEvidence["stage"],
+    id: string,
+    response?: PagesReply,
+    nativeOutcome?: string,
+  ) => {
+    const requestId = response?.request_id;
+    injected.evidence?.({
+      stage,
+      id,
+      status: response?.status ?? null,
+      request_id: requestId && /^[0-9A-F:]{1,128}$/iu.test(requestId) ? requestId : null,
+      ...(nativeOutcome ? { native_outcome: nativeOutcome } : {}),
+    });
+  };
   return {
     evidence_scope: scope,
     async create(
       raw: Omit<PagesDeploymentIdentity, "id">,
       beforePost?: () => Promise<void> | void,
+      buildVersion = raw.generation,
     ) {
       const expected = identity({ ...structuredClone(raw), id: "pending" });
+      if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(buildVersion))
+        throw new Error("Invalid Pages build version");
       if (scope === "github.com" && typeof beforePost !== "function")
         throw new Error("actual Pages transport requires the fixed final pre-POST guard");
       if (attempted)
@@ -195,23 +242,24 @@ export function createPagesProviderTransport(
       try {
         response = await provider.create({
           artifact_id: expected.artifact_id,
-          pages_build_version: expected.generation,
+          pages_build_version: buildVersion,
           oidc_token: token,
         });
       } catch {
+        evidence("create", buildVersion);
         // Do not propagate CLI/provider diagnostics that could echo a bearer.
         throw new Error(
           "Pages POST outcome ambiguous; preserve pending intent and require readback",
         );
       }
+      evidence("create", buildVersion, response);
       remaining();
       const body = response.body;
       if (
         response.status !== 200 ||
         !isRecord(body) ||
         typeof body.id !== "string" ||
-        body.id !== expected.generation ||
-        !/^[A-Za-z0-9_-]{1,128}$/u.test(body.id) ||
+        !deploymentId.test(body.id) ||
         ![
           `https://api.github.com/${endpoint}/${body.id}`,
           `https://api.github.com/${endpoint}/${body.id}/status`,
@@ -223,6 +271,7 @@ export function createPagesProviderTransport(
         throw new Error(
           "Pages POST acknowledgement unavailable; preserve pending intent and require readback",
         );
+      evidence("acknowledged", body.id, response);
       return {
         ...identity({ ...expected, id: body.id }),
         evidence_scope: scope,
@@ -230,44 +279,71 @@ export function createPagesProviderTransport(
         acceptance: "pending-public-readback" as const,
       };
     },
-    /** One observation, no cancellation, re-POST or unbounded polling. Even
-     * succeed must be followed by independent complete expected-byte readback. */
-    async observe(raw: PagesDeploymentIdentity) {
+    async status(raw: PagesDeploymentIdentity) {
       remaining();
       const expected = identity(structuredClone(raw));
-      let response: PagesReply;
+      let response: PagesReply | undefined;
       try {
         const provider = capturedOperations ?? (await operations());
         remaining();
         response = await provider.observe(expected.id);
       } catch {
-        throw new Error("Pages deployment readback unavailable; retain original pending intent");
+        /* No provider disposition was observed. */
       }
       remaining();
-      const body = response.body;
-      if (
-        response.status !== 200 ||
-        !isRecord(body) ||
-        typeof body.status !== "string" ||
-        (![
-          "deployment_in_progress",
-          "syncing_files",
-          "updating_pages",
-          "succeed",
-          "cancelled",
-          "failed",
-          "deployment_failed",
-        ].includes(body.status) &&
-          !isTerminalPagesFailure(body.status))
-      )
-        throw new Error("Pages deployment readback incomplete; retain original pending intent");
+      const body = response?.body;
+      const status =
+        response?.status === 200 && isRecord(body) && typeof body.status === "string"
+          ? body.status
+          : null;
+      const outcome =
+        status === "succeed"
+          ? "succeeded"
+          : status === "cancelled" || status === "deployment_cancelled"
+            ? "cancelled"
+            : status && isTerminalPagesFailure(status)
+              ? "terminal"
+              : status &&
+                  ["deployment_in_progress", "syncing_files", "updating_pages"].includes(status)
+                ? "pending"
+                : "unknown";
+      const providerOpaque = response?.status === 404 || status === "";
+      evidence("status", expected.id, response, providerOpaque ? "provider-opaque" : outcome);
       return {
         ...expected,
-        status: body.status,
+        outcome,
+        provider_opaque: providerOpaque,
+        status: outcome === "unknown" ? null : status,
         evidence_scope: scope,
         stage: "provider-status-only" as const,
         acceptance: "pending-public-readback" as const,
       };
+    },
+    async observe(raw: PagesDeploymentIdentity) {
+      const observation = await this.status(raw);
+      if (observation.status === null)
+        throw new Error("Pages deployment readback incomplete; retain original pending intent");
+      return { ...observation, status: observation.status };
+    },
+    async cancel(raw: PagesDeploymentIdentity, beforeCancel: () => Promise<void>) {
+      const expected = identity(structuredClone(raw));
+      if (cancellationAttempts.has(expected.id))
+        throw new Error("Pages cancellation already attempted");
+      cancellationAttempts.add(expected.id);
+      remaining();
+      const provider = capturedOperations ?? (await operations());
+      if (!provider.cancel) throw new Error("Pages cancellation transport is unavailable");
+      await beforeCancel();
+      remaining();
+      let response: PagesReply | undefined;
+      try {
+        response = await provider.cancel(expected.id);
+      } catch {
+        /* Status readback must settle a lost cancellation response. */
+      }
+      evidence("cancel", expected.id, response);
+      remaining();
+      return response?.status === 204 ? "acknowledged" : "unknown";
     },
     /** The exact build version is durable before POST. This route can recover
      * a lost acknowledgement, but absent/404 never proves no deployment. The

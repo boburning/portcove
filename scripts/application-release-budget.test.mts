@@ -13,6 +13,7 @@ import {
   readApplicationRunNotes,
   registerApplicationBudgetRun,
   createApplicationRunRegistrationProvider,
+  immutableApplicationBootstrap,
 } from "./application-release-run.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
@@ -1055,4 +1056,41 @@ void test("budgeted bootstrap binds every successor to complete failed history w
   assert.equal(permit(runs, { ...current, run_attempt: 2 }), false);
   assert.equal(permit(runs, current, "application-release"), false);
   assert.throws(() => inspectApplicationRunCustody({ ...raw, opportunity: "3".repeat(64) }));
+
+  const original = immutableApplicationBootstrap.assembly;
+  const originalRun = {
+    ...runs[4]!,
+    id: Number(original.run_id),
+    head_sha: original.control_commit,
+    head_branch: tag(27),
+  };
+  const recoveryRun = { ...runs[5]!, head_branch: tag(28) };
+  const recoveryExecution = { ...current, ref: "refs/tags/" + tag(28) };
+  const recoveryRuns = [...runs.slice(0, 4), originalRun, recoveryRun];
+  const recoveryOwner = {
+    release_id: immutableApplicationBootstrap.release_id,
+    custody: inspectApplicationRunCustody({
+      ...raw,
+      runs: recoveryRuns.slice(1).map((row) => ({
+        id: String(row.id),
+        control_commit: row.head_sha,
+        control_ref: "refs/tags/" + row.head_branch,
+      })),
+    }),
+  };
+  const permitRecovery = (
+    execution = recoveryExecution,
+    candidateOwner: typeof owner = recoveryOwner,
+  ) =>
+    permitsBudgetedEmptyBootstrap(
+      recoveryRuns,
+      execution,
+      opportunity,
+      "metadata-bootstrap",
+      "bootstrap-recovery",
+      candidateOwner,
+    );
+  assert.equal(permitRecovery(), true);
+  assert.equal(permitRecovery({ ...recoveryExecution, run_attempt: 2 }), false);
+  assert.equal(permitRecovery(recoveryExecution, owner), false);
 });

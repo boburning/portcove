@@ -9,6 +9,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   applicationReleaseJobMinutes,
   applicationReleaseBudgetMinutes,
+  applicationReleaseRemainingMinutes,
   applicationReleaseTrust,
   applicationReleaseWorkflow,
   inspectApplicationPublicationPause,
@@ -166,9 +167,34 @@ void test("bootstrap observer jobs reserve setup and upload time around the boun
     const job = name.split(" / ")[0]!;
     assert.equal(
       workflow.getIn(["jobs", job, "with", "timeout_minutes"]),
-      "${{ inputs.mode == 'bootstrap' && 3 || 1 }}",
+      job === "protection_feed"
+        ? "${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap') && 3 || 1 }}"
+        : "${{ inputs.mode == 'bootstrap' && 3 || 1 }}",
     );
   }
+});
+
+void test("initial immutable bootstrap recovery reserves only its longer feed and readback tail", async () => {
+  const workflow = parseDocument(
+    await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),
+  );
+  const tail = applicationReleaseRemainingMinutes("metadata-bootstrap", "bootstrap-recovery");
+  assert.deepEqual(tail, {
+    source: 2,
+    tools: 10,
+    "protection_feed / execute": 3,
+    feed_prepare: 3,
+    feed: 16,
+    readback: 5,
+  });
+  assert.equal(applicationReleaseBudgetMinutes("metadata-bootstrap").feed, 2);
+  assert.equal(applicationReleaseBudgetMinutes("application-release").feed, 2);
+  assert.equal(
+    workflow.getIn(["jobs", "feed", "timeout-minutes"]),
+    "${{ inputs.mode == 'recover-bootstrap' && 16 || 2 }}",
+  );
+  assert.ok(5_015 + Object.values(tail).reduce((sum, minutes) => sum + minutes * 60, 0) < 140 * 60);
+  assert.throws(() => applicationReleaseRemainingMinutes("metadata-renewal", "bootstrap-recovery"));
 });
 
 void test("paused diagnosis isolates the observer credential and rejects reruns", async () => {
