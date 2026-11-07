@@ -678,6 +678,21 @@ function protectionFingerprint(value: unknown) {
   return createHash("sha256").update(canonical(value)).digest("hex");
 }
 
+function canonicalRulesetTimestamp(value: unknown) {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/u.test(
+      value,
+    )
+  )
+    throw new Error("bootstrap ruleset timestamp is malformed");
+  const wallTime = value.slice(0, 19);
+  const asUtc = new Date(`${wallTime}Z`);
+  if (!Number.isFinite(asUtc.getTime()) || asUtc.toISOString().slice(0, 19) !== wallTime)
+    throw new Error("bootstrap ruleset timestamp is malformed");
+  return new Date(value).toISOString();
+}
+
 function bootstrapProtectionInventory(raw: unknown) {
   if (
     !isRecord(raw) ||
@@ -692,6 +707,10 @@ function bootstrapProtectionInventory(raw: unknown) {
     // actors, rules and the exact observed refs remain in the appointment digest.
     const detail = { ...ruleset };
     delete detail.current_user_can_bypass;
+    // GitHub renders these same instants with different offsets for the owner
+    // and the App. Bind the instants in UTC without dropping their precision.
+    for (const field of ["created_at", "updated_at"])
+      if (Object.hasOwn(detail, field)) detail[field] = canonicalRulesetTimestamp(detail[field]);
     return detail;
   });
   return { ...raw.inventory, rulesets, branches: raw.inventory.branches };
