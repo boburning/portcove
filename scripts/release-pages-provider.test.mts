@@ -114,8 +114,10 @@ void test("Pages uses the returned native ID and requires its matching acknowled
     }),
   });
   assert.equal((await actual.create(expected)).id, id);
+  const evidence: unknown[] = [];
   const provider = createPagesProviderTransport({
     token: async () => "inert-token",
+    evidence: (entry) => evidence.push(entry),
     operations: operations({
       async create() {
         return response({ ...ack, id: "a".repeat(40) });
@@ -124,6 +126,21 @@ void test("Pages uses the returned native ID and requires its matching acknowled
   });
   await assert.rejects(provider.create(expected), /acknowledgement unavailable/);
   await assert.rejects(provider.create(expected), /already attempted/);
+  assert.deepEqual(evidence, [
+    {
+      stage: "create",
+      id: expected.generation,
+      status: 200,
+      request_id: null,
+      acknowledgement_refusal: {
+        object: true,
+        id_type: "string",
+        id_valid: true,
+        status_url_matches: false,
+        page_url_matches: true,
+      },
+    },
+  ]);
 });
 
 void test("native cancellation targets only the original ID and a 404 remains unknown", async () => {

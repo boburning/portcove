@@ -353,6 +353,18 @@ export const failedBootstrapRecovery = {
   actual_milliseconds: 356_000,
 } as const;
 
+/** Native success for r29 is separate from its failed Actions admission and
+ * job. These fixed identities cannot admit another failed execution. */
+export const recoveredApplicationBootstrap = {
+  run_id: "42403889193",
+  attempt: 1,
+  control_commit: "1779ef17eaf154b918a990b9dafba89dbbcddfa7",
+  control_ref: "refs/tags/portcove-production-controller-windows-20261105r29",
+  job_id: 128498673910,
+  admission_id: 7625656036,
+  status_id: 21665264392,
+} as const;
+
 export function isEmptyApplicationBootstrapCustody(value: Record<string, unknown>) {
   return (
     value.opportunity === emptyApplicationBootstrap.opportunity &&

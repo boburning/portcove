@@ -122,6 +122,13 @@ export interface PagesRequestEvidence {
   status: number | null;
   request_id: string | null;
   native_outcome?: string;
+  acknowledgement_refusal?: {
+    object: boolean;
+    id_type: "string" | "number" | "absent" | "other";
+    id_valid: boolean;
+    status_url_matches: boolean;
+    page_url_matches: boolean;
+  };
 }
 
 function identity(value: unknown): PagesDeploymentIdentity {
@@ -185,6 +192,7 @@ export function createPagesProviderTransport(
     id: string,
     response?: PagesReply,
     nativeOutcome?: string,
+    acknowledgementRefusal?: PagesRequestEvidence["acknowledgement_refusal"],
   ) => {
     const requestId = response?.request_id;
     injected.evidence?.({
@@ -193,6 +201,7 @@ export function createPagesProviderTransport(
       status: response?.status ?? null,
       request_id: requestId && /^[0-9A-F:]{1,128}$/iu.test(requestId) ? requestId : null,
       ...(nativeOutcome ? { native_outcome: nativeOutcome } : {}),
+      ...(acknowledgementRefusal ? { acknowledgement_refusal: acknowledgementRefusal } : {}),
     });
   };
   return {
@@ -252,28 +261,57 @@ export function createPagesProviderTransport(
           "Pages POST outcome ambiguous; preserve pending intent and require readback",
         );
       }
-      evidence("create", buildVersion, response);
-      remaining();
       const body = response.body;
-      if (
-        response.status !== 200 ||
-        !isRecord(body) ||
-        typeof body.id !== "string" ||
-        !deploymentId.test(body.id) ||
-        ![
-          `https://api.github.com/${endpoint}/${body.id}`,
-          `https://api.github.com/${endpoint}/${body.id}/status`,
-        ].includes(String(body.status_url)) ||
-        ![publicUrl, publicUrl.slice(0, -1), publicUrl.slice(8), publicUrl.slice(8, -1)].includes(
-          String(body.page_url),
-        )
-      )
+      const object = isRecord(body);
+      const rawId = object ? body.id : undefined;
+      const id = typeof rawId === "string" && deploymentId.test(rawId) ? rawId : undefined;
+      const statusMatches = !!(
+        id &&
+        object &&
+        typeof body.status_url === "string" &&
+        [
+          `https://api.github.com/${endpoint}/${id}`,
+          `https://api.github.com/${endpoint}/${id}/status`,
+        ].includes(body.status_url)
+      );
+      const pageMatches =
+        object &&
+        typeof body.page_url === "string" &&
+        [publicUrl, publicUrl.slice(0, -1), publicUrl.slice(8), publicUrl.slice(8, -1)].includes(
+          body.page_url,
+        );
+      const acknowledged =
+        response.status === 200 && id !== undefined && statusMatches && pageMatches;
+      evidence(
+        "create",
+        buildVersion,
+        response,
+        undefined,
+        acknowledged
+          ? undefined
+          : {
+              object,
+              id_type:
+                typeof rawId === "string"
+                  ? "string"
+                  : typeof rawId === "number"
+                    ? "number"
+                    : rawId === undefined
+                      ? "absent"
+                      : "other",
+              id_valid: id !== undefined,
+              status_url_matches: statusMatches,
+              page_url_matches: pageMatches,
+            },
+      );
+      remaining();
+      if (!acknowledged)
         throw new Error(
           "Pages POST acknowledgement unavailable; preserve pending intent and require readback",
         );
-      evidence("acknowledged", body.id, response);
+      evidence("acknowledged", id, response);
       return {
-        ...identity({ ...expected, id: body.id }),
+        ...identity({ ...expected, id }),
         evidence_scope: scope,
         stage: "provider-acknowledged" as const,
         acceptance: "pending-public-readback" as const,

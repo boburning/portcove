@@ -11,6 +11,7 @@ import { inspectSiteGeneration } from "./release-site-generation.mts";
 import {
   failedBootstrapRecovery,
   immutableApplicationBootstrap,
+  recoveredApplicationBootstrap,
 } from "./application-release-run.mts";
 import type {
   createPagesProviderTransport,
@@ -34,6 +35,8 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
     return (
       !url.search &&
       (suffix === "pages" ||
+        suffix === `pages/deployments/${recoveredApplicationBootstrap.control_commit}` ||
+        suffix === `git/ref/${recoveredApplicationBootstrap.control_ref.slice("refs/".length)}` ||
         /^deployments\/[1-9][0-9]*$/u.test(suffix) ||
         /^actions\/(?:jobs\/[1-9][0-9]*|runs\/[1-9][0-9]*\/attempts\/[1-3])$/u.test(suffix) ||
         /^git\/ref\/tags\/(?:portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})|v[0-9][A-Za-z0-9.+-]{1,127})$/u.test(
@@ -245,7 +248,25 @@ function* applicationPagesState(admission?: FeedAdmission, recoverInitialBootstr
     assert.ok(failed.every((execution) => selected.deployment.id !== execution.admission_id));
   }
   const { deployment, status } = selected;
-  if (admission?.selection !== "current") assert.equal(status.state, "success");
+  if (admission?.selection !== "current") {
+    if (deployment.id === recoveredApplicationBootstrap.admission_id) {
+      const recovered = recoveredApplicationBootstrap;
+      assert.equal(deployment.sha, recovered.control_commit);
+      assert.equal(deployment.ref, recovered.control_ref.slice("refs/tags/".length));
+      assert.equal(status.id, recovered.status_id);
+      assert.equal(status.state, "failure");
+      assert.equal(status.environment, "github-pages");
+      assert.equal(
+        status.log_url,
+        `https://github.com/boburning/portcove/actions/runs/${recovered.run_id}/job/${recovered.job_id}`,
+      );
+      const native = yield* get(`pages/deployments/${recovered.control_commit}`);
+      assert.ok(
+        isRecord(native) && native.status === "succeed",
+        "recovered Pages effect is unavailable",
+      );
+    } else assert.equal(status.state, "success");
+  }
   return {
     deployment_id: deployment.id,
     ...(admission ? { admission_id: current.deployment.id } : {}),
@@ -312,6 +333,8 @@ function* applicationPagesExecution(
   assert.ok(match, "Pages actor has no canonical Actions job URL");
   const runId = Number(match[1]),
     jobId = Number(match[2]);
+  const recovered = recoveredApplicationBootstrap;
+  const isRecovered = state.deployment_id === recovered.admission_id;
   assert.ok(Number.isSafeInteger(runId) && Number.isSafeInteger(jobId));
   function* get(suffix: string): PagesRead<Record<string, unknown>> {
     const response = yield* readPagesResponse(suffix);
@@ -352,7 +375,7 @@ function* applicationPagesExecution(
         isRecord(step) &&
         step.name === "Reconcile initial application Pages deployment" &&
         step.status === "completed" &&
-        step.conclusion === "success",
+        step.conclusion === (isRecovered ? "failure" : "success"),
     );
   assert.ok(
     start <= end && end - start <= (recovery ? 16 : 2) * 60000,
@@ -404,12 +427,30 @@ function* applicationPagesExecution(
   );
   const status = statuses.body[0];
   assert.equal(status.id, state.status_id);
-  assert.equal(status.state, "success");
+  assert.equal(status.state, isRecovered ? "failure" : "success");
   assert.equal(status.log_url, state.log_url);
   const created = instant(deployment.created_at),
-    succeeded = instant(status.created_at);
-  const duringJob = start <= created && created <= succeeded && succeeded <= end;
-  if (!duringJob) {
+    settled = instant(status.created_at);
+  const duringJob = start <= created && created <= settled && settled <= end;
+  if (isRecovered) {
+    assert.equal(String(runId), recovered.run_id);
+    assert.equal(jobId, recovered.job_id);
+    assert.equal(job.run_attempt, recovered.attempt);
+    assert.equal(job.head_sha, recovered.control_commit);
+    assert.equal(controlRef, recovered.control_ref);
+    assert.equal(state.status_id, recovered.status_id);
+    assert.equal(job.conclusion, "failure");
+    assert.equal(run.status, "completed");
+    assert.equal(run.conclusion, "failure");
+    assert.equal(run.display_title, `Application ${immutableApplicationBootstrap.opportunity}`);
+    assert.ok(recovery && start <= end && end <= settled);
+    const reference = yield* get(`git/ref/${recovered.control_ref.slice("refs/".length)}`);
+    assert.equal(reference.ref, recovered.control_ref);
+    assert.ok(isRecord(reference.object));
+    assert.equal(reference.object.type, "commit");
+    assert.equal(reference.object.sha, recovered.control_commit);
+  }
+  if (!duringJob || isRecovered) {
     // Actions creates its environment admission before starting the job and
     // can publish the final status after the job has completed.
     const app = deployment.performed_via_github_app;
@@ -422,7 +463,7 @@ function* applicationPagesExecution(
         app.slug === "github-actions" &&
         deployment.sha === job.head_sha &&
         job.head_branch === run.head_branch &&
-        job.conclusion === "success" &&
+        job.conclusion === (isRecovered ? "failure" : "success") &&
         job.html_url === state.log_url &&
         status.target_url === state.log_url &&
         status.environment === "github-pages" &&
@@ -431,8 +472,8 @@ function* applicationPagesExecution(
         (run.status === "completed" || activeRecovery) &&
         instant(run.run_started_at) <= created &&
         created <= start &&
-        start <= succeeded &&
-        (activeRecovery || Math.max(end, succeeded) <= instant(run.updated_at)),
+        start <= settled &&
+        (activeRecovery || Math.max(end, settled) <= instant(run.updated_at)),
       "Pages deployment is outside its claimed original feed job or Actions admission",
     );
   }
