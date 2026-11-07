@@ -174,6 +174,18 @@ export function payloadSigningEnvironment(scratch: string): NodeJS.ProcessEnv {
   return env;
 }
 
+export async function preparePayloadSigningEnvironment(scratch: string) {
+  const env = payloadSigningEnvironment(scratch);
+  for (const directory of new Set(
+    Object.values(env).filter(
+      (value): value is string =>
+        typeof value === "string" && value.startsWith(`${scratch}${path.sep}`),
+    ),
+  ))
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+  return env;
+}
+
 export function assertSignedPayloadVersion(signature: string, filename: string, version: string) {
   if (signature.length > 16 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(signature))
     throw new Error("invalid Tauri signature encoding");
@@ -250,13 +262,7 @@ export async function signReleasePayload(
   let phase = "initialize-private-environment";
   const observed: Record<string, unknown> = {};
   try {
-    for (const directory of new Set(
-      Object.values(payloadSigningEnvironment(scratch)).filter(
-        (value): value is string =>
-          typeof value === "string" && value.startsWith(`${scratch}${path.sep}`),
-      ),
-    ))
-      await mkdir(directory, { recursive: true, mode: 0o700 });
+    await preparePayloadSigningEnvironment(scratch);
     phase = "acquire-pinned-tools";
     const toolPaths: Record<string, string> = {};
     for (const [name, tool] of Object.entries(tools)) {
