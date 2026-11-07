@@ -334,6 +334,25 @@ export const immutableApplicationBootstrap = {
   failed_admission_status_id: 21637635759,
 } as const;
 
+/** The only additional bootstrap run eligible for continuation. Its fixed
+ * worker retained exact evidence that it stopped before the native create. */
+export const failedBootstrapRecovery = {
+  run_id: "42398614639",
+  producer_attempt: 1,
+  control_commit: "c7a1569a19b7cc44241d211fbf28b7ed581197ca",
+  control_ref: "refs/tags/portcove-production-controller-windows-20261105r28",
+  next_control_ref: "refs/tags/portcove-production-controller-windows-20261105r29",
+  feed_job_id: 128482597355,
+  admission_id: 7624865893,
+  failed_admission_status_id: 21662827913,
+  pages_artifact_id: 13584064908,
+  evidence_artifact_id: 13584558267,
+  evidence_artifact_bytes: 600,
+  evidence_artifact_sha256: "964e8a2135688f447b3cdb5c32dbcd118e0c3f76df47dffc0350617f91281dd3",
+  evidence_sha256: "fc8afee4767b752b823aa07240bd30683070e800a7f57a57b49dd07c78f2abaa",
+  actual_milliseconds: 356_000,
+} as const;
+
 export function isEmptyApplicationBootstrapCustody(value: Record<string, unknown>) {
   return (
     value.opportunity === emptyApplicationBootstrap.opportunity &&

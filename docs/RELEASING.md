@@ -2363,6 +2363,13 @@ An expired role or a different site inventory requires a separately qualified
 successor. The recovery job uses its own finite reservation under application140
 and carries the original opportunity charges forward.
 
+The r28 recovery refused before native create when its protection observation
+exceeded 60 seconds. Its retained attempt artifact binds the exact failed
+admission and contains only native status requests. The r29 path authenticates
+that artifact during feed preparation and verifies both failed admissions.
+It runs one complete budget check after acquiring OIDC and preserves the
+original protection freshness deadline at the write boundary.
+
 ## Upgrade acceptance and technical previews
 
 The first Windows public beta requires the complete applicable Windows/shared

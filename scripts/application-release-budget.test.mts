@@ -7,6 +7,7 @@ import {
   readApplicationJobBudget,
   permitsEmptyBootstrapContinuation,
   permitsBudgetedEmptyBootstrap,
+  readBootstrapRecoveryObservations,
 } from "./application-release-budget.mts";
 import {
   inspectApplicationRunCustody,
@@ -14,6 +15,7 @@ import {
   registerApplicationBudgetRun,
   createApplicationRunRegistrationProvider,
   immutableApplicationBootstrap,
+  failedBootstrapRecovery,
 } from "./application-release-run.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
@@ -62,6 +64,54 @@ const job = (name: string, start: number, seconds: number) => ({
 });
 const jobs = (rows: unknown[]) => ({ total_count: rows.length, jobs: rows });
 
+void test("bootstrap recovery reads at most four attempt and job requests concurrently", async () => {
+  let active = 0;
+  let maximum = 0;
+  const calls: string[] = [];
+  const read = async (route: string, runId: number, attempt: number) => {
+    assert.equal(attempt, 1);
+    const label = `${route}-${runId}`;
+    calls.push(label);
+    maximum = Math.max(maximum, ++active);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    active--;
+    return label;
+  };
+  const provider = {
+    attempt: (runId: number, attempt: number) => read("attempt", runId, attempt),
+    jobs: (runId: number, attempt: number) => read("jobs", runId, attempt),
+  };
+  const result = await readBootstrapRecoveryObservations(provider, [8, 4, 6]);
+  assert.equal(maximum, 4);
+  assert.equal(active, 0);
+  assert.deepEqual(
+    [...result],
+    [
+      [8, { context: "attempt-8", jobs: "jobs-8" }],
+      [4, { context: "attempt-4", jobs: "jobs-4" }],
+      [6, { context: "attempt-6", jobs: "jobs-6" }],
+    ],
+  );
+  calls.length = 0;
+  await assert.rejects(
+    () =>
+      readBootstrapRecoveryObservations(
+        {
+          ...provider,
+          async attempt(runId, attempt) {
+            const observed = await provider.attempt(runId, attempt);
+            if (runId === 8) throw new Error("inert provider refusal");
+            return observed;
+          },
+        },
+        [8, 4, 6],
+      ),
+    /inert provider refusal/u,
+  );
+  assert.deepEqual(calls, ["attempt-8", "jobs-8", "attempt-4", "jobs-4"]);
+  assert.equal(active, 0);
+});
+
 void test("native executed feed history survives copied rows and distinguishes unstarted skipped work", () => {
   const original = job("feed", 0, 2);
   const first = { context: context(1), jobs: jobs([original]) };
@@ -69,6 +119,7 @@ void test("native executed feed history survives copied rows and distinguishes u
   const facts = inspectApplicationJobBudget([first, second], source, run);
   assert.equal(facts.feed_executions.length, 1);
   assert.equal(facts.feed_executions[0]!.attempt, 1);
+  assert.equal(facts.feed_executions[0]!.job_id, original.id);
   const skipped = inspectApplicationJobBudget(
     [{ context: context(1), jobs: jobs([{ ...original, conclusion: "skipped", steps: [] }]) }],
     source,
@@ -1093,4 +1144,53 @@ void test("budgeted bootstrap binds every successor to complete failed history w
   assert.equal(permitRecovery(), true);
   assert.equal(permitRecovery({ ...recoveryExecution, run_attempt: 2 }), false);
   assert.equal(permitRecovery(recoveryExecution, owner), false);
+
+  const failed = failedBootstrapRecovery;
+  const failedRun = {
+    ...originalRun,
+    id: Number(failed.run_id),
+    head_sha: failed.control_commit,
+    head_branch: tag(28),
+  };
+  const retryRun = { ...recoveryRun, id: 42400000111, head_branch: tag(29) };
+  const retryExecution = {
+    ...recoveryExecution,
+    ref: failed.next_control_ref,
+    run_id: String(retryRun.id),
+  };
+  const retryRuns = [...runs.slice(0, 4), originalRun, failedRun, retryRun];
+  const retryOwner = {
+    release_id: recoveryOwner.release_id,
+    custody: inspectApplicationRunCustody({
+      ...raw,
+      runs: retryRuns.slice(1).map((row) => ({
+        id: String(row.id),
+        control_commit: row.head_sha,
+        control_ref: "refs/tags/" + row.head_branch,
+      })),
+    }),
+  };
+  const permitRetry = (
+    inventory = retryRuns,
+    execution: typeof recoveryExecution = retryExecution,
+    candidateOwner: typeof owner = retryOwner,
+  ) =>
+    permitsBudgetedEmptyBootstrap(
+      inventory,
+      execution,
+      opportunity,
+      "metadata-bootstrap",
+      "bootstrap-recovery",
+      candidateOwner,
+    );
+  assert.equal(permitRetry(), true);
+  assert.equal(permitRetry(retryRuns, { ...retryExecution, run_attempt: 2 }), false);
+  assert.equal(permitRetry(retryRuns, { ...retryExecution, ref: "refs/tags/" + tag(30) }), false);
+  assert.equal(permitRetry(retryRuns, retryExecution, recoveryOwner), false);
+  assert.equal(
+    permitRetry(
+      retryRuns.map((row) => (row.id === failedRun.id ? { ...row, conclusion: "success" } : row)),
+    ),
+    false,
+  );
 });

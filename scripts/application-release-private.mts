@@ -166,6 +166,7 @@ import {
   readRegisteredApplicationRuns,
   emptyApplicationBootstrap,
   immutableApplicationBootstrap,
+  failedBootstrapRecovery,
   isEmptyApplicationBootstrapCustody,
   createApplicationRunRegistrationProvider,
   inspectApplicationReleaseReference,
@@ -1964,6 +1965,22 @@ async function preflightBootstrapSite() {
   if (recoverInitialBootstrap) {
     assert.equal(site.generation, immutableApplicationBootstrap.generation);
     assertCurrentApplicationPublication(feed.publication);
+    const prior = failedBootstrapRecovery;
+    assert.equal(current.ref, prior.next_control_ref);
+    const evidence = path.resolve("work/previous-bootstrap-effect");
+    const archive = await receiveApplicationData(evidence, {
+      id: prior.evidence_artifact_id,
+      name: `application-site-publication-${prior.run_id}-${prior.producer_attempt}`,
+      source: prior.control_commit,
+      run_id: prior.run_id,
+      files: ["pages-evidence.json"],
+      maximum_file_bytes: 8192,
+      maximum_archive_bytes: prior.evidence_artifact_bytes,
+    });
+    assert.equal(archive.bytes, prior.evidence_artifact_bytes);
+    assert.equal(archive.sha256, prior.evidence_artifact_sha256);
+    const receipt = await applicationFileIdentity(path.join(evidence, "pages-evidence.json"));
+    assert.equal(receipt.sha256, prior.evidence_sha256);
   }
   assert.ok(isRecord(source.run_custody));
   const custody = inspectApplicationRunCustody(source.run_custody.custody);
@@ -2044,6 +2061,9 @@ async function preflightBootstrapSite() {
       pages.artifact.id,
       recoverInitialBootstrap ? current.source : undefined,
     ),
+    ...(recoverInitialBootstrap
+      ? { previous_precreate_sha256: failedBootstrapRecovery.evidence_sha256 }
+      : {}),
     preimage,
     ...(windowsCandidate ? { windows_candidate: windowsCandidate } : {}),
   });
@@ -2057,7 +2077,10 @@ async function deployBootstrapSite(readOnly = false) {
   const markStage = (stage: string) => {
     publicationStage = stage;
   };
-  const controls = await guard(source, false, { markStage });
+  // Recovery performs its complete live budget read once, after OIDC and before
+  // create. Its fixed historical read-only lookups do not use a write grant.
+  const controls =
+    !recoverInitialBootstrap || readOnly ? await guard(source, false, { markStage }) : undefined;
   publicationStage = "preflight-input";
   const current = execution();
   const attempt = Number(process.env.PORTCOVE_SITE_PREFLIGHT_ATTEMPT);
@@ -2102,6 +2125,8 @@ async function deployBootstrapSite(readOnly = false) {
       isRecord(plan.preimage),
   );
   const site = inspectSiteGeneration(plan.site, plan.site.generation);
+  if (recoverInitialBootstrap)
+    assert.equal(plan.previous_precreate_sha256, failedBootstrapRecovery.evidence_sha256);
   assert.equal(site.application_root_sha256, applicationReleaseTrust.root.sha256);
   if (source.purpose === "metadata-bootstrap") {
     assert.equal(site.previous_generation, null);
@@ -2145,31 +2170,38 @@ async function deployBootstrapSite(readOnly = false) {
           site.generation,
         )
       : undefined;
-  const priorRuns = (facts: typeof controls) =>
+  const priorRuns = (facts: Awaited<ReturnType<typeof guard>>) =>
     facts.budget.runs.filter(
       (run) =>
         (!recoverInitialBootstrap || run.run_id !== current.run_id) &&
         run.feed_executions.length > 0,
     );
-  const prior = priorRuns(controls);
+  const prior = controls ? priorRuns(controls) : [];
   const original = immutableApplicationBootstrap;
-  const assertRecovery = (facts: typeof controls) => {
+  const assertRecovery = (facts: Awaited<ReturnType<typeof guard>>) => {
     assert.equal(source.purpose, "metadata-bootstrap");
     assert.equal(plan.release_id, original.release_id);
     assert.equal(site.generation, original.generation);
     assert.notEqual(current.source, original.assembly.control_commit);
+    assert.equal(current.ref, failedBootstrapRecovery.next_control_ref);
     assert.equal(current.run_attempt, 1);
-    assert.deepEqual(priorRuns(facts), prior);
-    assert.equal(prior.length, 1);
-    assert.equal(String(prior[0]?.run_id), original.assembly.run_id);
-    const executions = prior[0]!.feed_executions;
-    assert.equal(executions.length, 1);
-    assert.equal(executions[0]?.attempt, original.assembly.producer_attempt);
-    assert.equal(executions[0]?.conclusion, "failure");
-    assert.ok(Date.now() - Date.parse(String(executions[0]?.completed_at)) >= 10 * 60_000);
+    const previous = new Map(priorRuns(facts).map((run) => [run.run_id, run]));
+    const expected = [{ ...original, ...original.assembly }, failedBootstrapRecovery];
+    assert.equal(previous.size, expected.length);
+    for (const execution of expected) {
+      const run = previous.get(execution.run_id);
+      assert.ok(run);
+      assert.equal(run.feed_executions.length, 1);
+      const feed = run.feed_executions[0]!;
+      assert.equal(feed.job_id, execution.feed_job_id);
+      assert.equal(feed.attempt, execution.producer_attempt);
+      assert.equal(feed.conclusion, "failure");
+    }
+    const ended = previous.get(original.assembly.run_id)?.feed_executions[0]?.completed_at;
+    assert.ok(Date.now() - Date.parse(String(ended)) >= 10 * 60_000);
     assertCurrentApplicationPublication(plan.publication);
   };
-  if (recoverInitialBootstrap) assertRecovery(controls);
+  if (recoverInitialBootstrap && controls) assertRecovery(controls);
   const deadline =
     performance.now() + (recoverInitialBootstrap && !readOnly ? 13 * 60_000 : 90_000);
   const requests: PagesRequestEvidence[] = [];
@@ -2241,7 +2273,7 @@ async function deployBootstrapSite(readOnly = false) {
     admissionId = admission_id;
   };
   const priorEffect =
-    prior.length > 0
+    recoverInitialBootstrap || prior.length > 0
       ? {
           identity: {
             id: site.generation,
@@ -2378,6 +2410,7 @@ async function deployBootstrapSite(readOnly = false) {
           const adopted = recoverInitialBootstrap && resolution === "recovered-original-effect";
           if (adopted) {
             assert.equal(preimageKind, "recovery-visible");
+            assertRecovery(await guard(source, false, { markStage }));
             await verifyServingActor();
           }
           const newEffect =
