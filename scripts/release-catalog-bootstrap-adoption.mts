@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readApplicationPriorPublication } from "./application-release-feed.mts";
 import { immutableApplicationBootstrap } from "./application-release-run.mts";
 import { readActualApplicationPagesState } from "./application-release-site.mts";
+import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -18,6 +19,21 @@ import {
   materializePublishedApplicationComponent,
   readPublicApplicationSiteMarker,
 } from "./release-site-readback.mts";
+
+/** This checks the current authenticated coordinator observation; the
+ * historical journal counters remain untouched by the app-only import. */
+export function assertStandaloneBootstrapAdoptionCapacity(observation: unknown) {
+  if (
+    !isRecord(observation) ||
+    observation.phase !== "coordinator" ||
+    observation.purpose !== "catalog-coordinator-controls" ||
+    observation.resource_policy_matches_controller !== true ||
+    !isRecord(observation.capacity_source) ||
+    !isRecord(observation.capacity_source.report) ||
+    observation.capacity_source.report.eligibility !== "eligible"
+  )
+    throw new Error("current catalog capacity is ineligible for standalone bootstrap adoption");
+}
 
 /** Read the single appointed standalone publication. This returns no journal
  * write capability. Its owning caller still authenticates the journal CAS. */

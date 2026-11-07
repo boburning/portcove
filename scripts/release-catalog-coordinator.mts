@@ -60,7 +60,10 @@ import {
 } from "./release-catalog-inspection.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
 import { inspectCatalogInitialization } from "./release-catalog-publication-contract.mts";
-import { authenticateStandaloneBootstrapAdoption } from "./release-catalog-bootstrap-adoption.mts";
+import {
+  assertStandaloneBootstrapAdoptionCapacity,
+  authenticateStandaloneBootstrapAdoption,
+} from "./release-catalog-bootstrap-adoption.mts";
 import { standaloneBootstrapAdoption } from "./release-metadata-contract.mts";
 import {
   currentPublishedSite,
@@ -406,9 +409,10 @@ export async function runFixedCatalogCoordinatorConfiguration(
           tools,
           deadline,
         );
-        const { readMaintenance, stable } = await observeControls(
+        const { readMaintenance, observed, stable } = await observeControls(
           capacityDigest({ checkpoint: recovered.checkpoint, standalone_bootstrap: metadata }),
         );
+        assertStandaloneBootstrapAdoptionCapacity(observed);
         const publicationReader = await openPublicationReader();
         const readInventory = async () => {
           const tags = await publicationReader.tags();
@@ -423,11 +427,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         const inventorySha256 = capacityDigest(inventory);
         const checkpointControls = async () => {
           check();
-          const observed = await readMaintenance();
+          const current = await readMaintenance();
+          assertStandaloneBootstrapAdoptionCapacity(current);
           if (
-            observed.pause.publication_paused ||
-            !observed.resource_policy_matches_controller ||
-            catalogCoordinatorMaintenanceIdentity(observed) !== stable ||
+            current.pause.publication_paused ||
+            catalogCoordinatorMaintenanceIdentity(current) !== stable ||
             (await requireControllerCatalogCoordinatorAuthorities()).configuration_sha256 !==
               authorities.configuration_sha256
           )

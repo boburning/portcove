@@ -545,6 +545,16 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
   );
   assert.equal(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
   assert.equal(hash(bytes), slice4CapacityResources.input_workflow_sha256);
+  assert.ok(isRecord(jobs.coordinator));
+  assert.deepEqual(jobs.coordinator.permissions, {
+    contents: "write",
+    actions: "write",
+    "id-token": "write",
+    attestations: "write",
+    checks: "read",
+    pages: "read",
+    deployments: "read",
+  });
   for (const role of ["definitions", "policy", "snapshot", "timestamp"]) {
     const job = jobs[`catalog_${role}`];
     assert.ok(isRecord(job));

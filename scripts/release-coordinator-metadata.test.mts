@@ -10,6 +10,7 @@ import {
   validatePublishedMetadataTransition,
 } from "./release-metadata-contract.mts";
 import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
+import { assertStandaloneBootstrapAdoptionCapacity } from "./release-catalog-bootstrap-adoption.mts";
 import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -52,6 +53,24 @@ import {
   checkpointEvidence,
   remoteCapacityFixture,
 } from "./fixtures/coordinator-state-fixtures.mts";
+
+void test("standalone bootstrap adoption requires current eligible catalog capacity", () => {
+  const catalog = {
+    phase: "coordinator",
+    purpose: "catalog-coordinator-controls",
+    resource_policy_matches_controller: true,
+    capacity_source: { report: { eligibility: "eligible" } },
+  };
+  assertStandaloneBootstrapAdoptionCapacity(catalog);
+  for (const changed of [
+    { ...catalog, purpose: "metadata-coordinator-controls" },
+    { ...catalog, phase: "site-publication" },
+    { ...catalog, resource_policy_matches_controller: false },
+    { ...catalog, capacity_source: { report: { eligibility: "ineligible" } } },
+    { ...catalog, capacity_source: {} },
+  ])
+    assert.throws(() => assertStandaloneBootstrapAdoptionCapacity(changed), /ineligible/u);
+});
 
 void test("one settled standalone bootstrap can seed the app-only cursor without replacing its abandoned descriptor", async (t) => {
   const generation: string = standaloneBootstrapAdoption.generation;
