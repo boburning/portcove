@@ -114,7 +114,8 @@
         "serial": "SLUS-01066",
         "track_sha1": "f5cb80a7d55aaced7fcc9c5a82a6c28b89dc489a",
         "track_sha256": "7a69101183b76eadf02336963c6a89822b76aca2b3fa6537288d9f13bf6d16ed",
-        "generated_executable": "Tony_Hawks_Pro_Skater_2_Recompiled.exe"
+        "generated_executable": "Tony_Hawks_Pro_Skater_2_Recompiled.exe",
+        "track_count": 1
       }
     },
     "alexbeav-tony-hawk-s-pro-skater-3-recomp": {
@@ -127,7 +128,8 @@
         "serial": "SLUS-01419",
         "track_sha1": "757cc517b2d25f6d0112d0d4efa9efdfa2553967",
         "track_sha256": "674ac2073877922e9a12dbf1117b80109d5a8c8e262075da60f21f4e861fc485",
-        "generated_executable": "Tony_Hawks_Pro_Skater_3_Recompiled.exe"
+        "generated_executable": "Tony_Hawks_Pro_Skater_3_Recompiled.exe",
+        "track_count": 1
       }
     },
     "alexbeav-tony-hawk-s-pro-skater-4-recomp": {
@@ -140,7 +142,8 @@
         "serial": "SLUS-01485",
         "track_sha1": "4857b347c6aec4180311b8f1beafc281d34a254a",
         "track_sha256": "c632a348d7013336c2c182f33ea86ac14a7bae0eba3892a7b5f14b9848ddab09",
-        "generated_executable": "Tony_Hawks_Pro_Skater_4_Recompiled.exe"
+        "generated_executable": "Tony_Hawks_Pro_Skater_4_Recompiled.exe",
+        "track_count": 1
       }
     },
     "alexbeav-tony-hawk-s-pro-skater-recomp": {
@@ -153,7 +156,8 @@
         "serial": "SLUS-00860",
         "track_sha1": "84fb50ddf68ced4ad8549b51a6dbfdb96650f266",
         "track_sha256": "f1398cd15138a947fb3d49e1d31c7fe2aae9436ec09e32df917c658ccac30da9",
-        "generated_executable": "Tony_Hawks_Pro_Skater_Recompiled.exe"
+        "generated_executable": "Tony_Hawks_Pro_Skater_Recompiled.exe",
+        "track_count": 1
       }
     },
     "alexbeav-oddworld-abe-s-oddysee-recomp": {
@@ -167,7 +171,8 @@
         "track_sha1": "3507fb96d6c5d60f30b1d1b9e4b6dfc468f7cef0",
         "track_sha256": "1c69fd850763dd784d1bd581ee72b0bda212ba8227b827c3b2d58bf9f82eee45",
         "generated_executable": "Oddworld__Abe_s_Oddysee_Recompiled.exe",
-        "revision": "Rev 2"
+        "revision": "Rev 2",
+        "track_count": 1
       }
     },
     "alexbeav-syphon-filter-3-recomp": {
@@ -180,7 +185,8 @@
         "serial": "SCUS-94640",
         "track_sha1": "4abe30077c2b449ea68239083df7932d47ae0b69",
         "track_sha256": "2c36429649e50036fd5c9187bdc3ff23e04039499e7cdf1aba5cfd5a3badcb38",
-        "generated_executable": "Syphon_Filter_3_Recompiled.exe"
+        "generated_executable": "Syphon_Filter_3_Recompiled.exe",
+        "track_count": 1
       }
     },
     "alexbeav-tenchu-stealth-assassins-recomp": {
@@ -194,7 +200,34 @@
         "track_sha1": "a33ca500872e3471b8d096b21eff3d30a310284c",
         "track_sha256": "6834c77860ec3d16bc7ed4ba2fd409573e1584adb92c63c0a1e55669963c768a",
         "generated_executable": "Tenchu_Stealth_Assassins_Recompiled.exe",
-        "revision": "Rev 1"
+        "revision": "Rev 1",
+        "track_count": 1
+      }
+    },
+    "alexbeav-monster-rancher-2-recomp": {
+      "inventory": "alexbeav-monster-rancher-2-recomp",
+      "selected_assets": [
+        "monster-rancher-2-recomp-0.1.3-windows-x64.zip",
+        "monster-rancher-2-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00917",
+        "track_count": 1,
+        "track_sha1": "e7418d1491e1809490b2e5fe20d738cb730e5e22",
+        "generated_executable": "Monster_Rancher_2_Recompiled.exe"
+      }
+    },
+    "alexbeav-nightmare-creatures-recomp": {
+      "inventory": "alexbeav-nightmare-creatures-recomp",
+      "selected_assets": [
+        "nightmare-creatures-recomp-0.1.3-windows-x64.zip",
+        "nightmare-creatures-recomp-999.123.456-windows-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00582",
+        "track_count": 26,
+        "track_sha1": "67d9fb2ab81a54c1129a5a42ec0991c756a2f125",
+        "generated_executable": "Nightmare_Creatures_Recompiled.exe"
       }
     }
   },
@@ -1976,6 +2009,144 @@
           }
         ]
       }
+    ],
+    "alexbeav-monster-rancher-2-recomp": [
+      {
+        "id": 399988684,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:43:04Z",
+        "assets": [
+          {
+            "id": 600788790,
+            "name": "monster-rancher-2-recomp-0.1.3-linux-x64.zip",
+            "size": 27797934,
+            "digest": "sha256:f5c0046db7a19576524fce80d9379629abb7baaba94bf693f2142df843b9ed7f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/releases/download/v0.1.3/monster-rancher-2-recomp-0.1.3-linux-x64.zip"
+          },
+          {
+            "id": 600788809,
+            "name": "monster-rancher-2-recomp-0.1.3-macos-arm64.zip",
+            "size": 25541285,
+            "digest": "sha256:3fe369414733b88cd03263f9255bc8e8ed3220d18f4d76a860656e1f6dd186d1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/releases/download/v0.1.3/monster-rancher-2-recomp-0.1.3-macos-arm64.zip"
+          },
+          {
+            "id": 600788789,
+            "name": "monster-rancher-2-recomp-0.1.3-macos-x64.zip",
+            "size": 25889566,
+            "digest": "sha256:16622bca054540f65b5c8367126a85fcac331083d2724907e27edf10b76ecf5d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/releases/download/v0.1.3/monster-rancher-2-recomp-0.1.3-macos-x64.zip"
+          },
+          {
+            "id": 600788796,
+            "name": "monster-rancher-2-recomp-0.1.3-windows-x64.zip",
+            "size": 29904850,
+            "digest": "sha256:227787825930e0fd93fbed5821e304bd23cbd5a46d9de469a561d0de76dda50f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/releases/download/v0.1.3/monster-rancher-2-recomp-0.1.3-windows-x64.zip"
+          },
+          {
+            "id": 600788798,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2867,
+            "digest": "sha256:625ae8569fe42beb523899e9349cd2f3b73a57cd4ae1d02d62072ea8e1d088f4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600788832,
+            "name": "SHA256SUMS.txt",
+            "size": 448,
+            "digest": "sha256:ae76a3166666ccccaa8c0f7627ad1c869d21b3d450c20830f0ea01d244b61462",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/releases/download/v0.1.3/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999800930,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999800931,
+            "name": "monster-rancher-2-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/monster-rancher-2-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "alexbeav-nightmare-creatures-recomp": [
+      {
+        "id": 399989228,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-30T11:43:48Z",
+        "assets": [
+          {
+            "id": 600790069,
+            "name": "nightmare-creatures-recomp-0.1.3-linux-x64.zip",
+            "size": 27780496,
+            "digest": "sha256:b05e43cc8eb8a927a331d0307c30e36b78e4ea7c3413874215e2a9d42b471ec3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/releases/download/v0.1.3/nightmare-creatures-recomp-0.1.3-linux-x64.zip"
+          },
+          {
+            "id": 600790074,
+            "name": "nightmare-creatures-recomp-0.1.3-macos-arm64.zip",
+            "size": 25524076,
+            "digest": "sha256:e4f81f6150c2214ebd0a18b95c9e217fa3ad10ac8ddd9ac1a94c133ee883f827",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/releases/download/v0.1.3/nightmare-creatures-recomp-0.1.3-macos-arm64.zip"
+          },
+          {
+            "id": 600790068,
+            "name": "nightmare-creatures-recomp-0.1.3-macos-x64.zip",
+            "size": 25872831,
+            "digest": "sha256:2e31837e2a1642e984bca0302fba43728219bb7f7850c7ffe8ba5a0a06330243",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/releases/download/v0.1.3/nightmare-creatures-recomp-0.1.3-macos-x64.zip"
+          },
+          {
+            "id": 600790067,
+            "name": "nightmare-creatures-recomp-0.1.3-windows-x64.zip",
+            "size": 29885714,
+            "digest": "sha256:d6381ace8b2d1bf6107a88ce71fbbd638e0847b59bc3ff8a766261c1e0f4bcd2",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/releases/download/v0.1.3/nightmare-creatures-recomp-0.1.3-windows-x64.zip"
+          },
+          {
+            "id": 600790062,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2885,
+            "digest": "sha256:8063b1c1f43b1c2f3aa677579afd292add0b51b22a769c410dfa288ca46199e0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 600790082,
+            "name": "SHA256SUMS.txt",
+            "size": 456,
+            "digest": "sha256:8eafce574a9d2b9fb3d006398f8cd96297af6a2a1a90dee37d5490d1a7701530",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/releases/download/v0.1.3/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999800944,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": [
+          {
+            "id": 999800945,
+            "name": "nightmare-creatures-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/nightmare-creatures-recomp-999.123.456-windows-x64.zip",
+            "size": 29700000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -2363,6 +2534,36 @@
       "inventory": "alexbeav-tenchu-stealth-assassins-recomp",
       "release_index": 0,
       "asset": "tenchu-stealth-assassins-recomp-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-monster-rancher-2-recomp",
+      "release_index": 0,
+      "asset": "monster-rancher-2-recomp-0.1.3-linux-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-monster-rancher-2-recomp",
+      "release_index": 0,
+      "asset": "monster-rancher-2-recomp-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-monster-rancher-2-recomp",
+      "release_index": 0,
+      "asset": "monster-rancher-2-recomp-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-nightmare-creatures-recomp",
+      "release_index": 0,
+      "asset": "nightmare-creatures-recomp-0.1.3-linux-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-nightmare-creatures-recomp",
+      "release_index": 0,
+      "asset": "nightmare-creatures-recomp-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-nightmare-creatures-recomp",
+      "release_index": 0,
+      "asset": "nightmare-creatures-recomp-0.1.3-macos-x64.zip"
     }
   ]
 }

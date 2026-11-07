@@ -2133,8 +2133,9 @@ async fn native_engine_selection_2612() {
 struct ManagedPsxArchiveExpectation {
     serial: String,
     revision: Option<String>,
+    track_count: u32,
     track_sha1: String,
-    track_sha256: String,
+    track_sha256: Option<String>,
     generated_executable: String,
 }
 
@@ -2201,7 +2202,7 @@ impl ManagedPsxArchiveExpectation {
         else {
             panic!("{id}: expected an optical track set")
         };
-        assert_eq!(track_counts, &[1], "{id}");
+        assert_eq!(track_counts, &[self.track_count], "{id}");
         let [track] = identities.as_slice() else {
             panic!("{id}: expected one track identity")
         };
@@ -2212,7 +2213,7 @@ impl ManagedPsxArchiveExpectation {
         );
         assert_eq!(
             track.sha256.as_deref(),
-            Some(self.track_sha256.as_str()),
+            self.track_sha256.as_deref(),
             "{id}"
         );
         for (role, expected_profile) in [
