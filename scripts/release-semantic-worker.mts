@@ -41,10 +41,13 @@ import {
 import {
   readbackSemanticCheck,
   readbackSemanticDispositionCheck,
-  inspectSemanticIssuerConfiguration,
   semanticIssuerProducer,
 } from "./release-semantic-broker.mts";
-import type { SemanticIssuerCustody } from "./release-semantic-issuer.mts";
+import { inspectSemanticIssuerCustody } from "./release-semantic-issuer.mts";
+import {
+  sealedCheckSdkFilename,
+  verifyLinuxSealedCheckSdkBundle,
+} from "./release-sealed-check-sdk.mts";
 import { reviewFrozenCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -197,19 +200,12 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
   )
     throw new Error("semantic worker fixed setup schema differs");
   const runtime = inspectLinuxQualificationConfiguration(value.runtime);
-  const ids = inspectSemanticIssuerConfiguration(value.issuer.issuer);
+  const issuer = inspectSemanticIssuerCustody(value.issuer);
   if (
-    Object.keys(value.issuer).sort().join(",") !==
-      "http_modules_sha256,issuer,node_sha256,private_key,public_key_sha256" ||
-    (value.schema_version === 2 ? !("schema_version" in ids) : "schema_version" in ids) ||
-    !/^[a-f0-9]{64}$/u.test(String(value.issuer.public_key_sha256)) ||
-    value.issuer.node_sha256 !== runtime.node_sha256 ||
-    !isRecord(value.issuer.http_modules_sha256) ||
-    Object.keys(value.issuer.http_modules_sha256).sort().join(",") !==
-      "release-canonical.mts,release-semantic-issuer-http.mts,runtime-values.mts" ||
-    Object.values(value.issuer.http_modules_sha256).some(
-      (hash) => typeof hash !== "string" || !/^[a-f0-9]{64}$/u.test(hash),
-    )
+    (value.schema_version === 2
+      ? !("schema_version" in issuer.issuer)
+      : "schema_version" in issuer.issuer) ||
+    issuer.node_sha256 !== runtime.node_sha256
   )
     throw new Error("semantic worker issuer differs from the selected separated role");
   const namespace = inspectCoordinatorRemoteNamespace({
@@ -221,18 +217,16 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
     throw new Error("dedicated reviewer auth identity differs");
   const output = absolute(value.output_parent);
   if (runtime.output_parent !== output) throw new Error("semantic runtime output boundary differs");
-  const credentials = [
-    authCache,
-    absolute(value.source_read_token),
-    absolute(value.issuer.private_key),
-  ];
+  const credentials = [authCache, absolute(value.source_read_token), absolute(issuer.private_key)];
   if (
     new Set(credentials).size !== 3 ||
     credentials.some(
       (file) =>
         file === output ||
         file.startsWith(`${output}/`) ||
-        [runtime.node_executable, runtime.codex_executable].includes(file),
+        [runtime.node_executable, runtime.codex_executable].includes(file) ||
+        ("issuer_sdk_bundle" in issuer &&
+          file === path.join(checkout, "scripts", sealedCheckSdkFilename)),
     )
   )
     throw new Error(
@@ -249,10 +243,9 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
     setup_grant_sha256: String(value.setup_grant_sha256),
     runtime,
     issuer: {
-      ...value.issuer,
-      issuer: ids,
-      private_key: absolute(value.issuer.private_key),
-    } as unknown as SemanticIssuerCustody,
+      ...issuer,
+      private_key: absolute(issuer.private_key),
+    },
   };
 }
 
@@ -520,6 +513,8 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       throw new Error("fixed semantic worker checkout differs from reviewed setup");
   };
   requireFixedCheckout();
+  if ("issuer_sdk_bundle" in config.issuer)
+    verifyLinuxSealedCheckSdkBundle(checkout, config.issuer.issuer_sdk_bundle);
   const namespace = { schema_version: 1, namespace: config.namespace };
   const directory = config.output_parent;
   // A separately provisioned source reader is not the producer, writer or
