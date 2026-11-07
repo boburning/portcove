@@ -69,6 +69,8 @@ jobs:
         run: node scripts/observe-catalog-upstreams.mts --cli target/debug/portcove
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Chameleon JP, the unchanged-client #246 acceptance scope.
+          PORTCOVE_OBSERVER_SCHEDULED_PRIORITY_SOURCE: df91a1c7d9af20e76a6ff5dda131dcd6d7d70c601361ebbfbee37a9a292618cd
       - name: Export bounded checkpoint recovery snapshot
         id: checkpoint
         if: ${{ !cancelled() && hashFiles('work/upstream-observer/catalog/checkpoint.json') != '' }}

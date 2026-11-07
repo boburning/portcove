@@ -233,6 +233,14 @@ input or inspector changes stop continuation and preserve earlier evidence. The
 standalone command without this explicit hosted deadline remains one bounded
 operation.
 
+The scheduled workflow can give one exact catalog source key an early
+collection turn alongside the configured source. It splits the existing
+early allowance between the due scopes and retains the ordinary rotation
+for the rest of the inventory. A selected completed scope can re-enter
+rotation once its provider observation expires, even if its completion-based
+due time is later. Freshness still uses the original provider validation
+clock, and retained checkpoints keep their existing configuration identities.
+
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
 one `report.json` and its existing consumer/configuration binding. Catalog reports
 use a separate, uniquely owned handoff directory for each invocation, exported as

@@ -432,6 +432,7 @@ export interface CatalogObservationOptions extends Pick<
   deadline?: number;
   excludedSources?: ReadonlySet<string>;
   prioritizeConfigured?: boolean;
+  scheduledPrioritySource?: string;
   providerFetch?: typeof fetch;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
@@ -560,32 +561,42 @@ export async function advanceCatalogObservations(
   const isConfigured = (source: (typeof sources)[number]) =>
     source.repository === template.repository &&
     source.ports.some((port) => port.id === template.port_id);
-  const configuredTurn = (source: (typeof sources)[number]) =>
+  const isScheduledPriority = (source: ObservableSource) =>
+    source.key === options.scheduledPrioritySource;
+  const freshnessExpired = (progress: SourceProgress) =>
+    progress.freshness_observed_at === null ||
+    now() - Date.parse(progress.freshness_observed_at) >= template.stale_after_hours * 3600000;
+  const scopeDue = (source: ObservableSource, progress: SourceProgress | undefined) =>
+    !progress ||
+    progress.completed_scope_sha256 !== scopeBinding(source) ||
+    !progress.completed_at ||
+    !progress.next_due_at ||
+    Date.parse(progress.next_due_at) <= now() ||
+    (isScheduledPriority(source) && freshnessExpired(progress));
+  const earlyTurn = (source: ObservableSource) =>
     options.prioritizeConfigured === true &&
-    isConfigured(source) &&
-    state.sources[source.key]?.attempted_sequence !== state.sequence;
+    (isScheduledPriority(source) ||
+      (isConfigured(source) && state.sources[source.key]?.attempted_sequence !== state.sequence));
   const pending = sources
     .filter((source) => {
       if (options.excludedSources?.has(source.key)) return false;
       const progress = state.sources[source.key];
       return (
-        !progress ||
-        ((progress.completed_scope_sha256 !== scopeBinding(source) ||
-          source.repository === template.repository ||
-          !progress.next_due_at ||
-          Date.parse(progress.next_due_at) <= now()) &&
-          (!progress.retry_at || Date.parse(progress.retry_at) <= now()))
+        (scopeDue(source, progress) || source.repository === template.repository) &&
+        (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
       );
     })
-    // Give the configured source an early turn without taking consecutive
-    // turns away from the catalog when hosted opportunities are short.
+    // Prefer the selected scopes once per hosted opportunity. The durable
+    // rotation still orders each group.
     .sort(
       (a, b) =>
-        Number(configuredTurn(b)) - Number(configuredTurn(a)) ||
+        Number(earlyTurn(b)) - Number(earlyTurn(a)) ||
         (state.sources[a.key]?.attempted_sequence ?? -1) -
           (state.sources[b.key]?.attempted_sequence ?? -1) ||
         a.key.localeCompare(b.key),
     );
+  const earlyTurns = new Set(pending.filter(earlyTurn).map((source) => source.key));
+  const earlyTurnCount = earlyTurns.size;
   const capacity = () =>
     state.provider_retry_at && Date.parse(state.provider_retry_at) > now()
       ? 0
@@ -687,7 +698,6 @@ export async function advanceCatalogObservations(
       !freshOfflineCandidate
     )
       continue;
-    const firstConfiguredTurn = index === 0 && configuredTurn(source);
     operationBytes = 0;
     const progress = state.sources[source.key] ?? {
       provider: source.provider ?? "github",
@@ -718,6 +728,7 @@ export async function advanceCatalogObservations(
     state.sources[source.key] = progress;
     await options.commit(structuredClone(state));
     attempted.push(source.key);
+    const earlyCollection = earlyTurns.delete(source.key);
     if (source.provider === "gitlab" || source.provider === "direct-manifest") {
       const before = `${progress.provider_progress?.reads.length ?? 0}:${progress.provider_progress?.validation_cursor ?? 0}`;
       try {
@@ -1044,11 +1055,13 @@ export async function advanceCatalogObservations(
       let sourceRequests = 0;
       const available = capacity();
       const fairShare = Math.floor(available / (pending.length - index));
-      // Give the configured source room to collect or revalidate a page set
-      // on its first turn, while reserving at least half the estimated capacity
-      // for other sources. Every request still passes the shared admission.
-      const collectionShare = firstConfiguredTurn
-        ? Math.min(template.budget.pages_per_collection, Math.floor(available / 2))
+      // Split the early collection allowance among the selected turns so
+      // other sources retain at least half of the estimated capacity.
+      const collectionShare = earlyCollection
+        ? Math.min(
+            template.budget.pages_per_collection,
+            Math.floor(available / (2 * earlyTurnCount)),
+          )
         : 0;
       const quantum = Math.max(
         1,
@@ -1336,13 +1349,7 @@ export async function advanceCatalogObservations(
       attempted_source_keys: attempted,
       completed_source_keys: completed,
       pending_source_keys: sources
-        .filter(
-          (source) =>
-            state.sources[source.key]?.completed_scope_sha256 !== scopeBinding(source) ||
-            !state.sources[source.key]?.completed_at ||
-            !state.sources[source.key]?.next_due_at ||
-            Date.parse(state.sources[source.key]!.next_due_at!) <= now(),
-        )
+        .filter((source) => scopeDue(source, state.sources[source.key]))
         .map((source) => source.key),
       held,
       failures,
