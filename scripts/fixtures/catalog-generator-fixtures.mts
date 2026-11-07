@@ -227,9 +227,10 @@ export function proposalDecoderFixture(
       const bytes=readFileSync(args.at(-1));
       const sha256=createHash('sha256').update(bytes).digest('hex');
       const inspection=args.includes('inspect-proposal');
-      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection})+'\\n');
+      const repository_authoring=args.includes('--repository-authoring');
+      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection,repository_authoring})+'\\n');
       if(++calls===1 && inspection)writeFileSync(process.env.FIXTURE_SELECTED_CLI,'selected file changed after capture');
-      const data=inspection?{format_version:1,input_sha256:sha256,input_bytes:bytes.length,ports:[]}
+      const data=inspection?{format_version:1,input_sha256:sha256,input_bytes:bytes.length,ports:[],scope:repository_authoring?'repository-summary-policy':'runtime-admission'}
         :{selection:{sha256,byte_size:bytes.length,width:1,height:1,format:'jpeg'}};
       return {status:0,signal:null,stdout:JSON.stringify({data}),stderr:''};
     };
