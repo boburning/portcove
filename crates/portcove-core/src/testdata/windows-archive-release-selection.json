@@ -58,6 +58,11 @@
     "quake-vkquake": {
       "inventory": "vkquake",
       "selected_assets": ["vkQuake-1.36.0_windows_x64.zip", "vkQuake-1.37.0_windows_x64.zip"]
+    },
+    "gothic-ii-night-of-the-raven-opengothic": {
+      "inventory": "opengothic",
+      "channel": "beta",
+      "selected_assets": ["opengothic_1.0.3756_win_x64.zip", "opengothic_1.0.3800_win_x64.zip"]
     }
   },
   "inventories": {
@@ -752,6 +757,96 @@
           }
         ]
       }
+    ],
+    "opengothic": [
+      {
+        "draft": false,
+        "id": 323940334,
+        "prerelease": true,
+        "published_at": "2026-05-17T18:25:05Z",
+        "tag_name": "v0.92",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_linux_x64.deb",
+            "digest": "sha256:49365e9b5658f975f1e8923586ebcdd521cc67b06ff2ad2d97b381722d0534b9",
+            "id": 422653048,
+            "name": "opengothic_1.0.3756_linux_x64.deb",
+            "size": 4163918
+          },
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_linux_x64.zip",
+            "digest": "sha256:d5c99dbedd4745997027f4dac27af624b83949b1653d4ad86d83a5cfce2fb082",
+            "id": 422653046,
+            "name": "opengothic_1.0.3756_linux_x64.zip",
+            "size": 109709001
+          },
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_osx_arm64.zip",
+            "digest": "sha256:ae82d39060e83e5dac4a8ba0f6f3c4616800c0a0ff521ab9357e7b5f94a4404b",
+            "id": 422653050,
+            "name": "opengothic_1.0.3756_osx_arm64.zip",
+            "size": 8709703
+          },
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_osx_x64.zip",
+            "digest": "sha256:8f9bfee18cddbb270802b12d6a36d33504b13267043ebf7bb37c4133fa4751ac",
+            "id": 422653047,
+            "name": "opengothic_1.0.3756_osx_x64.zip",
+            "size": 8958708
+          },
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_win_x64.zip",
+            "digest": "sha256:78c02c5dc92f8a4f77310eae2872f18ade0d9a3b46706e61e536e908b4249a2f",
+            "id": 422653049,
+            "name": "opengothic_1.0.3756_win_x64.zip",
+            "size": 132178033
+          }
+        ]
+      },
+      {
+        "draft": false,
+        "id": 900001201,
+        "prerelease": true,
+        "published_at": "2026-11-07T00:00:00Z",
+        "tag_name": "synthetic-preview-successor",
+        "assets": [
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_linux_x64.deb",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000080",
+            "id": 900001210,
+            "name": "opengothic_1.0.3800_linux_x64.deb",
+            "size": 4163918
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_linux_x64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000081",
+            "id": 900001211,
+            "name": "opengothic_1.0.3800_linux_x64.zip",
+            "size": 109709001
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_osx_arm64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000082",
+            "id": 900001212,
+            "name": "opengothic_1.0.3800_osx_arm64.zip",
+            "size": 8709703
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_osx_x64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000083",
+            "id": 900001213,
+            "name": "opengothic_1.0.3800_osx_x64.zip",
+            "size": 8958708
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_win_x64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000084",
+            "id": 900001214,
+            "name": "opengothic_1.0.3800_win_x64.zip",
+            "size": 132178033
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -929,6 +1024,36 @@
       "inventory": "vkquake",
       "release_index": 1,
       "asset": "vkQuake-1.37.0_windows_arm64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 0,
+      "asset": "opengothic_1.0.3756_linux_x64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 0,
+      "asset": "opengothic_1.0.3756_osx_arm64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 0,
+      "asset": "opengothic_1.0.3756_osx_x64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 1,
+      "asset": "opengothic_1.0.3800_linux_x64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 1,
+      "asset": "opengothic_1.0.3800_osx_arm64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 1,
+      "asset": "opengothic_1.0.3800_osx_x64.zip"
     }
   ]
 }

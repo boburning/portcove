@@ -1744,6 +1744,28 @@
       ],
       "release": "1.37.0",
       "scope": "Observed official Windows x64 archive members and PE architecture. Owned original, configuration, save, history and successor archive bytes are synthetic."
+    },
+    {
+      "issue": 2578,
+      "port_id": "gothic-ii-night-of-the-raven-opengothic",
+      "repository": "Try/OpenGothic",
+      "channel": "beta",
+      "runtime_folder": "",
+      "selected_executable": "Gothic2Notr.exe",
+      "selected_asset": "opengothic_1.0.3756_win_x64.zip",
+      "archive_sha256": "78c02c5dc92f8a4f77310eae2872f18ade0d9a3b46706e61e536e908b4249a2f",
+      "immutable_members": [
+        "Gothic2Notr.bat",
+        "Gothic2Notr.exe",
+        "libTempest.dll",
+        "libgcc_s_seh-1.dll",
+        "libstdc++-6.dll",
+        "libwinpthread-1.dll"
+      ],
+      "persistent_probes": ["Gothic.ini", "dbg.png", "save_slot_0.sav", "save_slot_7.sav"],
+      "disposable_probes": ["log.txt", "crash.log"],
+      "release": "v0.92",
+      "scope": "Observed official Windows x64 Preview ZIP. Settings, numbered saves, diagnostic outputs and successor bytes are inert."
     }
   ]
 }
