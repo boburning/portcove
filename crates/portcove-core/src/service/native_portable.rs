@@ -4210,7 +4210,65 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn compatible_archive_consumers_progress_with_populated_data_and_frozen_definitions() {
+    async fn compatible_archive_progression_mega_man_x2() {
+        assert_compatible_archive_progression(
+            "mega-man-x2-snes-recomp",
+            "MegaManX2SNESRecomp.exe",
+            "MegaManX2SNESRecomp-windows-x64-",
+            "config.ini",
+            "saves/save1.sav",
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn compatible_archive_progression_sonic() {
+        assert_compatible_archive_progression(
+            "sonic-the-hedgehog-recomp",
+            "SonicTheHedgehogRecomp.exe",
+            "SonicTheHedgehogRecomp-windows-x64-",
+            "settings.ini",
+            "native_save_1.bin",
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn compatible_archive_progression_super_metroid() {
+        assert_compatible_archive_progression(
+            "super-metroid-recomp",
+            "SuperMetroidSNESRecomp.exe",
+            "supermetroid-",
+            "config.ini",
+            "saves/save1.sav",
+            Some("saves/save.srm"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn compatible_archive_progression_winback() {
+        assert_compatible_archive_progression(
+            "retropulse03-winback-n64recomp",
+            "WinBackRecompiled.exe",
+            "WinBackRecompiled-",
+            "settings.json",
+            "saves/checkpoints/mission-1.bin",
+            Some("saves/controller_pak_1.bin"),
+        )
+        .await;
+    }
+
+    async fn assert_compatible_archive_progression(
+        id: &'static str,
+        executable: &'static str,
+        prefix: &'static str,
+        settings: &'static str,
+        state: &'static str,
+        sram: Option<&'static str>,
+    ) {
         let client_path = std::env::current_exe().unwrap();
         let client_sha256 =
             crate::external_runtime::hash_stable_regular(&client_path, 1024 * 1024 * 1024, &|| {
@@ -4218,397 +4276,350 @@ mod tests {
             })
             .unwrap()
             .0;
-        let cases = [
-            (
-                "mega-man-x2-snes-recomp",
-                "MegaManX2SNESRecomp.exe",
-                "MegaManX2SNESRecomp-windows-x64-",
-                "config.ini",
-                "saves/save1.sav",
-                None,
-            ),
-            (
-                "sonic-the-hedgehog-recomp",
-                "SonicTheHedgehogRecomp.exe",
-                "SonicTheHedgehogRecomp-windows-x64-",
-                "settings.ini",
-                "native_save_1.bin",
-                None,
-            ),
-            (
-                "super-metroid-recomp",
-                "SuperMetroidSNESRecomp.exe",
-                "supermetroid-",
-                "config.ini",
-                "saves/save1.sav",
-                Some("saves/save.srm"),
-            ),
-            (
-                "retropulse03-winback-n64recomp",
-                "WinBackRecompiled.exe",
-                "WinBackRecompiled-",
-                "settings.json",
-                "saves/checkpoints/mission-1.bin",
-                Some("saves/controller_pak_1.bin"),
-            ),
-        ];
-        let mut completed = std::collections::BTreeSet::new();
-        for (id, executable, prefix, settings, state, sram) in cases {
-            let started = std::time::Instant::now();
-            let temporary = tempfile::tempdir().unwrap();
-            let library = Library::open(temporary.path().join("library")).unwrap();
-            let server = Server::new();
-            let embedded = Catalog::embedded().unwrap();
-            let declared = embedded.port(id).unwrap().clone();
-            assert_eq!(declared.release.provider, ReleaseSource::Github);
-            assert!(declared.release.direct.is_empty());
-            assert_eq!(
-                declared.executable_hints[&Platform::WindowsX86_64],
-                [executable]
-            );
-            let original = b"lawful fixed first-party original fixture";
-            let fixed = if declared.source_profile.is_some() {
-                compatible_archive_fixture_catalog(declared.clone(), original)
+        let started = std::time::Instant::now();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let embedded = Catalog::embedded().unwrap();
+        let declared = embedded.port(id).unwrap().clone();
+        assert_eq!(declared.release.provider, ReleaseSource::Github);
+        assert!(declared.release.direct.is_empty());
+        assert_eq!(
+            declared.executable_hints[&Platform::WindowsX86_64],
+            [executable]
+        );
+        let original = b"lawful fixed first-party original fixture";
+        let fixed = if declared.source_profile.is_some() {
+            compatible_archive_fixture_catalog(declared.clone(), original)
+        } else {
+            embedded
+        };
+        let definition = serde_json::to_vec(&fixed.authoritative_document()).unwrap();
+        let definition_sha256 = hex::encode(Sha256::digest(&definition));
+        let package = |version: &str, revision| {
+            let mut release = server.release_in_folder(version, revision, "", executable);
+            release.asset.name = if id == "super-metroid-recomp" {
+                format!("{prefix}{version}-windows-x64.zip")
+            } else if id == "retropulse03-winback-n64recomp" {
+                format!("{prefix}{version}-Windows-x64.zip")
             } else {
-                embedded
+                format!("{prefix}{version}.zip")
             };
-            let definition = serde_json::to_vec(&fixed.authoritative_document()).unwrap();
-            let definition_sha256 = hex::encode(Sha256::digest(&definition));
-            let package = |version: &str, revision| {
-                let mut release = server.release_in_folder(version, revision, "", executable);
-                release.asset.name = if id == "super-metroid-recomp" {
-                    format!("{prefix}{version}-windows-x64.zip")
-                } else if id == "retropulse03-winback-n64recomp" {
-                    format!("{prefix}{version}-Windows-x64.zip")
+            release
+        };
+        // The real provider resolves controlled upstream API and checksum
+        // responses. Only the upstream producer's observed facts may change.
+        let published = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
+        let checksum = Arc::new(Mutex::new(String::new()));
+        let api_published = published.clone();
+        let api_checksum = checksum.clone();
+        let repository_path = format!("/repos/{}", declared.release.repository);
+        let releases_path = format!("{repository_path}/releases?");
+        let (api_root, api_requests, api_server) = crate::test_http::serve_routed_http_with_budget(
+            128,
+            Duration::from_secs(900),
+            move |request| {
+                let path = request
+                    .split_whitespace()
+                    .nth(1)
+                    .expect("fixture request path");
+                let body = if path == repository_path {
+                    serde_json::json!({"id":1100,"archived":false}).to_string()
+                } else if path.starts_with(&releases_path) {
+                    serde_json::to_string(&*api_published.lock().unwrap()).unwrap()
+                } else if path == "/checksums.txt" {
+                    api_checksum.lock().unwrap().clone()
                 } else {
-                    format!("{prefix}{version}.zip")
+                    panic!("unexpected dynamic provider request: {path}");
                 };
-                release
-            };
-            // The real provider resolves controlled upstream API and checksum
-            // responses. Only the upstream producer's observed facts may change.
-            let published = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
-            let checksum = Arc::new(Mutex::new(String::new()));
-            let api_published = published.clone();
-            let api_checksum = checksum.clone();
-            let repository_path = format!("/repos/{}", declared.release.repository);
-            let releases_path = format!("{repository_path}/releases?");
-            let (api_root, api_requests, api_server) =
-                crate::test_http::serve_routed_http_with_budget(
-                    128,
-                    Duration::from_secs(900),
-                    move |request| {
-                        let path = request
-                            .split_whitespace()
-                            .nth(1)
-                            .expect("fixture request path");
-                        let body = if path == repository_path {
-                            serde_json::json!({"id":1100,"archived":false}).to_string()
-                        } else if path.starts_with(&releases_path) {
-                            serde_json::to_string(&*api_published.lock().unwrap()).unwrap()
-                        } else if path == "/checksums.txt" {
-                            api_checksum.lock().unwrap().clone()
-                        } else {
-                            panic!("unexpected dynamic provider request: {path}");
-                        };
-                        format!(
-                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                            body.len()
-                        )
-                    },
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
+            },
+        );
+        let release_metadata = |release: &ResolvedRelease, identity: u64, sidecar: bool| {
+            let mut assets = vec![serde_json::json!({
+                "id":identity * 10, "name":release.asset.name,
+                "browser_download_url":release.asset.url, "size":release.asset.size,
+                "digest":if sidecar { None } else { Some(format!("sha256:{}", release.asset.sha256)) }
+            })];
+            if sidecar {
+                let body = format!("{}  {}\n", release.asset.sha256, release.asset.name);
+                *checksum.lock().unwrap() = body.clone();
+                assets.push(serde_json::json!({"id":identity*10+1,"name":"checksums.txt",
+                    "browser_download_url":format!("{api_root}/checksums.txt"),"size":body.len(),"digest":null}));
+            }
+            serde_json::json!({"id":identity,"tag_name":release.version,"draft":false,
+                "prerelease":false,"published_at":null,"assets":assets})
+        };
+        let first_release = package("fixture-n", 1);
+        *published.lock().unwrap() = vec![release_metadata(&first_release, 1, false)];
+        let mut provider =
+            Arc::new(crate::GithubReleaseProvider::with_api_root(api_root.clone()).unwrap());
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        service.replace_catalog_for_test(fixed.clone());
+        struct Trace(std::time::Instant);
+        impl LifecycleFaultInjector for Trace {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                eprintln!(
+                    "compatible release phase {point:?} at {:?}",
+                    self.0.elapsed()
                 );
-            let release_metadata = |release: &ResolvedRelease, identity: u64, sidecar: bool| {
-                let mut assets = vec![serde_json::json!({
-                    "id":identity * 10, "name":release.asset.name,
-                    "browser_download_url":release.asset.url, "size":release.asset.size,
-                    "digest":if sidecar { None } else { Some(format!("sha256:{}", release.asset.sha256)) }
-                })];
-                if sidecar {
-                    let body = format!("{}  {}\n", release.asset.sha256, release.asset.name);
-                    *checksum.lock().unwrap() = body.clone();
-                    assets.push(serde_json::json!({"id":identity*10+1,"name":"checksums.txt",
-                        "browser_download_url":format!("{api_root}/checksums.txt"),"size":body.len(),"digest":null}));
-                }
-                serde_json::json!({"id":identity,"tag_name":release.version,"draft":false,
-                    "prerelease":false,"published_at":null,"assets":assets})
-            };
-            let first_release = package("fixture-n", 1);
-            *published.lock().unwrap() = vec![release_metadata(&first_release, 1, false)];
-            let mut provider =
-                Arc::new(crate::GithubReleaseProvider::with_api_root(api_root.clone()).unwrap());
-            let mut service =
-                PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
-            service.replace_catalog_for_test(fixed.clone());
-            struct Trace(std::time::Instant);
-            impl LifecycleFaultInjector for Trace {
-                fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
-                    eprintln!(
-                        "compatible release phase {point:?} at {:?}",
-                        self.0.elapsed()
-                    );
-                    Ok(())
-                }
+                Ok(())
             }
-            service.faults = Arc::new(Trace(started));
-            let source = temporary.path().join(if id.starts_with("sonic-") {
-                "owned.bin"
-            } else {
-                "owned.sfc"
-            });
-            fs::write(&source, original).unwrap();
-            if let Some(profile) = &declared.source_profile {
-                service.register_source(profile, &source).unwrap();
-            }
-            let first = service
-                .install(id, None, None, None, true, |_| {})
-                .await
+        }
+        service.faults = Arc::new(Trace(started));
+        let source = temporary.path().join(if id.starts_with("sonic-") {
+            "owned.bin"
+        } else {
+            "owned.sfc"
+        });
+        fs::write(&source, original).unwrap();
+        if let Some(profile) = &declared.source_profile {
+            service.register_source(profile, &source).unwrap();
+        }
+        let first = service
+            .install(id, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let launch = service.prepare_launch(id, None).unwrap();
+        if id == "retropulse03-winback-n64recomp" {
+            assert_eq!(launch.environment["RECOMPLAUNCHER"], "1");
+            fs::write(first.path.join("winback.us.z64"), original).unwrap();
+        }
+        fs::write(first.path.join(settings), b"player settings from N").unwrap();
+        fs::create_dir_all(first.path.join(state).parent().unwrap()).unwrap();
+        fs::write(first.path.join(state), b"N-only host snapshot").unwrap();
+        if let Some(sram) = sram {
+            fs::write(first.path.join(sram), b"conventional guest SRAM").unwrap();
+        }
+        service.create_backup(id).unwrap();
+        let next_release = package("fixture-next", 2);
+        let next_metadata = release_metadata(&next_release, 2, true);
+        let mut held = next_metadata.clone();
+        let mut duplicate = held["assets"][0].clone();
+        duplicate["id"] = serde_json::json!(99);
+        held["assets"].as_array_mut().unwrap().push(duplicate);
+        *published.lock().unwrap() = vec![held];
+        // A normal client restart keeps the same compiled binary, authored
+        // definition and library, without altering the five-minute provider
+        // cache or reaching into its private state to fabricate expiry.
+        provider = Arc::new(crate::GithubReleaseProvider::with_api_root(api_root.clone()).unwrap());
+        service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        service.replace_catalog_for_test(fixed.clone());
+        service.faults = Arc::new(Trace(started));
+        let held = service.check_update(id).await.unwrap_err();
+        assert_eq!(held.code, crate::ErrorCode::Conflict);
+        assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+        assert!(service.status(id).unwrap().staged.is_none());
+        *published.lock().unwrap() = vec![next_metadata];
+        let update = service.check_update(id).await.unwrap();
+        assert_eq!(update.release.version, "fixture-next");
+        assert_eq!(update.release.asset.sha256, next_release.asset.sha256);
+        assert!(update.update_available);
+        if declared.source_profile.is_some() {
+            let source_contract = fixed
+                .source_catalog()
+                .unwrap()
+                .contracts
+                .iter()
+                .find(|c| c.port_id == id)
                 .unwrap();
-            let launch = service.prepare_launch(id, None).unwrap();
-            if id == "retropulse03-winback-n64recomp" {
-                assert_eq!(launch.environment["RECOMPLAUNCHER"], "1");
-                fs::write(first.path.join("winback.us.z64"), original).unwrap();
-            }
-            fs::write(first.path.join(settings), b"player settings from N").unwrap();
-            fs::create_dir_all(first.path.join(state).parent().unwrap()).unwrap();
-            fs::write(first.path.join(state), b"N-only host snapshot").unwrap();
-            if let Some(sram) = sram {
-                fs::write(first.path.join(sram), b"conventional guest SRAM").unwrap();
-            }
-            service.create_backup(id).unwrap();
-            let next_release = package("fixture-next", 2);
-            let next_metadata = release_metadata(&next_release, 2, true);
-            let mut held = next_metadata.clone();
-            let mut duplicate = held["assets"][0].clone();
-            duplicate["id"] = serde_json::json!(99);
-            held["assets"].as_array_mut().unwrap().push(duplicate);
-            *published.lock().unwrap() = vec![held];
-            // A normal client restart keeps the same compiled binary, authored
-            // definition and library, without altering the five-minute provider
-            // cache or reaching into its private state to fabricate expiry.
-            provider =
-                Arc::new(crate::GithubReleaseProvider::with_api_root(api_root.clone()).unwrap());
-            service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
-            service.replace_catalog_for_test(fixed.clone());
-            service.faults = Arc::new(Trace(started));
-            let held = service.check_update(id).await.unwrap_err();
-            assert_eq!(held.code, crate::ErrorCode::Conflict);
-            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
-            assert!(service.status(id).unwrap().staged.is_none());
-            *published.lock().unwrap() = vec![next_metadata];
-            let update = service.check_update(id).await.unwrap();
-            assert_eq!(update.release.version, "fixture-next");
-            assert_eq!(update.release.asset.sha256, next_release.asset.sha256);
-            assert!(update.update_available);
-            if declared.source_profile.is_some() {
-                let source_contract = fixed
-                    .source_catalog()
-                    .unwrap()
-                    .contracts
-                    .iter()
-                    .find(|c| c.port_id == id)
-                    .unwrap();
-                assert!(
-                    source_contract
-                        .applies_to_release(&update.release.version, &update.release.asset.sha256),
-                    "the unchanged reusable source policy must cover the newly resolved artifact"
-                );
-            }
-            let plan = service.plan_install(id, None).await.unwrap();
             assert!(
-                plan.preservation_notices
-                    .iter()
-                    .any(|n| n.contains("creating runtime"))
+                source_contract
+                    .applies_to_release(&update.release.version, &update.release.asset.sha256),
+                "the unchanged reusable source policy must cover the newly resolved artifact"
             );
-            service
-                .set_update_policy(id, UpdatePolicy::Automatic)
+        }
+        let plan = service.plan_install(id, None).await.unwrap();
+        assert!(
+            plan.preservation_notices
+                .iter()
+                .any(|n| n.contains("creating runtime"))
+        );
+        service
+            .set_update_policy(id, UpdatePolicy::Automatic)
+            .unwrap();
+        let staged = service.reconcile(id, |_| {}).await.unwrap();
+        assert_eq!(staged.action, ReconcileAction::Staged);
+        assert_eq!(
+            staged.policy,
+            UpdatePolicy::Automatic,
+            "review must preserve the saved preference"
+        );
+        assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+        let second = service.activate_staged(id).unwrap();
+        if id == "retropulse03-winback-n64recomp" {
+            assert_eq!(
+                fs::read(second.path.join("winback.us.z64")).unwrap(),
+                original
+            );
+        }
+        assert_eq!(
+            fs::read(second.path.join(settings)).unwrap(),
+            b"player settings from N"
+        );
+        assert!(
+            !second.path.join(state).exists(),
+            "a new archive must not consume an old snapshot"
+        );
+        assert_eq!(
+            fs::read(first.path.join(state)).unwrap(),
+            b"N-only host snapshot"
+        );
+        if let Some(sram) = sram {
+            assert_eq!(
+                fs::read(second.path.join(sram)).unwrap(),
+                b"conventional guest SRAM"
+            );
+        }
+        fs::write(second.path.join(settings), b"current conventional settings").unwrap();
+        let backup = service.create_backup(id).unwrap();
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(backup.path.join("backup.json")).unwrap()).unwrap();
+        assert_eq!(manifest["guarded_archive_v1"], second.artifact.sha256);
+        assert_eq!(
+            manifest["partitioned_data_v1"],
+            crate::archive_data::policy_sha256(fixed.port(id).unwrap()).unwrap()
+        );
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, first.id);
+        assert_eq!(
+            fs::read(first.path.join(state)).unwrap(),
+            b"N-only host snapshot"
+        );
+        assert_eq!(
+            fs::read(first.path.join(settings)).unwrap(),
+            b"current conventional settings",
+            "runtime rollback does not rewind shared data"
+        );
+        let preview = service
+            .preview_backup_action(id, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                id,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .restore_backup(id, &backup.id, &consent.token)
+            .unwrap();
+        let mut restarted = PortcoveService::with_provider(library.clone(), provider).unwrap();
+        restarted.replace_catalog_for_test(fixed);
+        assert_eq!(restarted.status(id).unwrap().active.unwrap().id, first.id);
+        assert_eq!(
+            fs::read(first.path.join(state)).unwrap(),
+            b"N-only host snapshot"
+        );
+        assert_eq!(fs::read(&source).unwrap(), original);
+        assert_eq!(
+            serde_json::to_vec(&restarted.catalog.authoritative_document()).unwrap(),
+            definition
+        );
+        let definition_after =
+            serde_json::to_vec(&restarted.catalog.authoritative_document()).unwrap();
+        let definition_sha256_after = hex::encode(Sha256::digest(&definition_after));
+        assert_eq!(definition_sha256_after, definition_sha256);
+        let client_sha256_after =
+            crate::external_runtime::hash_stable_regular(&client_path, 1024 * 1024 * 1024, &|| {
+                Ok(())
+            })
+            .unwrap()
+            .0;
+        assert_eq!(client_sha256_after, client_sha256);
+        if id == "super-metroid-recomp" {
+            let removal = restarted.preview_removal(id).unwrap();
+            let removal_consent = restarted
+                .authorize_removal(id, &removal.preview_sha256)
                 .unwrap();
-            let staged = service.reconcile(id, |_| {}).await.unwrap();
-            assert_eq!(staged.action, ReconcileAction::Staged);
-            assert_eq!(
-                staged.policy,
-                UpdatePolicy::Automatic,
-                "review must preserve the saved preference"
-            );
-            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
-            let second = service.activate_staged(id).unwrap();
-            if id == "retropulse03-winback-n64recomp" {
-                assert_eq!(
-                    fs::read(second.path.join("winback.us.z64")).unwrap(),
-                    original
-                );
-            }
-            assert_eq!(
-                fs::read(second.path.join(settings)).unwrap(),
-                b"player settings from N"
-            );
-            assert!(
-                !second.path.join(state).exists(),
-                "a new archive must not consume an old snapshot"
-            );
-            assert_eq!(
-                fs::read(first.path.join(state)).unwrap(),
-                b"N-only host snapshot"
-            );
-            if let Some(sram) = sram {
-                assert_eq!(
-                    fs::read(second.path.join(sram)).unwrap(),
-                    b"conventional guest SRAM"
-                );
-            }
-            fs::write(second.path.join(settings), b"current conventional settings").unwrap();
-            let backup = service.create_backup(id).unwrap();
-            let manifest: serde_json::Value =
-                serde_json::from_slice(&fs::read(backup.path.join("backup.json")).unwrap())
+            restarted.remove(id, &removal_consent.token).unwrap();
+            assert!(library.all_installs().unwrap().is_empty());
+            let opaque = restarted.create_backup(id).unwrap();
+            let opaque_manifest: serde_json::Value =
+                serde_json::from_slice(&fs::read(opaque.path.join("backup.json")).unwrap())
                     .unwrap();
-            assert_eq!(manifest["guarded_archive_v1"], second.artifact.sha256);
-            assert_eq!(
-                manifest["partitioned_data_v1"],
-                crate::archive_data::policy_sha256(fixed.port(id).unwrap()).unwrap()
-            );
-            let previous = service.rollback(id).unwrap();
-            assert_eq!(previous.id, first.id);
-            assert_eq!(
-                fs::read(first.path.join(state)).unwrap(),
-                b"N-only host snapshot"
+            assert!(
+                opaque_manifest.get("guarded_archive_v1").is_none(),
+                "no active producer must be invented"
             );
             assert_eq!(
-                fs::read(first.path.join(settings)).unwrap(),
-                b"current conventional settings",
-                "runtime rollback does not rewind shared data"
+                opaque_manifest["partitioned_data_v1"],
+                manifest["partitioned_data_v1"]
             );
-            let preview = service
-                .preview_backup_action(id, &backup.id, crate::BackupAction::Restore)
+            let mut drift =
+                serde_json::to_value(restarted.catalog.authoritative_document()).unwrap();
+            let index = drift["ports"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .position(|p| p["id"] == id)
                 .unwrap();
-            let consent = service
+            drift["ports"][index]["archive_data_compatibility_v1"]["contract_id"] =
+                serde_json::json!("changed-catalog-policy");
+            restarted.replace_catalog_for_test(Catalog::from_json(&drift.to_string()).unwrap());
+            let preview = restarted
+                .preview_backup_action(id, &opaque.id, crate::BackupAction::Restore)
+                .unwrap();
+            let consent = restarted
                 .authorize_backup_action(
                     id,
-                    &backup.id,
+                    &opaque.id,
                     crate::BackupAction::Restore,
                     &preview.preview_sha256,
                 )
                 .unwrap();
-            service
-                .restore_backup(id, &backup.id, &consent.token)
+            restarted
+                .restore_backup(id, &opaque.id, &consent.token)
                 .unwrap();
-            let mut restarted = PortcoveService::with_provider(library.clone(), provider).unwrap();
-            restarted.replace_catalog_for_test(fixed);
-            assert_eq!(restarted.status(id).unwrap().active.unwrap().id, first.id);
             assert_eq!(
-                fs::read(first.path.join(state)).unwrap(),
-                b"N-only host snapshot"
-            );
-            assert_eq!(fs::read(&source).unwrap(), original);
-            assert_eq!(
-                serde_json::to_vec(&restarted.catalog.authoritative_document()).unwrap(),
-                definition
-            );
-            let definition_after =
-                serde_json::to_vec(&restarted.catalog.authoritative_document()).unwrap();
-            let definition_sha256_after = hex::encode(Sha256::digest(&definition_after));
-            assert_eq!(definition_sha256_after, definition_sha256);
-            let client_sha256_after = crate::external_runtime::hash_stable_regular(
-                &client_path,
-                1024 * 1024 * 1024,
-                &|| Ok(()),
-            )
-            .unwrap()
-            .0;
-            assert_eq!(client_sha256_after, client_sha256);
-            if id == "super-metroid-recomp" {
-                let removal = restarted.preview_removal(id).unwrap();
-                let removal_consent = restarted
-                    .authorize_removal(id, &removal.preview_sha256)
-                    .unwrap();
-                restarted.remove(id, &removal_consent.token).unwrap();
-                assert!(library.all_installs().unwrap().is_empty());
-                let opaque = restarted.create_backup(id).unwrap();
-                let opaque_manifest: serde_json::Value =
-                    serde_json::from_slice(&fs::read(opaque.path.join("backup.json")).unwrap())
-                        .unwrap();
-                assert!(
-                    opaque_manifest.get("guarded_archive_v1").is_none(),
-                    "no active producer must be invented"
-                );
-                assert_eq!(
-                    opaque_manifest["partitioned_data_v1"],
-                    manifest["partitioned_data_v1"]
-                );
-                let mut drift =
-                    serde_json::to_value(restarted.catalog.authoritative_document()).unwrap();
-                let index = drift["ports"]
-                    .as_array()
+                crate::archive_data::snapshot_policy(&library.user_dir(id))
                     .unwrap()
-                    .iter()
-                    .position(|p| p["id"] == id)
-                    .unwrap();
-                drift["ports"][index]["archive_data_compatibility_v1"]["contract_id"] =
-                    serde_json::json!("changed-catalog-policy");
-                restarted.replace_catalog_for_test(Catalog::from_json(&drift.to_string()).unwrap());
-                let preview = restarted
-                    .preview_backup_action(id, &opaque.id, crate::BackupAction::Restore)
-                    .unwrap();
-                let consent = restarted
-                    .authorize_backup_action(
-                        id,
-                        &opaque.id,
-                        crate::BackupAction::Restore,
-                        &preview.preview_sha256,
-                    )
-                    .unwrap();
+                    .unwrap(),
+                manifest["partitioned_data_v1"].as_str().unwrap()
+            );
+            assert!(
                 restarted
-                    .restore_backup(id, &opaque.id, &consent.token)
-                    .unwrap();
-                assert_eq!(
-                    crate::archive_data::snapshot_policy(&library.user_dir(id))
-                        .unwrap()
-                        .unwrap(),
-                    manifest["partitioned_data_v1"].as_str().unwrap()
-                );
-                assert!(
-                    restarted
-                        .require_direct_fresh_data(restarted.catalog.port(id).unwrap())
-                        .is_err(),
-                    "opaque preservation must not grant fresh runtime data-compatibility authority"
-                );
-            }
-            api_server.join().unwrap();
-            let requests = api_requests.try_iter().collect::<Vec<_>>();
-            assert!(
-                requests
-                    .iter()
-                    .any(|request| request.contains("/releases?"))
-            );
-            assert!(
-                requests
-                    .iter()
-                    .any(|request| request.starts_with("GET /checksums.txt ")),
-                "the real resolver must automatically resolve the producer's checksum sidecar"
-            );
-            assert!(completed.insert(id));
-            eprintln!(
-                "{}",
-                serde_json::json!({"kind":"compiled-core-controlled-release", "port_id":id,
-                "client_sha256":client_sha256, "authored_definition_sha256":definition_sha256,
-                "identity_measurement":"after release lifecycle; before separate opaque-restore catalog-drift negative control",
-                "client_sha256_before":client_sha256,"client_sha256_after":client_sha256_after,
-                "authored_definition_sha256_before":definition_sha256,"authored_definition_sha256_after":definition_sha256_after,
-                "upstream_changes":["release metadata","archive bytes","checksum sidecar","ambiguous candidate corrected"],
-                "player_choices":["stage candidate","explicit activation","backup restore and retained-runtime rollback"],
-                "authored_release_or_applicability_edits":definition_sha256 != definition_sha256_after,
-                "from_archive":first.artifact.sha256,"to_archive":second.artifact.sha256,
-                "provider":"actual-github-release-resolver-with-controlled-http",
-                "next_integrity":"controlled-upstream-sha256-sidecar",
-                "refresh_boundary":"same-binary-client-restart; production cache unchanged",
-                "held_candidate":"ambiguous-assets; corrected metadata without authored edits",
-                "provider_http_requests":requests.len(),
-                "maintainer_interventions_after_freeze":0,"upstream_game_executed":false,
-                "outcome":"passed", "duration_ms":started.elapsed().as_millis()})
+                    .require_direct_fresh_data(restarted.catalog.port(id).unwrap())
+                    .is_err(),
+                "opaque preservation must not grant fresh runtime data-compatibility authority"
             );
         }
-        assert_eq!(
-            completed.len(),
-            4,
-            "every declared representative must execute exactly once"
+        api_server.join().unwrap();
+        let requests = api_requests.try_iter().collect::<Vec<_>>();
+        assert!(
+            requests
+                .iter()
+                .any(|request| request.contains("/releases?"))
+        );
+        assert!(
+            requests
+                .iter()
+                .any(|request| request.starts_with("GET /checksums.txt ")),
+            "the real resolver must automatically resolve the producer's checksum sidecar"
+        );
+        eprintln!(
+            "{}",
+            serde_json::json!({"kind":"compiled-core-controlled-release", "port_id":id,
+            "client_sha256":client_sha256, "authored_definition_sha256":definition_sha256,
+            "identity_measurement":"after release lifecycle; before separate opaque-restore catalog-drift negative control",
+            "client_sha256_before":client_sha256,"client_sha256_after":client_sha256_after,
+            "authored_definition_sha256_before":definition_sha256,"authored_definition_sha256_after":definition_sha256_after,
+            "upstream_changes":["release metadata","archive bytes","checksum sidecar","ambiguous candidate corrected"],
+            "player_choices":["stage candidate","explicit activation","backup restore and retained-runtime rollback"],
+            "authored_release_or_applicability_edits":definition_sha256 != definition_sha256_after,
+            "from_archive":first.artifact.sha256,"to_archive":second.artifact.sha256,
+            "provider":"actual-github-release-resolver-with-controlled-http",
+            "next_integrity":"controlled-upstream-sha256-sidecar",
+            "refresh_boundary":"same-binary-client-restart; production cache unchanged",
+            "held_candidate":"ambiguous-assets; corrected metadata without authored edits",
+            "provider_http_requests":requests.len(),
+            "maintainer_interventions_after_freeze":0,"upstream_game_executed":false,
+            "outcome":"passed", "duration_ms":started.elapsed().as_millis()})
         );
         assert_eq!(
             crate::external_runtime::hash_stable_regular(&client_path, 1024 * 1024 * 1024, &|| Ok(
