@@ -644,9 +644,13 @@ try {
   return
  }
  $client=[IO.Pipes.NamedPipeClientStream]::new('.','PortcoveNative_'+$nonce,[IO.Pipes.PipeDirection]::InOut,[IO.Pipes.PipeOptions]::Asynchronous)
- try{$client.Connect(5000)}catch{
+ # Starting the runspace and connecting consume the same original fixture budget.
+ $remainingMs=[int][Math]::Floor(1000.0*($memory.deadline_ticks-[Diagnostics.Stopwatch]::GetTimestamp())/$memory.frequency)
+ if($remainingMs -le 0){throw 'Fixture bridge original deadline exhausted before connect'}
+ try{$client.Connect($remainingMs)}catch{
   if($pending.IsCompleted){$null=$worker.EndInvoke($pending);throw ('Fixture bridge exited before connection: '+($worker.Streams.Error|Out-String))}
-  throw
+  $prepared=[IO.File]::Exists((Join-Path $capture 'bridge-state.json'))
+  throw "Fixture bridge did not connect within its original deadline (state file created: $prepared)"
  }
  [Portcove.NativeQualification.OwnerCommandReader]::VerifyServer($client.SafePipeHandle.DangerousGetHandle(),[uint32]$PID,[long]$memory.owner_created_filetime)
  $command=[ordered]@{schema_version=1;invocation_id=$nonce;sequence=1;operation='finish';id='fixture-empty-finish';launch=$null;target=$null}
