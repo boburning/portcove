@@ -21,6 +21,9 @@ import {
   applicationDraftProofBytes,
   applicationDraftProofName,
   inspectBootstrapPublicationReceipt,
+  readOriginalBootstrapSiteAsset,
+  decodeBootstrapDraftSiteAsset,
+  inspectBootstrapDraftPreparation,
   inspectHistoricalApplicationPublication,
   readExpiredApplicationDraftAssets,
   readStagedDraftRecoveryBackup,
@@ -2098,6 +2101,204 @@ void test("historical metadata reader authenticates both assembly subjects while
     } else await assert.rejects(run());
     assert.equal(f.mutations.length, writes);
   }
+});
+
+void test("bootstrap draft preparation is separate from protected publication and binds original asset IDs", async () => {
+  for (const fault of [
+    undefined,
+    "missing",
+    "identity",
+    "protection",
+    "immutable-identity",
+  ] as const) {
+    const f = fixture(fault === "protection" ? "expired-publication" : "valid");
+    const expected = { release_id: 10, custody: f.custody, binding: f.binding };
+    const metadata = Buffer.from(JSON.stringify(f.raw));
+    const prepared = await publishApplicationMetadataRelease(
+      {
+        ...f.transport,
+        async publish() {
+          assert.fail("draft preparation must never publish");
+        },
+        async beforeWrite(phase) {
+          assert.equal(phase, "asset");
+          return f.transport.beforeWrite(phase);
+        },
+      },
+      expected,
+      metadata,
+      f.archive,
+      "prepare",
+    );
+    assert.equal(f.release.draft, true);
+    assert.equal(f.mutations.includes("publish"), false);
+    const proof = {
+      schema_version: 1,
+      authority: "none",
+      kind: "application-bootstrap-draft-preparation",
+      control_commit: f.binding.control_commit,
+      control_ref: f.binding.control_ref,
+      run_id: f.binding.run_id,
+      producer_attempt: 1,
+      assembly_attempt: 1,
+      release_id: 10,
+      site_generation: f.site.generation,
+      assets: prepared.assets,
+    };
+    const producer = {
+      source_commit: f.binding.control_commit,
+      ref: f.binding.control_ref,
+      run_id: f.binding.run_id,
+      run_attempt: 1,
+    };
+    const inspected = inspectBootstrapDraftPreparation(proof, producer);
+    for (const changed of [
+      { control_commit: "f".repeat(40) },
+      { producer_attempt: 2 },
+      { assembly_attempt: 2 },
+      { assets: [proof.assets[0], proof.assets[0]] },
+    ])
+      assert.throws(() => inspectBootstrapDraftPreparation({ ...proof, ...changed }, producer));
+    if (fault === "missing") f.remoteAssets.pop();
+    if (fault === "identity") f.remoteAssets[0]!.id++;
+    const result = publishApplicationMetadataRelease(
+      {
+        ...f.transport,
+        async upload() {
+          assert.fail("protected publication cannot upload draft assets");
+        },
+        async publish(body) {
+          await f.transport.publish(body);
+          if (fault === "immutable-identity") f.remoteAssets[0]!.id += 100;
+        },
+        async beforeWrite(phase) {
+          assert.equal(phase, "publish");
+          return f.transport.beforeWrite(phase);
+        },
+      },
+      { ...expected, prepared_assets: inspected.assets },
+      metadata,
+      f.archive,
+      "publish",
+    );
+    if (fault) {
+      await assert.rejects(result);
+      assert.equal(f.mutations.includes("publish"), fault === "immutable-identity");
+      if (fault === "immutable-identity") assert.equal(f.release.immutable, true);
+    } else {
+      await result;
+      assert.equal(f.release.immutable, true);
+      assert.equal(f.mutations.filter((entry) => entry === "publish").length, 1);
+    }
+  }
+});
+
+void test("bootstrap preparation never replaces the appointed original asset", async () => {
+  for (const fault of [undefined, "missing", "replaced"] as const) {
+    const f = fixture();
+    await f.transport.upload(10, bootstrapAssetNames[0], f.archive);
+    const original_site = {
+      id: f.remoteAssets[0]!.id,
+      name: bootstrapAssetNames[0],
+      bytes: f.archive.length,
+      sha256: sha256(f.archive),
+    };
+    const result = publishApplicationMetadataRelease(
+      {
+        ...f.transport,
+        async beforeWrite(phase) {
+          assert.equal(phase, "asset");
+          if (fault === "missing") f.remoteAssets.shift();
+          if (fault === "replaced") f.remoteAssets[0]!.id += 100;
+          return f.transport.beforeWrite(phase);
+        },
+      },
+      { release_id: 10, custody: f.custody, binding: f.binding, original_site },
+      Buffer.from(JSON.stringify(f.raw)),
+      f.archive,
+      "prepare",
+    );
+    if (fault) {
+      await assert.rejects(result, /original site asset is missing or changed/u);
+      assert.deepEqual(f.mutations, ["upload:application-site.zip"]);
+    } else {
+      const prepared = await result;
+      assert.equal(
+        prepared.assets.find((asset) => asset.name === original_site.name)?.id,
+        original_site.id,
+      );
+      assert.deepEqual(f.mutations, [
+        "upload:application-site.zip",
+        "upload:application-metadata.json",
+      ]);
+    }
+    assert.equal(f.release.draft, true);
+  }
+});
+
+void test("original bootstrap site reuse binds approved asset bytes to the fresh complete site map", async () => {
+  const f = fixture();
+  const receipt = inspectBootstrapPublicationReceipt(f.raw, f.binding);
+  const asset = {
+    id: 21,
+    name: "application-site.zip",
+    bytes: f.archive.length,
+    sha256: sha256(f.archive),
+  };
+  const body = "retained original custody";
+  const recovery = { release_id: 10, notes_sha256: sha256(Buffer.from(body)), site_archive: asset };
+  for (const fault of [undefined, "bytes", "site", "identity", "drift"] as const) {
+    const draft = {
+      id: 10,
+      draft: true,
+      prerelease: true,
+      immutable: false,
+      body,
+      assets: [
+        {
+          id: asset.id,
+          name: asset.name,
+          size: asset.bytes,
+          digest: `sha256:${asset.sha256}`,
+          state: "uploaded",
+          download_count: 0,
+        },
+      ],
+    };
+    const expected = structuredClone(receipt);
+    if (fault === "site") expected.site.files[0]!.sha256 = "f".repeat(64);
+    if (fault === "identity") draft.assets[0]!.id++;
+    const reads: number[] = [];
+    const result = readOriginalBootstrapSiteAsset(recovery, {
+      async release(id) {
+        assert.equal(id, 10);
+        return { status: 200, body: structuredClone(draft) };
+      },
+      async readAsset(id, bytes) {
+        assert.equal(bytes, asset.bytes);
+        reads.push(id);
+        draft.assets[0]!.download_count++;
+        if (fault === "drift") draft.body += "changed";
+        return fault === "bytes" ? Buffer.from("inert invalid ZIP") : f.archive;
+      },
+    }).then((original) => {
+      const packetCopy = decodeBootstrapDraftSiteAsset(recovery, original.toString("base64"));
+      inspectBootstrapSiteArchive(packetCopy, expected);
+      return packetCopy;
+    });
+    if (fault) await assert.rejects(result);
+    else {
+      assert.deepEqual(await result, f.archive);
+      assert.deepEqual(reads, [asset.id]);
+    }
+    if (fault === "identity") assert.deepEqual(reads, []);
+  }
+  for (const malformed of [
+    f.archive.toString("base64").slice(1),
+    " ".repeat(4 * Math.ceil(f.archive.length / 3)),
+    Buffer.alloc(f.archive.length).toString("base64"),
+  ])
+    assert.throws(() => decodeBootstrapDraftSiteAsset(recovery, malformed));
 });
 
 void test("bootstrap receipt and ZIP bind exact anchors, inventory, marker and producer; no authority inferred", () => {

@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { isMap, parseDocument } from "yaml";
+import { runInNewContext } from "node:vm";
+import { isRecord } from "./runtime-values.mts";
 import {
   applicationReleaseJobMinutes,
   applicationReleaseBudgetMinutes,
@@ -34,6 +36,84 @@ function controlFixture(): NodeJS.ProcessEnv {
     GITHUB_RUN_ATTEMPT: "1",
   };
 }
+
+void test("bootstrap prepares before fresh protection and stages Pages only in the read-only feed owner", async () => {
+  const document = parseDocument(
+    await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),
+  );
+  assert.deepEqual(document.errors, []);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  const jobs = parsed.jobs;
+  const job = (name: string) => {
+    const value = jobs[name];
+    assert.ok(isRecord(value));
+    return value;
+  };
+  const needs = Object.fromEntries(
+    Object.keys(jobs).map((name) => [name, { result: "skipped", outputs: {} }]),
+  );
+  for (const name of ["source", "tools", "assemble"]) needs[name]!.result = "success";
+  const context = {
+    inputs: { mode: "bootstrap" },
+    vars: { PORTCOVE_APPLICATION_RELEASE_ACTIVE: "true" },
+    needs,
+    always: () => true,
+    cancelled: () => false,
+  };
+  const enabled = (name: string) =>
+    (() => {
+      const condition = job(name).if;
+      assert.equal(typeof condition, "string");
+      assert.ok(typeof condition === "string");
+      return Boolean(runInNewContext(condition.slice(3, -2), context, { timeout: 100 }));
+    })();
+  assert.equal(enabled("publication_prepare"), true);
+  assert.equal(enabled("protection_publication"), false);
+  assert.equal(enabled("publication"), false);
+  needs.publication_prepare!.result = "success";
+  assert.equal(enabled("protection_publication"), true);
+  assert.equal(enabled("publication"), false);
+  needs.protection_publication!.result = "success";
+  assert.equal(enabled("publication"), true);
+  needs.publication_prepare!.result = "failure";
+  assert.equal(enabled("protection_publication"), false);
+  assert.equal(enabled("publication"), false);
+  const feed = job("feed_prepare"),
+    publication = job("publication");
+  assert.ok(
+    isRecord(feed.permissions) && Array.isArray(feed.steps) && Array.isArray(publication.steps),
+  );
+  assert.equal(feed.permissions.contents, "read");
+  assert.equal(feed.permissions.pages, "read");
+  assert.ok(
+    feed.steps.some(
+      (step: unknown) =>
+        isRecord(step) &&
+        typeof step.uses === "string" &&
+        step.uses.startsWith("actions/upload-pages-artifact@"),
+    ),
+  );
+  assert.ok(
+    feed.steps.some(
+      (step: unknown) =>
+        isRecord(step) &&
+        typeof step.run === "string" &&
+        step.run.endsWith(" prepare-feed") &&
+        step.if === undefined,
+    ),
+  );
+  assert.equal(
+    publication.steps.some(
+      (step: unknown) =>
+        isRecord(step) &&
+        ((typeof step.uses === "string" &&
+          step.uses.startsWith("actions/upload-pages-artifact@")) ||
+          (typeof step.run === "string" && / (?:prepare-feed|capture-pages)$/u.test(step.run))),
+    ),
+    false,
+  );
+});
 
 void test("assembly can read the retained Pages and deployment preimage", async () => {
   for (const [file, prefix] of [
@@ -275,8 +355,15 @@ void test("declared first-pass job ceilings fit the existing application resourc
   assert.equal(application.public_installed_readback, 2);
   assert.equal(bootstrap.readback, 5);
   assert.equal(Object.hasOwn(bootstrap, "public_installed_readback"), false);
-  assert.equal(application.publication_prepare + application.publication, bootstrap.publication);
-  assert.equal(Object.hasOwn(bootstrap, "publication_prepare"), false);
+  assert.equal(
+    application.publication_prepare + application.publication,
+    applicationReleaseJobMinutes.publication,
+  );
+  assert.equal(
+    bootstrap.publication_prepare! + bootstrap.publication!,
+    applicationReleaseJobMinutes.publication,
+  );
+  assert.equal(Object.hasOwn(bootstrap, "publication_prepare"), true);
   assert.throws(() => applicationReleaseBudgetMinutes("unknown"));
   // This is a first-pass bound, not capacity or a reservation; retry accounting
   // must additionally charge the actual earlier executions.

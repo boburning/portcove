@@ -30,7 +30,8 @@ import {
 import {
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
-  resumeEmptyApplicationBootstrap,
+  resumeApplicationBootstrapDraft,
+  inspectBootstrapDraftRecovery,
   retainApplicationPreparation,
   inspectApplicationQualificationIdentity,
   readApplicationRunNotes,
@@ -39,7 +40,10 @@ import {
   inspectApplicationReleaseReference,
 } from "./application-release-run.mts";
 import { readApplicationJobBudget } from "./application-release-budget.mts";
-import { inspectApplicationMetadataPublicationReceipt } from "./application-release-publication.mts";
+import {
+  inspectApplicationMetadataPublicationReceipt,
+  readOriginalBootstrapSiteAsset,
+} from "./application-release-publication.mts";
 import type {
   ApplicationBudgetContext,
   ApplicationRunCustody,
@@ -52,6 +56,7 @@ import {
   readApplicationPriorPublication,
   readApplicationImmutableMetadata,
   readApplicationPendingLineage,
+  createFixedApplicationReleaseAssetReader,
   assertApplicationForwardPreimage,
   discoverActualPublishedApplicationCohort,
 } from "./application-release-feed.mts";
@@ -80,6 +85,7 @@ import {
 } from "./application-release-qualification.mts";
 import {
   inspectApplicationReleaseExecution,
+  applicationSourcePacketMaximumBytes,
   inspectApplicationSpendingAppointment,
   verifyApplicationReleaseTrust,
 } from "./application-release-policy.mts";
@@ -602,12 +608,23 @@ async function bootstrap() {
   );
   const provider = await createApplicationRunRegistrationProvider();
   const recovery = process.env.PORTCOVE_APPLICATION_BOOTSTRAP_DRAFT_RECOVERY;
-  const registration = recovery
-    ? await resumeEmptyApplicationBootstrap(
+  const recoveryAppointment = recovery
+    ? inspectBootstrapDraftRecovery(JSON.parse(recovery))
+    : undefined;
+  let originalSite: Buffer | undefined;
+  if (recoveryAppointment?.site_archive) {
+    await beforeSourceRecord();
+    originalSite = await readOriginalBootstrapSiteAsset(recoveryAppointment, {
+      release: provider.release,
+      readAsset: createFixedApplicationReleaseAssetReader(),
+    });
+  }
+  const registration = recoveryAppointment
+    ? await resumeApplicationBootstrapDraft(
         provider,
         execution,
         expected.descriptor_sha256,
-        JSON.parse(recovery),
+        recoveryAppointment,
         beforeSourceWrite,
       )
     : await registerApplicationReleaseRun(
@@ -623,7 +640,7 @@ async function bootstrap() {
     null,
     "bootstrap cannot allocate an executable release",
   );
-  await writeApplicationJson("work/application-source/source.json", {
+  const packet = {
     schema_version: 1,
     authority: "none",
     purpose: "metadata-bootstrap",
@@ -631,12 +648,23 @@ async function bootstrap() {
     bootstrap_descriptor: raw,
     bootstrap_appointment: expected,
     bootstrap_preimage: { inventory_sha256: retained.inventory_sha256, authority: "none" },
+    ...(originalSite
+      ? {
+          bootstrap_draft_recovery: recoveryAppointment,
+          bootstrap_draft_site_base64: originalSite.toString("base64"),
+        }
+      : {}),
     run_custody: { release_id: registration.release_id, custody: registration.custody },
     control_commit: execution.source,
     control_ref: execution.ref,
     run_id: execution.run_id,
     producer_attempt: execution.run_attempt,
-  });
+  };
+  assert.ok(
+    Buffer.byteLength(JSON.stringify(packet)) + 1 <= applicationSourcePacketMaximumBytes,
+    "bootstrap source packet exceeds its fixed transfer limit",
+  );
+  await writeApplicationJson("work/application-source/source.json", packet);
   await applicationOutput("source_attempt", execution.run_attempt);
   await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
 }

@@ -1598,6 +1598,20 @@ void test("post-feed Windows proof uses the read-only ordinary account path only
   );
 });
 
+function publicationTimeout(job: Record<string, unknown>, mode: string) {
+  const expression = job["timeout-minutes"];
+  assert.ok(
+    typeof expression === "string" && expression.startsWith("${{") && expression.endsWith("}}"),
+  );
+  const value: unknown = runInNewContext(
+    expression.slice(3, -2),
+    { inputs: { mode } },
+    { timeout: 100 },
+  );
+  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+  return value;
+}
+
 void test("ordinary publication prepares actual inputs before a separate fresh observer and keeps signing credentials out of byte preparation", async () => {
   const raw: unknown = parse(await readFile(".github/workflows/application-release.yml", "utf8"));
   assert.ok(isRecord(raw) && isRecord(raw.jobs));
@@ -1639,7 +1653,8 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
       publish.needs.includes("publication_prepare") &&
       publish.needs.includes("protection_publication"),
   );
-  assert.equal(publish["timeout-minutes"], "${{ inputs.mode == 'prepare' && 2 || 5 }}");
+  assert.equal(publicationTimeout(publish, "prepare"), 2);
+  assert.equal(publicationTimeout(publish, "bootstrap"), 2);
   assert.ok(Array.isArray(prep.steps));
   const steps = prep.steps.filter(isRecord);
   assert.ok(
@@ -1651,7 +1666,7 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
         typeof step.uses === "string" &&
         step.uses.startsWith("actions/attest@") &&
         isRecord(step.with) &&
-        step.with["subject-path"] === "work/application-draft-prepared/*.json",
+        step.with["subject-path"] === "work/application-draft-prepared/*",
     ),
   );
   assert.ok(
@@ -1851,12 +1866,13 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
       Array.isArray(publisher.needs) &&
       publisher.needs.includes("protection_publication"),
   );
-  assert.equal(publisher["timeout-minutes"], "${{ inputs.mode == 'prepare' && 2 || 5 }}");
+  assert.equal(publicationTimeout(publisher, "renew"), 5);
+  assert.equal(publicationTimeout(publisher, "renew-unserved"), 5);
   assert.ok(
     Array.isArray(publisher.steps) &&
       publisher.steps
         .filter(isRecord)
-        .some((step) => step.id === "feed" && step.if === "inputs.mode == 'bootstrap'"),
+        .every((step) => typeof step.run !== "string" || !step.run.endsWith(" prepare-feed")),
   );
   assert.ok(
     isRecord(source) &&
@@ -1922,20 +1938,14 @@ void test("metadata recovery reaches only current feed staging and guarded deplo
   const stages = prep.steps.filter(isRecord);
   for (const id of ["ordinary_feed", "ordinary_pages"])
     assert.ok(
-      stages.some(
-        (step) =>
-          step.id === id &&
-          typeof step.if === "string" &&
-          step.if.includes("inputs.mode == 'renew'") &&
-          step.if.includes("inputs.mode == 'recover-metadata'"),
-      ),
+      stages.some((step) => step.id === id && step.if === undefined),
       id,
     );
   const preflight = stages.find((step) => step.id === "worker");
   assert.ok(preflight && isRecord(preflight.env));
   assert.equal(
     preflight.env.PORTCOVE_PAGES_ARTIFACT,
-    "${{ (inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')) && steps.ordinary_pages.outputs.artifact_id || needs.publication.outputs.pages_artifact }}",
+    "${{ steps.ordinary_pages.outputs.artifact_id }}",
   );
 });
 

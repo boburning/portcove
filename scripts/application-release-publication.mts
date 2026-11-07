@@ -25,6 +25,8 @@ import {
   inspectApplicationRunCustody,
   assertApplicationCustodyMetadataExtension,
   readApplicationRunNotes,
+  inspectBootstrapDraftRecovery,
+  requireBootstrapDraft,
 } from "./application-release-run.mts";
 import type {
   ApplicationDraftAssembly,
@@ -1980,6 +1982,62 @@ export function inspectBootstrapSiteArchive(
   return readBootstrapSiteArchive(archive, receipt).site;
 }
 
+/** The draft-capable source producer may only copy the appointed original bytes. */
+export async function readOriginalBootstrapSiteAsset(
+  raw: unknown,
+  transport: {
+    release: (id: number) => Promise<{ status?: number; body: unknown }>;
+    readAsset: (id: number, bytes: number) => Promise<Buffer>;
+  },
+) {
+  const expected = inspectBootstrapDraftRecovery(raw);
+  const asset = expected.site_archive;
+  assert.ok(asset, "original bootstrap site identity unavailable");
+  const inspect = async () => {
+    const response = await transport.release(expected.release_id);
+    assert.equal(response.status, 200);
+    const draft = response.body;
+    requireBootstrapDraft(draft, expected);
+    assert.ok(isRecord(draft));
+    return draft;
+  };
+  const before = await inspect();
+  const bytes = await transport.readAsset(asset.id, asset.bytes);
+  assert.equal(bytes.length, asset.bytes);
+  assert.equal(sha256(bytes), asset.sha256);
+  const after = await inspect();
+  // Download counters may advance during our own physical readback.
+  for (const key of [
+    "id",
+    "body",
+    "name",
+    "tag_name",
+    "target_commitish",
+    "draft",
+    "immutable",
+    "prerelease",
+  ])
+    assert.deepEqual(
+      after[key],
+      before[key],
+      "bootstrap draft changed during original asset readback",
+    );
+  return bytes;
+}
+
+/** Decode only the exact bounded source-packet copy. Assembly still verifies
+ * every ZIP entry against its independently generated complete site map. */
+export function decodeBootstrapDraftSiteAsset(raw: unknown, encoded: unknown) {
+  const { site_archive: asset } = inspectBootstrapDraftRecovery(raw);
+  assert.ok(asset && typeof encoded === "string");
+  assert.equal(encoded.length, 4 * Math.ceil(asset.bytes / 3));
+  const bytes = Buffer.from(encoded, "base64");
+  assert.equal(bytes.length, asset.bytes);
+  assert.equal(bytes.toString("base64"), encoded);
+  assert.equal(sha256(bytes), asset.sha256);
+  return bytes;
+}
+
 /** Decoded data remains inert. No extraction or candidate code is executed. */
 export function readBootstrapSiteArchive(
   archive: Buffer,
@@ -2037,6 +2095,61 @@ export function readBootstrapSiteArchive(
 }
 
 type Asset = { id: number; name: AssetName; size: number; digest: string };
+
+export function inspectBootstrapDraftPreparation(
+  raw: unknown,
+  expected: Pick<
+    ReleaseSourceAttestationExpectation,
+    "source_commit" | "ref" | "run_id" | "run_attempt"
+  >,
+) {
+  assert.ok(
+    isRecord(raw) &&
+      Object.keys(raw).sort().join(",") ===
+        "assembly_attempt,assets,authority,control_commit,control_ref,kind,producer_attempt,release_id,run_id,schema_version,site_generation",
+  );
+  assert.equal(raw.schema_version, 1);
+  assert.equal(raw.authority, "none");
+  assert.equal(raw.kind, "application-bootstrap-draft-preparation");
+  assert.equal(raw.control_commit, expected.source_commit);
+  assert.equal(raw.control_ref, expected.ref);
+  assert.equal(raw.run_id, expected.run_id);
+  assert.equal(raw.producer_attempt, expected.run_attempt);
+  assert.ok(
+    typeof raw.assembly_attempt === "number" &&
+      Number.isSafeInteger(raw.assembly_attempt) &&
+      raw.assembly_attempt >= 1 &&
+      raw.assembly_attempt <= expected.run_attempt,
+  );
+  assert.ok(
+    typeof raw.release_id === "number" &&
+      Number.isSafeInteger(raw.release_id) &&
+      raw.release_id > 0,
+  );
+  assert.ok(typeof raw.site_generation === "string" && /^[a-f0-9]{64}$/u.test(raw.site_generation));
+  assert.ok(Array.isArray(raw.assets) && raw.assets.length === bootstrapAssetNames.length);
+  const assets = raw.assets.map((asset: unknown): Asset => {
+    assert.ok(isRecord(asset) && Object.keys(asset).sort().join(",") === "digest,id,name,size");
+    assert.ok(typeof asset.id === "number" && Number.isSafeInteger(asset.id) && asset.id > 0);
+    assert.ok(bootstrapAssetNames.includes(asset.name as AssetName));
+    assert.ok(
+      typeof asset.size === "number" &&
+        Number.isSafeInteger(asset.size) &&
+        asset.size > 0 &&
+        asset.size <= 512 * 1024 ** 2,
+    );
+    assert.ok(typeof asset.digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(asset.digest));
+    return { id: asset.id, name: asset.name as AssetName, size: asset.size, digest: asset.digest };
+  });
+  assert.equal(new Set(assets.map((asset) => asset.id)).size, bootstrapAssetNames.length);
+  assert.deepEqual(assets.map((asset) => asset.name).sort(), [...bootstrapAssetNames].sort());
+  return {
+    assembly_attempt: raw.assembly_attempt,
+    release_id: raw.release_id,
+    site_generation: raw.site_generation,
+    assets,
+  };
+}
 
 /** Current metadata-only publication. Historical provenance is verified by the
  * caller; this join keeps renewal on its selected public basis and producer. */
@@ -2242,10 +2355,17 @@ export async function publishApplicationMetadataRelease(
     release_id: number;
     custody: ApplicationRunCustody;
     binding: ApplicationMetadataPublicationBinding;
+    prepared_assets?: readonly Asset[];
+    original_site?: ReturnType<typeof inspectBootstrapDraftRecovery>["site_archive"];
   },
   metadata: Buffer,
   archive: Buffer,
+  mode: "combined" | "prepare" | "publish" = "combined",
 ) {
+  assert.ok(["combined", "prepare", "publish"].includes(mode));
+  if (mode === "publish")
+    assert.equal(expected.prepared_assets?.length, bootstrapAssetNames.length);
+  if (expected.original_site) assert.ok(!("purpose" in expected.binding));
   assert.ok(metadata.length > 0 && metadata.length <= 2 * 1024 ** 2);
   const metadataReceipt: unknown = JSON.parse(
     new TextDecoder("utf-8", { fatal: true }).decode(metadata),
@@ -2306,7 +2426,7 @@ export async function publishApplicationMetadataRelease(
     const raw = await get(`${root}/assets?per_page=100&page=1`);
     assert.ok(Array.isArray(raw) && raw.length <= 2);
     const seen = new Set<string>();
-    return raw.map((value: unknown): Asset => {
+    const actual = raw.map((value: unknown): Asset => {
       assert.ok(isRecord(value) && typeof value.name === "string");
       const bytes = files.get(value.name as AssetName);
       assert.ok(
@@ -2324,6 +2444,32 @@ export async function publishApplicationMetadataRelease(
         digest: String(value.digest),
       };
     });
+    if (expected.original_site) {
+      const original = expected.original_site;
+      assert.deepEqual(
+        actual.find((asset) => asset.name === original.name),
+        {
+          id: original.id,
+          name: original.name,
+          size: original.bytes,
+          digest: `sha256:${original.sha256}`,
+        },
+        "appointed original site asset is missing or changed; preserve without retry",
+      );
+    }
+    if (mode === "publish") {
+      assert.equal(
+        actual.length,
+        files.size,
+        "protected publication requires every asset prepared first",
+      );
+      assert.deepEqual(
+        actual.toSorted((a, b) => a.id - b.id),
+        expected.prepared_assets!.toSorted((a, b) => a.id - b.id),
+        "prepared asset IDs or bytes changed before publication readback",
+      );
+    }
+    return actual;
   };
   const verifyBytes = async () => {
     const actual = await assets();
@@ -2366,8 +2512,10 @@ export async function publishApplicationMetadataRelease(
     );
   };
   await inspectTag(current.draft === true);
+  if (mode === "prepare")
+    assert.equal(current.draft, true, "draft preparation cannot resume an immutable release");
   if (current.draft === true) {
-    if (transport.retainAssembly && "purpose" in expected.binding) {
+    if (mode !== "publish" && transport.retainAssembly && "purpose" in expected.binding) {
       assert.ok(isRecord(metadataReceipt));
       await transport.retainAssembly(
         applicationDraftAssembly(expected.release_id, metadataReceipt, receipt.publication, files),
@@ -2380,7 +2528,7 @@ export async function publishApplicationMetadataRelease(
       assert.deepEqual(await assets(), actual);
       current = retained;
     }
-    for (const [name, bytes] of files)
+    for (const [name, bytes] of mode === "publish" ? [] : files)
       if (!actual.some((asset) => asset.name === name)) {
         const assertWindow = await transport.beforeWrite("asset");
         const fresh = await release();
@@ -2403,6 +2551,21 @@ export async function publishApplicationMetadataRelease(
         }
       }
     await verifyBytes();
+    if (mode === "prepare") {
+      const settled = await release();
+      assert.equal(settled.draft, true);
+      assert.equal(settled.body, current.body, "draft notes changed during preparation");
+      assert.deepEqual(await assets(), actual, "draft asset identities changed during preparation");
+      return {
+        schema_version: 1,
+        authority: "none",
+        release_id: expected.release_id,
+        tag,
+        site_generation: receipt.site.generation,
+        assets: actual,
+        scope: "mutable metadata draft preparation only; no publication",
+      };
+    }
     const assertWindow = await transport.beforeWrite("publish");
     const fresh = await release();
     assert.equal(fresh.draft, true);
