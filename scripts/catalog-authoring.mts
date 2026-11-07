@@ -8,6 +8,7 @@ import type {
   SettingsQualificationPolicy,
   SettingsQualificationObservation,
 } from "./settings-qualification.mts";
+import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
@@ -61,6 +62,7 @@ export interface AuthoredPort extends Record<string, unknown> {
   route_facts_v1?: RouteFactsV1;
   /** Reviewed common staged archive layout; expanded before Core validation. */
   gba_staged_archive_v1?: { game_code: string; versioned_mods: boolean };
+  psx_managed_windows_v1?: true;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -403,6 +405,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   }
   const record = value as AuthoredPort;
   projectGbaArchive(record);
+  projectPsxManagedWindows(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -441,7 +444,9 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
   const record = projectSettingsQualification(
-    projectPackagePlayerFacts(projectRouteFacts(projectGbaArchive(input))),
+    projectPackagePlayerFacts(
+      projectRouteFacts(projectPsxManagedWindows(projectGbaArchive(input))),
+    ),
   );
   if (!record.integration) return undefined;
   const integration = structuredClone(record.integration);

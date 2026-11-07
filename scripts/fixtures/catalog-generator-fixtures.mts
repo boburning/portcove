@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import type { ArtworkCatalog } from "../inspect-igdb-artwork.mts";
 import { isRecord } from "../runtime-values.mts";
 import { authoringRecordFromPort } from "../catalog-authoring.mts";
+import { readFixtureModuleClosure } from "./module-closure.mts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export function requiredFixture<T>(value: T): NonNullable<T> {
@@ -102,26 +103,11 @@ export function run(...args: string[]) {
 
 export function isolatedGenerator() {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-generator-dispatch-"));
-  mkdirSync(join(scratch, "scripts"));
-  for (const name of [
-    "generate-catalog.mts",
-    "inspect-igdb-artwork.mts",
-    "runtime-values.mts",
-    "catalog-authoring.mts",
-    "catalog-advisories.mts",
-    "settings-qualification.mts",
-    "json-values.mts",
-    "catalog-route-facts.mts",
-    "catalog-retained-prepared.mts",
-    "package-player-observation.mts",
-    "upstream-lineage.mts",
-    "catalog-authoring-inspector.mts",
-    "maintainer-config.mts",
-  ])
-    copyFileSync(join(root, "scripts", name), join(scratch, "scripts", name));
-  const inventory = join(scratch, "apps", "desktop", "src", "catalog-values.generated.ts");
-  mkdirSync(dirname(inventory), { recursive: true });
-  copyFileSync(join(root, "apps", "desktop", "src", "catalog-values.generated.ts"), inventory);
+  for (const module of readFixtureModuleClosure(root, ["scripts/generate-catalog.mts"]).modules) {
+    const destination = join(scratch, module.path);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, module.bytes);
+  }
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(catalogs, { recursive: true });
   for (const name of [

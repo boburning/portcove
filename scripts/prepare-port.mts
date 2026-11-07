@@ -158,6 +158,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Check the exact package, original edition, picker lifetime and writer differences against the reviewed layout. Reuse matching staging, preservation and rollback evidence. Keep repository, release selectors, executable and external saves explicit.",
     });
   }
+  if (record.psx_managed_windows_v1) {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope: "Managed Windows PSXRecomp generated-player launch and reviewed local data layout.",
+      next: "Check the exact kit and generated executable, owned disc and retail SCPH-1001 BIOS, and the same writer layout as the seven PSX routes in PR #4676. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
+    });
+  }
   return {
     status: projections.length > 0 ? "declared" : "undeclared",
     projections,

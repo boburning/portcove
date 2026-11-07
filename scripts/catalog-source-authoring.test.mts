@@ -746,3 +746,23 @@ void test("reviewed GBA archive facts preserve both installed contract variants"
     assert.throws(() => checkedAuthoredPort(unsafe), /reviewed Windows staged GitHub archive/u);
   }
 });
+
+void test("PSX managed Windows authoring preserves the embedded contracts", () => {
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
+  const { records } = readCatalogSource(catalogRoot);
+  const consumers = records.filter((record) => record.psx_managed_windows_v1);
+  assert.ok(consumers.length > 0);
+  for (const record of consumers) {
+    const id = record.listing.id;
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    const duplicate = structuredClone(record);
+    duplicate.integration!.runtime_subdirectory = "setup-host";
+    assert.throws(() => checkedAuthoredPort(duplicate), /already owns runtime_subdirectory/u);
+    const otherBios = structuredClone(record);
+    otherBios.integration!.bios_source_profile = "psx-scph-5552-bios";
+    assert.throws(() => checkedAuthoredPort(otherBios), /retail SCPH-1001/u);
+    const otherPlatform = structuredClone(record);
+    otherPlatform.integration!.platforms = ["macos-arm64"];
+    assert.throws(() => checkedAuthoredPort(otherPlatform), /reviewed Windows GitHub kit/u);
+  }
+});

@@ -2096,6 +2096,31 @@ The Ruby and Sapphire example shows when explicit variant and fallback paths
 can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-versioned-mod-preservation-2026-10-25.md),
 [explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
 
+Optional authoring-only `psx_managed_windows_v1: true` supplies the shared
+launch and data layout for the reviewed Windows GitHub PSXRecomp kit. Use the
+[Tony Hawk’s Pro Skater 3 record](../crates/portcove-core/catalog/ports/alexbeav-tony-hawk-s-pro-skater-3-recomp.json)
+as the example. Keep the release selector, generated executable basename,
+exact original-disc profile, retail SCPH-1001 BIOS profile, and both source
+contracts explicit. Preserve any separate upstream setup guide. The projection
+writes the `build-portcove` working coordinates, `--no-launcher`, overlay
+environment, owned save/settings/mod paths, and disposable diagnostic paths.
+It refuses duplicate fields. A different writer layout or setup contract
+needs the explicit form and applicable qualification.
+
+Reuse the PSX adapter’s preparation, preservation, and recovery evidence where
+the kit uses `psxrecomp/psxrecomp_cli.py` and the `psx-runtime` target, the same
+generated-player lifetime, and the same data layout. The
+[controlled PSX progression](../crates/portcove-core/src/runtime_tests/psx_progression.rs)
+exercises install and update with registered inputs. Independently inspect the selected kit,
+disc and BIOS requirements, generated executable, and any title-specific
+writers. Enroll the independently observed disc and generated-player facts
+under `managed_psx` in the shared Windows archive fixture. A change to the
+build tools, launch lifetime, or data ownership calls for reassessing the
+affected operation. Exact PSX source evidence stays attached to the observed
+artifact. A compatible successor can use the same package rules without
+inheriting that artifact’s source evidence. Run the Core repository proposal
+inspection before delivery. [Reviewed seven-title precedent](https://github.com/boburning/portcove/pull/4676).
+
 For a new compatible-release selection case, add the stable title ID to
 `cases` in the shared Windows archive fixture. Set its `inventory` to a key
 in `inventories` with at least two releases in oldest-to-newest order.
