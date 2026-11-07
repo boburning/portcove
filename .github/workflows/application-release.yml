@@ -8,7 +8,17 @@ on:
       mode:
         type: choice
         default: qualify
-        options: [qualify, prepare, bootstrap, recover, renew, recover-metadata, renew-unserved, diagnose-protection]
+        options:
+          [
+            qualify,
+            prepare,
+            bootstrap,
+            recover,
+            renew,
+            recover-metadata,
+            renew-unserved,
+            diagnose-protection,
+          ]
         description: Qualification, application preparation, empty bootstrap, immutable executable/metadata feed recovery, or metadata renewal.
       opportunity:
         type: string
