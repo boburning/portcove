@@ -2375,9 +2375,13 @@ Pages returned HTTP 200 to the native create and the worker refused the
 acknowledgement. The Actions job and admission record retain failure.
 Prior-feed discovery recognizes this exact settled actor when the native
 build lookup reports success. It requires the original immutable release,
-attested r27 assembly, exact public whole-site bytes and fresh role metadata
-before handing the cohort to the existing signing verifier. Other failed
-admissions still refuse. The original r27 effect remains unknown.
+attested r27 assembly and exact public whole-site bytes. Application release
+preparation requires fresh role metadata. The protected `renew` mode can use
+this exact served cohort as a historical preimage after online roles expire.
+The pinned verifier requires fresh Root and offline Targets and preserves
+accepted records. The published successor must advance online role versions and
+expiry, pass normal freshness verification and preserve the rest of the site.
+Other failed admissions still refuse. The original r27 effect remains unknown.
 
 A fresh appointed controller can use its commit SHA for its first application
 feed effect. Preparation requires a complete empty Pages admission inventory
