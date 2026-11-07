@@ -1,5 +1,12 @@
 {
   "cases": {
+    "jgrennison-openttd-patches": {
+      "inventory": "jgrpp",
+      "selected_assets": [
+        "openttd-jgrpp-0.73.4-windows-win64.zip",
+        "openttd-jgrpp-0.73.5-windows-win64.zip"
+      ]
+    },
     "elasota-aerofoil": {
       "inventory": "aerofoil",
       "selected_assets": ["Aerofoil-1.1.7-win64.zip", "Aerofoil-1.1.8-win64.zip"]
@@ -78,6 +85,152 @@
     }
   },
   "inventories": {
+    "jgrpp": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.4/openttd-jgrpp-0.73.4-linux--bookworm-amd64.deb",
+            "digest": "sha256:9284a26ff92db6a82dd33269730b519435a5a5ca87313277ab597ac54d31d8a8",
+            "id": 634522659,
+            "name": "openttd-jgrpp-0.73.4-linux--bookworm-amd64.deb",
+            "size": 32526754
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.4/openttd-jgrpp-0.73.4-linux--jammy-amd64.deb",
+            "digest": "sha256:59b9a4f96f71a07a903ea96544156c7157364708217ca71857c06db7585eea34",
+            "id": 634522530,
+            "name": "openttd-jgrpp-0.73.4-linux--jammy-amd64.deb",
+            "size": 32795782
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.4/openttd-jgrpp-0.73.4-linux--noble-amd64.deb",
+            "digest": "sha256:55e47dd0dee873a9053344dee4f4a8dc1308fdec92447ac30e2e2c5683eb2f37",
+            "id": 634522805,
+            "name": "openttd-jgrpp-0.73.4-linux--noble-amd64.deb",
+            "size": 32149128
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.4/openttd-jgrpp-0.73.4-linux-dedicated-amd64.tar.xz",
+            "digest": "sha256:90cbc17279dd0d3e873db8b89e52f4ad3bf358221ac8b42d526dbcf5dd2e3270",
+            "id": 634553286,
+            "name": "openttd-jgrpp-0.73.4-linux-dedicated-amd64.tar.xz",
+            "size": 29216328
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.4/openttd-jgrpp-0.73.4-linux-generic-amd64.tar.xz",
+            "digest": "sha256:9df78eaa8157fff3c310345554b34dbd3ecc6d14e3988f91e3c25b5330940511",
+            "id": 634550225,
+            "name": "openttd-jgrpp-0.73.4-linux-generic-amd64.tar.xz",
+            "size": 43592536
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.4/openttd-jgrpp-0.73.4-macos-universal.dmg",
+            "digest": "sha256:3201532f5c3c9c0830cc5c0f088f334f25345b765d7930e2688886c9dda6ad6d",
+            "id": 634538286,
+            "name": "openttd-jgrpp-0.73.4-macos-universal.dmg",
+            "size": 19619606
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.4/openttd-jgrpp-0.73.4-windows-arm64.zip",
+            "digest": "sha256:dacb98f8495296eebc7de2b295a4ca8500f52eba2a8403ab957acae3f9a783db",
+            "id": 634523683,
+            "name": "openttd-jgrpp-0.73.4-windows-arm64.zip",
+            "size": 14848055
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.4/openttd-jgrpp-0.73.4-windows-win32.zip",
+            "digest": "sha256:e58590e3bd22309219dc3b232feb2748e11da1ce39ee8b41b9be064e89feb436",
+            "id": 634523126,
+            "name": "openttd-jgrpp-0.73.4-windows-win32.zip",
+            "size": 14171063
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.4/openttd-jgrpp-0.73.4-windows-win64.zip",
+            "digest": "sha256:07a1c41ea46a64fcef0d264a5f228d0275ac664a81eae3631d27b628f7f6da30",
+            "id": 634503612,
+            "name": "openttd-jgrpp-0.73.4-windows-win64.zip",
+            "size": 26546972
+          }
+        ],
+        "draft": false,
+        "id": 410860024,
+        "prerelease": false,
+        "published_at": "2026-10-12T18:03:29Z",
+        "tag_name": "jgrpp-0.73.4"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.5/openttd-jgrpp-0.73.5-linux--bookworm-amd64.deb",
+            "digest": "sha256:82c46a499052149d7ae1fa9ddfc659e83b706ed73366cb1309232d95246ca2db",
+            "id": 698299687,
+            "name": "openttd-jgrpp-0.73.5-linux--bookworm-amd64.deb",
+            "size": 32540988
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.5/openttd-jgrpp-0.73.5-linux--jammy-amd64.deb",
+            "digest": "sha256:da6b2b0167a26be45ca1ae8a8bb8e6b1f29bf241017a371915fcdae71432a4c8",
+            "id": 698300196,
+            "name": "openttd-jgrpp-0.73.5-linux--jammy-amd64.deb",
+            "size": 32821034
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.5/openttd-jgrpp-0.73.5-linux--noble-amd64.deb",
+            "digest": "sha256:90388729d57cf15d35fc0e2809a97f65f65316a272784ca5fd97a2d31d0ce9c2",
+            "id": 698300327,
+            "name": "openttd-jgrpp-0.73.5-linux--noble-amd64.deb",
+            "size": 32175202
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.5/openttd-jgrpp-0.73.5-linux-dedicated-amd64.tar.xz",
+            "digest": "sha256:01404dc97ed2cd8f57005cbcd50b7e0b45f78aafa0a26dd3925657bea2ad24f0",
+            "id": 698299834,
+            "name": "openttd-jgrpp-0.73.5-linux-dedicated-amd64.tar.xz",
+            "size": 29233084
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.5/openttd-jgrpp-0.73.5-linux-generic-amd64.tar.xz",
+            "digest": "sha256:2de4dc6fa93115ddc4c2ff58f6a70e78056e726a182d2f986a06c0f07227097d",
+            "id": 698299976,
+            "name": "openttd-jgrpp-0.73.5-linux-generic-amd64.tar.xz",
+            "size": 43738124
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.5/openttd-jgrpp-0.73.5-macos-universal.dmg",
+            "digest": "sha256:bb6a536ba89e9b535d3226a736ee7670c46f2baf9ea2670bad67f07ad7ab0845",
+            "id": 698300663,
+            "name": "openttd-jgrpp-0.73.5-macos-universal.dmg",
+            "size": 19863512
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.5/openttd-jgrpp-0.73.5-windows-arm64.zip",
+            "digest": "sha256:da207b28d9612b62f7b14c0f103c849551c65add1922ae18356d614412dc1bda",
+            "id": 698301128,
+            "name": "openttd-jgrpp-0.73.5-windows-arm64.zip",
+            "size": 14904437
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.5/openttd-jgrpp-0.73.5-windows-win32.zip",
+            "digest": "sha256:3722030c0553b7a1e1c2fc194fcd867f969908b572f5b0813dd9f16ce61efcf6",
+            "id": 698300915,
+            "name": "openttd-jgrpp-0.73.5-windows-win32.zip",
+            "size": 14261524
+          },
+          {
+            "browser_download_url": "https://github.com/JGRennison/OpenTTD-patches/releases/download/jgrpp-0.73.5/openttd-jgrpp-0.73.5-windows-win64.zip",
+            "digest": "sha256:3c7416f4be97c183a949d4101926870778b58862cfd67216525828337ccd277a",
+            "id": 698301973,
+            "name": "openttd-jgrpp-0.73.5-windows-win64.zip",
+            "size": 26557111
+          }
+        ],
+        "draft": false,
+        "id": 430573974,
+        "prerelease": false,
+        "published_at": "2026-11-01T12:36:11Z",
+        "tag_name": "jgrpp-0.73.5"
+      }
+    ],
     "aerofoil": [
       {
         "assets": [
@@ -1029,6 +1182,26 @@
     ]
   },
   "other_zip_assets": [
+    {
+      "inventory": "jgrpp",
+      "release_index": 0,
+      "asset": "openttd-jgrpp-0.73.4-windows-arm64.zip"
+    },
+    {
+      "inventory": "jgrpp",
+      "release_index": 0,
+      "asset": "openttd-jgrpp-0.73.4-windows-win32.zip"
+    },
+    {
+      "inventory": "jgrpp",
+      "release_index": 1,
+      "asset": "openttd-jgrpp-0.73.5-windows-arm64.zip"
+    },
+    {
+      "inventory": "jgrpp",
+      "release_index": 1,
+      "asset": "openttd-jgrpp-0.73.5-windows-win32.zip"
+    },
     { "inventory": "aerofoil", "release_index": 0, "asset": "Aerofoil-1.1.7-win64-tools.zip" },
     {
       "inventory": "body_harvest",
