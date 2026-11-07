@@ -23,6 +23,8 @@ import {
   inspectApplicationReleaseReference,
   readApplicationBudgetOwnerAsync,
   createApplicationReleaseMetadataReader,
+  immutableApplicationBootstrap,
+  recoveredApplicationBootstrap,
 } from "./application-release-run.mts";
 import type { ApplicationRunCustody } from "./application-release-run.mts";
 import type { ApplicationReleaseReference } from "./application-release-run.mts";
@@ -37,6 +39,7 @@ import type { ApplicationMetadataPublicationBinding } from "./application-releas
 import type { ApplicationMetadataRenewalBasis } from "./application-release-publication.mts";
 import { inspectSiteArtifactArchive } from "./release-site-deployment.mts";
 import { readReleaseNotesWithSdk } from "./release-publication-inventory.mts";
+import { readPublicApplicationSite } from "./release-site-readback.mts";
 import {
   createApplicationFeedReader,
   readActualApplicationPagesState,
@@ -97,6 +100,11 @@ export async function discoverPublishedApplicationCohort(
     execution.run,
     "immutable cohort and actual feed actor disagree",
   );
+  if (state.deployment_id === recoveredApplicationBootstrap.admission_id) {
+    assert.equal(selected.release.id, immutableApplicationBootstrap.release_id);
+    assert.equal(selected.custody.opportunity, immutableApplicationBootstrap.opportunity);
+    assert.equal(selected.custody.preparation, null);
+  }
   assert.ok(typeof execution.deployment_created_at === "string");
   assert.ok(
     selected.published <= Date.parse(execution.deployment_created_at),
@@ -298,6 +306,48 @@ export async function readImmutableApplicationMetadata(
   const started = performance.now();
   assert.deepEqual(await transport.readPages(), discovered.state);
   const prior = await readRegisteredImmutableApplicationMetadata(discovered, transport);
+  if (discovered.state.deployment_id === recoveredApplicationBootstrap.admission_id) {
+    const original = immutableApplicationBootstrap;
+    assert.equal(discovered.release_id, original.release_id);
+    assert.equal(prior.receipt.site.generation, original.generation);
+    assert.deepEqual(prior.receipt.producer, {
+      id: original.assembly.run_id,
+      control_commit: original.assembly.control_commit,
+      control_ref: original.assembly.control_ref,
+    });
+    assert.equal(prior.receipt.producer_attempt, original.assembly.producer_attempt);
+    assert.deepEqual(
+      [...prior.assets].sort((a, b) => a.id - b.id),
+      [
+        {
+          id: 719618894,
+          name: "application-site.zip",
+          bytes: 17929,
+          sha256: "486c3b00f43074aa08d7271691dfce1090bc6f8e422bb57718f9bcc7e55c1646",
+        },
+        {
+          id: 719801898,
+          name: "application-metadata.json",
+          bytes: 6624,
+          sha256: "c5182db9f123466efbc37b2a24b6a9bc24325d1ea094a9d66a638ab0abb6b805",
+        },
+      ],
+    );
+    const fresh = () =>
+      assert.ok(
+        Object.values(prior.receipt.publication.expires).every(
+          (expires) => Date.parse(expires) > Date.now(),
+        ),
+        "recovered bootstrap metadata is expired",
+      );
+    fresh();
+    const publicSite = await readPublicApplicationSite(
+      prior.receipt.site,
+      Math.min(transport.deadline ?? Infinity, started + 120000),
+    );
+    assert.equal(publicSite.generation, original.generation);
+    fresh();
+  }
   assert.deepEqual(
     await transport.readPages(),
     discovered.state,

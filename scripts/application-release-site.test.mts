@@ -7,6 +7,7 @@ import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import {
   failedBootstrapRecovery,
   immutableApplicationBootstrap,
+  recoveredApplicationBootstrap,
 } from "./application-release-run.mts";
 import {
   executeBootstrapPages,
@@ -29,6 +30,127 @@ const body = {
   ],
 };
 const site = { ...body, generation: digest(body) };
+
+void test("only the appointed settled r29 failure can identify a successful native bootstrap effect", async () => {
+  const r29 = recoveredApplicationBootstrap;
+  const ref = r29.control_ref.slice("refs/tags/".length);
+  const logUrl = `https://github.com/boburning/portcove/actions/runs/${r29.run_id}/job/${r29.job_id}`;
+  const repo = { id: 1354613114, full_name: "boburning/portcove" };
+  const deployment = {
+    id: r29.admission_id,
+    sha: r29.control_commit,
+    ref,
+    environment: "github-pages",
+    task: "deploy",
+    payload: {},
+    performed_via_github_app: { id: 15368, slug: "github-actions" },
+    created_at: "2026-11-07T19:03:36Z",
+  };
+  const status = {
+    id: r29.status_id,
+    state: "failure",
+    environment: "github-pages",
+    log_url: logUrl,
+    target_url: logUrl,
+    created_at: "2026-11-07T19:04:26Z",
+    deployment_url: `https://api.github.com/repos/boburning/portcove/deployments/${r29.admission_id}`,
+  };
+  const job = {
+    id: r29.job_id,
+    run_id: Number(r29.run_id),
+    run_attempt: 1,
+    name: "feed",
+    status: "completed",
+    conclusion: "failure",
+    head_sha: r29.control_commit,
+    head_branch: ref,
+    started_at: "2026-11-07T19:03:39Z",
+    completed_at: "2026-11-07T19:04:25Z",
+    html_url: logUrl,
+    steps: [
+      {
+        name: "Reconcile initial application Pages deployment",
+        status: "completed",
+        conclusion: "failure",
+      },
+    ],
+  };
+  const run = {
+    id: Number(r29.run_id),
+    run_attempt: 1,
+    head_sha: r29.control_commit,
+    head_branch: ref,
+    status: "completed",
+    conclusion: "failure",
+    path: ".github/workflows/application-release.yml",
+    event: "workflow_dispatch",
+    repository: repo,
+    head_repository: repo,
+    display_title: `Application ${immutableApplicationBootstrap.opportunity}`,
+    run_started_at: "2026-11-07T18:58:15Z",
+    updated_at: "2026-11-07T19:04:26Z",
+  };
+  const native = `pages/deployments/${r29.control_commit}`;
+  const responses: Record<string, unknown> = {
+    pages: {
+      html_url: "https://boburning.github.io/portcove/",
+      build_type: "workflow",
+      cname: null,
+      https_enforced: true,
+    },
+    "deployments?environment=github-pages&per_page=1": [deployment],
+    [`deployments/${r29.admission_id}`]: deployment,
+    [`deployments/${r29.admission_id}/statuses?per_page=1`]: [status],
+    [`actions/jobs/${r29.job_id}`]: job,
+    [`actions/runs/${r29.run_id}/attempts/1`]: run,
+    [`git/ref/tags/${ref}`]: {
+      ref: r29.control_ref,
+      object: { type: "commit", sha: r29.control_commit },
+    },
+    [native]: { status: "succeed" },
+  };
+  const read =
+    (overrides: Record<string, unknown> = {}) =>
+    async (endpoint: string) => {
+      const route = endpoint.replace(/^repos\/boburning\/portcove\//u, "");
+      assert.ok(Object.hasOwn(responses, route), route);
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body: overrides[route] ?? responses[route],
+      };
+    };
+  const state = await readApplicationPagesStateAsync(read());
+  const effect = await readApplicationPagesExecution(read(), state);
+  assert.equal(effect.conclusion, "failure");
+  assert.equal(effect.run.id, r29.run_id);
+  assert.equal(effect.job_id, r29.job_id);
+  await assert.rejects(readApplicationPagesStateAsync(read({ [native]: { status: "" } })));
+  await assert.rejects(
+    readApplicationPagesStateAsync(
+      read({
+        [`deployments/${r29.admission_id}/statuses?per_page=1`]: [{ ...status, id: status.id + 1 }],
+      }),
+    ),
+  );
+  await assert.rejects(
+    readApplicationPagesExecution(
+      read({
+        [`actions/runs/${r29.run_id}/attempts/1`]: { ...run, status: "in_progress" },
+      }),
+      state,
+    ),
+  );
+  await assert.rejects(
+    readApplicationPagesExecution(
+      read({
+        [`git/ref/tags/${ref}`]: { ref: r29.control_ref, object: { type: "commit", sha: control } },
+      }),
+      state,
+    ),
+  );
+});
+
 function fixture(
   mode = "valid",
   prior = false,

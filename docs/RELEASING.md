@@ -2370,6 +2370,15 @@ that artifact during feed preparation and verifies both failed admissions.
 It runs one complete budget check after acquiring OIDC and preserves the
 original protection freshness deadline at the write boundary.
 
+In [r29](https://github.com/boburning/portcove/actions/runs/42403889193/attempts/1),
+Pages returned HTTP 200 to the native create and the worker refused the
+acknowledgement. The Actions job and admission record retain failure.
+Prior-feed discovery recognizes this exact settled actor when the native
+build lookup reports success. It requires the original immutable release,
+attested r27 assembly, exact public whole-site bytes and fresh role metadata
+before handing the cohort to the existing signing verifier. Other failed
+admissions still refuse. The original r27 effect remains unknown.
+
 ## Upgrade acceptance and technical previews
 
 The first Windows public beta requires the complete applicable Windows/shared
