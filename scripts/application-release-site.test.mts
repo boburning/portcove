@@ -232,6 +232,53 @@ void test("prior Pages discovery checks the original feed attempt and refuses re
   assert.equal(recoveredActor.authority, "none");
   assert.equal(recoveredActor.deployment_created_at, failedReadback.deployment.created_at);
 
+  const actionsState = { ...state, source_commit: control };
+  const admission = () => {
+    const f = fixture();
+    Object.assign(f.job, { html_url: state.log_url, head_branch: ref });
+    Object.assign(f.run, {
+      status: "completed",
+      run_started_at: "2026-11-04T11:59:00Z",
+      updated_at: "2026-11-04T12:02:00Z",
+    });
+    Object.assign(f.deployment, {
+      sha: control,
+      created_at: "2026-11-04T11:59:55Z",
+      task: "deploy",
+      payload: {},
+      performed_via_github_app: { id: 15368, slug: "github-actions" },
+    });
+    Object.assign(f.status, {
+      created_at: "2026-11-04T12:01:01Z",
+      target_url: state.log_url,
+      environment: "github-pages",
+      deployment_url: "https://api.github.com/repos/boburning/portcove/deployments/10",
+    });
+    return f;
+  };
+  const actions = admission();
+  const settled = await readApplicationPagesExecution(actions.read, actionsState);
+  assert.equal(settled.deployment_created_at, actions.deployment.created_at);
+  assert.equal(settled.deployed_at, actions.status.created_at);
+  for (const mutate of [
+    (f: ReturnType<typeof admission>) => Object.assign(f.job, { conclusion: "failure" }),
+    (f: ReturnType<typeof admission>) => Object.assign(f.job, { head_branch: "main" }),
+    (f: ReturnType<typeof admission>) =>
+      Object.assign(f.deployment, { performed_via_github_app: null }),
+    (f: ReturnType<typeof admission>) =>
+      Object.assign(f.deployment, { payload: { replayed: true } }),
+    (f: ReturnType<typeof admission>) =>
+      Object.assign(f.status, { target_url: "https://github.com/other" }),
+    (f: ReturnType<typeof admission>) =>
+      Object.assign(f.run, { run_started_at: "2026-11-04T11:59:56Z" }),
+    (f: ReturnType<typeof admission>) =>
+      Object.assign(f.run, { updated_at: "2026-11-04T12:01:00Z" }),
+  ]) {
+    const negative = admission();
+    mutate(negative);
+    await assert.rejects(readApplicationPagesExecution(negative.read, actionsState));
+  }
+
   for (const mutate of [
     (f: ReturnType<typeof fixture>) => {
       f.job.name = "publication";

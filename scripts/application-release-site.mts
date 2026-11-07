@@ -336,10 +336,34 @@ function* applicationPagesExecution(
   assert.equal(status.log_url, state.log_url);
   const created = instant(deployment.created_at),
     succeeded = instant(status.created_at);
-  assert.ok(
-    start <= created && created <= succeeded && succeeded <= end,
-    "Pages deployment is outside its claimed original feed job",
-  );
+  const duringJob = start <= created && created <= succeeded && succeeded <= end;
+  if (!duringJob) {
+    // Actions creates its environment admission before starting the job and
+    // can publish the final status after the job has completed.
+    const app = deployment.performed_via_github_app;
+    assert.ok(
+      deployment.task === "deploy" &&
+        isRecord(deployment.payload) &&
+        Object.keys(deployment.payload).length === 0 &&
+        isRecord(app) &&
+        app.id === 15368 &&
+        app.slug === "github-actions" &&
+        deployment.sha === job.head_sha &&
+        job.head_branch === run.head_branch &&
+        job.conclusion === "success" &&
+        job.html_url === state.log_url &&
+        status.target_url === state.log_url &&
+        status.environment === "github-pages" &&
+        status.deployment_url ===
+          `https://api.github.com/repos/boburning/portcove/deployments/${state.deployment_id}` &&
+        run.status === "completed" &&
+        instant(run.run_started_at) <= created &&
+        created <= start &&
+        start <= succeeded &&
+        Math.max(end, succeeded) <= instant(run.updated_at),
+      "Pages deployment is outside its claimed original feed job or Actions admission",
+    );
+  }
   assert.deepEqual(
     yield* applicationPagesState(),
     state,
