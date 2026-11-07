@@ -223,7 +223,8 @@ export async function readBootstrapPublicSource(
     deadline,
     "application",
   );
-  return { publication, ...result };
+  if (!result.historical) throw new Error("application bootstrap historical preimage required");
+  return { publication, ...result, historical: result.historical };
 }
 
 /** Catalog bootstrap has its own explicit setup pin and never requires an
