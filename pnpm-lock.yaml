@@ -312,8 +312,8 @@ importers:
         specifier: 4.14.0
         version: 4.14.0
       i18next-cli:
-        specifier: 1.85.0
-        version: 1.85.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+        specifier: 1.86.0
+        version: 1.86.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       json-schema-to-typescript:
         specifier: 16.0.0
         version: 16.0.0
@@ -2001,8 +2001,8 @@ packages:
     resolution: {integrity: sha512-ag87y7cJJ9/3+GxFr8Oy4O5faDsGRGnBGsJj/YjOSsSx/5eadKLYTMPlzuR6obgoCDDm0abAAZitXXQkMOPSpA==}
     engines: {node: '>= 20'}
 
-  i18next-cli@1.85.0:
-    resolution: {integrity: sha512-5FLiMip3JuOnFX+L5fXVJ02nhpBlWqFjXUt4hsDrEIWmHp4amSv8e8rf3l58bCk+ZmNIbqUxNsbfYUrFVir6Ag==}
+  i18next-cli@1.86.0:
+    resolution: {integrity: sha512-i1LV7JeM9XATZc4tAGUlgmgMLorTAa6O17l/gnrfmvOgsP6OWWlwwBYDzHgu4w1pHlhqpn0MoPEq84wrEYMYqQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3842,7 +3842,7 @@ snapshots:
       - kerberos
       - supports-color
 
-  i18next-cli@1.85.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
+  i18next-cli@1.86.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
     dependencies:
       '@croct/json5-parser': 0.2.2
       '@formatjs/icu-messageformat-parser': 3.5.22
