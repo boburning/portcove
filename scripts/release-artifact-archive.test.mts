@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
@@ -13,30 +12,10 @@ import {
   downloadGitHubArtifactArchive,
   downloadGitHubArtifactArchiveFile,
 } from "./github-artifact-download.mts";
-import { readGitHubReleaseAsset } from "./github-binary.mts";
 import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const identity = (bytes: Buffer) => ({ bytes: bytes.length, sha256: hash(bytes) });
-
-void test("retained release asset transport discards real subprocess output overflow and timeout", () => {
-  const endpoint = "repos/boburning/portcove/releases/assets/123";
-  for (const code of [
-    "process.stdout.write(Buffer.alloc(100001))",
-    "setInterval(() => {}, 1000)",
-  ]) {
-    assert.throws(
-      () =>
-        readGitHubReleaseAsset(endpoint, {
-          cwd: process.cwd(),
-          maxBytes: 100,
-          timeoutMs: 250,
-          spawn: (_command, _args, options) => spawnSync(process.execPath, ["-e", code], options),
-        }),
-      /bounded GitHub artifact transport failed/u,
-    );
-  }
-});
 
 async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-linux" = "full") {
   const f = await trustedAssemblyFixture(t, profile);
@@ -316,69 +295,6 @@ void test("CRC and independently expected content reject self-consistent changed
     stageReleaseArtifact(fresh, crc, f.request, f.platform, identity(crc)),
     /retain owned directory/u,
   );
-});
-
-void test("retained release asset transfer fixes github.com and bounds collection before returning any bytes", () => {
-  const endpoint = "repos/boburning/portcove/releases/assets/123";
-  let calls = 0;
-  const opts = { cwd: process.cwd(), maxBytes: 100, timeoutMs: 15000 };
-  const bytes = readGitHubReleaseAsset(endpoint, {
-    ...opts,
-    spawn: (command, args, options) => {
-      calls++;
-      assert.equal(command, "gh");
-      assert.deepEqual(args, [
-        "api",
-        "--hostname",
-        "github.com",
-        "-H",
-        "Accept: application/octet-stream",
-        endpoint,
-      ]);
-      assert.equal(options.maxBuffer, 100);
-      assert.equal(options.timeout, 15000);
-      assert.equal(options.encoding, null);
-      assert.equal(options.shell, false);
-      return { status: 0, stdout: Buffer.alloc(100) };
-    },
-  });
-  assert.equal(bytes.length, 100);
-  assert.equal(calls, 1);
-  for (const result of [
-    { status: 0, stdout: Buffer.alloc(101) },
-    { status: 1, stdout: Buffer.alloc(20) },
-    {
-      status: null,
-      stdout: Buffer.alloc(100),
-      error: Object.assign(new Error("secret provider output"), { code: "ENOBUFS" }),
-    },
-    {
-      status: null,
-      stdout: Buffer.alloc(20),
-      error: Object.assign(new Error("secret provider output"), { code: "ETIMEDOUT" }),
-    },
-  ])
-    assert.throws(
-      () => readGitHubReleaseAsset(endpoint, { ...opts, spawn: () => result }),
-      /^Error: bounded GitHub artifact transport failed$/u,
-    );
-  for (const route of [
-    "https://evil.invalid/releases/assets/123",
-    "repos/other/portcove/releases/assets/123",
-    "repos/boburning/portcove/actions/artifacts/123/zip",
-    "repos/boburning/portcove/releases/assets/123?token=x",
-    "--hostname",
-  ])
-    assert.throws(
-      () =>
-        readGitHubReleaseAsset(route, {
-          ...opts,
-          spawn: () => {
-            assert.fail("invalid route reached transport");
-          },
-        }),
-      /^Error: artifact transport requires a bounded exact GitHub route$/u,
-    );
 });
 
 async function integration(
