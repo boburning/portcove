@@ -1,9 +1,13 @@
-import { isGuideCopyProof } from "./validation-plan.mts";
-import type { GuideCopyProof } from "./validation-plan.mts";
+import { isCatalogAuthoringProof, isGuideCopyProof } from "./validation-plan.mts";
+import type { CatalogAuthoringProof, GuideCopyProof } from "./validation-plan.mts";
 import { lstatSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { parseCatalogSource } from "./catalog-authoring.mts";
+import {
+  checkedAuthoredPort,
+  parseCatalogSource,
+  projectAuthoredPort,
+} from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export const catalogGuideCopyMaxBytes = 8 * 1024 * 1024;
@@ -172,6 +176,99 @@ export function hasCatalogGuideCopy(
         !!newPath &&
         isGuideCopyProof(guide_copy) &&
         hashText(readCheckout(newPath)) === guide_copy.after,
+    );
+  } catch {
+    return false;
+  }
+}
+
+// A raw title record is normally a broad input. Prove only a conversion
+// to or from a maintained layout marker, preserving every other authored fact.
+interface AuthoringChange extends GuideCopyChange {
+  catalog_authoring?: CatalogAuthoringProof;
+}
+
+function authoringTitle(change: AuthoringChange) {
+  if (
+    change.status !== "M" ||
+    change.oldPath !== change.newPath ||
+    change.oldMode !== "100644" ||
+    change.newMode !== change.oldMode
+  )
+    return undefined;
+  const id = authoredPath.exec(change.newPath ?? "")?.[1];
+  // The Rust suite also reads this raw authored file directly.
+  return id === "shipwright" ? undefined : id;
+}
+
+export function annotateCatalogAuthoring<Change extends AuthoringChange>(
+  changes: Change[],
+  readBefore: (file: string) => string,
+  readAfter: (file: string) => string,
+): (Change & { catalog_authoring?: CatalogAuthoringProof })[] {
+  if (!changes.length || changes.some((change) => !authoringTitle(change))) return changes;
+  try {
+    const annotated = changes.map((change) => {
+      const id = authoringTitle(change)!;
+      const file = change.newPath!;
+      const before = readBefore(file);
+      const after = readAfter(file);
+      if (
+        [before, after].some(
+          (blob) => Buffer.byteLength(blob) > 512 * 1024 || !hasExactIntegers(blob),
+        )
+      )
+        throw new Error("Unsupported authored title bytes");
+      const oldRecord = checkedAuthoredPort(parseCatalogSource(before), id);
+      const newRecord = checkedAuthoredPort(parseCatalogSource(after), id);
+      const {
+        integration: _oldIntegration,
+        psx_managed_windows_v1: oldPsx,
+        gba_staged_archive_v1: oldGba,
+        ...oldFacts
+      } = oldRecord;
+      const {
+        integration: _newIntegration,
+        psx_managed_windows_v1: newPsx,
+        gba_staged_archive_v1: newGba,
+        ...newFacts
+      } = newRecord;
+      const oldProjection = oldPsx ?? oldGba;
+      const newProjection = newPsx ?? newGba;
+      if (
+        (oldProjection === undefined) === (newProjection === undefined) ||
+        !isDeepStrictEqual(oldFacts, newFacts) ||
+        JSON.stringify(projectAuthoredPort(oldRecord)) !==
+          JSON.stringify(projectAuthoredPort(newRecord))
+      )
+        throw new Error("Authored title projection changed");
+      return {
+        ...change,
+        catalog_authoring: {
+          kind: "catalog-authoring-equivalence-v1" as const,
+          before: hashText(before),
+          after: hashText(after),
+        },
+      };
+    });
+    return annotated;
+  } catch {
+    return changes;
+  }
+}
+
+export function hasCatalogAuthoringEquivalence(
+  changes: readonly AuthoringChange[],
+  readCheckout: (file: string) => string,
+) {
+  if (!changes.length || new Set(changes.map((change) => change.newPath)).size !== changes.length)
+    return false;
+  try {
+    return changes.every(
+      (change) =>
+        authoringTitle(change) &&
+        isCatalogAuthoringProof(change.catalog_authoring) &&
+        hashText(readCheckout(change.newPath!)) === change.catalog_authoring.after,
     );
   } catch {
     return false;

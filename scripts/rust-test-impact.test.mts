@@ -1,4 +1,9 @@
-import { annotateCatalogGuideCopy } from "./catalog-guide-copy-impact.mts";
+import { checkedAuthoredPort, parseCatalogSource } from "./catalog-authoring.mts";
+import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import {
+  annotateCatalogAuthoring,
+  annotateCatalogGuideCopy,
+} from "./catalog-guide-copy-impact.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -1795,5 +1800,89 @@ void test("guide reference copy narrows Rust only for complete matching projecti
         ]),
       ),
     ),
+  );
+});
+
+void test("proven per-title layout conversions retain generator and embedded catalog checks", () => {
+  const file = "crates/portcove-core/catalog/ports/alexbeav-tony-hawk-s-pro-skater-3-recomp.json";
+  const compact = readFileSync(file, "utf8");
+  const record = checkedAuthoredPort(parseCatalogSource(compact));
+  const explicit = projectPsxManagedWindows(record);
+  delete explicit.psx_managed_windows_v1;
+  const before = () => JSON.stringify(explicit);
+  const after = () => compact;
+  const plan = workspacePlan([file]);
+  const [change] = plan.changes;
+  assert.ok(change);
+  const changes = [{ ...change, oldMode: "100644", newMode: "100644" }];
+  const replay = (candidate: typeof changes, readAfter = after) =>
+    buildValidationPlan({
+      ...plan.identities,
+      mergeBase: plan.identities.merge_base,
+      eventName: "pull_request",
+      changes: annotateCatalogAuthoring(candidate, before, readAfter),
+    });
+  const mixed = workspacePlan([file, "crates/portcove-core/src/catalog.rs"]);
+  const mixedChanges = mixed.changes.map((change) => ({
+    ...change,
+    oldMode: "100644",
+    newMode: "100644",
+  }));
+  assert.ok(
+    annotateCatalogAuthoring(mixedChanges, before, after).every(
+      (change) => !change.catalog_authoring,
+    ),
+  );
+  assert.ok(
+    annotateCatalogAuthoring(
+      changes,
+      () => {
+        throw new Error("missing base blob");
+      },
+      after,
+    ).every((change) => !change.catalog_authoring),
+  );
+  const proven = replay(changes);
+  assert.ok(proven.groups.includes("catalog"));
+  assert.ok(proven.changes[0]?.catalog_authoring);
+  assert.deepEqual(
+    selectWorkspaceRustImpact(proven, undefined, after).map((group) => group.id),
+    ["portcove-core:catalog-authoring-equivalence"],
+  );
+  assert.ok(baselineContractTests(proven).includes("scripts/generate-catalog.test.mts"));
+  assert.ok(
+    baselineIntegrityCommands(proven).some(
+      ([script, flag]) => script === "scripts/generate-catalog.mts" && flag === "--check",
+    ),
+  );
+  assert.equal(
+    selectWorkspaceRustImpact(proven, undefined, before)[0]?.filter,
+    "package(=portcove-core)",
+  );
+  assert.equal(
+    selectWorkspaceRustImpact(
+      replay(changes, () => compact.replace("SLUS-01419", "SLUS-99999")),
+      undefined,
+      after,
+    )[0]?.filter,
+    "package(=portcove-core)",
+  );
+  assert.equal(
+    selectWorkspaceRustImpact(replay([{ ...changes[0]!, newMode: "100755" }]), undefined, after)[0]
+      ?.filter,
+    "package(=portcove-core)",
+  );
+  assert.equal(
+    selectWorkspaceRustImpact(
+      replay(changes, () =>
+        JSON.stringify({
+          ...record,
+          release_maintenance: { reason: "changed", reconsider_when: "later" },
+        }),
+      ),
+      undefined,
+      after,
+    )[0]?.filter,
+    "package(=portcove-core)",
   );
 });
