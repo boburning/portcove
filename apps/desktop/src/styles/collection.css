@@ -976,9 +976,11 @@
 }
 
 @layer utilities {
-  @container library-query (width > 30rem) {
-    .library-query-tools[data-view="library"] .browse-toolbar > .search {
-      flex-basis: 10rem;
+  @container app-window (width > 47.5rem) {
+    @container library-query (width > 30rem) {
+      .library-query-tools[data-view="library"] .browse-toolbar > .search {
+        flex-basis: 10rem;
+      }
     }
   }
   @container library-query (width <= 12rem) {
@@ -1017,7 +1019,7 @@
 }
 
 @layer utilities {
-  @container library-query (width <= 30rem) {
+  @container app-window (width <= 47.5rem) {
     .library-query-tools[data-view="library"] .search {
       margin-block-end: 2px;
     }
