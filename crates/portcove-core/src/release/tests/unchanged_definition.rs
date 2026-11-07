@@ -2129,6 +2129,117 @@ async fn native_engine_selection_2612() {
     .await;
 }
 
+#[derive(serde::Deserialize)]
+struct ManagedPsxArchiveExpectation {
+    serial: String,
+    revision: Option<String>,
+    track_sha1: String,
+    track_sha256: String,
+    generated_executable: String,
+}
+
+impl ManagedPsxArchiveExpectation {
+    fn assert_contract(
+        &self,
+        catalog: &crate::Catalog,
+        port: &crate::PortDefinition,
+        version: &str,
+        artifact_sha256: &str,
+        observed_release: bool,
+    ) {
+        let id = &port.id;
+        let source_catalog = catalog.source_catalog().unwrap();
+        let bios_id = "psx-scph-1001-bios";
+        assert_eq!(port.adapter, crate::AdapterKind::PsxRecompManaged, "{id}");
+        assert_eq!(port.bios_source_profile.as_deref(), Some(bios_id), "{id}");
+        assert_eq!(
+            port.executable_hints[&Platform::WindowsX86_64],
+            [self.generated_executable.as_str()],
+            "{id}: generated player"
+        );
+        assert_eq!(
+            port.runtime_subdirectory.as_deref(),
+            Some("build-portcove"),
+            "{id}"
+        );
+        assert_eq!(port.launch_arguments, ["--no-launcher"], "{id}");
+        for owned in [
+            "saves",
+            "settings.toml",
+            "bios.cfg",
+            "disc.cfg",
+            "overlay-captures",
+        ] {
+            assert!(
+                port.persistent_paths.iter().any(|path| path == owned),
+                "{id}: {owned}"
+            );
+            assert!(
+                !port.runtime_mutable_paths.iter().any(|path| path == owned),
+                "{id}: {owned}"
+            );
+        }
+        let profile_id = port.source_profile.as_deref().unwrap();
+        let profile = source_catalog
+            .identities
+            .iter()
+            .find(|profile| profile.id == profile_id)
+            .unwrap();
+        let [variant] = profile.variants.as_slice() else {
+            panic!("{id}: expected one original variant")
+        };
+        assert_eq!(variant.product_codes, [self.serial.as_str()], "{id}");
+        assert_eq!(variant.revision, self.revision, "{id}");
+        let [representation] = variant.representations.as_slice() else {
+            panic!("{id}: expected one original representation")
+        };
+        assert_eq!(representation.extensions, ["chd"], "{id}");
+        let crate::SourceRepresentationKind::OpticalTrackSet {
+            track_counts,
+            identities,
+        } = &representation.kind
+        else {
+            panic!("{id}: expected an optical track set")
+        };
+        assert_eq!(track_counts, &[1], "{id}");
+        let [track] = identities.as_slice() else {
+            panic!("{id}: expected one track identity")
+        };
+        assert_eq!(
+            track.sha1.as_deref(),
+            Some(self.track_sha1.as_str()),
+            "{id}"
+        );
+        assert_eq!(
+            track.sha256.as_deref(),
+            Some(self.track_sha256.as_str()),
+            "{id}"
+        );
+        for (role, expected_profile) in [
+            (crate::PortSourceRole::Game, profile_id),
+            (crate::PortSourceRole::Bios, bios_id),
+        ] {
+            let contract = source_catalog
+                .contracts
+                .iter()
+                .find(|contract| contract.port_id == *id && contract.role == role)
+                .unwrap();
+            assert_eq!(contract.profile_id, expected_profile, "{id}: {role:?}");
+            assert_eq!(
+                contract.admission_mode,
+                crate::CatalogAdmissionMode::Enforced,
+                "{id}: {role:?}"
+            );
+            assert_eq!(contract.release_policy, None, "{id}: {role:?}");
+            assert_eq!(
+                contract.applies_to_release(version, artifact_sha256),
+                observed_release,
+                "{id}: exact source evidence for {role:?} on {version}"
+            );
+        }
+    }
+}
+
 #[tokio::test]
 async fn windows_archive_selection_advances_from_shared_release_inventories() {
     #[derive(serde::Deserialize)]
@@ -2136,6 +2247,7 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
         inventory: String,
         selected_assets: Vec<String>,
         channel: Option<ReleaseChannel>,
+        managed_psx: Option<ManagedPsxArchiveExpectation>,
     }
 
     #[derive(serde::Deserialize)]
@@ -2166,6 +2278,11 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
     let mut selected_zips = std::collections::BTreeSet::new();
     for (id, case) in cases {
         let port = catalog.port(&id).unwrap();
+        assert_eq!(
+            case.managed_psx.is_some(),
+            port.adapter == crate::AdapterKind::PsxRecompManaged,
+            "{id}: managed PSX expectation enrollment"
+        );
         let channel = case.channel.unwrap_or(ReleaseChannel::Stable);
         assert!(port.channels.contains(&channel), "{id}: enrolled channel");
         let definition = serde_json::to_value(port).unwrap();
@@ -2209,6 +2326,15 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
                     .unwrap(),
                 "{id}"
             );
+            if let Some(contract) = &case.managed_psx {
+                contract.assert_contract(
+                    &catalog,
+                    port,
+                    &selected.version,
+                    &selected.asset.sha256,
+                    index == 0,
+                );
+            }
             server.join().unwrap();
             assert_eq!(requests.try_iter().count(), 2, "{id}");
         }

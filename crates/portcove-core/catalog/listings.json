@@ -6870,7 +6870,8 @@
     {
       "id": "alexbeav-oddworld-abe-s-oddysee-recomp",
       "name": "Oddworld: Abe's Oddysee / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Oddworld: Abe's Oddysee on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Oddworld: Abe's Oddysee",
       "project_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp",
       "issue_number": 475,
       "platforms": [
@@ -7806,7 +7807,8 @@
     {
       "id": "alexbeav-syphon-filter-3-recomp",
       "name": "Syphon Filter 3 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Syphon Filter 3 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Syphon Filter 3",
       "project_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp",
       "issue_number": 484,
       "platforms": [
@@ -7983,7 +7985,8 @@
     {
       "id": "alexbeav-tenchu-stealth-assassins-recomp",
       "name": "Tenchu: Stealth Assassins / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Tenchu: Stealth Assassins on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Tenchu: Stealth Assassins",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
       "issue_number": 487,
       "platforms": [
@@ -8329,7 +8332,8 @@
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
       "name": "Tony Hawk's Pro Skater 2 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Tony Hawk's Pro Skater 2 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Tony Hawk's Pro Skater 2",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp",
       "issue_number": 488,
       "platforms": [
@@ -8388,7 +8392,8 @@
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
       "name": "Tony Hawk's Pro Skater 3 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Tony Hawk's Pro Skater 3 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Tony Hawk's Pro Skater 3",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
       "issue_number": 493,
       "platforms": [
@@ -8447,7 +8452,8 @@
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
       "name": "Tony Hawk's Pro Skater 4 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Tony Hawk's Pro Skater 4 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Tony Hawk's Pro Skater 4",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
       "issue_number": 489,
       "platforms": [
@@ -8506,7 +8512,8 @@
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-recomp",
       "name": "Tony Hawk's Pro Skater / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Tony Hawk's Pro Skater on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "original_game_title": "Tony Hawk's Pro Skater",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
       "issue_number": 492,
       "platforms": [

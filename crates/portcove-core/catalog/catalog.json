@@ -1061,6 +1061,76 @@
         "claim": "Tagged v0.4.2 retains the exact original required by this existing source contract. Publisher Windows SHA25672b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531. Package/source observation does not establish gameplay, native execution or retained-state compatibility.",
         "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/rom_identity.txt",
         "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp",
+        "authority_ref": "5edd843cdc4e92a7012609897e2e6c2c30991d4d",
+        "reviewed_at": "2026-11-07",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/blob/5edd843cdc4e92a7012609897e2e6c2c30991d4d/game.toml",
+        "live_url": null,
+        "claim": "Official Windows v0.1.3 ZIP asset 600797028 matched publisher SHA-256 3fc8d00777b5e9d13e8de32907f4b290d48a7a68ad0baa140a25de30d268a8f9 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-01066. The game uses SCPH-1001 and the psx-runtime CMake target generates Tony_Hawks_Pro_Skater_2_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
+        "authority_ref": "0331e76300569de7133bc1a70730e9fb005f02b6",
+        "reviewed_at": "2026-11-07",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/0331e76300569de7133bc1a70730e9fb005f02b6/game.toml",
+        "live_url": null,
+        "claim": "Official Windows v0.1.3 ZIP asset 600798492 matched publisher SHA-256 ec59e95c4079662fa697b46cb84adebfff321e0fbee56b95d6da8741913ad581 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-01419. The game uses SCPH-1001 and the psx-runtime CMake target generates Tony_Hawks_Pro_Skater_3_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
+        "authority_ref": "65ee011a0a36ca07c51ab28dadfb3b7320617768",
+        "reviewed_at": "2026-11-07",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/blob/65ee011a0a36ca07c51ab28dadfb3b7320617768/game.toml",
+        "live_url": null,
+        "claim": "Official Windows v0.1.3 ZIP asset 600799909 matched publisher SHA-256 b227e220e6b1c5ecc3516572cb523cc7f8e1af353b10bbf4cf4ef216a0ed85a6 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-01485. The game uses SCPH-1001 and the psx-runtime CMake target generates Tony_Hawks_Pro_Skater_4_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
+        "authority_ref": "820fcda34cacc39b946cb20b05df221a77667e4a",
+        "reviewed_at": "2026-11-07",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/blob/820fcda34cacc39b946cb20b05df221a77667e4a/game.toml",
+        "live_url": null,
+        "claim": "Official Windows v0.1.3 ZIP asset 600801453 matched publisher SHA-256 e1c21f2507629cf16114dd91707e12a5246912dea7a46bde281782c1d3028233 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-00860. The game uses SCPH-1001 and the psx-runtime CMake target generates Tony_Hawks_Pro_Skater_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
+      },
+      {
+        "id": "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp",
+        "authority_ref": "d41305b83ab35ef23dbedb3a6fee00290e9b1101",
+        "reviewed_at": "2026-11-07",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/blob/d41305b83ab35ef23dbedb3a6fee00290e9b1101/game.toml",
+        "live_url": null,
+        "claim": "Official Windows v0.1.3 ZIP asset 600791246 matched publisher SHA-256 f9edfe427e913271937aacb8cd5bc46f33c85bc88d61e1dfe3e05fb7992fa6d4 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-00190. The game uses SCPH-1001 and the psx-runtime CMake target generates Oddworld__Abe_s_Oddysee_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
+      },
+      {
+        "id": "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/syphon-filter-3-recomp",
+        "authority_ref": "1059cfabe56727520f29fc5ed6a0e53226b7a4f0",
+        "reviewed_at": "2026-11-07",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/1059cfabe56727520f29fc5ed6a0e53226b7a4f0/game.toml",
+        "live_url": null,
+        "claim": "Official Windows v0.1.3 ZIP asset 600794363 matched publisher SHA-256 48ca990e6390c810c3d802ffa7d1623d50474ad2f791f577e01b930b8b89a636 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SCUS-94640. The game uses SCPH-1001 and the psx-runtime CMake target generates Syphon_Filter_3_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
+      },
+      {
+        "id": "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
+        "authority_ref": "2d3ce1718f6e47e3be6d35d15a688f44e1034060",
+        "reviewed_at": "2026-11-07",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/2d3ce1718f6e47e3be6d35d15a688f44e1034060/game.toml",
+        "live_url": null,
+        "claim": "Official Windows v0.1.3 ZIP asset 600795737 matched publisher SHA-256 9615fe1e90610276d0cd9391d847d62311adde72ebc0e93df17b97508d386976 and passed CRC and safe-entry checks. The packaged game.toml and project manifest match tagged source. Catalog identity declares one USA data track for SLUS-00706. The game uses SCPH-1001 and the psx-runtime CMake target generates Tenchu_Stealth_Assassins_Recompiled.exe. Framework and UI match the reviewed Musashi package at the static scope; the two AMD64 emitter binaries differ in build identity. No native generation, gameplay or save observation."
       }
     ],
     "identities": [
@@ -8687,6 +8757,321 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp-usa-psx",
+        "label": "Tony Hawk's Pro Skater 2 (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Tony Hawk's Pro Skater 2 (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01066"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "f5cb80a7d55aaced7fcc9c5a82a6c28b89dc489a",
+                    "sha256": "7a69101183b76eadf02336963c6a89822b76aca2b3fa6537288d9f13bf6d16ed",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-usa-psx",
+        "label": "Tony Hawk's Pro Skater 3 (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Tony Hawk's Pro Skater 3 (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01419"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "757cc517b2d25f6d0112d0d4efa9efdfa2553967",
+                    "sha256": "674ac2073877922e9a12dbf1117b80109d5a8c8e262075da60f21f4e861fc485",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-usa-psx",
+        "label": "Tony Hawk's Pro Skater 4 (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Tony Hawk's Pro Skater 4 (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01485"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "4857b347c6aec4180311b8f1beafc281d34a254a",
+                    "sha256": "c632a348d7013336c2c182f33ea86ac14a7bae0eba3892a7b5f14b9848ddab09",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-recomp-usa-psx",
+        "label": "Tony Hawk's Pro Skater (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Tony Hawk's Pro Skater (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00860"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "84fb50ddf68ced4ad8549b51a6dbfdb96650f266",
+                    "sha256": "f1398cd15138a947fb3d49e1d31c7fe2aae9436ec09e32df917c658ccac30da9",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-oddworld-abe-s-oddysee-recomp-usa-psx",
+        "label": "Oddworld: Abe's Oddysee (USA Rev 2) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Oddworld: Abe's Oddysee (USA Rev 2) disc",
+            "region": "USA",
+            "revision": "Rev 2",
+            "product_codes": [
+              "SLUS-00190"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "3507fb96d6c5d60f30b1d1b9e4b6dfc468f7cef0",
+                    "sha256": "1c69fd850763dd784d1bd581ee72b0bda212ba8227b827c3b2d58bf9f82eee45",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-syphon-filter-3-recomp-usa-psx",
+        "label": "Syphon Filter 3 (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Syphon Filter 3 (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SCUS-94640"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "4abe30077c2b449ea68239083df7932d47ae0b69",
+                    "sha256": "2c36429649e50036fd5c9187bdc3ff23e04039499e7cdf1aba5cfd5a3badcb38",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-tenchu-stealth-assassins-recomp-usa-psx",
+        "label": "Tenchu: Stealth Assassins (USA Rev 1) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Tenchu: Stealth Assassins (USA Rev 1) disc",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [
+              "SLUS-00706"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "a33ca500872e3471b8d096b21eff3d30a310284c",
+                    "sha256": "6834c77860ec3d16bc7ed4ba2fd409573e1584adb92c63c0a1e55669963c768a",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -11914,6 +12299,384 @@
           {
             "upstream_ref": "v1.3.4",
             "artifact_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp-game-source",
+        "port_id": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-tony-hawk-s-pro-skater-2-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "5edd843cdc4e92a7012609897e2e6c2c30991d4d",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/blob/5edd843cdc4e92a7012609897e2e6c2c30991d4d/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "3fc8d00777b5e9d13e8de32907f4b290d48a7a68ad0baa140a25de30d268a8f9"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp-bios-source",
+        "port_id": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "5edd843cdc4e92a7012609897e2e6c2c30991d4d",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/blob/5edd843cdc4e92a7012609897e2e6c2c30991d4d/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "3fc8d00777b5e9d13e8de32907f4b290d48a7a68ad0baa140a25de30d268a8f9"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-game-source",
+        "port_id": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "0331e76300569de7133bc1a70730e9fb005f02b6",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/0331e76300569de7133bc1a70730e9fb005f02b6/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "ec59e95c4079662fa697b46cb84adebfff321e0fbee56b95d6da8741913ad581"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-bios-source",
+        "port_id": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "0331e76300569de7133bc1a70730e9fb005f02b6",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/0331e76300569de7133bc1a70730e9fb005f02b6/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "ec59e95c4079662fa697b46cb84adebfff321e0fbee56b95d6da8741913ad581"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-game-source",
+        "port_id": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "65ee011a0a36ca07c51ab28dadfb3b7320617768",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/blob/65ee011a0a36ca07c51ab28dadfb3b7320617768/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "b227e220e6b1c5ecc3516572cb523cc7f8e1af353b10bbf4cf4ef216a0ed85a6"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-bios-source",
+        "port_id": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "65ee011a0a36ca07c51ab28dadfb3b7320617768",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/blob/65ee011a0a36ca07c51ab28dadfb3b7320617768/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "b227e220e6b1c5ecc3516572cb523cc7f8e1af353b10bbf4cf4ef216a0ed85a6"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-recomp-game-source",
+        "port_id": "alexbeav-tony-hawk-s-pro-skater-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-tony-hawk-s-pro-skater-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "820fcda34cacc39b946cb20b05df221a77667e4a",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/blob/820fcda34cacc39b946cb20b05df221a77667e4a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "e1c21f2507629cf16114dd91707e12a5246912dea7a46bde281782c1d3028233"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-recomp-bios-source",
+        "port_id": "alexbeav-tony-hawk-s-pro-skater-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "820fcda34cacc39b946cb20b05df221a77667e4a",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/blob/820fcda34cacc39b946cb20b05df221a77667e4a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "e1c21f2507629cf16114dd91707e12a5246912dea7a46bde281782c1d3028233"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-oddworld-abe-s-oddysee-recomp-game-source",
+        "port_id": "alexbeav-oddworld-abe-s-oddysee-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-oddworld-abe-s-oddysee-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "d41305b83ab35ef23dbedb3a6fee00290e9b1101",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/blob/d41305b83ab35ef23dbedb3a6fee00290e9b1101/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "f9edfe427e913271937aacb8cd5bc46f33c85bc88d61e1dfe3e05fb7992fa6d4"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-oddworld-abe-s-oddysee-recomp-bios-source",
+        "port_id": "alexbeav-oddworld-abe-s-oddysee-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "d41305b83ab35ef23dbedb3a6fee00290e9b1101",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/blob/d41305b83ab35ef23dbedb3a6fee00290e9b1101/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "f9edfe427e913271937aacb8cd5bc46f33c85bc88d61e1dfe3e05fb7992fa6d4"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-syphon-filter-3-recomp-game-source",
+        "port_id": "alexbeav-syphon-filter-3-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-syphon-filter-3-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "1059cfabe56727520f29fc5ed6a0e53226b7a4f0",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/1059cfabe56727520f29fc5ed6a0e53226b7a4f0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "48ca990e6390c810c3d802ffa7d1623d50474ad2f791f577e01b930b8b89a636"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-syphon-filter-3-recomp-bios-source",
+        "port_id": "alexbeav-syphon-filter-3-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "1059cfabe56727520f29fc5ed6a0e53226b7a4f0",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/1059cfabe56727520f29fc5ed6a0e53226b7a4f0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "48ca990e6390c810c3d802ffa7d1623d50474ad2f791f577e01b930b8b89a636"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tenchu-stealth-assassins-recomp-game-source",
+        "port_id": "alexbeav-tenchu-stealth-assassins-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-tenchu-stealth-assassins-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "2d3ce1718f6e47e3be6d35d15a688f44e1034060",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/2d3ce1718f6e47e3be6d35d15a688f44e1034060/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "9615fe1e90610276d0cd9391d847d62311adde72ebc0e93df17b97508d386976"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tenchu-stealth-assassins-recomp-bios-source",
+        "port_id": "alexbeav-tenchu-stealth-assassins-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract"
+        ],
+        "authority_ref": "2d3ce1718f6e47e3be6d35d15a688f44e1034060",
+        "reviewed_at": "2026-11-07",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/2d3ce1718f6e47e3be6d35d15a688f44e1034060/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "9615fe1e90610276d0cd9391d847d62311adde72ebc0e93df17b97508d386976"
           }
         ],
         "aliases": [],
@@ -23838,6 +24601,895 @@
           "match_kind": "underlying-game"
         }
       }
+    },
+    {
+      "id": "alexbeav-oddworld-abe-s-oddysee-recomp",
+      "name": "Oddworld: Abe's Oddysee / Alexbeav PSXRecomp",
+      "summary": "Build and play Oddworld: Abe's Oddysee on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "oddworld-abe-s-oddysee-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-oddworld-abe-s-oddysee-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Oddworld__Abe_s_Oddysee_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-oddworld-abe-s-oddysee-recomp-usa-psx",
+            "label": "Oddworld: Abe's Oddysee (USA Rev 2) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track USA Rev 2 CHD (SLUS-00190) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Oddworld: Abe's Oddysee",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 999,
+          "cover_id": 385472,
+          "image_id": "co89fk",
+          "image_sha256": "1fdb0a42c9fe7d87464d610b83edcc3b69fad0f3fe7270542be97d8322303957",
+          "game_slug": "oddworld-abe-s-oddysee",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-syphon-filter-3-recomp",
+      "name": "Syphon Filter 3 / Alexbeav PSXRecomp",
+      "summary": "Build and play Syphon Filter 3 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/syphon-filter-3-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "syphon-filter-3-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-syphon-filter-3-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Syphon_Filter_3_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-syphon-filter-3-recomp-usa-psx",
+            "label": "Syphon Filter 3 (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track USA CHD (SCUS-94640) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Syphon Filter 3",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 4117,
+          "cover_id": 425275,
+          "image_id": "co9457",
+          "image_sha256": "0c6276bd0bb6b8d85137f91f852e2956f81a6dcf4344adbe4a403347c7f368ec",
+          "game_slug": "syphon-filter-3",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-tenchu-stealth-assassins-recomp",
+      "name": "Tenchu: Stealth Assassins / Alexbeav PSXRecomp",
+      "summary": "Build and play Tenchu: Stealth Assassins on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "tenchu-stealth-assassins-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-tenchu-stealth-assassins-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Tenchu_Stealth_Assassins_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-tenchu-stealth-assassins-recomp-usa-psx",
+            "label": "Tenchu: Stealth Assassins (USA Rev 1) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track USA Rev 1 CHD (SLUS-00706) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Tenchu: Stealth Assassins",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 4113,
+          "cover_id": 112868,
+          "image_id": "co2f38",
+          "image_sha256": "da006c601a4dc6bfe35683082ddbbf1b719abe092b9e949ebee77f449bc27f81",
+          "game_slug": "tenchu-stealth-assassins",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
+      "name": "Tony Hawk's Pro Skater 2 / Alexbeav PSXRecomp",
+      "summary": "Build and play Tony Hawk's Pro Skater 2 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "tony-hawk-s-pro-skater-2-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-tony-hawk-s-pro-skater-2-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Tony_Hawks_Pro_Skater_2_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-tony-hawk-s-pro-skater-2-recomp-usa-psx",
+            "label": "Tony Hawk's Pro Skater 2 (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-01066) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Tony Hawk's Pro Skater 2",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 913,
+          "cover_id": 90979,
+          "image_id": "co1y77",
+          "image_sha256": "579f5a142ac8a29ac0c8df37e531b20a43ada128b6493a37115183307921ab6f",
+          "game_slug": "tony-hawk-s-pro-skater-2",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
+      "name": "Tony Hawk's Pro Skater 3 / Alexbeav PSXRecomp",
+      "summary": "Build and play Tony Hawk's Pro Skater 3 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "tony-hawk-s-pro-skater-3-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-tony-hawk-s-pro-skater-3-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Tony_Hawks_Pro_Skater_3_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-usa-psx",
+            "label": "Tony Hawk's Pro Skater 3 (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-01419) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Tony Hawk's Pro Skater 3",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 194213,
+          "cover_id": 212738,
+          "image_id": "co4k5e",
+          "image_sha256": "c30a6ef9c26e9c965953c8b1be7a161ac366e55c013c177d8cfa4be257cd237d",
+          "game_slug": "tony-hawks-pro-skater-3",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
+      "name": "Tony Hawk's Pro Skater 4 / Alexbeav PSXRecomp",
+      "summary": "Build and play Tony Hawk's Pro Skater 4 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "tony-hawk-s-pro-skater-4-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-tony-hawk-s-pro-skater-4-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Tony_Hawks_Pro_Skater_4_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-usa-psx",
+            "label": "Tony Hawk's Pro Skater 4 (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-01485) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Tony Hawk's Pro Skater 4",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 210463,
+          "cover_id": 233403,
+          "image_id": "co503f",
+          "image_sha256": "fed042cb78bf23a63861cebd0d021c3a7fbab0c8bca61ecdd2e63d7d599d0049",
+          "game_slug": "tony-hawks-pro-skater-4--1",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-tony-hawk-s-pro-skater-recomp",
+      "name": "Tony Hawk's Pro Skater / Alexbeav PSXRecomp",
+      "summary": "Build and play Tony Hawk's Pro Skater on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "tony-hawk-s-pro-skater-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-tony-hawk-s-pro-skater-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Tony_Hawks_Pro_Skater_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-tony-hawk-s-pro-skater-recomp-usa-psx",
+            "label": "Tony Hawk's Pro Skater (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00860) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Tony Hawk's Pro Skater",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download and unpack the setup kit",
+              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            },
+            {
+              "title": "Supply the matching original files",
+              "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            },
+            {
+              "title": "Build the game and add it to Portcove",
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 6692,
+          "cover_id": 90981,
+          "image_id": "co1y79",
+          "image_sha256": "6c678c082ed9c612ddaa3f469ef647caaef097a78d1cc0405fc568af4f7ee870",
+          "game_slug": "tony-hawk-s-pro-skater",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
     },
     {
       "id": "alistert-openjazz",
