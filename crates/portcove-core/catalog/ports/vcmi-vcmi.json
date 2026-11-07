@@ -46,14 +46,6 @@
           "instruction": "For a native ARM64 Windows or Linux system, use the corresponding upstream Windows installer or Linux AppImage directly from VCMI Releases. Keep its profile with that installation."
         },
         {
-          "title": "Windows setup guide",
-          "instruction": "https://github.com/vcmi/vcmi/blob/develop/docs/players/Installation_Windows.md"
-        },
-        {
-          "title": "Mac setup guide",
-          "instruction": "https://vcmi.eu/players/Installation_macOS/"
-        },
-        {
           "title": "Upstream Android setup",
           "instruction": "Use the official Android setup guide for Google Play, F-Droid or the matching upstream APK (ARM64, ARMv7 or x86-64). Import your own Heroes III data in the app and keep your originals separately. Install and update through the same channel because Android checks package identity and signing. Preserve the app profile before removing it."
         },
