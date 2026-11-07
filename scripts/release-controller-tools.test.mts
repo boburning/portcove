@@ -1,4 +1,7 @@
-import { readReleaseToolDependencies } from "./release-tool-dependencies.mts";
+import {
+  readReleaseToolDependencies,
+  readSealedCheckSdkSelection,
+} from "./release-tool-dependencies.mts";
 import {
   assertControllerFixtureBuildBudget,
   controllerFixtureBuildAllowanceMilliseconds,
@@ -19,6 +22,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire, isBuiltin } from "node:module";
 import {
   bundleControllerEntries,
+  bundleSealedCheckSdkIssuer,
   buildControllerTools,
   controllerBootstrapEnvironment,
   materializeControllerCompilerSource,
@@ -438,6 +442,40 @@ void test("a new exact Tauri selection propagates through the manifest and lock 
   assert.throws(
     () => inspectControllerToolArchive(built.archive, { ...built.manifest, dependencies: bumped }),
     /dependencies differ from fixed checkout/u,
+  );
+});
+
+void test("sealed Check Octokit selection follows the root manifest and regenerated lock", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "sealed-check-selection-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const initial = readSealedCheckSdkSelection(sourceRoot);
+  const manifest = await readFile(path.join(sourceRoot, "package.json"), "utf8");
+  const lock = await readFile(path.join(sourceRoot, "pnpm-lock.yaml"), "utf8");
+  const replacement = initial.version === "7.88.77" ? "7.88.78" : "7.88.77";
+  await writeFile(path.join(root, "package.json"), manifest);
+  await writeFile(path.join(root, "pnpm-lock.yaml"), lock);
+  assert.deepEqual(readSealedCheckSdkSelection(root), initial);
+  await writeFile(
+    path.join(root, "package.json"),
+    manifest.replace(
+      `"${initial.name}": "${initial.version}"`,
+      `"${initial.name}": "${replacement}"`,
+    ),
+  );
+  assert.throws(() => readSealedCheckSdkSelection(root), /lock differs from Octokit/u);
+  await writeFile(path.join(root, "pnpm-lock.yaml"), lock.replaceAll(initial.version, replacement));
+  assert.deepEqual(readSealedCheckSdkSelection(root), { ...initial, version: replacement });
+
+  const child = path.join(root, "checkout");
+  const ancestor = path.join(root, "node_modules", initial.name);
+  await mkdir(path.join(child, "scripts"), { recursive: true });
+  await mkdir(ancestor, { recursive: true });
+  await writeFile(path.join(child, "package.json"), manifest);
+  await writeFile(path.join(child, "pnpm-lock.yaml"), lock);
+  await writeFile(path.join(ancestor, "package.json"), JSON.stringify(initial));
+  await assert.rejects(
+    bundleSealedCheckSdkIssuer(child, path.join(root, "output")),
+    /dependency escaped the fixed checkout install/u,
   );
 });
 

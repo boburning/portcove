@@ -61,7 +61,7 @@ function manifest(root: string, file: string) {
   return value.devDependencies;
 }
 
-export function readReleaseToolDependencies(root: string) {
+function readReleaseToolLock(root: string) {
   const documents = readSelectionFile(path.join(root, "pnpm-lock.yaml"), 2 * 1024 ** 2).split(
     /^---\r?$/mu,
   );
@@ -69,7 +69,11 @@ export function readReleaseToolDependencies(root: string) {
     documents.length === 3 && documents[0]?.trim() === "",
     "expected pnpm toolchain and application lock documents",
   );
-  const toolchain = documents[1]!;
+  return { toolchain: documents[1]!, lock: documents[2]! };
+}
+
+export function readReleaseToolDependencies(root: string) {
+  const { toolchain, lock } = readReleaseToolLock(root);
   const rootManifest: unknown = JSON.parse(readSelectionFile(path.join(root, "package.json")));
   assert.ok(isRecord(rootManifest) && typeof rootManifest.packageManager === "string");
   const pnpmVersion = /^pnpm@(\d+\.\d+\.\d+)$/u.exec(rootManifest.packageManager)?.[1];
@@ -103,7 +107,6 @@ export function readReleaseToolDependencies(root: string) {
     linuxIntegrity: nativePnpmIntegrity("linux-x64"),
     windowsIntegrity: nativePnpmIntegrity("win32-x64"),
   };
-  const lock = documents[2]!;
   const importers = block(lock, "importers:");
   const desktop = block(block(importers, "  apps/desktop:"), "    devDependencies:");
   const version = manifest(root, "apps/desktop/package.json")[cli];
@@ -185,6 +188,28 @@ export function readReleaseToolDependencies(root: string) {
     /^    resolution: \{integrity: sha512-[A-Za-z0-9+/]+={0,2}\}$/mu,
   );
   return { tauri: version, bundler: `vite-plus@${vite}`, pnpm, sigstoreSign: signerVersion };
+}
+
+export function readSealedCheckSdkSelection(root: string) {
+  const { lock } = readReleaseToolLock(root);
+  const value: unknown = JSON.parse(readSelectionFile(path.join(root, "package.json")));
+  assert.ok(isRecord(value) && isRecord(value.dependencies));
+  const name = "@octokit/core";
+  const version = value.dependencies[name];
+  assert.ok(typeof version === "string" && exactVersion.test(version));
+  const importer = block(block(lock, "importers:"), "  .:");
+  const heading = `  '${name}@${version}':`;
+  assert.equal(
+    block(block(importer, "    dependencies:"), `      '${name}':`).trim(),
+    `specifier: ${version}\n        version: ${version}`,
+    "sealed Check lock differs from Octokit selection",
+  );
+  assert.match(
+    block(block(lock, "packages:"), heading),
+    /^    resolution: \{integrity: sha512-[A-Za-z0-9+/]+={0,2}\}$/mu,
+  );
+  block(block(lock, "snapshots:"), heading);
+  return { name, version };
 }
 
 export function verifyInstalledReleasePackage(filename: string, name: string, version: string) {

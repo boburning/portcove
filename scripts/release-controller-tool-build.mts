@@ -3,10 +3,11 @@ import { createHash } from "node:crypto";
 import { chmod, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createRequire, isBuiltin } from "node:module";
+import { createRequire, findPackageJSON, isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
 import {
   readReleaseToolDependencies,
+  readSealedCheckSdkSelection,
   verifyInstalledReleasePackage,
 } from "./release-tool-dependencies.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -82,11 +83,40 @@ export async function bundleApplicationReleasePrivate(sourceRoot: string, output
   ]);
 }
 
+/** The sealed issuer receives one command-only file and needs no package tree. */
+export async function bundleSealedCheckSdkIssuer(sourceRoot: string, outputRoot: string) {
+  const importer = pathToFileURL(path.join(sourceRoot, "scripts/github-client.mts"));
+  const { name, version } = readSealedCheckSdkSelection(sourceRoot);
+  const manifest = findPackageJSON(name, importer);
+  if (!manifest) throw new Error(`sealed Check dependency unavailable: ${name}`);
+  const slot = path.resolve(sourceRoot, "node_modules", name, "package.json");
+  const installed = await realpath(manifest);
+  if (path.resolve(manifest) !== slot || installed !== (await realpath(slot)))
+    throw new Error("sealed Check dependency escaped the fixed checkout install");
+  verifyInstalledReleasePackage(installed, name, version);
+  const filename = "release-semantic-issuer-sdk-http.bundle.mjs";
+  await bundleFixedControllerEntries(
+    sourceRoot,
+    outputRoot,
+    [
+      {
+        source: "scripts/release-semantic-issuer-sdk-http.mts",
+        output: filename,
+      },
+    ],
+    readReleaseToolDependencies(sourceRoot),
+    path.dirname(installed),
+  );
+  const bytes = await readControllerToolFile(path.join(outputRoot, "scripts", filename));
+  return { bytes: bytes.length, sha256: hash(bytes) };
+}
+
 async function bundleFixedControllerEntries(
   sourceRoot: string,
   outputRoot: string,
   entries: readonly { source: string; output: string }[],
   dependencies = readReleaseToolDependencies(fileURLToPath(new URL("../", import.meta.url))),
+  sealedCheckCoreRoot?: string,
 ) {
   const installed = await realpath(fileURLToPath(import.meta.resolve("vite-plus/pack")));
   const packageFile = await realpath(fileURLToPath(import.meta.resolve("vite-plus/package.json")));
@@ -102,6 +132,7 @@ async function bundleFixedControllerEntries(
     const commandOnly = [
       "scripts/release-hosted-native-worker.mts",
       "scripts/release-hosted-native-windows-source.mts",
+      "scripts/release-semantic-issuer-sdk-http.mts",
     ].includes(definition.source);
     await pack.build({
       config: false,
@@ -127,7 +158,16 @@ async function bundleFixedControllerEntries(
       plugins: [
         {
           name: "portcove-fixed-release-dependency-selection",
-          resolveId(specifier, importer) {
+          async resolveId(specifier, importer) {
+            if (sealedCheckCoreRoot && specifier === "@octokit/core") {
+              const selected = await this.resolve(specifier, importer, { skipSelf: true });
+              if (!selected || selected.external)
+                throw new Error("sealed Check bundle did not resolve Octokit");
+              const relative = path.relative(sealedCheckCoreRoot, await realpath(selected.id));
+              if (path.isAbsolute(relative) || relative.split(path.sep)[0] === "..")
+                throw new Error("sealed Check bundle resolved a foreign Octokit implementation");
+              return selected;
+            }
             if (
               importer &&
               !importer.startsWith("\0") &&

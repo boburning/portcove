@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -17,6 +21,7 @@ import { prepareNativeQualificationCheck } from "./release-native-acceptance.mts
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
 import { inspectNativeCheckRecoveryPlan } from "./release-native-candidate.mts";
+import { bundleSealedCheckSdkIssuer } from "./release-controller-tool-build.mts";
 
 void test("actual broker transport envelope round trips through the existing original-attempt recovery contract", () => {
   const report = nativeQualificationFixture(),
@@ -252,13 +257,27 @@ void test("sealed SDK successor refuses changed authority, redirects and unavail
   assert.equal(cancelled, true);
 });
 
-void test("sealed SDK successor CLI keeps the stdin limit and private failure diagnostics", () => {
-  const entry = fileURLToPath(new URL("./release-semantic-issuer-sdk-http.mts", import.meta.url));
-  const spawn = (source: string, input: string) =>
+void test("sealed SDK successor and isolated bundle preserve the private CLI pipe", async (t) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "sealed-check-sdk-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const identity = await bundleSealedCheckSdkIssuer(
+    fileURLToPath(new URL("../", import.meta.url)),
+    output,
+  );
+  const bundle = "release-semantic-issuer-sdk-http.bundle.mjs";
+  assert.deepEqual(await readdir(output), ["scripts"]);
+  assert.deepEqual(await readdir(path.join(output, "scripts")), [bundle]);
+  const bytes = await readFile(path.join(output, "scripts", bundle));
+  assert.deepEqual(identity, {
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  });
+  const spawn = (entry: string, source: string, input: string) =>
     spawnSync(
       process.execPath,
       ["--import", `data:text/javascript,${encodeURIComponent(source)}`, entry],
       {
+        cwd: output,
         input,
         encoding: "utf8",
         env: {
@@ -271,24 +290,29 @@ void test("sealed SDK successor CLI keeps the stdin limit and private failure di
   const input = JSON.stringify(successorRequest);
   const exactInput = " ".repeat(128 * 1024 - Buffer.byteLength(input)) + input;
   const ok = `globalThis.fetch = async () => Response.json({ id: 789 }, { status: 201 });`;
-  const success = spawn(ok, exactInput);
-  assert.ifError(success.error);
-  assert.equal(success.status, 0, success.stderr);
-  assert.equal(success.stderr, "");
-  assert.deepEqual(JSON.parse(success.stdout), {
-    status: 201,
-    headers: [["content-type", "application/json"]],
-    body: { id: 789 },
-  });
   const malformed = `globalThis.fetch = async () => new Response("{ malformed inert-check-token");`;
-  for (const result of [spawn(malformed, input), spawn(ok, " " + exactInput)]) {
-    assert.ifError(result.error);
-    assert.equal(result.status, 1);
-    assert.equal(result.stdout, "");
-    assert.equal(
-      result.stderr,
-      "semantic credential HTTP transport failed; reconcile any attempted effect before retry\n",
-    );
+  for (const entry of [
+    fileURLToPath(new URL("./release-semantic-issuer-sdk-http.mts", import.meta.url)),
+    path.join(output, "scripts", bundle),
+  ]) {
+    const success = spawn(entry, ok, exactInput);
+    assert.ifError(success.error);
+    assert.equal(success.status, 0, success.stderr);
+    assert.equal(success.stderr, "");
+    assert.deepEqual(JSON.parse(success.stdout), {
+      status: 201,
+      headers: [["content-type", "application/json"]],
+      body: { id: 789 },
+    });
+    for (const result of [spawn(entry, malformed, input), spawn(entry, ok, " " + exactInput)]) {
+      assert.ifError(result.error);
+      assert.equal(result.status, 1);
+      assert.equal(result.stdout, "");
+      assert.equal(
+        result.stderr,
+        "semantic credential HTTP transport failed; reconcile any attempted effect before retry\n",
+      );
+    }
   }
 });
 
