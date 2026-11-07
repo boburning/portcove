@@ -7,9 +7,9 @@
     "project_url": "https://github.com/CorsixTH/CorsixTH",
     "issue_number": 1807,
     "availability": "packages",
-    "setup_url": "https://github.com/CorsixTH/CorsixTH/blob/v0.70.1/README.md",
+    "setup_url": "https://github.com/CorsixTH/CorsixTH/wiki/Getting-Started",
     "original_game_title": "Theme Hospital",
-    "release_url": "https://github.com/CorsixTH/CorsixTH/releases/tag/v0.70.1",
+    "release_url": "https://github.com/CorsixTH/CorsixTH/releases",
     "manual_setup": {
       "steps": [
         {
@@ -18,7 +18,21 @@
         }
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
-      "help_url": "https://github.com/CorsixTH/CorsixTH/blob/v0.70.1/README.md"
+      "help_url": "https://github.com/CorsixTH/CorsixTH/wiki/Getting-Started",
+      "references": [
+        {
+          "title": "Set up CorsixTH on Linux",
+          "instruction": "Use the official x86-64 AppImage. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
+        },
+        {
+          "title": "Set up CorsixTH on Mac",
+          "instruction": "Open the upstream DMG and copy CorsixTH.app out of it. The reviewed bundle contains Intel and Apple Silicon binaries. Open the app and select your Theme Hospital data. Keep the complete bundle and open the app directly to play."
+        },
+        {
+          "title": "Keep the actual CorsixTH profile",
+          "instruction": "The regular Linux and Mac builds normally use ~/.config/CorsixTH, or CorsixTH under XDG_CONFIG_HOME. A config.path.txt override can change that. Keep config.txt, hotkeys.txt, Saves, campaigns and any custom music or data paths. The Flatpak has a separate config tree under ~/.var/app/com.corsixth.corsixth. Close CorsixTH and preserve the actual profile and originals before updating the external copy."
+        }
+      ]
     },
     "artwork": {
       "game_id": 127904,
@@ -27,6 +41,12 @@
       "image_sha256": "85d8be21323ee5747b4316fbffc8045bff5916899e2746958c8beca93f894f2e",
       "game_slug": "corsixth",
       "match_kind": "port"
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "linux-x86-64": ["CorsixTH-v", "-x86_64.AppImage"],
+      "macos-x86-64": ["CorsixTH-", ".dmg"],
+      "macos-aarch64": ["CorsixTH-", ".dmg"]
     }
   },
   "integration": {

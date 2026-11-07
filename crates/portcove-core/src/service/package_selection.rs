@@ -507,6 +507,119 @@ mod tests {
     }
 
     #[test]
+    fn classic_data_guides_select_native_packages_without_choosing_an_openra_game() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let cases = [
+            (
+                "corsixth-corsixth",
+                Some(2u64),
+                [
+                    asset(1, "CorsixTH-v0.70.1-x86_64.AppImage"),
+                    asset(2, "CorsixTH-0.70.1.dmg"),
+                    asset(3, "CorsixTH-v0.70.1-Windows-x64.zip"),
+                ],
+            ),
+            (
+                "openloco-openloco",
+                None,
+                [
+                    asset(1, "OpenLoco-v26.09-linux-x64.AppImage"),
+                    asset(2, "OpenLoco-v26.09-macos-arm64.zip"),
+                    asset(3, "OpenLoco-v26.09-windows-portable-x64.zip"),
+                ],
+            ),
+        ];
+        for (id, expected_intel, assets) in cases {
+            let listing = catalog.listing(id).unwrap();
+            for (platform, expected) in [(Platform::LinuxX86_64, 1u64), (Platform::MacosAarch64, 2)]
+            {
+                let hints = &listing.download_asset_hints[&platform];
+                assert_eq!(
+                    recommend_packages(&assets, platform, hints, true).1,
+                    Some(expected.into()),
+                    "{id}"
+                );
+            }
+            let intel = listing.download_asset_hints.get(&Platform::MacosX86_64);
+            assert_eq!(
+                recommend_packages(
+                    &assets,
+                    Platform::MacosX86_64,
+                    intel.map(Vec::as_slice).unwrap_or_default(),
+                    true
+                )
+                .1,
+                expected_intel.map(Into::into),
+                "{id} on Intel Mac"
+            );
+        }
+
+        let mut devilution_assets = [
+            asset(1, "devilutionx-linux-x86_64.appimage"),
+            asset(2, "devilutionx-macOS-universal.dmg"),
+            asset(3, "devilutionx-macOS-intel-x86.dmg"),
+            asset(4, "devilutionx-android.apk"),
+            asset(5, "devilutionx-linux-x86_64.tar.xz"),
+        ];
+        devilution_assets[4].can_extract = true;
+        for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
+            let listing = catalog.listing(id).unwrap();
+            for (platform, expected) in [
+                (Platform::LinuxX86_64, 1u64),
+                (Platform::MacosX86_64, 2),
+                (Platform::MacosAarch64, 2),
+            ] {
+                assert_eq!(
+                    recommend_packages(
+                        &devilution_assets,
+                        platform,
+                        &listing.download_asset_hints[&platform],
+                        true
+                    )
+                    .1,
+                    Some(expected.into()),
+                    "{id} on {platform:?}"
+                );
+            }
+        }
+
+        let openra = catalog.listing("openra-openra").unwrap();
+        let assets = [
+            asset(1, "OpenRA-Red-Alert-x86_64.AppImage"),
+            asset(2, "OpenRA-Tiberian-Dawn-x86_64.AppImage"),
+            asset(3, "OpenRA-Dune-2000-x86_64.AppImage"),
+            asset(4, "OpenRA-release-20250330.dmg"),
+        ];
+        let linux = openra.download_asset_hints.get(&Platform::LinuxX86_64);
+        let (packages, recommended) = recommend_packages(
+            &assets,
+            Platform::LinuxX86_64,
+            linux.map(Vec::as_slice).unwrap_or_default(),
+            true,
+        );
+        assert_eq!(recommended, None);
+        assert_eq!(
+            packages
+                .iter()
+                .filter(|package| package.suitability == "suitable")
+                .count(),
+            3
+        );
+        for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+            assert_eq!(
+                recommend_packages(
+                    &assets,
+                    platform,
+                    &openra.download_asset_hints[&platform],
+                    true
+                )
+                .1,
+                Some(4.into())
+            );
+        }
+    }
+
+    #[test]
     fn macos_arm_shorthand_selects_apple_silicon_and_keeps_older_arm_distinct() {
         let catalog = crate::Catalog::embedded().unwrap();
         let mut assets = [

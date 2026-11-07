@@ -12,7 +12,9 @@
     "release_url": "https://github.com/OpenRA/OpenRA/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["OpenRA-", "x64-winportable.zip"]
+      "windows-x86-64": ["OpenRA-", "x64-winportable.zip"],
+      "macos-x86-64": ["OpenRA-", ".dmg"],
+      "macos-aarch64": ["OpenRA-", ".dmg"]
     },
     "manual_setup": {
       "steps": [
@@ -25,8 +27,12 @@
           "instruction": "Choose Play explicitly to open that game’s own content screen. OpenRA can import your original media or offer its minimal content download; review that choice in OpenRA. No content installer or helper is started by discovery or by saving launch details."
         },
         {
-          "title": "Use the native upstream launcher on other systems",
-          "instruction": "On Linux, choose the AppImage for the game you want and prepare it using upstream instructions; retain the game-specific launcher. On macOS, install the desired game application from the disk image and retain its application bundle. These formats use upstream setup; Portcove does not extract or execute an AppImage, disk image, installer or shell helper automatically."
+          "title": "Choose the matching OpenRA game on Linux",
+          "instruction": "Choose the stable x86-64 AppImage named for Red Alert, Tiberian Dawn or Dune 2000. Make the complete AppImage executable and open it outside Portcove to finish that game’s content setup. Each AppImage starts its own game by default. Keep server and utility commands for their separate tasks."
+        },
+        {
+          "title": "Choose the matching OpenRA application on Mac",
+          "instruction": "The stable upstream DMG contains a separate Red Alert, Tiberian Dawn and Dune 2000 application. The reviewed launchers include Intel and Apple Silicon. Copy the complete app you want out of the DMG and open it to finish content setup. Open that app directly to play and preserve its actual OpenRA profile."
         }
       ],
       "warnings": [
