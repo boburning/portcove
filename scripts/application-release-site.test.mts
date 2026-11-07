@@ -414,3 +414,81 @@ void test("the exact feed tag route retains uppercase SemVer metadata", async (t
   });
   assert.equal(calls, 1);
 });
+
+void test("feed selects the serving actor only behind its exact active Actions admission", async () => {
+  const tag = "portcove-production-controller-windows-fixture";
+  const logUrl = "https://github.com/boburning/portcove/actions/runs/123/job/456";
+  const current = { source: control, ref: `refs/tags/${tag}`, run_id: "123", run_attempt: 2 };
+  const own = {
+    id: 17,
+    sha: control,
+    ref: tag,
+    environment: "github-pages",
+    task: "deploy",
+    payload: {},
+    performed_via_github_app: { slug: "github-actions" },
+  };
+  const old = { id: 10, sha: site.generation, ref: "prior", environment: "github-pages" };
+  const status = { id: 18, state: "in_progress", environment: "github-pages", log_url: logUrl };
+  const job = {
+    id: 456,
+    run_id: 123,
+    run_attempt: 2,
+    head_sha: control,
+    head_branch: tag,
+    name: "feed",
+    status: "in_progress",
+    html_url: logUrl,
+  };
+  const responses = {
+    pages: {
+      html_url: "https://boburning.github.io/portcove/",
+      build_type: "workflow",
+      cname: null,
+      https_enforced: true,
+    },
+    "deployments?environment=github-pages&per_page=2": [own, old],
+    "deployments?environment=github-pages&per_page=1": [own],
+    "deployments/17/statuses?per_page=1": [status],
+    "deployments/10/statuses?per_page=1": [{ ...status, id: 11, state: "success" }],
+    "actions/jobs/456": job,
+  };
+  const read =
+    (overrides: Record<string, unknown> = {}) =>
+    async (endpoint: string) => {
+      const route = endpoint.replace("repos/boburning/portcove/", "");
+      assert.ok(Object.hasOwn(responses, route), route);
+      return { status: 200, headers: new Map(), body: { ...responses, ...overrides }[route] };
+    };
+  const serving = { ...current, selection: "serving" as const };
+  const active = { ...current, selection: "current" as const, deployment_id: own.id };
+  assert.equal((await readApplicationPagesStateAsync(read(), serving)).deployment_id, old.id);
+  assert.equal((await readApplicationPagesStateAsync(read(), active)).deployment_id, own.id);
+  await assert.rejects(readApplicationPagesStateAsync(read()));
+  await assert.rejects(
+    readApplicationPagesStateAsync(read(), { ...active, deployment_id: old.id }),
+  );
+  for (const overrides of [
+    { "deployments/17/statuses?per_page=1": [{ ...status, state: "failure" }] },
+    { "deployments/10/statuses?per_page=1": [{ ...status, state: "failure" }] },
+    { "actions/jobs/456": { ...job, run_attempt: 1 } },
+    { "actions/jobs/456": { ...job, name: "another-job" } },
+    {
+      "deployments?environment=github-pages&per_page=2": [
+        { ...own, payload: { unexpected: true } },
+        old,
+      ],
+    },
+  ])
+    await assert.rejects(readApplicationPagesStateAsync(read(overrides), serving));
+  assert.equal(
+    (
+      await readApplicationPagesStateAsync(
+        read({
+          "deployments/17/statuses?per_page=1": [{ ...status, state: "success" }],
+        }),
+      )
+    ).deployment_id,
+    own.id,
+  );
+});

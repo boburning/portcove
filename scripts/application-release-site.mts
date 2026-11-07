@@ -17,7 +17,11 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
   const base = "/repos/boburning/portcove/";
   const allowed = (url: URL) => {
     const suffix = url.pathname.slice(base.length);
-    if (suffix === "deployments") return url.search === "?environment=github-pages&per_page=1";
+    if (suffix === "deployments")
+      return [
+        "?environment=github-pages&per_page=1",
+        "?environment=github-pages&per_page=2",
+      ].includes(url.search);
     if (/^deployments\/[1-9][0-9]*\/statuses$/u.test(suffix)) return url.search === "?per_page=1";
     return (
       !url.search &&
@@ -60,9 +64,12 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
   };
 }
 
-export async function readActualApplicationPagesState(deadline = performance.now() + 120000) {
+export async function readActualApplicationPagesState(
+  deadline = performance.now() + 120000,
+  admission?: FeedAdmission,
+) {
   const read = await createApplicationFeedReader(fixedReleaseReaderToken(), deadline);
-  return readApplicationPagesStateAsync(read);
+  return readApplicationPagesStateAsync(read, admission);
 }
 
 type PagesRead<T> = Generator<string, T, GitHubMetadataResponse>;
@@ -82,13 +89,23 @@ async function readPagesAsync<T>(
 
 /** Same narrow provider projection used by the independently appointed initial
  * preimage. A generation marker alone cannot identify the deployment actor. */
+type FeedAdmission = {
+  run_id: string;
+  run_attempt: number;
+  source: string;
+  ref: string;
+  selection: "serving" | "current";
+  deployment_id?: number;
+};
+
 export function readApplicationPagesStateAsync(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
+  admission?: FeedAdmission,
 ) {
-  return readPagesAsync(read, applicationPagesState());
+  return readPagesAsync(read, applicationPagesState(admission));
 }
 
-function* applicationPagesState() {
+function* applicationPagesState(admission?: FeedAdmission) {
   function* get(suffix: string): PagesRead<unknown> {
     const result = yield* readPagesResponse(suffix);
     assert.equal(result.status, 200);
@@ -102,30 +119,85 @@ function* applicationPagesState() {
       pages.cname === null &&
       pages.https_enforced === true,
   );
-  const deployments = yield* get("deployments?environment=github-pages&per_page=1");
-  assert.ok(Array.isArray(deployments) && deployments.length === 1);
-  const deployment: unknown = deployments[0];
-  assert.ok(
-    isRecord(deployment) &&
-      typeof deployment.id === "number" &&
-      Number.isSafeInteger(deployment.id) &&
-      deployment.id > 0,
-  );
-  assert.equal(deployment.environment, "github-pages");
-  assert.ok(typeof deployment.sha === "string" && typeof deployment.ref === "string");
-  const statuses = yield* get(`deployments/${deployment.id}/statuses?per_page=1`);
-  assert.ok(Array.isArray(statuses) && statuses.length === 1);
-  const status: unknown = statuses[0];
-  assert.ok(
-    isRecord(status) &&
-      status.state === "success" &&
-      typeof status.id === "number" &&
-      Number.isSafeInteger(status.id) &&
-      status.id > 0 &&
-      typeof status.log_url === "string",
-  );
+  const limit = admission?.selection === "serving" ? 2 : 1;
+  const deployments = yield* get(`deployments?environment=github-pages&per_page=${limit}`);
+  assert.ok(Array.isArray(deployments) && deployments.length === limit);
+  function* actor(raw: unknown) {
+    assert.ok(
+      isRecord(raw) &&
+        typeof raw.id === "number" &&
+        Number.isSafeInteger(raw.id) &&
+        raw.id > 0 &&
+        raw.environment === "github-pages" &&
+        typeof raw.sha === "string" &&
+        typeof raw.ref === "string",
+    );
+    const statuses = yield* get(`deployments/${raw.id}/statuses?per_page=1`);
+    assert.ok(Array.isArray(statuses) && statuses.length === 1);
+    const status: unknown = statuses[0];
+    assert.ok(
+      isRecord(status) &&
+        typeof status.id === "number" &&
+        Number.isSafeInteger(status.id) &&
+        status.id > 0 &&
+        typeof status.log_url === "string",
+    );
+    return {
+      deployment: { id: raw.id, sha: raw.sha, ref: raw.ref, environment: raw.environment },
+      raw,
+      status: {
+        id: status.id,
+        log_url: status.log_url,
+        state: status.state,
+        environment: status.environment,
+      },
+    };
+  }
+  const current = yield* actor(deployments[0]);
+  let selected = current;
+  if (admission) {
+    const { deployment, raw, status } = current;
+    const match = status.log_url.match(
+      /^https:\/\/github\.com\/boburning\/portcove\/actions\/runs\/([1-9][0-9]*)\/job\/([1-9][0-9]*)$/u,
+    );
+    assert.ok(
+      match?.[1] === admission.run_id &&
+        Number.isSafeInteger(Number(match[2])) &&
+        deployment.sha === admission.source &&
+        [admission.ref, admission.ref.slice("refs/tags/".length)].includes(deployment.ref) &&
+        (admission.deployment_id === undefined || admission.deployment_id === deployment.id) &&
+        raw.task === "deploy" &&
+        isRecord(raw.payload) &&
+        Object.keys(raw.payload).length === 0 &&
+        isRecord(raw.performed_via_github_app) &&
+        raw.performed_via_github_app.slug === "github-actions" &&
+        status.state === "in_progress" &&
+        status.environment === "github-pages",
+      "latest Pages deployment is not this job's active environment admission",
+    );
+    const job = yield* get(`actions/jobs/${match[2]}`);
+    assert.ok(
+      isRecord(job) &&
+        job.id === Number(match[2]) &&
+        job.run_id === Number(admission.run_id) &&
+        job.run_attempt === admission.run_attempt &&
+        job.head_sha === admission.source &&
+        job.head_branch === admission.ref.slice("refs/tags/".length) &&
+        job.name === "feed" &&
+        job.status === "in_progress" &&
+        job.html_url === status.log_url,
+      "Pages environment admission job identity differs",
+    );
+    if (admission.selection === "serving") {
+      selected = yield* actor(deployments[1]);
+      assert.notEqual(selected.deployment.id, deployment.id);
+    }
+  }
+  const { deployment, status } = selected;
+  if (admission?.selection !== "current") assert.equal(status.state, "success");
   return {
     deployment_id: deployment.id,
+    ...(admission ? { admission_id: current.deployment.id } : {}),
     source_commit: deployment.sha,
     ref: deployment.ref,
     environment: deployment.environment,
@@ -307,7 +379,15 @@ export async function executeBootstrapPages(
     beforeWrite: () => Promise<() => void>;
     assertPreimage: () => Promise<void>;
     publicReadback: () => Promise<{ generation: string; evidence_sha256: string }>;
-    providerReadback: () => Promise<unknown>;
+    providerReadback: (resolution: string) => Promise<unknown>;
+    markStage?: (
+      stage:
+        | "preimage"
+        | "post-may-have-started"
+        | "prior-effect-observation"
+        | "provider-readback"
+        | "public-readback",
+    ) => void;
     wait: () => Promise<void>;
     deadline?: number;
   },
@@ -341,6 +421,7 @@ export async function executeBootstrapPages(
     let native;
     if (expected.prior_feed_execution) {
       // Missing/unknown prior outcome is not permission for another POST.
+      options.markStage?.("prior-effect-observation");
       native = await options.provider.observeByGeneration(identity);
       resolution = "recovered-original-effect";
     } else {
@@ -348,9 +429,11 @@ export async function executeBootstrapPages(
       try {
         const created = await options.provider.create(identity, async () => {
           const assertFresh = await options.beforeWrite();
+          options.markStage?.("preimage");
           await options.assertPreimage();
           within();
           assertFresh();
+          options.markStage?.("post-may-have-started");
           entered = true;
         });
         native = await options.provider.observe({ ...identity, id: created.id });
@@ -373,12 +456,14 @@ export async function executeBootstrapPages(
     }
   }
   within();
-  const provider = await options.providerReadback();
+  options.markStage?.("provider-readback");
+  const provider = await options.providerReadback(resolution);
+  options.markStage?.("public-readback");
   const readback = await options.publicReadback();
   assert.equal(readback.generation, site.generation);
   assert.match(readback.evidence_sha256, /^[a-f0-9]{64}$/u);
   assert.deepEqual(
-    await options.providerReadback(),
+    await options.providerReadback(resolution),
     provider,
     "Pages actor changed during public byte readback",
   );
