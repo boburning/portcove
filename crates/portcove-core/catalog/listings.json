@@ -52572,15 +52572,25 @@
             "instruction": "Use your own 1080° Snowboarding Nintendo 64 JU revision 0 ROM. Check the required size and SHA-1 in games/1080-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/1080-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake 1080-us-release target to produce the native 1080-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/1080-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset 1080-us-release, then ./build/1080-us-release/bin/1080-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "Only a partial Nintendo 64 logo has been established in Debug and Release builds. Menus and riding are unverified. A complete playthrough has not been confirmed, and results from another game do not establish that this one works. Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game 1080-us -Configuration Release in PowerShell. Start the resulting build/msvc/1080-us/release/bin/Release/1080-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh 1080-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3613,
       "artwork": {
@@ -52608,15 +52618,25 @@
             "instruction": "Use your own Conker's Bad Fur Day Nintendo 64 USA ROM. Check the required size and SHA-1 in games/conker-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/conker-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake conker-us-release target to produce the native conker-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/conker-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset conker-us-release, then ./build/conker-us-release/bin/conker-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game conker-us -Configuration Release in PowerShell. Start the resulting build/msvc/conker-us/release/bin/Release/conker-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh conker-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3609,
       "artwork": {
@@ -52644,15 +52664,25 @@
             "instruction": "Use your own Duke Nukem 64 Nintendo 64 USA ROM. Check the required size and SHA-1 in games/duke-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/duke-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake duke-us-release target to produce the native duke-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/duke-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset duke-us-release, then ./build/duke-us-release/bin/duke-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The shared README does not confirm gameplay for this game. Check the linked game notes; progress reported for other games does not establish that this one works. A full playthrough and Portcove gameplay checks have not been confirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game duke-us -Configuration Release in PowerShell. Start the resulting build/msvc/duke-us/release/bin/Release/duke-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh duke-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3605,
       "artwork": {
@@ -52680,15 +52710,25 @@
             "instruction": "Use your own Duke Nukem: Zero Hour Nintendo 64 USA ROM. Check the required size and SHA-1 in games/duke-zero-hour-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/duke-zero-hour-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake duke-zero-hour-us-release target to produce the native duke-zero-hour-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/duke-zero-hour-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset duke-zero-hour-us-release, then ./build/duke-zero-hour-us-release/bin/duke-zero-hour-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The shared README does not confirm gameplay for this game. Check the linked game notes; progress reported for other games does not establish that this one works. A full playthrough and Portcove gameplay checks have not been confirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game duke-zero-hour-us -Configuration Release in PowerShell. Start the resulting build/msvc/duke-zero-hour-us/release/bin/Release/duke-zero-hour-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh duke-zero-hour-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3606,
       "artwork": {
@@ -52716,15 +52756,25 @@
             "instruction": "Use your own GoldenEye 007 Nintendo 64 USA ROM. Check the required size and SHA-1 in games/goldeneye-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/goldeneye-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake goldeneye-us-release target to produce the native goldeneye-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/goldeneye-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset goldeneye-us-release, then ./build/goldeneye-us-release/bin/goldeneye-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The project provides a gameplay screenshot. A complete playthrough has not been confirmed, and results from another game do not establish that this one works. Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game goldeneye-us -Configuration Release in PowerShell. Start the resulting build/msvc/goldeneye-us/release/bin/Release/goldeneye-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh goldeneye-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3600,
       "artwork": {
@@ -52752,15 +52802,25 @@
             "instruction": "Use your own Hexen (N64) Nintendo 64 USA ROM. Check the required size and SHA-1 in games/hexen-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/hexen-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake hexen-us-release target to produce the native hexen-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/hexen-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset hexen-us-release, then ./build/hexen-us-release/bin/hexen-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The shared README does not confirm gameplay for this game. Check the linked game notes; progress reported for other games does not establish that this one works. A full playthrough and Portcove gameplay checks have not been confirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game hexen-us -Configuration Release in PowerShell. Start the resulting build/msvc/hexen-us/release/bin/Release/hexen-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh hexen-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3607
     },
@@ -52780,15 +52840,25 @@
             "instruction": "Use your own Nightmare Creatures (N64) Nintendo 64 USA ROM. Check the required size and SHA-1 in games/nightmare-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/nightmare-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake nightmare-us-release target to produce the native nightmare-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/nightmare-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset nightmare-us-release, then ./build/nightmare-us-release/bin/nightmare-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The shared README does not confirm gameplay for this game. Check the linked game notes; progress reported for other games does not establish that this one works. A full playthrough and Portcove gameplay checks have not been confirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game nightmare-us -Configuration Release in PowerShell. Start the resulting build/msvc/nightmare-us/release/bin/Release/nightmare-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh nightmare-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3608
     },
@@ -52808,15 +52878,25 @@
             "instruction": "Use your own The Legend of Zelda: Ocarina of Time Nintendo 64 USA v1.2 ROM. Check the required size and SHA-1 in games/oot-us-v12/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/oot-us-v12/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake oot-us-v12-release target to produce the native oot-us-v12 player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/oot-us-v12/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset oot-us-v12-release, then ./build/oot-us-v12-release/bin/oot-us-v12. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The project provides title-screen and optional widescreen screenshots. A complete playthrough has not been confirmed, and results from another game do not establish that this one works. Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game oot-us-v12 -Configuration Release in PowerShell. Start the resulting build/msvc/oot-us-v12/release/bin/Release/oot-us-v12.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh oot-us-v12 after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3599,
       "artwork": {
@@ -52844,15 +52924,25 @@
             "instruction": "Use your own Perfect Dark Nintendo 64 USA v1.1 ROM. Check the required size and SHA-1 in games/perfectdark-us-v11/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/perfectdark-us-v11/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake perfectdark-us-v11-release target to produce the native perfectdark-us-v11 player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/perfectdark-us-v11/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset perfectdark-us-v11-release, then ./build/perfectdark-us-v11-release/bin/perfectdark-us-v11. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The project provides a Carrington Institute screenshot. A complete playthrough has not been confirmed, and results from another game do not establish that this one works. Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game perfectdark-us-v11 -Configuration Release in PowerShell. Start the resulting build/msvc/perfectdark-us-v11/release/bin/Release/perfectdark-us-v11.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh perfectdark-us-v11 after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3601,
       "artwork": {
@@ -52880,15 +52970,25 @@
             "instruction": "Use your own Quake (N64) Nintendo 64 USA ROM. Check the required size and SHA-1 in games/quake-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/quake-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake quake-us-release target to produce the native quake-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/quake-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset quake-us-release, then ./build/quake-us-release/bin/quake-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The shared README does not confirm gameplay for this game. Check the linked game notes; progress reported for other games does not establish that this one works. A full playthrough and Portcove gameplay checks have not been confirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game quake-us -Configuration Release in PowerShell. Start the resulting build/msvc/quake-us/release/bin/Release/quake-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh quake-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3603
     },
@@ -52908,15 +53008,25 @@
             "instruction": "Use your own Quake II (N64) Nintendo 64 USA ROM. Check the required size and SHA-1 in games/quake2-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/quake2-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake quake2-us-release target to produce the native quake2-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/quake2-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset quake2-us-release, then ./build/quake2-us-release/bin/quake2-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The shared README does not confirm gameplay for this game. Check the linked game notes; progress reported for other games does not establish that this one works. A full playthrough and Portcove gameplay checks have not been confirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game quake2-us -Configuration Release in PowerShell. Start the resulting build/msvc/quake2-us/release/bin/Release/quake2-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh quake2-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3604
     },
@@ -52936,15 +53046,25 @@
             "instruction": "Use your own Rayman 2: The Great Escape Nintendo 64 USA ROM. Check the required size and SHA-1 in games/rayman2-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/rayman2-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake rayman2-us-release target to produce the native rayman2-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/rayman2-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset rayman2-us-release, then ./build/rayman2-us-release/bin/rayman2-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game rayman2-us -Configuration Release in PowerShell. Start the resulting build/msvc/rayman2-us/release/bin/Release/rayman2-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh rayman2-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3610,
       "artwork": {
@@ -52972,15 +53092,25 @@
             "instruction": "Use your own Resident Evil 2 (N64) Nintendo 64 USA revision 1 ROM. Check the required size and SHA-1 in games/re2-us-v1/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/re2-us-v1/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake re2-us-v1-release target to produce the native re2-us-v1 player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/re2-us-v1/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset re2-us-v1-release, then ./build/re2-us-v1-release/bin/re2-us-v1. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game re2-us-v1 -Configuration Release in PowerShell. Start the resulting build/msvc/re2-us-v1/release/bin/Release/re2-us-v1.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh re2-us-v1 after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3612
     },
@@ -53000,15 +53130,25 @@
             "instruction": "Use your own Shadow Man Nintendo 64 USA ROM. Check the required size and SHA-1 in games/shadowman-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/shadowman-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake shadowman-us-release target to produce the native shadowman-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/shadowman-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset shadowman-us-release, then ./build/shadowman-us-release/bin/shadowman-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The shared README does not confirm gameplay for this game. Check the linked game notes; progress reported for other games does not establish that this one works. A full playthrough and Portcove gameplay checks have not been confirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game shadowman-us -Configuration Release in PowerShell. Start the resulting build/msvc/shadowman-us/release/bin/Release/shadowman-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh shadowman-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3602,
       "artwork": {
@@ -53036,15 +53176,25 @@
             "instruction": "Use your own Super Mario 64 Nintendo 64 USA ROM. Check the required size and SHA-1 in games/sm64-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/sm64-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake sm64-us-release target to produce the native sm64-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/sm64-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset sm64-us-release, then ./build/sm64-us-release/bin/sm64-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "The project provides a Castle Grounds screenshot. A complete playthrough has not been confirmed, and results from another game do not establish that this one works. Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game sm64-us -Configuration Release in PowerShell. Start the resulting build/msvc/sm64-us/release/bin/Release/sm64-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh sm64-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3598,
       "artwork": {
@@ -53089,15 +53239,25 @@
             "instruction": "Use your own Turok: Dinosaur Hunter Nintendo 64 USA v1.2 ROM. Check the required size and SHA-1 in games/turok-us-v12/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use tools/import_rom.py --profile games/turok-us-v12/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake turok-us-v12-release target to produce the native turok-us-v12 player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+            "title": "Build from source on Linux",
+            "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/turok-us-v12/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset turok-us-v12-release, then ./build/turok-us-v12-release/bin/turok-us-v12. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
           }
         ],
         "warnings": [
           "This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/polaco1782/v64recomp"
+        "help_url": "https://github.com/polaco1782/v64recomp",
+        "references": [
+          {
+            "title": "Build from source on Windows x64",
+            "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game turok-us-v12 -Configuration Release in PowerShell. Start the resulting build/msvc/turok-us-v12/release/bin/Release/turok-us-v12.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+          },
+          {
+            "title": "Prepare a private Steam Deck copy",
+            "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh turok-us-v12 after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+          }
+        ]
       },
       "issue_number": 3611,
       "artwork": {

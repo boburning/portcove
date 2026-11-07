@@ -16,15 +16,25 @@
           "instruction": "Use your own 1080° Snowboarding Nintendo 64 JU revision 0 ROM. Check the required size and SHA-1 in games/1080-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
         },
         {
-          "title": "Follow upstream setup",
-          "instruction": "Use tools/import_rom.py --profile games/1080-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake 1080-us-release target to produce the native 1080-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+          "title": "Build from source on Linux",
+          "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/1080-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset 1080-us-release, then ./build/1080-us-release/bin/1080-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
         }
       ],
       "warnings": [
         "Only a partial Nintendo 64 logo has been established in Debug and Release builds. Menus and riding are unverified. A complete playthrough has not been confirmed, and results from another game do not establish that this one works. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/polaco1782/v64recomp"
+      "help_url": "https://github.com/polaco1782/v64recomp",
+      "references": [
+        {
+          "title": "Build from source on Windows x64",
+          "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game 1080-us -Configuration Release in PowerShell. Start the resulting build/msvc/1080-us/release/bin/Release/1080-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+        },
+        {
+          "title": "Prepare a private Steam Deck copy",
+          "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh 1080-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+        }
+      ]
     },
     "issue_number": 3613,
     "artwork": {
