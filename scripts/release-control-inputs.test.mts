@@ -27,6 +27,7 @@ import {
   createProtectionObservationReader,
   requireReleaseInputWriterPolicy,
   requireApplicationReleaseProtectionDigest,
+  bootstrapProtectionFingerprints,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import { capacityDigest } from "./release-capacity.mts";
@@ -344,6 +345,7 @@ void test("bootstrap appointment binds protection and refs across observer princ
   };
   const pauseRef = (sha: string) => ({
     branch: "portcove-release-pause",
+    effective_rules: [],
     ref: {
       object: { sha, url: `https://api.github.com/repos/boburning/portcove/git/commits/${sha}` },
     },
@@ -367,6 +369,25 @@ void test("bootstrap appointment binds protection and refs across observer princ
     rulesets: [{ ...ruleset, current_user_can_bypass: "never" }],
   });
   const appointed = requireApplicationReleaseProtectionDigest(owner, true, now);
+  const fingerprints = bootstrapProtectionFingerprints(owner);
+  assert.deepEqual(bootstrapProtectionFingerprints(observer), fingerprints);
+  const changedRef = bootstrapProtectionFingerprints(
+    proof({
+      ...inventory,
+      branches: [pauseRef("b".repeat(40))],
+    }),
+  );
+  assert.notEqual(changedRef.refs, fingerprints.refs);
+  assert.deepEqual({ ...changedRef, refs: fingerprints.refs }, fingerprints);
+  assert.equal(fingerprints.ruleset_count, 1);
+  for (const digest of [
+    fingerprints.rulesets,
+    fingerprints.refs,
+    fingerprints.effective,
+    fingerprints.settings,
+  ])
+    assert.match(digest, /^[a-f0-9]{64}$/u);
+
   assert.equal(requireApplicationReleaseProtectionDigest(observer, true, now), appointed);
   assert.equal(
     requireApplicationReleaseProtectionDigest(owner, false, now),

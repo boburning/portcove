@@ -36,6 +36,7 @@ import {
   observeReleaseInputProtections,
   createApplicationProtectionObservationReader,
   requireApplicationReleaseProtectionDigest,
+  bootstrapProtectionFingerprints,
 } from "./release-input-protections.mts";
 import {
   fixedReleaseReaderToken,
@@ -2334,14 +2335,19 @@ async function observe() {
     const observation = await observeReleaseInputProtections(observer, {
       releasePublication: true,
     });
-    stage = "protection-digest";
-    assert.equal(
-      requireApplicationReleaseProtectionDigest(
-        observation,
-        source.purpose === "metadata-bootstrap",
-      ),
-      process.env.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256,
-    );
+    stage = "protection-policy";
+    const bootstrap = source.purpose === "metadata-bootstrap";
+    const digest = requireApplicationReleaseProtectionDigest(observation, bootstrap);
+    stage = "protection-appointment";
+    const appointed = process.env.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256;
+    if (bootstrap && digest !== appointed)
+      console.error(
+        JSON.stringify({
+          kind: "bootstrap-protection-fingerprints",
+          ...bootstrapProtectionFingerprints(observation),
+        }),
+      );
+    assert.equal(digest, appointed);
     stage = "receipt-write";
     await writeApplicationJson("work/application-protection/protection.json", {
       schema_version: 1,
