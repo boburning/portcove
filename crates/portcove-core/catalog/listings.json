@@ -11786,7 +11786,7 @@
         "references": [
           {
             "title": "Preserve the actual profile and working copy",
-            "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+            "instruction": "You or upstream provide updates to a copy you prepared yourself. Portcove updates its managed Windows runtime. Keep the complete external copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
           },
           {
             "title": "Registration ownership and removal",
