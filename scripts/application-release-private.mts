@@ -2156,6 +2156,10 @@ async function deployBootstrapSite(readOnly = false) {
   assert.ok(isRecord(plan.pages_intent));
   const firstControllerBuild =
     !recoverInitialBootstrap && plan.pages_intent.build_version === current.source;
+  const usePreflightPriorBytes =
+    firstControllerBuild &&
+    source.purpose === "application-release" &&
+    source.execution_path === undefined;
   if (firstControllerBuild) {
     assert.equal(plan.preimage.kind, "prior");
     assert.ok(source.purpose === "application-release" || source.purpose === "metadata-renewal");
@@ -2414,7 +2418,10 @@ async function deployBootstrapSite(readOnly = false) {
           if (preimageKind === "prior") {
             assert.ok(isRecord(preimage.site));
             const previous = inspectSiteGeneration(preimage.site, site.previous_generation!);
-            await readPublicApplicationSite(previous, deadline);
+            // Preparation authenticated the complete predecessor between the
+            // same serving actor observations under the shared publisher group.
+            if (usePreflightPriorBytes) await readPublicApplicationSiteMarker(previous, deadline);
+            else await readPublicApplicationSite(previous, deadline);
             await verifyServingActor();
             if (firstControllerBuild)
               assert.deepEqual(
