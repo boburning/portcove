@@ -11,6 +11,7 @@ import {
   verifyInstalledReleasePackage,
 } from "./release-tool-dependencies.mts";
 import { isRecord } from "./runtime-values.mts";
+import { sealedCheckSdkFilename, sealedCheckSdkMaximumBytes } from "./release-sealed-check-sdk.mts";
 import { acquireWindowsWebviewDriver } from "./release-windows-webview-driver.mts";
 import { captureSupportedHostedWindowsRuntimeInput } from "./hosted-windows-runtime-input.mts";
 import { acquireNativePnpm, nativePnpmPackageProfile } from "./release-pnpm-runtime.mts";
@@ -94,20 +95,21 @@ export async function bundleSealedCheckSdkIssuer(sourceRoot: string, outputRoot:
   if (path.resolve(manifest) !== slot || installed !== (await realpath(slot)))
     throw new Error("sealed Check dependency escaped the fixed checkout install");
   verifyInstalledReleasePackage(installed, name, version);
-  const filename = "release-semantic-issuer-sdk-http.bundle.mjs";
   await bundleFixedControllerEntries(
     sourceRoot,
     outputRoot,
     [
       {
         source: "scripts/release-semantic-issuer-sdk-http.mts",
-        output: filename,
+        output: sealedCheckSdkFilename,
       },
     ],
     readReleaseToolDependencies(sourceRoot),
     path.dirname(installed),
   );
-  const bytes = await readControllerToolFile(path.join(outputRoot, "scripts", filename));
+  const file = path.join(outputRoot, "scripts", sealedCheckSdkFilename);
+  if (process.platform === "linux") await chmod(file, 0o600);
+  const bytes = await readControllerToolFile(file, sealedCheckSdkMaximumBytes);
   return { bytes: bytes.length, sha256: hash(bytes) };
 }
 

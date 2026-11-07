@@ -90,9 +90,25 @@ function inspectExpected(raw: unknown) {
   exact(raw.powershell, "path,sha256");
   exact(
     raw.protected_paths,
-    isRecord(raw.protected_paths) && Object.hasOwn(raw.protected_paths, "public_boundary")
-      ? "authorities,boundary,capture,controller,descriptor,installation,native_issuer,public_boundary,source_reader,source_tool"
-      : "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader,source_tool",
+    [
+      "authorities",
+      "boundary",
+      "capture",
+      "controller",
+      "descriptor",
+      "installation",
+      "native_issuer",
+      "source_reader",
+      "source_tool",
+      ...(isRecord(raw.protected_paths) && Object.hasOwn(raw.protected_paths, "public_boundary")
+        ? ["public_boundary"]
+        : []),
+      ...(isRecord(raw.protected_paths) && Object.hasOwn(raw.protected_paths, "issuer_sdk")
+        ? ["issuer_sdk"]
+        : []),
+    ]
+      .sort()
+      .join(","),
   );
   const protectedPaths = Object.fromEntries(
     Object.entries(raw.protected_paths).map(([key, value]) => [key, winPath(value)]),
