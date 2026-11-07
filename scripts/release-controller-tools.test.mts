@@ -861,6 +861,13 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
     ])
       assert.ok(trigger.paths.includes(scope));
   }
+  const push: unknown = parsed.on.push;
+  assert.ok(isRecord(push) && Array.isArray(push.paths));
+  for (const scope of [
+    "scripts/release-controller-job-bootstrap.mts",
+    "scripts/release-controller-diagnostics.mts",
+  ])
+    assert.ok(push.paths.includes(scope));
   const buildSource = await readFile(
     new URL("./release-controller-tool-build.mts", import.meta.url),
     "utf8",

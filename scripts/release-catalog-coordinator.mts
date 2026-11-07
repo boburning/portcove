@@ -94,8 +94,13 @@ import {
   inspectCatalogSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
-import { retainControlStepLocator } from "./release-control-step-bridge.mts";
+import {
+  retainControlStepLocator,
+  retainCatalogCoordinatorRefusal,
+  type CatalogCoordinatorRefusalStage,
+} from "./release-control-step-bridge.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import { isApplicationReviewReleaseTag } from "./release-review-request.mts";
 const project = fileURLToPath(new URL("..", import.meta.url));
 function exact(raw: unknown, keys: string): asserts raw is Record<string, unknown> {
   if (!isRecord(raw) || Object.keys(raw).sort().join(",") !== keys)
@@ -230,11 +235,12 @@ export async function runFixedCatalogCoordinatorConfiguration(
   const journalTransport = { credential: { token: readerToken }, deadline };
   check();
   return withCoordinatorDeadline(deadline, async () => {
-    let stage = "actual-catalog-admission";
+    let stage: CatalogCoordinatorRefusalStage<"operation"> = "actual-catalog-admission";
     try {
       const authorities = await requireControllerCatalogCoordinatorAuthorities();
       if (authorities.namespace !== selected.remote_configuration.namespace)
         throw new Error("catalog authority namespace differs");
+      stage = "catalog-reader-identity";
       const workflow = await readProductionControllerWorkflowBytes(),
         reader = await authenticateCatalogControlReaderJob(process.env, workflow, {
           phase: "coordinator",
@@ -242,6 +248,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
         });
       if (reader.identity.evidence_scope !== "github.com")
         throw new Error("actual catalog coordinator reader required");
+      stage = "catalog-tool-custody";
       const tools = await receiveControllerTools(
           directory,
           selected.tools.artifact,
@@ -256,6 +263,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
         paths.identity.run_attempt !== reader.admitted.run_attempt
       )
         throw new Error("catalog tools/actual job association differs");
+      stage = "catalog-journal-recovery";
       const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
           transport: journalTransport,
         }),
@@ -386,6 +394,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
             checkpointControls,
           );
         else await publishLegacy(persisted.checkpoint);
+        if (stage === "standalone-application-bootstrap-CAS")
+          stage = "standalone-application-bootstrap-journal-readback";
         const readback = await readRemoteCoordinatorSnapshot(
           directory,
           selected.remote_configuration,
@@ -408,11 +418,14 @@ export async function runFixedCatalogCoordinatorConfiguration(
           directory,
           tools,
           deadline,
+          (next) => (stage = next),
         );
+        stage = "standalone-application-bootstrap-observer";
         const { readMaintenance, observed, stable } = await observeControls(
           capacityDigest({ checkpoint: recovered.checkpoint, standalone_bootstrap: metadata }),
         );
         assertStandaloneBootstrapAdoptionCapacity(observed);
+        stage = "standalone-application-bootstrap-inventory";
         const publicationReader = await openPublicationReader();
         const readInventory = async () => {
           const tags = await publicationReader.tags();
@@ -451,7 +464,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           now,
           publication: deriveCoordinatorPublication(
             inventory.tags,
-            inventory.releases,
+            inventory.releases.filter((release) => isApplicationReviewReleaseTag(release.tag_name)),
             inventory.allocations,
             now,
           ),
@@ -850,6 +863,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         automatic_retry: false,
       };
     } catch (error) {
+      await retainCatalogCoordinatorRefusal(
+        process.env.RUNNER_TEMP ?? "",
+        "operation",
+        stage,
+      ).catch(() => {});
       await writeFile(
         path.join(directory, "refusal.json"),
         JSON.stringify({ stage, authority: "none", automatic_retry: false }),

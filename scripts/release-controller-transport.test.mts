@@ -693,6 +693,47 @@ void test("composite contains forty fixed slots with isolated key env and unchan
   assert(!source.includes("GH_TOKEN"));
 });
 
+void test("catalog diagnostics retain only fixed refusal stages and no exception data", async (t) => {
+  const { retainCatalogCoordinatorRefusal } = await import("./release-control-step-bridge.mts");
+  const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "catalog-controller-diagnostics-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await retainCatalogCoordinatorRefusal(root, "launch", "tool-custody");
+  await assert.rejects(retainCatalogCoordinatorRefusal(root, "launch", "attested-worker"), {
+    code: "EEXIST",
+  });
+  const launch = "catalog-coordinator-launch-refusal.json";
+  const operation = "catalog-coordinator-operation-refusal.json";
+  await writeFile(
+    path.join(root, operation),
+    JSON.stringify({
+      schema_version: 1,
+      stage: "standalone-application-bootstrap-site",
+      authority: "none",
+      automatic_retry: false,
+      message: "fixture-private-exception",
+    }),
+  );
+  const output = await retainControllerDiagnostics(root, "coordinator");
+  assert.deepEqual(JSON.parse(await readFile(path.join(output, launch), "utf8")), {
+    schema_version: 1,
+    stage: "tool-custody",
+    authority: "none",
+    automatic_retry: false,
+  });
+  assert.equal((await readdir(output)).includes(operation), false);
+  const manifest = JSON.parse(await readFile(path.join(output, "manifest.json"), "utf8")) as {
+    unavailable: { path: string; reason: string }[];
+  };
+  assert.deepEqual(
+    manifest.unavailable.find((entry) => entry.path === operation),
+    {
+      path: operation,
+      reason: "unreadable-or-invalid",
+    },
+  );
+});
+
 void test("always-retained diagnostics select bounded public markers and preserve original failure state", async (t) => {
   const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-diagnostics-"));

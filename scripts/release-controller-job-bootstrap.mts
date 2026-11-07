@@ -13,6 +13,10 @@ import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  retainCatalogCoordinatorRefusal,
+  type CatalogCoordinatorRefusalStage,
+} from "./release-control-step-bridge.mts";
 function positive(raw: unknown) {
   if (
     typeof raw !== "string" ||
@@ -55,16 +59,32 @@ export function assertControllerBootstrapEnvironment(environment: NodeJS.Process
     );
 }
 export async function launchFixedControllerJob(rawOperation: unknown) {
-  if (process.env.PORTCOVE_STORAGE_APP_TOKEN) {
-    const directory = process.env.RUNNER_TEMP;
-    if (!directory || !path.isAbsolute(directory))
-      throw new Error("clean fixed controller runtime required");
-    return withReadOnlyReleaseChildren(directory, () => launchControllerWorker(rawOperation));
+  let stage: CatalogCoordinatorRefusalStage<"launch"> = "source-admission";
+  const launch = () => launchControllerWorker(rawOperation, (next) => (stage = next));
+  try {
+    if (process.env.PORTCOVE_STORAGE_APP_TOKEN) {
+      const directory = process.env.RUNNER_TEMP;
+      if (!directory || !path.isAbsolute(directory))
+        throw new Error("clean fixed controller runtime required");
+      return await withReadOnlyReleaseChildren(directory, launch);
+    }
+    return await launch();
+  } catch (error) {
+    if (
+      rawOperation === "coordinator" &&
+      process.env.PORTCOVE_EXECUTION_PURPOSE === "catalog-publication"
+    )
+      await retainCatalogCoordinatorRefusal(process.env.RUNNER_TEMP ?? "", "launch", stage).catch(
+        () => {},
+      );
+    throw error;
   }
-  return launchControllerWorker(rawOperation);
 }
 
-async function launchControllerWorker(rawOperation: unknown) {
+async function launchControllerWorker(
+  rawOperation: unknown,
+  stage: (value: CatalogCoordinatorRefusalStage<"launch">) => void,
+) {
   const environment = { ...process.env };
   if (
     ![
@@ -112,6 +132,7 @@ async function launchControllerWorker(rawOperation: unknown) {
     run_id: environment.GITHUB_RUN_ID ?? "",
     run_attempt: Number(environment.GITHUB_RUN_ATTEMPT),
   };
+  stage("job-clock");
   const deadline = await currentControllerJobDeadline(
     rawOperation,
     identity,
@@ -129,6 +150,7 @@ async function launchControllerWorker(rawOperation: unknown) {
     },
     parent = environment.RUNNER_TEMP;
   return withCoordinatorDeadline(deadline, async () => {
+    stage("tool-custody");
     const receipt = await receiveControllerTools(parent, artifact, bundle, { deadline });
     source.recheck();
     const tools = await verifiedControllerToolPaths(receipt);
@@ -141,6 +163,7 @@ async function launchControllerWorker(rawOperation: unknown) {
       throw new Error("actual job Node differs from attested executable");
     const entry = tools.entries["release-controller-job"];
     if (typeof entry !== "string") throw new Error("fixed complete job bundle unavailable");
+    stage("attested-worker");
     const worker = (await import(pathToFileURL(entry).href)) as {
       runConfiguredFixedControllerJob(role: string, deadline: number): Promise<unknown>;
     };
@@ -149,6 +172,7 @@ async function launchControllerWorker(rawOperation: unknown) {
     await verifiedControllerToolPaths(receipt);
     source.recheck();
     const result = await worker.runConfiguredFixedControllerJob(rawOperation, deadline);
+    stage("worker-settlement");
     source.recheck();
     return result;
   });
