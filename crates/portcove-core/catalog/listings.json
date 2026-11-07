@@ -29387,11 +29387,14 @@
     {
       "id": "lostartefacts-trx",
       "name": "Tomb Raider I-III / TRX (LostArtefacts)",
-      "summary": "Set up Tomb Raider I–III with the upstream TRX Windows installer and your original game files.",
+      "summary": "Set up Tomb Raider I–III with TRX and the original files for the games you own.",
       "project_url": "https://github.com/LostArtefacts/TRX",
       "issue_number": 1898,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
@@ -29399,16 +29402,16 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Run the upstream Windows installer",
-            "instruction": "Open the download folder and run the Windows Installer EXE yourself. Choose a separate TRX folder and the game packs you want."
+            "title": "Windows setup",
+            "instruction": "Run the upstream Windows Installer EXE yourself. Choose a separate TRX folder and the packs you want. Point the installer to supported Steam, GOG or disc installations for the corresponding games. After setup, register the installed TRX.exe and its containing folder."
           },
           {
-            "title": "Select your original game files",
-            "instruction": "Use the installer’s supported Steam, GOG or disc locations for the corresponding Tomb Raider games. Let it arrange the required files; the portable ZIP needs manual game-specific placement instead."
+            "title": "Linux x86-64 setup",
+            "instruction": "Extract the complete Linux ZIP into a writable folder. Use the upstream manual setup guide to place your original files under the matching games/<game-id>/ folders. Start TRX with its containing folder as the working directory. After setup, use that same native executable and folder for Portcove registration."
           },
           {
-            "title": "Choose the installed player",
-            "instruction": "Finish Portcove setup with the installed TRX.exe and its folder."
+            "title": "Intel and Apple Silicon Mac setup",
+            "instruction": "Mount the universal Mac DMG, copy TRX.app to Applications, and open the installed app once as described by upstream. Use the upstream manual setup guide to place the original game files under the corresponding Contents/Resources/games/<game-id>/ folders. Open TRX.app from Applications to play."
           }
         ],
         "warnings": [
@@ -29419,7 +29422,7 @@
         "references": [
           {
             "title": "Preserve the TRX game data and profiles",
-            "instruction": "Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
+            "instruction": "Keep a backup of your original game files, cfg, saves, screenshots and any custom profile directories before replacing the runtime. On Mac, preserve any original game files or player data stored inside the bundle before replacing TRX.app. The upstream guide explains migration from the older combined layout."
           }
         ]
       },
@@ -29427,6 +29430,18 @@
         "windows-x86-64": [
           "TRX-",
           "-Windows_Installer.exe"
+        ],
+        "linux-x86-64": [
+          "TRX-",
+          "-Linux.zip"
+        ],
+        "macos-x86-64": [
+          "TRX-",
+          "-Mac.dmg"
+        ],
+        "macos-aarch64": [
+          "TRX-",
+          "-Mac.dmg"
         ]
       }
     },
@@ -53198,25 +53213,28 @@
       "project_url": "https://github.com/vcmi/vcmi",
       "issue_number": 1902,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
-      "setup_url": "https://github.com/vcmi/vcmi/blob/develop/docs/players/Installation_Windows.md",
+      "setup_url": "https://vcmi.eu/download/",
       "original_game_title": "Heroes of Might and Magic III",
       "release_url": "https://github.com/vcmi/vcmi/releases",
       "manual_setup": {
         "steps": [
           {
-            "title": "Use the Windows portable ZIP",
-            "instruction": "The Windows ZIP contains the client, launcher, map editor and server. Open the extracted folder and start VCMI_launcher.exe to complete upstream setup. The Windows installer remains an alternative."
+            "title": "Choose the upstream package for your system",
+            "instruction": "On Windows, extract the portable ZIP or run the upstream x64 installer, then open VCMI_launcher.exe. On Linux x86-64, use the AppImage on a system with glibc 2.38 or newer, or follow the upstream Linux guide for a distribution package or Flatpak. On Mac, choose the Intel or Apple Silicon DMG, copy VCMI.app to Applications and use its launcher."
           },
           {
             "title": "Import your Heroes III data",
-            "instruction": "In VCMI Launcher, import your GOG offline installer with its matching BIN file, or use your Heroes III Complete or Shadow of Death installation. The launcher handles data import and optional mods."
+            "instruction": "In VCMI Launcher, import your GOG offline installer with its matching BIN file, or use a supported Heroes III Complete or Shadow of Death installation. Keep the launcher for data import and optional mods."
           },
           {
-            "title": "Use the game client for Play",
-            "instruction": "After setup, finish Portcove registration with VCMI_client.exe and its folder. Keep VCMI Launcher available for mod management and setup."
+            "title": "Choose the client after upstream setup",
+            "instruction": "On Windows, register VCMI_client.exe and its containing folder. For a native Linux distribution package, select the native vcmiclient executable and its containing folder. Use the upstream AppImage, Flatpak or Mac app through its own launcher."
           }
         ],
         "warnings": [
@@ -53224,11 +53242,27 @@
           "VCMI saves from different major versions are usually incompatible. Finish ongoing games or keep your current runtime and a profile backup before changing major versions.",
           "Windows game data, saves and settings normally live in Documents/My Games/vcmi; keep that profile when updating the upstream runtime."
         ],
-        "help_url": "https://github.com/vcmi/vcmi/blob/develop/docs/players/Installation_Windows.md",
+        "help_url": "https://vcmi.eu/download/",
         "references": [
           {
-            "title": "Preserve the actual VCMI profile during updates",
-            "instruction": "Windows game data, saves and settings normally live in Documents/My Games/vcmi; keep that profile when updating the upstream runtime."
+            "title": "Preserve the profile for your installation",
+            "instruction": "Windows normally uses Documents/My Games/vcmi. Mac uses ~/Library/Application Support/vcmi. Linux normally uses ~/.local/share/vcmi, or ~/.var/app/eu.vcmi.VCMI/data/vcmi for Flatpak. Keep the actual data and settings folders, including any custom profile paths, when changing versions."
+          },
+          {
+            "title": "Linux setup guide",
+            "instruction": "https://vcmi.eu/players/Installation_Linux/"
+          },
+          {
+            "title": "ARM64 desktop packages",
+            "instruction": "For a native ARM64 Windows or Linux system, use the corresponding upstream Windows installer or Linux AppImage directly from VCMI Releases. Keep its profile with that installation."
+          },
+          {
+            "title": "Upstream Android setup",
+            "instruction": "Use the official Android setup guide for Google Play, F-Droid or the matching upstream APK (ARM64, ARMv7 or x86-64). Import your own Heroes III data in the app and keep your originals separately. Install and update through the same channel because Android checks package identity and signing. Preserve the app profile before removing it."
+          },
+          {
+            "title": "Android setup guide",
+            "instruction": "https://vcmi.eu/players/Installation_Android/"
           }
         ]
       },
@@ -53243,6 +53277,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "VCMI-Windows.zip"
+        ],
+        "linux-x86-64": [
+          "VCMI-Linux-x64.AppImage"
+        ],
+        "macos-x86-64": [
+          "VCMI-macOS-intel.dmg"
+        ],
+        "macos-aarch64": [
+          "VCMI-macOS-arm.dmg"
         ]
       }
     },
