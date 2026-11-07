@@ -520,7 +520,13 @@ function fixture(jobToken = false, bytes = Buffer.from("fixed inert controller w
     record,
     actualRun,
     manual(triggerActor = 43177418) {
-      Object.assign(config, { manual_actor_id: "43177418" });
+      Object.assign(config, {
+        manual_actor_id: "43177418",
+        manual_run_number: 42,
+        manual_expires_at: new Date(Date.parse(created) + 5 * 60_000)
+          .toISOString()
+          .replace(/\.\d{3}Z$/u, "Z"),
+      });
       Object.assign(env, {
         GITHUB_EVENT_NAME: "workflow_dispatch",
         GITHUB_ACTOR_ID: "43177418",
@@ -1051,6 +1057,41 @@ void test("exact opt-in manual owner uses the same single job-token receiver and
         }
       : originalJobs(id, attempt);
   assert.equal((await skippedManual.dispatch()).decision, "dispatch-acknowledged-only");
+
+  const used = fixture(true);
+  used.manual();
+  await used.prepare();
+  used.recovered();
+  await assert.rejects(used.dispatch(), /receiver inventory is not empty/u);
+  assert.equal(used.calls.filter(({ method }) => method === "POST").length, 0);
+
+  const previousManual = fixture(true);
+  previousManual.manual();
+  await previousManual.prepare();
+  previousManual.priorSuccess();
+  await assert.rejects(previousManual.dispatch(), /single-attempt manual appointment/u);
+  assert.equal(previousManual.calls.filter(({ method }) => method === "POST").length, 0);
+
+  const automatic = fixture(true);
+  automatic.manual();
+  automatic.env.GITHUB_EVENT_NAME = "schedule";
+  await assert.rejects(automatic.prepare(), /fixed default-branch boundary/u);
+  assert.equal(automatic.calls.length, 0);
+
+  const expired = fixture(true);
+  expired.manual();
+  Object.assign(expired.config, {
+    activation_started_at: new Date(Date.now() - 120_000).toISOString().replace(/\.\d{3}Z$/u, "Z"),
+    manual_expires_at: new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/u, "Z"),
+  });
+  await assert.rejects(expired.prepare(), /fixed default-branch boundary/u);
+  assert.equal(expired.calls.length, 0);
+
+  const wrongRun = fixture(true);
+  wrongRun.manual();
+  Object.assign(wrongRun.config, { manual_run_number: 43 });
+  await assert.rejects(wrongRun.prepare(), /actual provider initiator differs/u);
+  assert.equal(wrongRun.calls.filter(({ method }) => method === "POST").length, 0);
 
   const wrongActor = fixture(true);
   wrongActor.manual(999);

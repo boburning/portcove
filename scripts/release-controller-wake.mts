@@ -34,6 +34,7 @@ const nativeWorkflow = ".github/workflows/application-release.yml";
 export const jobTokenDispatchActor = "41898282";
 const manualWakeActor = "43177418";
 const manualWakeLogin = "boburning";
+const maximumManualWakeWindow = 15 * 60_000;
 
 function fixedManualWakeRun(raw: Record<string, unknown>) {
   return (
@@ -488,7 +489,9 @@ export async function reconcilePreviousWakes(
     current.path !== workflow ||
     current.head_branch !== "main" ||
     (manual
-      ? config.manual_actor_id !== manualWakeActor || !fixedManualWakeRun(current)
+      ? config.manual_actor_id !== manualWakeActor ||
+        current.run_number !== config.manual_run_number ||
+        !fixedManualWakeRun(current)
       : !["push", "schedule"].includes(String(current.event))) ||
     current.run_attempt !== 1 ||
     !Number.isSafeInteger(current.run_number) ||
@@ -499,6 +502,8 @@ export async function reconcilePreviousWakes(
   const end = Date.parse(current.created_at),
     activation = Date.parse(config.activation_started_at);
   if (activation > end) throw new Error("wake activation starts after current run");
+  if (manual && (end >= Date.parse(config.manual_expires_at!) || options.predecessor))
+    throw new Error("manual wake is outside its single-attempt appointment");
   const start = Math.max(activation, end - 7 * 86400000),
     lower = new Date(start).toISOString();
   const collect = async (workflow: WakeWorkflow, filters: Record<string, string>) => {
@@ -527,7 +532,7 @@ export async function reconcilePreviousWakes(
           Number(run.run_number) < 1 ||
           typeof run.created_at !== "string" ||
           !Number.isFinite(Date.parse(run.created_at)) ||
-          all.some((item) => item.id === run.id)
+          all.some((item) => item.id === run.id || (manual && item.run_number === run.run_number))
         )
           throw new Error("wake run inventory identity duplicated or missing");
         all.push(run);
@@ -542,7 +547,20 @@ export async function reconcilePreviousWakes(
     branch: "main",
     created: `${lower}..${current.created_at}`,
   });
-  if (!runs.some((run) => run.id === current.id && run.run_number === current.run_number))
+  if (
+    !runs.some(
+      (run) =>
+        run.id === current.id &&
+        run.run_number === current.run_number &&
+        (!manual ||
+          (fixedManualWakeRun(run) &&
+            run.head_sha === current.head_sha &&
+            run.head_branch === current.head_branch &&
+            run.path === current.path &&
+            run.run_attempt === 1 &&
+            run.created_at === current.created_at)),
+    )
+  )
     throw new Error("wake inventory omitted its known current run");
   const previous = runs
     .filter((run) => Number(run.run_number) < Number(current.run_number))
@@ -601,7 +619,10 @@ export async function reconcilePreviousWakes(
     const predecessor =
       run.id === options.predecessor?.wake_run_id ? options.predecessor : undefined;
     const nativeStep =
-      config.schema_version === 5 || run.conclusion === "skipped" || (manualRun && !manualApproved)
+      manual ||
+      config.schema_version === 5 ||
+      run.conclusion === "skipped" ||
+      (manualRun && !manualApproved)
         ? await readDispatchStep()
         : undefined;
     if (predecessor && (run.conclusion !== "success" || nativeStep?.conclusion === "skipped"))
@@ -613,6 +634,8 @@ export async function reconcilePreviousWakes(
       });
       continue;
     }
+    if (manual)
+      throw new Error("prior wake started within the single-attempt manual appointment; no POST");
     if (manualRun && !manualApproved)
       throw new Error("prior manual wake started without the appointed initiator");
     if (nativeStep?.conclusion === "skipped" && run.conclusion === "success") {
@@ -756,6 +779,15 @@ export async function reconcilePreviousWakes(
     );
     await record("prior-wake-dispatch-readback", observed);
   }
+  if (manual) {
+    const receivers = await collect(destinationWorkflowName(config), {
+      event: "workflow_dispatch",
+      head_sha: config.revision,
+      created: `>=${config.activation_started_at}`,
+    });
+    if (receivers.length)
+      throw new Error("receiver inventory is not empty within the manual appointment; no POST");
+  }
   if (options.predecessor) throw new Error("appointed wake predecessor was not reconciled");
   if (start > activation)
     throw new Error("wake history expired before a successful recovery boundary; no dispatch");
@@ -779,7 +811,10 @@ export function inspectControllerWakeConfiguration(value: unknown) {
     typeof value.schema_version !== "number" ||
     ![2, 3, 4, 5].includes(value.schema_version) ||
     Object.keys(value)
-      .filter((key) => key !== "manual_actor_id")
+      .filter(
+        (key) =>
+          key !== "manual_actor_id" && key !== "manual_expires_at" && key !== "manual_run_number",
+      )
       .sort()
       .join(",") !==
       (value.schema_version >= 4
@@ -804,11 +839,27 @@ export function inspectControllerWakeConfiguration(value: unknown) {
     !Number.isFinite(Date.parse(value.activation_started_at))
   )
     throw new Error("ratified wake-up controller tuple unavailable");
+  const manual =
+    Object.hasOwn(value, "manual_actor_id") ||
+    Object.hasOwn(value, "manual_expires_at") ||
+    Object.hasOwn(value, "manual_run_number");
   if (
-    Object.hasOwn(value, "manual_actor_id") &&
-    (value.schema_version < 4 || value.manual_actor_id !== manualWakeActor)
+    manual &&
+    (value.schema_version < 4 ||
+      value.manual_actor_id !== manualWakeActor ||
+      typeof value.manual_run_number !== "number" ||
+      !Number.isSafeInteger(value.manual_run_number) ||
+      value.manual_run_number <= 0 ||
+      typeof value.manual_expires_at !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(value.manual_expires_at) ||
+      !Number.isFinite(Date.parse(value.manual_expires_at)) ||
+      Date.parse(value.manual_expires_at) <= Date.parse(value.activation_started_at) ||
+      Date.parse(value.manual_expires_at) - Date.parse(value.activation_started_at) >
+        maximumManualWakeWindow)
   )
-    throw new Error("manual wake requires an exact separately appointed initiator");
+    throw new Error(
+      "manual wake requires an exact separately appointed initiator and finite window",
+    );
   if (
     Number(value.schema_version) >= 3 &&
     (typeof value.namespace !== "string" ||
@@ -845,7 +896,13 @@ export function inspectControllerWakeConfiguration(value: unknown) {
       ? { publication_purpose: purpose, namespace: String(value.namespace) }
       : {}),
     ...(value.schema_version >= 4 ? { dispatch_transport: jobTokenDispatchTransport } : {}),
-    ...(value.manual_actor_id === manualWakeActor ? { manual_actor_id: manualWakeActor } : {}),
+    ...(manual
+      ? {
+          manual_actor_id: manualWakeActor,
+          manual_expires_at: String(value.manual_expires_at),
+          manual_run_number: Number(value.manual_run_number),
+        }
+      : {}),
     execution_ref: value.execution_ref,
     revision: value.revision,
     workflow_sha256: value.workflow_sha256,
@@ -941,10 +998,17 @@ export async function wakeRatifiedController(
     environment.GITHUB_REPOSITORY_ID !== "1354613114" ||
     (manual
       ? config.manual_actor_id !== manualWakeActor ||
+        Date.now() < Date.parse(config.activation_started_at) ||
+        Date.now() >= Date.parse(config.manual_expires_at!) ||
+        options.predecessor !== undefined ||
+        (options.approved_configurations !== undefined &&
+          (options.approved_configurations.length !== 1 ||
+            digest(options.approved_configurations[0]) !== digest(config))) ||
         environment.GITHUB_ACTOR_ID !== manualWakeActor ||
         environment.GITHUB_ACTOR !== manualWakeLogin ||
         environment.GITHUB_TRIGGERING_ACTOR !== manualWakeLogin
-      : !["push", "schedule"].includes(environment.GITHUB_EVENT_NAME ?? "")) ||
+      : config.manual_actor_id !== undefined ||
+        !["push", "schedule"].includes(environment.GITHUB_EVENT_NAME ?? "")) ||
     environment.GITHUB_REF !== "refs/heads/main" ||
     environment.GITHUB_REF_TYPE !== "branch" ||
     environment.GITHUB_REF_PROTECTED !== "true" ||
@@ -986,7 +1050,12 @@ export async function wakeRatifiedController(
       initiatingRun.head_branch !== "main" ||
       initiatingRun.path !== workflow ||
       initiatingRun.run_attempt !== 1 ||
-      initiatingRun.status !== "in_progress"
+      initiatingRun.run_number !== config.manual_run_number ||
+      initiatingRun.status !== "in_progress" ||
+      typeof initiatingRun.created_at !== "string" ||
+      !Number.isFinite(Date.parse(initiatingRun.created_at)) ||
+      Date.parse(initiatingRun.created_at) < Date.parse(config.activation_started_at) ||
+      Date.parse(initiatingRun.created_at) >= Date.parse(config.manual_expires_at!)
     )
       throw new Error("manual wake actual provider initiator differs");
   }
@@ -1217,6 +1286,8 @@ export async function wakeRatifiedController(
   if (selection && digest(await nativeSelection()) !== digest(selection))
     throw new Error("native wake selection changed after retained intent; no POST");
   await readRefs();
+  if (manual && Date.now() >= Date.parse(config.manual_expires_at!))
+    throw new Error("manual wake appointment expired before dispatch; no POST");
   if (performance.now() - started > 55000)
     throw new Error("wake-up deadline elapsed before dispatch; no POST");
   // No retry and no replacement destination after an ambiguous provider effect.
@@ -1363,6 +1434,8 @@ export function inspectControllerWakeChoices(application: unknown, catalog: unkn
     throw new Error("catalog wake purpose differs");
   if (configs.length === 2) {
     const [a, b] = configs;
+    if (a!.manual_actor_id || b!.manual_actor_id)
+      throw new Error("manual wake requires a single appointed purpose");
     if (
       a!.schema_version < 3 ||
       b!.schema_version < 3 ||
