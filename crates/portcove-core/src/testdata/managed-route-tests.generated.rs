@@ -5,6 +5,7 @@ const DECLARED_MANAGED_ROUTE_TEST_IDS: &[&str] = &[
     "doom-3-classic-dhewm3",
     "dune-ii-dune-dynasty",
     "heroes-of-might-and-magic-ii-fheroes2",
+    "quake-ironwail",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
 ];
 
@@ -26,6 +27,11 @@ async fn managed_native_declared_dune_ii_dune_dynasty() {
 #[tokio::test]
 async fn managed_native_declared_heroes_of_might_and_magic_ii_fheroes2() {
     assert_declarative_managed_native_route("heroes-of-might-and-magic-ii-fheroes2").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_quake_ironwail() {
+    assert_declarative_managed_native_route("quake-ironwail").await;
 }
 
 #[tokio::test]

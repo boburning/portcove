@@ -1668,6 +1668,46 @@
         "published_at": "2026-06-30T14:33:54Z",
         "tag_name": "1.1.17"
       }
+    },
+    {
+      "issue": 2698,
+      "port_id": "quake-ironwail",
+      "repository": "andrei-drexler/ironwail",
+      "channel": "stable",
+      "runtime_folder": "ironwail-0.8.2-win64/",
+      "selected_executable": "ironwail.exe",
+      "selected_asset": "ironwail-0.8.2-win64.zip",
+      "archive_sha256": "0e54e9089ce72bad73c288148cfb5474a00b05d9e1da1c8feb0b76665faf7d01",
+      "immutable_members": [
+        "LICENSE.txt",
+        "Quakespasm-Music.txt",
+        "Quakespasm.html",
+        "Quakespasm.txt",
+        "SDL2.dll",
+        "ironwail.exe",
+        "ironwail.pak",
+        "libFLAC-8.dll",
+        "libcurl.dll",
+        "libmad-0.dll",
+        "libmikmod-3.dll",
+        "libmpg123-0.dll",
+        "libogg-0.dll",
+        "libopus-0.dll",
+        "libopusfile-0.dll",
+        "libvorbis-0.dll",
+        "libvorbisfile-3.dll",
+        "libxmp.dll",
+        "zlib1.dll"
+      ],
+      "persistent_probes": [
+        "id1/pak0.pak",
+        "id1/pak1.pak",
+        "id1/ironwail.cfg",
+        "id1/slot.sav",
+        "history.txt"
+      ],
+      "release": "v0.8.2",
+      "scope": "Actual official Windows x64 archive member names and PE architecture. Owned original, settings, save and history probes and fixture successor archives are synthetic."
     }
   ]
 }

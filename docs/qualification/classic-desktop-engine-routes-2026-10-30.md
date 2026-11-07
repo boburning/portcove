@@ -68,3 +68,36 @@ Preserve actual CWD-based PRINCE.SAV/QUICKSAVE.SAV/PRINCE.HOF, existing SDLPOP_S
 Fresh required exact-head CI, actual selected/executed case/artifact inventories, separate full-source/current-target/exact canonical review, guarded merge/readback and scoped canonical reconciliation remain required. Seven finite prepared-route dispositions and SDLPoP’s retained open question must be reviewed against actual final evidence; this dossier is not prospective closure or test success. All current priority/horizon/release/commitment/platform/effort fields are retained; no Required membership is subtracted.
 
 No game package/original/private save/compiler/installer/upstream helper/player was acquired or executed. Source/API/inert fixtures are not actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. Known mandatory held operations, stronger unoffered management and explicit stopped native participation elsewhere remain unchanged. Full #2510/#2926/#1422 remains open without speculative family blockers.
+
+## Ironwail managed Windows follow-up — November 6, 2026
+
+The [official v0.8.2 Windows x64 ZIP](https://github.com/andrei-drexler/ironwail/releases/tag/v0.8.2)
+is 2,538,274 bytes. Its SHA-256 matches the published
+`0e54e9089ce72bad73c288148cfb5474a00b05d9e1da1c8feb0b76665faf7d01`.
+All members passed ZIP CRC checks. One nested AMD64 `ironwail.exe` shares its
+folder with its engine PAK and libraries. The archive contains neither an
+`id1` tree nor `history.txt`. The v0.8.1 and v0.8.2 release inventories
+exercise the same selector. Only v0.8.2 was downloaded and inspected here.
+
+The managed classic base-game route uses the executable directory and
+`-basedir . -noaddons`. The player copies their own classic `id1` with
+`pak0.pak` and `pak1.pak` before Play. The explicit local base bypasses
+store discovery and the associated profile migration. The add-on switch
+prevents the online catalog and download path. The engine writes config and
+saves under the game directory and console history to its user directory,
+which starts at the Windows working directory. Core preserves `id1` and
+`history.txt` relative to the selected executable. The explicit directory
+and history coordinates, direct player and package membership are the
+conditions for reusing the existing native archive lifecycle. A change to
+those coordinates, store/migration fallback, process ownership or add-on
+writes requires a fresh compatibility assessment.
+[Base and store selection](https://github.com/andrei-drexler/ironwail/blob/1eabd0df21130e55d94496c7af177e2dcbed75df/Quake/common.c),
+[Windows working directory](https://github.com/andrei-drexler/ironwail/blob/1eabd0df21130e55d94496c7af177e2dcbed75df/Quake/sys_sdl_win.c),
+[add-ons and save thread](https://github.com/andrei-drexler/ironwail/blob/1eabd0df21130e55d94496c7af177e2dcbed75df/Quake/host_cmd.c),
+[history writer](https://github.com/andrei-drexler/ironwail/blob/1eabd0df21130e55d94496c7af177e2dcbed75df/Quake/keys.c).
+
+Prepared copies retain the separate route for expansions, mods, store or
+rerelease data, and custom profiles. Shared lifecycle fixtures use inert
+original, save, settings and history bytes. The archive and source were
+inspected without running the player. Real setup, save compatibility,
+gameplay and protected delivery remain unverified.

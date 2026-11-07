@@ -50,6 +50,10 @@
     "heroes-of-might-and-magic-ii-fheroes2": {
       "inventory": "fheroes2",
       "selected_assets": ["fheroes2_windows_x64_SDL2.zip", "fheroes2_windows_x64_SDL2.zip"]
+    },
+    "quake-ironwail": {
+      "inventory": "ironwail",
+      "selected_assets": ["ironwail-0.8.1-win64.zip", "ironwail-0.8.2-win64.zip"]
     }
   },
   "inventories": {
@@ -606,6 +610,68 @@
         "published_at": "2026-06-30T14:33:54Z",
         "tag_name": "1.1.17"
       }
+    ],
+    "ironwail": [
+      {
+        "draft": false,
+        "id": 273730382,
+        "prerelease": false,
+        "published_at": "2026-01-03T02:20:15Z",
+        "tag_name": "v0.8.1",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.1/ironwail-0.8.1-linux-x64.tar.gz",
+            "digest": "sha256:f7e7a6eeedcbe02c5d1b20114e1cbaa40e434bea23f364bcc4c40a1518fa9abf",
+            "id": 337051442,
+            "name": "ironwail-0.8.1-linux-x64.tar.gz",
+            "size": 589747
+          },
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.1/ironwail-0.8.1-win32.zip",
+            "digest": "sha256:2e661231837595da85d36844f53895bb7f11637baed59d6acb157a54becce104",
+            "id": 335304818,
+            "name": "ironwail-0.8.1-win32.zip",
+            "size": 2384513
+          },
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.1/ironwail-0.8.1-win64.zip",
+            "digest": "sha256:d82d78f513edf297d65ae82ea133a7af1ca0433188ffac4618bf8832eac93e80",
+            "id": 335304809,
+            "name": "ironwail-0.8.1-win64.zip",
+            "size": 2534699
+          }
+        ]
+      },
+      {
+        "draft": false,
+        "id": 367851051,
+        "prerelease": false,
+        "published_at": "2026-08-11T17:20:22Z",
+        "tag_name": "v0.8.2",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.2/ironwail-0.8.2-linux-x64.tar.gz",
+            "digest": "sha256:fcb0219d13c50f64728892f0558b4761ba5578319a6cc01021fad981c6333aa5",
+            "id": 510564613,
+            "name": "ironwail-0.8.2-linux-x64.tar.gz",
+            "size": 592534
+          },
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.2/ironwail-0.8.2-win32.zip",
+            "digest": "sha256:676ba44bc2c99bb85fa617d62f6a3b003099dedd89e3a2852688bb391c672c9a",
+            "id": 510410138,
+            "name": "ironwail-0.8.2-win32.zip",
+            "size": 2387133
+          },
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.2/ironwail-0.8.2-win64.zip",
+            "digest": "sha256:0e54e9089ce72bad73c288148cfb5474a00b05d9e1da1c8feb0b76665faf7d01",
+            "id": 510410102,
+            "name": "ironwail-0.8.2-win64.zip",
+            "size": 2538274
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -763,6 +829,16 @@
       "inventory": "fheroes2",
       "release_index": 1,
       "asset": "fheroes2_windows_x86_SDL2.zip"
+    },
+    {
+      "inventory": "ironwail",
+      "release_index": 0,
+      "asset": "ironwail-0.8.1-win32.zip"
+    },
+    {
+      "inventory": "ironwail",
+      "release_index": 1,
+      "asset": "ironwail-0.8.2-win32.zip"
     }
   ]
 }

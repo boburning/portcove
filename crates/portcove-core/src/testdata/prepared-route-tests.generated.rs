@@ -12,6 +12,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "n64hub-super-mario-64-recomp",
     "n64hub-super-smash-bros-n64-usa-recomp",
     "nhl-94-genesis-ninety-four",
+    "quake-ironwail",
     "retropulse03-winback-n64recomp",
     "scottjco-wetrix-n64-usa-rev0-recomp",
     "tekrantgaming-muppet-racemania-recompiled",
@@ -72,6 +73,11 @@ fn prepared_guide_adoption_declared_n64hub_super_smash_bros_n64_usa_recomp() {
 #[test]
 fn prepared_guide_adoption_declared_nhl_94_genesis_ninety_four() {
     assert_declarative_prepared_player_route("nhl-94-genesis-ninety-four");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_quake_ironwail() {
+    assert_declarative_prepared_player_route("quake-ironwail");
 }
 
 #[test]

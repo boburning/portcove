@@ -2367,11 +2367,6 @@ mod tests {
     }
 
     #[test]
-    fn ironwail_prepared_player_route_2698() {
-        assert_listing_only_player_route("quake-ironwail", Some(false));
-    }
-
-    #[test]
     fn fallout1_ce_prepared_player_route_2573() {
         assert_listing_only_player_route("fallout-fallout-community-edition", Some(false));
     }

@@ -33913,6 +33913,93 @@
       }
     },
     {
+      "id": "quake-ironwail",
+      "name": "Quake (Ironwail)",
+      "summary": "A native Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
+      "project_url": "https://github.com/andrei-drexler/ironwail",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "andrei-drexler/ironwail",
+        "asset_hints": {
+          "windows-x86-64": [
+            "ironwail",
+            "win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ironwail.exe"
+        ]
+      },
+      "launch_arguments": [
+        "-basedir",
+        ".",
+        "-noaddons"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_paths": [
+        "id1",
+        "history.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, history.txt. Its backup does not include external profiles. For store discovery, rerelease migration, expansions, mods or custom base directories, use a separately prepared copy. The managed route preserves id1 and console history only. Gameplay and real save compatibility across versions remain unverified.",
+        "original_game_title": "Quake",
+        "manual_setup": {
+          "help_url": "https://github.com/andrei-drexler/ironwail/tree/1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "steps": [
+            {
+              "title": "Copy your own classic Quake data beside the managed player",
+              "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
+            },
+            {
+              "title": "Prepare the existing Ironwail copy",
+              "instruction": "Use a complete permitted Windows copy with its matching libraries. Finish classic or rerelease setup with your own compatible Quake data, then start and quit it. The ordinary prepared launch uses no arguments. Keep the actual working folder and any literal arguments your prepared copy already needs for store, expansion, mod or custom base-directory choices."
+            },
+            {
+              "title": "Preserve old and new migration roots before changes",
+              "instruction": "Standalone copies may use their base/game folders; Windows store-selected copies can use actual Saved Games/Ironwail/original or Saved Games/Ironwail/rerelease. Keep the actual known-folder location, old Nightdive Studios/Quake tree, standalone/store/custom roots, ironwail.cfg and all saves/autosaves/screenshots/demos/mod/addon files and unknowns. Startup migration can rename episode directories and move recognized files, writing a new config and removing its old copy; it is not a read-only import. Finish any chosen upstream migration first and keep the full pre-migration tree recoverable. No cross-version mod/save/replay roundtrip is certified."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select ironwail.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+            "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+            "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile.",
+            "For store discovery, rerelease migration, expansions, mods or custom base directories, use a separately prepared copy. The managed route preserves id1 and console history only. Gameplay and real save compatibility across versions remain unverified."
+          ],
+          "references": [
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the actual prepared Quake directory and any store, rerelease, add-on or custom profile directories. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, history.txt. Its backup does not include external profiles."
+            }
+          ]
+        }
+      }
+    },
+    {
       "id": "re-rac-rerac",
       "name": "Ratchet & Clank (2002) / ReRAC (re-rac)",
       "summary": "Explore Ratchet & Clank (2002) / ReRAC (re-rac) and follow the upstream project for requirements, downloads and setup.",
