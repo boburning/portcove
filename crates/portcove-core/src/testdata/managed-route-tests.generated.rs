@@ -10,6 +10,7 @@ const DECLARED_MANAGED_ROUTE_TEST_IDS: &[&str] = &[
     "quake-ironwail",
     "quake-vkquake",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+    "troyedwardsjr-z2rs",
 ];
 
 #[tokio::test]
@@ -55,4 +56,9 @@ async fn managed_native_declared_quake_vkquake() {
 #[tokio::test]
 async fn managed_native_declared_toy_story_2_buzz_lightyear_to_the_rescue_n64_spaceranger() {
     assert_declarative_managed_native_route("toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_troyedwardsjr_z2rs() {
+    assert_declarative_managed_native_route("troyedwardsjr-z2rs").await;
 }

@@ -1923,6 +1923,78 @@
         "published_at": "2026-10-22T16:58:37Z",
         "tag_name": "v0.3.6"
       }
+    },
+    {
+      "issue": 1911,
+      "port_id": "troyedwardsjr-z2rs",
+      "repository": "troyedwardsjr/z2rs",
+      "channel": "stable",
+      "runtime_folder": "z2rs-0.6.0-x86_64-pc-windows-msvc/",
+      "selected_executable": "z2rs.exe",
+      "selected_asset": "z2rs-0.6.0-x86_64-pc-windows-msvc.zip",
+      "archive_sha256": "873a9d59e47e729c573f97dfc6428aa1020f318833e73a9908d145268def7851",
+      "immutable_members": [
+        "HOW-TO-PLAY.txt",
+        "LEGAL.md",
+        "LICENSE",
+        "README.md",
+        "z2-signal.exe",
+        "z2rs-launcher.exe",
+        "z2rs.exe"
+      ],
+      "persistent_probes": [".z2rs-data/z2-native.json", ".z2rs-data/savestate1.z2snap"],
+      "scope": "Official 0.6.0 Windows archive member inventory. The inert lifecycle probes the fixed local fallback with a controlled successor. The normal Windows profile is external.",
+      "release": {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/SHA256SUMS",
+            "digest": "sha256:5df28c8af8d52dfbb7243372b933df00e0acb5cff21ad0cd4ad077b18d1930e2",
+            "id": 664693893,
+            "name": "SHA256SUMS",
+            "size": 505
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-aarch64-apple-darwin.zip",
+            "digest": "sha256:d2553bc1d96b258517e9eb1724ffd500ecfa213fd13bbe62c5d3013689b93017",
+            "id": 664693895,
+            "name": "z2rs-0.6.0-aarch64-apple-darwin.zip",
+            "size": 24440515
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-android.apk",
+            "digest": "sha256:da9928dbce3789a3acb96a35e174af060f8e8a2570a2968ab74af8710f631202",
+            "id": 664693898,
+            "name": "z2rs-0.6.0-android.apk",
+            "size": 48328687
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-x86_64-apple-darwin.zip",
+            "digest": "sha256:c8cfe5f220fdf57492ad879d5e2b370e6310d85af100779ce4989a01eefea141",
+            "id": 664693896,
+            "name": "z2rs-0.6.0-x86_64-apple-darwin.zip",
+            "size": 26215818
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-x86_64-pc-windows-msvc.zip",
+            "digest": "sha256:873a9d59e47e729c573f97dfc6428aa1020f318833e73a9908d145268def7851",
+            "id": 664693894,
+            "name": "z2rs-0.6.0-x86_64-pc-windows-msvc.zip",
+            "size": 14858032
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-x86_64-unknown-linux-gnu.tar.gz",
+            "digest": "sha256:356d9624eb1795179f2457e693901577b3343f931b162d24daca53dac9b99458",
+            "id": 664693912,
+            "name": "z2rs-0.6.0-x86_64-unknown-linux-gnu.tar.gz",
+            "size": 20928166
+          }
+        ],
+        "draft": false,
+        "id": 420315522,
+        "prerelease": false,
+        "published_at": "2026-10-22T04:42:39Z",
+        "tag_name": "v0.6.0"
+      }
     }
   ]
 }

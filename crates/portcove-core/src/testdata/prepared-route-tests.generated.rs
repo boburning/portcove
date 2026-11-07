@@ -21,6 +21,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "tekrantgaming-muppet-racemania-recompiled",
     "tomba-2-recompiled",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+    "troyedwardsjr-z2rs",
 ];
 
 #[test]
@@ -121,4 +122,9 @@ fn prepared_guide_adoption_declared_tomba_2_recompiled() {
 #[test]
 fn prepared_guide_adoption_declared_toy_story_2_buzz_lightyear_to_the_rescue_n64_spaceranger() {
     assert_declarative_prepared_player_route("toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_troyedwardsjr_z2rs() {
+    assert_declarative_prepared_player_route("troyedwardsjr-z2rs");
 }
