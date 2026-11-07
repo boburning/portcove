@@ -36,7 +36,7 @@ function parsedWorkflow(text: string) {
   assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
   return parsed as Record<string, unknown> & { jobs: Record<string, Record<string, unknown>> };
 }
-const reviewedSyftInput = "syft-version: v1.56.0";
+const reviewedSyftInput = "syft-version: v1.57.0";
 const workflowData = parsedWorkflow(workflow);
 function job(name: string) {
   const selected = workflowData.jobs[name];
