@@ -246,7 +246,8 @@ export function readSemanticPublicationBaseline(
     selected.tag !== `v${expectedVersion}` ||
     (published[1] &&
       (applicationComparison
-        ? published[1].tag === selected.tag
+        ? compareApplicationVersionPrecedence(published[1].tag.slice(1), selected.tag.slice(1)) ===
+          0
         : published[1].published_at === selected.published_at))
   )
     throw new Error("latest publication differs from existing classification baseline");
@@ -533,6 +534,7 @@ export function prepareFrozenSemanticProposalInputs(
     undefined,
     request.qualified_application !== undefined,
   );
+  readPreviewWithdrawalSource(bundle);
   proposalPrepared.set(bundle, bundle.bundle_sha256);
   return bundle;
 }
