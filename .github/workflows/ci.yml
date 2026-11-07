@@ -1197,6 +1197,11 @@ jobs:
       AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
       - name: Read quality tool pins
         id: quality-pins
         run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
@@ -1207,13 +1212,6 @@ jobs:
         with:
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
-      - name: Restore pinned rscheck binaries
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/bin/cargo-rscheck
-            ~/.cargo/bin/rscheck
-          key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt Rust quality tools
         uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
@@ -1227,20 +1225,16 @@ jobs:
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
           enable_aqua_install: "false"
-      - name: Check cached pinned rscheck version
-        id: rscheck-tool
+      - name: Install pinned rscheck from verified original source
+        timeout-minutes: 5
         shell: bash
         run: |
-          if node scripts/quality-tools.mts --verify rscheck-cli; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Install pinned rscheck
-        if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
-        with:
-          tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
+          export CARGO_HOME="$RUNNER_TEMP/qualification-rscheck-cargo"
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/qualification-rscheck-target"
+          export CARGO_NET_RETRY=1 CARGO_HTTP_TIMEOUT=20
+          root="$RUNNER_TEMP/qualification-rscheck"
+          python scripts/install-qualification-rscheck.py .github/quality-tools.json "$root"
+          echo "$root/bin" >> "$GITHUB_PATH"
       - name: Verify exact Rust quality-tool versions
         run: ./scripts/bootstrap-quality-tools.sh
       - name: Lint repository scripts and workflows
