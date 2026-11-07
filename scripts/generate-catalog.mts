@@ -485,7 +485,7 @@ async function prepareArtworkProposal(fullProposal = false) {
     finishPhase("validator_capture");
     const accepted = inspectProposal.inspect("accepted", Buffer.from(JSON.stringify(current)));
     finishPhase("accepted_declarations");
-    const inputCheck = inspectProposal.inspect("input", captured.bytes);
+    const inputCheck = inspectProposal.inspect("input", captured.bytes, true);
     finishPhase("input_declarations");
     beforeChecks = {
       accepted,
@@ -519,7 +519,7 @@ async function prepareArtworkProposal(fullProposal = false) {
   const proposalBytes = Buffer.from(`${JSON.stringify(result.catalog, null, 2)}\n`);
   const proposalChecks =
     inspectProposal && beforeChecks
-      ? { ...beforeChecks, output: inspectProposal.inspect("output", proposalBytes) }
+      ? { ...beforeChecks, output: inspectProposal.inspect("output", proposalBytes, true) }
       : undefined;
   finishPhase("output_preparation_and_declarations");
   const compatibilityReview = fullProposal ? compatibilityFixtureReview(result.catalog) : undefined;

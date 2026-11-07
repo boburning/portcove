@@ -705,8 +705,11 @@ changes require it. Neither mode changes local artwork choices or publishes data
 For a strict operational catalog proposal, use
 `node scripts/generate-catalog.mts --prepare-proposal PROPOSAL.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY`.
 Optional artwork facts/credentials/refresh flags are the same as below. This
-mode snapshots the explicitly selected CLI, checks accepted/input/output catalog
-declarations through `catalog inspect-proposal`, and prepares existing artwork in
+mode snapshots the explicitly selected CLI and checks catalog declarations through
+`catalog inspect-proposal`. Input and output use `--repository-authoring`, matching
+the proposed operational projection in `prepare-port`. The accepted baseline uses
+generic inspection for compatibility. Process receipts record the inspection mode
+alongside the exact input bytes and validator identity. The command prepares existing artwork in
 the same output. `proposal-evidence.json` adds exact input-byte/core receipts,
 typed per-port declaration hashes and the complete accepted-to-proposed diff;
 `artwork-evidence.json` retains its distinct cover reasons and provider costs.

@@ -141,6 +141,10 @@ void test("reuse-only full proposal retains declaration checks without initializ
   assert.equal(existsSync(join(fixture.output, "scratch")), false);
   assert.equal(fixture.processes.length, 3);
   assert.ok(fixture.processes.every(({ inspection }) => inspection));
+  assert.deepEqual(
+    fixture.processes.map(({ repository_authoring }) => repository_authoring),
+    [false, true, true],
+  );
   const evidence = fixtureJson(readFileSync(join(fixture.output, "proposal-evidence.json")));
   const expected = createHash("sha256").update(fixture.original).digest("hex");
   for (const receipt of Object.values(record(evidence.checks)))
