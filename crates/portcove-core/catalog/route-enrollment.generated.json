@@ -256,6 +256,18 @@
         "executable": "SpaceRanger.exe"
       },
       "managed_native": true
+    },
+    {
+      "port_id": "troyedwardsjr-z2rs",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the active %APPDATA%/z2rs or XDG_DATA_HOME/z2rs profile, original ROM and any custom save or pack directories"
+        ],
+        "executable": "z2rs.exe"
+      },
+      "managed_native": true
     }
   ]
 }

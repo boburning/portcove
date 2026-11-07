@@ -1,5 +1,12 @@
 {
   "cases": {
+    "troyedwardsjr-z2rs": {
+      "inventory": "z2rs",
+      "selected_assets": [
+        "z2rs-0.5.2-x86_64-pc-windows-msvc.zip",
+        "z2rs-0.6.0-x86_64-pc-windows-msvc.zip"
+      ]
+    },
     "nhl-94-genesis-ninety-four": {
       "inventory": "ninety_four",
       "selected_assets": [
@@ -92,6 +99,110 @@
     }
   },
   "inventories": {
+    "z2rs": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.5.2/SHA256SUMS",
+            "digest": "sha256:78fa9a6929780f21f32ed697aa9980712a5e26ee7ecd66f10a83324012508638",
+            "id": 628576297,
+            "name": "SHA256SUMS",
+            "size": 505
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.5.2/z2rs-0.5.2-aarch64-apple-darwin.zip",
+            "digest": "sha256:296f450509023339a7d232dfcce5213dbe26953d762244ab71761078538252aa",
+            "id": 628576294,
+            "name": "z2rs-0.5.2-aarch64-apple-darwin.zip",
+            "size": 24020343
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.5.2/z2rs-0.5.2-android.apk",
+            "digest": "sha256:f4407db74ce292795033279afd2da5e5a76c7b04a803b2a4f8c9d7cfde9df0b4",
+            "id": 628576306,
+            "name": "z2rs-0.5.2-android.apk",
+            "size": 47480815
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.5.2/z2rs-0.5.2-x86_64-apple-darwin.zip",
+            "digest": "sha256:73ae43ec034adceac8242c0006d081740929c17e4f7b45e12295dbba25620529",
+            "id": 628576292,
+            "name": "z2rs-0.5.2-x86_64-apple-darwin.zip",
+            "size": 25855342
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.5.2/z2rs-0.5.2-x86_64-pc-windows-msvc.zip",
+            "digest": "sha256:b33da1b93e1cbb8e5ac8dcdc0d787e78c0fd2c6630fd4727eea4e4c449dfe14a",
+            "id": 628576299,
+            "name": "z2rs-0.5.2-x86_64-pc-windows-msvc.zip",
+            "size": 14683994
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.5.2/z2rs-0.5.2-x86_64-unknown-linux-gnu.tar.gz",
+            "digest": "sha256:7bdad9a0282ca239afadd89fa504e7e422c09f5d5cd0212af42271e66b9e170a",
+            "id": 628576326,
+            "name": "z2rs-0.5.2-x86_64-unknown-linux-gnu.tar.gz",
+            "size": 20721246
+          }
+        ],
+        "draft": false,
+        "id": 409099946,
+        "prerelease": false,
+        "published_at": "2026-10-10T17:35:38Z",
+        "tag_name": "v0.5.2"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/SHA256SUMS",
+            "digest": "sha256:5df28c8af8d52dfbb7243372b933df00e0acb5cff21ad0cd4ad077b18d1930e2",
+            "id": 664693893,
+            "name": "SHA256SUMS",
+            "size": 505
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-aarch64-apple-darwin.zip",
+            "digest": "sha256:d2553bc1d96b258517e9eb1724ffd500ecfa213fd13bbe62c5d3013689b93017",
+            "id": 664693895,
+            "name": "z2rs-0.6.0-aarch64-apple-darwin.zip",
+            "size": 24440515
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-android.apk",
+            "digest": "sha256:da9928dbce3789a3acb96a35e174af060f8e8a2570a2968ab74af8710f631202",
+            "id": 664693898,
+            "name": "z2rs-0.6.0-android.apk",
+            "size": 48328687
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-x86_64-apple-darwin.zip",
+            "digest": "sha256:c8cfe5f220fdf57492ad879d5e2b370e6310d85af100779ce4989a01eefea141",
+            "id": 664693896,
+            "name": "z2rs-0.6.0-x86_64-apple-darwin.zip",
+            "size": 26215818
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-x86_64-pc-windows-msvc.zip",
+            "digest": "sha256:873a9d59e47e729c573f97dfc6428aa1020f318833e73a9908d145268def7851",
+            "id": 664693894,
+            "name": "z2rs-0.6.0-x86_64-pc-windows-msvc.zip",
+            "size": 14858032
+          },
+          {
+            "browser_download_url": "https://github.com/troyedwardsjr/z2rs/releases/download/v0.6.0/z2rs-0.6.0-x86_64-unknown-linux-gnu.tar.gz",
+            "digest": "sha256:356d9624eb1795179f2457e693901577b3343f931b162d24daca53dac9b99458",
+            "id": 664693912,
+            "name": "z2rs-0.6.0-x86_64-unknown-linux-gnu.tar.gz",
+            "size": 20928166
+          }
+        ],
+        "draft": false,
+        "id": 420315522,
+        "prerelease": false,
+        "published_at": "2026-10-22T04:42:39Z",
+        "tag_name": "v0.6.0"
+      }
+    ],
     "ninety_four": [
       {
         "assets": [
@@ -1251,6 +1362,26 @@
     ]
   },
   "other_zip_assets": [
+    {
+      "inventory": "z2rs",
+      "release_index": 0,
+      "asset": "z2rs-0.5.2-aarch64-apple-darwin.zip"
+    },
+    {
+      "inventory": "z2rs",
+      "release_index": 0,
+      "asset": "z2rs-0.5.2-x86_64-apple-darwin.zip"
+    },
+    {
+      "inventory": "z2rs",
+      "release_index": 1,
+      "asset": "z2rs-0.6.0-aarch64-apple-darwin.zip"
+    },
+    {
+      "inventory": "z2rs",
+      "release_index": 1,
+      "asset": "z2rs-0.6.0-x86_64-apple-darwin.zip"
+    },
     {
       "inventory": "ninety_four",
       "release_index": 0,
