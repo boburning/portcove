@@ -694,6 +694,8 @@ jobs:
       id-token: write
       attestations: write
       checks: read
+      pages: read
+      deployments: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:

@@ -260,9 +260,12 @@ export function assertMetadataRenewalPublication(rawDescriptor: unknown, rawFact
 
 export function inspectPublishedMetadata(raw: unknown) {
   if (raw === null || raw === undefined) return null;
+  const standalone = isRecord(raw) && Object.hasOwn(raw, "standalone_bootstrap_run");
   exact(
     raw,
-    "expires,offline_targets_sha256,operation_id,publication,records_sha256,repository_sha256,root_sha256,schema_version,snapshot_sha256,timestamp_sha256,versions",
+    standalone
+      ? "expires,offline_targets_sha256,operation_id,publication,records_sha256,repository_sha256,root_sha256,schema_version,snapshot_sha256,standalone_bootstrap_run,timestamp_sha256,versions"
+      : "expires,offline_targets_sha256,operation_id,publication,records_sha256,repository_sha256,root_sha256,schema_version,snapshot_sha256,timestamp_sha256,versions",
   );
   if (raw.schema_version !== 1) throw new Error("unsupported published metadata contract");
   for (const key of [
@@ -279,6 +282,14 @@ export function inspectPublishedMetadata(raw: unknown) {
   sha(raw.publication.evidence_sha256);
   sha(raw.publication.site_generation_sha256);
   text(raw.publication.remote_identity);
+  if (
+    standalone &&
+    (raw.standalone_bootstrap_run !== standaloneBootstrapAdoption.run_id ||
+      raw.operation_id !== null)
+  )
+    throw new Error(
+      "standalone bootstrap requires its exact external run and no journal operation",
+    );
   return {
     schema_version: 1 as const,
     root_sha256: raw.root_sha256,
@@ -290,6 +301,7 @@ export function inspectPublishedMetadata(raw: unknown) {
     versions: versions(raw.versions),
     expires: expires(raw.expires),
     operation_id: raw.operation_id,
+    ...(standalone ? { standalone_bootstrap_run: standaloneBootstrapAdoption.run_id } : {}),
     publication: {
       remote_identity: raw.publication.remote_identity,
       evidence_sha256: raw.publication.evidence_sha256,
@@ -297,6 +309,20 @@ export function inspectPublishedMetadata(raw: unknown) {
     },
   };
 }
+
+/** Only this verified, independently published genesis can replace the absence
+ * of App metadata in the existing journal. The abandoned journal descriptor
+ * remains untouched, including its original generation clock. */
+export const standaloneBootstrapAdoption = {
+  run_id: "42403889193",
+  attempt: 1,
+  feed_job_id: 128498673910,
+  revision: "1779ef17eaf154b918a990b9dafba89dbbcddfa7",
+  ref: "refs/tags/portcove-production-controller-windows-20261105r29",
+  generation: "1000adca784333dd4ca3b92930b0929ca8e6faf186389b27441c9e3c412245ab",
+  publication_sha256: "b18311564f29396acd06ec44dd44de06d0a2e43a4cc3c4014ed1b203898dda03",
+  abandoned_descriptor_sha256: "603fae90b93dbaeef08d6030cbec243add36f82ceb748aa592423cedc8f17157",
+} as const;
 export function assertMetadataRenewalBinding(
   descriptor: ReturnType<typeof inspectMetadataRenewalDescriptor>,
   published: ReturnType<typeof inspectPublishedMetadata>,
@@ -341,6 +367,41 @@ export function validatePublishedMetadataTransition(
   if (!after) throw new Error("published metadata cannot disappear");
   if (digest(previous.active_candidate) !== digest(next.active_candidate))
     throw new Error("published metadata readback cannot change active reservation");
+  if (after.standalone_bootstrap_run) {
+    const { operation_id, standalone_bootstrap_run, publication, ...facts } = after;
+    const selected = standaloneBootstrapAdoption;
+    if (
+      before ||
+      operation_id !== null ||
+      operation != null ||
+      previous.active_candidate !== null ||
+      previous.published_catalog_metadata != null ||
+      previous.published_site != null ||
+      previous.catalog_initialization != null ||
+      previous.catalog_publication != null ||
+      previous.catalog_review_request != null ||
+      previous.catalog_review_disposition != null ||
+      previous.review_request != null ||
+      previous.review_disposition != null ||
+      previous.metadata_renewal != null ||
+      digest(previous.metadata_bootstrap) !== selected.abandoned_descriptor_sha256 ||
+      digest(next.metadata_bootstrap) !== selected.abandoned_descriptor_sha256 ||
+      digest(facts) !== selected.publication_sha256 ||
+      publication.site_generation_sha256 !== selected.generation ||
+      publication.remote_identity !==
+        `https://github.com/boburning/portcove/actions/runs/${standalone_bootstrap_run}/job/${selected.feed_job_id}`
+    )
+      throw new Error(
+        "standalone bootstrap adoption differs from exact empty journal and publication",
+      );
+    const now = typeof next.now === "string" ? Date.parse(next.now) : NaN;
+    if (!Number.isFinite(now) || new Date(now).toISOString() !== next.now)
+      throw new Error("standalone bootstrap requires canonical coordinator observation time");
+    for (const role of roles)
+      if (metadataInstant(facts.expires[role]) <= BigInt(now) * 1_000_000n)
+        throw new Error("expired standalone bootstrap cannot seed the journal");
+    return;
+  }
   if (!before) {
     if (previous.metadata_bootstrap != null || next.metadata_bootstrap != null) {
       const { operation_id: initialOperation, publication: initialPublication, ...facts } = after;
