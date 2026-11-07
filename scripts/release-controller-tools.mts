@@ -8,9 +8,14 @@ import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-c
 import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
-// Hosted Linux qualification reached 335,555,689 bytes. Allow 128 KiB
-// above the former 320 MiB expanded limit for build variation.
-export const controllerToolExpandedMaximumBytes = 320 * 1024 ** 2 + 128 * 1024;
+// Hosted Linux crossed 320 MiB, with up to about 443 KiB difference
+// between ordinary and protected builds of the same source.
+export const controllerToolExpandedMaximumBytes = 321 * 1024 ** 2;
+const controllerToolManifestMaximumBytes = 64 * 1024;
+// Protected uploads use ZIP Store. The 41-member r31 archive had 6,686
+// framing bytes. Reserve a finite 16 KiB for the closed member inventory.
+export const controllerToolZipMaximumBytes =
+  controllerToolExpandedMaximumBytes + controllerToolManifestMaximumBytes + 16 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
 // Trusted controller identity, independent of the source being bundled.
@@ -275,12 +280,12 @@ export function inspectControllerToolArchive(
   },
 ) {
   const profile = controllerToolPlatformProfile(expected.platform ?? "linux-x86_64");
-  if (!Buffer.isBuffer(raw) || raw.length < 22 || raw.length > 320 * 1024 ** 2)
+  if (!Buffer.isBuffer(raw) || raw.length < 22 || raw.length > controllerToolZipMaximumBytes)
     throw new Error("controller tool ZIP exceeds compressed bound");
   const archive = Buffer.from(raw);
   const { entries } = inspectBoundedZip(archive, {
-    compressedBytes: 320 * 1024 ** 2,
-    expandedBytes: controllerToolExpandedMaximumBytes + 65536,
+    compressedBytes: controllerToolZipMaximumBytes,
+    expandedBytes: controllerToolExpandedMaximumBytes + controllerToolManifestMaximumBytes,
     files: profile.paths.length + 1,
     nameBytes: 128,
     allowedPaths: new Set([...profile.paths, "manifest.json"]),
@@ -300,7 +305,7 @@ export function inspectControllerToolArchive(
       throw new Error("controller tool ZIP member differs");
     return bytes;
   };
-  const manifestBytes = read("manifest.json", 65536);
+  const manifestBytes = read("manifest.json", controllerToolManifestMaximumBytes);
   const manifest = inspectControllerToolManifest(
     JSON.parse(manifestBytes.toString("utf8")),
     profile.platform,

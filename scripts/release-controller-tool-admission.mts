@@ -18,6 +18,7 @@ import {
   windowsControllerToolPredicateType,
   controllerToolPlatformProfile,
   controllerToolEntries,
+  controllerToolZipMaximumBytes,
   inspectControllerToolArchive,
   inspectControllerToolManifest,
   readControllerToolFile,
@@ -103,7 +104,7 @@ function artifact(
     typeof raw.size_in_bytes !== "number" ||
     !Number.isSafeInteger(raw.size_in_bytes) ||
     raw.size_in_bytes < 22 ||
-    raw.size_in_bytes > (bundle ? 1024 ** 2 : 320 * 1024 ** 2) ||
+    raw.size_in_bytes > (bundle ? 1024 ** 2 : controllerToolZipMaximumBytes) ||
     !isRecord(raw.workflow_run) ||
     raw.workflow_run.id !== Number(expected.run_id) ||
     raw.workflow_run.repository_id !== 1354613114 ||

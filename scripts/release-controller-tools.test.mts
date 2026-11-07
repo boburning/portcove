@@ -31,6 +31,7 @@ import {
   controllerToolAssets,
   controllerToolSourceAssetMaximumBytes,
   controllerToolExpandedMaximumBytes,
+  controllerToolZipMaximumBytes,
   readControllerToolFile,
   controllerToolEntries,
   controllerToolChildren,
@@ -1446,7 +1447,7 @@ void test("tool manifest retains the aggregate and per-file byte limits on both 
         (total, file) => total + file.bytes,
         0,
       ),
-      335_675_392,
+      336_592_896,
     );
     files[2]!.bytes++;
     assert.throws(
@@ -1580,6 +1581,34 @@ void test("tool acquisition retains the phase deadline before outputs and after 
     true,
   );
   await assert.rejects(readdir(path.join(root, partial, "tools")));
+});
+
+void test("stored controller tool ZIP metadata admits the fixed archive ceiling before transfer", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-zip-bound-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  assert.equal(controllerToolZipMaximumBytes, 336_674_816);
+  const f = fixture();
+  const admitted: number[] = [];
+  for (const bytes of [controllerToolZipMaximumBytes, controllerToolZipMaximumBytes + 1]) {
+    await assert.rejects(
+      receiveControllerTools(root, f.expected, f.bundle, {
+        ...f.options,
+        metadata: {
+          ...f.options.metadata,
+          async artifact(id) {
+            const artifact = await f.options.metadata.artifact(id);
+            return id === f.expected.artifact_id ? { ...artifact, size_in_bytes: bytes } : artifact;
+          },
+        },
+        async download(_endpoint, options) {
+          admitted.push(options.maxBytes);
+          throw new Error("fixture stops before allocating the ZIP");
+        },
+      }),
+      /controller tool verification refused; retain/u,
+    );
+  }
+  assert.deepEqual(admitted, [controllerToolZipMaximumBytes]);
 });
 
 void test("fixed tool receiver uses one locked SDK lookup per archive and preserves authenticated provider ordering", async (t) => {
