@@ -30531,7 +30531,7 @@
               "instruction": "For a separately prepared copy, read originals from another installation using three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. This custom option retains the external route and does not make Portcove manage or migrate its originals, saves or runtime."
             },
             {
-              "title": "Select the prepared player",
+              "title": "Select the prepared Windows player",
               "instruction": "Select dhewm3.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],
@@ -30542,6 +30542,14 @@
           ],
           "help_url": "https://dhewm3.org/#how-to-install",
           "references": [
+            {
+              "title": "Prepare the upstream Linux player",
+              "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dhewm3 from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL and libcurl through your distribution. The inspected ARM64 executable needs glibc 2.38."
+            },
+            {
+              "title": "Set up dhewm3 on Mac",
+              "instruction": "Use the universal Mac Source Ports build linked from dhewm3.org. Copy dhewm3.app out of its disk image. Put your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders under ~/Library/Application Support/dhewm3. Open the app directly. Preserve that profile, its saves, and all original-data locations."
+            },
             {
               "title": "Registration ownership and removal",
               "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
@@ -30595,7 +30603,7 @@
         "repository": "Inkub0/dude",
         "asset_hints": {
           "windows-x86-64": [
-            "dude-",
+            "dude-0.9.",
             "-win64.zip"
           ]
         }
@@ -30624,7 +30632,13 @@
           "warnings": [
             "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
           ],
-          "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md"
+          "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
+          "references": [
+            {
+              "title": "Prepare the upstream Linux player",
+              "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dude from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE."
+            }
+          ]
         }
       },
       "executable_hints": {
@@ -30695,6 +30709,14 @@
             {
               "title": "Keep your saves and existing copy",
               "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
+            },
+            {
+              "title": "Prepare the upstream Linux player",
+              "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dhewm3 with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL and libcurl through your distribution. The inspected ARM64 executable needs glibc 2.38."
+            },
+            {
+              "title": "Set up dhewm3 on Mac",
+              "instruction": "Use the universal Mac Source Ports build linked from dhewm3.org. Copy dhewm3.app out of its disk image. Put your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders under ~/Library/Application Support/dhewm3. With the app closed and installed in Applications, run open -a /Applications/dhewm3.app --args +set fs_game d3xp in Terminal to select the expansion. Preserve that profile, its saves, and all original-data locations."
             }
           ]
         }
@@ -30744,7 +30766,7 @@
         "repository": "Inkub0/dude",
         "asset_hints": {
           "windows-x86-64": [
-            "dude-",
+            "dude-0.9.",
             "-win64.zip"
           ]
         }
@@ -30773,7 +30795,13 @@
           "warnings": [
             "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
           ],
-          "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md"
+          "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
+          "references": [
+            {
+              "title": "Prepare the upstream Linux player",
+              "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dude with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE."
+            }
+          ]
         }
       },
       "executable_hints": {
@@ -30854,7 +30882,17 @@
             "Play opens the project’s setup and launch controls. Supply your own matching original game files that you are permitted to use.",
             "Portcove backups exclude external music packs, custom paths and data belonging to separately registered games."
           ],
-          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
+          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+          "references": [
+            {
+              "title": "Install the native package on Linux or Mac",
+              "instruction": "On Debian, install the crispy-doom package through the package manager. On Mac, use the upstream-documented MacPorts port or a supported Homebrew formula. Start crispy-doom with -iwad followed by the quoted path to your own DOOM2.WAD from Doom II or DOOM2F.WAD from the French edition. Use the external package manager for replacement."
+            },
+            {
+              "title": "Keep the existing Crispy profile",
+              "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
+            }
+          ]
         }
       },
       "executable_hints": {
@@ -31161,7 +31199,17 @@
             "Play opens the project’s setup and launch controls. Supply your own matching original game files that you are permitted to use.",
             "Portcove backups exclude external music packs, custom paths and data belonging to separately registered games."
           ],
-          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
+          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+          "references": [
+            {
+              "title": "Install the native package on Linux or Mac",
+              "instruction": "On Debian, install the crispy-doom package through the package manager. On Mac, use the upstream-documented MacPorts port or a supported Homebrew formula. Start crispy-doom with -iwad followed by the quoted path to your own DOOM.WAD from retail or Ultimate Doom. Use the external package manager for replacement."
+            },
+            {
+              "title": "Keep the existing Crispy profile",
+              "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
+            }
+          ]
         }
       },
       "executable_hints": {
@@ -31590,7 +31638,17 @@
             "Portcove backups exclude external music packs, custom paths and data belonging to separately registered games.",
             "Use one Final Doom campaign per entry and library. Switching campaigns can reuse save slots; cross-campaign save compatibility is not confirmed."
           ],
-          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
+          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+          "references": [
+            {
+              "title": "Install the native package on Linux or Mac",
+              "instruction": "On Debian, install the crispy-doom package through the package manager. On Mac, use the upstream-documented MacPorts port or a supported Homebrew formula. Start crispy-doom with -iwad followed by the quoted path to your own TNT.WAD for TNT: Evilution or PLUTONIA.WAD for The Plutonia Experiment. Use the external package manager for replacement."
+            },
+            {
+              "title": "Keep the existing Crispy profile",
+              "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
+            }
+          ]
         }
       },
       "executable_hints": {
@@ -32056,7 +32114,17 @@
             "Play opens the project’s setup and launch controls. Supply your own matching original game files that you are permitted to use.",
             "Portcove backups exclude external music packs, custom paths and data belonging to separately registered games."
           ],
-          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
+          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+          "references": [
+            {
+              "title": "Install the native package on Linux or Mac",
+              "instruction": "On Debian, install the crispy-doom package through the package manager. On Mac, use the upstream-documented MacPorts port or a supported Homebrew formula. Start crispy-heretic with -iwad followed by the quoted path to your own HERETIC.WAD from retail Heretic. Use the external package manager for replacement."
+            },
+            {
+              "title": "Keep the existing Crispy profile",
+              "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
+            }
+          ]
         },
         "artwork": {
           "game_id": 6362,
@@ -32300,7 +32368,17 @@
             "Play opens the project’s setup and launch controls. Supply your own matching original game files that you are permitted to use.",
             "Portcove backups exclude external music packs, custom paths and data belonging to separately registered games."
           ],
-          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
+          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+          "references": [
+            {
+              "title": "Install the native package on Linux or Mac",
+              "instruction": "On Debian, install the crispy-doom package through the package manager. On Mac, use the upstream-documented MacPorts port or a supported Homebrew formula. Start crispy-hexen with -iwad followed by the quoted path to your own HEXEN.WAD from retail Hexen updated to v1.1. Use the external package manager for replacement."
+            },
+            {
+              "title": "Keep the existing Crispy profile",
+              "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
+            }
+          ]
         }
       },
       "executable_hints": {
@@ -33702,7 +33780,17 @@
             "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
             "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
           ],
-          "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
+          "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
+          "references": [
+            {
+              "title": "Install the matching Marathon scenario on Linux",
+              "instruction": "Use the official Marathon2 x86-64 Flatpak bundle and install it with Flatpak. Start Classic Marathon 2 from the desktop launcher or run flatpak run org.bungie.source.Marathon2. Its packaged scenario data is included. This bundle has home-directory access. Preserve your actual ~/.alephone profile, which the three games can share, and any overrides before replacement."
+            },
+            {
+              "title": "Open the matching Marathon application on Mac",
+              "instruction": "Use the official Marathon2 Mac disk image. Copy Classic Marathon 2.app out of the image and open the complete app. The package includes the scenario and supports Intel and Apple Silicon. Preserve the actual Aleph One or title-specific data in ~/Library/Application Support, its preferences in ~/Library/Preferences and custom scenarios before replacing it."
+            }
+          ]
         }
       },
       "launch_arguments": [
@@ -33763,7 +33851,17 @@
             "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
             "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
           ],
-          "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
+          "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
+          "references": [
+            {
+              "title": "Install the matching Marathon scenario on Linux",
+              "instruction": "Use the official Marathon x86-64 Flatpak bundle and install it with Flatpak. Start Classic Marathon from the desktop launcher or run flatpak run org.bungie.source.Marathon. Its packaged scenario data is included. This bundle has home-directory access. Preserve your actual ~/.alephone profile, which the three games can share, and any overrides before replacement."
+            },
+            {
+              "title": "Open the matching Marathon application on Mac",
+              "instruction": "Use the official Marathon Mac disk image. Copy Classic Marathon.app out of the image and open the complete app. The package includes the scenario and supports Intel and Apple Silicon. Preserve the actual Aleph One or title-specific data in ~/Library/Application Support, its preferences in ~/Library/Preferences and custom scenarios before replacing it."
+            }
+          ]
         }
       },
       "launch_arguments": [
@@ -33825,7 +33923,17 @@
             "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
             "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
           ],
-          "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
+          "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
+          "references": [
+            {
+              "title": "Install the matching Marathon scenario on Linux",
+              "instruction": "Use the official MarathonInfinity x86-64 Flatpak bundle and install it with Flatpak. Start Classic Marathon Infinity from the desktop launcher or run flatpak run org.bungie.source.MarathonInfinity. Its packaged scenario data is included. This bundle has home-directory access. Preserve your actual ~/.alephone profile, which the three games can share, and any overrides before replacement."
+            },
+            {
+              "title": "Open the matching Marathon application on Mac",
+              "instruction": "Use the official MarathonInfinity Mac disk image. Copy Classic Marathon Infinity.app out of the image and open the complete app. The package includes the scenario and supports Intel and Apple Silicon. Preserve the actual Aleph One or title-specific data in ~/Library/Application Support, its preferences in ~/Library/Preferences and custom scenarios before replacing it."
+            }
+          ]
         },
         "artwork": {
           "game_id": 8711,
@@ -34104,6 +34212,14 @@
             {
               "title": "Preserve your actual game data",
               "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+            },
+            {
+              "title": "Set up the native Linux or Mac archive",
+              "instruction": "Choose the official Linux amd64 or arm64 ZIP, or the universal Mac ZIP. The reviewed Linux builds need glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and SDL2. Keep the executable and libraries together in a separately prepared copy with your own patched PC data in main and maintt. If downloading through Portcove, clear “Extract the archive after downloading” and extract with your system tool so executable permissions are preserved. From that folder, run ./launch_openmohaa_breakthrough to select this game. The launch helper starts the game itself."
+            },
+            {
+              "title": "Use the ARM64 Windows package or preserve your Unix profile",
+              "instruction": "On Windows ARM64, select the official ARM64 ZIP and use launch_openmohaa_breakthrough.exe after preparing the same title data. Linux normally writes under ~/.openmohaa and Mac under ~/Library/Application Support/openmohaa. Keep the actual game folders, configuration, saves and any custom fs_homepath or com_homepath selections. You own these copies and profiles."
             }
           ]
         }
@@ -34170,6 +34286,14 @@
             {
               "title": "Preserve your actual game data",
               "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+            },
+            {
+              "title": "Set up the native Linux or Mac archive",
+              "instruction": "Choose the official Linux amd64 or arm64 ZIP, or the universal Mac ZIP. The reviewed Linux builds need glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and SDL2. Keep the executable and libraries together in a separately prepared copy with your own patched PC data in main. If downloading through Portcove, clear “Extract the archive after downloading” and extract with your system tool so executable permissions are preserved. From that folder, run ./launch_openmohaa_base to select this game. The launch helper starts the game itself."
+            },
+            {
+              "title": "Use the ARM64 Windows package or preserve your Unix profile",
+              "instruction": "On Windows ARM64, select the official ARM64 ZIP and use launch_openmohaa_base.exe after preparing the same title data. Linux normally writes under ~/.openmohaa and Mac under ~/Library/Application Support/openmohaa. Keep the actual game folders, configuration, saves and any custom fs_homepath or com_homepath selections. You own these copies and profiles."
             }
           ]
         },
@@ -34243,6 +34367,14 @@
             {
               "title": "Preserve your actual game data",
               "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+            },
+            {
+              "title": "Set up the native Linux or Mac archive",
+              "instruction": "Choose the official Linux amd64 or arm64 ZIP, or the universal Mac ZIP. The reviewed Linux builds need glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and SDL2. Keep the executable and libraries together in a separately prepared copy with your own patched PC data in main and mainta. If downloading through Portcove, clear “Extract the archive after downloading” and extract with your system tool so executable permissions are preserved. From that folder, run ./launch_openmohaa_spearhead to select this game. The launch helper starts the game itself."
+            },
+            {
+              "title": "Use the ARM64 Windows package or preserve your Unix profile",
+              "instruction": "On Windows ARM64, select the official ARM64 ZIP and use launch_openmohaa_spearhead.exe after preparing the same title data. Linux normally writes under ~/.openmohaa and Mac under ~/Library/Application Support/openmohaa. Keep the actual game folders, configuration, saves and any custom fs_homepath or com_homepath selections. You own these copies and profiles."
             }
           ]
         }
@@ -39127,7 +39259,17 @@
             "Play opens the project’s setup and launch controls. Supply your own matching original game files that you are permitted to use.",
             "Core backups exclude external music packs, custom paths and registered external-player data."
           ],
-          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
+          "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+          "references": [
+            {
+              "title": "Install the native package on Linux or Mac",
+              "instruction": "On Debian 13, install the crispy-doom package through the package manager. On other Linux versions, check that the package includes crispy-strife or use the upstream build instructions. On Mac, use the upstream-documented MacPorts port or a supported Homebrew formula. Start crispy-strife with -iwad followed by the quoted path to your own STRIFE1.WAD from retail Strife v1.2 or newer. Keep VOICES.WAD beside STRIFE1.WAD for speech. Use the external package manager for replacement."
+            },
+            {
+              "title": "Keep the existing Crispy profile",
+              "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
+            }
+          ]
         },
         "artwork": {
           "game_id": 5570,

@@ -21,7 +21,22 @@
         "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
         "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
       ],
-      "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
+      "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
+      "references": [
+        {
+          "title": "Install the matching Marathon scenario on Linux",
+          "instruction": "Use the official Marathon2 x86-64 Flatpak bundle and install it with Flatpak. Start Classic Marathon 2 from the desktop launcher or run flatpak run org.bungie.source.Marathon2. Its packaged scenario data is included. This bundle has home-directory access. Preserve your actual ~/.alephone profile, which the three games can share, and any overrides before replacement."
+        },
+        {
+          "title": "Open the matching Marathon application on Mac",
+          "instruction": "Use the official Marathon2 Mac disk image. Copy Classic Marathon 2.app out of the image and open the complete app. The package includes the scenario and supports Intel and Apple Silicon. Preserve the actual Aleph One or title-specific data in ~/Library/Application Support, its preferences in ~/Library/Preferences and custom scenarios before replacing it."
+        }
+      ]
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "macos-x86-64": ["Marathon2-", "-Mac.dmg"],
+      "macos-aarch64": ["Marathon2-", "-Mac.dmg"]
     }
   },
   "upstream_lineage": {

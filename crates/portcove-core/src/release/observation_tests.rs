@@ -807,3 +807,32 @@ fn actual_encoded_primary_release_metadata_keeps_observation_only_authority() ->
     }
     Ok(())
 }
+
+#[test]
+fn dude_doom_3_selectors_require_the_engine_and_reject_the_quake_4_addon() -> Result<()> {
+    let catalog = crate::Catalog::embedded()?;
+    let assets: Vec<GithubAsset> = serde_json::from_value(json!([
+        {
+            "name": "dude-q4-0.9.8-win64.zip",
+            "browser_download_url": "https://example.test/quake4-addon",
+            "size": 1
+        },
+        {
+            "name": "dude-0.9.8-win64.zip",
+            "browser_download_url": "https://example.test/doom3-engine",
+            "size": 1
+        }
+    ]))?;
+    for id in [
+        "doom-3-classic-dude-doom-3-unified-development-engine",
+        "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+    ] {
+        let port = catalog.port(id)?;
+        assert_eq!(
+            choose_asset(port, Platform::WindowsX86_64, &assets)?.name,
+            "dude-0.9.8-win64.zip"
+        );
+        assert!(choose_asset(port, Platform::WindowsX86_64, &assets[..1]).is_err());
+    }
+    Ok(())
+}
