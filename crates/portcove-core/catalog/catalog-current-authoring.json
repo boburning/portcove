@@ -22259,7 +22259,15 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-1001 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Ace Combat 3: Electrosphere",
-        "variant_label": "Japan · two discs"
+        "variant_label": "Japan · two discs",
+        "artwork": {
+          "game_id": 14751,
+          "cover_id": 391208,
+          "image_id": "co8duw",
+          "image_sha256": "83ee46d9cc823edc47e620bfa455a37f6147cd2b8f0dc8823580000b250d476a",
+          "game_slug": "ace-combat-3-electrosphere",
+          "match_kind": "underlying-game"
+        }
       },
       "bios_source_profile": "psx-scph-1001-bios",
       "runtime_source_filename": "runtime-discs",
