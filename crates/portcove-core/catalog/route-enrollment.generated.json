@@ -158,14 +158,14 @@
     {
       "port_id": "nhl-94-genesis-ninety-four",
       "prepared_player": {
-        "executable": "nhl94.exe",
         "working_directory": "executable-parent",
         "arguments": [],
         "data_locations": [
           "settings.ini; out/nhl94.srm cartridge SRAM; states/ including Autosave; rosters, recordings, screenshots, videos and configured external ROM/save paths"
-        ]
+        ],
+        "executable": "nhl94.exe"
       },
-      "managed_native": false
+      "managed_native": true
     },
     {
       "port_id": "quake-ironwail",

@@ -1,5 +1,12 @@
 {
   "cases": {
+    "nhl-94-genesis-ninety-four": {
+      "inventory": "ninety_four",
+      "selected_assets": [
+        "ninety-four-0.3.5-windows-x86_64.zip",
+        "ninety-four-0.3.6-windows-x86_64.zip"
+      ]
+    },
     "jgrennison-openttd-patches": {
       "inventory": "jgrpp",
       "selected_assets": [
@@ -85,6 +92,68 @@
     }
   },
   "inventories": {
+    "ninety_four": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.5/ninety-four-0.3.5-linux-x86_64.tar.gz",
+            "digest": "sha256:5465639b5eede1264c882b6e4ba490ca4bcf37a30d304812e889c231955df743",
+            "id": 662443262,
+            "name": "ninety-four-0.3.5-linux-x86_64.tar.gz",
+            "size": 590875
+          },
+          {
+            "browser_download_url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.5/ninety-four-0.3.5-macos-universal.zip",
+            "digest": "sha256:0ef73aacea58c239d9f92ed732abb045b74738853bdb4cd2c4c7fd5cc0893866",
+            "id": 662443304,
+            "name": "ninety-four-0.3.5-macos-universal.zip",
+            "size": 2996408
+          },
+          {
+            "browser_download_url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.5/ninety-four-0.3.5-windows-x86_64.zip",
+            "digest": "sha256:8f3f7177cf1de58df661184f720cdf381f3bf30eeb90fece6a829b07e9b57e70",
+            "id": 662443383,
+            "name": "ninety-four-0.3.5-windows-x86_64.zip",
+            "size": 1353909
+          }
+        ],
+        "draft": false,
+        "id": 419532933,
+        "prerelease": false,
+        "published_at": "2026-10-21T12:30:26Z",
+        "tag_name": "v0.3.5"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.6/ninety-four-0.3.6-linux-x86_64.tar.gz",
+            "digest": "sha256:090f2176c4c35c65adcf73810cd1268d00bccafe83324a6803c7e375b53cba46",
+            "id": 666486887,
+            "name": "ninety-four-0.3.6-linux-x86_64.tar.gz",
+            "size": 597484
+          },
+          {
+            "browser_download_url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.6/ninety-four-0.3.6-macos-universal.zip",
+            "digest": "sha256:4a27ece6fd0abe64345df424dcad1c3683ae2eb06d9c4cf9a7cee57ce2f8449d",
+            "id": 666486925,
+            "name": "ninety-four-0.3.6-macos-universal.zip",
+            "size": 3011309
+          },
+          {
+            "browser_download_url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.6/ninety-four-0.3.6-windows-x86_64.zip",
+            "digest": "sha256:8be18b749f68f6e9718666cf0c08b203fef281b95f46369fcb6a1da8d7153423",
+            "id": 666486981,
+            "name": "ninety-four-0.3.6-windows-x86_64.zip",
+            "size": 1360727
+          }
+        ],
+        "draft": false,
+        "id": 420977431,
+        "prerelease": false,
+        "published_at": "2026-10-22T16:58:37Z",
+        "tag_name": "v0.3.6"
+      }
+    ],
     "jgrpp": [
       {
         "assets": [
@@ -1182,6 +1251,16 @@
     ]
   },
   "other_zip_assets": [
+    {
+      "inventory": "ninety_four",
+      "release_index": 0,
+      "asset": "ninety-four-0.3.5-macos-universal.zip"
+    },
+    {
+      "inventory": "ninety_four",
+      "release_index": 1,
+      "asset": "ninety-four-0.3.6-macos-universal.zip"
+    },
     {
       "inventory": "jgrpp",
       "release_index": 0,

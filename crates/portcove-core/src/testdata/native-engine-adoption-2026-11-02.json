@@ -1861,6 +1861,68 @@
         "published_at": "2026-10-26T08:24:25Z",
         "tag_name": "1.1.7"
       }
+    },
+    {
+      "issue": 2597,
+      "port_id": "nhl-94-genesis-ninety-four",
+      "repository": "1nputs/ninety-four",
+      "channel": "stable",
+      "runtime_folder": "ninety-four-windows-x86_64/",
+      "selected_executable": "nhl94.exe",
+      "selected_asset": "ninety-four-0.3.6-windows-x86_64.zip",
+      "archive_sha256": "8be18b749f68f6e9718666cf0c08b203fef281b95f46369fcb6a1da8d7153423",
+      "immutable_members": [
+        "README.txt",
+        "ROSTERS.md",
+        "SDL2.dll",
+        "licenses/MMPX-MIT.txt",
+        "licenses/Nuked-OPN2-LGPL-2.1.txt",
+        "licenses/SDL2-zlib.txt",
+        "licenses/ninety-four-MIT.txt",
+        "licenses/pulseman-MIT.txt",
+        "licenses/xBR-MIT.txt",
+        "licenses/ymfm-BSD-3.txt",
+        "nhl94.exe"
+      ],
+      "persistent_probes": [
+        "out/nhl94.srm",
+        "rosters/custom/teams.csv",
+        "screenshots/shot.png",
+        "settings.ini",
+        "states/autosave.state",
+        "videos/capture.gif"
+      ],
+      "scope": "Official 0.3.6 Windows archive member inventory. Lifecycle uses inert contents and a controlled successor.",
+      "release": {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.6/ninety-four-0.3.6-linux-x86_64.tar.gz",
+            "digest": "sha256:090f2176c4c35c65adcf73810cd1268d00bccafe83324a6803c7e375b53cba46",
+            "id": 666486887,
+            "name": "ninety-four-0.3.6-linux-x86_64.tar.gz",
+            "size": 597484
+          },
+          {
+            "browser_download_url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.6/ninety-four-0.3.6-macos-universal.zip",
+            "digest": "sha256:4a27ece6fd0abe64345df424dcad1c3683ae2eb06d9c4cf9a7cee57ce2f8449d",
+            "id": 666486925,
+            "name": "ninety-four-0.3.6-macos-universal.zip",
+            "size": 3011309
+          },
+          {
+            "browser_download_url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.6/ninety-four-0.3.6-windows-x86_64.zip",
+            "digest": "sha256:8be18b749f68f6e9718666cf0c08b203fef281b95f46369fcb6a1da8d7153423",
+            "id": 666486981,
+            "name": "ninety-four-0.3.6-windows-x86_64.zip",
+            "size": 1360727
+          }
+        ],
+        "draft": false,
+        "id": 420977431,
+        "prerelease": false,
+        "published_at": "2026-10-22T16:58:37Z",
+        "tag_name": "v0.3.6"
+      }
     }
   ]
 }

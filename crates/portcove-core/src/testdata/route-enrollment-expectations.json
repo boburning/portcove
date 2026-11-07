@@ -117,6 +117,13 @@
       "arguments": [],
       "managed_arguments": [],
       "managed_native": true
+    },
+    {
+      "port_id": "nhl-94-genesis-ninety-four",
+      "executable": "nhl94.exe",
+      "arguments": [],
+      "managed_arguments": [],
+      "managed_native": true
     }
   ]
 }
