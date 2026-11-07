@@ -30,6 +30,7 @@ import {
 import {
   controllerToolAssets,
   controllerToolSourceAssetMaximumBytes,
+  controllerToolExpandedMaximumBytes,
   readControllerToolFile,
   controllerToolEntries,
   controllerToolChildren,
@@ -1439,13 +1440,13 @@ void test("tool manifest retains the aggregate and per-file byte limits on both 
     const files = manifest.files.map((file) => ({ ...file, bytes: 1 }));
     files[0]!.bytes = 128 * 1024 ** 2;
     files[1]!.bytes = 128 * 1024 ** 2;
-    files[2]!.bytes = 64 * 1024 ** 2 - (files.length - 3);
+    files[2]!.bytes = controllerToolExpandedMaximumBytes - 2 * 128 * 1024 ** 2 - (files.length - 3);
     assert.equal(
       inspectControllerToolManifest({ ...manifest, files }, platform).files.reduce(
         (total, file) => total + file.bytes,
         0,
       ),
-      320 * 1024 ** 2,
+      335_675_392,
     );
     files[2]!.bytes++;
     assert.throws(

@@ -8,6 +8,9 @@ import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-c
 import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
+// Hosted Linux qualification reached 335,555,689 bytes. Allow 128 KiB
+// above the former 320 MiB expanded limit for build variation.
+export const controllerToolExpandedMaximumBytes = 320 * 1024 ** 2 + 128 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
 // Trusted controller identity, independent of the source being bundled.
@@ -248,7 +251,8 @@ export function inspectControllerToolManifest(
     total += file.bytes;
     return { path: profile.paths[index]!, bytes: file.bytes, sha256: file.sha256 };
   });
-  if (total > 320 * 1024 ** 2) throw new Error("controller tool expanded bytes exceed bound");
+  if (total > controllerToolExpandedMaximumBytes)
+    throw new Error("controller tool expanded bytes exceed bound");
   return {
     schema_version: profile.schema_version,
     source_commit: value.source_commit,
@@ -276,7 +280,7 @@ export function inspectControllerToolArchive(
   const archive = Buffer.from(raw);
   const { entries } = inspectBoundedZip(archive, {
     compressedBytes: 320 * 1024 ** 2,
-    expandedBytes: 320 * 1024 ** 2 + 65536,
+    expandedBytes: controllerToolExpandedMaximumBytes + 65536,
     files: profile.paths.length + 1,
     nameBytes: 128,
     allowedPaths: new Set([...profile.paths, "manifest.json"]),
