@@ -1049,6 +1049,61 @@ void test("the configured first turn admits a page set while other sources retai
   assert.ok(result.report.requests <= 8);
 });
 
+void test("scheduled priority refreshes stale completed facts before their next due time", async () => {
+  const h = harness(32);
+  for (let index = 0; index < 32; index++) {
+    const port = `extra-${index}`;
+    h.input.ports.push({
+      id: port,
+      channels: ["stable"],
+      release: { repository: `owner/${port}` },
+    });
+  }
+  const { sources } = catalogObservationSources(h.input);
+  const selected = sources.find((source) => source.repository === "owner/other")!;
+  const configured = sources.find((source) => source.repository === "owner/shared")!;
+  const options = {
+    ...h.options,
+    config: validateObserverConfig({
+      ...h.options.config,
+      port_id: "stable-port",
+      repository: "owner/shared",
+      repository_id: 7,
+    }),
+  };
+  const first = await advanceCatalogObservations(h.input, null, {
+    ...options,
+    excludedSources: new Set(sources.filter((source) => source !== selected).map(({ key }) => key)),
+  });
+  const progress = first.checkpoint.sources[selected.key]!;
+  const oldObserved = progress.freshness_observed_at;
+  assert.ok(oldObserved);
+  const retainedConfig = progress.current_config;
+  h.advanceClock(13 * 3600000);
+  // A resumed validation can finish many hours after its first verified read.
+  progress.next_due_at = new Date(h.options.now!() + 3600000).toISOString();
+
+  const result = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...options,
+    prioritizeConfigured: true,
+    scheduledPrioritySource: selected.key,
+  });
+  const status = result.report.source_statuses.find(
+    ({ source_key }) => source_key === selected.key,
+  )!;
+  assert.ok(status.current_scope_complete);
+  assert.equal(status.stale, false);
+  assert.equal(status.observed_at, new Date(h.options.now!()).toISOString());
+  assert.notEqual(status.observed_at, oldObserved);
+  assert.deepEqual(result.checkpoint.sources[selected.key]!.current_config, retainedConfig);
+  assert.deepEqual(
+    new Set(result.report.attempted_source_keys.slice(0, 2)),
+    new Set([configured.key, selected.key]),
+  );
+  assert.ok(result.report.attempted_source_keys.length > 2);
+  assert.ok(result.report.requests <= 32);
+});
+
 void test("provider reserve stops work and later quota recovery resumes exact retained pages", async () => {
   const h = harness();
   h.setQuota(0);

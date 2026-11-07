@@ -160,6 +160,7 @@ export async function runCatalogUpstreams(
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
     prioritizeConfigured?: boolean;
+    scheduledPrioritySource?: string;
     handoff?: { directory: string; sizes: Map<string, number>; bytes: number };
   } = {},
 ) {
@@ -278,6 +279,9 @@ export async function runCatalogUpstreams(
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
       prioritizeConfigured: runtime.prioritizeConfigured === true,
+      ...(runtime.scheduledPrioritySource
+        ? { scheduledPrioritySource: runtime.scheduledPrioritySource }
+        : {}),
       ...runtime.observer,
       githubScope,
       policyIdentity: coreIdentity.sha256,
@@ -748,10 +752,19 @@ export async function runCatalogOpportunity(
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const deadline = process.env.PORTCOVE_OBSERVER_OPPORTUNITY_DEADLINE_UTC;
+    const scheduledPrioritySource =
+      process.env.GITHUB_EVENT_NAME === "schedule"
+        ? process.env.PORTCOVE_OBSERVER_SCHEDULED_PRIORITY_SOURCE
+        : undefined;
+    if (scheduledPrioritySource !== undefined && !/^[a-f0-9]{64}$/u.test(scheduledPrioritySource))
+      throw new Error("Scheduled observer priority requires an exact catalog source key");
     const result =
       deadline === undefined
         ? await runCatalogUpstreams(process.argv.slice(2))
-        : await runCatalogOpportunity(process.argv.slice(2), { deadline: Date.parse(deadline) });
+        : await runCatalogOpportunity(process.argv.slice(2), {
+            deadline: Date.parse(deadline),
+            ...(scheduledPrioritySource ? { scheduledPrioritySource } : {}),
+          });
     if (process.env.GITHUB_OUTPUT && deadline === undefined) {
       if (/[\r\n]/u.test(result.handoff_directory)) throw new Error("Invalid artifact output path");
       await appendFile(
