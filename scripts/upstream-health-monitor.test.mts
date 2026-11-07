@@ -1007,6 +1007,24 @@ void test("per-location progress survives interruption, preserves source binding
   );
   assert.equal(resumedCalls, 9);
   assert.equal(resumed.report.collection.collection_status, "complete");
+  const retainedConditions = resumed.report.known_conditions.filter(
+    (condition) => condition.observed_at === new Date(epoch).toISOString(),
+  );
+  assert.equal(retainedConditions.length, 5);
+  assert.ok(
+    retainedConditions.every(
+      (condition) =>
+        !condition.observed_this_run &&
+        !condition.changed_in_this_run &&
+        condition.occurrences === 1,
+    ),
+  );
+  assert.equal(
+    resumed.report.known_conditions.filter(
+      (condition) => condition.observed_this_run && condition.changed_in_this_run,
+    ).length,
+    resumedCalls,
+  );
   const changed = structuredClone(input);
   changed.ports[0]!.project_url = "https://github.com/owner/replaced";
   let changedCalls = 0;
@@ -1061,6 +1079,18 @@ void test("automatic draining finishes logical oversized work without specificat
     [320, 320, 3],
   );
   assert.equal(result.report.inventory.fresh_complete_port_ids.length, 2);
+  assert.deepEqual(result.report.batch.selected_port_ids, ["port-1"]);
+  assert.deepEqual(result.report.inventory.assessed_this_run_port_ids, ["port-1", "port-2"]);
+  assert.deepEqual(result.report.inventory.unassessed_this_run_port_ids, []);
+  assert.ok(
+    result.report.known_conditions.every(
+      (condition) =>
+        condition.observed_this_run && condition.changed_in_this_run && condition.occurrences === 1,
+    ),
+  );
+  assert.equal(result.report.known_conditions.length, calls);
+  assert.match(result.summary, /2\/2 ports selected across the session/u);
+  assert.match(result.summary, /Final batch recorded \*\*0 endpoint recoveries/u);
   assert.equal(result.exitCode, 0);
   let failures = 0;
   const failed = await drainHealthMonitor(input, null, {

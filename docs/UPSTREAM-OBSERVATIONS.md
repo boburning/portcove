@@ -655,14 +655,22 @@ provides no durability or observation-frequency guarantee.
 
 The report states the total inventory, ports assessed this run, deferred and
 unassessed ports, and recent complete, recent partial, stale and unmonitored
-counts. Freshness is 24 hours and requires matching per-port health inputs and
-accounting policy. Main pushes skip matching recent complete observations;
+counts. The final report distinguishes ports selected across the session from
+the last batch and its budgets. Freshness is 24 hours and requires matching
+per-port health inputs and accounting policy. Main pushes skip matching recent complete observations;
 partial attempts remain due. Scheduled and manual runs reconsider their requested
 inventory and prioritize older attempts. Ports deferred entirely by time/request
 budgets or rate limits retain their earlier scheduling position for later batches.
 The daily schedule requests 09:23 UTC, subject to hosted scheduling delays.
-An earlier observation never counts as a current live probe. Retained conditions
-identify whether they were observed this run and whether their evidence is stale.
+A location replayed from a prior session keeps its original observation clock,
+even when its port is selected again. An observation made by an earlier batch
+of the current session still counts for that session when the final report
+contains the same incident, material facts and clock. Carrying either observation
+forward does not add another occurrence. The session's condition labels describe
+current observations. The nested collection retains its batch-local diagnostics
+and recovery counts, including incidents first reconstructed from prior progress.
+Retained conditions identify whether they were observed in the current session
+and whether their evidence is stale.
 
 Incident keys bind the port, location, operation, rule and relevant observation
 contract. Unchanged conditions retain first-seen time and recurrence without a
