@@ -5,6 +5,10 @@ import { createCompilerSourceReader } from "./release-compiler-source.mts";
 import {
   collectReleaseSourceChanges,
   collectReleaseSourceChangesWithSdk,
+  inspectReleaseSourceTree,
+  maximumApplicationSourceCommits,
+  maximumApplicationSourceTreeEntries,
+  maximumReleaseSourceCommits,
   netTreeDeltaScope,
   releaseSourceChangeRequests,
 } from "./release-source-changes.mts";
@@ -60,6 +64,53 @@ void test("scoped SDK source comparison returns the same exact raw-tree evidence
   );
   assert.deepEqual(result, collectReleaseSourceChanges(f.api, f.opportunity));
   assert.equal(calls.length, 5);
+});
+
+void test("application comparison refuses a raw merged-side commit omitted by the provider", async (t) => {
+  const f = releaseSourceFixture();
+  const side = sourceFixtureCommit(f.baseTree, [f.base.sha], "independent side\n");
+  const source = sourceFixtureCommit(f.sourceTree, [f.base.sha, side.sha], "merged source\n");
+  const applicationCommitObjects = new Map(
+    [f.base, source, side].map((value) => [
+      value.sha,
+      inspectRemoteCommitObject(value, value.sha).object.bytes,
+    ]),
+  );
+  let omitSide = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const { pathname, search } = new URL(new Request(input, init).url);
+      if (pathname.endsWith(`/git/commits/${source.sha}`)) return Response.json(source);
+      if (pathname.includes("/compare/")) {
+        const selected = omitSide ? [source] : [side, source];
+        return Response.json({
+          status: "ahead",
+          ahead_by: selected.length,
+          behind_by: 0,
+          total_commits: selected.length,
+          base_commit: { sha: f.base.sha },
+          merge_base_commit: { sha: f.base.sha },
+          commits: selected.map((commit) => ({ sha: commit.sha, commit, parents: commit.parents })),
+        });
+      }
+      return Response.json(f.api.request("GET", pathname.slice(1) + search).body);
+    },
+  );
+  const collect = () =>
+    collectReleaseSourceChangesWithSdk(
+      {
+        token: "inert-source-comparison",
+        deadline: performance.now() + 5000,
+        guard() {},
+        applicationCommitObjects,
+      },
+      { ...f.opportunity, source_commit: source.sha },
+    );
+  assert.equal((await collect()).commits.length, 2);
+  omitSide = true;
+  await assert.rejects(collect(), /application Git history differs/u);
 });
 
 void test("retained public signed GitHub commit preserves non-UTC offsets and terminal signature folding only under its exact raw hash", async () => {
@@ -206,47 +257,99 @@ void test("locked SDK source requests follow only the fixed numeric repository a
   assert.equal(seen.length, 3);
 });
 
-void test("complete accumulated history reaches the finite 2048-commit boundary and refuses overflow", () => {
-  const full = releaseSourceFixture(2048);
-  const result = collectReleaseSourceChanges(full.api, full.opportunity);
-  assert.equal(result.commits.length, 2048);
-  assert.equal(result.change_set_sha256, full.expectedHash);
-  assert.equal(result.api_requests, 25);
-  assert.equal(full.calls.filter((call) => call.includes("page=21")).length, 1);
-  const overflow = releaseSourceFixture(2049);
+void test("complete accumulated history reaches the finite commit boundary and refuses overflow", () => {
+  const legacyOverflow = releaseSourceFixture(maximumReleaseSourceCommits + 1);
   assert.throws(
-    () => collectReleaseSourceChanges(overflow.api, overflow.opportunity),
+    () => collectReleaseSourceChanges(legacyOverflow.api, legacyOverflow.opportunity),
+    /completeness/u,
+  );
+  const full = releaseSourceFixture(maximumApplicationSourceCommits);
+  const result = collectReleaseSourceChanges(full.api, full.opportunity, {
+    applicationComparison: true,
+  });
+  assert.equal(result.commits.length, maximumApplicationSourceCommits);
+  assert.equal(result.change_set_sha256, full.expectedHash);
+  const lastPage = Math.ceil(maximumApplicationSourceCommits / 100);
+  const overflowPage = lastPage + 1;
+  assert.equal(result.api_requests, lastPage + 4);
+  assert.equal(full.calls.filter((call) => call.includes(`page=${lastPage}`)).length, 1);
+  const overflow = releaseSourceFixture(maximumApplicationSourceCommits + 1);
+  assert.throws(
+    () =>
+      collectReleaseSourceChanges(overflow.api, overflow.opportunity, {
+        applicationComparison: true,
+      }),
     /completeness/,
   );
   assert.equal(overflow.calls.filter((call) => call.includes("/compare/")).length, 1);
   for (const fault of ["page-overflow", "changed-total"]) {
-    const fixture = releaseSourceFixture(2048);
+    const fixture = releaseSourceFixture(maximumApplicationSourceCommits);
     const api = {
       request(method: string, endpoint: string) {
         const response = fixture.api.request(method, endpoint);
-        if (fault === "page-overflow" && endpoint.includes("page=21")) {
+        if (fault === "page-overflow" && endpoint.includes(`page=${lastPage}`)) {
           return {
             ...response,
             headers: new Map(response.headers).set(
               "link",
-              `<${endpoint.replace("page=21", "page=22")}>; rel="next"`,
+              `<${endpoint.replace(`page=${lastPage}`, `page=${overflowPage}`)}>; rel="next"`,
             ),
           };
         }
         if (fault === "changed-total" && endpoint.includes("page=2")) {
           assert.ok(isRecord(response.body));
-          response.body.total_commits = 2047;
-          response.body.ahead_by = 2047;
+          response.body.total_commits = maximumApplicationSourceCommits - 1;
+          response.body.ahead_by = maximumApplicationSourceCommits - 1;
         }
         return response;
       },
     };
     assert.throws(
-      () => collectReleaseSourceChanges(api, fixture.opportunity),
+      () => collectReleaseSourceChanges(api, fixture.opportunity, { applicationComparison: true }),
       /pagination|changed/,
     );
-    assert.ok(fixture.calls.every((endpoint) => !endpoint.includes("page=22")));
+    assert.ok(fixture.calls.every((endpoint) => !endpoint.includes(`page=${overflowPage}`)));
   }
+});
+
+void test("cryptographic tree reconstruction reaches its finite entry boundary and refuses overflow", () => {
+  const gitOid = (kind: string, bytes: Buffer) =>
+    createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
+  const blob = gitOid("blob", Buffer.from("fixture"));
+  const paths = Array.from(
+    { length: maximumApplicationSourceTreeEntries - 2 },
+    (_, index) => `folder${index % 2}/entry${String(index).padStart(4, "0")}`,
+  );
+  const rows = paths.map((path) => ({ path, mode: "100644", type: "blob", sha: blob }));
+  for (const directory of ["folder0", "folder1"]) {
+    const bytes = Buffer.concat(
+      rows
+        .filter((entry) => entry.path.startsWith(`${directory}/`))
+        .map((entry) =>
+          Buffer.concat([
+            Buffer.from(`100644 ${entry.path.split("/")[1]}\0`),
+            Buffer.from(blob, "hex"),
+          ]),
+        ),
+    );
+    rows.push({ path: directory, mode: "040000", type: "tree", sha: gitOid("tree", bytes) });
+  }
+  const root = Buffer.concat(
+    rows
+      .filter((entry) => entry.type === "tree")
+      .map((entry) =>
+        Buffer.concat([Buffer.from(`40000 ${entry.path}\0`), Buffer.from(entry.sha, "hex")]),
+      ),
+  );
+  const sha = gitOid("tree", root);
+  assert.equal(
+    inspectReleaseSourceTree({ sha, truncated: false, tree: rows }, sha, true).entries.size,
+    maximumApplicationSourceTreeEntries,
+  );
+  assert.throws(
+    () => inspectReleaseSourceTree({ sha, truncated: false, tree: [...rows, rows[0]] }, sha, true),
+    /oversized/u,
+  );
 });
 
 void test("truncated/diverged/duplicate/escaping comparisons and forged incomplete trees refuse", () => {

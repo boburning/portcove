@@ -58,6 +58,9 @@ def main():
     phase, objects = value["phase"], value["oids"]
     counts = {
         "commits": (1, 3),
+        "application-commits": (1, 2),
+        "application-history": (2, 2),
+        "application-commit-batch": (0, 0),
         "blobs": (1, 256),
         "init": (0, 0),
         "commit": (1, 1),
@@ -74,7 +77,7 @@ def main():
         phase not in counts
         or not isinstance(objects, list)
         or not counts[phase][0] <= len(objects) <= counts[phase][1]
-        or (phase != "history" and len(set(objects)) != len(objects))
+        or (phase not in ("history", "application-history") and len(set(objects)) != len(objects))
         or any(not isinstance(oid, str) or re.fullmatch(r"[a-f0-9]{40}", oid) is None for oid in objects)
     ):
         raise ValueError("bounded exact source objects required")
@@ -101,6 +104,7 @@ def main():
     resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     signal.alarm(max(1, math.ceil(remaining / 1000)))
+    network = phase in ("commits", "application-commits", "blobs")
     args = [
         "/usr/bin/git",
         "--no-optional-locks",
@@ -116,7 +120,7 @@ def main():
         "-c",
         "protocol.allow=never",
         "-c",
-        "protocol.https.allow=always" if phase in ("commits", "blobs") else "protocol.https.allow=never",
+        "protocol.https.allow=always" if network else "protocol.https.allow=never",
         "-c",
         "protocol.version=2",
         "-c",
@@ -132,7 +136,7 @@ def main():
         "-c",
         "fetch.writeCommitGraph=false",
     ]
-    if phase in ("commits", "blobs"):
+    if network:
         args.extend(
             [
                 "--git-dir",
@@ -143,11 +147,13 @@ def main():
                 "--no-write-fetch-head",
                 "--no-recurse-submodules",
                 "--no-auto-maintenance",
-                "--filter=tree:0" if phase == "commits" else "--filter=blob:none",
+                "--filter=blob:none" if phase == "blobs" else "--filter=tree:0",
             ]
         )
         if phase == "commits":
             args.append("--depth=2049")
+        elif phase == "application-commits":
+            args.append("--depth=3073")
         args.extend(["https://github.com/boburning/portcove.git", *objects])
     elif phase == "init":
         args.extend(["init", "--bare", "--quiet", "--template=", value["repository"]])
@@ -156,6 +162,8 @@ def main():
             "commit": ["cat-file", "commit", *objects],
             "refs": ["for-each-ref", "--format=%(refname)"],
             "history": ["rev-list", "--max-count=2049", *objects[:1], *[f"^{oid}" for oid in objects[1:]]],
+            "application-history": ["rev-list", "--max-count=3073", *objects[:1], *[f"^{oid}" for oid in objects[1:]]],
+            "application-commit-batch": ["cat-file", "--batch"],
             "peel": ["rev-parse", "--verify", *[f"{oid}^{{commit}}" for oid in objects]],
             "tree": ["hash-object", "-w", "-t", "tree", "--stdin"],
             "sizes": ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"],
