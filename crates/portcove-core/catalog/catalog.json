@@ -40061,7 +40061,7 @@
             },
             {
               "title": "Set up OpenMW on Linux x86-64",
-              "instruction": "Use the non-debug Linux-64Bit tarball. The inspected build requires glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. For an older host, check the upstream-documented distro or Flatpak route. Keep the complete extracted tarball directory together and start its openmw-launcher to finish the wizard. Use the upstream launcher for Play. Preserve configuration and logs in ~/.config/openmw and saves in ~/.local/share/openmw, or their actual XDG locations. The Flatpak has separate configuration and data under ~/.var/app/org.openmw.OpenMW."
+              "instruction": "Download the non-debug Linux-64Bit tarball. If you download through Portcove, clear “Extract the archive after downloading”. Unpack it with your system archive tool so its library links are preserved. The inspected build requires glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. For an older host, check the upstream-documented distro or Flatpak route. Keep the complete extracted tarball directory together and start its openmw-launcher to finish the wizard. Use the upstream launcher for Play. Preserve configuration and logs in ~/.config/openmw and saves in ~/.local/share/openmw, or their actual XDG locations. The Flatpak has separate configuration and data under ~/.var/app/org.openmw.OpenMW."
             },
             {
               "title": "Set up OpenMW on Mac",
