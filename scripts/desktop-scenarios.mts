@@ -1028,6 +1028,6 @@ export function desktopHarnessDeadlineMs(
   return (
     ordinary +
     displayRuns * (covers * 2 * 40_000 + Math.min(covers, 12) * 2 * 30_000) +
-    (cacheConditions ? 180_000 : 0)
+    (cacheConditions ? (selection.selected_scenarios.length === 1 ? 240_000 : 180_000) : 0)
   );
 }
