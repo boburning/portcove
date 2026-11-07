@@ -458,6 +458,47 @@ mod tests {
     }
 
     #[test]
+    fn catacomb_linux_preview_is_a_download_for_user_prepared_play() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let assets = [
+            asset(1, "CatacombGL-Windows-64bit-0-5-7.zip"),
+            asset(2, "CatacombGL-Windows-32bit-0-5-7.zip"),
+            asset(3, "CatacombGL-Linux-0-5-7.tar.xz"),
+        ];
+        let platform = Platform::LinuxX86_64;
+        for id in [
+            "catacomb-3-d-the-descent-catacombgl",
+            "the-catacomb-abyss-catacombgl",
+            "the-catacomb-armageddon-catacombgl",
+            "the-catacomb-apocalypse-catacombgl",
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.release.provider, crate::ReleaseSource::UserPrepared);
+            assert_eq!(
+                port.release.user_prepared[&platform].trust,
+                crate::ExternalRuntimeTrust::UserSelected,
+                "{id}"
+            );
+            let listing = catalog.listing(id).unwrap();
+            assert_eq!(
+                listing.recommended_download_channel,
+                Some(crate::ReleaseChannel::Beta)
+            );
+            assert_eq!(
+                recommend_packages(
+                    &assets,
+                    platform,
+                    &listing.download_asset_hints[&platform],
+                    true
+                )
+                .1,
+                Some(3.into()),
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
     fn separate_license_compliance_archive_is_not_a_player_variant() {
         let hints = ["InfiniteUndiscoveryRecomp-".into(), ".zip".into()];
         let assets = [
