@@ -1,5 +1,9 @@
+import {
+  renderRetainedPreparedTests,
+  retainedPreparedEnrollment,
+} from "./catalog-retained-prepared.mts";
 import assert from "node:assert/strict";
-import { readFileSync, mkdtempSync, copyFileSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, copyFileSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
@@ -355,4 +359,30 @@ void test("257 route declarations retain distinct deterministic complete enrollm
   const malformed = structuredClone(records[0]!);
   malformed.route_facts_v1!.prepared_player.executable = "../bad.exe";
   assert.throws(() => renderRouteTests([malformed]));
+});
+
+void test("retained prepared fixtures enroll once with stable case identities", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "portcove-retained-prepared-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const fixture = "sample-retained-selected-2026-11-07.json";
+  const manifest = (cases: unknown[]) =>
+    writeFileSync(
+      join(root, retainedPreparedEnrollment),
+      JSON.stringify({ format_version: 1, cases }),
+    );
+  writeFileSync(
+    join(root, fixture),
+    JSON.stringify({
+      ports: [{ id: "sample-port", release: { provider: "user-prepared" } }],
+    }),
+  );
+  const item = { port_id: "sample-port", fixture };
+  manifest([item]);
+  assert.match(renderRetainedPreparedTests(root), /fn retained_prepared_sample_port\(\)/u);
+  manifest([{ ...item, test_name: "old_case" }]);
+  assert.match(renderRetainedPreparedTests(root), /fn old_case\(\)/u);
+  for (const cases of [[], [item, item], [{ ...item, fixture: "../escape.json" }]]) {
+    manifest(cases);
+    assert.throws(() => renderRetainedPreparedTests(root), /enrollment/u);
+  }
 });
