@@ -788,6 +788,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
 void test("fixture module closure edits retain all independent policy and construction consumers", () => {
   const helper = "scripts/fixtures/module-closure.mts";
   const consumers = [
+    "scripts/audit.test.mts",
     "scripts/catalog-proposal-costs.test.mts",
     "scripts/ci-windows-helpers.test.mts",
     "scripts/daily-discovery.test.mts",

@@ -1,3 +1,5 @@
+import { isGuideCopyProof } from "./validation-plan.mts";
+import type { GuideCopyProof } from "./validation-plan.mts";
 import { lstatSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -81,12 +83,6 @@ function references(document: unknown, file: string, id: string) {
   return Array.isArray(result) ? result : null;
 }
 
-export interface GuideCopyProof {
-  kind: "catalog-guide-reference-copy-v1";
-  before: string;
-  after: string;
-}
-
 // Compare the authored record and every generated projection. A parser error,
 // shape change, or independently changed projection keeps normal validation.
 export function proveCatalogGuideCopy(
@@ -150,17 +146,6 @@ function hasExactIntegers(text: string) {
 
 function hashText(text: string) {
   return createHash("sha256").update(text).digest("hex");
-}
-
-export function isGuideCopyProof(value: unknown): value is GuideCopyProof {
-  return (
-    isRecord(value) &&
-    value.kind === "catalog-guide-reference-copy-v1" &&
-    [value.before, value.after].every(
-      (hash) => typeof hash === "string" && /^[a-f0-9]{64}$/u.test(hash),
-    ) &&
-    value.before !== value.after
-  );
 }
 
 export function annotateCatalogGuideCopy<Change extends GuideCopyChange>(

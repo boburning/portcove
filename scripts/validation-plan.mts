@@ -1,5 +1,3 @@
-import { isGuideCopyProof } from "./catalog-guide-copy-impact.mts";
-import type { GuideCopyProof } from "./catalog-guide-copy-impact.mts";
 import { validateChangedPath as normalizedPath } from "./repository-path.mts";
 import { gzipSync, gunzipSync } from "node:zlib";
 import type { NextestProof } from "./nextest-equivalence.mts";
@@ -47,6 +45,23 @@ export type ValidationGroup = (typeof fastGroups)[number];
 export type ValidationArea = (typeof validationAreas)[number];
 export type ValidationPlatform = "primary-host" | (typeof qualificationPlatforms)[number];
 export type ReleaseQualificationProfile = ReleaseProfile;
+export interface GuideCopyProof {
+  kind: "catalog-guide-reference-copy-v1";
+  before: string;
+  after: string;
+}
+
+export function isGuideCopyProof(value: unknown): value is GuideCopyProof {
+  return (
+    isRecord(value) &&
+    value.kind === "catalog-guide-reference-copy-v1" &&
+    [value.before, value.after].every(
+      (hash) => typeof hash === "string" && /^[a-f0-9]{64}$/u.test(hash),
+    ) &&
+    value.before !== value.after
+  );
+}
+
 export interface ValidationChange {
   status: string;
   oldMode: string | null;

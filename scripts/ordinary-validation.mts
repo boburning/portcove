@@ -2306,6 +2306,7 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/audit.test.mts",
   "scripts/upstream-health-monitor.test.mts",
   "scripts/repository-settings.test.mts",
   "scripts/release-controller-tools.test.mts",
