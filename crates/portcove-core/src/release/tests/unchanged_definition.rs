@@ -2137,6 +2137,8 @@ struct ManagedPsxArchiveExpectation {
     track_sha1: String,
     track_sha256: Option<String>,
     generated_executable: String,
+    #[serde(default)]
+    openbios: bool,
 }
 
 impl ManagedPsxArchiveExpectation {
@@ -2144,26 +2146,36 @@ impl ManagedPsxArchiveExpectation {
         &self,
         catalog: &crate::Catalog,
         port: &crate::PortDefinition,
+        platform: Platform,
         version: &str,
         artifact_sha256: &str,
         observed_release: bool,
     ) {
         let id = &port.id;
         let source_catalog = catalog.source_catalog().unwrap();
-        let bios_id = "psx-scph-1001-bios";
+        let bios_id = (!self.openbios).then_some("psx-scph-1001-bios");
         assert_eq!(port.adapter, crate::AdapterKind::PsxRecompManaged, "{id}");
-        assert_eq!(port.bios_source_profile.as_deref(), Some(bios_id), "{id}");
+        assert_eq!(port.bios_source_profile.as_deref(), bios_id, "{id}");
+        let executable = match platform {
+            Platform::LinuxX86_64 => self.generated_executable.strip_suffix(".exe").unwrap(),
+            _ => &self.generated_executable,
+        };
         assert_eq!(
-            port.executable_hints[&Platform::WindowsX86_64],
-            [self.generated_executable.as_str()],
-            "{id}: generated player"
+            port.executable_hints[&platform],
+            [executable],
+            "{id}: {platform:?} generated player"
         );
         assert_eq!(
             port.runtime_subdirectory.as_deref(),
             Some("build-portcove"),
             "{id}"
         );
-        assert_eq!(port.launch_arguments, ["--no-launcher"], "{id}");
+        let arguments = if self.openbios {
+            ["--no-launcher", "--bios", "bios/openbios.bin"].as_slice()
+        } else {
+            ["--no-launcher"].as_slice()
+        };
+        assert_eq!(port.launch_arguments, arguments, "{id}");
         for owned in [
             "saves",
             "settings.toml",
@@ -2216,15 +2228,23 @@ impl ManagedPsxArchiveExpectation {
             self.track_sha256.as_deref(),
             "{id}"
         );
-        for (role, expected_profile) in [
-            (crate::PortSourceRole::Game, profile_id),
+        let requirements = [
+            (crate::PortSourceRole::Game, Some(profile_id)),
             (crate::PortSourceRole::Bios, bios_id),
-        ] {
+        ];
+        for (role, expected_profile) in requirements {
             let contract = source_catalog
                 .contracts
                 .iter()
-                .find(|contract| contract.port_id == *id && contract.role == role)
-                .unwrap();
+                .find(|contract| contract.port_id == *id && contract.role == role);
+            let Some(expected_profile) = expected_profile else {
+                assert!(
+                    contract.is_none(),
+                    "{id}: unexpected {role:?} source contract"
+                );
+                continue;
+            };
+            let contract = contract.unwrap();
             assert_eq!(contract.profile_id, expected_profile, "{id}: {role:?}");
             assert_eq!(
                 contract.admission_mode,
@@ -2247,6 +2267,8 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
     struct Case {
         inventory: String,
         selected_assets: Vec<String>,
+        #[serde(default)]
+        linux_selected_assets: Vec<String>,
         channel: Option<ReleaseChannel>,
         managed_psx: Option<ManagedPsxArchiveExpectation>,
     }
@@ -2290,54 +2312,65 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
         let observed = &inventories[&case.inventory];
         assert!(observed.len() >= 2, "{id}");
         assert_eq!(observed.len(), case.selected_assets.len(), "{id}");
-        for (index, name) in case.selected_assets.iter().enumerate() {
-            let release = &observed[index];
-            let tag = release["tag_name"].as_str().unwrap();
-            let expected = release["assets"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|asset| asset["name"].as_str() == Some(name))
-                .unwrap();
-            assert!(
-                enrolled.insert((id.clone(), index)),
-                "{id}: duplicate release selection enrollment at {index}"
-            );
-            selected_zips.insert((case.inventory.clone(), index, name.clone()));
-            let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
-            let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
-            let selected = GithubReleaseProvider::with_api_root(root)
-                .unwrap()
-                .resolve(port, channel, Platform::WindowsX86_64)
-                .await
-                .unwrap();
-            assert_eq!(selected.version, tag, "{id}");
-            assert_eq!(&selected.asset.name, name, "{id}");
-            assert_eq!(
-                selected.asset.size,
-                expected["size"].as_u64().unwrap(),
-                "{id}"
-            );
-            assert_eq!(
-                selected.asset.sha256,
-                expected["digest"]
-                    .as_str()
-                    .unwrap()
-                    .strip_prefix("sha256:")
-                    .unwrap(),
-                "{id}"
-            );
-            if let Some(contract) = &case.managed_psx {
-                contract.assert_contract(
-                    &catalog,
-                    port,
-                    &selected.version,
-                    &selected.asset.sha256,
-                    index == 0,
-                );
+        let platforms = [
+            (Platform::WindowsX86_64, case.selected_assets),
+            (Platform::LinuxX86_64, case.linux_selected_assets),
+        ];
+        for (platform, names) in platforms {
+            if names.is_empty() {
+                continue;
             }
-            server.join().unwrap();
-            assert_eq!(requests.try_iter().count(), 2, "{id}");
+            assert_eq!(observed.len(), names.len(), "{id} on {platform:?}");
+            for (index, name) in names.iter().enumerate() {
+                let release = &observed[index];
+                let tag = release["tag_name"].as_str().unwrap();
+                let expected = release["assets"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|asset| asset["name"].as_str() == Some(name))
+                    .unwrap();
+                assert!(
+                    enrolled.insert((id.clone(), platform, index)),
+                    "{id}: duplicate release selection enrollment at {index}"
+                );
+                selected_zips.insert((case.inventory.clone(), index, name.clone()));
+                let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
+                let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
+                let selected = GithubReleaseProvider::with_api_root(root)
+                    .unwrap()
+                    .resolve(port, channel, platform)
+                    .await
+                    .unwrap();
+                assert_eq!(selected.version, tag, "{id}");
+                assert_eq!(&selected.asset.name, name, "{id}");
+                assert_eq!(
+                    selected.asset.size,
+                    expected["size"].as_u64().unwrap(),
+                    "{id}"
+                );
+                assert_eq!(
+                    selected.asset.sha256,
+                    expected["digest"]
+                        .as_str()
+                        .unwrap()
+                        .strip_prefix("sha256:")
+                        .unwrap(),
+                    "{id}"
+                );
+                if let Some(contract) = &case.managed_psx {
+                    contract.assert_contract(
+                        &catalog,
+                        port,
+                        platform,
+                        &selected.version,
+                        &selected.asset.sha256,
+                        index == 0,
+                    );
+                }
+                server.join().unwrap();
+                assert_eq!(requests.try_iter().count(), 2, "{id}");
+            }
         }
         assert_eq!(serde_json::to_value(port).unwrap(), definition, "{id}");
     }

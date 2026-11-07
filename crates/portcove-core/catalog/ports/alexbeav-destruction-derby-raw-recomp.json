@@ -3,10 +3,10 @@
   "listing": {
     "id": "alexbeav-destruction-derby-raw-recomp",
     "name": "Destruction Derby Raw / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "summary": "Build and play Destruction Derby Raw on Windows or Linux with your own matching USA disc and retail SCPH-1001 BIOS. The upstream setup kit remains a separate route.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp",
     "issue_number": 1590,
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp#readme",
     "artwork": {
@@ -49,5 +49,84 @@
       "macos-aarch64": ["destructionderbyraw-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/destruction-derby-raw-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["destructionderbyraw-", "-windows-x64.zip"],
+        "linux-x86-64": ["destructionderbyraw-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-destruction-derby-raw-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Destruction_Derby_Raw.exe"],
+      "linux-x86-64": ["Destruction_Derby_Raw"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-destruction-derby-raw-recomp-usa-psx",
+          "label": "Destruction Derby Raw (USA) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own complete matching 13-track USA CHD (SLUS-00912). Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Supply your own matching retail SCPH-1001 BIOS separately. The managed route does not activate the kit’s optional diagnostics. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }
