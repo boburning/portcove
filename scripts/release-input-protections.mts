@@ -418,6 +418,37 @@ export function requireCatalogMaintenancePolicy(
     throw new Error("catalog environment protection inventory unavailable");
   }
   const tag = controllerRef.slice("refs/tags/".length);
+  // Shared environments can retain other exact appointments. They must remain
+  // immutable so a disjoint selector cannot admit newly substituted source.
+  const immutableTags = new Set<string>();
+  const rulesets: unknown = raw.inventory.rulesets;
+  if (!Array.isArray(rulesets)) throw new Error("catalog tag protection inventory unavailable");
+  for (const rule of rulesets as unknown[]) {
+    if (
+      !isRecord(rule) ||
+      rule.target !== "tag" ||
+      rule.enforcement !== "active" ||
+      !Array.isArray(rule.bypass_actors) ||
+      rule.bypass_actors.length !== 0 ||
+      !Array.isArray(rule.rules) ||
+      !isRecord(rule.conditions) ||
+      !isRecord(rule.conditions.ref_name)
+    )
+      continue;
+    const { include, exclude } = rule.conditions.ref_name;
+    const rules: unknown[] = rule.rules;
+    if (
+      Array.isArray(include) &&
+      include.length === 1 &&
+      typeof include[0] === "string" &&
+      Array.isArray(exclude) &&
+      exclude.length === 0 &&
+      ["creation", "update", "deletion"].every((type) =>
+        rules.some((entry) => isRecord(entry) && entry.type === type),
+      )
+    )
+      immutableTags.add(include[0]);
+  }
   const identities = new Set<number>();
   for (const [index, name] of catalogProtectionEnvironments.entries()) {
     const row: unknown = raw.inventory.environments[index];
@@ -449,18 +480,41 @@ export function requireCatalogMaintenancePolicy(
       );
     }
     id(environment.protection_rules[0].id);
-    const selected: unknown = row.policies[0];
-    if (
-      row.policies.length !== 1 ||
-      !isRecord(selected) ||
-      selected.type !== "tag" ||
-      selected.name !== tag
-    ) {
-      throw new Error(
-        "catalog environment must permit only the authenticated exact controller tag",
-      );
+    const names = new Set<string>();
+    const selectorIds = new Set<number>();
+    for (const selector of row.policies as unknown[]) {
+      if (
+        !isRecord(selector) ||
+        selector.type !== "tag" ||
+        typeof selector.name !== "string" ||
+        !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(selector.name) ||
+        names.has(selector.name)
+      ) {
+        throw new Error("catalog environment requires distinct exact tag selectors");
+      }
+      id(selector.id);
+      if (selectorIds.has(selector.id))
+        throw new Error("catalog environment selector identity duplicated");
+      names.add(selector.name);
+      selectorIds.add(selector.id);
+      if (selector.name !== tag) {
+        const retained =
+          selector.name === "portcove-production-controller-catalog-20261028r2" ||
+          (selector.name === "portcove-production-controller-windows-20261105r10" &&
+            [
+              "github-pages",
+              "production-release-coordinator",
+              "production-release-protection-observer",
+            ].includes(name)) ||
+          (selector.name === "portcove-upstream-rehearsal-20261104r3" && name === "github-pages");
+        if (!retained)
+          throw new Error("catalog environment additional tag is outside retained appointments");
+        if (!immutableTags.has(`refs/tags/${selector.name}`))
+          throw new Error("catalog environment additional tag lacks exact immutable protection");
+      }
     }
-    id(selected.id);
+    if (!names.has(tag))
+      throw new Error("catalog environment requires the authenticated exact controller tag");
   }
   return {
     ...policy,
