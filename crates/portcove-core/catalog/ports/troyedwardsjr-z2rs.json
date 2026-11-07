@@ -3,6 +3,7 @@
   "listing": {
     "id": "troyedwardsjr-z2rs",
     "name": "Zelda II: The Adventure of Link / z2rs (troyedwardsjr)",
+    "original_game_title": "Zelda II: The Adventure of Link",
     "summary": "Play Zelda II with the z2rs native reconstruction and your own supported USA NES ROM. Optional enhancements, randomization and co-op have separate compatibility requirements.",
     "project_url": "https://github.com/troyedwardsjr/z2rs",
     "issue_number": 1911,

@@ -37627,6 +37627,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Choose Play to start z2rs.exe directly. Drag your own supported USA NES ROM onto the window. The game reads it in place and remembers its path. Keep the ROM outside the managed runtime. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: .z2rs-data. Its backup does not include external profiles. Back up your external z2rs profile before changing versions. Upstream checks XDG_DATA_HOME, APPDATA, then HOME. For the managed player, any of those roots that you set must be absolute. Use a separately prepared copy for relative roots, a custom data_dir_override, or launcher-only options. Portcove preserves the fixed .z2rs-data fallback. Runtime rollback does not establish save-state compatibility.",
+        "original_game_title": "Zelda II: The Adventure of Link",
         "manual_setup": {
           "help_url": "https://github.com/troyedwardsjr/z2rs/blob/4c5e34418017cfda71ea0ca09c952ff93ba1591c/README.md",
           "steps": [
