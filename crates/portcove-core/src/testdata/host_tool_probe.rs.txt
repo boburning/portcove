@@ -174,7 +174,10 @@ fn main() {
                 command.args(["--grandchild", &args[1]]);
             }
             let child = command.spawn().unwrap();
-            fs::write("descendant-pid", child.id().to_string()).unwrap();
+            // The parent treats the PID path as ready. Publish complete bytes
+            // atomically rather than exposing fs::write's empty-file window.
+            fs::write("descendant-pid.pending", child.id().to_string()).unwrap();
+            fs::rename("descendant-pid.pending", "descendant-pid").unwrap();
             if observed {
                 let deadline = std::time::Instant::now() + Duration::from_secs(5);
                 while !std::path::Path::new("descendant-observed").is_file() {

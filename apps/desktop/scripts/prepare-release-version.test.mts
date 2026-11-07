@@ -110,7 +110,7 @@ test("concurrent independent processes allocate one identical preparation", asyn
     assert.equal(
       result.status,
       "fulfilled",
-      result.status === "rejected" ? errorMessage(result.reason) : undefined,
+      result.status === "rejected" ? errorMessage(result.reason) : "",
     );
     assert.ok(result.status === "fulfilled");
     return result.value;

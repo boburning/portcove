@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { classifyChanges } from "./ordinary-validation.mts";
 import {
@@ -111,7 +110,7 @@ void test("Windows profile waits for its actual Windows producer without a Linux
     revision,
     release_profile: profile,
     active() {},
-    read: () => f,
+    read: async () => f,
     retain: async () => {},
     pause: async () => assert.fail("no wait for unselected Linux"),
   });
@@ -236,7 +235,7 @@ void test("only valid pending GETs repeat, bounded by original fences and finite
     run,
     revision,
     active() {},
-    read() {
+    async read() {
       reads++;
       return reads === 1
         ? { jobs: { total_count: 0, jobs: [] }, artifacts: { total_count: 0, artifacts: [] } }
@@ -257,7 +256,7 @@ void test("only valid pending GETs repeat, bounded by original fences and finite
       run,
       revision,
       active() {},
-      read() {
+      async read() {
         reads++;
         throw Error("ambiguous GET");
       },
@@ -277,7 +276,7 @@ void test("only valid pending GETs repeat, bounded by original fences and finite
       active() {
         assert.ok(!expired, "original source expired");
       },
-      read: fixture,
+      read: async () => fixture(),
       async retain() {
         expired = true;
       },
@@ -293,7 +292,7 @@ void test("only valid pending GETs repeat, bounded by original fences and finite
       run,
       revision,
       active() {},
-      read() {
+      async read() {
         reads++;
         return { jobs: { total_count: 0, jobs: [] }, artifacts: { total_count: 0, artifacts: [] } };
       },
@@ -356,7 +355,17 @@ void test("the actual credential-routing entry waits before output and preserves
 
 void test("the actual payload wrapper uses the captured binding, GET-only bounded transport, and exclusive retained intent", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-presign-provider-"));
-  const previous = process.env.RUNNER_TEMP;
+  const reference = "refs/tags/portcove-production-controller-fixture";
+  const environment = {
+    RUNNER_TEMP: directory,
+    GH_TOKEN: "ghs_SYNTHETIC_PAYLOAD_READER",
+    GITHUB_RUN_ID: run,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: revision,
+    GITHUB_REF: reference,
+  };
+  const previous = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, environment);
   const requests: string[] = [];
   const providerLog: string[] = [];
   t.mock.method(console, "error", (value: unknown) => {
@@ -367,51 +376,43 @@ void test("the actual payload wrapper uses the captured binding, GET-only bounde
     pending = false,
     clockReads = 0;
   t.mock.module("node:timers/promises", { namedExports: { setTimeout: async () => {} } });
-  t.mock.module("./release-signing-job-budget.mts", {
-    namedExports: {
-      currentPayloadJobDeadline(identity: unknown) {
+  const started = new Date(Date.now() - 1000).toISOString();
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(init?.method, "GET");
+      assert.equal(init.redirect, "manual");
+      assert.equal(new Headers(init.headers).get("authorization"), "token " + environment.GH_TOKEN);
+      assert.equal(url.searchParams.get("per_page"), "100");
+      if (url.pathname.endsWith("/jobs") && url.searchParams.get("page") === "1") {
         clockReads++;
-        assert.deepEqual(identity, {
-          controller_revision: revision,
-          controller_ref: "refs/tags/portcove-production-controller-fixture",
-          run_id: run,
-          run_attempt: 1,
+        return Response.json({
+          total_count: 1,
+          jobs: [
+            {
+              id: 86,
+              name: "Sign admitted updater payloads",
+              run_id: Number(run),
+              run_attempt: 1,
+              head_sha: revision,
+              status: "in_progress",
+              started_at: started,
+            },
+          ],
         });
-        return performance.now() + 60000;
-      },
+      }
+      requests.push(url.pathname.slice(1) + url.search);
+      if (ambiguous)
+        return Response.json({ message: "ambiguous provider response" }, { status: 503 });
+      const f = pending
+        ? { jobs: { total_count: 0, jobs: [] }, artifacts: { total_count: 0, artifacts: [] } }
+        : fixture();
+      return Response.json(url.pathname.endsWith("/jobs") ? f.jobs : f.artifacts);
     },
-  });
-  t.mock.module("./github-api.mts", {
-    namedExports: {
-      GitHubApiClient: class {
-        runner: (args: string[]) => unknown;
-        constructor(runner: (args: string[]) => unknown) {
-          this.runner = runner;
-        }
-        request(method: string, endpoint: string) {
-          return this.runner([method, endpoint]);
-        }
-      },
-      createGitHubRunner(options: { timeoutMs: number; maxBuffer: number }) {
-        assert.ok(options.timeoutMs > 0 && options.timeoutMs <= 15000);
-        assert.equal(options.maxBuffer, 2 * 1024 ** 2);
-        return (args: string[]) => {
-          assert.equal(args[0], "GET");
-          assert.deepEqual(args.slice(2), ["--hostname", "github.com"]);
-          requests.push(args[1]!);
-          if (ambiguous) throw Error("ambiguous provider response");
-          const f = pending
-            ? { jobs: { total_count: 0, jobs: [] }, artifacts: { total_count: 0, artifacts: [] } }
-            : fixture();
-          return {
-            status: 200,
-            headers: new Map(),
-            body: args[1]!.includes("/jobs?") ? f.jobs : f.artifacts,
-          };
-        };
-      },
-    },
-  });
+  );
   const captured = {
     route: {
       phase: "payload",
@@ -460,6 +461,7 @@ void test("the actual payload wrapper uses the captured binding, GET-only bounde
     );
     assert.equal(refusal.recovery_required, true);
     assert.equal(refusal.requests, 2);
+    assert.equal(refusal.last_http_status, 503);
     assert.equal(clockReads, 3);
     process.env.RUNNER_TEMP = await mkdtemp(path.join(directory, "exhausted-"));
     ambiguous = false;
@@ -478,11 +480,14 @@ void test("the actual payload wrapper uses the captured binding, GET-only bounde
     )
       .trim()
       .split("\n");
-    assert.equal(parseRecord(lines.at(-1)!).requests, 120);
+    const exhausted = parseRecord(lines.at(-1)!);
+    assert.equal(exhausted.requests, 120);
+    assert.equal(exhausted.last_http_status, 200);
     assert.ok(providerLog.some((line) => parseRecord(line).outcome === "refused-or-ambiguous"));
   } finally {
-    if (previous === undefined) delete process.env.RUNNER_TEMP;
-    else process.env.RUNNER_TEMP = previous;
+    for (const [key, value] of previous)
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     t.mock.reset();
     await rm(directory, { recursive: true, force: true });
   }

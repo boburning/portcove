@@ -4,6 +4,8 @@ import errno
 import importlib.util
 import io
 import json
+import os
+import socket
 import stat
 import tempfile
 import threading
@@ -35,6 +37,29 @@ def request():
 
 
 class SupervisorContract(unittest.TestCase):
+    def test_transport_sockets_bind_under_long_request_custody(self):
+        for name, kind in (("provider.sock", socket.SOCK_STREAM), ("control.sock", socket.SOCK_SEQPACKET)):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / ("request-" + "a" * 64) / "technical-0" / "r-123456"
+                root.mkdir(parents=True, mode=0o700)
+                physical = root / "transport" / name
+                with socket.socket(socket.AF_UNIX, kind) as listener:
+                    with supervisor.transport_socket_directory(root) as transport:
+                        self.assertGreaterEqual(len(os.fsencode(physical)), 108)
+                        with self.assertRaises(OSError):
+                            listener.bind(str(physical))
+                        listener.bind(str(transport / name))
+                    self.assertFalse(transport.exists())
+                    self.assertTrue(physical.is_socket())
+                    listener.listen()
+                    # Use a short lookup of the same socket, as the guest's /transport mount does.
+                    guest = Path(directory) / "guest"
+                    guest.symlink_to(physical.parent, target_is_directory=True)
+                    with socket.socket(socket.AF_UNIX, kind) as peer:
+                        peer.connect(str(guest / name))
+                        connected, _ = listener.accept()
+                        connected.close()
+
     def test_static_catalog_keeps_exact_model_except_client_direct_surface(self):
         data = Path(__file__).with_name("semantic-review-model-catalog.json").read_bytes()
         self.assertEqual(supervisor.inspect_model_catalog(data), data)

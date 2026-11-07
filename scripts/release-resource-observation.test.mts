@@ -10,6 +10,7 @@ import {
   slice4CapacityResourceDigest,
   capacityDigest,
 } from "./release-capacity.mts";
+import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
 
 void test("Windows-only protected source proposal preserves shared controls and stays held outside effective resource policy", async () => {
@@ -77,6 +78,33 @@ void test("resource observations reconcile current purposes and keep provider, b
   assert.equal(result.accounting.catalog_alternative, 40);
   assert.equal(result.accounting.policy_envelope, 140);
   assert.equal(result.policy_matches_workflow, true);
+  assert.equal(result.ratification_required_for_policy_change, true);
+  const appointedWake = await readFile(
+    new URL("../docs/qualification/application-update-wake.held.yml", import.meta.url),
+  );
+  assert.equal(
+    createHash("sha256").update(appointedWake).digest("hex"),
+    "7cbd3c4a2dec7380fd818a4e686b3563ee7a4ffe4381123acc80a39b339a6def",
+  );
+  const appointedProduction = Buffer.from(
+    controllerWorkflowAtCurrentNode(
+      await readFile(
+        new URL(
+          "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ),
+  );
+  assert.equal(
+    observeReleaseResources(appointedProduction, appointedWake, candidate).policy_matches_workflow,
+    false,
+  );
+  assert.equal(
+    observeReleaseResources(production, appointedWake, candidate).policy_matches_workflow,
+    false,
+  );
   assert.equal(result.accounting.measured_wall_seconds, null);
   assert.equal(result.accounting.account_headroom, "Unknown");
   assert.equal(result.accounting.reservation, null);
@@ -117,7 +145,7 @@ void test("resource observations reconcile current purposes and keep provider, b
     { strategy: { matrix: { platform: ["a", "b"] } } },
     { uses: "./.github/workflows/extra.yml" },
   ]) {
-    const variant = structuredClone(original);
+    const variant: Record<string, unknown> = structuredClone(original);
     assert.ok(isRecord(variant.jobs) && isRecord(variant.jobs.native_windows));
     variant.jobs.native_windows = { ...variant.jobs.native_windows, ...replacement };
     const unknown = observeReleaseResources(Buffer.from(stringify(variant)), wake, candidate);
@@ -368,8 +396,26 @@ void test("complete source amendment projects application165/catalog40 without a
     createHash("sha256").update(result.proposedWorkflow).digest("hex"),
   );
   assert.equal(
+    result.proposal.proposed_resources.wake_workflow_sha256,
+    createHash("sha256").update(wake).digest("hex"),
+  );
+  // Reproduce the dated proposal's wake identity separately from the current
+  // proposal, which must bind the installed source bytes above.
+  const historicalPolicy: unknown = JSON.parse(
+    await readFile(
+      new URL("./fixtures/release-resource-baseline-20261103/policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.ok(
+    isRecord(historicalPolicy) && typeof historicalPolicy.wake_workflow_sha256 === "string",
+  );
+  assert.equal(
     receipt.prepared_source.proposed_resource_digest,
-    result.proposal.proposed_resource_digest,
+    capacityDigest({
+      ...result.proposal.proposed_resources,
+      wake_workflow_sha256: historicalPolicy.wake_workflow_sha256,
+    }),
   );
   for (const row of receipt.jobs) {
     assert.ok(isRecord(row) && typeof row.job === "string");

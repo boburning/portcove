@@ -1943,6 +1943,30 @@ async fn ambermoon_bundled_content_acquisition_hold_keeps_permitted_copy_guide_b
 }
 
 #[tokio::test]
+async fn n64hub_font_acquisition_holds_keep_permitted_copy_guides_before_network() {
+    assert_embedded_player_download_holds(&[
+        "n64hub-super-smash-bros-n64-usa-recomp",
+        "n64hub-rayman-2-recomp-n64-usa",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn muppet_racemania_bundled_game_code_hold_keeps_prepared_guide_before_network() {
+    assert_embedded_player_download_holds(&["tekrantgaming-muppet-racemania-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn tomba_2_disc_derived_cache_hold_keeps_prepared_guide_before_network() {
+    assert_embedded_player_download_holds(&["tomba-2-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn wetrix_bundled_content_acquisition_hold_keeps_permitted_copy_guide_before_network() {
+    assert_embedded_player_download_holds(&["scottjco-wetrix-n64-usa-rev0-recomp"]).await;
+}
+
+#[tokio::test]
 async fn embedded_metroid_prime_excluded_game_sdk_hold_keeps_prepared_guide_before_network() {
     assert_embedded_player_download_holds(&["odrannnn-metroidprimeport"]).await;
 }
@@ -1954,11 +1978,19 @@ async fn embedded_re_cherry_selected_component_hold_keeps_prepared_guide_before_
 
 // Synthetic first-party bytes exercise the real listing/provider contracts;
 // they are not an upstream package, permission or gameplay observation.
-async fn assert_embedded_resolved_frontend_download(id: &str, tag: &str, asset_name: &str) {
+async fn assert_embedded_resolved_frontend_download(
+    id: &str,
+    tag: &str,
+    asset_name: &str,
+    expected_adapter: Option<crate::AdapterKind>,
+) {
     let (_temporary, mut service, mut request) = fixture();
     service.catalog = Catalog::embedded().unwrap();
     request.port_id = id.into();
-    assert!(service.catalog.port(id).is_err());
+    assert_eq!(
+        service.catalog.port(id).ok().map(|port| port.adapter),
+        expected_adapter
+    );
     let listing = service.catalog.listing(id).unwrap();
     assert!(listing.manual_setup.is_some());
     assert!(listing.download_block_reason.is_none());
@@ -2051,6 +2083,7 @@ async fn dahsidiabdallah_conkerbfdreloaded_resolved_frontend_download_1806() {
         "dahsidiabdallah-conkerbfdreloaded",
         "v1.4.7",
         "ConkerBFDReloaded-v1.4.7-Windows.zip",
+        None,
     )
     .await;
 }
@@ -2061,6 +2094,7 @@ async fn danielgomesvieira2000_beetle_adventure_racing_recomp_resolved_frontend_
         "danielgomesvieira2000-beetle-adventure-racing-recomp",
         "v0.4.2-alpha",
         "beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64.zip",
+        None,
     )
     .await;
 }
@@ -2071,18 +2105,14 @@ async fn body_harvest_recompiled_resolved_frontend_download_1448() {
         "body-harvest-recompiled",
         "v1.0.0",
         "BodyHarvestRecompiled-v1.0.0-Windows.zip",
+        Some(crate::AdapterKind::NativePortable),
     )
     .await;
 }
 
 #[tokio::test]
-async fn cbfd_recompiled_sciaschi_resolved_frontend_download_1216() {
-    assert_embedded_resolved_frontend_download(
-        "cbfd-recompiled-sciaschi",
-        "V0.1.6",
-        "ConkerRecompiled-V0.1.6-Windows.zip",
-    )
-    .await;
+async fn cbfd_recompiled_sciaschi_original_code_hold_before_network_1216() {
+    assert_embedded_player_download_holds(&["cbfd-recompiled-sciaschi"]).await;
 }
 
 #[tokio::test]

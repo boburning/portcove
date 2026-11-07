@@ -105,15 +105,15 @@ it.each([1366, 414])(
     await page.getByRole("button", { name: "Discover", exact: true }).click();
     await page.getByRole("textbox", { name: "Search Discover" }).fill("Original fixture game");
     await page.getByRole("button", { name: "Compare ports", exact: true }).click();
-    await page.getByRole("button", { name: "Use Native project Beta", exact: true }).click();
+    await page.getByRole("button", { name: "Choose Native project Beta", exact: true }).click();
     await expect
       .element(page.getByRole("heading", { name: "Original fixture game", exact: true }))
       .toBeVisible();
-    const alternatives = page.getByText("Implementations (2)", { exact: true });
+    const alternatives = page.getByText("Other ports for this game (2)", { exact: true });
     await expect.element(alternatives).toBeVisible();
     await alternatives.click();
     await expect
-      .element(page.getByRole("button", { name: "Chosen: Native project Beta", exact: true }))
+      .element(page.getByRole("button", { name: "Preferred: Native project Beta", exact: true }))
       .toBeVisible();
     expect(write).toHaveBeenCalledWith(
       0,
@@ -125,9 +125,9 @@ it.each([1366, 414])(
       1,
     );
     await page.getByRole("button", { name: "View Native project Alpha", exact: true }).click();
-    await page.getByText("Implementations (2)", { exact: true }).click();
+    await page.getByText("Other ports for this game (2)", { exact: true }).click();
     await expect
-      .element(page.getByRole("button", { name: "Chosen: Native project Beta", exact: true }))
+      .element(page.getByRole("button", { name: "Preferred: Native project Beta", exact: true }))
       .toBeVisible();
     expect(write).toHaveBeenCalledTimes(1);
     await expect

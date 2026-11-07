@@ -1,3 +1,4 @@
+import { readControllerNodeFile } from "./release-controller-tools.mts";
 /** Credential-free source/tool qualification. Never a native or protected producer. */
 import { nativeQualificationWorkerPath } from "./release-native-qualification-contract.mts";
 import assert from "node:assert/strict";
@@ -376,7 +377,7 @@ async function main() {
     const primitiveSupport = nativeRuntimeSupportProfile("windows-x86_64");
     await mkdir(path.join(primitiveTools, "bin"), { mode: 0o700 });
     await mkdir(path.join(primitiveTools, "home"), { mode: 0o700 });
-    const primitiveNode = await readControllerToolFile(process.execPath);
+    const primitiveNode = await readControllerNodeFile(process.execPath);
     const primitiveNodeIdentity = {
       path: "bin/node.exe",
       bytes: primitiveNode.length,
@@ -747,7 +748,7 @@ async function main() {
       path.join(built.tools, "bin/tauri-addon.node"),
     ]);
     assert.equal(addon.status, 0, addon.stderr);
-    assert.equal(addon.stdout.trim(), "tauri-cli 2.12.2");
+    assert.equal(addon.stdout.trim(), `tauri-cli ${built.manifest.tauri_cli_version}`);
     phase = "actual-offline-package-manager";
     const pnpm = await qualifyNativePnpmRuntime(
       path.join(built.tools, "bin/pnpm.exe"),

@@ -10,6 +10,8 @@ use serde_json::Value;
 use crate::{Platform, PortcoveError, Result};
 
 pub(crate) mod document;
+mod qualification;
+pub use qualification::inspect_game_settings_qualification;
 mod service_types;
 #[cfg(windows)]
 pub(crate) mod windows;

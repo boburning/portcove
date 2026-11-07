@@ -50,6 +50,7 @@ pub use catalog_download_identity::{
     CatalogDownloadAssetId, CatalogDownloadReleaseId, CatalogForeignAssetId,
     CatalogForeignReleaseId,
 };
+pub(crate) use catalog_download_provider::CatalogDownloadRepository;
 mod native_portable;
 pub(crate) mod package_selection;
 mod retained_direct_compatibility;
@@ -75,10 +76,18 @@ mod ghostship_safety;
 mod shipwright_persistence_tests;
 mod user_selected;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
+mod advisories;
+mod archive_data_transition;
+mod capabilities;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod launch_preparation;
 mod listings;
+pub use advisories::{AdvisoryApplicability, CapabilityAdvisory, PortCapabilityNotice};
+pub use capabilities::{
+    CapabilityFeature, CapabilityMode, PortCapabilityFeature, PortCapabilityReport,
+    PortCapabilityRoute,
+};
 mod psx_mod_data;
 pub(crate) use psx_mod_data::metadata_name as psx_data_metadata_name;
 mod removal;
@@ -99,6 +108,7 @@ struct RollbackTargetFailure {
 struct PersistenceContract {
     port: PortDefinition,
     writes_directly: bool,
+    archive_sha256: Option<String>,
 }
 
 #[cfg(test)]
@@ -640,6 +650,15 @@ impl PortcoveService {
                     Err(error) if error.code == crate::ErrorCode::Conflict => continue,
                     Err(error) => return Err(error),
                 }
+            } else if candidate.kind == LifecycleOperationKind::ArchiveDataTransition {
+                match self
+                    .library
+                    .try_lock_port_for_archive_data_transition(&candidate.port_id, &candidate.id)
+                {
+                    Ok(guard) => vec![guard],
+                    Err(error) if error.code == crate::ErrorCode::Conflict => continue,
+                    Err(error) => return Err(error),
+                }
             } else if candidate.kind == LifecycleOperationKind::ImportSource {
                 match self.lock_source_dependents(&candidate.port_id, None) {
                     Ok(guards) => guards,
@@ -773,6 +792,9 @@ impl PortcoveService {
         operation: &mut LifecycleOperation,
     ) -> Result<Option<String>> {
         match operation.kind {
+            LifecycleOperationKind::ArchiveDataTransition => self
+                .recover_archive_data_transition(store, operation)
+                .map(|()| None),
             LifecycleOperationKind::SettingsChange => self
                 .recover_settings_change(store, operation)
                 .map(|()| None),
@@ -1288,7 +1310,8 @@ impl PortcoveService {
                     .collect(),
                 &sources,
             )?;
-            let listing_statuses = self.listing_statuses_from(&catalog, &statuses, listing_raw)?;
+            let listing_statuses =
+                self.listing_statuses_from(&catalog, &statuses, listing_raw, &pending_setups)?;
             // Archive-only orphan rows belong to Activity, not accepted browsing membership.
             // Retain the browsing owner's exact current-definition identity invariant.
             let browsing_statuses = statuses
@@ -1425,7 +1448,7 @@ impl PortcoveService {
             temporary_space,
             storage: self.library.storage_summary()?,
             output_location,
-            preservation_notices: crate::runtime_data_policy::notices(port),
+            preservation_notices: port.preservation_notices(),
             shared_preferences,
         })
     }
@@ -2561,6 +2584,15 @@ impl PortcoveService {
             remove_external,
             update,
         ];
+        if crate::managed_runtime_policy::acquisition_hold(&status.port_id).is_some() {
+            for assessment in &mut status.port_actions {
+                if matches!(assessment.action, Action::Install | Action::Update) {
+                    assessment.availability = Availability::Held;
+                    assessment.reason = Reason::RouteNotOffered;
+                    assessment.definition = None;
+                }
+            }
+        }
         let pending: bool = self.library.connection()?.query_row(
             "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
             [&status.port_id],
@@ -2624,15 +2656,23 @@ impl PortcoveService {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<crate::ScopedResolvedRelease> {
+        crate::managed_runtime_policy::require_acquisition_available(&port.id)?;
         let scope = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &self.catalog,
             &port.id,
         )?;
         crate::curated_acquisition::require_runtime_scope(port, scope.as_ref())?;
-        self.releases
+        let resolved = self
+            .releases
             .resolve_scoped(port, channel, platform, scope.as_ref())
-            .await
+            .await?;
+        Installer::new(self.library.clone())?.require_github_artifact_identity(
+            &port.id,
+            &resolved.release,
+            resolved.github_identity.as_ref(),
+        )?;
+        Ok(resolved)
     }
 
     pub(crate) fn require_definition_adoption(
@@ -2640,6 +2680,12 @@ impl PortcoveService {
         catalog: &Catalog,
         port: &PortDefinition,
     ) -> Result<()> {
+        Self::refuse_shipwright_adoption(port)?;
+        if port.archive_data_compatibility_v1.is_some() {
+            return Err(PortcoveError::unsupported(
+                "partitioned managed data requires the official provider-selected installation; registering an external copy grants no replacement or migration rights",
+            ));
+        }
         crate::runtime_data_policy::refuse_adoption(port)?;
         crate::managed_tfe::refuse_adoption(port)?;
         crate::managed_shared_preferences::refuse_scope_transfer(port)?;
@@ -3127,6 +3173,7 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        crate::managed_runtime_policy::require_acquisition_available(&port.id)?;
         let ReleaseIntent {
             activate,
             shared_preferences,
@@ -3139,6 +3186,13 @@ impl PortcoveService {
             &output_location.effective_output_directory,
         )?;
         let release = resolution.release.clone();
+        crate::installed_mutability::require_shipwright_release(
+            port,
+            Platform::current()?,
+            &release.version,
+            release.channel,
+            &release.asset.name,
+        )?;
         let shared_root = if port.managed_shared_preferences.is_some() {
             self.shared_preferences_install_root(
                 port,
@@ -3202,6 +3256,7 @@ impl PortcoveService {
         }
         if let Some(active) = &status.active {
             self.require_portable_transition(active, port)?;
+            self.require_direct_artifact_transition(active, port, &release.asset.sha256, None)?;
         }
         if status.active.is_none() && status.staged.is_none() {
             self.require_direct_fresh_data(port)?;
@@ -3297,7 +3352,8 @@ impl PortcoveService {
             )
             .await?;
         let staged_activation = port.adapter == AdapterKind::NativePortable
-            || crate::persistence::requires_restore_receipt(port);
+            || crate::persistence::requires_restore_receipt(port)
+            || crate::installed_mutability::declared_shipwright_persistence(port, platform);
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
             .install_acquired(
                 InstallRequest {
@@ -3390,7 +3446,20 @@ impl PortcoveService {
                         install: None,
                     });
                 }
-                let activate = status.update_policy == UpdatePolicy::Automatic;
+                let policy = status.update_policy;
+                let needs_choice = if let Some(active) = &status.active {
+                    let retained = self.effective_archive_data_port(active)?;
+                    active.artifact.sha256 != release.release.asset.sha256
+                        && crate::archive_data::progress_requires_choice(
+                            &retained,
+                            &active.artifact.sha256,
+                            &self.persistence_root(&retained, &active.path)?,
+                            &self.library.user_dir(port_id),
+                        )?
+                } else {
+                    false
+                };
+                let activate = policy == UpdatePolicy::Automatic && !needs_choice;
                 let mut reporter = OperationReporter {
                     operation: &operation,
                     emit: &mut emit,
@@ -3411,11 +3480,7 @@ impl PortcoveService {
                     .await?;
                 return Ok(ReconcileResult {
                     port_id: port_id.into(),
-                    policy: if activate {
-                        UpdatePolicy::Automatic
-                    } else {
-                        UpdatePolicy::Stage
-                    },
+                    policy,
                     action: if activate {
                         ReconcileAction::Activated
                     } else {
@@ -3841,6 +3906,7 @@ impl PortcoveService {
         let staged = status
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
+        crate::managed_runtime_policy::require_managed_activation_available(&staged)?;
         self.require_ghostship_install_data_compatibility(
             &staged,
             status
@@ -3884,6 +3950,16 @@ impl PortcoveService {
         result
     }
 
+    fn refuse_shipwright_adoption(port: &PortDefinition) -> Result<()> {
+        if crate::installed_mutability::declared_shipwright_persistence(port, Platform::current()?)
+        {
+            return Err(PortcoveError::unsupported(
+                "Shipwright Windows persistence requires the official managed package. A local copy needs its own external execution review.",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn preview_adoption(
         &self,
         source: &Path,
@@ -3895,7 +3971,9 @@ impl PortcoveService {
             _ => None,
         };
         if let Some(id) = &selected {
-            crate::runtime_data_policy::refuse_adoption(self.catalog.port(id)?)?;
+            let port = self.catalog.port(id)?;
+            Self::refuse_shipwright_adoption(port)?;
+            crate::runtime_data_policy::refuse_adoption(port)?;
         }
         let copy_plan = adoption_copy_plan(source)?;
         let destination = selected
@@ -4066,6 +4144,7 @@ impl PortcoveService {
             let qualification =
                 InstallQualification::from_catalog(&self.catalog, &port_id, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
+            crate::managed_runtime_policy::require_acquisition_available(&port.id)?;
             self.require_definition_adoption(&self.catalog, port)?;
             if let Some(active) = self.status(&port_id)?.active {
                 self.require_portable_transition(&active, port)?;
@@ -5781,8 +5860,10 @@ impl PortcoveService {
         if retained.adapter == AdapterKind::GeneratedCache {
             return Ok(retained);
         }
-        let Ok(current) = self.catalog.port(&install.port_id) else {
-            return Ok(retained);
+        let current = match self.catalog.port(&install.port_id) {
+            Ok(current) => current,
+            Err(_) if shipwright_windows_cwd_persistence(&retained, install, platform) => &retained,
+            Err(_) => return Ok(retained),
         };
         crate::installed_mutability::checked_port(
             &Installer::new(self.library.clone())?,
@@ -5818,8 +5899,10 @@ impl PortcoveService {
             None => {
                 if self.catalog.port(&install.port_id).is_ok_and(|current| {
                     current.runtime_data_policy.is_some()
+                        || current.archive_data_compatibility_v1.is_some()
                         || current.managed_shared_preferences.is_some()
                         || current.n64_runtime_at_executable_parent
+                        || (cfg!(windows) && current.windows_shipwright_persistence)
                 }) {
                     return Err(PortcoveError::verification(
                         "legacy installation cannot inherit today's runtime-coordinate, credential or shared-preferences policy; retain its original route or review a fresh managed installation",
@@ -5839,7 +5922,7 @@ impl PortcoveService {
         if retained.adapter == AdapterKind::GeneratedCache {
             self.require_portable_runtime_unchanged(install)?;
         }
-        let port = self.installed_mutability_port(install)?;
+        let mut port = self.installed_mutability_port(install)?;
         if crate::persistence::requires_restore_receipt(&retained)
             && (retained_catalog.is_none()
                 || retained.persistent_paths != port.persistent_paths
@@ -5887,9 +5970,16 @@ impl PortcoveService {
         } else {
             writes_directly_to_user_root(&port)
         };
+        if let Some(admitted) = Installer::new(self.library.clone())?.archive_data_port(install)? {
+            self.library
+                .require_no_archive_data_transition(&install.port_id)?;
+            psx_mod_data::require_admitted_receipt(install)?;
+            port = admitted;
+        }
         Ok(PersistenceContract {
             port,
             writes_directly,
+            archive_sha256: Some(install.artifact.sha256.clone()),
         })
     }
 
@@ -5923,6 +6013,7 @@ impl PortcoveService {
         Ok(PersistenceContract {
             port: fallback.clone(),
             writes_directly: writes_directly_to_user_root(fallback),
+            archive_sha256: None,
         })
     }
 
@@ -6061,9 +6152,16 @@ impl PortcoveService {
             let port = &contract.port;
             let persistent_root = self.persistence_root(port, &install_root)?;
             if !contract.writes_directly {
-                for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])?
-                {
-                    let source = user_root.join(&relative);
+                let entries = crate::archive_data::entries(
+                    port,
+                    contract.archive_sha256.as_deref(),
+                    &persistent_root,
+                    &user_root,
+                )?;
+                crate::archive_data::initialize(port, &user_root)?;
+                for entry in entries {
+                    let relative = entry.relative;
+                    let source = entry.canonical;
                     let destination = persistent_root.join(&relative);
                     refuse_symlink_ancestors(&source)?;
                     refuse_symlink_ancestors(&destination)?;
@@ -6133,9 +6231,17 @@ impl PortcoveService {
             None
         };
         let mut copied = Vec::new();
-        for relative in crate::persistence::entries(port, &[&persistent_root, &user_root])? {
+        let entries = crate::archive_data::entries(
+            port,
+            contract.archive_sha256.as_deref(),
+            &persistent_root,
+            &user_root,
+        )?;
+        crate::archive_data::initialize(port, &user_root)?;
+        for entry in entries {
+            let relative = entry.relative;
             let source = persistent_root.join(&relative);
-            let destination = user_root.join(&relative);
+            let destination = entry.canonical;
             if contract.writes_directly {
                 if destination.exists() {
                     copied.push(destination);
@@ -6214,8 +6320,16 @@ impl PortcoveService {
             } else {
                 None
             };
-            for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
-                let source = user_root.join(&relative);
+            let entries = crate::archive_data::entries(
+                port,
+                contract.archive_sha256.as_deref(),
+                &persistent_root,
+                &user_root,
+            )?;
+            crate::archive_data::initialize(port, &user_root)?;
+            for entry in entries {
+                let relative = entry.relative;
+                let source = entry.canonical;
                 let destination = persistent_root.join(&relative);
                 refuse_symlink_ancestors(&source)?;
                 refuse_symlink_ancestors(&destination)?;
@@ -6663,6 +6777,91 @@ mod tests {
     };
 
     use super::*;
+
+    #[tokio::test]
+    async fn open_nectar_holds_managed_acquisition_and_keeps_its_source_definition() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        let id = "open-nectar-pikmin";
+        let port = service.catalog.port(id).unwrap();
+        let profile = service
+            .catalog
+            .source_profile("open-nectar-pikmin-disc")
+            .unwrap();
+        assert_eq!(port.source_profile.as_deref(), Some(profile.id.as_str()));
+        assert_eq!(port.persistent_paths, ["save", "pikmin_settings.conf"]);
+        let status = service.status(id).unwrap();
+        for action in [PortAction::Install, PortAction::Update] {
+            assert_eq!(
+                status
+                    .port_actions
+                    .iter()
+                    .find(|item| item.action == action)
+                    .unwrap()
+                    .availability,
+                PortActionAvailability::Held
+            );
+        }
+
+        let install = service.install(id, None, None, None, true, |_| {}).await;
+        assert_eq!(install.unwrap_err().code, crate::ErrorCode::Unsupported);
+        let release = service
+            .resolve_release(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await;
+        assert_eq!(release.unwrap_err().code, crate::ErrorCode::Unsupported);
+        let options = service
+            .catalog_download_options(id, None, ReleaseChannel::Stable)
+            .await
+            .unwrap();
+        assert!(!options.allowed);
+        assert_eq!(
+            options.reason.as_deref(),
+            crate::managed_runtime_policy::acquisition_hold(id)
+        );
+    }
+
+    #[test]
+    fn open_nectar_refuses_activation_of_an_unreviewed_staged_archive() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let id = "open-nectar-pikmin";
+        let mut install = InstallRecord {
+            id: "staged-nectar".into(),
+            port_id: id.into(),
+            version: "1.1.1".into(),
+            path: library.versions_dir().join(id).join("staged-nectar"),
+            channel: ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: true,
+            artifact: ArtifactIdentity {
+                asset_name: "nectar-windows.zip".into(),
+                sha256: "3f59071cb609c9a38ed052d4f26731d65705f520052d303980c0c654613d6ed2".into(),
+                size: 25_244_959,
+            },
+            manifest_sha256: "a".repeat(64),
+            selected_executable: "nectar-windows/nectar-launcher.exe".into(),
+            runtime: None,
+        };
+        library.register_install(&install, false).unwrap();
+        let error = service.activate_staged(id).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        let status = library.status(id, ReleaseChannel::Stable).unwrap();
+        assert!(status.active.is_none());
+        assert_eq!(status.staged.unwrap().id, install.id);
+
+        install.version = "0.8.5".into();
+        assert!(
+            crate::managed_runtime_policy::require_managed_activation_available(&install).is_err()
+        );
+        install.artifact.sha256 =
+            "0e3ca0fddc6410747d735d98e0e515f534143417319af3f1c666c9b71b932d29".into();
+        assert!(
+            crate::managed_runtime_policy::require_managed_activation_available(&install).is_ok()
+        );
+    }
 
     fn retained_cartridge_install_fixture() -> (tempfile::TempDir, Library, Catalog, InstallRecord)
     {
@@ -11248,9 +11447,21 @@ mod tests {
         artifact: ArtifactIdentity,
         active: bool,
     ) -> InstallRecord {
-        let id = Uuid::new_v4().to_string();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port(port_id).unwrap();
+        register_existing_test_artifact_with_port(library, port, version, path, artifact, active)
+    }
+
+    fn register_existing_test_artifact_with_port(
+        library: &Library,
+        port: &PortDefinition,
+        version: &str,
+        path: &Path,
+        artifact: ArtifactIdentity,
+        active: bool,
+    ) -> InstallRecord {
+        let id = Uuid::new_v4().to_string();
+        let port_id = &port.id;
         let qualification =
             crate::test_fixture::retained_qualification(port, Platform::current().unwrap())
                 .unwrap();
@@ -15955,6 +16166,88 @@ fn main() {
     }
 
     #[test]
+    fn portable_empty_middle_transition_requires_empty_added_coordinates() {
+        const PORT: &str = "opentyrian-opentyrian";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let platform = Platform::current().unwrap();
+        if !service
+            .catalog()
+            .port(PORT)
+            .unwrap()
+            .platforms
+            .contains(&platform)
+        {
+            // Exercise persistence with an inert host fixture even where upstream has no package.
+            let mut document = service.catalog().authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == PORT)
+                .unwrap();
+            port.platforms.push(platform);
+            port.executable_hints
+                .insert(platform, vec!["opentyrian".into()]);
+            port.release.asset_hints.insert(
+                platform,
+                port.release.asset_hints[&Platform::LinuxX86_64].clone(),
+            );
+            service.replace_catalog_for_test(
+                Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+            );
+        }
+        let current = service.catalog().port(PORT).unwrap();
+        let mut legacy = current.clone();
+        for pattern in &mut legacy.persistent_file_patterns {
+            pattern.allow_empty_middle = false;
+        }
+        let register = |port: &PortDefinition, version: &str, active| {
+            let artifact = ArtifactIdentity {
+                asset_name: format!("opentyrian-{version}.zip"),
+                sha256: hex::encode(Sha256::digest(version)),
+                size: 4,
+            };
+            let root = library.versions_dir().join(PORT).join(&artifact.sha256);
+            fs::create_dir_all(&root).unwrap();
+            let executable = root.join(&port.executable_hints[&platform][0]);
+            fs::write(&executable, b"inert OpenTyrian fixture").unwrap();
+            crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
+            register_existing_test_artifact_with_port(
+                &library, port, version, &root, artifact, active,
+            )
+        };
+        let old = register(&legacy, "v1", true);
+        let next = register(current, "v2", false);
+        service.require_portable_transition(&old, current).unwrap();
+        service
+            .require_portable_target_transition(&old, &next)
+            .unwrap();
+
+        let user_root = library.user_dir(PORT);
+        fs::create_dir_all(&user_root).unwrap();
+        for root in [&old.path, &next.path, &user_root] {
+            let recording = root.join("demorec.1");
+            fs::write(&recording, b"keep this recording").unwrap();
+            assert!(
+                service
+                    .require_portable_target_transition(&old, &next)
+                    .is_err()
+            );
+            assert_eq!(fs::read(&recording).unwrap(), b"keep this recording");
+            fs::remove_file(recording).unwrap();
+        }
+        assert!(service.require_portable_transition(&next, &legacy).is_err());
+        assert_eq!(service.activate_staged(PORT).unwrap().id, next.id);
+        let recording = next.path.join("demorec.1");
+        fs::write(&recording, b"new recording").unwrap();
+        assert!(service.rollback(PORT).is_err());
+        assert_eq!(fs::read(&recording).unwrap(), b"new recording");
+        fs::remove_file(recording).unwrap();
+        assert_eq!(service.rollback(PORT).unwrap().id, old.id);
+    }
+
+    #[test]
     fn direct_user_data_roots_are_not_mirrored_into_immutable_installs() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -16285,6 +16578,104 @@ fn main() {
             )
             .unwrap();
         catalog
+    }
+
+    #[test]
+    fn held_managed_setup_keeps_explicit_existing_copy_registration_and_probe_launch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = authenticated_indexed_catalog(&library);
+        let id = "zelda64-recomp";
+        let original = serde_json::to_value(catalog.port(id).unwrap()).unwrap();
+        // Existing private authenticated fixture only; no production key, publisher or feed changes.
+        library.connection().unwrap().execute(
+            "UPDATE definition_publisher_policy SET status='revoked' WHERE namespace='official' AND stable_id='zelda64-recomp'", [],
+        ).unwrap();
+        let mut service = PortcoveService::new_read_only(library).unwrap();
+        service.replace_catalog_for_test(catalog);
+        let before = service.listing_status(id).unwrap();
+        let managed = before
+            .status
+            .port_actions
+            .iter()
+            .find(|a| a.action == PortAction::Install)
+            .unwrap();
+        assert_eq!(managed.availability, PortActionAvailability::Held);
+        assert_eq!(
+            managed.definition.unwrap().reason,
+            crate::DefinitionEligibilityReason::PublisherRevoked
+        );
+        assert!(
+            before
+                .actions
+                .iter()
+                .any(|a| a.action == crate::ListingAction::AttachExisting && a.allowed)
+        );
+        let refusal = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(service.plan_install(id, None))
+            .unwrap_err();
+        assert_eq!(refusal.details["definition_reason"], "publisher_revoked");
+        let working = temporary.path().join("explicitly-selected-copy");
+        fs::create_dir(&working).unwrap();
+        let executable = crate::test_fixture::build_probe(&working);
+        fs::write(working.join("player-save.dat"), b"retained player save").unwrap();
+        let executable_before = fs::read(&executable).unwrap();
+        let arguments = vec![
+            "--record".into(),
+            "route-proof".into(),
+            "explicit existing copy".into(),
+        ];
+        let preview = service
+            .preview_user_selected_runtime(id, &executable, &working, &arguments)
+            .unwrap();
+        let authorization = service
+            .authorize_user_selected_runtime(
+                id,
+                &executable,
+                &working,
+                &arguments,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let record = service
+            .register_user_selected_runtime(
+                id,
+                &executable,
+                &working,
+                &arguments,
+                &authorization.token,
+            )
+            .unwrap();
+        assert!(record.user_selected.is_some());
+        assert!(record.retained_definition.is_none());
+        let report = service.port_capabilities(id).unwrap();
+        assert_eq!(
+            report.routes.last().unwrap().install_id.as_deref(),
+            Some(record.id.as_str())
+        );
+        assert!(
+            service
+                .supervise_launch(id, None, &[], LaunchStdio::Null, |_| {})
+                .unwrap()
+                .successful
+        );
+        assert_eq!(
+            fs::read_to_string(working.join("route-proof")).unwrap(),
+            "explicit existing copy"
+        );
+        assert_eq!(fs::read(&executable).unwrap(), executable_before);
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"retained player save"
+        );
+        assert_eq!(
+            serde_json::to_value(service.catalog.port(id).unwrap()).unwrap(),
+            original
+        );
+        assert!(service.status(id).unwrap().active.is_none());
     }
 
     fn assert_catalog_contract_retention(retained_format: u32) {

@@ -3,10 +3,10 @@
   "listing": {
     "id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
     "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
-    "summary": "Attach an independently permitted, prepared SpaceRanger Windows player for your own Toy Story 2 N64 USA Rev0 ROM. Keep the complete portable spaceranger-config tree; byte-order normalization, title-specific frontend patches and unqualified save/gameplay behavior remain explicit.",
+    "summary": "Play the Nintendo 64 version of Toy Story 2 with widescreen rendering and smoother motion.",
     "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
     "project_url": "https://github.com/Capridog/SpaceRanger",
-    "platforms": ["windows-x86-64"],
+    "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Capridog/SpaceRanger",
     "issue_number": 2618,
@@ -15,31 +15,16 @@
       "steps": [
         {
           "title": "Prepare the exact USA Rev0 source",
-          "instruction": "Use a complete player and components you are independently permitted to use, with your own Toy Story 2: Buzz Lightyear to the Rescue N64 USA Rev0 ROM. The selected game registration checks normalized ROM bytes with XXH3-64 FD53C5EC8CE2530A; this is the actual revision-matching digest, not a SHA1, ownership test or package signature. The pinned runtime normalizes supported .z64/.v64/.n64 byte orders first. Other regions, revisions and console editions remain unsupported. Finish Load ROM upstream before attachment and retain the independent original."
-        },
-        {
-          "title": "Keep the complete Windows player",
-          "instruction": "The inspected official 0.1.0 ZIP contains SpaceRanger/SpaceRanger.exe as an AMD64 native player with matching libraries and assets. Keep the full SpaceRanger folder. Its source combines recompiled game code with title-specific runtime/frontend bridges and RT64; a source build regenerating private game code is a separate route. Do not select a ROM, build script, overlay diagnostic or another title’s player. This guide obtains or executes no original, helper, compiler or game."
-        },
-        {
-          "title": "Add the player that opens the title screen",
-          "instruction": "Select SpaceRanger.exe, use the complete extracted SpaceRanger directory as working directory and leave arguments empty. Review the intent and request Play separately, then use the upstream Start Game option with the already validated ROM. The normal native entry sets its directory, initializes the UI and runs the linked runtime in process. Asset checks, overlay checks, input replay and TS2_AUTOSTART are different diagnostic paths; this guide enables none. Complete missing data/setup outside the attached attempt."
-        },
-        {
-          "title": "Preserve the whole portable tree",
-          "instruction": "Keep spaceranger-config beside SpaceRanger.exe, including its validated ROM copy, settings and any existing player data, plus assets, logs and previously established external paths. The source explicitly registers that portable root and declares no cartridge save type; neither that declaration nor a directory’s presence establishes real game-save, Controller Pak or restore support. Upstream’s FAQ reset deletes the whole spaceranger-config folder to reselect a ROM: retain complete independent recovery copies before any upstream reset, and do not treat registration removal as such a reset. This guide performs no deletion, migration, backup or save conversion."
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own Toy Story 2: Buzz Lightyear to the Rescue N64 USA Rev0 ROM. The selected game registration checks normalized ROM bytes with XXH3-64 FD53C5EC8CE2530A; this is the actual revision-matching digest, not a SHA1, ownership test or package signature. The pinned runtime normalizes supported .z64/.v64/.n64 byte orders first. Other regions, revisions and console editions remain unsupported. For a prepared copy, finish Load ROM upstream before attachment and retain the independent original."
         },
         {
           "title": "Keep exact dependency and font terms",
-          "instruction": "Retain the project LGPLv3 notice and each runtime/renderer/frontend/component notice. The dependency manifest identifies official RecompFrontend base b1a1477c6556aeb7ed45defbfb5924f721efebc1, covered by the existing unchanged-base license follow-up, plus this title’s separate authored patch; the base grant does not license unrelated forks or original Disney/Pixar game data. Keep the Inter, Noto Emoji, PromptFont, renamed Fredoka and Bungee OFL notices and credits. Use only components you are independently permitted to use; source bindings are not binary reproducibility or a broader permission grant."
-        },
-        {
-          "title": "Maintain the external beta and its limits",
-          "instruction": "Quit the actual game normally before upstream replacement or ROM/config operations. Preserve recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream records a possible band on Buzz, incomplete interpolation and pacing tested mainly on one PC; all-level testing and Linux support remain planned. No native/installed, campaign, save/reload or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+          "instruction": "Retain the project GPLv3 notice and each runtime/renderer/frontend/component notice. The dependency manifest identifies official RecompFrontend base b1a1477c6556aeb7ed45defbfb5924f721efebc1, covered by the existing unchanged-base license follow-up, plus this title’s separate authored patch; the base grant does not license unrelated forks or original Disney/Pixar game data. Keep the Inter, Noto Emoji, PromptFont, renamed Fredoka and Bungee OFL notices and credits. Use only components you are independently permitted to use; source bindings are not binary reproducibility or a broader permission grant."
         }
       ],
       "warnings": [
-        "Keep spaceranger-config intact; it includes the validated ROM and settings/player data. USA Rev0 matching and static Windows observations do not qualify saves, all levels or another platform."
+        "Back up spaceranger-config before using the upstream reset procedure. Resetting the folder to reselect a ROM also removes settings and any Controller Pak data.",
+        "Quit the game normally before updating or moving profile files. The upstream preview reports incomplete interpolation and frame pacing tested mainly on one PC."
       ]
     }
   },
@@ -54,5 +39,46 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "woodys-workshop/SpaceRanger",
+      "asset_hints": {
+        "windows-x86-64": ["SpaceRanger-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["SpaceRanger.exe"]
+    },
+    "persistent_paths": ["spaceranger-config"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed"
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the complete spaceranger-config folder beside SpaceRanger.exe, including the validated ROM copy, settings, Controller Pak and its recovery siblings"
+      ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Choose your own USA Rev0 original on first Play",
+        "instruction": "Choose Load ROM in the SpaceRanger title screen. The player verifies and stores a private copy in spaceranger-config. Keep your independent original and use Start Game in the same player."
+      },
+      "warnings": [
+        "This is a preview. Keep the portable profile and its Controller Pak recovery files backed up before updating. The managed backup includes the ROM copy and is for your own recovery. Real saves and all-level compatibility remain unverified."
+      ]
+    }
   }
 }

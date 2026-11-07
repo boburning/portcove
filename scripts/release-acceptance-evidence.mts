@@ -1,25 +1,35 @@
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { localDeveloperCredential, verifyGitHubAttestation } from "./github-cli.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  coordinatorCommandDeadline,
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
+import type { GitHubCredential } from "./github-client.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { loadPackagePolicy } from "./release-package-policy.mts";
 import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 
+const reviewedSyftProducer = "Tool: syft-1.56.0";
 const repository = "boburning/portcove";
 const workflow = ".github/workflows/release.yml";
 export const releaseSpdxPredicateType = "https://spdx.dev/Document/v2.3";
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
-type Spawn = NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+type Evidence = Awaited<ReturnType<typeof collectReleaseRunEvidence>>;
 const verifiedSbomDocuments = new WeakMap<
   object,
   {
@@ -87,7 +97,10 @@ export function inspectReleaseSpdx(value: unknown) {
     value.creationInfo.creators.length > 32 ||
     // Retain previously admitted evidence alongside the current workflow producer.
     !value.creationInfo.creators.some(
-      (creator) => creator === "Tool: syft-1.54.1" || creator === "Tool: syft-1.55.0",
+      (creator) =>
+        creator === "Tool: syft-1.54.1" ||
+        creator === "Tool: syft-1.55.0" ||
+        creator === reviewedSyftProducer,
     ) ||
     !Array.isArray(value.packages) ||
     value.packages.length < 1 ||
@@ -223,10 +236,14 @@ export async function collectReleaseSbomEvidence(
   rawAssembly: unknown,
   evidence: Evidence,
   options: {
-    download?: typeof readGitHubArtifactArchive | undefined;
-    spawn?: Spawn;
+    download?: SigningArchiveDownload | undefined;
+    spawn?: RetainedGitHubSpawn | undefined;
     maximumArchiveBytes?: number;
     preparedNamespace?: string;
+    deadline?: number;
+    credential?: GitHubCredential;
+    fetch?: typeof globalThis.fetch;
+    lookup?: NonNullable<Parameters<typeof downloadGitHubArtifactArchiveFile>[2]["lookup"]>;
   } = {},
 ) {
   const { accepted } = await inspectTrustedAssemblyInput(rawAssembly);
@@ -287,10 +304,53 @@ export async function collectReleaseSbomEvidence(
     artifact.bytes > maximumArchiveBytes
   )
     throw new Error("SBOM final archive is unavailable or exceeds its bound");
-  const bytes = (options.download ?? readGitHubArtifactArchive)(
-    `repos/${repository}/actions/artifacts/${artifact.id}/zip`,
-    { cwd: privateRoot, maxBytes: artifact.bytes, timeoutMs: 120000 },
-  );
+  const endpoint = `repos/${repository}/actions/artifacts/${artifact.id}/zip`;
+  let bytes: Buffer;
+  if (options.download) {
+    const timeoutMs = Math.floor(
+      Math.min(120000, (options.deadline ?? Infinity) - performance.now()),
+    );
+    if (timeoutMs < 1) throw new Error("SBOM archive acquisition deadline exhausted");
+    bytes = await options.download(endpoint, {
+      cwd: privateRoot,
+      maxBytes: artifact.bytes,
+      timeoutMs,
+      ...(options.lookup ? { lookup: options.lookup } : {}),
+    });
+  } else {
+    const deadline = Math.min(
+      options.deadline ?? Infinity,
+      coordinatorCommandDeadline() ?? Infinity,
+      performance.now() + 120000,
+    );
+    const scoped = readOnlyReleaseChildEnvironment();
+    const credential =
+      options.credential ??
+      (scoped
+        ? { kind: "explicit", token: scoped.GH_TOKEN ?? "" }
+        : localDeveloperCredential({ deadline }));
+    const scratch = await mkdtemp(path.join(privateRoot, "release-spdx-download-"));
+    try {
+      await downloadGitHubArtifactArchiveFile(endpoint, path.join(scratch, "artifact.zip"), {
+        credential,
+        deadline,
+        maxBytes: artifact.bytes,
+        ...(options.lookup ? { lookup: options.lookup } : {}),
+        ...(scoped || options.fetch
+          ? {
+              fetch(input, init) {
+                if (scoped) assertTrustedDirectNode("release SPDX archive");
+                return (options.fetch ?? globalThis.fetch)(input, init);
+              },
+            }
+          : {}),
+      });
+      bytes = await readControllerToolFile(path.join(scratch, "artifact.zip"), artifact.bytes);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    if (performance.now() >= deadline) throw new Error("SBOM final archive deadline exhausted");
+  }
   if (bytes.length !== artifact.bytes || sha256(bytes) !== artifact.archive_sha256)
     throw new Error("SBOM final archive bytes differ from provider identity");
   const packages = accepted.files.filter(
@@ -349,49 +409,50 @@ export async function collectReleaseSbomEvidence(
   });
   const document: unknown = JSON.parse(retained.get("Portcove-SBOM.spdx.json")!.toString("utf8"));
   inspectReleaseSpdx(document);
-  const runner = createGitHubRunner({
-    cwd: directory,
-    maxBuffer: 32 * 1024 * 1024,
-    timeoutMs: 60000,
-    spawn:
-      options.spawn ??
-      ((command, args, settings) =>
-        spawnSync(command, args, {
-          ...settings,
-          env: { ...process.env, GH_HOST: "github.com" },
-        })),
-  });
   const ref = selectedDispatch
     ? `refs/tags/${options.preparedNamespace}-prepared/v${accepted.version}`
     : `refs/tags/v${accepted.version}`;
-  const raw: unknown = JSON.parse(
-    runner([
-      "attestation",
-      "verify",
-      filename,
-      "--hostname",
-      "github.com",
-      "--repo",
-      repository,
-      "--signer-workflow",
-      `${repository}/${workflow}`,
-      "--signer-digest",
-      accepted.source_commit,
-      "--source-digest",
-      accepted.source_commit,
-      "--source-ref",
-      ref,
-      "--cert-oidc-issuer",
-      "https://token.actions.githubusercontent.com",
-      "--deny-self-hosted-runners",
-      "--predicate-type",
-      releaseSpdxPredicateType,
-      "--limit",
-      "5",
-      "--format",
-      "json",
-    ]),
-  );
+  let verified: string;
+  try {
+    verified = verifyGitHubAttestation(
+      [
+        "attestation",
+        "verify",
+        filename,
+        "--hostname",
+        "github.com",
+        "--repo",
+        repository,
+        "--signer-workflow",
+        `${repository}/${workflow}`,
+        "--signer-digest",
+        accepted.source_commit,
+        "--source-digest",
+        accepted.source_commit,
+        "--source-ref",
+        ref,
+        "--cert-oidc-issuer",
+        "https://token.actions.githubusercontent.com",
+        "--deny-self-hosted-runners",
+        "--predicate-type",
+        releaseSpdxPredicateType,
+        "--limit",
+        "5",
+        "--format",
+        "json",
+      ],
+      {
+        cwd: directory,
+        timeoutMs: coordinatorCommandTimeout(60000),
+        maxBytes: 32 * 1024 * 1024,
+        environment: readOnlyReleaseChildEnvironment() ?? { ...process.env, GH_HOST: "github.com" },
+        ...(options.spawn ? { spawn: options.spawn } : {}),
+      },
+    );
+  } finally {
+    checkCoordinatorDeadline();
+  }
+  const raw: unknown = JSON.parse(verified);
   await writeFile(path.join(directory, "verification.json"), `${JSON.stringify(raw)}\n`, {
     flag: "wx",
     mode: 0o600,
@@ -406,7 +467,8 @@ export async function collectReleaseSbomEvidence(
   });
   const receipt = {
     state: "verified-document" as const,
-    evidence_scope: options.spawn || options.download ? "injected-provider" : "github.com",
+    evidence_scope:
+      options.spawn || options.download || options.fetch ? "injected-provider" : "github.com",
     artifact: structuredClone(artifact),
     observed_attester_job: structuredClone(attesterJobs[0]),
     certificate_job_binding:

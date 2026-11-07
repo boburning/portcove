@@ -8,7 +8,7 @@ import { desktopApi } from "../api";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import type { Perform, PerformOptions } from "../features/operations/use-operation-state";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
-import { portStatus } from "../test-fixtures";
+import { portDefinition, portStatus } from "../test-fixtures";
 import type {
   CatalogDownloadCandidate,
   CatalogDownloadCandidates,
@@ -1325,5 +1325,190 @@ it("keeps authored save warnings visible before reviewing a download", async () 
   await expect.element(warning).toBeVisible();
   expect(warning.element().closest("details")).toBeNull();
   expect(warning.element().closest("ol")).toBeNull();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("uses only explicit listing guidance inside non-owning download and executable selection", async () => {
+  const managed: ReturnType<typeof portDefinition> = {
+    ...portDefinition(),
+    id: listing.id,
+    presentation: {
+      installation_method: "portable-package",
+      saves_and_settings: "portcove-managed",
+      source_requirements: [],
+      manual_setup: {
+        steps: [
+          {
+            title: "Managed instructions",
+            instruction: "MANAGED CONTRACT MUST STAY IN MANAGED DETAILS",
+          },
+        ],
+        warnings: [],
+      },
+    },
+  };
+  const listed = {
+    ...listing,
+    manual_setup: {
+      steps: [
+        {
+          title: "Upstream instructions",
+          instruction: "Prepare the external copy using its official guide.",
+        },
+      ],
+      warnings: ["Protect external saves yourself."],
+    },
+  };
+  const status = { ...portStatus(), port_id: listing.id };
+  const ownEntry = {
+    ...managed,
+    definition: managed,
+    listing: listed,
+    listingStatus: {
+      port_id: listing.id,
+      status,
+      actions: [{ action: "attach-existing" as const, allowed: true }],
+    },
+  };
+  await root.rerender(
+    <SelfServiceSetup
+      entry={ownEntry}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Use an existing installation", exact: true }))
+    .toBeEnabled();
+  await click("Use an existing installation");
+  await expect
+    .element(page.getByRole("heading", { name: "Use your existing installation" }))
+    .toBeVisible();
+  expect(document.body.textContent).not.toContain("MANAGED CONTRACT MUST STAY IN MANAGED DETAILS");
+  expect(document.body.textContent).toContain(
+    "Prepare the external copy using its official guide.",
+  );
+  expect(managed.presentation?.manual_setup?.steps[0]?.instruction).toBe(
+    "MANAGED CONTRACT MUST STAY IN MANAGED DETAILS",
+  );
+  const withoutGuide: PortListing = { ...listed };
+  delete withoutGuide.manual_setup;
+  await root.rerender(
+    <SelfServiceSetup
+      entry={{ ...ownEntry, listing: withoutGuide }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  expect(document.body.textContent).not.toContain("MANAGED CONTRACT MUST STAY IN MANAGED DETAILS");
+});
+
+it("separates stable update navigation, selected-package notes and historical setup evidence", async () => {
+  const historical = `${listing.project_url}/blob/v0.9/README.md`;
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    upstream_url: `${listing.project_url}/releases/tag/v0.9`,
+  });
+  await root.rerender(
+    <ListingDetailPanel
+      entry={{
+        ...entry,
+        listing: {
+          ...listing,
+          release_url: `${listing.project_url}/releases/tag/v0.9`,
+          setup_url: historical,
+        },
+      }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+      close={vi.fn()}
+    />,
+  );
+  await expect
+    .element(page.getByRole("link", { name: "Upstream releases", exact: true }))
+    .toHaveAttribute("href", `${listing.project_url}/releases`);
+  await expect
+    .element(page.getByRole("link", { name: "Setup instructions", exact: true }))
+    .toHaveAttribute("href", historical);
+  await expect
+    .element(page.getByRole("link", { name: "View upstream releases", exact: true }))
+    .toHaveAttribute("href", `${listing.project_url}/releases`);
+  await click("Change download options");
+  await expect
+    .element(page.getByRole("link", { name: "Release notes and requirements", exact: true }))
+    .toHaveAttribute("href", artifact.release_url);
+});
+
+it("renders accepted GitLab listing observations through the shared descriptive detail", async () => {
+  const observedAt = new Date().toISOString();
+  const observedListing: PortListing = {
+    ...listing,
+    project_url: "https://gitlab.com/example/subgroup/game",
+    release_url: "https://gitlab.com/example/subgroup/game/-/releases",
+    download_asset_hints: { "windows-x86-64": ["windows", "x64"] },
+    upstream_observation: {
+      provider: "gitlab",
+      repository: "example/subgroup/game",
+      repository_id: 7,
+      status: "complete",
+      attempted_at: observedAt,
+      observed_at: observedAt,
+      fresh_until: new Date(Date.now() + 3600000).toISOString(),
+      facts_sha256: "a".repeat(64),
+      release_limit: 4,
+      releases: [
+        {
+          id: { provider: "gitlab", project_id: 7, tag: "v1" },
+          version: "v1",
+          release_url: "https://gitlab.com/example/subgroup/game/-/releases/v1",
+          published_at: "2026-10-26T00:00:00Z",
+          provider_prerelease: false,
+          assets_complete: true,
+          assets: [
+            {
+              id: 21,
+              name: "game-windows-x64.zip",
+              url: "https://gitlab.com/api/v4/projects/7/packages/generic/game/1/game-windows-x64.zip",
+              size: 42,
+              sha256: "b".repeat(64),
+              platform_hints: ["windows-x86-64"],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  await root.rerender(
+    <ListingDetailPanel
+      entry={{ ...entry, listing: observedListing }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+      close={vi.fn()}
+    />,
+  );
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  const evidence = page.getByRole("region", {
+    name: "Project information and checks",
+    exact: true,
+  });
+  await evidence
+    .getByText("Project status and compatibility qualifications", { exact: true })
+    .click();
+  await expect
+    .element(evidence.getByText("Package candidates observed", { exact: true }))
+    .toBeVisible();
+  await evidence.getByText("Release window and package candidates", { exact: true }).click();
+  await expect
+    .element(evidence.getByRole("link", { name: "v1", exact: true }))
+    .toHaveAttribute("href", "https://gitlab.com/example/subgroup/game/-/releases/v1");
+  await expect.element(evidence.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });

@@ -1,3 +1,4 @@
+import { ExternalLink } from "../../components/ExternalLink";
 import { SettingsRow } from "../../components/ui/patterns";
 import { useEffect, useRef, useState, type SetStateAction } from "react";
 import { desktopApi } from "../../api";
@@ -199,12 +200,22 @@ function applicationUpdateApplyCopy(status: ApplicationUpdateStatus) {
     return copy;
   }
 
+  const terminationCopy = {
+    "normal-exit": "Portcove closed normally.",
+    "restart-to-apply": "Portcove closed to apply the update.",
+    crash: "Portcove closed unexpectedly.",
+    "os-shutdown": "The computer shut down.",
+    "steam-stop": "Steam stopped Portcove.",
+  };
   return {
-    title:
-      apply.request === "restart-to-apply" ? "Restart request saved" : "Safe-exit request saved",
+    title: apply.termination
+      ? "Installer start unconfirmed"
+      : apply.request === "restart-to-apply"
+        ? "Update requested. Waiting for Portcove to restart."
+        : "Update requested. Waiting for Portcove to close.",
     description: apply.termination
-      ? `Portcove recorded ${apply.termination.replaceAll("-", " ")}. The installer has not been confirmed to start.`
-      : "The request is saved. The installer has not started; Portcove checks installation conditions again before replacing the app.",
+      ? `${terminationCopy[apply.termination] ?? "Portcove couldn’t confirm how the app closed."} Refresh update status before trying again.`
+      : "Portcove checks that it can safely install the update before replacing the app.",
   };
 }
 
@@ -274,14 +285,27 @@ function installRestrictionCopy(status: ApplicationUpdateStatus) {
     case "package-managed-rpm":
       return "This RPM installation is managed by its package manager. Update it through the same package source.";
     case "not-configured":
-      return "Application updating is not configured in this build. Use the documented manual recovery path.";
+      return "This build cannot update itself. Follow the manual upgrade instructions for your package.";
     case "unavailable":
-      return "This installation cannot use Portcove's built-in updater. Use a supported package or the documented manual recovery path.";
+      return "This installation cannot update itself. Follow the manual upgrade instructions for your package.";
     case "eligible":
       return status.recovery_required.some(({ area }) => area === "apply")
         ? "Repair the pending update request before trying again."
         : "Review the pending request or installer result below before another restart.";
   }
+}
+
+function ManualUpgradeLink({
+  eligibility,
+}: {
+  eligibility: ApplicationUpdateStatus["install_eligibility"];
+}) {
+  if (eligibility !== "not-configured" && eligibility !== "unavailable") return null;
+  return (
+    <ExternalLink href="https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove">
+      Manual upgrade and recovery instructions
+    </ExternalLink>
+  );
 }
 
 function StagedApplicationUpdateItem({
@@ -312,6 +336,7 @@ function StagedApplicationUpdateItem({
             ? " Restart to update will check package ownership and other installation requirements again."
             : ` ${installRestrictionCopy(status)}`}
       </p>
+      <ManualUpgradeLink eligibility={status.install_eligibility} />
       {canRestart && (
         <Button
           data-focusable
@@ -395,9 +420,10 @@ function ApplicationUpdateStatusPanel({
       {status && (
         <>
           {!status.staged && status.install_eligibility !== "eligible" && (
-            <p className={`${updateSurfaceClass} ${updateMutedCopyClass}`}>
-              {installRestrictionCopy(status)}
-            </p>
+            <div className={`${updateSurfaceClass} ${updateMutedCopyClass}`}>
+              <p>{installRestrictionCopy(status)}</p>
+              <ManualUpgradeLink eligibility={status.install_eligibility} />
+            </div>
           )}
           <ApplicationUpdateRecoveryItems
             recoveries={status.recovery_required}

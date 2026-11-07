@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { collectReleaseSourceChanges, netTreeDeltaScope } from "./release-source-changes.mts";
+import { createCompilerSourceReader } from "./release-compiler-source.mts";
+import {
+  collectReleaseSourceChanges,
+  collectReleaseSourceChangesWithSdk,
+  netTreeDeltaScope,
+  releaseSourceChangeRequests,
+} from "./release-source-changes.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import { sourceFixtureCommit } from "./fixtures/release-source-fixture.mts";
 import { execFileSync } from "node:child_process";
@@ -22,6 +28,38 @@ void test("complete source comparison uses reconstructed trees rather than GitHu
   assert.equal(api_requests, 5);
   assert.equal(authority, "none");
   assert.match(qualification, /no semantic classification/u);
+});
+
+void test("scoped SDK source comparison returns the same exact raw-tree evidence", async (t) => {
+  const f = releaseSourceFixture();
+  const calls: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-source-comparison");
+      calls.push(url.href);
+      const result = f.api.request("GET", url.pathname.slice(1) + url.search);
+      return Response.json(result.body, {
+        status: result.status ?? 200,
+        headers: new Headers([...result.headers]),
+      });
+    },
+  );
+  const result = await collectReleaseSourceChangesWithSdk(
+    {
+      token: "inert-source-comparison",
+      deadline: performance.now() + 5000,
+      guard() {},
+    },
+    f.opportunity,
+  );
+  assert.deepEqual(result, collectReleaseSourceChanges(f.api, f.opportunity));
+  assert.equal(calls.length, 5);
 });
 
 void test("retained public signed GitHub commit preserves non-UTC offsets and terminal signature folding only under its exact raw hash", async () => {
@@ -120,6 +158,52 @@ void test("a real pagination boundary retains all source ancestors without using
   assert.equal(result.commits.length, 101);
   assert.equal(result.change_set_sha256, f.expectedHash);
   assert.equal(f.calls.filter((call) => call.includes("page=2")).length, 1);
+});
+
+void test("locked SDK source requests follow only the fixed numeric repository alias", async (t) => {
+  let fixture = releaseSourceFixture(101);
+  let repositoryId = 1354613114;
+  const seen: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.headers.get("authorization"), "token exact-release-source");
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      seen.push(url.pathname);
+      const mapped = request.url.replace("/repositories/1354613114/", "/repos/boburning/portcove/");
+      const response = fixture.api.request(request.method, mapped);
+      const link = response.headers.get("link");
+      return Response.json(response.body, {
+        headers: link
+          ? { link: link.replace("/repos/boburning/portcove/", `/repositories/${repositoryId}/`) }
+          : {},
+      });
+    },
+  );
+  const run = async () => {
+    const deadline = performance.now() + 5_000;
+    const read = await createCompilerSourceReader({
+      credential: { kind: "explicit", token: "exact-release-source" },
+      deadline,
+      maxBytes: 4 * 1024 * 1024,
+    });
+    const requests = releaseSourceChangeRequests(fixture.opportunity, { deadline });
+    let step = requests.next();
+    while (!step.done) step = requests.next(await read(step.value.endpoint, step.value.deadline));
+    return step.value;
+  };
+  const result = await run();
+  assert.equal(result.commits.length, 101);
+  assert.equal(result.change_set_sha256, fixture.expectedHash);
+  assert.ok(seen.some((route) => route.startsWith("/repositories/1354613114/compare/")));
+  repositoryId++;
+  fixture = releaseSourceFixture(101);
+  seen.length = 0;
+  await assert.rejects(run(), /escaped its fixed comparison/u);
+  assert.equal(seen.length, 3);
 });
 
 void test("complete accumulated history reaches the finite 2048-commit boundary and refuses overflow", () => {

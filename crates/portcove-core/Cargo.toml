@@ -7,6 +7,14 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+# The service test modules include these generated wrappers with include!().
+# Keep their existing test names and inventory while Shear scans normal modules.
+[package.metadata.cargo-shear]
+ignored-paths = [
+  "src/testdata/managed-route-tests.generated.rs",
+  "src/testdata/prepared-route-tests.generated.rs",
+]
+
 [features]
 qualification-fixtures = []
 
@@ -27,16 +35,19 @@ flate2.workspace = true
 futures-util.workspace = true
 fs2.workspace = true
 hex.workspace = true
+http.workspace = true
 icu_casemap.workspace = true
 icu_properties.workspace = true
 image.workspace = true
 keyring.workspace = true
+octocrab.workspace = true
 reqwest.workspace = true
 rusqlite.workspace = true
 schemars.workspace = true
 same-file.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_urlencoded.workspace = true
 sevenz-turbo.workspace = true
 sha1.workspace = true
 sha2.workspace = true
@@ -65,3 +76,7 @@ jiff = "0.2.39"
 proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
 filetime.workspace = true
 tempfile.workspace = true
+
+[[example]]
+name = "portable_lifecycle"
+test = true

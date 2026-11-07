@@ -1,6 +1,9 @@
 import { resourceEntrypoint } from "./resource-command.mts";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { statSync } from "node:fs";
+import { resolvePhysicalPath } from "./dev-storage.mts";
+import { runCheckedGit } from "./checked-git.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
 import { retainFrontendCoverageMaps } from "./coverage-maps.mts";
 import { readCoveragePacket, frontendCoverageOptions } from "./test-coverage-config.mts";
@@ -9,21 +12,30 @@ import {
   reconcileUiSelection,
   allowedUiSkippedFiles,
   uiShuffleSeed,
+  failedUiSpecifications,
 } from "./ui-test-selection.mts";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const mode = process.argv[2];
 if (mode !== "exact" && mode !== "related" && mode !== "shuffled")
   throw new Error(
-    "Usage: run-ui-tests.mts exact|related <literal files>... | shuffled <seed> <literal test files>...",
+    "Usage: run-ui-tests.mts exact [--last-failed] <literal files>... | exact --last-failed | related <literal files>... | shuffled <seed> <literal test files>...",
   );
 // Validate the entire request before importing/initializing the runner.
+const lastFailed = mode === "exact" && process.argv[3] === "--last-failed";
+if (
+  lastFailed &&
+  (process.env.GITHUB_ACTIONS === "true" ||
+    (process.env.CI && process.env.CI !== "false" && process.env.CI !== "0") ||
+    process.env.PORTCOVE_UI_COVERAGE_PACKET)
+)
+  throw new Error("Failed-test feedback cannot satisfy CI or coverage acceptance; use a full run");
 const seed = mode === "shuffled" ? uiShuffleSeed(process.argv[3]) : undefined;
 const selectionMode = mode === "related" ? "related" : "exact";
-const files = resolveUiSelection(
-  process.argv.slice(mode === "shuffled" ? 4 : 3),
-  path.join(root, "apps/desktop"),
-  selectionMode,
-);
+const requestedFiles = process.argv.slice(mode === "shuffled" || lastFailed ? 4 : 3);
+const files =
+  lastFailed && !requestedFiles.length
+    ? []
+    : resolveUiSelection(requestedFiles, path.join(root, "apps/desktop"), selectionMode);
 if (mode === "shuffled" && files.length > 16)
   throw new Error("Shuffled UI diagnostics accept at most 16 literal test files");
 if (seed !== undefined)
@@ -57,12 +69,65 @@ process.exitCode = await resourceEntrypoint("browser", async () => {
     const specifications = await metrics.measureAsync("ui-specification-selection", async () => {
       if (selectionMode === "exact") {
         const expected = new Set(files.map(key));
-        const selected = (await runner.globTestSpecifications()).filter((specification) =>
-          expected.has(key(specification.moduleId)),
+        const selected = (await runner.globTestSpecifications()).filter(
+          (specification) =>
+            (lastFailed && !files.length) || expected.has(key(specification.moduleId)),
         );
         const discovered = selected.map((specification) => key(specification.moduleId));
-        if (discovered.length !== expected.size || new Set(discovered).size !== expected.size)
+        if (
+          !(lastFailed && !files.length) &&
+          (discovered.length !== expected.size || new Set(discovered).size !== expected.size)
+        )
           throw new Error("Requested UI files have missing or duplicate project specifications");
+        if (lastFailed) {
+          let replay = selected;
+          try {
+            const relative = path.relative(
+              resolvePhysicalPath(root),
+              resolvePhysicalPath(runner.viteConfig.cacheDir),
+            );
+            if (
+              !relative ||
+              path.isAbsolute(relative) ||
+              relative === ".." ||
+              relative.startsWith(`..${path.sep}`)
+            )
+              throw new Error("Failed-test cache is not physically checkout-local");
+            const headLog = runCheckedGit(
+              ["rev-parse", "--path-format=absolute", "--git-path", "logs/HEAD"],
+              { cwd: root },
+            ).trim();
+            const authorityFiles = new Set([
+              headLog,
+              ...[
+                ".node-version",
+                "package.json",
+                "pnpm-workspace.yaml",
+                "pnpm-lock.yaml",
+                "apps/desktop/package.json",
+              ].map((file) => path.join(root, file)),
+              ...runner.viteConfig.configFileDependencies,
+              ...runner.projects.flatMap((project) => project.vite.config.configFileDependencies),
+            ]);
+            const oldestRun = Math.max(
+              Date.now() - 6 * 60 * 60 * 1000,
+              ...[...authorityFiles].map((file) => statSync(file).mtimeMs),
+            );
+            replay = failedUiSpecifications(
+              selected,
+              (spec) => runner.cache.getTestSpecificationResult(spec),
+              oldestRun,
+            );
+          } catch {
+            // Missing Git/config/cache identity leaves the full requested scope.
+          }
+          console.log(
+            replay === selected
+              ? "No complete fresh failed-test history; running the full requested scope."
+              : `Failed-test feedback: replaying ${replay.length} complete files of ${selected.length}; full CI remains required.`,
+          );
+          return replay;
+        }
         return selected;
       }
       const selected = await runner.getRelevantTestSpecifications();
@@ -80,7 +145,7 @@ process.exitCode = await resourceEntrypoint("browser", async () => {
       }
     }
     const expectedFiles =
-      selectionMode === "exact"
+      selectionMode === "exact" && !lastFailed
         ? files
         : specifications.map((specification) => specification.moduleId);
     const result = await metrics.measureAsync("ui-test-execution", () =>

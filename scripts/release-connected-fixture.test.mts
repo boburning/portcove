@@ -595,29 +595,38 @@ void test(
       let created = false,
         writes = 0;
       let providerReads = 0;
-      const provider = {
-        request(method: string, endpoint: string) {
+      const provider: Parameters<typeof readImmutableReleaseState>[0] = {
+        async releases(page) {
+          assert.equal(page, 1);
           providerReads++;
-          assert.equal(method, "GET");
-          const tag = endpoint.includes("/git/ref/tags/");
-          return {
-            status: tag && release.draft ? 404 : 200,
-            headers: new Map<string, string>(),
-            body: tag
-              ? release.draft
-                ? null
-                : {
-                    ref: `refs/tags/v${version}`,
-                    object: { type: "commit", sha: releaseIdentity.source_commit },
-                  }
-              : endpoint.includes("/releases?")
-                ? created
-                  ? [release]
-                  : []
-                : endpoint.includes("/assets?")
-                  ? assets
-                  : release,
-          };
+          return created ? [release] : [];
+        },
+        async versionTag(tag) {
+          assert.equal(tag, `v${version}`);
+          providerReads++;
+          return release.draft
+            ? { kind: "absent" }
+            : {
+                kind: "present",
+                data: {
+                  ref: `refs/tags/v${version}`,
+                  object: { type: "commit", sha: releaseIdentity.source_commit },
+                },
+              };
+        },
+        async annotatedTag() {
+          assert.fail("unexpected annotated tag");
+        },
+        async releaseAssets(id, page) {
+          assert.equal(id, release.id);
+          assert.equal(page, 1);
+          providerReads++;
+          return assets;
+        },
+        async release(id) {
+          assert.equal(id, release.id);
+          providerReads++;
+          return release;
         },
       };
       const transport: typeof fetch = async (_input, options) => {
@@ -648,7 +657,7 @@ void test(
         return new Response(null, { status: options?.method === "PATCH" ? 200 : 201 });
       };
       for (;;) {
-        const actual = readImmutableReleaseState(provider, releaseIdentity);
+        const actual = await readImmutableReleaseState(provider, releaseIdentity);
         const transition = proposeImmutableReleaseTransition(
           releaseIdentity,
           actual.release,

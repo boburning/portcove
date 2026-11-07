@@ -465,7 +465,9 @@ void test("building handoff projects the observed release run into the exact ass
   const fixture = await releasePublicBuildProvenanceFixture(t);
   const { collectReleaseRunEvidence, inspectReleaseEvidenceRequest } =
     await import("./release-run-evidence.mts");
-  const observation = collectReleaseRunEvidence(fixture.expected, { api: fixture.api });
+  const observation = await collectReleaseRunEvidence(fixture.expected, {
+    read: async (endpoint) => fixture.api.request("GET", endpoint),
+  });
   assert.throws(() => inspectReleaseEvidenceRequest(observation));
   const request = aggregateEvidenceRequestFromObservation(observation);
   assert.deepEqual(inspectReleaseEvidenceRequest(request), fixture.expected);

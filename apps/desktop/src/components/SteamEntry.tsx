@@ -616,26 +616,6 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
           <dt>Steam profile</dt>
           <dd>{review.steam_user_id}</dd>
         </div>
-        <div>
-          <dt>Shortcut file</dt>
-          <dd>{review.shortcuts_path}</dd>
-        </div>
-        <div>
-          <dt>Portcove library</dt>
-          <dd>{review.library_root}</dd>
-        </div>
-        <div>
-          <dt>Standalone CLI</dt>
-          <dd>{review.cli_path ?? "Not required for this removal review"}</dd>
-        </div>
-        {review.cli_sha256 && (
-          <div>
-            <dt>CLI identity</dt>
-            <dd>
-              Portcove {review.cli_product_version}; SHA-256 {review.cli_sha256}
-            </dd>
-          </div>
-        )}
       </dl>
       <ul>
         {("selected_games" in review ? (review as SteamBatchReview).selected_games : []).map(
@@ -672,6 +652,31 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
           ? "Remove affects only this Portcove-owned shortcut. It does not uninstall the game, delete saves, or remove unrelated Steam shortcuts and customization."
           : "Add / Repair affects only the selected Portcove-owned shortcuts. It does not uninstall games, delete saves, or remove unrelated Steam shortcuts and customization."}
       </p>
+      <details>
+        <summary data-focusable>Technical details</summary>
+        <dl className="grid gap-3 wrap-anywhere">
+          <div>
+            <dt>Shortcut file</dt>
+            <dd>{review.shortcuts_path}</dd>
+          </div>
+          <div>
+            <dt>Portcove library</dt>
+            <dd>{review.library_root}</dd>
+          </div>
+          <div>
+            <dt>Standalone CLI</dt>
+            <dd>{review.cli_path ?? "Not required for this removal review"}</dd>
+          </div>
+          {review.cli_sha256 && (
+            <div>
+              <dt>CLI identity</dt>
+              <dd>
+                Portcove {review.cli_product_version}; SHA-256 {review.cli_sha256}
+              </dd>
+            </div>
+          )}
+        </dl>
+      </details>
     </section>
   );
 }

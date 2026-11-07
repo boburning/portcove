@@ -155,6 +155,7 @@ pub(crate) fn recover_published_install(
                 .as_ref()
                 .is_some_and(|active| active.id == install.id)
             {
+                crate::managed_runtime_policy::require_managed_activation_available(&install)?;
                 service.recover_managed_route_publication(&install, expected)?;
             } else if status.external_runtime.is_some() {
                 return Err(PortcoveError::conflict(
@@ -168,6 +169,7 @@ pub(crate) fn recover_published_install(
                 .active
                 .is_some_and(|active| active.id == install.id);
             if operation.activate && !already_active {
+                crate::managed_runtime_policy::require_managed_activation_available(&install)?;
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
@@ -443,7 +445,10 @@ pub(crate) fn recover_restore(
     let previous = restore.previous_data.clone();
     if restore.phase == RestorePhase::ReadyToPublish {
         if staged.exists() {
+            service.require_restore_snapshot_authority(operation, &staged)?;
             service.require_psx_restore_preflight(&operation.port_id, &staged)?;
+        } else if user_root.exists() {
+            service.require_restore_snapshot_authority(operation, &user_root)?;
         }
         if restore.replaces_existing_data {
             match (staged.exists(), user_root.exists(), previous.exists()) {
@@ -476,6 +481,7 @@ pub(crate) fn recover_restore(
         restore.phase,
         RestorePhase::Published | RestorePhase::Committed | RestorePhase::CleanupPending
     ) {
+        service.require_restore_snapshot_authority(operation, &user_root)?;
         service.synchronize_restored_user_data(&operation.port_id)?;
     }
     if restore.phase == RestorePhase::Published {
@@ -762,6 +768,7 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
+            crate::managed_runtime_policy::require_managed_activation_available(&install)?;
             service.require_ghostship_install_data_compatibility(
                 &install,
                 status.active.as_ref().map(|active| active.version.as_str()),

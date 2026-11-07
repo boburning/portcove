@@ -842,6 +842,73 @@ void test("logical artwork maintenance crosses 400 IDs, checkpoints interruption
   }
 });
 
+void test("reobserved artwork invalidates an original mapping inherited while its alternative was Gone", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-reobserved-"));
+  try {
+    const gone = await capturedArtworkRefresh();
+    const recovered = await capturedArtworkRefresh({ status: 200 });
+    const identity = {
+      game_id: 102,
+      slug: "original",
+      names: ["Original"],
+      evidence_url: "https://example.org/original",
+    };
+    const mapping = {
+      game_id: 102,
+      game_slug: "original",
+      cover_id: 203,
+      image_id: "coexisting",
+      image_sha256: "b".repeat(64),
+      match_kind: "underlying-game",
+    };
+    const accepted = structuredClone(gone.accepted);
+    accepted.ports.push(
+      { id: "first-original", presentation: { artwork: mapping } },
+      {
+        id: "second-original",
+        presentation: { artwork: { ...mapping, cover_id: 204, image_id: "alternative" } },
+      },
+    );
+    const proposal = {
+      ports: [...accepted.ports, { id: "selected", name: "Selected", underlying_game: identity }],
+    };
+    const refresh = {
+      root: scratch,
+      identities: gone.options.identities,
+      validatorIdentity: null,
+      selectedPortIds: ["refresh-probe"],
+      refreshPortIds: ["refresh-probe"],
+    };
+    const withdrawn = await prepareArtworkWorkset(accepted, {
+      ...refresh,
+      inspector: gone.inspector,
+    });
+    assert.deepEqual(withdrawn.gone_image_ids, ["coexisting"]);
+    const selected = {
+      root: scratch,
+      acceptedCatalog: accepted,
+      identities: {},
+      validatorIdentity: null,
+      selectedPortIds: ["selected"],
+      inspector: { inspectGame: () => [] },
+    };
+    const inherited = await prepareArtworkWorkset(proposal, selected);
+    assert.equal(inherited.records[0]?.reason, "accepted-original-game-reused");
+    assert.equal(inherited.records[0]?.mapping?.image_id, "alternative");
+    const refreshed = await prepareArtworkWorkset(accepted, {
+      ...refresh,
+      inspector: recovered.inspector,
+    });
+    assert.equal(refreshed.records[0]?.mapping?.image_id, "coexisting");
+    const reconsidered = await prepareArtworkWorkset(proposal, selected);
+    assert.equal(reconsidered.continuation.completed_cache_hits, 0);
+    assert.equal(reconsidered.records[0]?.reason, "generated-fallback");
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 void test("partial provider failure retries the unchanged full logical workset without repeating completed IDs", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-recovery-"));
@@ -933,16 +1000,22 @@ void test("automatic due maintenance uses actual retained observation clocks and
   try {
     const first = await prepareArtworkWorkset(fixture.catalog, options);
     assert.equal(first.continuation.complete, true);
+    const ordinary = await prepareArtworkWorkset(fixture.catalog, {
+      ...options,
+      maintenance: false,
+      selectedPortIds: ["scale-0"],
+    });
+    assert.equal(ordinary.continuation.complete, true);
     const current = await prepareArtworkWorkset(fixture.catalog, options);
     assert.deepEqual(current.workset.selected_port_ids, []);
     assert.equal(current.records.length, 2);
     assert.ok(current.catalog.ports.every((port) => port.presentation?.artwork));
     assert.equal(current.workset.carried_port_ids.length, 2);
-    assert.equal(fixture.requests.length, 2);
+    assert.equal(fixture.requests.length, 3);
     time += 29 * 24 * 60 * 60 * 1000;
     const overdue = await prepareArtworkWorkset(fixture.catalog, options);
     assert.equal(overdue.workset.selected_port_ids.length, 2);
-    assert.equal(fixture.requests.length, 4);
+    assert.equal(fixture.requests.length, 5);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

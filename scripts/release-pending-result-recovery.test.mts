@@ -9,11 +9,57 @@ import {
 } from "./release-report-repair-contract.mts";
 import { capacityDigest as digest, inspectCapacityOperation } from "./release-capacity.mts";
 import {
+  acquirePendingResultArchive,
   inspectPendingResultOperation,
   inspectPendingResultProvider,
   inspectPendingResultAssociation,
   readPendingResultArchive,
 } from "./release-pending-result-recovery.mts";
+void test("pending result SDK lookup charges once and transfers only the exact archive anonymously", async (t) => {
+  const f = fixture();
+  const provider = inspectPendingResultProvider(
+    f.run,
+    f.run,
+    f.job,
+    { total_count: 1, artifacts: f.rows },
+    f.operation,
+  );
+  const token = "ghs_pending_result_fixture";
+  const delivery =
+    "https://productionresultssa1.blob.core.windows.net/actions-results/example?sig=fixture";
+  let attempts = 0;
+  let charges = 0;
+  let changed = false;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    attempts++;
+    if (url.origin === "https://api.github.com") {
+      assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/700/zip");
+      assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+      return new Response(null, { status: 302, headers: { location: delivery } });
+    }
+    assert.equal(url.href, delivery);
+    assert.equal(new Headers(init?.headers).has("authorization"), false);
+    const archive = new Uint8Array(f.archive);
+    if (changed) archive[0] = 0;
+    return new Response(archive);
+  });
+  const read = () =>
+    acquirePendingResultArchive(provider, token, performance.now() + 5000, () => {
+      charges++;
+      return () => {
+        charges--;
+      };
+    });
+  assert.deepEqual(await read(), f.archive);
+  assert.equal(charges, 1);
+  assert.equal(attempts, 2);
+  changed = true;
+  await assert.rejects(read(), { code: "ERR_ASSERTION" });
+  assert.equal(charges, 2);
+  assert.equal(attempts, 4);
+});
+
 void test("exact terminal original report custody does not pretend failed publisher supplied an attestation", () => {
   const f = fixture();
   const projection = inspectPendingResultProvider(
@@ -148,7 +194,8 @@ void test("source-bound result continuation settles only the exact positive repo
   const { readFile } = await import("node:fs/promises");
   const { stripTypeScriptTypes } = await import("node:module");
   const { runInNewContext } = await import("node:vm");
-  const { readCompleteRunArtifactInventory } = await import("./release-run-artifact-inventory.mts");
+  const { readCompleteRunArtifactInventoryAsync } =
+    await import("./release-run-artifact-inventory.mts");
   const source = await readFile(
     new URL("./release-candidate-signing-recovery.mts", import.meta.url),
     "utf8",
@@ -176,7 +223,9 @@ void test("source-bound result continuation settles only the exact positive repo
       evidence_sha256: "a".repeat(64),
     },
   };
+  const checkpointControls = async () => {};
   const context = {
+    checkpointControls,
     assert,
     structuredClone,
     digest,
@@ -195,7 +244,8 @@ void test("source-bound result continuation settles only the exact positive repo
     api: {},
     directory: "private",
     deadline: 170000,
-    environment: {},
+    token: "fixture-token",
+    chargeRead: () => () => {},
     base: "repos/boburning/portcove",
     executor: {},
     settled: (op: { outcome: string }) => ["succeeded", "recovered"].includes(op.outcome),
@@ -209,22 +259,44 @@ void test("source-bound result continuation settles only the exact positive repo
       return {};
     },
     inspectPendingResultProvider,
-    readCompleteRunArtifactInventory,
-    get: (endpoint: string) => {
-      if (endpoint.startsWith("git/commits/"))
-        return {
-          sha: f.operation.executor_identity!.controller_revision,
-          tree: { sha: "3".repeat(40) },
-        };
-      if (endpoint.startsWith("actions/jobs/")) return f.job;
-      if (endpoint.includes("/artifacts?")) return { total_count: 1, artifacts: f.rows };
-      return f.run;
+    readCompleteRunArtifactInventoryAsync,
+    metadata: {
+      async commit(sha: string) {
+        assert.equal(sha, f.operation.executor_identity!.controller_revision);
+        return { sha, tree: { sha: "3".repeat(40) } };
+      },
+      async run(id: string) {
+        assert.equal(id, String(f.operation.executor_identity!.run_id));
+        return f.run;
+      },
+      async attempt(id: string, attempt: number) {
+        assert.equal(id, String(f.operation.executor_identity!.run_id));
+        assert.equal(attempt, 1);
+        return f.run;
+      },
+      async job(id: number) {
+        assert.equal(id, f.operation.executor_identity!.job_id);
+        return f.job;
+      },
+      async runArtifacts(id: string, page: number) {
+        assert.equal(id, String(f.operation.executor_identity!.run_id));
+        assert.equal(page, 1);
+        return { total_count: 1, artifacts: f.rows };
+      },
     },
-    readGitHubArtifactArchive: () => {
+    acquirePendingResultArchive: async (
+      provider: ReturnType<typeof inspectPendingResultProvider>,
+      token: string,
+      deadline: number,
+    ) => {
+      assert.equal(provider.artifact.id, 700);
+      assert.equal(token, "fixture-token");
+      assert.equal(deadline, 170000);
       calls.push("GET-original-archive");
       return f.archive;
     },
     signingContextRemaining: () => 15000,
+    readReleaseAsset: async () => Buffer.alloc(0),
     readPendingResultArchive: async () => {
       calls.push("actual-report-context-Release");
       observations++;
@@ -247,7 +319,11 @@ void test("source-bound result continuation settles only the exact positive repo
       _executor: unknown,
       _input: unknown,
       readback: (pending: unknown) => Promise<{ resolution: string }>,
+      beforeMutation: unknown,
+      controls: unknown,
     ) => {
+      assert.equal(beforeMutation, undefined);
+      assert.equal(controls, checkpointControls);
       calls.push("actual-coordinator-readback");
       const value = await readback(
         mode === "wrong-intent" ? { ...f.operation, id: "f".repeat(64) } : f.operation,
@@ -275,6 +351,16 @@ void test("source-bound result continuation settles only the exact positive repo
       );
       calls.push("same-journal-technical-failure");
       return { checkpoint: "d".repeat(40) };
+    },
+    ensureOwnedCheckpointJournalHistory: async (
+      _executor: unknown,
+      _repository: string,
+      checkpoint: string,
+      controls: unknown,
+    ) => {
+      assert.equal(checkpoint, "c".repeat(40));
+      assert.equal(controls, checkpointControls);
+      return false;
     },
     refreshCapacityExecutor: async () => {},
     createCoordinatorJournalApi: () => ({ source: "dedicated-journal" }),

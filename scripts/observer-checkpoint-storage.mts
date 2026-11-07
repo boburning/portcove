@@ -1,4 +1,8 @@
 /** Lossless inert source-checkpoint storage, never observation authority. */
+import { mkdir, open, rm } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { createHash } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { isRecord, errorCode } from "./runtime-values.mts";
@@ -68,4 +72,30 @@ export function encodeStoredObserverCheckpoint(
   };
   requireStorage(now() < deadline, "encode deadline exhausted");
   return Buffer.byteLength(JSON.stringify(stored)) < bytes.length ? stored : value;
+}
+
+/** Never steal an interrupted coordinator's lock; preserve its checkpoint for recovery. */
+export async function withCheckpointLock<T>(
+  statePath: string,
+  operation: () => T | Promise<T>,
+): Promise<T> {
+  const lockPath = await assertOwnedUnlinkedPath(
+    fileURLToPath(new URL("../work", import.meta.url)),
+    `${statePath}.lock`,
+    "observer coordinator lock",
+  );
+  await mkdir(path.dirname(lockPath), { recursive: true });
+  const handle = await open(lockPath, "wx");
+  try {
+    await handle.writeFile(
+      JSON.stringify({
+        pid: process.pid,
+        started_at: new Date().toISOString(),
+      }),
+    );
+    return await operation();
+  } finally {
+    await handle.close();
+    await rm(lockPath);
+  }
 }

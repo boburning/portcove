@@ -329,21 +329,21 @@ it("refreshes descriptive directory data through Core and reloads the workspace"
   const root = createRoot(host);
   try {
     await act(async () => root.render(<CatalogSettings disabled={false} onChanged={changed} />));
-    await page.getByText("Directory updates", { exact: true }).click();
+    await page.getByText("Game listings", { exact: true }).click();
     await page
       .getByRole("textbox", { name: "Catalog metadata address" })
       .fill("https://catalog.example/metadata/");
     await page
       .getByRole("textbox", { name: "Catalog content address" })
       .fill("https://catalog.example/targets/");
-    await page.getByRole("button", { name: "Refresh directory", exact: true }).click();
+    await page.getByRole("button", { name: "Refresh game listings", exact: true }).click();
     await expect.poll(() => changed.mock.calls.length).toBe(1);
     expect(apply).toHaveBeenCalledWith(
       "https://catalog.example/metadata/",
       "https://catalog.example/targets/",
       expect.any(Function),
     );
-    expect(document.body.textContent).toContain("Directory revision 2 · 1 published listings");
+    expect(document.body.textContent).toContain("Game listings revision 2 · 1 published listings");
   } finally {
     await act(async () => root.unmount());
     host.remove();

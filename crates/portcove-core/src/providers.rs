@@ -43,9 +43,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
             return Err(crate::cartridge_build::retired_creation());
         }
         match scope {
-            Some(scope) if port.release.provider == ReleaseSource::Github => {
+            scope if port.release.provider == ReleaseSource::Github => {
                 self.github
-                    .resolve_scoped(port, channel, platform, Some(scope))
+                    .resolve_scoped(port, channel, platform, scope)
                     .await
             }
             Some(_) => Err(PortcoveError::unsupported(
@@ -169,6 +169,8 @@ mod tests {
             executable_hints: BTreeMap::new(),
             persistent_paths: vec![],
             persistent_file_patterns: vec![],
+            archive_data_compatibility_v1: None,
+            archive_data_transition_v1: None,
             runtime_mutable_paths: vec![],
             runtime_mutable_file_patterns: vec![],
             windows_runtime_path_policy: None,
@@ -180,6 +182,7 @@ mod tests {
             runtime_data_policy: None,
             mod_package_policy: None,
             game_settings: None,
+            windows_shipwright_persistence: false,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,

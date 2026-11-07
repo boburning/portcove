@@ -50,7 +50,7 @@
       "references": [
         {
           "title": "Keep your working copy and data before updating",
-          "instruction": "You or upstream manage rebuilding and runtime updates. Close the player and preserve the complete working kit, actual saves/card paths, settings.toml, keybinds.ini, config.ini, mods with their installed packages and state, original discs/BIOS and any custom locations before changing versions. Current default cards, save states and game options live under build-release/saves; customized card or profile paths may be elsewhere. Keep older kits separately: upstream says v0.1.x cards/settings are not carried over, without establishing a safe migration. Do not copy an old generated cache or whole mods tree over a new runtime. Let the first session finish preparing optimized code. If the release’s known intro freeze occurs after early closure, follow its cache-only recovery for build-release/cache with the player closed; preserve saves and the working copy. Portcove does not back up, roll back, replace or delete these external files."
+          "instruction": "Use the project’s tools to rebuild or update this copy. The default cards, save states and options live under build-release/saves. Check your settings for any custom card or profile locations."
         }
       ]
     }

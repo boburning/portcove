@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gamebreaker20xx-fullrumble-ps1-slus01068",
+    "project_url": "https://github.com/GameBreaker20XX/FullRumble",
+    "name": "NASCAR Rumble (Full Rumble)",
+    "summary": "A Windows port of NASCAR Rumble. Set it up with your own original PlayStation disc image.",
+    "issue_number": 4259,
+    "original_game_title": "NASCAR Rumble",
+    "availability": "unknown",
+    "platforms": [],
+    "setup_url": "https://github.com/GameBreaker20XX/FullRumble/blob/1089369f3a05916319524004977314af6a305703/README.md",
+    "manual_setup": {
+      "help_url": "https://github.com/GameBreaker20XX/FullRumble/blob/1089369f3a05916319524004977314af6a305703/README.md",
+      "steps": [
+        {
+          "title": "Prepare your Windows copy",
+          "instruction": "Use Windows x64 with OpenGL 4.5 support. Extract the Windows ZIP into a writable folder. Open FullRumble.exe and choose the disc image from your own USA or Canada PlayStation release (SLUS-01068). The setup accepts CUE/BIN, a supported standalone BIN, or ISO. Wait for the game to finish its local build before adding this copy to Portcove."
+        }
+      ],
+      "warnings": [
+        "Keep your original disc image and the memory-card files. Use the game’s own updater outside a Portcove Play session, then review the changed program in Portcove."
+      ]
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "FullRumble.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "carda.sav, cardb.sav, settings.json and interface.ini in the working folder",
+        "%APPDATA%/FullRumble for setup settings and the generated library",
+        "disc/ beside the program, or %LOCALAPPDATA%/FullRumble/disc if the program folder is not writable"
+      ]
+    }
+  }
+}

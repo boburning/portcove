@@ -11,7 +11,10 @@ import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
 import { hostedNativeProofFixture } from "./fixtures/hosted-native-proof-fixture.mts";
-import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import {
+  checkpointProofFixture,
+  releaseCustodyFetch,
+} from "./fixtures/checkpoint-proof-fixture.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { inspectHostedNativeProofFiles } from "./release-hosted-native-proof-contract.mts";
@@ -25,7 +28,10 @@ import {
   collectHostedWindowsContinuity,
   verifiedHostedWindowsContinuity,
 } from "./release-hosted-native-acceptance.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type {
+  HistoricalJobProvider,
+  HostedNativeSourceProvider,
+} from "./release-custody-provider.mts";
 import { isRecord } from "./runtime-values.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import {
@@ -67,49 +73,61 @@ function fixture(
   };
   const faults = { source: false, workflow: false, harness: false, unavailable: false };
   let reads = 0;
-  const api: GitHubRestReader = {
-    request(method, route) {
+  const custody: HistoricalJobProvider & HostedNativeSourceProvider = {
+    attempt(...args) {
       reads++;
-      assert.equal(method, "GET");
-      if (route.includes("/actions/"))
-        return provider.api.request(
-          method,
-          route.replace(`/actions/jobs/${f.producer.job_id}`, "/actions/jobs/501"),
-        );
-      let body: unknown;
-      if (route.endsWith(`git/commits/${f.report.producer.source_commit}`))
-        body = {
-          sha: f.report.producer.source_commit,
+      return provider.provider.attempt(...args);
+    },
+    jobs(...args) {
+      reads++;
+      return provider.provider.jobs(...args);
+    },
+    job(id) {
+      reads++;
+      return provider.provider.job(id);
+    },
+    async commit(sha) {
+      reads++;
+      if (faults.unavailable) throw new Error("hosted native provider read unavailable");
+      if (sha === f.report.producer.source_commit)
+        return {
+          sha,
           tree: { sha: faults.source ? "e".repeat(40) : f.report.producer.source_tree },
         };
-      else if (route.endsWith(`git/commits/${f.report.candidate.source_commit}`))
-        body = {
-          sha: f.report.candidate.source_commit,
-          tree: { sha: f.report.candidate.source_tree },
-        };
-      else {
-        const harness = route.includes(f.report.producer.harness.path),
-          bytes = harness ? f.sourceFiles.harness : f.sourceFiles.workflow;
-        body = {
-          type: "file",
-          path: harness ? f.report.producer.harness.path : productionControllerWorkflow,
-          encoding: "base64",
-          content:
-            (harness && faults.harness) || (!harness && faults.workflow)
-              ? Buffer.from("changed").toString("base64")
-              : bytes.toString("base64"),
-          size: bytes.length,
-          sha: createHash("sha1")
-            .update(Buffer.from(`blob ${bytes.length}\0`))
-            .update(bytes)
-            .digest("hex"),
-        };
-      }
-      return { status: faults.unavailable ? 503 : 200, headers: new Map(), body };
+      assert.equal(sha, f.report.candidate.source_commit);
+      return { sha, tree: { sha: f.report.candidate.source_tree } };
+    },
+    async file(filename, revision) {
+      reads++;
+      if (faults.unavailable) throw new Error("hosted native provider read unavailable");
+      const harness = filename === f.report.producer.harness.path;
+      assert.equal(
+        filename,
+        harness ? f.report.producer.harness.path : productionControllerWorkflow,
+      );
+      assert.equal(
+        revision,
+        harness ? f.report.producer.source_commit : f.producer.controller_revision,
+      );
+      const bytes = harness ? f.sourceFiles.harness : f.sourceFiles.workflow;
+      return {
+        type: "file",
+        path: filename,
+        encoding: "base64",
+        content:
+          (harness && faults.harness) || (!harness && faults.workflow)
+            ? Buffer.from("changed").toString("base64")
+            : bytes.toString("base64"),
+        size: bytes.length,
+        sha: createHash("sha1")
+          .update(Buffer.from(`blob ${bytes.length}\0`))
+          .update(bytes)
+          .digest("hex"),
+      };
     },
   };
   const options = {
-    api,
+    provider: custody,
     attestation: {
       environment: {},
       spawn(command: string, args: readonly string[]) {
@@ -157,16 +175,21 @@ for (const fault of ["provider", "concurrent-file", "microtask-expiry"] as const
       "spawnSync",
       (command: string, args: readonly string[], settings: SpawnSyncOptionsWithStringEncoding) => {
         assert.equal(settings.env?.GH_TOKEN, "inert-continuity-reader");
-        if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
-        const response = f.options.api.request("GET", args[2]!);
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
-          stderr: "",
-        };
+        assert.equal(args[0], "attestation");
+        return f.options.attestation.spawn(command, args);
       },
     );
     syncBuiltinESMExports();
+    t.mock.method(
+      globalThis,
+      "fetch",
+      releaseCustodyFetch(f.options.provider, (_url, init) => {
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-continuity-reader",
+        );
+      }),
+    );
     await withReadOnlyReleaseChildren(directory, async () => {
       const receipt = await collectHostedWindowsContinuity(
         directory,
@@ -211,13 +234,12 @@ for (const fault of ["provider", "concurrent-file", "microtask-expiry"] as const
         await assert.rejects(verifiedHostedWindowsContinuity(receipt));
         f.provider.job.conclusion = "success";
       } else if (fault === "microtask-expiry") {
-        const request = f.options.api.request.bind(f.options.api);
-        t.mock.method(f.options.api, "request", (method: string, route: string) => {
-          const response = request(method, route);
-          if (route.includes("/actions/jobs/"))
-            queueMicrotask(() => {
-              clockShift = 60001;
-            });
+        const readJob = f.options.provider.job;
+        t.mock.method(f.options.provider, "job", async (id: number) => {
+          const response = await readJob(id);
+          queueMicrotask(() => {
+            clockShift = 60001;
+          });
           return response;
         });
         await assert.rejects(verifiedHostedWindowsContinuity(receipt), /deadline/);
@@ -274,17 +296,21 @@ void test("default historical receiver verifies original bytes but cannot mint c
     "spawnSync",
     (command: string, args: readonly string[], settings: SpawnSyncOptionsWithStringEncoding) => {
       assert.equal(settings.env?.GH_TOKEN, "inert-historical-reader");
-      if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
-      assert.equal(command, "gh");
-      const response = f.options.api.request("GET", args[2]!);
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
-        stderr: "",
-      };
+      assert.equal(args[0], "attestation");
+      return f.options.attestation.spawn(command, args);
     },
   );
   syncBuiltinESMExports();
+  t.mock.method(
+    globalThis,
+    "fetch",
+    releaseCustodyFetch(f.options.provider, (_url, init) => {
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token inert-historical-reader",
+      );
+    }),
+  );
   await withReadOnlyReleaseChildren(directory, async () => {
     const history = await collectHistoricalHostedNativeQualification(
       directory,
@@ -448,16 +474,18 @@ for (const scenario of [
       "spawnSync",
       (command: string, args: readonly string[], settings: SpawnSyncOptionsWithStringEncoding) => {
         assert.equal(settings.env?.GH_TOKEN, "inert-phase-reader");
-        if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
-        const response = f.options.api.request("GET", args[2]!);
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
-          stderr: "",
-        };
+        assert.equal(args[0], "attestation");
+        return f.options.attestation.spawn(command, args);
       },
     );
     syncBuiltinESMExports();
+    t.mock.method(
+      globalThis,
+      "fetch",
+      releaseCustodyFetch(f.options.provider, (_url, init) => {
+        assert.equal(new Headers(init?.headers).get("authorization"), "token inert-phase-reader");
+      }),
+    );
     await withReadOnlyReleaseChildren(directory, async () => {
       const receipt = await collectHostedNativeReleaseQualification(
         directory,
@@ -619,17 +647,21 @@ for (const fault of ["none", "retained-bytes", "changed-job", "expired"] as cons
         assert.equal(settings.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
         assert.equal(settings.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
         assert.equal(settings.env?.NODE_OPTIONS, undefined);
-        if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
-        assert.equal(command, "gh");
-        const response = f.options.api.request("GET", args[2]!);
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 ${response.status} Fixture\r\n\r\n${JSON.stringify(response.body)}`,
-          stderr: "",
-        };
+        assert.equal(args[0], "attestation");
+        return f.options.attestation.spawn(command, args);
       },
     );
     syncBuiltinESMExports();
+    t.mock.method(
+      globalThis,
+      "fetch",
+      releaseCustodyFetch(f.options.provider, (_url, init) => {
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-native-reader-token",
+        );
+      }),
+    );
     await withReadOnlyReleaseChildren(directory, async () => {
       const reportBytes = Buffer.from(f.files.report);
       const artifactId = f.report.candidate.artifact_id;
@@ -711,18 +743,41 @@ for (const releaseProfile of ["initial-beta-win-linux", "initial-beta-windows-x8
           assert.ok(settings.cwd && typeof settings.cwd === "string");
           const f = byDirectory.get(settings.cwd) ?? selected;
           byDirectory.set(settings.cwd, f);
-          if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
-          if (expireOnSecond && f === fixtures[1] && args[2]?.includes("/actions/jobs/"))
-            clockShift = 31000;
-          const response = f.options.api.request("GET", args[2]!);
-          return {
-            status: 0,
-            stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
-            stderr: "",
-          };
+          assert.equal(args[0], "attestation");
+          return f.options.attestation.spawn(command, args);
         },
       );
       syncBuiltinESMExports();
+      const custody: HistoricalJobProvider & HostedNativeSourceProvider = {
+        attempt: (...args) => selected.options.provider.attempt(...args),
+        async jobs(...args) {
+          const jobs: unknown[] = [];
+          for (const f of fixtures) {
+            const { body, next } = await f.options.provider.jobs(...args);
+            assert.ok(isRecord(body) && Array.isArray(body.jobs) && next === null);
+            jobs.push(...(body.jobs as unknown[]));
+          }
+          return { body: { total_count: jobs.length, jobs }, next: null };
+        },
+        job(id) {
+          const f = fixtures.find((value) => value.producer.job_id === id);
+          assert.ok(f);
+          if (expireOnSecond && f === fixtures[1]) clockShift = 21000;
+          return f.options.provider.job(id);
+        },
+        commit: (sha) => selected.options.provider.commit(sha),
+        file: (filename, revision) => selected.options.provider.file(filename, revision),
+      };
+      t.mock.method(
+        globalThis,
+        "fetch",
+        releaseCustodyFetch(custody, (_url, init) => {
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            "token inert-native-custody-reader",
+          );
+        }),
+      );
       await withReadOnlyReleaseChildren(directory, async () => {
         const proofs = [];
         for (const f of fixtures) {
@@ -733,7 +788,7 @@ for (const releaseProfile of ["initial-beta-win-linux", "initial-beta-windows-x8
               f.authorities,
               f.expected,
               f.files,
-              performance.now() + (f === fixtures[0] ? 30000 : 60000),
+              performance.now() + (f === fixtures[0] ? 20000 : 60000),
             ),
           );
         }
@@ -741,7 +796,7 @@ for (const releaseProfile of ["initial-beta-win-linux", "initial-beta-windows-x8
         assert.equal(custody.durable_custody, "not-established");
         if (expireFirst) {
           expireOnSecond = true;
-          if (fixtures.length === 1) clockShift = 31000;
+          if (fixtures.length === 1) clockShift = 21000;
           await assert.rejects(requirePreparedHostedNativeCustody(custody), /deadline/);
           for (const [i, proof] of proofs.entries())
             assert.deepEqual(

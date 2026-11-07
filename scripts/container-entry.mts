@@ -163,7 +163,12 @@ async function execute(args: string[], phase: string) {
   const result = await new Promise<PhaseResult>((resolve, reject) => {
     child = spawn(process.execPath, args, {
       cwd: root,
-      env: process.env,
+      env: {
+        ...process.env,
+        DEBUG: phase === "browser-readiness" ? "pw:browser" : "pw:browser,vitest:browser:api",
+        DEBUG_COLORS: "0",
+        DEBUG_HIDE_DATE: "0",
+      },
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     });

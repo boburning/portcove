@@ -1,3 +1,10 @@
+import { readReleaseToolDependencies } from "./release-tool-dependencies.mts";
+import {
+  assertControllerFixtureBuildBudget,
+  controllerFixtureBuildAllowanceMilliseconds,
+  controllerFixtureFailureAnnotation,
+} from "./qualify-controller-tool-build.mts";
+import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { parseDocument } from "yaml";
@@ -38,6 +45,7 @@ import {
   inspectReleaseCompilerSourceClosure,
 } from "./release-compiler-source-closure.mts";
 import {
+  prepareControllerToolPredicate,
   receiveControllerTools,
   verifiedControllerToolPaths,
   type ControllerToolArtifactExpected,
@@ -46,6 +54,7 @@ import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import {
   assemblerIdentityFixture,
+  jwk,
   expected as identityExpected,
 } from "./fixtures/assembler-identity-fixture.mts";
 import {
@@ -53,7 +62,33 @@ import {
   controllerToolBootstrapProfile,
 } from "./assembler-job-identity.mts";
 import { launchFixedPayloadController } from "./release-controller-tool-launch.mts";
-import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
+
+void test("reviewed workflow runtime projection refuses every other byte change", async () => {
+  const historical = await readFile(
+    new URL(
+      "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const projected = controllerWorkflowAtCurrentNode(historical);
+  assert.equal(
+    projected.replace(
+      `          node-version: ${controllerNodeVersion}\n`,
+      "          node-version: 24.22.2\n",
+    ),
+    historical,
+  );
+  for (const changed of [
+    historical + "\n",
+    historical.replace("timeout-minutes: 22", "timeout-minutes: 23"),
+    historical.replace("package-manager-cache: false", "package-manager-cache: true"),
+  ]) {
+    assert.notEqual(changed, historical);
+    assert.throws(() => controllerWorkflowAtCurrentNode(changed));
+  }
+});
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -280,6 +315,13 @@ void test("complete job composite has fixed worker syntax, exclusive key transpo
     assert.deepEqual(Object.keys(step.env).sort(), [
       "PORTCOVE_JOB_OPERATION",
       "PORTCOVE_JOB_PHASE",
+      ...(step === steps[0]
+        ? [
+            "PORTCOVE_STORAGE_APP_ID",
+            "PORTCOVE_STORAGE_APP_TOKEN",
+            "PORTCOVE_STORAGE_INSTALLATION_ID",
+          ]
+        : []),
     ]);
   }
   assert.ok(isRecord(steps[3]));
@@ -355,10 +397,65 @@ void test("fixed source launcher loads without node_modules and rejects arbitrar
   );
   assert.deepEqual((await readdir(root)).sort(), ["scripts"]);
 });
+void test("fixed controller Pack identity matches the trusted workspace release", async () => {
+  const workspace = parseDocument(
+    await readFile(new URL("../pnpm-workspace.yaml", import.meta.url), "utf8"),
+    { uniqueKeys: true },
+  );
+  assert.deepEqual(workspace.errors, []);
+  const version: unknown = workspace.getIn(["catalog", "vite-plus"]);
+  assert.ok(typeof version === "string");
+  assert.equal(readReleaseToolDependencies(process.cwd()).bundler, `vite-plus@${version}`);
+});
+
+void test("a new exact Tauri selection propagates through the manifest and lock without code pins", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-dependency-selection-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "apps/desktop"), { recursive: true });
+  for (const name of ["package.json", "pnpm-workspace.yaml"])
+    await copyFile(path.join(sourceRoot, name), path.join(root, name));
+  const desktop = path.join(root, "apps/desktop/package.json");
+  await copyFile(path.join(sourceRoot, "apps/desktop/package.json"), desktop);
+  const initial = readReleaseToolDependencies(sourceRoot);
+  const replacement = initial.tauri === "2.88.77" ? "2.88.78" : "2.88.77";
+  const lock = await readFile(path.join(sourceRoot, "pnpm-lock.yaml"), "utf8");
+  await writeFile(path.join(root, "pnpm-lock.yaml"), lock);
+  assert.deepEqual(readReleaseToolDependencies(root), initial);
+  const declared = await readFile(desktop, "utf8");
+  await writeFile(
+    desktop,
+    declared.replace(
+      `"@tauri-apps/cli": "${initial.tauri}"`,
+      `"@tauri-apps/cli": "${replacement}"`,
+    ),
+  );
+  assert.throws(() => readReleaseToolDependencies(root), /Tauri CLI lock differs/u);
+  // Model pnpm regeneration of the exact importer, CLI and native binding rows.
+  await writeFile(path.join(root, "pnpm-lock.yaml"), lock.replaceAll(initial.tauri, replacement));
+  const bumped = readReleaseToolDependencies(root);
+  assert.deepEqual(bumped, { ...initial, tauri: replacement });
+  const built = fixture();
+  assert.throws(
+    () => inspectControllerToolArchive(built.archive, { ...built.manifest, dependencies: bumped }),
+    /dependencies differ from fixed checkout/u,
+  );
+});
+
 void test("actual pinned pack bundles fixed CLIs including semver; isolated execution needs no runtime node_modules", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-pack-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await bundleControllerEntries(sourceRoot, root);
+  const bundles = [
+    ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
+    ...controllerToolChildren,
+  ];
+  const bundleBytes = await Promise.all(
+    bundles.map(async (name) => (await readControllerToolFile(path.join(root, name))).length),
+  );
+  assert.ok(
+    bundleBytes.reduce((total, bytes) => total + bytes, 0) <= 24 * 1024 ** 2,
+    "fixed JavaScript closures must leave headroom for native tools within the expanded inventory bound",
+  );
   for (const name of controllerToolAssets) {
     await mkdir(path.dirname(path.join(root, name)), { recursive: true });
     await copyFile(path.join(sourceRoot, name), path.join(root, name));
@@ -642,6 +739,11 @@ void test("actual pinned pack inlines dynamic cycles and preserves Unicode modul
     path.join(source, "scripts/cycle.mts"),
     'import {label} from "./imported.mts"; export function echo(value){return value===label?value:"bad"};\n',
   );
+  await writeFile(
+    path.join(source, "scripts/release-tool-dependency-selection.mts"),
+    'export function fixedReleaseToolDependencies(){throw Error("raw selection unavailable")}',
+  );
+  const dependencies = { ...readReleaseToolDependencies(sourceRoot), tauri: "2.88.91" };
   for (const name of [
     ...controllerToolEntries,
     "production-controller-admission-cli",
@@ -649,9 +751,9 @@ void test("actual pinned pack inlines dynamic cycles and preserves Unicode modul
   ])
     await writeFile(
       path.join(source, "scripts", `${name}.mts`),
-      'import {location,check} from "./imported.mts"; export {location}; console.log(JSON.stringify({location,label:await check(),entry:import.meta.url}));\n',
+      'import {location,check} from "./imported.mts"; import {fixedReleaseToolDependencies} from "./release-tool-dependency-selection.mts"; export {location}; console.log(JSON.stringify({location,label:await check(),entry:import.meta.url,dependencies:fixedReleaseToolDependencies()}));\n',
     );
-  await bundleControllerEntries(source, output);
+  await bundleControllerEntries(source, output, "linux-x86_64", dependencies);
   await rm(source, { recursive: true });
   for (const file of [
     ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
@@ -668,6 +770,7 @@ void test("actual pinned pack inlines dynamic cycles and preserves Unicode modul
     assert.equal(result.status, 0, result.stderr);
     const value: unknown = JSON.parse(result.stdout);
     assert.ok(isRecord(value));
+    assert.deepEqual(value.dependencies, dependencies);
     assert.equal(value.label, "😀é");
     assert.equal(fileURLToPath(String(value.location)), path.join(output, "scripts/imported.mts"));
     assert.equal(fileURLToPath(String(value.entry)), bundle);
@@ -711,9 +814,13 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   assert.match(source, /production_tool_acceptance: "not-established"/u);
   assert.ok(isRecord(parsed.on));
   for (const event of ["pull_request", "push"]) {
-    const trigger = parsed.on[event];
+    const trigger: unknown = parsed.on[event];
     assert.ok(isRecord(trigger) && Array.isArray(trigger.paths));
-    for (const scope of ["crates/portcove-cli/**", "crates/portcove-core/**"])
+    for (const scope of [
+      "crates/portcove-cli/**",
+      "crates/portcove-core/**",
+      "scripts/assembler-job-identity.mts",
+    ])
       assert.ok(trigger.paths.includes(scope));
   }
   const buildSource = await readFile(
@@ -886,8 +993,8 @@ function fixture(
     source_tree: "b".repeat(40),
     platform,
     node_version: controllerNodeVersion,
-    bundler: "vite-plus@1.4.0",
-    tauri_cli_version: "2.12.2",
+    bundler: readReleaseToolDependencies(process.cwd()).bundler,
+    tauri_cli_version: readReleaseToolDependencies(process.cwd()).tauri,
     files: [...bytes].map(([name, content]) => ({
       path: name,
       bytes: content.length,
@@ -1004,23 +1111,26 @@ function fixture(
   ];
   const calls: string[] = [];
   const options = {
-    api: {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        calls.push(endpoint);
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body: endpoint.includes("/git/commits/")
-            ? { sha: expected.controller_revision, tree: { sha: expected.source_tree } }
-            : endpoint.includes("/artifacts/")
-              ? endpoint.endsWith("/99")
-                ? toolArtifact
-                : bundleArtifact
-              : endpoint.includes("/jobs/")
-                ? job
-                : run,
-        };
+    metadata: {
+      async commit(sha: string) {
+        calls.push(`git/commits/${sha}`);
+        return { sha: expected.controller_revision, tree: { sha: expected.source_tree } };
+      },
+      async run(id: string) {
+        calls.push(`actions/runs/${id}`);
+        return run;
+      },
+      async attempt(id: string, attempt: number) {
+        calls.push(`actions/runs/${id}/attempts/${attempt}`);
+        return run;
+      },
+      async artifact(id: number) {
+        calls.push(`actions/artifacts/${id}`);
+        return id === 99 ? toolArtifact : bundleArtifact;
+      },
+      async job(id: number) {
+        calls.push(`actions/jobs/${id}`);
+        return job;
       },
     },
     download: (endpoint: string) => (endpoint.endsWith("/99/zip") ? archive : bundleArchive),
@@ -1046,6 +1156,156 @@ function fixture(
     calls,
   };
 }
+void test("fixed controller tool senders use the locked SDK before signing exact uploaded tool custody", async (t) => {
+  const previous = { ...process.env };
+  t.after(() => {
+    for (const key of [
+      "GH_TOKEN",
+      "ACTIONS_ID_TOKEN_REQUEST_URL",
+      "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    ])
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+  });
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const f = fixture({}, platform);
+    const root = await mkdtemp(path.join(os.tmpdir(), "sdk-controller-tool-sender-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const profile = controllerToolBootstrapProfile(platform);
+    const oidc = assemblerIdentityFixture(
+      { aud: profile.audience },
+      {},
+      {
+        workflow: ".github/workflows/application-update-production.yml",
+        job: profile.job,
+        runAttempt: 1,
+        ...(profile.labels ? { labels: profile.labels } : {}),
+      },
+    );
+    Object.assign(process.env, {
+      GH_TOKEN: "fixture-fixed-sender",
+      ACTIONS_ID_TOKEN_REQUEST_URL: "https://runner.actions.githubusercontent.com/oidc",
+      ACTIONS_ID_TOKEN_REQUEST_TOKEN: "fixture-oidc-bearer",
+    });
+    const calls: string[] = [];
+    let refuseAt: string | undefined;
+    let artifactReads = 0;
+    const fetcher: typeof globalThis.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const headers = new Headers(init?.headers);
+      calls.push(url.pathname);
+      if (url.pathname === refuseAt) throw new Error("private diagnostic fixture");
+      if (url.hostname === "runner.actions.githubusercontent.com") {
+        assert.equal(url.searchParams.get("audience"), profile.audience);
+        assert.equal(headers.get("authorization"), "Bearer fixture-oidc-bearer");
+        return Response.json({ value: oidc.token });
+      }
+      if (url.hostname === "token.actions.githubusercontent.com") {
+        assert.equal(url.pathname, "/.well-known/jwks");
+        assert.equal(headers.has("authorization"), false);
+        return Response.json({ keys: [jwk] });
+      }
+      if (url.hostname === "productionresultssa1.blob.core.windows.net") {
+        assert.equal(init?.credentials, "omit");
+        assert.equal(init.redirect, "manual");
+        assert.equal(headers.has("authorization"), false);
+        return new Response(f.archive);
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(headers.get("authorization"), "token fixture-fixed-sender");
+      const prefix = "/repos/boburning/portcove";
+      if (url.pathname === `${prefix}/actions/artifacts/99`) {
+        artifactReads++;
+        if (refuseAt === "artifact-recheck" && artifactReads === 2)
+          throw new Error("private diagnostic fixture");
+        process.env.GH_TOKEN = "unrelated-mutated-token";
+        return Response.json(await f.options.metadata.artifact(99));
+      }
+      if (url.pathname === `${prefix}/actions/artifacts/99/zip`) {
+        assert.equal(init?.redirect, "manual");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://productionresultssa1.blob.core.windows.net/actions-results/99?sig=fixture",
+          },
+        });
+      }
+      return Response.json(oidc.metadata(url.pathname + url.search));
+    };
+    const mocked = t.mock.method(globalThis, "fetch", fetcher);
+    try {
+      const result = await prepareControllerToolPredicate(root, f.expected, {
+        ...identityExpected,
+        audience: profile.audience,
+        run_attempt: 1,
+      });
+      assert.deepEqual(result.predicate, f.predicate);
+      assert.deepEqual(await readFile(path.join(result.directory, "uploaded.zip")), f.archive);
+      const actions = "/repos/boburning/portcove/actions";
+      assert.deepEqual(calls, [
+        `${actions}/artifacts/99`,
+        `${actions}/artifacts/99/zip`,
+        "/actions-results/99",
+        "/oidc",
+        "/.well-known/jwks",
+        `${actions}/runs/9988`,
+        `${actions}/runs/9988/attempts/1/jobs`,
+        `${actions}/runs/9988/attempts/1/jobs`,
+        `${actions}/jobs/501`,
+        `${actions}/runs/9988`,
+        `${actions}/artifacts/99`,
+      ]);
+      assert.equal(oidc.counts().requests, 5);
+      for (const [failurePath, phase, identityRefusal] of [
+        ["/oidc", "producer-token-request"],
+        ["/.well-known/jwks", "producer-identity-verification", "provider-keys"],
+        [
+          "/repos/boburning/portcove/actions/runs/9988",
+          "producer-identity-verification",
+          "provider-read",
+        ],
+        ["artifact-recheck", "producer-upload-identity-recheck"],
+        ["predicate-output", "producer-predicate-output"],
+      ] as const) {
+        refuseAt = failurePath;
+        artifactReads = 0;
+        process.env.GH_TOKEN = "fixture-fixed-sender";
+        const refusalRoot = await mkdtemp(path.join(root, "refusal-"));
+        if (failurePath === "predicate-output") {
+          const basename =
+            platform === "windows-x86_64"
+              ? "controller-tools-windows-predicate.json"
+              : "controller-tools-predicate.json";
+          await writeFile(path.join(refusalRoot, basename), "private diagnostic fixture");
+        }
+        await assert.rejects(
+          prepareControllerToolPredicate(refusalRoot, f.expected, {
+            ...identityExpected,
+            audience: profile.audience,
+            run_attempt: 1,
+          }),
+          /controller tool binding refused/u,
+        );
+        const attempt = (await readdir(refusalRoot)).find((name) =>
+          name.startsWith("controller-tool-binding-"),
+        );
+        assert.ok(attempt);
+        const directory = path.join(refusalRoot, attempt);
+        assert.deepEqual(JSON.parse(await readFile(path.join(directory, "refusal.json"), "utf8")), {
+          directory,
+          phase,
+          ...(identityRefusal ? { identity_refusal: identityRefusal } : {}),
+          authority: "none",
+          automatic_retry: false,
+        });
+      }
+    } finally {
+      mocked.mock.restore();
+    }
+  }
+});
+
 void test("opaque fixture tool archive requires exact complete inventory and refuses links, omissions, aliases and changed bytes", () => {
   const f = fixture();
   assert.equal(
@@ -1089,6 +1349,71 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
     );
   }
 });
+void test("only closed Node inventory entries receive the larger finite runtime bound", () => {
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const original = fixture({}, platform).manifest;
+    const nodePath = platform === "linux-x86_64" ? "bin/node" : "bin/node.exe";
+    const sized = (selectedPath: string, bytes: number) => ({
+      ...original,
+      files: original.files.map((file) => (file.path === selectedPath ? { ...file, bytes } : file)),
+    });
+    assert.equal(controllerNodeMaximumBytes, 160 * 1024 ** 2);
+    assert.equal(
+      inspectControllerToolManifest(sized(nodePath, 150319296), platform).files.find(
+        (file) => file.path === nodePath,
+      )?.bytes,
+      150319296,
+    );
+    assert.throws(
+      () =>
+        inspectControllerToolManifest(sized(nodePath, controllerNodeMaximumBytes + 1), platform),
+      /inventory differs/u,
+    );
+    const otherPath = original.files.find((file) => file.path !== nodePath)!.path;
+    assert.throws(
+      () => inspectControllerToolManifest(sized(otherPath, 128 * 1024 ** 2 + 1), platform),
+      /inventory differs/u,
+    );
+    const overAggregate = {
+      ...original,
+      files: original.files.map((file) => ({
+        ...file,
+        bytes: file.path === nodePath ? controllerNodeMaximumBytes : 128 * 1024 ** 2,
+      })),
+    };
+    assert.throws(
+      () => inspectControllerToolManifest(overAggregate, platform),
+      /expanded bytes exceed bound/u,
+    );
+  }
+});
+void test("tool manifest retains the aggregate and per-file byte limits on both platforms", () => {
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const manifest = fixture({}, platform).manifest;
+    // Describe a boundary inventory without allocating large payload buffers.
+    const files = manifest.files.map((file) => ({ ...file, bytes: 1 }));
+    files[0]!.bytes = 128 * 1024 ** 2;
+    files[1]!.bytes = 128 * 1024 ** 2;
+    files[2]!.bytes = 64 * 1024 ** 2 - (files.length - 3);
+    assert.equal(
+      inspectControllerToolManifest({ ...manifest, files }, platform).files.reduce(
+        (total, file) => total + file.bytes,
+        0,
+      ),
+      320 * 1024 ** 2,
+    );
+    files[2]!.bytes++;
+    assert.throws(
+      () => inspectControllerToolManifest({ ...manifest, files }, platform),
+      /expanded bytes exceed bound/u,
+    );
+    files[1]!.bytes++;
+    assert.throws(
+      () => inspectControllerToolManifest({ ...manifest, files }, platform),
+      /inventory differs/u,
+    );
+  }
+});
 void test("Windows tools require explicit platform selection and exact executable inventory; legacy consumers stay closed", () => {
   const windows = fixture({}, "windows-x86_64");
   const linux = fixture();
@@ -1111,6 +1436,14 @@ void test("Windows tools require explicit platform selection and exact executabl
     }),
   );
   assert.throws(() => inspectControllerToolManifest(windows.manifest));
+  assert.throws(
+    () =>
+      inspectControllerToolManifest(
+        { ...windows.manifest, bundler: "vite-plus@latest" },
+        "windows-x86_64",
+      ),
+    /fixed controller tool manifest differs/u,
+  );
   assert.throws(() => inspectControllerToolArchive(linux.archive, selected));
   assert.throws(() =>
     inspectControllerToolManifest({ ...windows.manifest, schema_version: 2 }, "windows-x86_64"),
@@ -1167,10 +1500,11 @@ void test("tool acquisition retains the phase deadline before outputs and after 
     receiveControllerTools(root, f.expected, f.bundle, {
       ...f.options,
       deadline: 2000,
-      api: {
-        request(method, endpoint) {
+      metadata: {
+        ...f.options.metadata,
+        async commit(sha) {
           calls++;
-          const result = f.options.api.request(method, endpoint);
+          const result = await f.options.metadata.commit(sha);
           clock = 2001;
           return result;
         },
@@ -1188,6 +1522,86 @@ void test("tool acquisition retains the phase deadline before outputs and after 
     true,
   );
   await assert.rejects(readdir(path.join(root, partial, "tools")));
+});
+
+void test("fixed tool receiver uses one locked SDK lookup per archive and preserves authenticated provider ordering", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "sdk-controller-tool-receiver-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previous = process.env.GH_TOKEN;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    process.env.GH_TOKEN = "fixture-fixed-receiver";
+    const f = fixture({}, platform);
+    const order: string[] = [];
+    const prefix = "/repos/boburning/portcove/";
+    const result = await receiveControllerTools(root, f.expected, f.bundle, {
+      deadline: performance.now() + 10000,
+      spawn: f.options.spawn,
+      async fetch(input, init) {
+        const url = new URL(input instanceof Request ? input.url : input);
+        const headers = new Headers(init?.headers);
+        assert.equal(init?.redirect, "manual");
+        if (url.origin === "https://productionresultssa1.blob.core.windows.net") {
+          order.push(url.pathname);
+          assert.equal(init.credentials, "omit");
+          assert.equal(headers.has("authorization"), false);
+          return new Response(
+            f.options.download(url.pathname.endsWith("/99") ? "/99/zip" : "/100/zip"),
+          );
+        }
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(headers.get("authorization"), "token fixture-fixed-receiver");
+        assert.ok(url.pathname.startsWith(prefix));
+        const route = url.pathname.slice(prefix.length);
+        order.push(route);
+        if (route.endsWith("/zip")) {
+          const id = route.split("/").at(-2);
+          assert.ok(id === "99" || id === "100");
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location: `https://productionresultssa1.blob.core.windows.net/actions-results/${id}?sig=fixture`,
+            },
+          });
+        }
+        process.env.GH_TOKEN = "unrelated-mutated-token";
+        const provider = f.options.metadata;
+        if (route === `git/commits/${f.expected.controller_revision}`)
+          return Response.json(await provider.commit(f.expected.controller_revision));
+        if (route === "actions/runs/9988") return Response.json(await provider.run("9988"));
+        if (route === "actions/runs/9988/attempts/1")
+          return Response.json(await provider.attempt("9988", 1));
+        if (route === "actions/jobs/501") return Response.json(await provider.job(501));
+        if (route === "actions/artifacts/99" || route === "actions/artifacts/100")
+          return Response.json(await provider.artifact(Number(route.split("/").at(-1))));
+        assert.fail("unexpected controller tool receiver route");
+      },
+    });
+    assert.equal(result.evidence_scope, "injected-provider");
+    assert.equal(result.manifest_sha256, f.predicate.manifest_sha256);
+    const snapshot = [
+      `git/commits/${f.expected.controller_revision}`,
+      "actions/runs/9988",
+      "actions/runs/9988/attempts/1",
+      "actions/artifacts/99",
+      "actions/artifacts/100",
+    ];
+    assert.deepEqual(order, [
+      ...snapshot,
+      "actions/artifacts/99/zip",
+      "/actions-results/99",
+      "actions/artifacts/100/zip",
+      "/actions-results/100",
+      "actions/jobs/501",
+      ...snapshot,
+      "actions/jobs/501",
+    ]);
+    assert.equal(f.calls.length, 12);
+    assert.ok(!(await readdir(result.directory)).some((name) => /^archive-/u.test(name)));
+  }
 });
 
 void test("injected verification boundary materializes exact bytes only after signed association and provider custody; never claims production", async (t) => {
@@ -1353,16 +1767,45 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   const workflowSha = createHash("sha256").update(text).digest("hex");
   assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
   assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
-  assert.equal(
-    await readFile(
-      new URL(
-        "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
-        import.meta.url,
-      ),
-      "utf8",
+  const historicalText = await readFile(
+    new URL(
+      "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+      import.meta.url,
     ),
-    text,
+    "utf8",
   );
+  const appointed = controllerWorkflowAtCurrentNode(historicalText);
+  const appointedSha = createHash("sha256").update(appointed).digest("hex");
+  assert.equal(appointedSha, "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4");
+  const historicalDocument = parseDocument(historicalText, { uniqueKeys: true });
+  assert.deepEqual(historicalDocument.errors, []);
+  const historical: unknown = historicalDocument.toJS({ maxAliasCount: 100 });
+  assert.ok(isRecord(historical) && isRecord(historical.jobs));
+  // Preserve the dated proposal bytes. Only its two isolated setup-node pins
+  // project to the previously appointed runtime; every other field must match.
+  const literalPins = [];
+  const projectedPins: Record<string, unknown>[] = [];
+  for (const [name, historicalJob] of Object.entries(historical.jobs)) {
+    assert.ok(isRecord(historicalJob) && Array.isArray(historicalJob.steps));
+    const historicalSteps: unknown[] = historicalJob.steps;
+    for (const [index, step] of historicalSteps.entries()) {
+      if (!isRecord(step) || !isRecord(step.with) || !("node-version" in step.with)) continue;
+      literalPins.push(`${name}/${index}`);
+      assert.equal(step.uses, "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1");
+      assert.equal(step.with["node-version"], "24.22.2");
+      const currentJob: unknown = raw.jobs[name];
+      assert.ok(isRecord(currentJob) && Array.isArray(currentJob.steps));
+      const currentStep: unknown = currentJob.steps[index];
+      assert.ok(isRecord(currentStep) && isRecord(currentStep.with));
+      assert.equal(currentStep.uses, step.uses);
+      assert.equal(currentStep.with["node-version"], controllerNodeVersion);
+      projectedPins.push(step.with);
+    }
+  }
+  assert.deepEqual(literalPins.sort(), ["attest/0", "tool_attest/0"]);
+  // Check every original value before mutation: YAML aliases may share a map.
+  for (const pin of projectedPins) pin["node-version"] = controllerNodeVersion;
+  assert.deepEqual(historical, parseDocument(appointed, { uniqueKeys: true }).toJS());
 });
 
 void test("fixed source asset preflight bounds real inventory and refuses before dependency or build work", async (t) => {
@@ -1571,14 +2014,39 @@ void test("held Windows producer joins the exact platform artifact to an isolate
     record(bind.env).PORTCOVE_TOOL_ARTIFACT_ID,
     "${{ steps.upload.outputs.artifact-id }}",
   );
-  const diagnostics = record(record(producerSteps.at(-1)).with);
-  assert.ok(typeof diagnostics.path === "string");
-  assert.match(diagnostics.path, /~\/\.pct-\*\/ct-\*\/failure\.json/u);
-  assert.match(diagnostics.path, /controller-tools-windows-predicate\.json/u);
+  const diagnostics = producerSteps.slice(producerSteps.indexOf(bind) + 1);
+  assert.deepEqual(
+    diagnostics.map((step, index) => {
+      const options = record(step.with);
+      assert.equal(step.if, "${{ always() }}");
+      assert.equal(options["if-no-files-found"], "warn");
+      assert.equal(options.overwrite, false);
+      assert.equal(options["retention-days"], 7);
+      assert.equal(options["include-hidden-files"], index === 1 ? true : undefined);
+      assert.equal(typeof options.path, "string");
+      return String(options.path).trim().split("\n");
+    }),
+    [
+      [
+        "work/hosted-continuity-evidence/windows-runtime.json",
+        "work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json",
+        "work/hosted-continuity-evidence/windows-runtime-incomplete.json",
+      ],
+      ["~/.pct-*/ct-*/failure.json", "~/.pct-*/ct-*/tools/manifest.json"],
+      [
+        "${{ runner.temp }}/controller-tools-windows-predicate.json",
+        "${{ runner.temp }}/controller-tool-binding-*/expected.json",
+        "${{ runner.temp }}/controller-tool-binding-*/provider-before.json",
+        "${{ runner.temp }}/controller-tool-binding-*/refusal.json",
+      ],
+    ],
+  );
   assert.deepEqual(attester.needs, ["admission", "tool_bootstrap", "tool_bootstrap_windows"]);
   assert.ok(typeof attester.if === "string");
-  for (const [purpose, windows, linux, admission, cancelled, expected] of [
+  for (const [purpose, windows, linux, admission, cancelled, expected, paused = "false"] of [
     ["application", "success", "success", "success", false, true],
+    ["application", "success", "success", "success", false, false, "true"],
+    ["application", "success", "success", "success", false, false, ""],
     ["application", "success", "success", "success", true, false],
     ["application", "failure", "success", "success", false, false],
     ["application", "skipped", "success", "success", false, false],
@@ -1594,13 +2062,16 @@ void test("held Windows producer joins the exact platform artifact to an isolate
         always: () => true,
         cancelled: () => cancelled,
         needs: {
-          admission: { result: admission, outputs: { publication_purpose: purpose } },
+          admission: {
+            result: admission,
+            outputs: { publication_purpose: purpose, publication_paused: paused },
+          },
           tool_bootstrap: { result: linux },
           tool_bootstrap_windows: { result: windows },
         },
       }),
       expected,
-      `${purpose}/${windows}/${linux}/${admission}`,
+      `${purpose}/${windows}/${linux}/${admission}/${paused}`,
     );
   }
   assert.equal(attester["timeout-minutes"], 2);
@@ -2167,3 +2638,132 @@ void test("protected Windows runtime sequential budget preserves original provid
   ])
     assert.throws(() => remaining({ ...original, ...changed }));
 });
+
+void test("ordinary cold-build budget admits retained slow completions and refuses invalid or over-budget durations", () => {
+  assert.equal(controllerFixtureBuildAllowanceMilliseconds, 360000);
+  for (const milliseconds of [0, 184967, 225000, 228162, 231589, 240557, 243109, 360000])
+    assert.doesNotThrow(() => assertControllerFixtureBuildBudget(milliseconds));
+  for (const milliseconds of [-1, 0.5, 360001, Number.NaN, Infinity, -Infinity])
+    assert.throws(
+      () => assertControllerFixtureBuildBudget(milliseconds),
+      /cold fixed tool build exceeds its preparation allowance/u,
+    );
+});
+
+void test("controller failure annotations expose bounded stage metadata while excluding private error contents", () => {
+  const error = Object.assign(new Error("PRIVATE credential and path"), {
+    code: "ERR_ASSERTION",
+    stack:
+      "Error: PRIVATE\n at build (file:///private/source/scripts/release-controller-tool-build.mts:417:9)",
+  });
+  const annotation = controllerFixtureFailureAnnotation("actual-fixed-build", error, 123);
+  const prefix = "::error title=Controller fixture refused::";
+  assert.ok(annotation.startsWith(prefix));
+  assert.deepEqual(JSON.parse(annotation.slice(prefix.length)), {
+    phase: "actual-fixed-build",
+    bootstrap_phase: null,
+    code: "ERR_ASSERTION",
+    site: { file: "release-controller-tool-build.mts", line: 417, column: 9 },
+    build_milliseconds: 123,
+  });
+  assert.doesNotMatch(annotation, /PRIVATE|credential|\/private/u);
+  assert.ok(Buffer.byteLength(annotation) < 512);
+  let codeReads = 0;
+  const changing = Object.defineProperty(new Error("PRIVATE"), "code", {
+    get() {
+      codeReads++;
+      return codeReads === 1 ? "ERR_ASSERTION" : "PRIVATE";
+    },
+  });
+  const stable = controllerFixtureFailureAnnotation("source", changing, 0);
+  assert.equal(codeReads, 1);
+  assert.doesNotMatch(stable, /PRIVATE/u);
+
+  const hostile = Object.defineProperty(new Error("PRIVATE"), "code", {
+    get() {
+      throw new Error("PRIVATE");
+    },
+  });
+  const refused = controllerFixtureFailureAnnotation(
+    "PRIVATE\n::error::injected",
+    hostile,
+    Number.NaN,
+  );
+  assert.deepEqual(JSON.parse(refused.slice(prefix.length)), {
+    phase: "unknown",
+    bootstrap_phase: null,
+    code: "unclassified",
+    site: null,
+    build_milliseconds: null,
+  });
+  assert.doesNotMatch(refused, /PRIVATE|injected/u);
+  const inner = Object.assign(new Error("PRIVATE compiler error"), {
+    code: "ENOSPC",
+    stack:
+      "Error: PRIVATE\n at read (file:///private/source/scripts/release-controller-tools.mts:123:4)",
+  });
+  const outer = Object.assign(new Error("PRIVATE wrapper", { cause: inner }), {
+    controllerBootstrapPhase: "fixed-node-bundles",
+  });
+  const nested = controllerFixtureFailureAnnotation("actual-fixed-build", outer, null);
+  const observation: unknown = JSON.parse(nested.slice(prefix.length));
+  assert.deepEqual(observation, {
+    phase: "actual-fixed-build",
+    bootstrap_phase: "fixed-node-bundles",
+    code: "ENOSPC",
+    site: { file: "release-controller-tools.mts", line: 123, column: 4 },
+    build_milliseconds: null,
+  });
+  assert.doesNotMatch(nested, /PRIVATE|compiler error|\/private/u);
+  assert.ok(Buffer.byteLength(nested) < 512);
+  Object.assign(inner, { cause: outer, controllerBootstrapPhase: "PRIVATE" });
+  assert.equal(controllerFixtureFailureAnnotation("source", outer, 0).includes("PRIVATE"), false);
+});
+
+void test(
+  "fixed controller bootstrap reports only the failed boundary",
+  {
+    skip: process.arch !== "x64" || !["linux", "win32"].includes(process.platform),
+  },
+  () => {
+    const entry = fileURLToPath(
+      new URL("./release-controller-tool-bootstrap.mts", import.meta.url),
+    );
+    const env = { RUNNER_TEMP: os.tmpdir(), PORTCOVE_EXECUTION_PURPOSE: "application" };
+    for (const [mode, additions, boundary] of [
+      ["private-invalid-mode", {}, "operation"],
+      ["build", { AZURE_DEVOPS_CACHE_DIR: "C:/azuredevopscli" }, "source-revision"],
+      [
+        "build",
+        { AZURE_EXTENSION_DIR: "/runner/extensions", AZURE_CONFIG_DIR: "/runner/config" },
+        "source-revision",
+      ],
+      [
+        "build",
+        {
+          AZURE_EXTENSION_DIR: "/runner/extensions",
+          AZURE_PRIVATE_FIXTURE: "private-fixture-value",
+        },
+        "credential-boundary",
+      ],
+      ["build", { PORTCOVE_CONTROLLER_REVISION: "private-invalid-revision" }, "source-revision"],
+      [
+        "build",
+        { PORTCOVE_CONTROLLER_REVISION: "a".repeat(40), GH_TOKEN: "private-fixture-token" },
+        "compiler-credential-boundary",
+      ],
+    ] as const) {
+      const result = spawnSync(process.execPath, [entry, mode], {
+        env: { ...env, ...additions },
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      assert.equal(result.status, 2);
+      assert.equal(result.stdout, "");
+      assert.equal(
+        result.stderr.trim(),
+        `fixed controller bootstrap refused at ${boundary}; retain private build/acquisition evidence; no automatic retry`,
+      );
+    }
+  },
+);

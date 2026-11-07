@@ -1,0 +1,1059 @@
+{
+  "cases": {
+    "pokemon-firered-fireredleafgreenrecomp": {
+      "inventory": "firered_leafgreen",
+      "selected_assets": [
+        "FireRedRecomp-windows-x64-v0.0.6.zip",
+        "FireRedRecomp-windows-x64-v0.0.8.zip"
+      ]
+    },
+    "pokemon-leafgreen-fireredleafgreenrecomp": {
+      "inventory": "firered_leafgreen",
+      "selected_assets": [
+        "LeafGreenRecomp-windows-x64-v0.0.6.zip",
+        "LeafGreenRecomp-windows-x64-v0.0.8.zip"
+      ]
+    },
+    "pokemon-ruby-rubysapphirerecomp": {
+      "inventory": "ruby_sapphire",
+      "selected_assets": ["RubyRecomp-windows-x64-v0.0.8.zip", "RubyRecomp-windows-x64-v0.0.9.zip"]
+    },
+    "pokemon-sapphire-rubysapphirerecomp": {
+      "inventory": "ruby_sapphire",
+      "selected_assets": [
+        "SapphireRecomp-windows-x64-v0.0.8.zip",
+        "SapphireRecomp-windows-x64-v0.0.9.zip"
+      ]
+    },
+    "body-harvest-recompiled": {
+      "inventory": "body_harvest",
+      "selected_assets": [
+        "BodyHarvestRecompiled-v1.0.0-Windows.zip",
+        "BodyHarvestRecompiled-v1.0.1-Windows.zip"
+      ]
+    },
+    "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger": {
+      "inventory": "spaceranger",
+      "channel": "beta",
+      "selected_assets": [
+        "SpaceRanger-v0.1.0-windows-x64.zip",
+        "SpaceRanger-v0.1.1-windows-x64.zip"
+      ]
+    },
+    "dune-ii-dune-dynasty": {
+      "inventory": "dune_dynasty",
+      "selected_assets": [
+        "dunedynasty-v1.6.4-windows-x64.zip",
+        "dunedynasty-v1.6.5-windows-x64.zip"
+      ]
+    },
+    "heroes-of-might-and-magic-ii-fheroes2": {
+      "inventory": "fheroes2",
+      "selected_assets": ["fheroes2_windows_x64_SDL2.zip", "fheroes2_windows_x64_SDL2.zip"]
+    },
+    "quake-ironwail": {
+      "inventory": "ironwail",
+      "selected_assets": ["ironwail-0.8.1-win64.zip", "ironwail-0.8.2-win64.zip"]
+    },
+    "quake-vkquake": {
+      "inventory": "vkquake",
+      "selected_assets": ["vkQuake-1.36.0_windows_x64.zip", "vkQuake-1.37.0_windows_x64.zip"]
+    },
+    "gothic-ii-night-of-the-raven-opengothic": {
+      "inventory": "opengothic",
+      "channel": "beta",
+      "selected_assets": ["opengothic_1.0.3756_win_x64.zip", "opengothic_1.0.3800_win_x64.zip"]
+    }
+  },
+  "inventories": {
+    "firered_leafgreen": [
+      {
+        "id": 425969707,
+        "tag_name": "v0.0.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-27T20:49:37Z",
+        "assets": [
+          {
+            "id": 682837775,
+            "name": "BUILDINFO.json",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/BUILDINFO.json",
+            "size": 2450,
+            "digest": "sha256:6a1c580986917785f59ada7ad32868a8f57ce87c479f281241195c2c16d23724"
+          },
+          {
+            "id": 682837778,
+            "name": "FireRedRecomp-windows-x64-v0.0.6.zip",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/FireRedRecomp-windows-x64-v0.0.6.zip",
+            "size": 63944552,
+            "digest": "sha256:7be028c42bb5e3fd17b211553ddb34ac915a95a5408eaa0dd3fca8ffbeb51d44"
+          },
+          {
+            "id": 682837782,
+            "name": "LeafGreenRecomp-windows-x64-v0.0.6.zip",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/LeafGreenRecomp-windows-x64-v0.0.6.zip",
+            "size": 63939825,
+            "digest": "sha256:2b500dfc7fe97c95731d0374958d169c39d246c0f054f589d84cd760bf73b861"
+          },
+          {
+            "id": 682837779,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/SHA256SUMS.txt",
+            "size": 292,
+            "digest": "sha256:2f1589c22f30855e38a3dbc7af05c04e04e2fd62a91c3fbf83bb1fa7b2f0da61"
+          }
+        ]
+      },
+      {
+        "id": 430354589,
+        "tag_name": "v0.0.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-01T04:09:47Z",
+        "assets": [
+          {
+            "id": 697285177,
+            "name": "BUILDINFO.json",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.8/BUILDINFO.json",
+            "size": 3208,
+            "digest": "sha256:f16cb0d1f508cf2bb082b18e242cd9587914b034d259a9cd188246cd8abe38aa"
+          },
+          {
+            "id": 697285180,
+            "name": "FireRedRecomp-windows-x64-v0.0.8.zip",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.8/FireRedRecomp-windows-x64-v0.0.8.zip",
+            "size": 63984492,
+            "digest": "sha256:04f678d796420a2cea77c70abedafbc5383237b04e6362354f44fade72ad8947"
+          },
+          {
+            "id": 697285178,
+            "name": "LeafGreenRecomp-windows-x64-v0.0.8.zip",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.8/LeafGreenRecomp-windows-x64-v0.0.8.zip",
+            "size": 63970383,
+            "digest": "sha256:67579734a360a16814b85e131bc56d93c2df4a601d62ab3415bc43f5fa5d9346"
+          },
+          {
+            "id": 697285179,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.8/SHA256SUMS.txt",
+            "size": 292,
+            "digest": "sha256:ad689832ab17d20eb917e973dd67895a2b72b28a8cc269a1bb32b17cfc3bc715"
+          }
+        ]
+      }
+    ],
+    "ruby_sapphire": [
+      {
+        "id": 430260343,
+        "tag_name": "v0.0.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-01T00:00:06Z",
+        "assets": [
+          {
+            "id": 696824628,
+            "name": "BUILDINFO.json",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.8/BUILDINFO.json",
+            "size": 2772,
+            "digest": "sha256:b2357b8eb4da861c8a0974a4b2dcf33578e3b3870809b44157fed1a503307bd9"
+          },
+          {
+            "id": 696824625,
+            "name": "RubyRecomp-windows-x64-v0.0.8.zip",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.8/RubyRecomp-windows-x64-v0.0.8.zip",
+            "size": 59307267,
+            "digest": "sha256:80b7364418e051c39e732302c0967c601e20ae5f24f50ba6f91e2e5bd5c10585"
+          },
+          {
+            "id": 696824630,
+            "name": "SapphireRecomp-windows-x64-v0.0.8.zip",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.8/SapphireRecomp-windows-x64-v0.0.8.zip",
+            "size": 59653554,
+            "digest": "sha256:b398de84943705d6d0aa474751d0ee815d29cf8e277197ff62113b219527c1d8"
+          },
+          {
+            "id": 696824629,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.8/SHA256SUMS.txt",
+            "size": 288,
+            "digest": "sha256:b2944eb5a83fa6874a69b49d0d4d651f8050052e22df969b2573818c21c69ea2"
+          }
+        ]
+      },
+      {
+        "id": 430353554,
+        "tag_name": "v0.0.9",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-01T04:06:54Z",
+        "assets": [
+          {
+            "id": 697280730,
+            "name": "BUILDINFO.json",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.9/BUILDINFO.json",
+            "size": 3192,
+            "digest": "sha256:460dab2ea0ae13a195d1812b3bf3def07c82ea445b5fa3502e78d23cbc758d51"
+          },
+          {
+            "id": 697280724,
+            "name": "RubyRecomp-windows-x64-v0.0.9.zip",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.9/RubyRecomp-windows-x64-v0.0.9.zip",
+            "size": 59308238,
+            "digest": "sha256:fbb3eeeda6baeec00f104e5158f0e6a3a4c763b2439a742db5ea4962a2257982"
+          },
+          {
+            "id": 697280732,
+            "name": "SapphireRecomp-windows-x64-v0.0.9.zip",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.9/SapphireRecomp-windows-x64-v0.0.9.zip",
+            "size": 59654425,
+            "digest": "sha256:a9c1d5260e9e17a23edbd34f8be344bfc248a5c1f823c054515d5818d3612cae"
+          },
+          {
+            "id": 697280725,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.9/SHA256SUMS.txt",
+            "size": 288,
+            "digest": "sha256:cd7fa4fabf1beb0132deab3a46a91724163a009cf4a1ee1c23c0d77589875cf8"
+          }
+        ]
+      }
+    ],
+    "body_harvest": [
+      {
+        "id": 402446213,
+        "tag_name": "v1.0.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-03T09:58:44Z",
+        "assets": [
+          {
+            "id": 607572514,
+            "name": "BodyHarvestRecompiled-v1.0.0-Linux-ARM64.tar.gz",
+            "browser_download_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases/download/v1.0.0/BodyHarvestRecompiled-v1.0.0-Linux-ARM64.tar.gz",
+            "size": 7967603,
+            "digest": "sha256:0aca5133c6fbebc61a41cc067d090659e766b0c19b8da44da1a39dfeff78b3a8"
+          },
+          {
+            "id": 607572515,
+            "name": "BodyHarvestRecompiled-v1.0.0-Linux-X64.flatpak",
+            "browser_download_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases/download/v1.0.0/BodyHarvestRecompiled-v1.0.0-Linux-X64.flatpak",
+            "size": 5261208,
+            "digest": "sha256:423a56d583bc57db34efa1b42832718c8462d77f95a5c3e2d2089feda3cf8627"
+          },
+          {
+            "id": 607572511,
+            "name": "BodyHarvestRecompiled-v1.0.0-Linux-X64.tar.gz",
+            "browser_download_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases/download/v1.0.0/BodyHarvestRecompiled-v1.0.0-Linux-X64.tar.gz",
+            "size": 7838568,
+            "digest": "sha256:7e64896d65a161a6ccf3fe1976e496df630b34985d8192e1bf6e1f27f2b96a08"
+          },
+          {
+            "id": 607572512,
+            "name": "BodyHarvestRecompiled-v1.0.0-macOS.zip",
+            "browser_download_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases/download/v1.0.0/BodyHarvestRecompiled-v1.0.0-macOS.zip",
+            "size": 17078394,
+            "digest": "sha256:1f6ee251de9b464ae5a89b791e450a7c0fda86f0d712a47e596d8c184dbdfc24"
+          },
+          {
+            "id": 607572513,
+            "name": "BodyHarvestRecompiled-v1.0.0-Windows.zip",
+            "browser_download_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases/download/v1.0.0/BodyHarvestRecompiled-v1.0.0-Windows.zip",
+            "size": 17969468,
+            "digest": "sha256:c3bdb56f152c94c55af66d92bc1d9a37f9ce9eea358315700569c2dcca406a9f"
+          }
+        ]
+      },
+      {
+        "id": 999144800,
+        "tag_name": "v1.0.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-07T00:00:00Z",
+        "assets": [
+          {
+            "id": 999144801,
+            "name": "BodyHarvestRecompiled-v1.0.1-Windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/BodyHarvestRecompiled-v1.0.1-Windows.zip",
+            "size": 17969512,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "spaceranger": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/woodys-workshop/SpaceRanger/releases/download/v0.1.0/SpaceRanger-v0.1.0-windows-x64.zip",
+            "digest": "sha256:bfe1a4f5eadcea9c3bd1b134857756150037369c29f993108cae88c5f394ca7b",
+            "id": 633915777,
+            "name": "SpaceRanger-v0.1.0-windows-x64.zip",
+            "size": 15997071
+          }
+        ],
+        "draft": false,
+        "id": 410583338,
+        "prerelease": true,
+        "published_at": "2026-10-12T13:48:42Z",
+        "tag_name": "v0.1.0"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://downloads.example.invalid/SpaceRanger-v0.1.1-windows-x64.zip",
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "id": 900000011,
+            "name": "SpaceRanger-v0.1.1-windows-x64.zip",
+            "size": 15997071
+          }
+        ],
+        "draft": false,
+        "id": 900000010,
+        "prerelease": true,
+        "published_at": "2026-10-25T00:00:00Z",
+        "tag_name": "v0.1.1"
+      }
+    ],
+    "dune_dynasty": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-linux-amd64-flatpak.zip",
+            "digest": "sha256:537402b9b8c89fb806ee76a3a39e21a052604dcf2485db1fdf2bb3c47c08ecdd",
+            "id": 259739491,
+            "name": "dunedynasty-v1.6.4-linux-amd64-flatpak.zip",
+            "size": 1178414
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-linux-arm64-flatpak.zip",
+            "digest": "sha256:2ba9c111c77904a90a24142cc44211bcf394567599072e702c1a413ea463da0e",
+            "id": 259739496,
+            "name": "dunedynasty-v1.6.4-linux-arm64-flatpak.zip",
+            "size": 1082785
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-linux-arm64.zip",
+            "digest": "sha256:bcf351c8bf09171034203ec796aa787a0eac8cce69b2054ec40ed84febfcdae7",
+            "id": 259739493,
+            "name": "dunedynasty-v1.6.4-linux-arm64.zip",
+            "size": 819630
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-linux-x86-64.zip",
+            "digest": "sha256:176b390bbe7592a420b9ef706dbeaf63abcad5087ad56e33db247fa858aca707",
+            "id": 259739498,
+            "name": "dunedynasty-v1.6.4-linux-x86-64.zip",
+            "size": 825359
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-macos-arm64.zip",
+            "digest": "sha256:bb03b8adc8a51bdcd4b60f386c5d5e6fea9c41e498687ad1b11032260a83ba3f",
+            "id": 259739501,
+            "name": "dunedynasty-v1.6.4-macos-arm64.zip",
+            "size": 4255585
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-macos-x86-64.zip",
+            "digest": "sha256:01a747f436c809311cde79e07e0c0bd6167f17d25543ceb28105f7cdca6628ca",
+            "id": 259739515,
+            "name": "dunedynasty-v1.6.4-macos-x86-64.zip",
+            "size": 4556960
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-windows-arm64.zip",
+            "digest": "sha256:71f74647e3c10360f129bdb310624d5d843b6b01add04148bdfa8271aeb18ce0",
+            "id": 259739527,
+            "name": "dunedynasty-v1.6.4-windows-arm64.zip",
+            "size": 8554018
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-windows-x64.zip",
+            "digest": "sha256:621477a987f63d95782c4d072bfd0ac93682ac8f005c7d1701bbeff84b2456fb",
+            "id": 259739559,
+            "name": "dunedynasty-v1.6.4-windows-x64.zip",
+            "size": 9717226
+          },
+          {
+            "browser_download_url": "https://github.com/gameflorist/dunedynasty/releases/download/v1.6.4/dunedynasty-v1.6.4-windows-x86.zip",
+            "digest": "sha256:0c890db36f531256beefd0687d6c5206f9198c3081768b71605c222401aafcc5",
+            "id": 259739589,
+            "name": "dunedynasty-v1.6.4-windows-x86.zip",
+            "size": 9927362
+          }
+        ],
+        "draft": false,
+        "id": 196776191,
+        "prerelease": false,
+        "published_at": "2025-05-31T17:22:36Z",
+        "tag_name": "v1.6.4"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-linux-amd64-flatpak.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000010",
+            "id": 900000110,
+            "name": "dunedynasty-v1.6.5-linux-amd64-flatpak.zip",
+            "size": 1178414
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-linux-arm64-flatpak.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000011",
+            "id": 900000111,
+            "name": "dunedynasty-v1.6.5-linux-arm64-flatpak.zip",
+            "size": 1082785
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-linux-arm64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000012",
+            "id": 900000112,
+            "name": "dunedynasty-v1.6.5-linux-arm64.zip",
+            "size": 819630
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-linux-x86-64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000013",
+            "id": 900000113,
+            "name": "dunedynasty-v1.6.5-linux-x86-64.zip",
+            "size": 825359
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-macos-arm64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000014",
+            "id": 900000114,
+            "name": "dunedynasty-v1.6.5-macos-arm64.zip",
+            "size": 4255585
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-macos-x86-64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000015",
+            "id": 900000115,
+            "name": "dunedynasty-v1.6.5-macos-x86-64.zip",
+            "size": 4556960
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-windows-arm64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000016",
+            "id": 900000116,
+            "name": "dunedynasty-v1.6.5-windows-arm64.zip",
+            "size": 8554018
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-windows-x64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000017",
+            "id": 900000117,
+            "name": "dunedynasty-v1.6.5-windows-x64.zip",
+            "size": 9717226
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/dunedynasty-v1.6.5-windows-x86.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000018",
+            "id": 900000118,
+            "name": "dunedynasty-v1.6.5-windows-x86.zip",
+            "size": 9927362
+          }
+        ],
+        "draft": false,
+        "id": 900000100,
+        "prerelease": false,
+        "published_at": "2026-11-04T00:00:00Z",
+        "tag_name": "v1.6.5"
+      }
+    ],
+    "fheroes2": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_android.zip",
+            "digest": "sha256:5bd80a1c3aab6671a0399a79904d3fafc41730bc3d9649ef631468ebc18aa37c",
+            "id": 422579553,
+            "name": "fheroes2_android.zip",
+            "size": 26907409
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_macos_x86-64_SDL2.zip",
+            "digest": "sha256:33b41f1f8a19ed66dad6a38fb43e8a1bb9f05a372d471291395246198bea029d",
+            "id": 422579592,
+            "name": "fheroes2_macos_x86-64_SDL2.zip",
+            "size": 4996259
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_psv.zip",
+            "digest": "sha256:ff7433ccf4ae3c9a562bf5946c1fe466d9c1189982902ccda9f8057b0368049b",
+            "id": 422579599,
+            "name": "fheroes2_psv.zip",
+            "size": 14414131
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_switch.zip",
+            "digest": "sha256:83c6e2ee1ea2ed6d1f7b471b827815fb2dafa65f922cf61c782f42f2dabccd62",
+            "id": 422579610,
+            "name": "fheroes2_switch.zip",
+            "size": 8435929
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_ubuntu_arm64_SDL2.zip",
+            "digest": "sha256:04699d13c5b2864e58cf5c85aeb907e6dfe0c6516e4cb3faeadb471870c19a68",
+            "id": 422579621,
+            "name": "fheroes2_ubuntu_arm64_SDL2.zip",
+            "size": 5221114
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_ubuntu_x86-64_SDL2.zip",
+            "digest": "sha256:fc36039e62c9d1558929276190beacbbc15f08817556e351cf23b9e5916b7869",
+            "id": 422579633,
+            "name": "fheroes2_ubuntu_x86-64_SDL2.zip",
+            "size": 5459797
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_windows_x64_SDL2.zip",
+            "digest": "sha256:63734413556c07c28e8e00db357ba06dd662179927aa14d9e528d80f6cddf44b",
+            "id": 422579653,
+            "name": "fheroes2_windows_x64_SDL2.zip",
+            "size": 12456916
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_windows_x64_SDL2_installer.exe",
+            "digest": "sha256:01f1c779433c302571ca336de8f31241fc3871d370591126f9ee65b38614d454",
+            "id": 422579661,
+            "name": "fheroes2_windows_x64_SDL2_installer.exe",
+            "size": 36081330
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_windows_x86_SDL2.zip",
+            "digest": "sha256:2ef7bb30f4f3189b26087d0162a26a4aeaf0e85c1c686c1801b5bb88c6f19a4f",
+            "id": 422579706,
+            "name": "fheroes2_windows_x86_SDL2.zip",
+            "size": 11834503
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.16/fheroes2_windows_x86_SDL2_installer.exe",
+            "digest": "sha256:a14ae3505dc87f22a2de6ffa8dd8d93bbe538f71a964b4a32771657500c81574",
+            "id": 422579732,
+            "name": "fheroes2_windows_x86_SDL2_installer.exe",
+            "size": 23959130
+          }
+        ],
+        "draft": false,
+        "id": 323916396,
+        "prerelease": false,
+        "published_at": "2026-05-17T15:45:12Z",
+        "tag_name": "1.1.16"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_android.zip",
+            "digest": "sha256:88e852dbe9e5ca999e8140ee69547b17789acd179e0fb731f27f9f0a345bf3af",
+            "id": 462232563,
+            "name": "fheroes2_android.zip",
+            "size": 27189959
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_macos_x86-64_SDL2.zip",
+            "digest": "sha256:8d2964fa4836623410d302e20dee99f55cc7620f7d3be77d086b38b86ded932b",
+            "id": 462232740,
+            "name": "fheroes2_macos_x86-64_SDL2.zip",
+            "size": 5060440
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_psv.zip",
+            "digest": "sha256:0f1fd5bf7baffbe407edf02d5dd19492c078824e763b69576bca7bb2a83edcc7",
+            "id": 462232748,
+            "name": "fheroes2_psv.zip",
+            "size": 14601805
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_switch.zip",
+            "digest": "sha256:117a3e450da734cc3c0efd5618efdcb538b04723b2aa06b71ec4ca7aabca2fca",
+            "id": 462232793,
+            "name": "fheroes2_switch.zip",
+            "size": 8498968
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_ubuntu_arm64_SDL2.zip",
+            "digest": "sha256:77574d76b89e91c6f6b936ca02b170e634073c1f8adc00d0420ab3ccb4d484b6",
+            "id": 462232839,
+            "name": "fheroes2_ubuntu_arm64_SDL2.zip",
+            "size": 5287568
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_ubuntu_x86-64_SDL2.zip",
+            "digest": "sha256:ba0bc878e939e1bb93876d059571fce5c907a818d1500c185b06bbf076c1a2d6",
+            "id": 462232870,
+            "name": "fheroes2_ubuntu_x86-64_SDL2.zip",
+            "size": 5529615
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_windows_x64_SDL2.zip",
+            "digest": "sha256:aec387da1acd52cd422b49a6cf463829f790574dd2a970b7929a3d56f1096746",
+            "id": 462232934,
+            "name": "fheroes2_windows_x64_SDL2.zip",
+            "size": 12520412
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_windows_x64_SDL2_installer.exe",
+            "digest": "sha256:648a2349579ad1ab125bfa21df30716536f991fe761c073a2db0e9e470e690d5",
+            "id": 462232982,
+            "name": "fheroes2_windows_x64_SDL2_installer.exe",
+            "size": 36132379
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_windows_x86_SDL2.zip",
+            "digest": "sha256:dcfe6f3937e2c53061984696f8af10b69676fa3c90ab60b470c344eaa9059603",
+            "id": 462233119,
+            "name": "fheroes2_windows_x86_SDL2.zip",
+            "size": 11894107
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.17/fheroes2_windows_x86_SDL2_installer.exe",
+            "digest": "sha256:6fafbc060d213a1ae26c2fbb2425dc5805b6000f1c8b8903ab50a907228a28c2",
+            "id": 462233258,
+            "name": "fheroes2_windows_x86_SDL2_installer.exe",
+            "size": 24007508
+          }
+        ],
+        "draft": false,
+        "id": 346895574,
+        "prerelease": false,
+        "published_at": "2026-06-30T14:33:54Z",
+        "tag_name": "1.1.17"
+      }
+    ],
+    "ironwail": [
+      {
+        "draft": false,
+        "id": 273730382,
+        "prerelease": false,
+        "published_at": "2026-01-03T02:20:15Z",
+        "tag_name": "v0.8.1",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.1/ironwail-0.8.1-linux-x64.tar.gz",
+            "digest": "sha256:f7e7a6eeedcbe02c5d1b20114e1cbaa40e434bea23f364bcc4c40a1518fa9abf",
+            "id": 337051442,
+            "name": "ironwail-0.8.1-linux-x64.tar.gz",
+            "size": 589747
+          },
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.1/ironwail-0.8.1-win32.zip",
+            "digest": "sha256:2e661231837595da85d36844f53895bb7f11637baed59d6acb157a54becce104",
+            "id": 335304818,
+            "name": "ironwail-0.8.1-win32.zip",
+            "size": 2384513
+          },
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.1/ironwail-0.8.1-win64.zip",
+            "digest": "sha256:d82d78f513edf297d65ae82ea133a7af1ca0433188ffac4618bf8832eac93e80",
+            "id": 335304809,
+            "name": "ironwail-0.8.1-win64.zip",
+            "size": 2534699
+          }
+        ]
+      },
+      {
+        "draft": false,
+        "id": 367851051,
+        "prerelease": false,
+        "published_at": "2026-08-11T17:20:22Z",
+        "tag_name": "v0.8.2",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.2/ironwail-0.8.2-linux-x64.tar.gz",
+            "digest": "sha256:fcb0219d13c50f64728892f0558b4761ba5578319a6cc01021fad981c6333aa5",
+            "id": 510564613,
+            "name": "ironwail-0.8.2-linux-x64.tar.gz",
+            "size": 592534
+          },
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.2/ironwail-0.8.2-win32.zip",
+            "digest": "sha256:676ba44bc2c99bb85fa617d62f6a3b003099dedd89e3a2852688bb391c672c9a",
+            "id": 510410138,
+            "name": "ironwail-0.8.2-win32.zip",
+            "size": 2387133
+          },
+          {
+            "browser_download_url": "https://github.com/andrei-drexler/ironwail/releases/download/v0.8.2/ironwail-0.8.2-win64.zip",
+            "digest": "sha256:0e54e9089ce72bad73c288148cfb5474a00b05d9e1da1c8feb0b76665faf7d01",
+            "id": 510410102,
+            "name": "ironwail-0.8.2-win64.zip",
+            "size": 2538274
+          }
+        ]
+      }
+    ],
+    "vkquake": [
+      {
+        "draft": false,
+        "id": 378832702,
+        "prerelease": false,
+        "published_at": "2026-08-29T01:36:38Z",
+        "tag_name": "1.36.0",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.36.0/vkQuake-1.36.0-x86_64.AppImage",
+            "digest": "sha256:f1824b12744b6b343c6155cf5f775df225b9e6c9ee606c95c9363f63f124992a",
+            "id": 534541360,
+            "name": "vkQuake-1.36.0-x86_64.AppImage",
+            "size": 9001464
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.36.0/vkQuake-1.36.0_windows_arm64.zip",
+            "digest": "sha256:e08f8507d7e47dc3e9eee8e26ea5645958ba810e08b5ec8faca8a36d9db12877",
+            "id": 534544138,
+            "name": "vkQuake-1.36.0_windows_arm64.zip",
+            "size": 5871522
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.36.0/vkQuake-1.36.0_windows_x64.zip",
+            "digest": "sha256:243d8c7cd5fb4c2e876bbe927d909dcc89e86d9737f2bf6cebc093f15f5012c3",
+            "id": 534541500,
+            "name": "vkQuake-1.36.0_windows_x64.zip",
+            "size": 5471848
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.36.0/vkQuake-Installer-windows_x64-1.36.0.exe",
+            "digest": "sha256:6e9841253d6ba43475353504369170e7ba0ee342f4be9ff8a62768126d7d03cb",
+            "id": 534541499,
+            "name": "vkQuake-Installer-windows_x64-1.36.0.exe",
+            "size": 4091308
+          }
+        ]
+      },
+      {
+        "draft": false,
+        "id": 410108250,
+        "prerelease": false,
+        "published_at": "2026-10-12T03:36:06Z",
+        "tag_name": "1.37.0",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.37.0/vkQuake-1.37.0-x86_64.AppImage",
+            "digest": "sha256:abf8546316997d16b86fea242d90afc8203fecb9e5016d6262f7bec1f36a5a9e",
+            "id": 632507389,
+            "name": "vkQuake-1.37.0-x86_64.AppImage",
+            "size": 9538040
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.37.0/vkQuake-1.37.0_windows_arm64.zip",
+            "digest": "sha256:3db11ad004979d70faa9f8ffe02b099fb42beebbd8b3cfc10f009542dd119209",
+            "id": 632511099,
+            "name": "vkQuake-1.37.0_windows_arm64.zip",
+            "size": 6184196
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.37.0/vkQuake-1.37.0_windows_x64.zip",
+            "digest": "sha256:c2f9a6c591c119681ada626aed029719871790bd8208bbae08b58185b62a7d83",
+            "id": 632507386,
+            "name": "vkQuake-1.37.0_windows_x64.zip",
+            "size": 5762231
+          },
+          {
+            "browser_download_url": "https://github.com/Novum/vkQuake/releases/download/1.37.0/vkQuake-Installer-windows_x64-1.37.0.exe",
+            "digest": "sha256:203af1354c496a9391bfd21177c0a98f9e80ebff764147ab69986c5f25020c3e",
+            "id": 632507385,
+            "name": "vkQuake-Installer-windows_x64-1.37.0.exe",
+            "size": 4276928
+          }
+        ]
+      }
+    ],
+    "opengothic": [
+      {
+        "draft": false,
+        "id": 323940334,
+        "prerelease": true,
+        "published_at": "2026-05-17T18:25:05Z",
+        "tag_name": "v0.92",
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_linux_x64.deb",
+            "digest": "sha256:49365e9b5658f975f1e8923586ebcdd521cc67b06ff2ad2d97b381722d0534b9",
+            "id": 422653048,
+            "name": "opengothic_1.0.3756_linux_x64.deb",
+            "size": 4163918
+          },
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_linux_x64.zip",
+            "digest": "sha256:d5c99dbedd4745997027f4dac27af624b83949b1653d4ad86d83a5cfce2fb082",
+            "id": 422653046,
+            "name": "opengothic_1.0.3756_linux_x64.zip",
+            "size": 109709001
+          },
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_osx_arm64.zip",
+            "digest": "sha256:ae82d39060e83e5dac4a8ba0f6f3c4616800c0a0ff521ab9357e7b5f94a4404b",
+            "id": 422653050,
+            "name": "opengothic_1.0.3756_osx_arm64.zip",
+            "size": 8709703
+          },
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_osx_x64.zip",
+            "digest": "sha256:8f9bfee18cddbb270802b12d6a36d33504b13267043ebf7bb37c4133fa4751ac",
+            "id": 422653047,
+            "name": "opengothic_1.0.3756_osx_x64.zip",
+            "size": 8958708
+          },
+          {
+            "browser_download_url": "https://github.com/Try/OpenGothic/releases/download/v0.92/opengothic_1.0.3756_win_x64.zip",
+            "digest": "sha256:78c02c5dc92f8a4f77310eae2872f18ade0d9a3b46706e61e536e908b4249a2f",
+            "id": 422653049,
+            "name": "opengothic_1.0.3756_win_x64.zip",
+            "size": 132178033
+          }
+        ]
+      },
+      {
+        "draft": false,
+        "id": 900001201,
+        "prerelease": true,
+        "published_at": "2026-11-07T00:00:00Z",
+        "tag_name": "synthetic-preview-successor",
+        "assets": [
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_linux_x64.deb",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000080",
+            "id": 900001210,
+            "name": "opengothic_1.0.3800_linux_x64.deb",
+            "size": 4163918
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_linux_x64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000081",
+            "id": 900001211,
+            "name": "opengothic_1.0.3800_linux_x64.zip",
+            "size": 109709001
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_osx_arm64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000082",
+            "id": 900001212,
+            "name": "opengothic_1.0.3800_osx_arm64.zip",
+            "size": 8709703
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_osx_x64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000083",
+            "id": 900001213,
+            "name": "opengothic_1.0.3800_osx_x64.zip",
+            "size": 8958708
+          },
+          {
+            "browser_download_url": "https://downloads.example.invalid/opengothic_1.0.3800_win_x64.zip",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000084",
+            "id": 900001214,
+            "name": "opengothic_1.0.3800_win_x64.zip",
+            "size": 132178033
+          }
+        ]
+      }
+    ]
+  },
+  "other_zip_assets": [
+    {
+      "inventory": "body_harvest",
+      "release_index": 0,
+      "asset": "BodyHarvestRecompiled-v1.0.0-macOS.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-linux-amd64-flatpak.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-linux-arm64-flatpak.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-linux-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-linux-x86-64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-macos-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-macos-x86-64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-windows-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 0,
+      "asset": "dunedynasty-v1.6.4-windows-x86.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-linux-amd64-flatpak.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-linux-arm64-flatpak.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-linux-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-linux-x86-64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-macos-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-macos-x86-64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-windows-arm64.zip"
+    },
+    {
+      "inventory": "dune_dynasty",
+      "release_index": 1,
+      "asset": "dunedynasty-v1.6.5-windows-x86.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 0,
+      "asset": "fheroes2_android.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 0,
+      "asset": "fheroes2_macos_x86-64_SDL2.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 0,
+      "asset": "fheroes2_psv.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 0,
+      "asset": "fheroes2_switch.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 0,
+      "asset": "fheroes2_ubuntu_arm64_SDL2.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 0,
+      "asset": "fheroes2_ubuntu_x86-64_SDL2.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 0,
+      "asset": "fheroes2_windows_x86_SDL2.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 1,
+      "asset": "fheroes2_android.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 1,
+      "asset": "fheroes2_macos_x86-64_SDL2.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 1,
+      "asset": "fheroes2_psv.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 1,
+      "asset": "fheroes2_switch.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 1,
+      "asset": "fheroes2_ubuntu_arm64_SDL2.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 1,
+      "asset": "fheroes2_ubuntu_x86-64_SDL2.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 1,
+      "asset": "fheroes2_windows_x86_SDL2.zip"
+    },
+    {
+      "inventory": "ironwail",
+      "release_index": 0,
+      "asset": "ironwail-0.8.1-win32.zip"
+    },
+    {
+      "inventory": "ironwail",
+      "release_index": 1,
+      "asset": "ironwail-0.8.2-win32.zip"
+    },
+    {
+      "inventory": "vkquake",
+      "release_index": 0,
+      "asset": "vkQuake-1.36.0_windows_arm64.zip"
+    },
+    {
+      "inventory": "vkquake",
+      "release_index": 1,
+      "asset": "vkQuake-1.37.0_windows_arm64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 0,
+      "asset": "opengothic_1.0.3756_linux_x64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 0,
+      "asset": "opengothic_1.0.3756_osx_arm64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 0,
+      "asset": "opengothic_1.0.3756_osx_x64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 1,
+      "asset": "opengothic_1.0.3800_linux_x64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 1,
+      "asset": "opengothic_1.0.3800_osx_arm64.zip"
+    },
+    {
+      "inventory": "opengothic",
+      "release_index": 1,
+      "asset": "opengothic_1.0.3800_osx_x64.zip"
+    }
+  ]
+}

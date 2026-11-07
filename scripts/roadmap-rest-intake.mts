@@ -115,7 +115,7 @@ export class RestPortIntakeClient {
       html_url: String(observed.html_url),
     };
     this.created.set(issue.node_id, issue.number);
-    input.onIssueCreated?.(issue);
+    await input.onIssueCreated?.(issue);
     const item = await this.ensureIssueItem(issue.node_id);
     await this.setItemFields(item.id, neutralPortFields);
     return { ...issue, itemId: item.id };

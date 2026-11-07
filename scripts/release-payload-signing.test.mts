@@ -351,3 +351,19 @@ void test(
     await assert.rejects(signReleasePayload(options), /EEXIST/);
   },
 );
+
+void test("candidate signing child never inherits the dedicated storage key or token", (t) => {
+  const keys = ["PORTCOVE_STORAGE_APP_TOKEN", "PORTCOVE_STORAGE_APP_PRIVATE_KEY"] as const;
+  const before = new Map(keys.map((key) => [key, process.env[key]]));
+  t.after(() => {
+    for (const [key, value] of before) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  for (const key of keys) process.env[key] = `inert-private-${key}`;
+  const environment = payloadSigningEnvironment(
+    path.resolve(os.tmpdir(), "owned-storage-isolation"),
+  );
+  for (const key of keys) assert.equal(environment[key], undefined);
+});

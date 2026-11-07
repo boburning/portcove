@@ -3,7 +3,7 @@
   "listing": {
     "id": "dune-ii-opendune",
     "name": "Dune II (OpenDUNE)",
-    "summary": "Set up OpenDUNE with your own Dune II v1.07 files, including dune2.exe in data/. It is a separate engine from Dune Dynasty and OpenRA Dune 2000. Historical Windows and macOS archives require a package matching your CPU; Linux uses a source build. The README lists Windows i686/x86-64 and macOS PowerPC/i686/x86-64 targets. Portcove has not confirmed setup or gameplay.",
+    "summary": "OpenDUNE is a separate engine for Dune II. You need the original v1.07 game files and a build for your system. Portcove has not tested setup or gameplay.",
     "original_game_title": "Dune II",
     "project_url": "https://github.com/OpenDUNE/OpenDUNE",
     "platforms": [],
@@ -46,7 +46,11 @@
       "references": [
         {
           "title": "OpenDUNE configuration and save locations",
-          "instruction": "On Windows, upstream looks for the INI first in the actual AppData/OpenDUNE location, then the working directory, then data/. savedir overrides the personal path; otherwise Windows uses the current account’s roaming AppData/OpenDUNE, with a working-directory fallback if that lookup fails. Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+          "instruction": "On Windows, upstream looks for the INI first in the actual AppData/OpenDUNE location, then the working directory, then data/. savedir overrides the personal path; otherwise Windows uses the current account’s roaming AppData/OpenDUNE, with a working-directory fallback if that lookup fails."
+        },
+        {
+          "title": "Platform and package notes",
+          "instruction": "Set up OpenDUNE with your own Dune II v1.07 files, including dune2.exe in data/. It is a separate engine from Dune Dynasty and OpenRA Dune 2000. Historical Windows and macOS archives require a package matching your CPU; Linux uses a source build. The README lists Windows i686/x86-64 and macOS PowerPC/i686/x86-64 targets. Portcove has not confirmed setup or gameplay."
         }
       ]
     }

@@ -17,24 +17,15 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare your original game",
-          "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
-        },
-        {
           "title": "Keep an existing prepared copy",
-          "instruction": "Keep a working custom copy registered with dhewm3.exe, its actual runtime folder as working directory, and its own launch details. To read originals from another installation, use three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. You and upstream retain replacement and data ownership for that external copy; removing its registration preserves its files. This alternative does not make Portcove manage or migrate its originals, saves or runtime."
+          "instruction": "For a separately prepared copy, read originals from another installation using three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. This custom option retains the external route and does not make Portcove manage or migrate its originals, saves or runtime."
         }
       ],
       "warnings": [
         "Back up that external profile and your original game separately before changing engines or versions."
       ],
       "help_url": "https://dhewm3.org/#how-to-install",
-      "references": [
-        {
-          "title": "Keep your saves and existing copy",
-          "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
-        }
-      ]
+      "references": []
     }
   },
   "upstream_lineage": {
@@ -66,8 +57,7 @@
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove replaces its separate official managed runtime and preserves only the named local PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover the external Documents/My Games/dhewm3 profile. Runtime rollback carries current declared inputs; it does not rewind saves or promise older-runtime, recorded-demo or mod compatibility. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow. Existing external registrations retain every file and their user/upstream runtime owner; a catalog change never adopts them. Gameplay and populated-save compatibility remain unqualified."
+      "saves_and_settings": "external-user-owned"
     },
     "executable_hints": {
       "windows-x86-64": ["dhewm3.exe"]
@@ -84,5 +74,26 @@
       "base/pak008.pk4"
     ],
     "windows_runtime_path_policy": "printable-ascii-max-path"
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "saves, settings, screenshots, demos and logs in actual Documents/My Games/dhewm3 with separate base and d3xp scopes",
+        "original game installation and any custom external profile"
+      ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Prepare your original game",
+        "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
+      },
+      "warnings": [
+        "Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract.",
+        "Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow."
+      ]
+    }
   }
 }

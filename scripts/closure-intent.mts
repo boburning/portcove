@@ -1,3 +1,4 @@
+import type { GitHubRequestPolicy } from "./github-client.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 
@@ -63,9 +64,14 @@ export function checkClosureIntent(
   return [...observed].sort();
 }
 
-export function readClosingRelationships(
+export async function readClosingRelationships(
   api: {
-    graphql(query: string, variables: Readonly<Record<string, unknown>>): { data: unknown };
+    request(options: {
+      method: "POST";
+      url: string;
+      data: unknown;
+      request: { portcove: GitHubRequestPolicy };
+    }): Promise<{ data: unknown }>;
   },
   repository: string,
   number: number,
@@ -79,7 +85,13 @@ export function readClosingRelationships(
     targets = new Set<string>(),
     cursors = new Set<string>();
   for (;;) {
-    const data: unknown = api.graphql(query, { owner, name, number, cursor }).data;
+    const { data: envelope } = await api.request({
+      method: "POST",
+      url: "https://api.github.com/graphql",
+      data: { query, variables: { owner, name, number, cursor } },
+      request: { portcove: { replay: "pure-query", attempts: 0 } },
+    });
+    const data: unknown = isRecord(envelope) ? envelope.data : undefined;
     const repositoryData: unknown = isRecord(data) ? data.repository : undefined;
     const pull: unknown = isRecord(repositoryData) ? repositoryData.pullRequest : undefined;
     const connection: unknown = isRecord(pull) ? pull.closingIssuesReferences : undefined;

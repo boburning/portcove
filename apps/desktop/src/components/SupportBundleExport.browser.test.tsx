@@ -187,7 +187,7 @@ it("shows retained sections, unknown contents and incomplete capture without cla
     "Some records were omitted to stay within the record limit.",
     "Some later setup messages may be missing.",
     "Some captured output was omitted when the capture limit was reached.",
-    "An incomplete trailing record was omitted.",
+    "An unfinished log entry was left out.",
     "The diagnostic source could not be fully read; any missing contents are unknown.",
   ]) {
     await expect.element(page.getByText(text, { exact: true })).toBeVisible();

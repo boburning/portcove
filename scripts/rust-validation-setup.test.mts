@@ -273,7 +273,7 @@ void test("Rust action records consumed toolchain context and stops at each fail
     assert.equal(options.length, 3);
     assert.deepEqual(result.calls[1]?.arguments.toSorted(), ["--verbose", "--version"]);
     assert.deepEqual(result.calls[2]?.arguments, ["--version"]);
-    for (const value of [
+    const expectedContextValues: readonly string[] = [
       pin,
       components,
       "fixture-clippy,fixture-rustfmt,fixture-rust-analyzer",
@@ -284,7 +284,8 @@ void test("Rust action records consumed toolchain context and stops at each fail
       "7",
       "b".repeat(40),
       target || "host only",
-    ])
+    ];
+    for (const value of expectedContextValues)
       assert.ok(result.summary.includes(value), `RUST_CONTEXT_VALUE: ${value}`);
   }
   const bound = actionEnvironment(action, observed.outputs, {

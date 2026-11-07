@@ -4,7 +4,7 @@
     "id": "007frwl-xberecomp-tgp482-007-from-russia-with-love",
     "name": "007: From Russia with Love — 007FRWL-XBERecomp (TGP482)",
     "original_game_title": "007: From Russia with Love",
-    "summary": "The project describes controls, settings, autosave and game integration. Full-campaign completion is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "An experimental port of 007: From Russia with Love. Set it up with your own original Xbox game files. The first start builds game code locally.",
     "project_url": "https://github.com/TGP482/007FRWL-XBERecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,10 +21,15 @@
         }
       ],
       "warnings": [
-        "The project describes controls, settings, autosave and game integration. Full-campaign completion is unconfirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/TGP482/007FRWL-XBERecomp"
+      "help_url": "https://github.com/TGP482/007FRWL-XBERecomp",
+      "references": [
+        {
+          "title": "Project testing notes",
+          "instruction": "The project describes controls, settings, autosave and game integration. Full-campaign completion is unconfirmed."
+        }
+      ]
     },
     "issue_number": 3175
   },

@@ -1002,8 +1002,8 @@ async function runLinuxSemanticTask(task: LinuxTask, raw: LinuxSemanticRuntimeCo
       "semantic-review-model-catalog.json",
     ].map(async (name) => ({ name, bytes: await readFile(new URL(name, import.meta.url)) })),
   );
-  // Native Linux storage and short Unix socket paths; supervisor independently
-  // refuses linked/foreign-writable/Windows-mounted ancestry before execution.
+  // The supervisor independently verifies native Linux storage and
+  // refuses linked, foreign-writable or Windows-mounted ancestry before execution.
   const root = await mkdtemp(path.join(configuration.output_parent, "r-"));
   await chmod(root, 0o700);
   for (const name of ["runtime", "inputs", "inputs/objects", "capture"])

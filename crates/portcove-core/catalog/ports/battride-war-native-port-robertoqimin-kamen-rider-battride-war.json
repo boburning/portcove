@@ -4,7 +4,7 @@
     "id": "battride-war-native-port-robertoqimin-kamen-rider-battride-war",
     "name": "Kamen Rider: Battride War — Battride War native port (robertoqimin)",
     "original_game_title": "Kamen Rider: Battride War",
-    "summary": "In its October 25 report, the project describes the intro, title, menus, opening cutscene and manual completion of STG02, returning to mission selection. The rest of the game remains unplayed. That play test used Fedora on a Ryzen 5 4600H and GTX 1650; Arch container builds and Ubuntu 22.04 import-helper checks are separate results. Scripted STG02 v0.4.x AppImage tests averaged 47.9 guest FPS on that hardware; earlier crowded manual fights ran slower with audio breakup. An occasional untextured polygon remains. Sessions longer than about 30 minutes, clean exit on every path, ATRAC audio and a full playthrough are unconfirmed. CPU, GPU and distribution check tables do not establish equivalent gameplay; SteamOS is unconfirmed. Portcove has not confirmed setup or gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "An experimental Linux port of Kamen Rider: Battride War. The AppImage builds the game from your own Japanese disc image. The project has reported testing through one mission.",
     "project_url": "https://github.com/robertoqimin/battride-war-port",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -21,10 +21,16 @@
         }
       ],
       "warnings": [
-        "In its October 25 report, the project describes the intro, title, menus, opening cutscene and manual completion of STG02, returning to mission selection. The rest of the game remains unplayed. That play test used Fedora on a Ryzen 5 4600H and GTX 1650; Arch container builds and Ubuntu 22.04 import-helper checks are separate results. Scripted STG02 v0.4.x AppImage tests averaged 47.9 guest FPS on that hardware; earlier crowded manual fights ran slower with audio breakup. An occasional untextured polygon remains. Sessions longer than about 30 minutes, clean exit on every path, ATRAC audio and a full playthrough are unconfirmed. CPU, GPU and distribution check tables do not establish equivalent gameplay; SteamOS is unconfirmed. Portcove has not confirmed setup or gameplay.",
+        "The first build needs about 8 GB RAM and 8 GB free space. Keep your original disc files for later play.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/robertoqimin/battride-war-port"
+      "help_url": "https://github.com/robertoqimin/battride-war-port",
+      "references": [
+        {
+          "title": "Project testing notes",
+          "instruction": "In its October 25 report, the project describes the intro, title, menus, opening cutscene and manual completion of STG02, returning to mission selection. The rest of the game remains unplayed. That play test used Fedora on a Ryzen 5 4600H and GTX 1650; Arch container builds and Ubuntu 22.04 import-helper checks are separate results. Scripted STG02 v0.4.x AppImage tests averaged 47.9 guest FPS on that hardware; earlier crowded manual fights ran slower with audio breakup. An occasional untextured polygon remains. Sessions longer than about 30 minutes, clean exit on every path, ATRAC audio and a full playthrough are unconfirmed. CPU, GPU and distribution check tables do not establish equivalent gameplay; SteamOS is unconfirmed. Portcove has not confirmed setup or gameplay."
+        }
+      ]
     },
     "issue_number": 3462,
     "artwork": {

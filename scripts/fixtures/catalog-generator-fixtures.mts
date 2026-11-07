@@ -95,8 +95,8 @@ export function run(...args: string[]) {
   return spawnSync(process.execPath, ["scripts/generate-catalog.mts", ...args], {
     cwd: root,
     encoding: "utf8",
-    // Complete historical comparisons exceed Node's default 1 MiB capture.
-    maxBuffer: 4 * 1024 * 1024,
+    // Keep a bounded capture with headroom for the complete historical comparison.
+    maxBuffer: 16 * 1024 * 1024,
   });
 }
 
@@ -108,6 +108,11 @@ export function isolatedGenerator() {
     "inspect-igdb-artwork.mts",
     "runtime-values.mts",
     "catalog-authoring.mts",
+    "catalog-advisories.mts",
+    "settings-qualification.mts",
+    "json-values.mts",
+    "catalog-route-facts.mts",
+    "package-player-observation.mts",
     "upstream-lineage.mts",
     "catalog-authoring-inspector.mts",
     "maintainer-config.mts",

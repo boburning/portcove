@@ -616,6 +616,9 @@ pub struct ReleaseSpec {
 pub struct PersistentFilePattern {
     pub prefix: String,
     pub suffix: String,
+    /// Match the concatenated prefix and suffix as well as names with an interior.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub allow_empty_middle: bool,
 }
 
 /// A declared upstream limitation, checked by Core rather than left to the game.
@@ -653,6 +656,27 @@ pub enum ModPackagePolicy {
     VersionedPackagesV1,
 }
 
+/// Reviewed conventional data shared by compatible runtimes. Every other
+/// persistent object remains bound to its producing archive, including unknown
+/// children of a declared directory. This does not rewind data on rollback.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArchiveDataCompatibilityV1 {
+    pub contract_id: String,
+    pub shared_paths: Vec<String>,
+    /// Player progress that cannot move to a different producing archive.
+    pub build_specific_progress_paths: Vec<String>,
+}
+
+/// One finite reviewed predecessor admission, separate from data layout identity.
+/// It never redefines that runtime's original source or execution contract.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArchiveDataTransitionV1 {
+    pub predecessor_archive_sha256: String,
+    pub creating_contract_sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -680,6 +704,10 @@ pub struct PortDefinition {
     pub persistent_paths: Vec<String>,
     #[serde(default)]
     pub persistent_file_patterns: Vec<PersistentFilePattern>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_data_compatibility_v1: Option<ArchiveDataCompatibilityV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_data_transition_v1: Option<ArchiveDataTransitionV1>,
     #[serde(default)]
     pub runtime_mutable_paths: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -703,6 +731,9 @@ pub struct PortDefinition {
     pub managed_initialization: Option<ManagedInitialization>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_data_policy: Option<RuntimeDataPolicy>,
+    /// Official Shipwright Windows portable packages write player data in their working directory.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub windows_shipwright_persistence: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
     /// Optional, release-bound editable configuration. Retained installations
@@ -766,6 +797,10 @@ pub struct CatalogDocument {
 #[serde(deny_unknown_fields)]
 pub struct PortListing {
     pub id: String,
+    /// Inert optional advisory envelope. Invalid/future content is unavailable as advice,
+    /// never an acquisition restriction or an operation grant. Requires listing format 7.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compatibility: Option<serde_json::Value>,
     /// Accepted descriptive observation, never a package or execution grant.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_observation: Option<ListingUpstreamObservation>,
@@ -853,7 +888,7 @@ pub struct ListingUpstreamObservation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ListingObservedRelease {
-    pub id: u64,
+    pub id: crate::CatalogDownloadReleaseId,
     pub version: String,
     pub release_url: String,
     pub published_at: String,
@@ -917,6 +952,9 @@ pub struct PortListingStatus {
     pub port_id: String,
     pub status: PortStatus,
     pub actions: Vec<ListingActionAssessment>,
+    /// Optional inert read model; absence cannot suppress an independently allowed action.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capabilities: Option<crate::PortCapabilityReport>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -1738,11 +1776,21 @@ pub struct GameUpdatePlan {
     /// Exact retained archive selected by this review; never authorization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acquisition: Option<GameUpdateAcquisition>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data_transition: Option<ArchiveDataTransitionReview>,
     pub plan: InstallPlan,
     /// Read-only decision for this exact reviewed candidate, not authorization.
     pub assessment: crate::PortActionAssessment,
     pub activate: bool,
     pub plan_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ArchiveDataTransitionReview {
+    pub preimage_sha256: String,
+    pub producing_archive_sha256: String,
+    pub retained_installations: u32,
+    pub temporary_space: InstallSpaceRequirement,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -2019,6 +2067,10 @@ pub enum OperationEventKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityDocument {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub listing_formats: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port_capability_schema: Option<u32>,
     pub schema_version: u32,
     /// Optional read-only destination handoff; negotiate independently of API/events.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2042,11 +2094,14 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
+            listing_formats: vec![5, 6, 7, 8],
+            port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,
             product: "Portcove".into(),
             product_version: env!("CARGO_PKG_VERSION").into(),
             commands: vec![
+                "port-capabilities".into(),
                 "auth".into(),
                 "backup".into(),
                 "backup.ghostship-legacy-plan".into(),

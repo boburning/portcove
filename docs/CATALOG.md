@@ -1,5 +1,45 @@
 # Catalog policy
 
+Start with [Integration ownership](#integration-ownership) for the management
+boundary and [Adding or changing a port](#adding-or-changing-a-port) for per-ID
+authoring. The [definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
+owns engine negotiation; detailed port examples and dated receipts below retain
+their original scope and do not establish another port's admission or support.
+
+## Descriptive compatibility advisories
+
+The optional `listing.compatibility` format-1 envelope belongs to the existing
+single per-port authored record. Use existing generated setup warnings and exact
+recommendation observations first; no bulk backfill is required. This envelope
+contains only remaining descriptive facts, never acquisition restrictions,
+execution grants, commands, signature overrides or private paths.
+
+Each of at most 64 records has a stable `id`, `feature`, `platform`, `route`,
+`explanation`, public HTTPS `provenance`, Unix-seconds `observed_at`, and `evidence`
+(`observed`, `upstream-reported` or `manual-requirement`). Optional `release`,
+`artifact_sha256`, `edition` and descriptive `workaround` narrow applicability.
+An artifact digest requires its actual release. The envelope is bounded to
+64 KiB and requires listing format 7 or later. A directory also carrying GitLab
+observations uses format 8. Authoring rejects malformed, future, unknown
+and command-bearing content. Runtime interpretation makes invalid or future
+optional content unavailable without changing operation eligibility.
+
+Route-wide management facts need no invented artifact identity. Version-specific
+failures retain their exact release/artifact/edition scope; a date or a missing
+later observation never establishes recovery. Existing recommendation evidence
+keeps its own exact-scope failure and correction semantics. The feature report
+shows those records as historical until the recommendation owner has a matching
+environment and identity; it does not produce another recommendation score.
+
+Legacy format-5/6 exports omit only inert compatibility advice and retain
+acquisition restrictions. GitLab-bearing directories refuse exports below format
+8; format 7 retains advice without accepting GitLab observation identities.
+A retained user-selected listing carrying advice uses
+envelope version 3 so earlier strict readers refuse unfamiliar content. Existing
+GitLab listings in envelopes 1/2 remain readable; a combined GitLab/advice envelope
+uses version 3 and projects to directory format 8. Managed definitions and retained
+managed instructions keep their original owners.
+
 ## Integration ownership
 
 The owner adopted this upstream-first boundary on October 22, 2026 in
@@ -77,14 +117,12 @@ consume the smallest proven component or a fitting existing route. Broader
 manifest/build/configuration/container/lifecycle work uses the same owner when
 real consumers justify it. Planned does not commit every speculative enhancement.
 
-The existing seven-slice initial-beta plan keeps its numbering. Slice 1 owns port
-adoption, investigations and already-supported integrations through
+Ongoing port adoption, investigation and maintenance use
 [#2510](https://github.com/boburning/portcove/issues/2510),
 [#2926](https://github.com/boburning/portcove/issues/2926) and canonical port issues.
-Former Slice 2, Console-Family Beta Primitives, is not a separate beta or mandatory
-1.0 campaign. New #135–#138 infrastructure does not gate initial Public beta;
-their approved 1.0 / Planned commitments remain non-gating. Other slices and
-independent protected delivery requirements retain their owners.
+Use the [Project selection rules](PROJECT-GOVERNANCE.md#selecting-approved-work)
+across the entire backlog. Demand-driven adapter work and port delivery proceed
+independently of beta acceptance. Protected delivery retains its existing owners.
 
 [#1422](https://github.com/boburning/portcove/issues/1422) preserves its historical
 317 rows / 316 canonical identities, duplicate mapping, accepted routes and prior
@@ -845,7 +883,11 @@ requests and image bytes. Completed identities are atomically checkpointed after
 each result under the existing preparation lock. Reinvoke the same full workset
 after interruption or provider recovery: unchanged successful IDs are reused;
 changed per-ID identity, relevant accepted-original mappings or validator bytes
-invalidate the affected result. Earlier attempt receipts remain available.
+invalidate the affected result. Ordinary preparation and explicit or due refresh
+retain separate per-ID results so an ordinary run preserves the last live
+refresh observation. Earlier attempt receipts remain available.
+The exact old whole-batch reader serves pre-#3766 checkpoints with no per-ID
+progress. It can retire when those checkpoints no longer need to resume.
 A provider-blocked operation leaves its IDs pending while later unrelated or
 offline work continues. A fully deferred operation is never blindly retried.
 Provider Retry-After dates remain durable, and incomplete work never claims
@@ -1323,7 +1365,7 @@ catalog change.
 Declare the offered route's maintenance policy on its existing canonical Port
 issue during admission and subsequent disposition work, independently from its
 operations and qualification. [#1422](https://github.com/boburning/portcove/issues/1422)
-owns cohort reconciliation; completed [#254](https://github.com/boburning/portcove/issues/254)
+owns ongoing rollout and its historical evidence; completed [#254](https://github.com/boburning/portcove/issues/254)
 provides repeatable proposal and evidence preparation, and
 [#246](https://github.com/boburning/portcove/issues/246) owns protected compatible
 delivery. These declarations are not new catalog schema fields or a second
@@ -1611,6 +1653,27 @@ cross-version update/rollback, or non-Windows behavior. The exact identities,
 methods, and remaining boundaries are recorded in
 [`docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md`](qualification/dr-mario-64-recompiled-windows-2026-09-15.md).
 
+Native portable archives normally derive the working directory from the unique
+exact declared player filename. Do not repeat an incidental dated wrapper in
+`runtime_subdirectory` when the player’s parent is the reviewed runtime root.
+The authenticated package and full immutable manifest still bind expected
+contents; a missing or ambiguous player is refused. The installation retains
+its exact selected relative player path and creating definition, so later
+catalog observations do not reinterpret older working coordinates.
+The existing transition guard recognizes the omission only for native runtimes
+without owned data or source preparation, when an explicit root equals the
+authenticated retained player’s parent. Reverse rollback needs the retained
+target’s own coordinate. Changed roots or data ownership remain held.
+
+Marathon’s three official Windows integrations use that existing rule. Their
+full-scenario artifact pins remain separate: full-game and engine-only package
+names overlap the current provider hints, and populated shared upstream profiles
+have no qualified cross-version transition. Wrapper naming is no longer a pin
+reason. [Two real package inspections and regression controls](qualification/marathon-derived-wrapper-2026-11-05.md)
+record the narrower removal of release-specific layout edits. OpenPete’s exact
+runtime/source/cards/states boundary remains independently explicit under #113;
+this layout change supplies no OpenPete upgrade or state-compatibility evidence.
+
 The optional `n64_windows_initial_d3d12` declaration seeds only
 `{"api_option":"D3D12"}` in a fresh Windows N64 portable working directory.
 Both `graphics.json` and `graphics.json.bak` must be declared persistent at that
@@ -1690,6 +1753,12 @@ publication are unclaimed. Exact identities and boundaries are recorded in the
 [Windows qualification record](qualification/mega-man-x5-recompiled-windows-2026-09-16.md).
 
 ## Adding or changing a port
+
+On an integrated record, `integration.platforms` owns managed platform
+eligibility. Use `listing.platforms` only for additional platforms where
+independent upstream package evidence applies. Declare each platform once.
+The discovery directory reports both sets. The managed definition and its
+selected release retain their own platform checks.
 
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's
@@ -1777,6 +1846,37 @@ version. If either runtime later creates a changed path, or a path is populated,
 aliased, linked or otherwise uncertain, the switch stays held with the files and
 active copy preserved. Populated scope migration is not supplied by this exception.
 
+A ready runtime-local GitHub archive may explicitly declare
+`archive_data_compatibility_v1` with a stable `contract_id`, disjoint bounded
+`shared_paths`, and `build_specific_progress_paths`. These are reviewed data
+semantics, not inferred from filenames or an unchanged original ROM. Shared
+conventional paths remain in canonical user data. Other persistent objects are
+stored under `.portcove-archive-data-v1/<policy-sha256>/<producing-archive-sha256>`
+and restored only to that archive under its retained contract. Mixed directories
+can keep conventional SRAM shared while isolating host snapshots and unknown
+sidecars. Changing the policy, source identity or persistence coordinates holds
+replacement; historical installed definitions do not acquire the new policy.
+
+Common installation notices explain preservation, retained Versions and rollback.
+When build-specific progress exists, automatic maintenance stages the candidate
+for the player's activation decision without changing their update preference.
+Backups retain producing archive identity independently of the partitioned data
+policy. No-runtime backup/restore preserves opaque data without granting future
+runtime or source authority. This route requires staged-source capability 27;
+see [definition delivery](DEFINITION-DELIVERY.md) for reader fencing and reusable
+source applicability.
+
+For a reviewed historical predecessor, `archive_data_transition_v1` declares
+its exact archive and creating-contract digest once. The existing explicit update
+review offers the data transition with a distinct eligible successor and reports
+extra temporary library capacity. It preserves the working predecessor and binds
+its build-specific objects to their producing archive. Every retained copy must
+match the reviewed predecessor; an unexpected older contract or changed data is
+a specific hold, not an inferred compatibility grant. This optional transition
+requires staged-source capability 28. Its separate data-only admission retains the
+original source/execution authority and fences older readers; ordinary subsequent
+releases use the stable policy without new predecessor records.
+
 If fresh acquisition publishes a staged copy before its final data-compatibility
 check refuses, the error includes `staged_install_id`: that copy and its files stay
 registered, the active copy stays active, and activation and stage-only retries
@@ -1806,8 +1906,14 @@ at least one character between them, and never recurses or behaves as a general
 glob. Matching files are omitted from immutable verification but are not
 enumerated, backed up or restored. By contrast, `persistent_file_patterns` uses
 the same bounded syntax for player-owned files that must participate in those
-persistence operations, while `runtime_mutable_paths` remains the exact-path
-form for disposable runtime output. Catalog validation rejects overlapping or
+persistence operations. A current reader may opt a persistent pattern into
+matching its concatenated prefix and suffix with `allow_empty_middle: true`.
+It still matches regular files only and retains executable and critical-file
+refusals. Indexed definition admission rejects the option until its semantics
+can be negotiated with readers. Format-1 signed catalogs reject the option in
+the payload and inherit it only for matching compiled patterns.
+`runtime_mutable_paths` remains the exact-path form for
+disposable runtime output. Catalog validation rejects overlapping or
 duplicate rules and conflicts with executable, source, metadata, exact-runtime
 or persistent declarations. This contract cannot claim files in roaming AppData
 or another external user-profile directory; such state needs an upstream
@@ -1898,6 +2004,152 @@ facts remain in `integration`; the listing projection derives them. A listing
 without an integration carries no managed operation or qualification claim.
 Shared source identities, contracts, validators, evidence and qualification stay
 in `catalog-shared.json`, preserving their existing order and scope.
+
+General versions/update navigation derives the stable GitHub or GitLab releases
+page from the existing upstream URL. A selected package's notes use that
+candidate's exact observed release URL; no selected package means no claim of
+selected-release notes. `setup_url`, manual setup help and historical qualification
+links retain their deliberate version pins. Other providers fall back to a
+clearly labeled project page rather than treating a historical release as current.
+Do not edit release-specific evidence merely to refresh general navigation.
+Core permits native browser handoff to the one canonical GitHub or GitLab release
+index derived from an accepted project or release repository identity, including
+retained and pending listing projections. Comparison is exact: extra queries,
+fragments, download paths and foreign repositories need their own reviewed URL.
+This navigation rule grants no package acquisition, registration or launch action.
+
+Optional authoring-only `route_facts_v1` supplies a bounded Windows prepared
+player basename, executable-parent working folder, literal argument vector and
+actual external data locations. An existing NativePortable GitHub integration
+without a Core source binding may additionally supply one managed preparation action and exceptional
+warnings; its executable must agree with the operational declaration. An absent
+Core source profile is not evidence that no original files are required: keep
+upstream preparation and original-file ownership explicit. Common
+registration/ownership/removal, declared managed preservation and rollback
+explanations come from `scripts/catalog-route-facts.mts`. Bespoke guide actions,
+source/edition requirements and immediate warnings remain explicit. A staged-source
+archive can use prepared-player facts for its independent external route. Its
+managed presentation and source/data contract remain explicitly authored. No guide
+paragraph or descriptive fact authorizes execution or data ownership.
+Literal arguments preserve empty values, whitespace, repeated flags and order.
+They use Core's existing limit of 64 arguments and 32 KiB total UTF-8, with NUL
+refused. The fully escaped selector must also fit the existing concrete guide's
+4096-byte instruction bound; oversized vectors receive an authoring diagnostic
+before generation. Descriptive data-location labels keep separate validation.
+
+Generation expands those facts into the existing concrete versioned guides for
+Desktop, CLI and other consumers. Historical concrete guides remain exact; a new
+common explanation cannot reinterpret a retained installation. The same ordinary
+generation writes `route-enrollment.generated.json` and checked per-title Rust
+test includes for the existing lifecycle harnesses. Generated entrypoints keep
+each title independently bounded in nextest and call the same shared assertions.
+Independent inventory checks refuse missing or duplicate entrypoints. They
+execute every declared representative once and emit distinct
+per-title outcomes, checking independently reviewed expected launch vectors or
+accepted member observations. An ordinary fitting title needs no production Rust
+or per-title test wrapper. Independent observations and custom behavioral tests
+remain necessary where their scope differs from the shared route.
+For a managed-native case, record the independently observed executable and
+immutable members in the shared native lifecycle corpus. Set `runtime_folder`
+to the archive folder prefix with a trailing slash, or to an empty string for a
+root-level executable. List immutable member paths relative to that prefix.
+Enroll the stable ID, prepared executable and literal arguments, managed role and managed
+literal arguments in the independent expectations. Each route has its own
+argument vector, including an explicit empty vector when applicable. Review
+those facts against the package and upstream
+launch instructions before generating the entrypoints. The managed declaration
+generates both the managed lifecycle and the independent prepared-copy test.
+[Native lifecycle corpus](../crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json),
+[independent enrollment](../crates/portcove-core/src/testdata/route-enrollment-expectations.json).
+
+Fixture-only enrollment edits select both route inventories and every generated
+managed and prepared lifecycle case. The independent Windows archive inventory
+selects its shared release-selection case. A change limited to the native
+lifecycle corpus selects the retained native release-selection cases, retained
+and generated managed lifecycle cases, and managed enrollment inventory.
+Changes to authored title records
+still select the full Core inventory.
+
+Optional authoring-only `gba_staged_archive_v1` expands the reviewed Windows
+staged GitHub archive layout used by the upstream GBA picker. Record the
+four-character game code used by the packaged diagnostics and whether the
+runtime uses versioned mod packages. The projection supplies the shared
+local paths, diagnostic names and mod policy. Keep the repository, channel,
+asset and executable hints, original-file and BIOS requirements, and external
+save locations explicit. Use a full integration for a different layout, such
+as a player that writes variant-specific configuration or stores credentials.
+Settings qualification also requires the explicit integration form.
+The projection refuses duplicate path and mod policy fields. Core receives
+and validates the same concrete contract as before.
+
+Reuse the shared staging, declared-data preservation and rollback evidence
+when the official Windows archive uses the reviewed picker, stays within its
+tracked process lifetime and has the same writer and update ownership.
+Independently check each title's package selection, executable, original
+edition and effective write paths. Review changed lifetime, writer layout,
+credentials or update ownership against the affected lifecycle operation.
+The Ruby and Sapphire example shows when explicit variant and fallback paths
+can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-versioned-mod-preservation-2026-10-25.md),
+[explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
+
+For a new compatible-release selection case, add the stable title ID to
+`cases` in the shared Windows archive fixture. Set its `inventory` to a key
+in `inventories` with at least two releases in oldest-to-newest order.
+Record one independently identified exact asset name per release in
+`selected_assets`. Set `channel` for a route that selects outside the default
+stable channel. Keep the full observed release inventories and label
+controlled successors in the title evidence. Reuse an inventory when another
+title selects from the same releases. Use `other_zip_assets` to identify
+competing ZIPs outside the enrolled routes by inventory, zero-based release
+index and exact member name. The inventory check requires every ZIP to be
+covered exactly once. Generated route entrypoints and shared lifecycle
+fixtures separately cover registration, managed runtime replacement and data
+ownership. Ordinary compatible successors use the unchanged authored selectors.
+[Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
+
+The retained native-engine selection cases keep their controlled successor
+inventories and refusal filenames in the
+[native-engine scenario fixture](../crates/portcove-core/src/testdata/native-engine-release-scenarios.json).
+Use the exact observed package name as the player key. Shared repositories can
+reuse one successor inventory while checking distinct expected players.
+
+Optional authoring-only `package_observation_v1` retains an exact previously
+accepted package/player inspection. Ordinary `prepare-port` consumes its receipt
+with paired `--package-observation <json>` and
+`--package-observation-reference <repository-relative-path>` options. The title,
+upstream, independently expected archive digest, complete member CRC and bounded
+header must identify the unique declared prepared player. Installer headers do
+not substitute for an unobserved child; incomplete or ambiguous coverage refuses.
+This consumes existing accepted evidence and does not authenticate an unsigned
+report, download or execute a player, or grant publication authority.
+
+For listing-only prepared routes the selected AMD64 PE header derives descriptive
+Windows x86-64 metadata. The authored record must not also repeat `platforms`.
+Other header architectures remain unknown; managed platform authority stays in
+the integration. A changed selected executable, working folder, literal arguments
+or upstream makes the retained observation inapplicable, without blocking an
+otherwise eligible runtime. Accepted bytes changing under a retained package or
+member identity refuse even when an explicit replacement record omits or replaces
+the old observation. A distinct upstream artifact gets its own binding.
+
+The existing private preparation checkpoint reuses an unchanged projection bound
+to the artifact, member, selected-player contract and actual validator module
+bytes. Relevant changes invalidate that result; unrelated prose, data-location
+narration or receipt notes do not require another package inspection. Receipts
+retain their original evidence provenance and scope. Ordinary generation also
+writes `accepted-route-expectations.generated.json` from applicable accepted
+member observations and their bound launch vectors, feeding the same lifecycle
+harness without a second per-title expectations edit. Unknown header architecture
+still enrolls its applicable prepared-player contract. A changed selection contract
+needs a correspondingly accepted observation before authoring generation; it
+cannot accidentally disappear from the lifecycle inventory. Probe execution remains
+separate from upstream binary execution, dependency/gameplay and Supported
+qualification. Historical concrete definitions and prior receipts remain intact.
+GitHub owner/repository casing alone preserves applicable evidence and checkpoint
+reuse. Historical observations keep their exact repository spelling, selection
+hash and scope; a genuinely different repository or selected-player contract
+still needs newly applicable evidence. Changes to either shared authoring module
+select the existing generator's actual output-integrity check in local/hosted CI.
 
 Optional listing `original_game` is a version-1 descriptive identity: an explicitly
 reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen
@@ -2086,9 +2338,18 @@ default; no IGDB game, slug or platform IDs are guessed. `--credentials-file` an
 the established maintainer configuration supply provider credentials. Missing
 credentials, ambiguity or provider failure produce an independently retryable
 generated fallback. Unchanged accepted mappings remain reusable before lookup.
-Successful artwork receipts are reused only for the same input and accepted
-baseline. Operational changes require `--validator-cli`; captured Core
-`inspect-proposal` checks their exact assembled bytes. Whenever that CLI is
+Single-port and selected artwork batches share per-title checkpoints. The selected
+declaration, applicable accepted mappings, identity inputs, artwork tools and
+validator determine reuse. A resumed proposal assembles and checks the current
+full catalog. Reused artwork evidence identifies previously checked bytes.
+Use a fresh checkpoint with the existing artwork refresh route, or use due
+maintenance, to check current provider bytes for an accepted title. Earlier whole-catalog single-port receipts remain historical
+evidence. The first run on the new cache can require a lookup for a cover that
+has yet to be accepted. Existing accepted covers and upstream observation
+checkpoints are still usable offline. Operational changes require `--validator-cli`; captured Core
+`inspect-proposal --repository-authoring` checks their exact assembled bytes
+and applies the same outcome-summary convention as embedded-catalog CI. Use a
+validator built from a checkout that supports this flag. Whenever that CLI is
 supplied, `catalog inspect-listings --path` also validates the generated listing
 document, and its returned document must match the exact input semantics.
 Successful receipts bind input bytes and validator identity and survive resume.
@@ -2471,6 +2732,13 @@ retains the same publisher, revision, integrity, atomic selection and recovery
 boundary. Unsupported or invalid replacement data does not replace last-good
 cached listings or grant managed operations.
 
+Listing format8 adds supported GitLab descriptive observations with existing provider-qualified
+project/tag release identities and numeric generic registry file identities. GitHub IDs
+and serialized observations remain unchanged. Exporting a GitLab-bearing directory
+to an older format refuses; unknown formats retain existing last-good delivery
+behavior. Authored format derivation selects8 only when these fields occur. This
+adds no managed GitLab authority and leaves unsupported package layouts incomplete.
+
 Authored availability remains attributable. An explicit availability override
 requires its reason and takes display precedence. Otherwise accepted observations
 show package candidates or release assets with their provenance, original fact
@@ -2504,6 +2772,11 @@ future versions preserve ordinary project listings; older catalog readers can
 ignore it. Accepted regression and correction authority remains with the existing
 reviewed catalog inputs, not arbitrary release notes. See the
 [recommendation contract](reference/port-recommendation-policy.md).
+
+Write browse summaries and setup guides using [Content design](CONTENT-DESIGN.md).
+Collect source and release evidence first. Write a short description of the
+project, its inputs and the setup route a player can use. Preserve dated
+technical findings in reference notes or the owning evidence document.
 
 ### Setup actions and reference notes
 

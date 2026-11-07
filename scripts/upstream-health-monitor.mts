@@ -757,6 +757,10 @@ export async function drainHealthMonitor(
   const { sessionDeadline, onBatch, ...monitorOptions } = options;
   const now = monitorOptions.now ?? Date.now;
   const started = now();
+  const operationMonotonicDeadline = Math.min(
+    monitorOptions.operationMonotonicDeadline ?? Infinity,
+    performance.now() + sessionDeadline - started,
+  );
   if (!Number.isFinite(sessionDeadline) || sessionDeadline <= started)
     throw new Error("Health session runtime unavailable");
   let state = checkpoint;
@@ -777,6 +781,7 @@ export async function drainHealthMonitor(
       ...monitorOptions,
       continueDueOnly: count > 0,
       operationDeadline: sessionDeadline,
+      operationMonotonicDeadline,
       sessionStartedAt: started,
     });
     for (const id of result.retcomm_port_ids) retcommIds.add(id);

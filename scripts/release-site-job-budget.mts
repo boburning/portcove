@@ -1,6 +1,6 @@
 /** Original fixed Pages job budget only; provider job metadata is not admission. */
 import { performance } from "node:perf_hooks";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { isRecord } from "./runtime-values.mts";
 export function siteOriginalJobDeadline(
   raw: unknown,
@@ -47,14 +47,13 @@ export function siteOriginalJobDeadline(
     throw new Error("original site job budget exhausted or future dated");
   return monotonic + left;
 }
-export function currentSiteJobDeadline(
+export async function currentSiteJobDeadline(
   identity: {
     run_id: string;
     run_attempt: number;
     controller_revision: string;
     controller_ref: string;
   },
-  parent: string,
   processDeadline: number,
 ) {
   if (
@@ -67,22 +66,13 @@ export function currentSiteJobDeadline(
     identity.controller_ref !== process.env.GITHUB_REF
   )
     throw new Error("site invocation is not its original fixed job");
-  const remaining = () => {
-    const left = Math.floor(processDeadline - performance.now());
-    if (!Number.isFinite(left) || left < 1) throw new Error("original site job budget exhausted");
-    return Math.min(left, 15000);
-  };
-  const api = new GitHubApiClient((args, body) =>
-    createGitHubRunner({ cwd: parent, timeoutMs: remaining(), maxBuffer: 2 * 1024 ** 2 })(
-      [...args, "--hostname", "github.com"],
-      body,
-    ),
-  );
-  const response = api.request(
-    "GET",
-    `repos/boburning/portcove/actions/runs/${identity.run_id}/attempts/1/jobs?per_page=100`,
-  );
-  remaining();
-  if (response.status !== 200) throw new Error("original site job observation unavailable");
+  if (!Number.isFinite(processDeadline) || performance.now() >= processDeadline)
+    throw new Error("original site job budget exhausted");
+  const token = fixedReleaseReaderToken();
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({ token, deadline: processDeadline });
+  const response = await provider.jobs(identity.run_id, 1, 1);
+  if (response.next !== null || performance.now() >= processDeadline)
+    throw new Error("original site job observation unavailable");
   return Math.min(processDeadline, siteOriginalJobDeadline(response.body, identity));
 }

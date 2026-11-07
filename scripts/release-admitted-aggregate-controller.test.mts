@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
+import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
 import { readFile, mkdir, writeFile, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -42,7 +44,6 @@ import {
   readOnlyReleaseChildEnvironment,
 } from "./release-readonly-child-environment.mts";
 import { createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
 
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const producer = {
@@ -86,6 +87,64 @@ void test("actual report-only aggregate continuation refuses a missing original 
   );
 });
 
+void test("aggregate journal guard waits for SDK controls and refuses changed or expired evidence", async () => {
+  const source = await readFile(
+    new URL("./release-admitted-aggregate-controller.mts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /\b(?:GitHubApiClient|createGitHubRunner)\b/u);
+  const start = source.indexOf("      const readCurrentControls =");
+  const end = source.indexOf("      const fresh =", start);
+  assert.ok(start >= 0 && end > start);
+  const controls = {
+    classification: { commit: "a".repeat(40) },
+    pause: { publication_paused: false },
+    capacity: { document_sha256: "b".repeat(64) },
+    resource_policy_matches_controller: true,
+  };
+  const pending = Promise.withResolvers<typeof controls>();
+  let expired = false;
+  const currentSource = {
+    evidence_scope: "github.com",
+    readSdkApplicationControls: () => pending.promise,
+  };
+  const guard: unknown = runInNewContext(
+    stripTypeScriptTypes(`(()=>{${source.slice(start, end)}return requireCurrentControls;})()`),
+    {
+      active() {
+        if (expired) throw new Error("phase deadline exhausted");
+      },
+      admitted: { admission: { controls }, facts: { opportunity: {} } },
+      currentSource,
+      isDeepStrictEqual,
+    },
+  );
+  assert.ok(typeof guard === "function");
+  const runGuard = guard as () => Promise<void>;
+  let settled = false;
+  const checked = runGuard().finally(() => {
+    settled = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(settled, false);
+  pending.resolve(controls);
+  await checked;
+
+  currentSource.readSdkApplicationControls = async () => ({
+    ...controls,
+    classification: { commit: "c".repeat(40) },
+  });
+  await assert.rejects(runGuard(), /fresh aggregate controls differ/u);
+  currentSource.readSdkApplicationControls = async () => {
+    expired = true;
+    return controls;
+  };
+  await assert.rejects(runGuard(), /phase deadline exhausted/u);
+  expired = false;
+  currentSource.evidence_scope = "injected-provider";
+  await assert.rejects(runGuard(), /authenticated aggregate control round unavailable/u);
+});
+
 void test("trusted GH read calls inherit the captured job token while candidate children remain credential-free", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-readonly-cli-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -124,16 +183,6 @@ void test("trusted GH read calls inherit the captured job token while candidate 
         return { status: 0, stdout: "HTTP/2 200\r\n\r\n{}", stderr: "" };
       },
     })(["api", "repos/boburning/portcove"]);
-    readGitHubArtifactArchive("repos/boburning/portcove/actions/artifacts/1/zip", {
-      cwd: root,
-      maxBytes: 22,
-      timeoutMs: 1000,
-      spawn(_command, _args, options) {
-        assert.equal(options.env?.GH_TOKEN, "inert-GH_TOKEN");
-        assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
-        return { status: 0, stdout: Buffer.alloc(22) };
-      },
-    });
   });
   assert.equal(readOnlyReleaseChildEnvironment(), undefined);
   assert.equal(
@@ -298,51 +347,79 @@ void test("actual bounded archive member readback brackets complete inventory an
       head_repository_id: 1354613114,
     },
   };
-  const exercise = (fault: string) => {
+  const exercise = async (fault: string) => {
     let reads = 0;
-    const api = {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        assert.match(
-          endpoint,
-          /^repos\/boburning\/portcove\/actions\/runs\/9988\/artifacts\?per_page=100&page=[1-4]$/u,
-        );
-        reads++;
-        const value =
-          fault === "drift" && reads > 1
-            ? { ...metadata, digest: `sha256:${"0".repeat(64)}` }
-            : fault === "source"
-              ? {
-                  ...metadata,
-                  workflow_run: { ...metadata.workflow_run, head_sha: "0".repeat(40) },
-                }
-              : metadata;
-        const artifacts =
-          fault === "missing"
-            ? []
-            : fault === "duplicate"
-              ? [value, { ...value, id: 100 }]
-              : [value];
-        return {
-          status: 200,
-          body: {
-            total_count: fault === "over-cap" ? 401 : fault === "partial" ? 2 : artifacts.length,
-            artifacts: fault === "partial" && reads > 1 ? [] : artifacts,
-          },
-          headers: new Map<string, string>(),
-        };
-      },
+    const readPage = async (run: string, page: number) => {
+      assert.equal(run, "9988");
+      assert.ok(page >= 1 && page <= 4);
+      reads++;
+      const value =
+        fault === "drift" && reads > 1
+          ? { ...metadata, digest: `sha256:${"0".repeat(64)}` }
+          : fault === "source"
+            ? {
+                ...metadata,
+                workflow_run: { ...metadata.workflow_run, head_sha: "0".repeat(40) },
+              }
+            : metadata;
+      const artifacts =
+        fault === "missing" ? [] : fault === "duplicate" ? [value, { ...value, id: 100 }] : [value];
+      return {
+        total_count: fault === "over-cap" ? 401 : fault === "partial" ? 2 : artifacts.length,
+        artifacts: fault === "partial" && reads > 1 ? [] : artifacts,
+      };
     };
-    return readAdmittedAggregateUpload(
-      api,
-      producer,
-      wanted,
-      f.request,
-      f.root,
-      performance.now() + 10000,
-      undefined,
-      () => (fault === "bytes" ? Buffer.alloc(archive.length) : archive),
-    );
+    const deadline = performance.now() + 10000;
+    const provider =
+      fault === ""
+        ? await createReleaseCustodyProvider({
+            token: "inert-aggregate-reader",
+            deadline,
+            fetch: async (input, init) => {
+              const request = new Request(input, init);
+              const url = new URL(request.url);
+              assert.equal(url.origin, "https://api.github.com");
+              assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/9988/artifacts");
+              assert.equal(url.searchParams.get("per_page"), "100");
+              assert.equal(request.headers.get("authorization"), "token inert-aggregate-reader");
+              assert.equal(request.method, "GET");
+              return Response.json(await readPage("9988", Number(url.searchParams.get("page"))));
+            },
+          })
+        : { runArtifacts: readPage };
+    return readAdmittedAggregateUpload(provider, producer, wanted, f.request, f.root, deadline, {
+      token: "inert-aggregate-reader",
+      ...(fault === ""
+        ? {
+            async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+              const url = new URL(input instanceof Request ? input.url : input);
+              const headers = new Headers(init?.headers);
+              if (url.origin === "https://api.github.com") {
+                assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/99/zip");
+                assert.equal(headers.get("authorization"), "token inert-aggregate-reader");
+                assert.equal(reads, 1);
+                return new Response(null, {
+                  status: 302,
+                  headers: {
+                    location:
+                      "https://productionresultssa10.blob.core.windows.net/actions-results/aggregate?sig=synthetic",
+                  },
+                });
+              }
+              assert.equal(init?.credentials, "omit");
+              assert.equal(headers.has("authorization"), false);
+              assert.equal(reads, 1);
+              return new Response(Uint8Array.from(archive));
+            },
+          }
+        : {
+            async download(artifact: { id: number; bytes: number }, bound: number) {
+              assert.deepEqual(artifact, { id: 99, bytes: archive.length });
+              assert.equal(bound, deadline);
+              return fault === "bytes" ? Buffer.alloc(archive.length) : archive;
+            },
+          }),
+    });
   };
   const result = await exercise("");
   assert.deepEqual(result.artifact, { id: 99, sha256: sha(archive) });

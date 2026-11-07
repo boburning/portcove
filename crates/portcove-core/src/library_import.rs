@@ -82,10 +82,25 @@ impl PortabilityCatalogs {
                         );
                         admissions.push(admission);
                     } else {
-                        crate::signed_catalog::validate_installed_port_contract(
-                            catalog.port(&install.port_id)?,
-                            embedded.port(&install.port_id)?,
-                        )?;
+                        let retained_port = catalog.port(&install.port_id)?;
+                        let embedded_port = embedded.port(&install.port_id)?;
+                        if embedded_port.windows_shipwright_persistence
+                            && !retained_port.windows_shipwright_persistence
+                        {
+                            // Compare the historical contract against the old
+                            // operational shape, leaving the retained bytes intact.
+                            let mut historical = embedded_port.clone();
+                            historical.windows_shipwright_persistence = false;
+                            crate::signed_catalog::validate_installed_port_contract(
+                                retained_port,
+                                &historical,
+                            )?;
+                        } else {
+                            crate::signed_catalog::validate_installed_port_contract(
+                                retained_port,
+                                embedded_port,
+                            )?;
+                        }
                     }
                     catalog
                 }

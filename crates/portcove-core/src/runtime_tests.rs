@@ -401,6 +401,7 @@ async fn named_saves_follow_activation_and_rollback_including_deleted_slots() {
     let patterns = vec![crate::PersistentFilePattern {
         prefix: "profile_".into(),
         suffix: ".sav".into(),
+        allow_empty_middle: false,
     }];
     let mut first = Fixture::new(b"runtime one", false);
     first.port.persistent_file_patterns = patterns.clone();
@@ -441,6 +442,7 @@ async fn named_save_restore_updates_every_version_and_preserves_import_policy() 
     let patterns = vec![crate::PersistentFilePattern {
         prefix: "profile_".into(),
         suffix: ".sav".into(),
+        allow_empty_middle: false,
     }];
     let mut first = Fixture::new(b"runtime one", false);
     first.port.persistent_file_patterns = patterns.clone();
@@ -524,6 +526,7 @@ async fn named_saves_survive_reinstallation_without_weakening_executable_policy(
     let patterns = vec![crate::PersistentFilePattern {
         prefix: "profile_".into(),
         suffix: ".sav".into(),
+        allow_empty_middle: false,
     }];
     let mut first = Fixture::new(b"runtime one", false);
     first.port.persistent_file_patterns = patterns.clone();

@@ -1,3 +1,4 @@
+import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import assert from "node:assert/strict";
@@ -17,11 +18,16 @@ import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts"
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import { releasePublicBuildArtifactName } from "./release-public-build-provenance.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
-import type { IncludedResponse } from "./github-api.mts";
-import { rateLimitFromResponse } from "./github-api.mts";
+import type { IncludedResponse } from "./github-operation.mts";
+import { rateLimitFromResponse } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
+import {
+  createPublicationInventoryWithSdk,
+  readPublicationAllocationsWithSdk,
+  releasePublicationRefsQuery,
+} from "./release-publication-inventory.mts";
 
 void test("qualifying continuation consumes pre-sign native stage without claiming payload admission", () => {
   assert.equal(inspectAdmissionNativeStage("admission", "candidate-building"), "payload-signing");
@@ -112,10 +118,67 @@ void test("native preparatory collection reaches immutable facts while qualifyin
     // Deliberately return a forged success: the preparatory wrapper ignores it.
     return { decision: "admitted", holds: [] };
   };
+  let evidenceDispatches = 0;
+  const fixtureApi = f.options.api;
+  assert.ok(fixtureApi);
+  const metadataRoutes: string[] = [];
+  let sourceGuards = 0;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(request.headers.get("authorization"), "token original-native-source");
+      metadataRoutes.push(url.pathname);
+      if (url.pathname === "/graphql") {
+        const raw: unknown = await request.json();
+        assert.ok(
+          isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+        );
+        return Response.json({
+          data: fixtureApi.graphql(releasePublicationRefsQuery, raw.variables).data,
+        });
+      }
+      const response = fixtureApi.request("GET", url.href);
+      return Response.json(response.body, { headers: [...response.headers] });
+    },
+  );
+  const { recover, download } = f.options;
+  assert.ok(recover && download);
+  const sources = {
+    recover,
+    download,
+    nativeSource: {
+      token: "original-native-source",
+      deadline: performance.now() + 5000,
+      guard() {
+        sourceGuards++;
+      },
+    },
+    collectEvidence: (request: unknown, options: Parameters<typeof collectReleaseRunEvidence>[1]) =>
+      collectReleaseRunEvidence(request, {
+        ...options,
+        credential: { kind: "explicit", token: "fixture-hosted-evidence" },
+        fetch: async (input, init) => {
+          assert.ok(typeof input === "string");
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            "token fixture-hosted-evidence",
+          );
+          const response = fixtureApi.request("GET", input);
+          evidenceDispatches++;
+          return Response.json(response.body, {
+            status: response.status ?? 200,
+            headers: [...response.headers],
+          });
+        },
+      }),
+  };
   for (const phase of ["qualifying", "building"]) {
     f.input.active_candidate.phase = phase;
     await assert.rejects(
-      acquireHostedNativePreparation(parent, f.root, f.config, f.options, receive),
+      acquireHostedNativePreparation(parent, f.root, f.config, sources, receive),
       (error: unknown) => {
         assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
         assert.equal(error.evidence.phase, "actual-stage-native-qualification");
@@ -124,13 +187,18 @@ void test("native preparatory collection reaches immutable facts while qualifyin
     );
   }
   assert.equal(calls, 2);
+  assert.ok(metadataRoutes.some((route) => route.endsWith("/check-runs")));
+  assert.ok(metadataRoutes.some((route) => route.includes("/compare/")));
+  assert.ok(sourceGuards >= metadataRoutes.length);
+
+  assert.ok(evidenceDispatches >= 14);
   f.input.active_candidate.phase = "publishing";
   await assert.rejects(
-    acquireHostedNativePreparation(parent, f.root, f.config, f.options, receive),
+    acquireHostedNativePreparation(parent, f.root, f.config, sources, receive),
     /repository-and-reservation/,
   );
   await assert.rejects(
-    acquireHostedNativePreparation({}, f.root, f.config, f.options, receive),
+    acquireHostedNativePreparation({}, f.root, f.config, sources, receive),
     /original parent/,
   );
   assert.equal(calls, 2);
@@ -219,8 +287,16 @@ void test("updater package custody retains the captured callback without grantin
   const retained: string[] = [];
   const originalRecover = f.options.recover;
   assert.ok(originalRecover);
+  const download = f.options.download;
+  assert.ok(download);
+  let archiveLookups = 0;
   const options: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
     ...f.options,
+    download: async (endpoint, bounds) => {
+      assert.ok(bounds.lookup?.reserve && bounds.lookup.elapsed);
+      archiveLookups++;
+      return download(endpoint, bounds);
+    },
     retainDesktopPackage: async (identity, bytes) => {
       assert.equal(bytes.length, identity.bytes);
       assert.equal(hash(bytes), identity.sha256);
@@ -233,6 +309,7 @@ void test("updater package custody retains the captured callback without grantin
     },
   };
   const result = await acquireReleaseAdmission(f.root, f.config, options);
+  assert.ok(archiveLookups >= 2);
   assert.deepEqual(retained.sort(), ["linux-x86_64", "windows-x86_64"]);
   assert.equal(result.decision, "hold");
   assert.equal(result.descriptor, null);
@@ -588,6 +665,113 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
         : { schema_version: 2, namespace: "portcove-fixture", release_profile: profile },
   };
 }
+
+void test("locked allocation reader joins the exact raw prepared and source commits", async (t) => {
+  const f = await fixture(t);
+  const api = f.options.api;
+  assert.ok(api);
+  const paths: string[] = [];
+  const result = await readPublicationAllocationsWithSdk(f.config.namespace, {
+    token: "synthetic-native-reader",
+    deadline: performance.now() + 5000,
+    recheck: async () => {},
+    async fetch(input, init) {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      const { pathname, origin } = new URL(url);
+      assert.equal(origin, "https://api.github.com");
+      paths.push(pathname);
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token synthetic-native-reader",
+      );
+      if (pathname === "/graphql") {
+        assert.ok(typeof init?.body === "string");
+        const raw: unknown = JSON.parse(init.body);
+        assert.ok(
+          isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+        );
+        return Response.json({
+          data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+        });
+      }
+      return Response.json(api.request("GET", pathname.slice(1)).body);
+    },
+  });
+  const candidate = f.input.active_candidate;
+  assert.deepEqual(result.allocations, [
+    {
+      version: candidate.version,
+      source_commit: candidate.source_commit,
+      source_tree: candidate.source_tree,
+      prepared_commit: candidate.prepared_commit,
+      prepared_tree: candidate.prepared_tree,
+      intent_sha256: candidate.intent_sha256,
+    },
+  ]);
+  assert.deepEqual(paths, [
+    "/repos/boburning/portcove",
+    "/graphql",
+    `/repos/boburning/portcove/git/commits/${f.prepared.sha}`,
+    `/repos/boburning/portcove/git/commits/${f.original.sha}`,
+  ]);
+});
+
+void test("actual admission package transfer uses the scoped SDK with signed delivery before final readback", async (t) => {
+  const f = await fixture(t);
+  const download = f.options.download;
+  assert.ok(download);
+  const options = { ...f.options };
+  delete options.download;
+  const previous = process.env.GH_TOKEN;
+  const token = "ghs_SYNTHETIC_ADMISSION_PACKAGE_READER";
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  const lookups: string[] = [],
+    deliveries: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const headers = new Headers(init?.headers);
+      if (url.origin === "https://api.github.com") {
+        assert.equal(init?.method, "GET");
+        assert.equal(headers.get("authorization"), `token ${token}`);
+        const id = /^\/repos\/boburning\/portcove\/actions\/artifacts\/([1-9][0-9]*)\/zip$/u.exec(
+          url.pathname,
+        )?.[1];
+        assert.ok(id);
+        lookups.push(id);
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: `https://productionresultssa10.blob.core.windows.net/actions-results/${id}?sig=synthetic`,
+          },
+        });
+      }
+      assert.equal(init?.credentials, "omit");
+      assert.equal(headers.has("authorization"), false);
+      const id = /^\/actions-results\/([1-9][0-9]*)$/u.exec(url.pathname)?.[1];
+      assert.ok(id);
+      deliveries.push(id);
+      const archive = await download(`repos/boburning/portcove/actions/artifacts/${id}/zip`, {
+        cwd: f.root,
+        maxBytes: 512 * 1024 ** 2,
+        timeoutMs: 120000,
+      });
+      return new Response(Uint8Array.from(archive));
+    },
+  );
+  const result = await acquireReleaseAdmission(f.root, f.config, options);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.equal(lookups.length, 4);
+  assert.deepEqual(deliveries, lookups);
+  assert.ok(!(await readdir(result.directory)).some((name) => /^package-.*[.]zip$/u.test(name)));
+});
 
 void test("actual admission authenticates frozen semantic producer, owner pause and spending source without clearing independent holds", async (t) => {
   const f = await fixture(t);
@@ -992,4 +1176,307 @@ void test("fixed building caller refuses imported configuration and exhausted or
     runFixedBuildingConfiguration({}, process.cwd(), performance.now() - 1),
     /deadline/,
   );
+});
+
+void test("source publication inventory keeps ordered short pages, exact repo alias and original row shape through the SDK", async () => {
+  for (const wrongRepository of [false, true]) {
+    const routes: string[] = [];
+    const second = `/repositories/${wrongRepository ? 1354613115 : 1354613114}/releases?page=2&per_page=100`;
+    const reader = await createPublicationInventoryWithSdk({
+      token: "synthetic-source-inventory",
+      deadline: performance.now() + 5000,
+      async recheck() {},
+      async fetch(input, init) {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.method, "GET");
+        assert.equal(request.headers.get("authorization"), "token synthetic-source-inventory");
+        routes.push(url.pathname + url.search);
+        if (url.pathname === "/repos/boburning/portcove") {
+          return Response.json({
+            id: 1354613114,
+            full_name: "boburning/portcove",
+            node_id: "R_fixture",
+          });
+        }
+        const first = url.pathname === "/repos/boburning/portcove/releases";
+        if (!first) assert.equal(url.pathname + url.search, second);
+        const time = "2026-11-04T00:00:00Z";
+        return Response.json(
+          [
+            {
+              id: first ? 3 : 1,
+              tag_name: first ? "v0.0.3" : "v0.0.1",
+              draft: false,
+              prerelease: true,
+              published_at: time,
+              updated_at: time,
+            },
+          ],
+          first
+            ? { headers: { link: `<https://api.github.com${second}>; rel="next"` } }
+            : undefined,
+        );
+      },
+    });
+    if (wrongRepository) {
+      await assert.rejects(reader.releases(), /pagination changed scope/u);
+      assert.equal(routes.length, 2);
+    } else {
+      assert.deepEqual(
+        (await reader.releases()).map((row) => row.id),
+        [1, 3],
+      );
+      assert.deepEqual(routes, [
+        "/repos/boburning/portcove",
+        "/repos/boburning/portcove/releases?per_page=100",
+        second,
+      ]);
+    }
+  }
+});
+
+for (const failure of ["releases", "comparison"] as const)
+  void test(`default admission uses locked publication and frozen source readers before ${failure} failure`, async (t) => {
+    const f = await fixture(t);
+    f.input.opportunity.change_set_sha256 = f.sourceFacts.expectedHash;
+    Object.assign(f.input.opportunity.classification, {
+      change_set_sha256: f.sourceFacts.expectedHash,
+      change_set_scope: "portcove-release-net-tree-delta-v1",
+    });
+    Object.assign(f.input.active_candidate, {
+      frozen_opportunity: structuredClone(f.input.opportunity),
+    });
+    const { api, recover } = f.options;
+    assert.ok(api && recover);
+    const token = "inert-fixed-admission-inventory";
+    const previous = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = token;
+    t.after(() => {
+      if (previous === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previous;
+    });
+    const events: string[] = [];
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), `token ${token}`);
+        events.push(url.pathname);
+        if (url.pathname === "/graphql") {
+          const raw: unknown = await request.json();
+          assert.ok(
+            isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+          );
+          return Response.json({
+            data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+          });
+        }
+        if (
+          failure === "releases"
+            ? url.pathname.endsWith("/releases")
+            : url.pathname.includes("/compare/")
+        )
+          return Response.json({ message: "transient provider refusal" }, { status: 503 });
+        return Response.json(api.request("GET", url.pathname.slice(1)).body);
+      },
+    );
+    await assert.rejects(
+      acquireReleaseAdmission(f.root, f.config, {
+        deadline: performance.now() + 5000,
+        recover: async (...args) => {
+          events.push("recover");
+          return recover(...args);
+        },
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+        assert.equal(
+          error.evidence.phase,
+          failure === "releases" ? "repository-and-reservation" : "source-consistency",
+        );
+        assert.equal(
+          error.evidence.api_requests,
+          events.filter((event) => event !== "recover").length,
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(events.slice(0, 4), [
+      "/repos/boburning/portcove",
+      "recover",
+      "/graphql",
+      "/repos/boburning/portcove/releases",
+    ]);
+    if (failure === "comparison") {
+      assert.match(events.at(-1) ?? "", /^\/repos\/boburning\/portcove\/compare\//u);
+      assert.equal(events.filter((event) => event.includes("/compare/")).length, 1);
+    } else assert.equal(events.length, 4);
+  });
+
+void test("default admission journal uses a separate scoped SDK read through a stalled body", async (t) => {
+  const f = await fixture(t);
+  const token = "inert-fixed-admission-journal";
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  const routes: string[] = [];
+  let cancelled = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.headers.get("authorization"), `token ${token}`);
+      routes.push(new URL(request.url).pathname);
+      if (routes.length === 1)
+        return Response.json({
+          id: 1354613114,
+          full_name: "boburning/portcove",
+          node_id: "R_fixture",
+        });
+      return new Response(
+        new ReadableStream({
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        {
+          headers: { "content-type": "application/json" },
+        },
+      );
+    },
+  );
+  await assert.rejects(
+    acquireReleaseAdmission(f.root, f.config, { deadline: performance.now() + 250 }),
+    (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+      assert.equal(error.evidence.phase, "repository-and-reservation");
+      assert.equal(error.evidence.api_requests, 1);
+      return true;
+    },
+  );
+  assert.deepEqual(routes, ["/repos/boburning/portcove", "/repos/boburning/portcove"]);
+  assert.equal(cancelled, true);
+});
+
+void test("locked publication inventory uses the operation's existing exhausted reservation", async () => {
+  let occupied = 159;
+  let observed = 0;
+  let dispatched = 0;
+  const reader = await createPublicationInventoryWithSdk({
+    token: "synthetic-shared-inventory",
+    deadline: performance.now() + 1000,
+    async recheck() {},
+    accounting: {
+      currentDeadline: () => performance.now() + 1000,
+      reserve() {
+        if (occupied >= 160) throw new Error("admission API acquisition bound exhausted");
+        occupied++;
+        return {
+          consumeBytes() {},
+          settle(attempt) {
+            if (!attempt.dispatched) occupied--;
+          },
+        };
+      },
+      elapsed() {
+        observed++;
+      },
+    },
+    async fetch() {
+      dispatched++;
+      return Response.json({
+        id: 1354613114,
+        full_name: "boburning/portcove",
+        node_id: "R_fixture",
+      });
+    },
+  });
+  await assert.rejects(reader.releases(), /admission API acquisition bound exhausted/u);
+  assert.equal(dispatched, 1);
+  assert.equal(occupied, 160);
+  assert.ok(observed >= 1);
+});
+
+void test("default admission brackets exact SDK check pages and statuses across archive acquisition", async (t) => {
+  const token = "inert-fixed-admission-qualification";
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  for (const drift of [null, "status-drift", "issuer-drift"]) {
+    const f = await fixture(t);
+    const { api, recover, download } = f.options;
+    assert.ok(api && recover && download);
+    if (drift) f.faults.value = drift;
+    const qualification: string[] = [];
+    const mocked = t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), `token ${token}`);
+        if (url.pathname === "/graphql") {
+          const raw: unknown = await request.json();
+          assert.ok(
+            isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+          );
+          return Response.json({
+            data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+          });
+        }
+        const raw = api.request("GET", url.href);
+        const headers = new Headers(Object.fromEntries(raw.headers));
+        if (url.pathname.endsWith("/check-runs")) {
+          assert.equal(url.searchParams.get("filter"), "latest");
+          assert.match(url.pathname, new RegExp(f.prepared.sha, "u"));
+          const page = url.searchParams.get("page") ?? "1";
+          qualification.push(`checks-${page}`);
+          assert.ok(isRecord(raw.body) && Array.isArray(raw.body.check_runs));
+          const first = page === "1";
+          if (first) {
+            url.searchParams.set("page", "2");
+            headers.set("link", `<${url.href}>; rel="next"`);
+          }
+          return Response.json(
+            {
+              ...raw.body,
+              check_runs: raw.body.check_runs.slice(first ? 0 : 1, first ? 1 : undefined),
+            },
+            { headers },
+          );
+        }
+        if (url.pathname.endsWith("/status")) {
+          assert.match(url.pathname, new RegExp(f.prepared.sha, "u"));
+          qualification.push("status");
+        }
+        return Response.json(raw.body, { headers });
+      },
+    );
+    try {
+      const result = acquireReleaseAdmission(f.root, f.config, { recover, download });
+      if (drift) await assert.rejects(result, /freshness-bracket/u);
+      else assert.equal((await result).decision, "hold");
+      assert.deepEqual(
+        qualification,
+        drift === "issuer-drift"
+          ? ["checks-1", "checks-2", "status", "checks-1"]
+          : ["checks-1", "checks-2", "status", "checks-1", "checks-2", "status"],
+      );
+    } finally {
+      mocked.mock.restore();
+    }
+  }
 });

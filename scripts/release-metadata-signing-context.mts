@@ -1,10 +1,10 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 /** Coordinator-owned unchanged-feed context. This cannot manufacture a release
  * candidate, native qualification, a prior repository or bootstrap absence. */
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { spawnSync } from "node:child_process";
 import { isDeepStrictEqual } from "node:util";
 import {
   requireActualCoordinatorMetadataPreparation,
@@ -27,14 +27,13 @@ import { requireControllerApplicationJobPublicationAuthorities } from "./release
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { inspectCapacityOperation } from "./release-capacity.mts";
 import {
   capacityExecutorIdentity,
   refreshCapacityExecutor,
   requireOwnedCapacityPendingBoundary,
 } from "./release-capacity-executor.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   inspectMetadataSigningBinding,
@@ -53,8 +52,8 @@ type Controls = Awaited<ReturnType<Session["next_controls"]>>;
 type Owned = {
   session: Session;
   directory: string;
-  work: string;
   deadline: number;
+  credential: { token: string };
   files: ReturnType<typeof inventory>;
   descriptor:
     | Awaited<ReturnType<typeof inspectPreparedMetadataRenewal>>["descriptor"]
@@ -73,32 +72,6 @@ function remaining(owned: { deadline: number }, max = 15000) {
   if (!Number.isFinite(left) || left < 1) throw new Error("coordinator context deadline exhausted");
   return Math.min(max, left);
 }
-function apiFor(owned: Pick<Owned, "directory" | "work" | "deadline">) {
-  let reads = 0;
-  const environment = {
-    PATH: process.env.PATH,
-    SystemRoot: process.env.SystemRoot,
-    HOME: owned.work,
-    USERPROFILE: owned.work,
-    GH_CONFIG_DIR: path.join(owned.work, "gh-config"),
-    GH_TOKEN: process.env.GH_TOKEN,
-    GH_PROMPT_DISABLED: "1",
-    GH_NO_UPDATE_NOTIFIER: "1",
-    NO_COLOR: "1",
-  };
-  return new GitHubApiClient((args, input) => {
-    if (++reads > 32) throw new Error("metadata context control read limit exhausted");
-    const response = createGitHubRunner({
-      cwd: owned.directory,
-      maxBuffer: 512 * 1024,
-      timeoutMs: remaining(owned),
-      spawn: (command, args, settings) =>
-        spawnSync(command, args, { ...settings, env: environment }),
-    })([...args, "--hostname", "github.com"], input);
-    remaining(owned);
-    return response;
-  });
-}
 async function controls(owned: Owned) {
   remaining(owned);
   if (!owned.source || performance.now() - owned.observed >= 45000) {
@@ -107,23 +80,11 @@ async function controls(owned: Owned) {
   }
   if (owned.source.evidence_scope !== "github.com")
     throw new Error("actual coordinator metadata controls required");
-  const api = apiFor(owned),
-    current = owned.source.readMaintenance({
-      request(method, endpoint, body) {
-        if (
-          method !== "GET" ||
-          body !== undefined ||
-          !endpoint.startsWith("repos/boburning/portcove/")
-        )
-          throw new Error("metadata context permits fixed GET only");
-        return api.request(method, endpoint);
-      },
-      graphql(query, variables) {
-        if (query !== releaseControlRefQuery)
-          throw new Error("metadata context control query differs");
-        return api.graphql(query, variables);
-      },
-    });
+  const current = await owned.source.readSdkMaintenance(undefined, {
+    deadline: owned.deadline,
+    signingContext: true,
+  });
+  remaining(owned);
   if (
     current.pause.publication_paused ||
     !current.resource_policy_matches_controller ||
@@ -137,7 +98,7 @@ async function snapshot(owned: Owned) {
   return readRemoteCoordinatorSnapshot(
     owned.directory,
     { schema_version: 1, namespace: owned.session.namespace },
-    { transport: { cwd: owned.directory, deadline: owned.deadline } },
+    { transport: { credential: owned.credential, deadline: owned.deadline } },
   );
 }
 async function verifyState(owned: Owned, state: Awaited<ReturnType<typeof snapshot>>) {
@@ -228,7 +189,13 @@ export async function prepareCoordinatorSigningContext(
   const work = await mkdtemp(path.join(parent, "metadata-signing-context-")),
     directory = path.join(work, "context");
   await mkdir(directory, { mode: 0o700 });
-  const current = session.controls.readMaintenance(apiFor({ directory, work, deadline }));
+  if (session.controls.evidence_scope !== "github.com")
+    throw new Error("actual coordinator metadata controls required");
+  const current = await session.controls.readSdkMaintenance(undefined, {
+    deadline,
+    signingContext: true,
+  });
+  remaining({ deadline });
   if (current.pause.publication_paused || !current.resource_policy_matches_controller)
     throw new Error("metadata preparation controls unavailable");
   const facts = {
@@ -258,8 +225,8 @@ export async function prepareCoordinatorSigningContext(
   const owned: Owned = {
     session,
     directory,
-    work,
     deadline,
+    credential: { token: fixedReleaseReaderToken() },
     files: inventory(source),
     descriptor: prepared.descriptor,
     control_facts: {
@@ -366,6 +333,22 @@ export async function bindCoordinatorSigningContextPending(
   await requireCoordinatorSigningContext(receipt);
 }
 export async function requireCoordinatorSigningContext(receipt: object, phaseDeadline?: number) {
+  return requireCoordinatorSigningContextAt(receipt, phaseDeadline, true);
+}
+/** Existing private receipt's retained inputs and fresh controls only. The
+ * authenticated owned journal checks head/pending state during checkpoint
+ * mutation; an old context-head assertion cannot replace that protocol. */
+export async function requireCoordinatorSigningCheckpointControls(
+  receipt: object,
+  phaseDeadline?: number,
+) {
+  await requireCoordinatorSigningContextAt(receipt, phaseDeadline, false);
+}
+async function requireCoordinatorSigningContextAt(
+  receipt: object,
+  phaseDeadline: number | undefined,
+  verifyCheckpointState: boolean,
+) {
   const owned = contexts.get(receipt);
   if (!owned) throw new Error("actual coordinator metadata context required");
   if (phaseDeadline !== undefined) {
@@ -388,19 +371,27 @@ export async function requireCoordinatorSigningContext(receipt: object, phaseDea
   )
     throw new Error("actual metadata context retained bytes changed");
   await controls(owned);
-  await verifyState(owned, await snapshot(owned));
+  if (verifyCheckpointState) await verifyState(owned, await snapshot(owned));
   if (site) await readPublicApplicationSiteMarker(site.generation, owned.deadline);
   else if (performance.now() - owned.bootstrap_observed >= 45000) {
+    const provider = await createReleaseCustodyProvider({
+      token: process.env.GH_TOKEN ?? "",
+      deadline: owned.deadline,
+      maxBytes: 512 * 1024,
+      chargeRead: () => {
+        remaining(owned);
+      },
+    });
     if (owned.session.mode === "bootstrap" && owned.session.catalog_site) {
       const readback = await readConfiguredCatalogOnlyBootstrapSite(
-        apiFor(owned),
+        provider,
         owned.session.catalog_pins,
         owned.session.catalog_site,
         owned.deadline,
       );
       if (digest(readback) !== owned.facts.catalog_readback_sha256)
         throw new Error("metadata catalog baseline readback changed");
-    } else await readConfiguredBootstrapSite(apiFor(owned), owned.deadline);
+    } else await readConfiguredBootstrapSite(provider, owned.deadline);
     owned.bootstrap_observed = performance.now();
   }
   // Source/public reads may consume the original controls lifetime. Return only

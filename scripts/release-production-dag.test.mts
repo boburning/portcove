@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -138,6 +139,21 @@ type Workflow = {
   jobs: Record<string, Job>;
 };
 const root = new URL("../", import.meta.url);
+function assertLockedDependenciesBeforeCredentials(job: Job, credentialed: number) {
+  const checkout = job.steps.findIndex((step) => step.uses?.startsWith("actions/checkout@"));
+  const pnpm = job.steps.findIndex((step) => step.uses?.startsWith("pnpm/action-setup@"));
+  const node = job.steps.findIndex((step) => step.uses?.startsWith("actions/setup-node@"));
+  const install = job.steps.findIndex(
+    (step) => step.run === "pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+  );
+  assert.ok(
+    checkout >= 0 && checkout < pnpm && pnpm < node && node < install && install < credentialed,
+  );
+  assert.equal(job.steps[checkout]!.with?.["persist-credentials"], false);
+  assert.equal(job.steps[pnpm]!.with?.package_json_file, "package.json");
+  assert.equal(job.steps[node]!.with?.["node-version-file"], ".node-version");
+  for (const step of job.steps.slice(0, install + 1)) assert.equal(step.env?.GH_TOKEN, undefined);
+}
 void test("all fixed workers select credentials from their actual full source before minting and selected jobs receive no legacy App tokens", async () => {
   const workflow = parse(
     await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
@@ -154,6 +170,30 @@ void test("all fixed workers select credentials from their actual full source be
     assert.equal(source?.run, `node scripts/release-controller-job-credential-route.mts ${phase}`);
     assert.equal(job.permissions?.contents, "write");
     const index = job.steps.indexOf(source);
+    const checkout = job.steps.findIndex((step) => step.uses?.startsWith("actions/checkout@"));
+    const pnpm = job.steps.findIndex((step) => step.uses?.startsWith("pnpm/action-setup@"));
+    const runtime = job.steps.findIndex((step) => step.uses?.startsWith("actions/setup-node@"));
+    const install = job.steps.findIndex((step) => step.run?.includes("controller-clock-store"));
+    assert.ok(
+      checkout >= 0 && checkout < pnpm && pnpm < runtime && runtime < install && install < index,
+      name,
+    );
+    assert.equal(job.steps[checkout]!.with?.["persist-credentials"], false);
+    assert.equal(job.steps[pnpm]!.with?.package_json_file, "package.json");
+    assert.equal(job.steps[pnpm]!.with?.run_install, false);
+    for (const at of [pnpm, install]) {
+      assert.equal(job.steps[at]!.env?.GH_TOKEN, "");
+      assert.equal(job.steps[at]!.env?.GITHUB_TOKEN, "");
+      assert.equal(job.steps[at]!.env?.PORTCOVE_RELEASE_READ_TOKEN, "");
+    }
+    assert.match(
+      job.steps[install]!.run ?? "",
+      /env -i .*pnpm --filter portcove-repository install --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile/u,
+    );
+    assert.match(
+      job.steps[install]!.run ?? "",
+      /git diff --quiet HEAD -- package.json pnpm-lock.yaml/u,
+    );
     assert.ok(index >= 0);
     const legacy = job.steps.filter(
       (step) =>
@@ -233,8 +273,17 @@ void test("selected D1 workflow uses source-bound observer outputs and skips leg
     (step) =>
       step.uses?.startsWith("actions/create-github-app-token") ||
       step.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
-  ))
-    assert.match(step.if ?? "", /classification_transport == 'legacy-app'/);
+  )) {
+    if (step.id === "storage") {
+      assert.equal(step.with?.["app-id"], "${{ steps.probe.outputs.storage_app_id }}");
+      assert.equal(step.with?.["private-key"], "${{ secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY }}");
+      assert.equal(step.with?.["permission-contents"], "write");
+      assert.match(step.if ?? "", /steps.probe.outputs.storage_app_id != ''/);
+      assert.ok(
+        writer.steps.findIndex((entry) => entry.id === "probe") < writer.steps.indexOf(step),
+      );
+    } else assert.match(step.if ?? "", /classification_transport == 'legacy-app'/);
+  }
   const selected = writer.steps.find((step) =>
     step.if?.includes("classification_transport == 'fixed-job'"),
   );
@@ -256,7 +305,7 @@ void test("selected D1 workflow uses source-bound observer outputs and skips leg
     }
   assert.equal(observerCalls, 14);
 });
-void test("installed workflows remain inert without configuration and preserve exactly reviewed proposal bytes", async () => {
+void test("installed workflows remain inert without configuration and preserve historical approved proposal identity", async () => {
   for (const [actual, proposal] of [
     [
       ".github/workflows/application-update-production.yml",
@@ -268,7 +317,16 @@ void test("installed workflows remain inert without configuration and preserve e
     ],
   ] as const) {
     const source = await readFile(new URL(actual, root), "utf8");
-    assert.equal(source, await readFile(new URL(proposal, root), "utf8"));
+    const historical = await readFile(new URL(proposal, root), "utf8");
+    if (actual.endsWith("application-update-production.yml")) {
+      // The November3 source/resource appointment is immutable historical
+      // evidence. The separately approved storage amendment changes routing,
+      // while the actual graph and empty-configuration holds are checked below.
+      assert.equal(
+        createHash("sha256").update(historical).digest("hex"),
+        "1f99d082d4d2f9865a46bbb576ee05e4acbf05a25890a09b0df6478f1c58938c",
+      );
+    }
     const workflow = parse(source) as Workflow;
     const states: Record<string, { result: string; outputs: Record<string, string> }> = {};
     for (const [name, job] of Object.entries(workflow.jobs)) {
@@ -306,6 +364,8 @@ void test("held automatic wake uses one fixed job token without a dispatch App c
     [JSON.stringify({ schema_version: 3 }), "", false],
     ["", JSON.stringify({ schema_version: 3 }), false],
     [JSON.stringify({ schema_version: 4 }), "", true],
+    [JSON.stringify({ schema_version: 5 }), "", true],
+    ["", JSON.stringify({ schema_version: 5 }), false],
     ["", JSON.stringify({ schema_version: 4 }), true],
     [JSON.stringify({ schema_version: 3 }), JSON.stringify({ schema_version: 4 }), false],
     [JSON.stringify({ schema_version: 4 }), JSON.stringify({ schema_version: 3 }), false],
@@ -330,6 +390,7 @@ void test("held automatic wake uses one fixed job token without a dispatch App c
     (step) => step.run === "node scripts/release-controller-wake.mts --dispatch",
   );
   assert.ok(prepare >= 0 && prepare < intent && intent < dispatch);
+  assertLockedDependenciesBeforeCredentials(job, prepare);
   assert.equal(job.steps[dispatch]!.env?.GH_TOKEN, "${{ github.token }}");
   assert.equal(
     job.steps[prepare]!.env?.PORTCOVE_CONTROLLER_WAKE,
@@ -367,6 +428,10 @@ void test("dispatch qualification is a bounded secret-free sender and inert rece
       7,
     );
     assert.ok(job.steps.some((step) => step.run === "node scripts/qualify-job-token-dispatch.mts"));
+    assertLockedDependenciesBeforeCredentials(
+      job,
+      job.steps.findIndex((step) => step.run === "node scripts/qualify-job-token-dispatch.mts"),
+    );
   }
   assert.doesNotMatch(
     text,
@@ -725,6 +790,28 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
   assert.equal(requiredJob("protection_observation")["timeout-minutes"], 10);
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);
+  const fixedClockDependencyJobs = new Set([
+    "classification_protection_observation",
+    "classification_writer",
+    "coordinator",
+    "coordinator_protection_observation",
+    "independent_admission",
+    "protection_observation",
+    "payload_signing",
+    "tuf_releases",
+    "tuf_preview",
+    "tuf_stable",
+    "tuf_snapshot",
+    "tuf_timestamp",
+    "release_publication",
+    "site_publication",
+    "site_protection_observation",
+    "catalog_definitions",
+    "catalog_policy",
+    "catalog_snapshot",
+    "catalog_timestamp",
+    "catalog_metadata_protection_observation",
+  ]);
   for (const [name, job] of Object.entries(jobs)) {
     assert.equal(
       job["runs-on"],
@@ -746,7 +833,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       );
     assert.ok(minutes(name, job) > 0);
     const dependencyInstalls = job.steps.filter((step) =>
-      /(?:npm|pnpm) (?:install|ci)/u.test(step.run ?? ""),
+      /(?:npm|pnpm)(?: --filter portcove-repository)? (?:install|ci)/u.test(step.run ?? ""),
     );
     if (name === "native_windows") {
       assert.equal(dependencyInstalls.length, 1);
@@ -790,6 +877,39 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
           step.with?.stage === "pre-sign",
       );
       assert.ok(runtimeIndex > installationIndex && ownerIndex > runtimeIndex);
+    } else if (fixedClockDependencyJobs.has(name)) {
+      assert.equal(dependencyInstalls.length, 1, name);
+      const install = dependencyInstalls[0]!;
+      assert.equal(job.steps.indexOf(install), 3, name);
+      const [checkout, pnpm, node] = job.steps;
+      assert.equal(checkout?.with?.ref, "${{ github.workflow_sha }}");
+      assert.equal(checkout?.with?.["persist-credentials"], false);
+      assert.equal(pnpm?.uses, "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413");
+      assert.deepEqual(pnpm?.with, { package_json_file: "package.json", run_install: false });
+      assert.equal(node?.with?.["node-version-file"], ".node-version");
+      const scrubbed = { GH_TOKEN: "", GITHUB_TOKEN: "", PORTCOVE_RELEASE_READ_TOKEN: "" };
+      assert.deepEqual(pnpm?.env, scrubbed);
+      assert.deepEqual(install.env, scrubbed);
+      assert.match(install.run ?? "", /git rev-parse HEAD.*GITHUB_WORKFLOW_SHA/u);
+      assert.match(
+        install.run ?? "",
+        /git diff --quiet HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc patches\//u,
+      );
+      assert.match(
+        install.run ?? "",
+        /env -i .*--prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile/u,
+      );
+      if (name === "classification_writer" || name === "classification_protection_observation") {
+        assert.equal(job["timeout-minutes"], 2);
+        assert.match(
+          job.steps[4]?.run ?? "",
+          /node scripts\/release-reviewed-inputs.mts probe-production-/u,
+        );
+        assert.ok(
+          job.steps.findIndex((step) => step.uses?.startsWith("actions/create-github-app-token@")) >
+            4,
+        );
+      }
     } else if (name !== "tool_bootstrap" && name !== "tool_bootstrap_windows") {
       assert.equal(dependencyInstalls.length, 0);
     }
@@ -804,6 +924,21 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
         if (appId === "${{ needs.admission.outputs.protection_app_id }}") {
           assert.equal(name, "classification_protection_observation");
           assert.equal(step.with?.["permission-administration"], "write");
+        } else if (
+          step.id === "storage" ||
+          (step.id === "journal" && appId.includes("storage_transport"))
+        ) {
+          assert.equal(step.with?.["permission-contents"], "write");
+          assert.equal(step.with?.["permission-checks"], undefined);
+          assert.equal(step.with?.["permission-administration"], undefined);
+          assert.equal(step.with?.owner, "boburning");
+          assert.equal(step.with?.repositories, "portcove");
+          assert.ok(
+            (step.with?.["private-key"] ?? "").includes("secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY"),
+          );
+          if (step.id === "storage")
+            assert.equal(appId, "${{ steps.probe.outputs.storage_app_id }}");
+          else assert.match(appId, /steps.authorities.outputs.storage_app_id/);
         } else if (appId.includes("publication_purpose")) {
           assert.match(
             appId,
@@ -820,13 +955,27 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
           );
         const installation = job.steps[index + 1];
         assert.equal(
-          installation?.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
+          installation?.env?.[
+            step.id === "storage"
+              ? "OBSERVED_STORAGE_INSTALLATION"
+              : "PORTCOVE_OBSERVED_INSTALLATION_ID"
+          ],
           `\${{ steps.${String((step as Step & { id: string }).id)}.outputs.installation-id }}`,
         );
         if (appId === "${{ needs.admission.outputs.protection_app_id }}")
           assert.equal(
             installation?.env?.PORTCOVE_EXPECTED_INSTALLATION_ID,
             "${{ needs.admission.outputs.protection_installation_id }}",
+          );
+        else if (step.id === "storage")
+          assert.equal(
+            installation?.env?.EXPECTED_STORAGE_INSTALLATION,
+            "${{ steps.probe.outputs.storage_installation_id }}",
+          );
+        else if (step.id === "journal" && appId.includes("storage_transport"))
+          assert.match(
+            installation?.env?.PORTCOVE_EXPECTED_INSTALLATION_ID ?? "",
+            /steps.authorities.outputs.storage_installation_id/,
           );
         else
           assert.ok(
@@ -899,6 +1048,29 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     requiredJob(name).steps.filter(
       (step) => step.uses === "./.github/actions/release-control-observer",
     );
+  for (const name of [
+    "coordinator_protection_observation",
+    "protection_observation",
+    "site_protection_observation",
+    "catalog_metadata_protection_observation",
+  ]) {
+    const steps = requiredJob(name).steps;
+    const action = steps.findIndex(
+      (step) => step.uses === "./.github/actions/release-control-observer",
+    );
+    const install = steps.findIndex((step) => step.run?.includes("controller-clock-store"));
+    assert.ok(install >= 0 && install < action, name);
+    assert.equal(steps[install]?.env?.GH_TOKEN, "");
+    assert.equal(steps[install]?.env?.GITHUB_TOKEN, "");
+    assert.match(
+      steps[install]?.run ?? "",
+      /env -i .*--frozen-lockfile --ignore-scripts --ignore-pnpmfile/u,
+    );
+    assert.match(
+      steps[install]?.run ?? "",
+      /git diff --quiet HEAD -- package.json pnpm-lock.yaml/u,
+    );
+  }
   const coordinatorCalls = observerCalls("coordinator_protection_observation");
   assert.equal(coordinatorCalls.length, 1);
   assert.equal(coordinatorCalls[0]?.with?.initial, "true");
@@ -1091,4 +1263,140 @@ void test("Windows proof stays on one bounded job without a payload dependency c
   assert.equal(diagnostics[1]!.with?.path, "${{ runner.temp }}/native-public-evidence-windows");
   assert.equal(diagnostics[1]!.with?.["retention-days"], 7);
   assert.equal(diagnostics[1]!.with?.overwrite, false);
+});
+
+void test("only the15 fixed storage destinations mint the appointed App after source admission and keep job/effect credentials separate", async () => {
+  const workflow = parse(
+    await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
+  ) as Workflow;
+  const names: string[] = [];
+  for (const [name, job] of Object.entries(workflow.jobs)) {
+    const storage = job.steps.filter(
+      (step) =>
+        step.uses?.startsWith("actions/create-github-app-token@") &&
+        step.with?.["private-key"]?.includes("secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY"),
+    );
+    if (!storage.length) {
+      assert.ok(!JSON.stringify(job).includes("PORTCOVE_STORAGE_APP_TOKEN"), name);
+      continue;
+    }
+    names.push(name);
+    assert.equal(storage.length, 1, name);
+    assert.equal(job.permissions?.contents, "write");
+    const mint = storage[0]!;
+    const classification = name === "classification_writer";
+    const sourceIndex = job.steps.findIndex(
+      (step) => step.id === (classification ? "probe" : "authorities"),
+    );
+    assert.ok(sourceIndex >= 0 && sourceIndex < job.steps.indexOf(mint));
+    assert.equal(mint.with?.owner, "boburning");
+    assert.equal(mint.with?.repositories, "portcove");
+    assert.equal(mint.with?.["permission-contents"], "write");
+    assert.equal(mint.with?.["skip-token-revoke"], undefined);
+    for (const permission of Object.keys(mint.with ?? {}).filter((key) =>
+      key.startsWith("permission-"),
+    ))
+      assert.equal(permission, "permission-contents");
+    const context = (enabled: boolean, key = "new-private-key") => ({
+      steps: {
+        authorities: {
+          outputs: {
+            credential_transport: "fixed-job",
+            storage_transport: enabled ? "dedicated-app" : "",
+            storage_app_id: enabled ? "90001" : "",
+            storage_installation_id: enabled ? "90002" : "",
+          },
+        },
+        probe: {
+          outputs: {
+            eligible: "true",
+            storage_app_id: enabled ? "90001" : "",
+            storage_installation_id: enabled ? "90002" : "",
+          },
+        },
+        journal: { outputs: { token: "new-storage-token", "installation-id": "90002" } },
+        storage: { outputs: { token: "new-storage-token", "installation-id": "90002" } },
+      },
+      needs: {
+        admission: {
+          outputs: { publication_purpose: "application", classification_transport: "fixed-job" },
+        },
+        classification_protection_observation: { outputs: { eligible: "true" } },
+      },
+      secrets: {
+        PORTCOVE_STORAGE_APP_PRIVATE_KEY: key,
+        PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY: "must-not-borrow-legacy",
+      },
+      github: { token: "job-token" },
+      fromJSON: JSON.parse,
+    });
+    const evaluate = (expression: string, enabled: boolean, key?: string): unknown =>
+      runInNewContext(expression.slice(3, -2), context(enabled, key));
+    assert.equal(evaluate(mint.if!, true), true, name);
+    assert.equal(evaluate(mint.if!, false), false, name);
+    assert.equal(evaluate(mint.with["app-id"]!, true), "90001", name);
+    assert.equal(evaluate(mint.with["private-key"]!, true), "new-private-key", name);
+    if (!classification)
+      assert.equal(
+        evaluate(mint.with["private-key"]!, true, ""),
+        false,
+        "missing new key must not borrow the legacy App key",
+      );
+    const consumer = job.steps.find((step) =>
+      classification
+        ? step.run?.includes("persist-production-request") && step.if?.includes("'fixed-job'")
+        : step.uses === "./.github/actions/release-controller-job",
+    );
+    assert.ok(consumer);
+    const credential = classification
+      ? consumer.env?.PORTCOVE_STORAGE_APP_TOKEN
+      : consumer.with?.storage_token;
+    assert.ok(credential, name);
+    if (!classification)
+      assert.ok(!JSON.stringify(consumer.env ?? {}).includes("PORTCOVE_STORAGE_"), name);
+    assert.equal(evaluate(credential, true), "new-storage-token", name);
+    if (!classification) assert.equal(evaluate(credential, false), "", name);
+    assert.ok(
+      consumer.env?.GH_TOKEN === undefined || consumer.env.GH_TOKEN === "${{ github.token }}",
+    );
+    assert.ok(!JSON.stringify(consumer).includes("PORTCOVE_STORAGE_APP_PRIVATE_KEY"));
+  }
+  assert.deepEqual(
+    names.sort(),
+    [
+      "classification_writer",
+      "coordinator",
+      "independent_admission",
+      "payload_signing",
+      "tuf_releases",
+      "tuf_preview",
+      "tuf_stable",
+      "tuf_snapshot",
+      "tuf_timestamp",
+      "release_publication",
+      "site_publication",
+      "catalog_definitions",
+      "catalog_policy",
+      "catalog_snapshot",
+      "catalog_timestamp",
+    ].sort(),
+  );
+});
+
+void test("the dedicated storage token is bound only to the fixed worker launch step", async () => {
+  const action = parse(
+    await readFile(new URL(".github/actions/release-controller-job/action.yml", root), "utf8"),
+  ) as { runs: { steps: Workflow["jobs"][string]["steps"] } };
+  const [worker, ...siblings] = action.runs.steps;
+  assert.ok(worker);
+  assert.ok(worker.run?.includes("scripts/release-controller-job-bootstrap.mts"));
+  assert.equal(worker.env?.PORTCOVE_STORAGE_APP_TOKEN, "${{ inputs.storage_token }}");
+  assert.equal(worker.env?.PORTCOVE_STORAGE_APP_ID, "${{ inputs.storage_app_id }}");
+  assert.equal(
+    worker.env?.PORTCOVE_STORAGE_INSTALLATION_ID,
+    "${{ inputs.storage_installation_id }}",
+  );
+  assert.ok(
+    !/storage_(?:token|app_id|installation_id)|PORTCOVE_STORAGE_/u.test(JSON.stringify(siblings)),
+  );
 });

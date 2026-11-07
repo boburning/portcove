@@ -176,6 +176,15 @@ impl InstallQualification {
     /// Build a verification projection. New manifests require `from_catalog`.
     pub fn from_port(port: &PortDefinition, platform: Platform) -> Result<Self> {
         crate::runtime::validate(port)?;
+        if port
+            .runtime_mutable_file_patterns
+            .iter()
+            .any(|pattern| pattern.allow_empty_middle)
+        {
+            return Err(PortcoveError::usage(
+                "disposable runtime patterns require a nonempty middle",
+            ));
+        }
         for pattern in port
             .persistent_file_patterns
             .iter()
@@ -391,6 +400,8 @@ pub struct VerificationReport {
 struct InstallManifest {
     schema_version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    archive_data_admission: Option<crate::archive_data_transition::Admission>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
@@ -400,6 +411,8 @@ struct InstallManifest {
     port_id: String,
     version: String,
     artifact: ArtifactIdentity,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    github_artifact_identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
     #[serde(default)]
     runtime: Option<RuntimeIdentity>,
     #[serde(default)]
@@ -917,7 +930,20 @@ impl Installer {
             )?;
         }
         let port = catalog.port(&request.port_id)?;
-        if request.activate && crate::persistence::requires_restore_receipt(port) {
+        crate::installed_mutability::require_shipwright_release(
+            port,
+            request.qualification.platform,
+            &request.release.version,
+            request.release.channel,
+            &request.release.asset.name,
+        )?;
+        if request.activate
+            && (crate::persistence::requires_restore_receipt(port)
+                || crate::installed_mutability::declared_shipwright_persistence(
+                    port,
+                    request.qualification.platform,
+                ))
+        {
             return Err(PortcoveError::unsupported(
                 "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
             ));
@@ -2204,6 +2230,11 @@ impl Installer {
         if let Some(contract) = &qualification.retained_contract {
             let catalog = contract.catalog(port_id)?;
             let port = catalog.port(port_id)?;
+            if port.archive_data_compatibility_v1.is_some() {
+                return Err(PortcoveError::unsupported(
+                    "external-tree adoption cannot establish a managed archive's provider or player-data contract",
+                ));
+            }
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(root, qualification)?;
@@ -2225,6 +2256,173 @@ impl Installer {
         install: &InstallRecord,
     ) -> Result<Option<crate::Catalog>> {
         retained_catalog_for_install(install)
+    }
+
+    pub(crate) fn archive_data_port(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Option<PortDefinition>> {
+        let manifest = verified_manifest(install)?;
+        let Some(admission) = &manifest.archive_data_admission else {
+            return Ok(None);
+        };
+        let creating = manifest
+            .retained_contract
+            .as_ref()
+            .ok_or_else(|| PortcoveError::verification("data admission has no creating contract"))?
+            .catalog(&install.port_id)?;
+        crate::archive_data_transition::effective_port(install, &creating, admission).map(Some)
+    }
+
+    /// Produce an explicit data-only wrapper; the creating contract, runtime and
+    /// artifact/member identities are retained verbatim in their original fields.
+    pub(crate) fn prepare_archive_data_admission(
+        &self,
+        install: &InstallRecord,
+        authority: &crate::Catalog,
+        operation_id: &str,
+    ) -> Result<Vec<u8>> {
+        let mut manifest = verified_manifest(install)?;
+        if manifest.archive_data_admission.is_some() || manifest.schema_version != 6 {
+            return Err(PortcoveError::conflict(
+                "only an exact retained ready-archive predecessor can enter this transition",
+            ));
+        }
+        let creating = manifest
+            .retained_contract
+            .as_ref()
+            .ok_or_else(|| {
+                PortcoveError::verification("data admission has no retained predecessor")
+            })?
+            .catalog(&install.port_id)?;
+        let admission = crate::archive_data_transition::Admission {
+            operation_id: operation_id.into(),
+            predecessor_manifest_sha256: install.manifest_sha256.clone(),
+            authority: crate::installed_contract::InstalledContract::capture(
+                authority,
+                &install.port_id,
+            )?,
+        };
+        crate::archive_data_transition::effective_port(install, &creating, &admission)?;
+        manifest.schema_version = 8;
+        manifest.archive_data_admission = Some(admission);
+        let bytes = serde_json::to_vec_pretty(&manifest)?;
+        if bytes.len() > 16 * 1024 * 1024 {
+            return Err(PortcoveError::unsupported(
+                "data admission manifest exceeds its finite bound",
+            ));
+        }
+        let old = crate::external_runtime::read_stable_metadata(
+            &install.path.join(".portcove-manifest.json"),
+            16 * 1024 * 1024,
+        )?;
+        Self::validate_archive_data_manifest_pair(install, &old, &bytes)?;
+        Ok(bytes)
+    }
+
+    pub(crate) fn validate_archive_data_manifest_pair(
+        install: &InstallRecord,
+        before: &[u8],
+        after: &[u8],
+    ) -> Result<InstallRecord> {
+        if before.len() > 16 * 1024 * 1024
+            || after.len() > 16 * 1024 * 1024
+            || hex::encode(Sha256::digest(before)) != install.manifest_sha256
+        {
+            return Err(PortcoveError::verification(
+                "data transition predecessor manifest differs from its recorded identity",
+            ));
+        }
+        let mut old: serde_json::Value = serde_json::from_slice(before)?;
+        let mut new: serde_json::Value = serde_json::from_slice(after)?;
+        if old["schema_version"] != 6
+            || old.get("archive_data_admission").is_some()
+            || new["schema_version"] != 8
+        {
+            return Err(PortcoveError::verification(
+                "data transition manifest envelope is outside its closed predecessor family",
+            ));
+        }
+        let decoded: InstallManifest = serde_json::from_slice(after)?;
+        let admission = decoded.archive_data_admission.as_ref().ok_or_else(|| {
+            PortcoveError::verification("data transition manifest has no admission")
+        })?;
+        if admission.predecessor_manifest_sha256 != install.manifest_sha256 {
+            return Err(PortcoveError::verification(
+                "data admission has a different original manifest",
+            ));
+        }
+        let creating = decoded
+            .retained_contract
+            .as_ref()
+            .ok_or_else(|| {
+                PortcoveError::verification("data transition lost its creating contract")
+            })?
+            .catalog(&install.port_id)?;
+        crate::archive_data_transition::effective_port(install, &creating, admission)?;
+        old.as_object_mut()
+            .ok_or_else(|| PortcoveError::verification("original manifest is not an object"))?
+            .remove("schema_version");
+        let new = new
+            .as_object_mut()
+            .ok_or_else(|| PortcoveError::verification("admitted manifest is not an object"))?;
+        new.remove("schema_version");
+        new.remove("archive_data_admission");
+        if old.as_object() != Some(&*new) {
+            return Err(PortcoveError::verification(
+                "data transition changed creating source, execution, artifact or member semantics",
+            ));
+        }
+        let mut admitted = install.clone();
+        admitted.manifest_sha256 = hex::encode(Sha256::digest(after));
+        Ok(admitted)
+    }
+
+    pub(crate) fn publish_archive_data_manifest(
+        install: &InstallRecord,
+        bytes: &[u8],
+    ) -> Result<()> {
+        crate::path::refuse_symlink_ancestors(&install.path.join(".portcove-manifest.json"))?;
+        replace_manifest(&install.path, bytes)
+    }
+
+    pub(crate) fn require_github_artifact_identity(
+        &self,
+        port_id: &str,
+        release: &ResolvedRelease,
+        identity: Option<&crate::definition_acquisition::GithubArtifactIdentity>,
+    ) -> Result<()> {
+        let Some(identity) = identity else {
+            return Ok(());
+        };
+        identity.validate()?;
+        let actual = ArtifactIdentity {
+            asset_name: release.asset.name.clone(),
+            sha256: release.asset.sha256.clone(),
+            size: release.asset.size,
+        };
+        for install in self
+            .library
+            .all_installs()?
+            .into_iter()
+            .filter(|i| i.port_id == port_id)
+        {
+            let manifest = verified_manifest(&install)?;
+            let Some(previous) = manifest.github_artifact_identity else {
+                continue;
+            };
+            if (previous.repository == identity.repository
+                && previous.repository_id != identity.repository_id)
+                || (previous.repository_id == identity.repository_id
+                    && previous.asset_id == identity.asset_id
+                    && (previous.release_id != identity.release_id || manifest.artifact != actual))
+            {
+                return Err(PortcoveError::verification(
+                    "previously recorded GitHub artifact bytes or repository identity changed; preserve the installed runtime and review this exact upstream identity",
+                ).detail("reason", "provider_artifact_identity_changed"));
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn retained_shared_preferences(
@@ -2548,6 +2746,7 @@ mod legacy_dkr_tests {
             sha256: artifact.sha256.clone(),
         };
         let manifest = InstallManifest {
+            archive_data_admission: None,
             schema_version: schema,
             retained_contract: None,
             shared_preferences: None,
@@ -2556,6 +2755,7 @@ mod legacy_dkr_tests {
             port_id: "dkr-r".into(),
             version: artifact.version.clone(),
             artifact: artifact_identity.clone(),
+            github_artifact_identity: None,
             runtime: None,
             runtime_root: None,
             selected_executable: artifact.executable.clone(),
@@ -2798,6 +2998,23 @@ pub(crate) fn portability_catalog_for_install(
     {
         // Legacy metadata can name an embedded install without carrying the newer retained
         // manifest. It receives only the embedded contract and cannot claim successor admission.
+        if embedded
+            .port(&install.port_id)?
+            .archive_data_compatibility_v1
+            .is_some()
+        {
+            return Err(PortcoveError::verification(
+                "partitioned data portability requires the installation's actual retained contract",
+            ));
+        }
+        if crate::installed_mutability::declared_shipwright_persistence(
+            embedded.port(&install.port_id)?,
+            Platform::current()?,
+        ) {
+            return Err(PortcoveError::verification(
+                "Shipwright Windows portability requires the installation's actual retained contract",
+            ));
+        }
         crate::managed_shared_preferences::refuse_scope_transfer(embedded.port(&install.port_id)?)?;
         return Ok(None);
     }
@@ -2893,6 +3110,7 @@ fn write_manifest(
         }
     }
     let manifest = InstallManifest {
+        archive_data_admission: None,
         schema_version: if qualification.shared_preferences.is_some() {
             7
         } else {
@@ -2907,6 +3125,10 @@ fn write_manifest(
         port_id: port_id.into(),
         version: version.into(),
         artifact: artifact.clone(),
+        github_artifact_identity: qualification
+            .acquisition
+            .as_ref()
+            .and_then(|proof| proof.github_identity.clone()),
         selected_executable: selected_relative.clone(),
         mutable_paths,
         mutable_file_patterns: qualification.file_patterns(root, &selected)?,
@@ -3145,6 +3367,10 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
     verified_manifest_with_limit(install, None)
 }
 
+pub(crate) fn has_archive_data_admission(install: &InstallRecord) -> Result<bool> {
+    Ok(verified_manifest(install)?.archive_data_admission.is_some())
+}
+
 fn verified_manifest_with_limit(
     install: &InstallRecord,
     maximum_bytes: Option<u64>,
@@ -3201,6 +3427,9 @@ fn verified_manifest_with_budget(
         ));
     }
     let manifest: InstallManifest = serde_json::from_slice(&bytes)?;
+    if let Some(identity) = &manifest.github_artifact_identity {
+        identity.validate()?;
+    }
     let selected = manifest_relative(
         &install.path,
         &install.path.join(&install.selected_executable),
@@ -3237,7 +3466,8 @@ fn verified_manifest_with_budget(
             ));
         }
     }
-    if !matches!(manifest.schema_version, 2..=7)
+    if !matches!(manifest.schema_version, 2..=8)
+        || (manifest.schema_version == 8) != manifest.archive_data_admission.is_some()
         || (manifest.schema_version == 7) != manifest.shared_preferences.is_some()
         || (manifest.schema_version < 6 && manifest.retained_contract.is_some())
         || (manifest.schema_version >= 6 && manifest.retained_contract.is_none())
@@ -3268,6 +3498,9 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
+        if let Some(admission) = &manifest.archive_data_admission {
+            crate::archive_data_transition::effective_port(install, &catalog, admission)?;
+        }
         crate::managed_shared_preferences::require_artifact(
             catalog.port(&install.port_id)?,
             &install.version,
@@ -5190,6 +5423,51 @@ mod tests {
     }
 
     #[test]
+    fn opted_in_empty_middle_remains_file_only_in_retained_manifest() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        let executable = root.join("game.exe");
+        fs::write(&executable, b"trusted executable").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let mut qualification = InstallQualification::test("game.exe");
+        qualification.platform = Platform::current().unwrap();
+        qualification.persistent_file_patterns = vec![crate::PersistentFilePattern {
+            prefix: "demorec.".into(),
+            suffix: "1".into(),
+            allow_empty_middle: true,
+        }];
+        let (installer, install) = create_test_install(&root, &qualification);
+        let demo = root.join("demorec.1");
+        fs::write(&demo, b"first recording").unwrap();
+        assert!(installer.verify(&install).unwrap().valid);
+        assert!(installer.verify_critical(&install, &qualification).is_ok());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&demo, fs::Permissions::from_mode(0o755)).unwrap();
+            assert!(!installer.verify(&install).unwrap().valid);
+            assert!(installer.verify_critical(&install, &qualification).is_err());
+        }
+        fs::remove_file(&demo).unwrap();
+        fs::create_dir(&demo).unwrap();
+        fs::write(demo.join("injected.dll"), b"unreviewed").unwrap();
+        let report = installer.verify(&install).unwrap();
+        assert!(!report.valid);
+        assert!(
+            report
+                .failures
+                .iter()
+                .any(|failure| failure.contains("invalid mutable-pattern entry: demorec.1"))
+        );
+        assert!(installer.verify_critical(&install, &qualification).is_err());
+    }
+
+    #[test]
     fn runtime_file_patterns_ignore_only_reviewed_disposable_outputs() {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("payload");
@@ -5201,6 +5479,7 @@ mod tests {
         qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
             prefix: "psx_freeze_dump_".into(),
             suffix: ".json".into(),
+            allow_empty_middle: false,
         }];
         let (installer, install) = create_test_install(&root, &qualification);
 
@@ -5246,10 +5525,12 @@ mod tests {
         qualification.persistent_file_patterns = vec![crate::PersistentFilePattern {
             prefix: "psx_freeze_dump_".into(),
             suffix: ".json".into(),
+            allow_empty_middle: false,
         }];
         qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
             prefix: "psx_freeze_dump_psx-runtime_".into(),
             suffix: "_1.json".into(),
+            allow_empty_middle: false,
         }];
 
         let error = qualification.file_patterns(root, &selected).unwrap_err();
@@ -5288,6 +5569,7 @@ mod tests {
         qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
             prefix: "baserom.".into(),
             suffix: ".z64".into(),
+            allow_empty_middle: false,
         }];
         let error =
             manifest_files(&root, &qualification, &root.join("G-Diffuser.exe")).unwrap_err();

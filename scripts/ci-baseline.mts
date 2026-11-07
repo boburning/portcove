@@ -266,16 +266,41 @@ function main() {
   } else if (process.argv[2] === "frontend" || process.argv[2] === "lint") {
     const commands =
       process.argv[2] === "lint" ? baselineLintPlan(plan) : baselineFrontendPlan(plan);
-    executePlan(commands, {
-      spawn: (executable, args, options) => {
-        const entry = commands.find(
-          (command) => command.executable === executable && command.args === args,
-        );
-        return metrics.measure(entry?.id ?? "frontend-command", () =>
-          spawnCommand(executable, args, options),
-        );
-      },
-    });
+    const annotateLint = process.argv[2] === "lint" && process.env.GITHUB_ACTIONS === "true";
+    if (annotateLint) console.log("::add-matcher::.github/viteplus-problem-matcher.json");
+    try {
+      executePlan(commands, {
+        spawn: (executable, args, options) => {
+          const entry = commands.find(
+            (command) => command.executable === executable && command.args === args,
+          );
+          const result = metrics.measure(entry?.id ?? "frontend-command", () =>
+            spawnCommand(executable, args, options),
+          );
+          if (
+            annotateLint &&
+            process.env.PORTCOVE_CI_METRICS_DIR &&
+            entry &&
+            [
+              "repository-lint",
+              "oxfmt",
+              "actionlint",
+              "shell-lint",
+              "python-lint",
+              "lint-tool-fixtures",
+            ].includes(entry.id) &&
+            (result.error || result.status !== 0)
+          )
+            console.log(`::error::Repository lint producer failed: ${entry.id}`);
+          return result;
+        },
+      });
+    } finally {
+      if (annotateLint) {
+        console.log("::remove-matcher owner=portcove-viteplus-rule::");
+        console.log("::remove-matcher owner=portcove-viteplus-graphic-rule::");
+      }
+    }
   } else throw new Error("Expected bootstrap, frontend, lint or contracts");
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

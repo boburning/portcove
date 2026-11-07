@@ -13,6 +13,14 @@ const scriptPath = fileURLToPath(import.meta.url);
 
 export const validationPlanVersion = 3;
 
+export const routeEnrollmentInputs = new Set([
+  "crates/portcove-core/catalog/route-enrollment.generated.json",
+  "crates/portcove-core/src/testdata/accepted-route-expectations.generated.json",
+  "crates/portcove-core/src/testdata/managed-route-tests.generated.rs",
+  "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
+  "crates/portcove-core/src/testdata/route-enrollment-expectations.json",
+]);
+
 export const fastGroups = Object.freeze([
   "catalog",
   "dependency-review",
@@ -194,6 +202,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/audit-evidence.mts",
   "scripts/audit-archive.mts",
   "scripts/audit-reuse.mts",
+  "scripts/github-artifact-download.mts",
   "scripts/check-child-process-policy.mts",
   "scripts/check-ci-prose.mts",
   "scripts/ci-result-gate.mts",
@@ -275,6 +284,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-hosted-native-proof-contract.mts",
   "scripts/release-hosted-native-proof-producer.mts",
   "scripts/release-hosted-native-job.mts",
+  "scripts/release-hosted-native-artifact.mts",
   "scripts/release-hosted-native-runner.mts",
   "scripts/release-hosted-native-bootstrap.mts",
   "scripts/release-hosted-native-launcher.mts",
@@ -305,6 +315,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-routing-marker.mts",
   "scripts/release-owned-capture-store.mts",
   "scripts/release-hosted-native-acceptance.mts",
+  "scripts/release-custody-provider.mts",
   "scripts/release-hosted-native-admission.mts",
   "scripts/release-hosted-native-linux-capture.mts",
   "scripts/release-hosted-native-linux-capture.test.py",
@@ -399,6 +410,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-catalog-metadata-contract.mts",
   "scripts/release-capacity-operation.test.mts",
   "scripts/release-coordinator-journal-api.mts",
+  "scripts/release-direct-node-transport.mts",
   "scripts/release-coordinator-deadline.mts",
   "scripts/release-publication-inventory.mts",
   "scripts/release-coordinator-deadline.mts",
@@ -576,6 +588,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-public-signature.mts",
   "scripts/release-native-public-attempt-contract.mts",
   "scripts/release-controller-wake.mts",
+  "scripts/release-wake-provider.mts",
   "scripts/release-publication-result.mts",
   "scripts/release-publication-result-artifact.mts",
   "scripts/release-signing-controller.mts",
@@ -591,7 +604,6 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-live-control-admission.mts",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
   "scripts/bounded-zip.mts",
-  "scripts/github-binary.mts",
   "scripts/generate-release-downloads.mts",
   "scripts/package-cli.ps1",
   "scripts/package-local.ps1",
@@ -794,7 +806,7 @@ function classifyPath(file: string): PathOwnership {
       "native-or-ipc-contract",
     );
     match(
-      file.startsWith("crates/portcove-core/catalog/"),
+      file.startsWith("crates/portcove-core/catalog/") || routeEnrollmentInputs.has(file),
       "catalog",
       ["catalog", "rust", "rust-quality"],
       "catalog-contract",
@@ -837,6 +849,12 @@ function classifyPath(file: string): PathOwnership {
       "platform",
       ["catalog", "rust-quality", ...(rust ? ["rust" as const] : [])],
       "platform-contract",
+    );
+    match(
+      file.startsWith("integrations/playnite/") && /\.(?:cs|csproj|ps1|json)$/u.test(file),
+      "policy",
+      ["rust"],
+      "playnite-reference-client",
     );
     match(
       file.startsWith("scripts/") ||
@@ -1026,6 +1044,7 @@ function classifyAuditPath(file: string): PathOwnership {
       !documentationRaster &&
       (file === "crates/portcove-core/catalog/catalog.json" ||
         file.startsWith("crates/portcove-core/catalog/") ||
+        routeEnrollmentInputs.has(file) ||
         /(?:catalog|retcomm|source-provenance)/iu.test(file)),
     "catalog",
     ["catalog", "rust", "rust-quality"],

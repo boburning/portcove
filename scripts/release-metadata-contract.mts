@@ -56,13 +56,28 @@ function expires(raw: unknown): Roles<string> {
 }
 export function inspectMetadataRenewalDescriptor(raw: unknown) {
   const online = isRecord(raw) && raw.schema_version === 2;
+  const reserved = isRecord(raw) && raw.schema_version === 3;
+  const historical = reserved && Object.hasOwn(raw, "prior_expiration_policy");
+  const floorsPresent = reserved && Object.hasOwn(raw, "reserved_version_floors");
   const keys =
     "current_expires,current_versions,generated_at,kind,next_expires,next_versions,offline_targets_sha256,prior_repository_sha256,prior_snapshot_sha256,prior_timestamp_sha256,root_sha256,schema_version,unchanged_records_sha256";
-  exact(raw, online ? `${keys},top_level_targets_profile`.split(",").sort().join(",") : keys);
+  exact(
+    raw,
+    [
+      ...keys.split(","),
+      ...(online ? ["top_level_targets_profile"] : []),
+      ...(historical ? ["prior_expiration_policy"] : []),
+      ...(floorsPresent ? ["reserved_version_floors"] : []),
+    ]
+      .sort()
+      .join(","),
+  );
   if (
-    (!online && raw.schema_version !== 1) ||
+    (!online && !reserved && raw.schema_version !== 1) ||
+    (reserved && !historical && !floorsPresent) ||
     raw.kind !== "application-tuf-metadata-renewal" ||
-    (online && raw.top_level_targets_profile !== "online-unchanged-authority-v1")
+    (online && raw.top_level_targets_profile !== "online-unchanged-authority-v1") ||
+    (historical && raw.prior_expiration_policy !== "historical-online-expired-v1")
   )
     throw new Error("unsupported metadata renewal contract");
   const generated = metadataInstant(raw.generated_at);
@@ -79,6 +94,9 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     next = versions(raw.next_versions),
     beforeExpiry = expires(raw.current_expires),
     nextExpiry = expires(raw.next_expires);
+  const floors = floorsPresent ? versions(raw.reserved_version_floors) : undefined;
+  if (floors && floors.targets !== current.targets)
+    throw new Error("reserved floors cannot change pinned Targets");
   for (const role of roles) {
     if (role === "targets" && !online) {
       if (current[role] !== next[role] || beforeExpiry[role] !== nextExpiry[role])
@@ -86,7 +104,11 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     } else {
       const days = role === "timestamp" ? 2 : role === "releases" || role === "targets" ? 90 : 7;
       if (
-        BigInt(next[role]) !== BigInt(current[role]) + 1n ||
+        BigInt(next[role]) !==
+          (floors && BigInt(floors[role]) > BigInt(current[role])
+            ? BigInt(floors[role])
+            : BigInt(current[role])) +
+            1n ||
         metadataInstant(nextExpiry[role]) <= metadataInstant(beforeExpiry[role]) ||
         metadataInstant(nextExpiry[role]) > generated + BigInt(days) * 86_400_000_000_000n
       )
@@ -94,7 +116,9 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     }
   }
   return {
-    schema_version: online ? (2 as const) : (1 as const),
+    schema_version: online ? (2 as const) : reserved ? (3 as const) : (1 as const),
+    ...(floors ? { reserved_version_floors: floors } : {}),
+    ...(historical ? { prior_expiration_policy: "historical-online-expired-v1" as const } : {}),
     ...(online ? { top_level_targets_profile: "online-unchanged-authority-v1" as const } : {}),
     kind: "application-tuf-metadata-renewal" as const,
     generated_at: String(raw.generated_at),
@@ -222,7 +246,7 @@ export function assertMetadataRenewalPublication(rawDescriptor: unknown, rawFact
   const facts = inspectTufPublicationFacts(rawFacts);
   if (
     facts.root_sha256 !== descriptor.root_sha256 ||
-    (descriptor.schema_version === 1 &&
+    (descriptor.schema_version !== 2 &&
       facts.offline_targets_sha256 !== descriptor.offline_targets_sha256) ||
     (descriptor.schema_version === 2 &&
       facts.offline_targets_sha256 === descriptor.offline_targets_sha256) ||
@@ -425,3 +449,6 @@ export function applicationMetadataMaintenancePriority(
     ? ("renewal" as const)
     : null;
 }
+
+/** Canonical positive-u64 role versions; parsing grants no authority. */
+export const inspectMetadataRoleVersions = versions;

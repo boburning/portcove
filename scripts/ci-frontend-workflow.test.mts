@@ -10,6 +10,7 @@ import { isRecord } from "./runtime-values.mts";
 
 import { readFile, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 
 import { parseDocument } from "yaml";
 import { spawnSync } from "node:child_process";
@@ -318,7 +319,7 @@ void test("screenshot-only diagnostic is manual, preserves failure guards and ve
       isRecord(step) && step.name === "Verify all three packets and original step outcomes",
   );
   assert.ok(isRecord(final) && typeof final.run === "string");
-  assert.match(final.run, /attempts\/\$GITHUB_RUN_ATTEMPT\/jobs\?per_page=100/u);
+  assert.match(final.run, /"\$RUNNER_TEMP\/browser-custody-jobs\.json"/u);
   assert.match(
     final.run,
     /browser-runtime\.mts verify-screenshot-only work\/downloaded-browser-custody/u,
@@ -356,7 +357,6 @@ void test("maintained first-party sources default to checked TypeScript", () => 
   assert.equal(inventory.status, 0, inventory.stderr);
   assert.deepEqual(inventory.stdout.split("\0").filter(Boolean).sort(), [
     "apps/desktop/public/theme-bootstrap.js",
-    "apps/desktop/stylelint.config.mjs",
   ]);
 });
 
@@ -697,7 +697,34 @@ for (const closeFails of [false, true]) {
 
 void test("native recovery and Unix custody changes retain macOS no-global portability coverage", () => {
   const job = workflowJob("frontend_portability");
-  assert.equal(job["runs-on"], "macos-26");
+  assert.equal(job["runs-on"], "macos-15");
+  assert.ok(Array.isArray(job.steps));
+  const hostStep: unknown = job.steps.find(
+    (step) => isRecord(step) && step.name === "Verify the contributor route has no global Vite+",
+  );
+  assert.ok(isRecord(hostStep) && typeof hostStep.run === "string");
+  const guard = hostStep.run.match(/^node -e '([^']+)'$/mu)?.[1];
+  assert.ok(guard);
+  assert.match(hostStep.run, /^sw_vers$/mu);
+  const observations: string[] = [];
+  runInNewContext(guard, {
+    process: { platform: "darwin", arch: "arm64" },
+    console: { log: (value: string) => observations.push(value) },
+  });
+  assert.deepEqual(JSON.parse(observations[0]!), { platform: "darwin", arch: "arm64" });
+  for (const process of [
+    { platform: "linux", arch: "arm64" },
+    { platform: "darwin", arch: "x64" },
+    { platform: "win32", arch: "x64" },
+  ])
+    assert.throws(
+      () =>
+        runInNewContext(guard, {
+          process,
+          console: { log: () => assert.fail("refused host logged success") },
+        }),
+      /Expected macOS ARM64/u,
+    );
   assert.equal(job["timeout-minutes"], 25);
   assert.ok(typeof job.if === "string");
   const ordinaryInputs = Array.from(
@@ -732,7 +759,7 @@ const frontendToolInputs = [
 function assertFrontendToolInputs(tasks: unknown) {
   assert.ok(isRecord(tasks));
   for (const [name, input] of frontendToolInputs) {
-    const task = tasks[name];
+    const task: unknown = tasks[name];
     assert.ok(isRecord(task));
     const commands: unknown[] = Array.isArray(task.command) ? task.command : [task.command];
     const invocations = commands.flatMap((command) => {
@@ -771,7 +798,7 @@ void test("actual frontend task inputs tolerate declaration layout and reject mi
   const copyTasks = (): Record<string, unknown> =>
     Object.fromEntries(
       [...new Set(frontendToolInputs.map(([name]) => name))].map((name) => {
-        const task = tasks[name];
+        const task: unknown = tasks[name];
         assert.ok(isRecord(task));
         return [
           name,

@@ -47,6 +47,7 @@ import {
 } from "./release-site-readback.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import {
   inspectPublishedMetadata,
   assertMetadataRenewalBinding,
@@ -137,6 +138,8 @@ export function releaseSigningContextBytes(
     profile !== "single-owner-one-of-one-v1"
   )
     throw new Error("online Targets requires explicit single-owner profile");
+  if (descriptor.schema_version === 3 && profile !== "single-owner-one-of-one-v1")
+    throw new Error("historical prior requires explicit single-owner profile");
   const versions = Object.fromEntries(
     roles.map((role) => {
       const version = descriptor.next_versions[role];
@@ -149,6 +152,9 @@ export function releaseSigningContextBytes(
     schema_version: 1,
     ...initialRootProfileFields(profile),
     ...topLevelTargetsProfileFields(targetsProfile),
+    ...(descriptor.schema_version === 3
+      ? { prior_expiration_policy: descriptor.prior_expiration_policy }
+      : {}),
     generated_at: descriptor.generated_at,
     trusted_root: "trusted-root.json",
     offline_targets: "offline-targets.json",
@@ -229,11 +235,12 @@ export async function prepareControllerReleaseSigningContext(
     payload.context.facts.configuration.namespace !== authorities.namespace
   )
     throw new Error("release context namespace differs from actual admission");
+  const credential = { token: fixedReleaseReaderToken() };
   const snapshot = () =>
     readRemoteCoordinatorSnapshot(
       outputParent,
       { schema_version: 1, namespace: authorities.namespace },
-      { transport: { cwd: outputParent, deadline } },
+      { transport: { credential, deadline } },
     );
   const before = await snapshot();
   if (before.checkpoint !== payload.settlement.checkpoint)

@@ -222,6 +222,32 @@ export async function collectResourceStatus(options: ResourceStatusOptions = {})
   };
 }
 
+export function capacityOwnerLines(capacity: unknown): string[] {
+  if (!isRecord(capacity) || !Array.isArray(capacity.running)) return [];
+  return capacity.running
+    .slice(0, 4)
+    .filter(isRecord)
+    .map((owner) => {
+      const kind = isRecord(owner.activity) ? owner.activity.kind : undefined;
+      const recovery =
+        kind === "external work awaiting quiescence proof"
+          ? " Owner recovery: docs/reference/owned-resource-recovery.md"
+          : "";
+      return (
+        "Capacity " +
+        diagnosticText(owner.slot ?? "unknown") +
+        " workspace " +
+        diagnosticText(owner.workspace ?? "unknown") +
+        " command " +
+        diagnosticText(owner.command ?? "unknown") +
+        " (" +
+        diagnosticText(kind ?? "activity unknown") +
+        ")." +
+        recovery
+      );
+    });
+}
+
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   let sampleSeconds = 0,
@@ -259,6 +285,7 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
             capacity.queued.length +
             " queued"
           : "; capacity unknown"),
+      ...capacityOwnerLines(capacity),
     );
   }
   console.log(
@@ -268,6 +295,9 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
           ...report.resources.map(
             (entry) =>
               `${entry.resource}: ${entry.observation}; ${entry.verification}; workspace ${diagnosticText(entry.workspace ?? "unknown")}; command ${entry.command ?? "unknown"}; ${entry.reason ?? entry.limits ?? ""}`,
+          ),
+          ...report.resources.flatMap((entry) =>
+            entry.resource === "host-capacity" ? capacityOwnerLines(entry) : [],
           ),
           ...hostLines,
         ]).text,

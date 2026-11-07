@@ -122,59 +122,42 @@ pipeline needed to keep testers current. Compiling packages or manual reinstall
 instructions cannot complete this updater commitment. Incremental previews need
 their applicable candidate safety checks; they need not complete the milestone.
 
-The #917 design-system foundation follows the same separation between permission
-to implement and permission to publish. Its checked-in compatibility fixture and
-non-publishing qualification work may merge while #993 remains open. Broad screen
-migration begins only after the nested Dialog/Select portal, dismissal, and focus
-case passes in the actual Tauri application on an available native host. A Public
-Windows beta package containing the redesign still requires #993's applicable
-Windows native-family and claimed-minimum evidence; retained Linux evidence is
-separate from later Linux application qualification; a current hosted runner does not
-prove a historical minimum. Missing beta-critical evidence stays with #993 rather
-than moving to #45, while #45 retains broader 1.0 qualification. No automatic
-release path may convert foundation merge authority into publication authority for
-an unqualified platform.
+The delivered [design system](DESIGN-SYSTEM.md#checked-in-foundation) preserves
+the separation between implementation and publication. [#917](https://github.com/boburning/portcove/issues/917)
+completed its current redesign contract on October 18, 2026; [#993](https://github.com/boburning/portcove/issues/993)
+completed its amended initial-beta stack/minimum acceptance on October 19.
+The original foundation's nested Dialog/Select portal, dismissal and focus gate
+was satisfied before broad migration; its [historical inputs and measurements](DESIGN-SYSTEM.md#initial-foundation-history)
+remain evidence at their original scope. These completed owners are not new
+migration prerequisites. New Windows candidates still require applicable
+exact-candidate release qualification. Retained Linux evidence remains separate
+from later Linux application qualification, and #45 retains broader 1.0 work.
+Neither an ordinary merge nor these historical completions authorizes publication
+or certifies new package bytes or an unqualified platform.
 
 The initial beta retains the complete preparation boundary (#31), coherent
 design system (#917), development-agility/domain consolidation (#921/#925),
-structured account-free artwork (#1155/#208/#206), fixed Harbour Masters
-integration minimum, onboarding and truthful limited routes (#254/#1168/#1169), public CLI and
-real reference proof (#30/#243), manual Desktop Steam (#290), and independent
-catalog delivery (#245/#397/#398/#246). These are finite outcomes, not optional
-polish. Shared controller/focus/input safety remains with #29/#206/#917.
+structured account-free artwork (#1155/#208/#206), connected-folder discovery and
+selected setup (#244), useful managed and user-prepared routes, onboarding and
+truthful operation availability (#254/#1168/#1169), original-file setup, developer
+integration and settings (#30/#243/#4156/#2228), manual Desktop Steam (#290), and
+independent catalog delivery (#245/#397/#398/#246). Shared controller/focus/input
+safety remains with #29/#206/#917.
 
-The November 3, 2026 owner decision fixes the Harbour Masters launch set to
-Ship of Harkinian / Shipwright #58, 2Ship2Harkinian #59, SpaghettiKart #60,
-Starship #61, Ghostship #53, Lighthouse #62 and the existing PaperBoat integration
-#909. Retain their applicable finite Windows integration minima Required / Public
-beta, consume completed admissions and evidence at their actual scope, and keep
-optional gameplay/save/device observations separate. Do not reopen completed
-admissions or extend this set to future projects, forks, libraries or releases.
+Use representative integrations to prove the actual discovery, setup, launch,
+update and player-data recovery journeys. Reuse accepted title evidence at its
+recorded scope and retain frozen client identities where required. Fixtures can
+exercise controlled behavior. Installed, protected and production observations
+retain their separate proof obligations. Admission, later maintenance and
+whole-backlog accounting do not determine beta readiness.
 
-Other port expansion, title-specific qualification under this rollout and whole historical/all-port
-completion are ongoing Planned / Unscheduled work with no promised release.
-#1422 keeps its 317 rows / 316 identities; #2510/#2926 keep the frozen 858-identity
-union, lineage, per-port acceptance and maintenance. They remain open until actual
-eventual completion. The nine unfinished non-Harbour Masters requirements
-#342/#519/#520/#726/#141/#150/#320/#812/#1275 no longer gate beta; no Required 1.0
-replacement deadline is introduced. Parentage and broad adoption references do
-not make all-port closure a prerequisite to representative product proof.
-
-Shared product outcomes #4154/#4155/#4156/#2228, production #534, compatible
-delivery #246, acquisition #315, Windows application updates #52, artwork #1155
-and final integration #921 retain their accepted finite obligations and completed
-credits. Operations actually exposed to users retain precise source, permission,
-integrity, runtime, consent and preservation holds. A known unsafe exposed
-operation retains its narrow remediation owner; this decision supplies no fix
-and creates no blanket every-port qualification campaign.
-
-Ports finishes the fixed Harbour Masters minimum and actual exposed-operation
-defects first, then continues useful non-gating integration and maintenance.
-Beta finishes required product/production acceptance and final integration
-without waiting for the whole catalog or rollout parents. Canonical issue/Project
-changes provide the normal handoff; no routine peer approval or coordinator.
-This changes release scope, not engineering completion, beta readiness or
-publication authority. Existing separate Required 1.0 requirements, including #42’s finite risk-based representative qualification, remain unchanged.
+#534, #246, #315, #52, #1155 and #921 retain their finite obligations. The
+completed #4154/#4155/#4156/#2228 product outcomes retain their credits.
+Operations exposed to users retain exact source, permission, integrity,
+runtime, consent and preservation holds. A known unsafe exposed operation keeps
+its scoped remediation owner. Independent port additions and maintenance can
+ship throughout beta preparation using their applicable delivery paths.
+#42's finite risk-based representative qualification remains Required for 1.0.
 
 Full user-ready Playnite (#910), Steam Add/Repair/Update-artwork/Remove (#292),
 SteamGridDB (#527), physical Xbox evidence (#44), and macOS/Deck qualification

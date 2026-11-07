@@ -394,6 +394,7 @@ export type SupportTier = "stable" | "beta" | "rolling";
  */
 export type WindowsRuntimePathPolicy = "printable-ascii-max-path" | "relative-file-max-path";
 export type CatalogAdmissionMode = "enforced" | "informational";
+export type SourceReleasePolicy = "integration-contract-v1";
 export type CatalogEvidenceRole =
   "upstream_support" | "byte_identity" | "preservation_crosswalk" | "portcove_qualification";
 export type SourceIdentityKind = "file" | "file-set" | "optical-disc" | "multi-disc-set" | "compound";
@@ -670,6 +671,22 @@ export type LibraryContentKind =
   "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
 export type LibrarySelectionSource = "invocation" | "saved" | "platform_default";
 export type ListingAction = "attach-existing" | "relink-existing" | "launch" | "remove-registration";
+export type AdvisoryApplicability = "current-route" | "historical" | "context-required";
+export type CapabilityFeature =
+  | "setup"
+  | "original-files"
+  | "launch"
+  | "updates"
+  | "settings"
+  | "backup"
+  | "restore"
+  | "previous-version"
+  | "gameplay"
+  | "controls"
+  | "audio"
+  | "performance"
+  | "save-compatibility";
+export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputListingStatuses = PortListingStatus[];
 /**
  * Versioned best-effort progress envelope. Durable activity history remains
@@ -735,7 +752,6 @@ export type OutputDestinationOwnership =
   | "unrelated_content"
   | "invalid"
   | "unknown";
-export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputPendingSetups = PendingSetupRecord[];
 /**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
@@ -936,7 +952,7 @@ export interface TransportOutputs {
   game_setting_change: GameSettingChange;
   game_setting_review: OutputGameSettingReview;
   game_settings_contract: GameSettingsContract;
-  game_settings_view: OutputGameSettingsView;
+  game_settings_view: GameSettingsView;
   game_update_acquisition: GameUpdateAcquisition;
   game_update_plan: OutputGameUpdatePlan;
   ghostship_recovery_plan: OutputGhostshipRecoveryPlan;
@@ -969,6 +985,7 @@ export interface TransportOutputs {
   output_relocation_status: OutputOutputRelocationStatus;
   pending_setups: OutputPendingSetups;
   port: PortDefinition;
+  port_capability_report: PortCapabilityReport;
   port_output_location: PortOutputLocation;
   port_paths: OutputPortPaths;
   port_removal_preview: OutputPortRemovalPreview;
@@ -1500,6 +1517,10 @@ export interface ManualSetupStep {
   title: string;
 }
 export interface PersistentFilePattern {
+  /**
+   * Match the concatenated prefix and suffix as well as names with an interior.
+   */
+  allow_empty_middle?: boolean;
   prefix: string;
   suffix: string;
   [k: string]: unknown;
@@ -1699,12 +1720,14 @@ export interface OutputCapabilities {
    */
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
+  listing_formats?: number[];
   machine_formats: string[];
   /**
    * Schema used by JSONL operation events, independently from result envelopes.
    */
   operation_event_schema_version: number;
   platforms: Platform[];
+  port_capability_schema?: number | null;
   port_operation_locking: string;
   product: string;
   product_version: string;
@@ -1729,6 +1752,8 @@ export interface CatalogDocument {
 }
 export interface PortDefinition {
   adapter: AdapterKind;
+  archive_data_compatibility_v1?: ArchiveDataCompatibilityV1 | null;
+  archive_data_transition_v1?: ArchiveDataTransitionV1 | null;
   automated_tested_platforms: Platform[];
   bios_source_profile: string | null;
   bundled_runtime: {
@@ -1807,11 +1832,36 @@ export interface PortDefinition {
   user_data_environment: string | null;
   windows_runtime_path_policy?: WindowsRuntimePathPolicy | null;
   /**
+   * Official Shipwright Windows portable packages write player data in their working directory.
+   */
+  windows_shipwright_persistence?: boolean;
+  /**
    * Native5: dedicated entry-owned data directory used for Windows TEMP/TMP.
    * The upstream process must preserve the reviewed working directory.
    */
   windows_temp_directory?: string | null;
   [k: string]: unknown;
+}
+/**
+ * Reviewed conventional data shared by compatible runtimes. Every other
+ * persistent object remains bound to its producing archive, including unknown
+ * children of a declared directory. This does not rewind data on rollback.
+ */
+export interface ArchiveDataCompatibilityV1 {
+  /**
+   * Player progress that cannot move to a different producing archive.
+   */
+  build_specific_progress_paths: string[];
+  contract_id: string;
+  shared_paths: string[];
+}
+/**
+ * One finite reviewed predecessor admission, separate from data layout identity.
+ * It never redefines that runtime's original source or execution contract.
+ */
+export interface ArchiveDataTransitionV1 {
+  creating_contract_sha256: string;
+  predecessor_archive_sha256: string;
 }
 export interface BundledRuntime {
   archive_root: string;
@@ -2087,6 +2137,11 @@ export interface PortSourceContract {
   live_review_url: string | null;
   port_id: string;
   profile_id: string;
+  /**
+   * An explicit one-time acceptance of the declared source integration for
+   * compatible provider releases. Exact historical evidence stays exact.
+   */
+  release_policy?: SourceReleasePolicy | null;
   reviewed_at: string;
   role: PortSourceRole;
   supported_variant_ids: string[];
@@ -2303,6 +2358,11 @@ export interface PortListing {
    */
   availability_override_reason?: string | null;
   /**
+   * Inert optional advisory envelope. Invalid/future content is unavailable as advice,
+   * never an acquisition restriction or an operation grant. Requires listing format 7.
+   */
+  compatibility?: unknown;
+  /**
    * Advisory literal filename hints for an upstream-owned download. They do
    * not authenticate a package or grant installation/execution ownership.
    */
@@ -2371,7 +2431,7 @@ export interface ListingUpstreamObservation {
 export interface ListingObservedRelease {
   assets: ListingObservedAsset[];
   assets_complete: boolean;
-  id: number;
+  id: CatalogDownloadReleaseId;
   provider_prerelease: boolean;
   published_at: string;
   release_url: string;
@@ -3168,7 +3228,7 @@ export interface OutputGameSettingReview {
  * A missing optional capability is local to settings. It does not disable the
  * installation's independently assessed basic setup or launch capabilities.
  */
-export interface OutputGameSettingsView {
+export interface GameSettingsView {
   available: boolean;
   files: GameSettingsFileView[];
   install_id: string | null;
@@ -3206,6 +3266,7 @@ export interface OutputGameUpdatePlan {
   acquisition?: GameUpdateAcquisition | null;
   activate: boolean;
   assessment: PortActionAssessment3;
+  data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
   plan_sha256: string;
   [k: string]: unknown;
@@ -3221,6 +3282,13 @@ export interface PortActionAssessment3 {
    */
   definition?: DefinitionEligibility | null;
   reason: PortActionReason;
+  [k: string]: unknown;
+}
+export interface ArchiveDataTransitionReview {
+  preimage_sha256: string;
+  producing_archive_sha256: string;
+  retained_installations: number;
+  temporary_space: InstallSpaceRequirement;
   [k: string]: unknown;
 }
 export interface OutputGhostshipRecoveryPlan {
@@ -3464,6 +3532,10 @@ export interface OutputListingDeliveryStatus {
 }
 export interface PortListingStatus {
   actions: ListingActionAssessment[];
+  /**
+   * Optional inert read model; absence cannot suppress an independently allowed action.
+   */
+  capabilities?: PortCapabilityReport | null;
   port_id: string;
   status: PortStatus;
   [k: string]: unknown;
@@ -3472,6 +3544,67 @@ export interface ListingActionAssessment {
   action: ListingAction;
   allowed: boolean;
   reason?: string | null;
+  [k: string]: unknown;
+}
+export interface PortCapabilityReport {
+  advisories: PortCapabilityNotice[];
+  advisory_state: string;
+  /**
+   * Optional detail failures are local to this report, never action refusals.
+   */
+  detail_problems: string[];
+  format_version: number;
+  /**
+   * Matching observations are enriched only on a focused request. Absence is untested.
+   */
+  observations: RecommendationEvidence[];
+  pending_setup: PendingSetupState | null;
+  port_id: string;
+  protection: PlayerDataProtection | null;
+  routes: PortCapabilityRoute[];
+  settings: GameSettingsView | null;
+  setup_guide: ManualSetupGuide | null;
+  source_readiness: LaunchReadiness | null;
+  [k: string]: unknown;
+}
+export interface PortCapabilityNotice {
+  applicability: AdvisoryApplicability;
+  notice: CapabilityAdvisory;
+  [k: string]: unknown;
+}
+export interface CapabilityAdvisory {
+  artifact_sha256: string | null;
+  edition: string | null;
+  evidence: string;
+  explanation: string;
+  feature: CapabilityFeature;
+  id: string;
+  /**
+   * Unix seconds. A newer date never proves an earlier failure is fixed.
+   */
+  observed_at: number;
+  platform: Platform;
+  provenance: string;
+  release: string | null;
+  route: string;
+  workaround: string | null;
+}
+export interface PortCapabilityRoute {
+  features: PortCapabilityFeature[];
+  install_id: string | null;
+  route: string;
+  [k: string]: unknown;
+}
+export interface PortCapabilityFeature {
+  action: PortActionAssessment | null;
+  explanation: string;
+  feature: CapabilityFeature;
+  listing_action: ListingActionAssessment | null;
+  /**
+   * Management mode, separate from prerequisites and evidence of successful use.
+   */
+  mode: "automatic" | "manual" | "unavailable" | "unknown";
+  next_step: string;
   [k: string]: unknown;
 }
 export interface OutputManagedRouteChangePreview {
@@ -3729,7 +3862,8 @@ export interface SourceQualificationCoverage {
 export interface SourceReleaseApplicability {
   reviewed_bindings: SourceContractApplicability[];
   /**
-   * Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.
+   * Open code: `artifact_bound`, `upstream_release_bound`,
+   * `integration_contract_bound`, or `not_rebound`.
    */
   state_code: string;
   [k: string]: unknown;
@@ -4103,6 +4237,10 @@ export interface ObservationEvidence {
 export interface ChannelObservation {
   channel: ReleaseChannel;
   channel_candidate: ObservedReleaseIdentity | null;
+  /**
+   * Exact provider assets required for automatic integrity continuation.
+   */
+  checksum_sources?: ObservedChecksumSource[];
   hold_reasons: string[];
   latest_eligible: ObservedResolution | null;
   latest_observed: ObservedReleaseIdentity | null;
@@ -4114,6 +4252,11 @@ export interface ObservedReleaseIdentity {
   provider_prerelease: boolean;
   published_at: string | null;
   tag: string;
+  [k: string]: unknown;
+}
+export interface ObservedChecksumSource {
+  asset_id: number;
+  release_id: number;
   [k: string]: unknown;
 }
 export interface ObservedResolution {

@@ -3,11 +3,11 @@
   "listing": {
     "id": "dune-ii-dune-dynasty",
     "name": "Dune II (Dune Dynasty)",
-    "summary": "Set up Dune Dynasty, an enhanced OpenDUNE-derived engine, with your own European Dune II v1.07 data. Windows, Linux and macOS releases are offered; select the package for your CPU rather than relying on build badges. The project builds Windows x86, x86-64 and ARM64, and macOS x86-64 and ARM64 versions. Portcove has not confirmed setup or gameplay.",
+    "summary": "Play Dune II with enhanced controls, widescreen rendering and skirmish battles.",
     "original_game_title": "Dune II",
     "project_url": "https://github.com/gameflorist/dunedynasty",
     "issue_number": 2569,
-    "platforms": [],
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/gameflorist/dunedynasty",
     "artwork": {
@@ -19,23 +19,11 @@
       "match_kind": "underlying-game"
     },
     "manual_setup": {
-      "help_url": "https://github.com/gameflorist/dunedynasty/tree/9e447c4667b3f41097279d24819a11a46087050c",
+      "help_url": "https://github.com/gameflorist/dunedynasty/blob/v1.6.4/README.md#installation",
       "steps": [
         {
-          "title": "Finish Dune Dynasty setup before attaching it",
-          "instruction": "Use a permitted complete Windows Dune Dynasty copy with your own European Dune II 1.07 PAK files, following upstream’s FILELIST.TXT. Keep those data files in the prepared data directory or the actual personal Dune Dynasty/data directory used by the copy. Missing original data makes normal startup fail; attaching the engine alone does not prepare it. Optional music, soundfonts and enhancements have separate requirements and rights."
-        },
-        {
-          "title": "Keep the existing portable or personal profile choice",
-          "instruction": "Select native dunedynasty.exe and its actual prepared working directory."
-        },
-        {
-          "title": "Check the working copy before registration",
-          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its game files or save compatibility."
-        },
-        {
-          "title": "Keep updates and removal under the existing owner",
-          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+          "title": "Finish setup before registering a prepared copy",
+          "instruction": "Use a permitted complete Windows Dune Dynasty copy with your own European Dune II 1.07 PAK files, following upstream’s FILELIST.TXT. Keep those data files in the prepared data directory or the actual personal Dune Dynasty/data directory used by the copy. Missing original data makes normal startup fail; attaching the engine alone does not prepare it. Optional music, soundfonts and enhancements have separate requirements and rights. The ordinary launch uses no arguments. Retain any supported arguments your prepared copy already needs and review its actual working directory."
         }
       ],
       "warnings": [
@@ -62,5 +50,46 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "gameflorist/dunedynasty",
+      "asset_hints": {
+        "windows-x86-64": ["dunedynasty-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["dunedynasty.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned"
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the complete personal Dune Dynasty profile or the actual executable-side data and configuration of your prepared copy"
+      ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Put your own European Dune II v1.07 PAKs in the personal data folder before Play",
+        "instruction": "Follow upstream’s FILELIST.TXT and place the original files in %APPDATA%/Dune Dynasty/data. Keep the managed game folder clear of original files and executable-side dunedynasty.cfg so the player uses the external profile."
+      },
+      "warnings": [
+        "The managed route covers Windows x86-64. Back up the external Dune Dynasty profile separately. Keep using an independent upstream copy for executable-side profiles and other packages. Real saves across versions remain unverified."
+      ]
+    }
   }
 }

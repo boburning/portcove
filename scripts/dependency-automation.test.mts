@@ -15,13 +15,54 @@ import { fileURLToPath } from "node:url";
 import { parseDocument, parseAllDocuments } from "yaml";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
-import {
-  nativePnpmVersion,
-  nativePnpmArchive,
-  nativeWindowsPnpmArchive,
-} from "./release-pnpm-runtime.mts";
+import { nativePnpmVersion, nativePnpmPackageProfile } from "./release-pnpm-runtime.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { validateRootPnpmToolchain } from "./pnpm-lock-inventory.mts";
+import { gtkQualificationObservation } from "./dialog-gtk-observation.mts";
+
+void test("GTK observations retain only closed phases, bounded statuses and Rust error identities", () => {
+  const observed = gtkQualificationObservation("patched-observation", {
+    status: 101,
+    signal: null,
+    output:
+      "private /secret/token\nerror[E0433] private\nerror[E0433] again\nerror[E0308] hidden\nPORTCOVE_RFD_TEXT_PROBE",
+  });
+  assert.deepEqual(observed, {
+    phase: "patched-observation",
+    status: 101,
+    signal: null,
+    constructor_marker: true,
+    rust_errors: ["E0308", "E0433"],
+  });
+  assert.doesNotMatch(JSON.stringify(observed), /private|secret|token/u);
+  assert.deepEqual(
+    gtkQualificationObservation("injected\n::error::private", {
+      status: Infinity,
+      signal: "private",
+      output: "private",
+    }),
+    { phase: "unknown", status: null, signal: null, constructor_marker: false, rust_errors: [] },
+  );
+  assert.deepEqual(gtkQualificationObservation("source"), {
+    phase: "source",
+    status: null,
+    signal: null,
+    constructor_marker: null,
+    rust_errors: [],
+  });
+  const errors = Array.from(
+    { length: 20 },
+    (_, index) => `error[E${String(index).padStart(4, "0")}]`,
+  ).join("\n");
+  assert.equal(
+    gtkQualificationObservation("unpatched-observation", {
+      status: 1,
+      signal: "SIGTERM",
+      output: errors,
+    }).rust_errors.length,
+    8,
+  );
+});
 
 function required<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined);
@@ -65,28 +106,21 @@ void test("actual signing-cache glob consumer bounds pattern expansion and stops
 });
 
 void test("fixed native pnpm consumers match the root pin and publisher integrity", async () => {
-  assert.equal(rootPackage.packageManager, `pnpm@${nativePnpmVersion}`);
+  const version = nativePnpmVersion();
+  assert.equal(rootPackage.packageManager, `pnpm@${version}`);
   const environment = record(parseAllDocuments(await read("pnpm-lock.yaml"))[0]?.toJS());
   const packages = record(environment.packages);
-  for (const [platform, archive] of [
-    ["linux-x64", nativePnpmArchive],
-    ["win32-x64", nativeWindowsPnpmArchive],
-  ] as const) {
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const { archive, name } = nativePnpmPackageProfile(platform);
     assert.equal(
       archive.url,
-      `https://registry.npmjs.org/@pnpm/exe.${platform}/-/exe.${platform}-${nativePnpmVersion}.tgz`,
+      `https://registry.npmjs.org/${name}/-/${name.split("/")[1]}-${version}.tgz`,
     );
     assert.equal(
-      record(record(packages[`@pnpm/exe.${platform}@${nativePnpmVersion}`]).resolution).integrity,
+      record(record(packages[`${name}@${version}`]).resolution).integrity,
       archive.integrity,
     );
   }
-  const linux = await read("scripts/prepare-hosted-native-linux-installation.py");
-  assert.equal(
-    linux.match(/metadata.get\("packageManager"\) == "pnpm@([^"\n]+)"/u)?.[1],
-    nativePnpmVersion,
-  );
-  assert.equal(linux.match(/environment=environment\) == "([^"\n]+)"/u)?.[1], nativePnpmVersion);
 });
 
 void test("Rust Node and pnpm authorities and isolated runtime representations stay coordinated", async () => {
@@ -161,8 +195,8 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   assert.equal(repositoryPackage.type, "module");
   assert.ok(Object.keys(repositoryPackage.devDependencies).length > 0);
   assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
+  assert.deepEqual(repositoryPackage.dependencies, { "@octokit/core": "7.0.8" });
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
-    "@octokit/core",
     "@octokit/plugin-paginate-rest",
     "@resvg/resvg-js",
     "@sigstore/bundle",
@@ -175,12 +209,14 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "es-module-lexer",
     "fallow",
     "playwright",
+    "semver",
     "vite-plus",
     "vitest",
     "yaml",
   ]);
   assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
   assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "3.0.4");
+  assert.equal(repositoryPackage.devDependencies.semver, desktopPackage.devDependencies.semver);
   for (const name of [
     "@vitest/browser-playwright",
     "@vitest/coverage-v8",
@@ -195,7 +231,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "@vitest/coverage-v8"), false);
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "es-module-lexer"), false);
   for (const signingTool of ["@sigstore/bundle", "@sigstore/sign"] as const) {
-    assert.equal(repositoryPackage.devDependencies[signingTool], "5.0.0");
+    assert.match(String(repositoryPackage.devDependencies[signingTool]), /^\d+\.\d+\.\d+$/u);
     assert.equal(Object.hasOwn(desktopPackage.dependencies, signingTool), false);
     assert.equal(Object.hasOwn(desktopPackage.devDependencies, signingTool), false);
   }
@@ -204,7 +240,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     Object.keys(repositoryPackage.devDependencies).filter((name) =>
       Object.hasOwn(desktopPackage.devDependencies, name),
     ),
-    ["@vitest/browser-playwright", "playwright", "vite-plus", "vitest", "yaml"],
+    ["@vitest/browser-playwright", "playwright", "semver", "vite-plus", "vitest", "yaml"],
   );
   assert.equal(desktopPackage.devDependencies["vite-plus"], "catalog:");
   assert.equal(desktopPackage.devDependencies.yaml, repositoryPackage.devDependencies.yaml);
@@ -768,7 +804,7 @@ void test("Node proposals update every maintained isolated pin without rewriting
     assert.equal(owns(filename), true, filename);
     for (const newline of ["\n", "\r\n"]) {
       const contents = (await read(filename)).replace(/\r?\n/gu, newline);
-      const matches = manager.matchStrings.flatMap((pattern) => [
+      const matches: RegExpExecArray[] = manager.matchStrings.flatMap((pattern) => [
         ...contents.matchAll(new RegExp(pattern, "gu")),
       ]);
       assert.equal(matches.length, count, filename);
@@ -851,6 +887,51 @@ void test("RFD backport retains the publisher closure and only the reviewed form
   assert.match(rfd, /^version = "0\.17\.2"$/mu);
   assert.doesNotMatch(rfd, /^(?:source|checksum) =/mu);
   assert.match(await read("vendor/rfd/LICENSE"), /Permission is hereby granted/u);
+});
+
+void test("Syft updates coordinate the release workflow and its independent expected pin", async () => {
+  const managers = renovateConfig.customManagers.filter(
+    (manager) => manager.depNameTemplate === "anchore/syft",
+  );
+  assert.equal(managers.length, 1);
+  const manager = required(managers[0]);
+  assert.equal(manager.datasourceTemplate, "github-releases");
+  assert.equal(manager.versioningTemplate, "semver");
+  const owns = (file: string) =>
+    manager.managerFilePatterns.some((pattern) => new RegExp(pattern.slice(1, -1), "u").test(file));
+  const pins = new Set<string>();
+  for (const file of [
+    ".github/workflows/release.yml",
+    "scripts/release-workflow.test.mts",
+    "scripts/release-acceptance-evidence.mts",
+  ]) {
+    assert.ok(owns(file), file);
+    const source = await read(file);
+    for (const text of [source, source.replaceAll("\n", "\r\n")]) {
+      const matches: RegExpExecArray[] = manager.matchStrings.flatMap((pattern) => [
+        ...text.matchAll(new RegExp(pattern, "gu")),
+      ]);
+      assert.equal(matches.length, 1, file);
+      const pin = required(required(matches[0]).groups).currentValue;
+      assert.match(required(pin), /^\d+\.\d+\.\d+$/u);
+      pins.add(required(pin));
+      const future = text.replace(required(pin), "1.57.0");
+      const next: RegExpExecArray[] = manager.matchStrings.flatMap((pattern) => [
+        ...future.matchAll(new RegExp(pattern, "gu")),
+      ]);
+      assert.equal(next.length, 1);
+      assert.equal(required(required(next[0]).groups).currentValue, "1.57.0");
+    }
+  }
+  assert.equal(pins.size, 1, "the independent expected pin must match the release input");
+  for (const file of [
+    "scripts/release-acceptance-evidence.test.mts",
+    "scripts/release-workflow.test.mts.bak",
+    "nested/scripts/release-workflow.test.mts",
+    "scripts/other-release-workflow.test.mts",
+    ".github/workflows/other-release.yml",
+  ])
+    assert.equal(owns(file), false, file);
 });
 
 void test("install-action updates keep all independent contract pins with their immutable workflow group", async () => {

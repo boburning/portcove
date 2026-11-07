@@ -346,6 +346,8 @@ void test("inert Linux payload status stays separate from successful reaper exit
       "--edition=2024",
       "--crate-name",
       "portcove_linux_process_tree_reaper",
+      "-C",
+      "strip=symbols",
     ]);
     assert.equal(required(prepared[0]).compiler, testCompilerIdentity);
     assert.equal(required(prepared[0]).platform, "linux");

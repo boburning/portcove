@@ -1,3 +1,4 @@
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 /** Fixed complete-controller job entry. No arbitrary command, source, tool,
  * candidate program or credential is accepted through configuration. */
 import { writeFile, mkdir } from "node:fs/promises";
@@ -136,15 +137,15 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
   const configuration: unknown = JSON.parse(bytes.toString("utf8"));
   let result: unknown;
   if (role === "building") {
-    const { currentBuildingJobDeadline } = await import("./release-signing-job-budget.mts");
-    const deadline = currentBuildingJobDeadline(
+    const { currentControllerJobDeadline } = await import("./release-signing-job-budget.mts");
+    const deadline = await currentControllerJobDeadline(
+      role,
       {
         run_id: environment.GITHUB_RUN_ID ?? "",
         run_attempt: 1,
         controller_revision: environment.GITHUB_SHA ?? "",
         controller_ref: environment.GITHUB_REF ?? "",
       },
-      root,
       Math.min(performance.now() + 525000, phaseDeadline ?? Infinity),
     );
     const worker = await import("./release-admitted-aggregate-controller.mts");
@@ -325,26 +326,31 @@ export async function runConfiguredFixedControllerJob(rawRole: unknown, deadline
   let exitCode = 1,
     requiresAttestation = false;
   try {
-    const completed = await withCoordinatorDeadline(deadline, async () => {
-      await configureFixedControllerJob(role);
-      const result = await runFixedControllerJob(role, deadline);
-      // Set before retaining the locator: a retention failure must not erase
-      // the fact that the actual result needs independent attestation.
-      requiresAttestation =
-        role !== "building" &&
-        role !== "site-publication" &&
-        (role !== "coordinator" ||
-          (isRecord(result) &&
-            ["metadata-context-prepared", "catalog-context-prepared"].includes(
-              String(result.decision),
-            ) &&
-            result.attestation_required !== false));
-      const attestation = fixedControllerResultAttestation(role, result);
-      if (attestation) {
-        await retainControllerAttestation(temporary(), phase, attestation);
-      }
-      return result;
-    });
+    const execute = () =>
+      withCoordinatorDeadline(deadline, async () => {
+        await configureFixedControllerJob(role);
+        const result = await runFixedControllerJob(role, deadline);
+        // Set before retaining the locator: a retention failure must not erase
+        // the fact that the actual result needs independent attestation.
+        requiresAttestation =
+          role !== "building" &&
+          role !== "site-publication" &&
+          (role !== "coordinator" ||
+            (isRecord(result) &&
+              ["metadata-context-prepared", "catalog-context-prepared"].includes(
+                String(result.decision),
+              ) &&
+              result.attestation_required !== false));
+        const attestation = fixedControllerResultAttestation(role, result);
+        if (attestation) {
+          await retainControllerAttestation(temporary(), phase, attestation);
+        }
+        return result;
+      });
+    // The bundled worker owns its reader scope independently of the source bootstrap.
+    const completed = await (process.env.PORTCOVE_STORAGE_APP_TOKEN
+      ? withReadOnlyReleaseChildren(temporary(), execute)
+      : execute());
     exitCode = 0;
     return completed;
   } finally {

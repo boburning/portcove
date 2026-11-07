@@ -215,7 +215,7 @@ describe("source intake dialog", () => {
     await act(async () => button("Copy into Portcove")!.click());
     const renderedReview = document.body.querySelector('[aria-label="Source import review"]');
     expect(renderedReview?.textContent).toContain(profile.label);
-    expect(renderedReview?.textContent).toContain("Source check: Exact identity");
+    expect(renderedReview?.textContent).toContain("File check: Edition identified");
   };
 
   it("does not carry a cancelled Move review into another game's preparation or a later Move approval", async () => {

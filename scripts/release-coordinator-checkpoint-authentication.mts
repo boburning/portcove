@@ -23,7 +23,7 @@ import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-enviro
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import {
   capacityExecutorJobProfile,
   capacityExecutorRolesForPurpose,
@@ -42,7 +42,7 @@ export async function authenticateFixedJobCoordinatorHistory(
   rawAuthorities: unknown,
   rawSource: { revision: string; execution_ref: string; workflow_sha256: string; actor_id: string },
   deadline: number,
-  api: CoordinatorRemoteApi,
+  api: CoordinatorCheckpointApi,
 ) {
   const checkpoint = structuredClone(rawCheckpoint);
   const authorities = inspectFixedJobJournalAuthorities(rawAuthorities);
@@ -89,7 +89,12 @@ export async function authenticateFixedJobCoordinatorHistory(
     };
   }
   if (checkpoint.previous === null) throw new Error("unratified initial journal head");
-  const evidence = readCoordinatorCheckpointEvidence(checkpoint, configuration, api, deadline);
+  const evidence = await readCoordinatorCheckpointEvidence(
+    checkpoint,
+    configuration,
+    api,
+    deadline,
+  );
   const subject: unknown = JSON.parse(evidence.subject.toString("utf8"));
   const producer = isRecord(subject) && isRecord(subject.producer) ? subject.producer : null;
   if (
@@ -106,7 +111,7 @@ export async function authenticateFixedJobCoordinatorHistory(
       "retained checkpoint source/setup/configuration differs from selected authority",
     );
   active();
-  const response = api.request(
+  const response = await api.request(
     "GET",
     `repos/boburning/portcove/actions/jobs/${String(producer.job_id)}`,
   );
@@ -198,7 +203,7 @@ export async function authenticateCoordinatorCheckpointEvidence(
   deadline: number,
   options: {
     attestation?: NonNullable<Parameters<typeof verifyControllerArtifactVerification>[5]>;
-    job?: Pick<Parameters<typeof verifyHistoricalCheckpointJob>[3], "api" | "spawn">;
+    job?: Pick<Parameters<typeof verifyHistoricalCheckpointJob>[3], "provider">;
   } = {},
 ): Promise<AuthenticatedCheckpointEvidence> {
   // Copy bounded bytes and all independently selected metadata synchronously.
@@ -254,7 +259,8 @@ export async function authenticateCoordinatorCheckpointEvidence(
   if (!Buffer.isBuffer(evidence.subject) || !evidence.subject.equals(selected))
     throw new Error("checkpoint evidence differs from independently expected producer/inputs");
   inspectCoordinatorCheckpointEvidence(checkpoint, configuration, evidence);
-  const environment = attestationOptions?.environment ?? readOnlyReleaseChildEnvironment();
+  const readerEnvironment = readOnlyReleaseChildEnvironment();
+  const environment = attestationOptions?.environment ?? readerEnvironment;
   if (!environment)
     throw new Error("checkpoint verification requires isolated read-only child credentials");
   if (
@@ -315,7 +321,7 @@ export async function authenticateCoordinatorCheckpointEvidence(
     });
     phase = "historical-job";
     const producer = expected.producer;
-    const job = verifyHistoricalCheckpointJob(
+    const job = await verifyHistoricalCheckpointJob(
       expected.role,
       {
         controller_revision: producer.controller_revision,
@@ -327,7 +333,7 @@ export async function authenticateCoordinatorCheckpointEvidence(
         check_run_id: producer.check_run_id,
       },
       times[0]!,
-      { cwd: capture, deadline, ...jobOptions },
+      { token: readerEnvironment?.GH_TOKEN ?? "", deadline, ...jobOptions },
     );
     if (
       times.some((time) => time < job.witnessed_interval.start || time > job.witnessed_interval.end)

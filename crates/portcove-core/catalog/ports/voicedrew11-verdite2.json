@@ -41,7 +41,7 @@
       "warnings": [
         "An existing VERDITE2_DATA environment override is an upstream profile choice; relative values resolve from the initial working directory before the apphost changes it. Core registration records executable, directory and arguments, not a per-entry environment override. Do not assume a shell-only setting follows GUI Play, or silently move/redirect a profile. Preserve an already reproducible environment and its actual data paths.",
         "Windows upstream code can refresh icons of matching Desktop, Start Menu and pinned-taskbar shortcuts; KF2_ICON_INSTALL=0/off is its environment opt-out. These are upstream actions, not a Portcove shortcut/profile ownership promise.",
-        "Upstream memoization uses image path/size/mtime; an unchanged CUE can conceal a changed BIN. Build keys cover selected disc files, source/config and launcher version rather than every media byte. User-selected execution intent is not Core certification of the original, package, generated DLL or full image.",
+        "Upstream memoization uses image path/size/mtime; an unchanged CUE can conceal a changed BIN. Build keys cover selected disc files, source/config and launcher version rather than every media byte. Choosing the program in Portcove does not verify the original files, package, generated DLL or full disc image.",
         "No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion is supplied. Source inspection and inert Core probes are not actual game, gameplay/save-load/state/mod compatibility, other-platform, installed-app or protected acceptance. Memory cards, generated assemblies and crash dumps remain distinct evidence/data."
       ]
     },

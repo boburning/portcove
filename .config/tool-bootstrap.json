@@ -5,13 +5,14 @@
     "artifacts": {
       "win32-x64": {
         "archive": "aqua_windows_amd64.zip",
-        "sha256": "489ED468D4103951D4A2634079A0D6BFB63E2104770B3449F5F3DD81CDCEBFB3"
+        "sha256": "01CC31AAC9245F9B90000FC82332497162A2182515A4C616A67D5DEF594CA8E0"
       },
       "win32-arm64": {
         "archive": "aqua_windows_arm64.zip",
-        "sha256": "D91FF86F821632159FDE069A35DDEC046D105C78AC8CCB60ABB0A35C34AE0836"
+        "sha256": "94BDBE1D095C1CD8414E7C7E5D1233856BEE9CFA1858B6023769BC2ADFE4D6A1"
       }
-    }
+    },
+    "version": "v2.66.1"
   },
   "desktop": {
     "tauri_driver": "2.0.6",

@@ -9,7 +9,11 @@ import { capacityDigest } from "./release-capacity.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
-import { inspectSiteGeneration, isSafeSitePath } from "./release-site-generation.mts";
+import {
+  inspectSiteGeneration,
+  isSafeSitePath,
+  isRetainedApplicationRehearsalPath,
+} from "./release-site-generation.mts";
 import type { SiteGeneration } from "./release-site-generation.mts";
 export { isSafeSitePath } from "./release-site-generation.mts";
 
@@ -168,8 +172,17 @@ export async function composeSiteFiles(request: {
   application_root_sha256: string;
   output_parent: string;
   deadline?: number;
+  initial_rehearsal?: { directory: string; inventory_sha256: string };
 }) {
   remaining(request.deadline);
+  if (
+    request.initial_rehearsal &&
+    (request.previous !== null ||
+      request.expected_previous_generation !== null ||
+      !path.isAbsolute(request.initial_rehearsal.directory) ||
+      !digest(request.initial_rehearsal.inventory_sha256))
+  )
+    throw new Error("exact initial retained rehearsal preimage required");
   if (
     !digest(request.application_root_sha256) ||
     ![
@@ -183,21 +196,39 @@ export async function composeSiteFiles(request: {
   )
     throw new Error("exact site composition identities unavailable");
   if (
-    [request.application, ...(request.previous ? [request.previous] : [])].some((input) =>
-      releasePathContains(input, request.output_parent),
-    )
+    [
+      request.application,
+      ...(request.previous ? [request.previous] : []),
+      ...(request.initial_rehearsal ? [request.initial_rehearsal.directory] : []),
+    ].some((input) => releasePathContains(input, request.output_parent))
   )
     throw new Error("site output would mutate its input tree");
   const old = request.previous
     ? await tree(request.previous, request.deadline)
-    : new Map<string, Buffer>();
+    : request.initial_rehearsal
+      ? await tree(request.initial_rehearsal.directory, request.deadline)
+      : new Map<string, Buffer>();
+  if (request.initial_rehearsal) {
+    if (
+      request.previous !== null ||
+      request.expected_previous_generation !== null ||
+      !path.isAbsolute(request.initial_rehearsal.directory) ||
+      !digest(request.initial_rehearsal.inventory_sha256) ||
+      [...old.keys()].some(
+        (name) => name !== ".nojekyll" && !isRetainedApplicationRehearsalPath(name),
+      ) ||
+      capacityDigest(identities(old)) !== request.initial_rehearsal.inventory_sha256
+    )
+      throw new Error("initial retained rehearsal differs from independently expected preimage");
+  }
   for (const name of old.keys())
     if (
       name !== "publication.json" &&
       name !== ".nojekyll" &&
       !name.startsWith("application/metadata/") &&
       !name.startsWith("application/targets/") &&
-      !name.startsWith("catalog/")
+      !name.startsWith("catalog/") &&
+      !isRetainedApplicationRehearsalPath(name)
     )
       throw new Error("prior site has an unowned component; preserve and reconcile");
   const prior = request.previous ? inspectPrior(old, request.expected_previous_generation!) : null;
@@ -214,7 +245,11 @@ export async function composeSiteFiles(request: {
   if (prior?.schema_version === 2 && prior.catalog_root_sha256 === request.application_root_sha256)
     throw new Error("application and catalog roots must differ");
   const app = await tree(request.application, request.deadline);
-  const next: Files = new Map([...old].filter(([name]) => name.startsWith("catalog/")));
+  const next: Files = new Map(
+    [...old].filter(
+      ([name]) => name.startsWith("catalog/") || isRetainedApplicationRehearsalPath(name),
+    ),
+  );
   for (const [name, bytes] of app) {
     if (!name.startsWith("metadata/") && !name.startsWith("targets/")) {
       if (name === "repository-manifest.json") continue; // internal TUF inventory, never served
@@ -226,7 +261,9 @@ export async function composeSiteFiles(request: {
     throw new Error("application timestamp absent");
   for (const [name, bytes] of old) {
     if (
-      (name.startsWith("application/targets/") || /^application\/metadata\/\d+\./u.test(name)) &&
+      (name.startsWith("application/targets/") ||
+        /^application\/metadata\/\d+\./u.test(name) ||
+        isRetainedApplicationRehearsalPath(name)) &&
       !next.get(name)?.equals(bytes)
     )
       throw new Error(`immutable application history would be removed or changed: ${name}`);
@@ -320,7 +357,8 @@ export async function composeCatalogSiteFiles(request: {
       name !== ".nojekyll" &&
       !name.startsWith("application/metadata/") &&
       !name.startsWith("application/targets/") &&
-      !name.startsWith("catalog/")
+      !name.startsWith("catalog/") &&
+      !isRetainedApplicationRehearsalPath(name)
     )
       throw new Error("prior site has an unowned component");
   const prior = request.previous ? inspectPrior(old, request.expected_previous_generation!) : null;
@@ -340,7 +378,11 @@ export async function composeCatalogSiteFiles(request: {
   if (prior?.application_root_sha256 === request.catalog_root_sha256)
     throw new Error("application and catalog roots must differ");
   const catalog = await tree(request.catalog, request.deadline);
-  const next: Files = new Map([...old].filter(([name]) => name.startsWith("application/")));
+  const next: Files = new Map(
+    [...old].filter(
+      ([name]) => name.startsWith("application/") || isRetainedApplicationRehearsalPath(name),
+    ),
+  );
   for (const [name, bytes] of catalog) {
     if (!name.startsWith("metadata/") && !name.startsWith("targets/")) {
       if (name === "repository-manifest.json") continue;
@@ -352,6 +394,7 @@ export async function composeCatalogSiteFiles(request: {
   for (const [name, bytes] of old)
     if (
       (name.startsWith("application/") ||
+        isRetainedApplicationRehearsalPath(name) ||
         name.startsWith("catalog/targets/") ||
         /^catalog\/metadata\/\d+\./u.test(name)) &&
       !next.get(name)?.equals(bytes)

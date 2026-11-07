@@ -48,6 +48,8 @@
     "scripts/daily-discovery.mts",
     "scripts/qualify-semantic-isolation.mts",
     "scripts/release-reviewed-inputs.mts",
+    "scripts/application-release-build-inputs.mts",
+    "scripts/workflow-job-evidence.mts",
     "scripts/windows-rust-tests.mts",
     "scripts/run-actionlint.mts",
     "scripts/qualify-dialog-gtk.mts",
@@ -83,7 +85,8 @@
         "patterns": [
           "scripts/github-client.mts",
           "scripts/github-operation.mts",
-          "scripts/github-cli.mts"
+          "scripts/github-cli.mts",
+          "scripts/github-artifact-download.mts"
         ]
       },
       {

@@ -4,6 +4,15 @@ on:
     paths:
       - .github/workflows/controller-tool-build-fixture.yml
       - scripts/release-*.mts
+      - scripts/application-release-private.mts
+      - scripts/application-release-budget*.mts
+      - scripts/application-release-run.mts
+      - scripts/application-release-source.mts
+      - scripts/application-release-tools.mts
+      - scripts/fixtures/audit-zip-fixture.mts
+      - .github/workflows/application-release.yml
+      - .github/workflows/application-release-private.yml
+      - scripts/controller-node-runtime.mts
       - scripts/production-controller-admission.mts
       - scripts/assembler-job-identity.mts
       - scripts/github-*.mts
@@ -38,6 +47,9 @@ on:
       - package.json
       - apps/desktop/package.json
       - release/package-policy.json
+      - scripts/release-tool-dependenc*.mts
+      - patches/@sigstore__sign@*.patch
+      - pnpm-workspace.yaml
       - pnpm-lock.yaml
       - .node-version
   push:
@@ -45,6 +57,18 @@ on:
     paths:
       - .github/workflows/controller-tool-build-fixture.yml
       - scripts/release-controller-tool*.mts
+      - scripts/release-controller-wake.mts
+      - scripts/application-release-private.mts
+      - scripts/application-release-budget*.mts
+      - scripts/application-release-run.mts
+      - scripts/application-release-source.mts
+      - scripts/application-release-tools.mts
+      - scripts/fixtures/audit-zip-fixture.mts
+      - .github/workflows/application-release.yml
+      - .github/workflows/application-release-private.yml
+      - scripts/controller-node-runtime.mts
+      - scripts/release-input-protections.mts
+      - scripts/assembler-job-identity.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
       - scripts/prepare-hosted-windows-runtime.ps1
@@ -74,6 +98,9 @@ on:
       - package.json
       - apps/desktop/package.json
       - release/package-policy.json
+      - scripts/release-tool-dependenc*.mts
+      - patches/@sigstore__sign@*.patch
+      - pnpm-workspace.yaml
       - pnpm-lock.yaml
       - .node-version
 permissions:
@@ -104,7 +131,7 @@ jobs:
           FIXTURE_SOURCE_SHA: ${{ github.sha }}
         run: node scripts/qualify-controller-tool-build.mts
       - name: Exercise actual job-local disposable role channel and native runtime contracts on Linux
-        run: node --experimental-test-module-mocks --test --test-timeout=45000 scripts/release-role-key-channel.test.mts scripts/release-hosted-native-runner.test.mts scripts/release-hosted-native-linux-capture.test.mts scripts/release-hosted-native-installation.test.mts
+        run: node --experimental-test-module-mocks --test --test-timeout=45000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-role-key-channel.test.mts scripts/release-hosted-native-runner.test.mts scripts/release-hosted-native-linux-capture.test.mts scripts/release-hosted-native-installation.test.mts
       - name: Retain only bounded public fixture evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

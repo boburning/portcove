@@ -7,13 +7,15 @@ import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-remote.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { performance } from "node:perf_hooks";
-import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import {
+  checkpointProofFixture,
+  releaseCustodyFetch,
+} from "./fixtures/checkpoint-proof-fixture.mts";
 import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
 import { publishCoordinatorSigningExchange } from "./release-coordinator-signing-exchange.mts";
 import { createCheckpointJobTokenApi } from "./release-coordinator-journal-api.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import childProcess from "node:child_process";
-import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import {
   authenticateCapacityExecutor,
@@ -58,37 +60,39 @@ async function signingExchangeFixture(
           stdout: JSON.stringify([{ verificationResult: proof.verification }]),
           stderr: "",
         };
-      if (String(options?.env?.GH_CONFIG_DIR).startsWith(path.join(directory, "journal-api-"))) {
-        assert.equal(options?.env?.GH_TOKEN, "inert-checkpoint-reader");
-        assert.ok(options?.input === undefined || typeof options.input === "string");
-        const input: unknown = options?.input === undefined ? undefined : JSON.parse(options.input);
-        let body: unknown,
-          status = 200;
-        if (args[1] === "graphql") {
-          assert.ok(
-            isRecord(input) && typeof input.query === "string" && isRecord(input.variables),
-          );
-          body = api.graphql(input.query, input.variables);
-        } else {
-          const response = api.request(args[args.indexOf("--method") + 1]!, args[2]!, input);
-          body = response.body;
-          status = response.status!;
-        }
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 ${status} Fixture\r\n\r\n${JSON.stringify(body)}`,
-          stderr: "",
-        };
-      }
-      const response = proof.api.request("GET", args[2]!);
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(response.body)}`,
-        stderr: "",
-      };
+      assert.fail("unexpected retained CLI route");
     },
   );
   syncBuiltinESMExports();
+  const custodyFetch = releaseCustodyFetch(proof.provider, (_url, init) => {
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-checkpoint-reader");
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (raw: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(raw instanceof Request ? raw.url : raw);
+      if (jobToken && (url.pathname === "/graphql" || url.pathname.includes("/git/"))) {
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-checkpoint-reader",
+        );
+        const input: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+        if (url.pathname === "/graphql") {
+          assert.ok(
+            isRecord(input) && typeof input.query === "string" && isRecord(input.variables),
+          );
+          return Response.json(api.graphql(input.query, input.variables));
+        }
+        assert.ok(init?.method);
+        const result = api.request(init.method, url.pathname.slice(1), input);
+        assert.ok(typeof result.status === "number");
+        return Response.json(result.body, { status: result.status });
+      }
+      return custodyFetch(raw, init);
+    },
+  );
   const intent = `refs/tags/portcove-fixture-checkpoint-intent/${f.initial.checkpoint}`;
   if (fault === "object-after") f.faults.object = "evidence-commits";
   let calls = 0,
@@ -447,7 +451,6 @@ void test("owned fixed-job factory freezes namespace across actual identity refr
   process.env.GH_TOKEN = "inert-owned-job-token";
   process.env.ACTIONS_ID_TOKEN_REQUEST_URL = "https://fixture.actions.githubusercontent.com/oidc";
   process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "inert-runner-token";
-  const actualSpawn = childProcess.spawnSync;
   let mutate = false,
     journalCalls = 0;
   t.after(() => {
@@ -458,47 +461,51 @@ void test("owned fixed-job factory freezes namespace across actual identity refr
     t.mock.restoreAll();
     syncBuiltinESMExports();
   });
-  t.mock.method(globalThis, "fetch", async (raw: Parameters<typeof fetch>[0]) => {
-    assert.ok(typeof raw === "string" || raw instanceof URL);
-    const url = typeof raw === "string" ? raw : raw.href;
-    if (url === "https://token.actions.githubusercontent.com/.well-known/jwks")
-      return new Response(JSON.stringify({ keys: [identityJwk] }));
-    assert.equal(
-      url,
-      "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
-    );
-    if (mutate) f.config.namespace = "portcove-foreign";
-    return new Response(JSON.stringify({ value: identity.token }));
-  });
   t.mock.method(
-    childProcess,
-    "spawnSync",
-    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      if (command !== "gh") return actualSpawn(command, args, options);
-      if (args[1] !== "graphql") return identity.transport.spawn(command, args, options);
-      journalCalls++;
-      assert.equal(options.env?.GH_TOKEN, "inert-owned-job-token");
-      assert.ok(typeof options.input === "string");
-      const input: unknown = JSON.parse(options.input);
-      assert.ok(isRecord(input) && typeof input.query === "string" && isRecord(input.variables));
-      assert.ok(
-        Object.values(input.variables).every(
-          (value) =>
-            typeof value === "string" &&
-            value.startsWith("refs/") &&
-            value.includes("portcove-fixture"),
-        ),
+    globalThis,
+    "fetch",
+    async (raw: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(raw instanceof Request ? raw.url : raw);
+      if (url.href === "https://api.github.com/graphql") {
+        journalCalls++;
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-owned-job-token",
+        );
+        assert.ok(typeof init?.body === "string");
+        const input: unknown = JSON.parse(init.body);
+        assert.ok(isRecord(input) && typeof input.query === "string" && isRecord(input.variables));
+        assert.ok(
+          Object.values(input.variables).every(
+            (value) =>
+              typeof value === "string" &&
+              value.startsWith("refs/") &&
+              value.includes("portcove-fixture"),
+          ),
+        );
+        const response = f.api.graphql(input.query, input.variables);
+        assert.ok(isRecord(response.data));
+        return Response.json({ data: { repository: response.data.node } });
+      }
+      if (url.origin === "https://api.github.com") {
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-owned-job-token",
+        );
+        assert.equal(init?.method, "GET");
+        assert.equal(init.redirect, "manual");
+        return Response.json(identity.metadata(url.pathname + url.search));
+      }
+      if (url.href === "https://token.actions.githubusercontent.com/.well-known/jwks")
+        return new Response(JSON.stringify({ keys: [identityJwk] }));
+      assert.equal(
+        url.href,
+        "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
       );
-      const response = f.api.graphql(input.query, input.variables);
-      assert.ok(isRecord(response.data));
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify({ data: { repository: response.data.node } })}`,
-        stderr: "",
-      };
+      if (mutate) f.config.namespace = "portcove-foreign";
+      return new Response(JSON.stringify({ value: identity.token }));
     },
   );
-  syncBuiltinESMExports();
   const deadline = performance.now() + 60000;
   const session = await authenticateCapacityExecutor(
     "coordinator",
@@ -523,7 +530,7 @@ void test("owned fixed-job factory freezes namespace across actual identity refr
   const fields = names
     .map((_, i) => `r${i}:ref(qualifiedName:$r${i}){name prefix target{__typename oid}}`)
     .join(" ");
-  api.graphql(
+  await api.graphql(
     `query(${declarations}){repository(owner:"boburning",name:"portcove"){__typename id databaseId nameWithOwner ${fields}}}`,
     Object.fromEntries(names.map((name, i) => [`r${i}`, name])),
   );

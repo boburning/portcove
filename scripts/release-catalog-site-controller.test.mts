@@ -338,7 +338,12 @@ void test("named catalog recovery requires both actual caller guard functions be
   const session = {},
     raw = { repository: "controlled", checkpoint: "retained", remote_configuration: {} };
   let refreshes = 0,
-    handoffs = 0;
+    handoffs = 0,
+    guarded = 0;
+  const beforeMutation = async () => {
+    await Promise.resolve();
+    guarded++;
+  };
   const run = runInNewContext(
     stripTypeScriptTypes(source.slice(start, end).replace("export ", "")) +
       "\nrecoverPublishedCatalogSiteHandoff",
@@ -352,13 +357,25 @@ void test("named catalog recovery requires both actual caller guard functions be
           },
         ],
       ]),
+      ensureOwnedCheckpointJournalHistory: async (
+        _executor: object,
+        _repository: string,
+        _checkpoint: string,
+        controls: () => Promise<void>,
+      ) => {
+        await controls();
+        return false; // This case retains the original explicit legacy route.
+      },
       recoverOwnedPublishedCatalogMetadata: async (
         _executor: object,
         _raw: unknown,
         _readback: unknown,
-        beforeMutation: unknown,
+        controls: { readCurrent: () => Promise<void> },
       ) => {
-        assert.equal(typeof beforeMutation, "function");
+        assert.equal(controls.readCurrent, beforeMutation);
+        assert.equal(guarded, 1);
+        await controls.readCurrent();
+        assert.equal(guarded, 2);
         handoffs++;
         return {};
       },
@@ -379,7 +396,7 @@ void test("named catalog recovery requires both actual caller guard functions be
     await assert.rejects(run(session, {}, raw, guards), /current control mutation guards/);
   assert.equal(refreshes, 0);
   assert.equal(handoffs, 0);
-  await run(session, {}, raw, { refresh, beforeMutation: () => {} });
+  await run(session, {}, raw, { refresh, beforeMutation });
   assert.equal(refreshes, 1);
   assert.equal(handoffs, 1);
 });

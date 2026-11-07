@@ -1,6 +1,6 @@
 import { isRecord } from "./runtime-values.mts";
 import type { PrerequisiteObservation } from "./local-validation.mts";
-import type { LocalChange, ValidationCommand } from "./ordinary-validation.mts";
+import type { ClassifyOptions, LocalChange, ValidationCommand } from "./ordinary-validation.mts";
 import type {
   RepositoryInventory,
   InventoryFile,
@@ -44,6 +44,16 @@ import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 
+void test("failed-test feedback is an explicit focused UI operation", () => {
+  assert.doesNotThrow(() => requireFocusedArguments("test-ui", ["--last-failed"]));
+  assert.doesNotThrow(() =>
+    requireFocusedArguments("test-ui", ["--last-failed", "src/example.test.ts"]),
+  );
+  assert.throws(() => requireFocusedArguments("test-ui", []), /explicit/);
+  assert.throws(() => requireFocusedArguments("test-ui-related", ["--last-failed"]), /explicit/);
+  assert.throws(() => requireFocusedArguments("test-node", ["--last-failed"]), /explicit/);
+});
+
 void test("maintenance registry and TOML sources retain explicit focused owners", () => {
   const consumer = "scripts/lock-maintenance-policy.test.mts";
   for (const file of [
@@ -68,6 +78,58 @@ void test("maintenance registry and TOML sources retain explicit focused owners"
 });
 
 const allFilesExist = () => true;
+
+void test("SDK and preparation changes retain accepted-observation and lineage consumers", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const consumers = [
+    "scripts/prepare-port.test.mts",
+    "scripts/package-player-observation.test.mts",
+    "scripts/upstream-lineage.test.mts",
+  ];
+  for (const file of [
+    "scripts/prepare-port.mts",
+    "scripts/port-upstream-facts.mts",
+    "scripts/github-client.mts",
+    "scripts/github-operation.mts",
+    "package.json",
+    "pnpm-lock.yaml",
+  ]) {
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = baselineContractTests(
+        buildValidationPlan({
+          changes: [change],
+          eventName: "pull_request",
+          base: "a".repeat(40),
+          mergeBase: "a".repeat(40),
+          head: "b".repeat(40),
+          checkout: "b".repeat(40),
+        }),
+        { fileExists: () => false },
+      );
+      for (const consumer of consumers) {
+        assert.ok(local.nodeTests.has(consumer), `${variant} ${file}: local ${consumer}`);
+        assert.equal(
+          hosted.filter((selected) => selected === consumer).length,
+          1,
+          `${variant} ${file}: hosted ${consumer}`,
+        );
+      }
+    }
+  }
+  const inert = classifyChanges([{ status: "M", path: "docs/README.md" }]);
+  for (const consumer of consumers) assert.ok(!inert.nodeTests.has(consumer));
+});
 
 void test("native helper consumers survive shared custody registration across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
@@ -736,9 +798,11 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-control-inputs.test.mts",
     "scripts/release-controller-tools.test.mts",
+    "scripts/release-controller-wake.test.mts",
     "scripts/release-windows-webview-driver.test.mts",
     "scripts/renovate-engine-probe.test.mts",
     "scripts/repository-settings.test.mts",
+    "scripts/upstream-health-monitor.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
   const importers = readdirSync(path.join(root, "scripts"))
@@ -1398,9 +1462,16 @@ const change = (path: string, options: Partial<LocalChange> = {}): LocalChange =
 });
 const ids = (plan: ValidationCommand[]) => plan.map((entry) => entry.id);
 
-function planFor(paths: (string | LocalChange)[]) {
+function packageMetadata(name: string, directory: string) {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  return () => ({
+    workspace_members: [name],
+    packages: [{ id: name, name, manifest_path: path.join(root, directory, "Cargo.toml") }],
+  });
+}
+function planFor(paths: (string | LocalChange)[], options: ClassifyOptions = {}) {
   const changes = paths.map((path) => (typeof path === "string" ? change(path) : path));
-  const selection = classifyChanges(changes, { fileExists: allFilesExist });
+  const selection = classifyChanges(changes, { fileExists: allFilesExist, ...options });
   return {
     selection,
     plan: buildPlan(selection, {
@@ -1724,7 +1795,9 @@ void test("shared diagnostics changes retain explicit ownership and complete wor
     change(source, { status: "R100", previousPath: "docs/moved-diagnostics.md" }),
   ];
   for (const changed of changes) {
-    const { selection, plan } = planFor([changed]);
+    const { selection, plan } = planFor([changed], {
+      workspaceMetadata: packageMetadata("portcove-diagnostics", "crates/portcove-diagnostics"),
+    });
     assert.deepEqual([...selection.unknown], [], changed.path);
     assert.deepEqual([...selection.packages], ["portcove-diagnostics"], changed.path);
     assert.equal(selection.rustfmt, true, changed.path);
@@ -1733,7 +1806,11 @@ void test("shared diagnostics changes retain explicit ownership and complete wor
     assert.ok(rust.args.includes("--guard-command"), changed.path);
   }
   const unowned = "crates/portcove-diagnostics-other/src/lib.rs";
-  assert.ok(classifyChanges([change(unowned)]).unknown.has(unowned));
+  assert.ok(
+    classifyChanges([change(unowned)], {
+      workspaceMetadata: packageMetadata("portcove-diagnostics", "crates/portcove-diagnostics"),
+    }).unknown.has(unowned),
+  );
 });
 
 void test("all optional workspace Rust execution remains behind the existing admission runner", () => {
@@ -1997,10 +2074,10 @@ void test("an exactly repeated stage id retains every selection reason", () => {
 });
 
 void test("transport changes select both language scopes and contract comparators", () => {
-  const { selection, plan } = planFor([
-    "apps/desktop/src/transport-types.generated.d.ts",
-    "crates/portcove-core/src/types.rs",
-  ]);
+  const { selection, plan } = planFor(
+    ["apps/desktop/src/transport-types.generated.d.ts", "crates/portcove-core/src/types.rs"],
+    { workspaceMetadata: packageMetadata("portcove-core", "crates/portcove-core") },
+  );
   assert.equal(selection.transport, true);
   assert.ok(selection.packages.has("portcove-core"));
   assert.ok(selection.nodeTests.has("scripts/transport-types.test.mts"));
@@ -2105,6 +2182,43 @@ void test("production controller admission source and workflow retain their requ
   }
 });
 
+void test("locked SDK and provider changes select the fixed application package acquisition", () => {
+  for (const file of [
+    "package.json",
+    "pnpm-lock.yaml",
+    "scripts/github-client.mts",
+    "scripts/github-artifact-download.mts",
+    "scripts/release-custody-provider.mts",
+  ]) {
+    const { selection } = planFor([file]);
+    assert.ok(selection.nodeTests.has("scripts/application-release-artifacts.test.mts"), file);
+  }
+});
+
+void test("Windows application release workflow and fixed owner changes select their ordinary contracts", () => {
+  for (const file of [
+    ".github/workflows/application-release.yml",
+    ".github/workflows/application-release-native.yml",
+    ".github/workflows/application-release-private.yml",
+    "scripts/application-release-build-inputs.mts",
+    "scripts/application-release-io.mts",
+    "scripts/application-release-run-title.mts",
+    "scripts/application-release-transfer.mts",
+    "scripts/application-release-private.mts",
+    "scripts/release-hosted-native-windows-owner-mechanism.ps1",
+    "scripts/native-qualification-account.cs.txt",
+  ]) {
+    const { selection } = planFor([file]);
+    for (const test of [
+      "scripts/application-release-native.test.mts",
+      "scripts/application-release-qualification.test.mts",
+      "scripts/application-release-publication.test.mts",
+      "scripts/application-release-site.test.mts",
+    ])
+      assert.ok(selection.nodeTests.has(test), `${file}: ${test}`);
+  }
+});
+
 void test("release-script changes select deterministic release contracts without packaged qualification", () => {
   const { selection, plan } = planFor(["scripts/release-preflight.ps1"]);
   for (const contract of [
@@ -2136,12 +2250,15 @@ void test("bootstrap manifest changes select cache, doctor, and quality contract
 });
 
 void test("renames classify both the old and new ownership paths", () => {
-  const { selection, plan } = planFor([
-    change("docs/moved.md", {
-      status: "R100",
-      previousPath: "crates/portcove-cli/src/removed.rs",
-    }),
-  ]);
+  const { selection, plan } = planFor(
+    [
+      change("docs/moved.md", {
+        status: "R100",
+        previousPath: "crates/portcove-cli/src/removed.rs",
+      }),
+    ],
+    { workspaceMetadata: packageMetadata("portcove-cli", "crates/portcove-cli") },
+  );
   assert.ok(selection.scopes.has("documentation"));
   assert.ok(selection.packages.has("portcove-cli"));
   assert.ok(selection.oxfmtFiles.has("docs/moved.md"));
@@ -3287,6 +3404,60 @@ void test("Roadmap test families preserve shared owners and narrow the New Port 
   }
 });
 
+void test("route authoring modules retain actual generator integrity in local and hosted selection", async () => {
+  const { baselineContractTests, baselineIntegrityCommands } = await import("./ci-baseline.mts");
+  const identities = {
+    base: "a".repeat(40),
+    mergeBase: "a".repeat(40),
+    head: "b".repeat(40),
+    checkout: "b".repeat(40),
+  };
+  for (const name of ["catalog-route-facts", "package-player-observation"]) {
+    const file = `scripts/${name}.mts`;
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const options = { fileExists: () => false };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        options,
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        ...identities,
+      });
+      const hosted = baselineContractTests(plan, options);
+      for (const consumer of [`scripts/${name}.test.mts`, "scripts/generate-catalog.test.mts"]) {
+        assert.ok(local.nodeTests.has(consumer), `${variant} ${file}: local ${consumer}`);
+        assert.equal(hosted.filter((entry) => entry === consumer).length, 1);
+      }
+      assert.equal(
+        baselineIntegrityCommands(plan, options).filter(
+          (args) =>
+            JSON.stringify(args) === JSON.stringify(["scripts/generate-catalog.mts", "--check"]),
+        ).length,
+        1,
+        `${variant} ${file}: actual generated-output check`,
+      );
+    }
+  }
+  const file = "docs/README.md";
+  const plan = buildValidationPlan({
+    changes: [{ status: "M", oldPath: file, newPath: file, oldMode: "100644", newMode: "100644" }],
+    eventName: "pull_request",
+    ...identities,
+  });
+  assert.ok(
+    !baselineIntegrityCommands(plan).some((args) => args[0] === "scripts/generate-catalog.mts"),
+  );
+});
+
 void test("catalog generator families retain shared inputs and narrow authoring to its consumers", async () => {
   const { buildValidationPlan } = await import("./validation-plan.mts");
   const { baselineContractTests } = await import("./ci-baseline.mts");
@@ -3377,6 +3548,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
         for (const retained of [
           "scripts/prepare-port.test.mts",
           "scripts/catalog-staged-check.test.mts",
+          "scripts/precommit-check.test.mts",
         ]) {
           assert.ok(local.nodeTests.has(retained), label);
           assert.ok(hosted.includes(retained), label);
@@ -4409,6 +4581,9 @@ void test("native runtime owners retain direct behavior and caller contracts on 
       for (const consumer of [
         "scripts/desktop-real-runtime.test.mts",
         "scripts/desktop-boundary-wiring.test.mts",
+        ...(file === "apps/desktop/scripts/desktop-test.mts"
+          ? ["scripts/desktop-linux-stop.test.mts"]
+          : []),
         ...(file !== "apps/desktop/scripts/desktop-real-runtime-test.mts"
           ? ["apps/desktop/scripts/desktop-native-observations.native.test.mts"]
           : []),
@@ -4467,6 +4642,37 @@ void test("POSIX qualification identity module retains its public caller tests o
 
 void test("GitHub dependency changes select actual SDK and REST integration contracts", () => {
   for (const file of [
+    "scripts/release-wake-provider.mts",
+    "scripts/qualify-job-token-dispatch.mts",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/release-controller-wake.test.mts"), file);
+    assert.ok(selected.nodeTests.has("scripts/release-production-dag.test.mts"), file);
+  }
+  for (const file of [
+    "scripts/assembler-job-identity.mts",
+    "scripts/release-windows-bootstrap-runtime.mts",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/assembler-job-identity.test.mts"), file);
+    assert.ok(
+      selected.nodeTests.has("scripts/release-hosted-native-windows-bootstrap.test.mts"),
+      file,
+    );
+  }
+  for (const file of [
+    "scripts/github-artifact-download.mts",
+    "scripts/release-artifact-assembly.mts",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/release-artifact-archive.test.mts"), file);
+  }
+  const wakeProviderChange = classifyChanges(
+    [{ status: "M", path: "scripts/release-wake-provider.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(wakeProviderChange.nodeTests.has("scripts/application-release-qualification.test.mts"));
+  for (const file of [
     "package.json",
     "pnpm-lock.yaml",
     "scripts/github-client.mts",
@@ -4476,13 +4682,105 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
     assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
     assert.ok(selected.nodeTests.has("scripts/roadmap-rest-intake.test.mts"), file);
+    for (const consumer of [
+      "scripts/release-catalog-recovery.test.mts",
+      "scripts/release-catalog-continuation.test.mts",
+      "scripts/release-artifact-archive.test.mts",
+      "scripts/release-run-evidence.test.mts",
+      "scripts/acquire-release-admission.test.mts",
+      "scripts/release-coordinator-capacity-effects.test.mts",
+      "scripts/release-coordinator-checkpoint-evidence.test.mts",
+      "scripts/release-hosted-native-history.test.mts",
+      "scripts/release-tuf-controller.test.mts",
+      "scripts/release-coordinator-journal-api.test.mts",
+      "scripts/release-coordinator-remote.test.mts",
+      "scripts/release-coordinator-recovery.test.mts",
+      "scripts/release-metadata-context-recovery.test.mts",
+      "scripts/production-controller-admission.test.mts",
+      "scripts/assembler-job-identity.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+      "scripts/release-bootstrap-preparation.test.mts",
+      "scripts/application-release-budget.test.mts",
+      "scripts/application-release-native.test.mts",
+      "scripts/application-release-qualification.test.mts",
+      "scripts/roadmap-sdk.test.mts",
+      "scripts/roadmap-provider-inventory.test.mts",
+      "scripts/discovery-github.test.mts",
+      "scripts/discovery-primary-progress.test.mts",
+      "scripts/release-native-check-discovery.test.mts",
+      "scripts/release-pages-provider.test.mts",
+      "scripts/release-publication-controller.test.mts",
+      "scripts/release-publication-result-artifact.test.mts",
+      "scripts/release-immutable-publication.test.mts",
+      "scripts/release-candidate-signing-recovery.test.mts",
+      "scripts/release-catalog-signing.test.mts",
+      "scripts/release-native-admission.test.mts",
+      "scripts/release-admitted-aggregate-controller.test.mts",
+      "scripts/release-signing-handoff.test.mts",
+      "scripts/release-signing-context-artifact.test.mts",
+      "scripts/release-tuf-role-artifact.test.mts",
+      "scripts/release-controller-wake.test.mts",
+      "scripts/release-coordinator-checkpoint-authentication.test.mts",
+      "scripts/release-hosted-native-acceptance.test.mts",
+      "scripts/release-coordinator-owned-executor.test.mts",
+      "scripts/release-coordinator-signing-exchange.test.mts",
+      "scripts/release-prepared-transport.test.mts",
+    ]) {
+      assert.ok(selected.nodeTests.has(consumer), file);
+      assert.ok(existsSync(new URL(`../${consumer}`, import.meta.url)));
+    }
   }
+  const hostedCandidate = classifyChanges(
+    [{ status: "M", path: "scripts/release-hosted-native-candidate.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(hostedCandidate.nodeTests.has("scripts/production-controller-admission.test.mts"));
+  const coordinatorSnapshotChange = classifyChanges(
+    [{ status: "M", path: "scripts/release-coordinator-recovery.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(
+    coordinatorSnapshotChange.nodeTests.has("scripts/release-catalog-continuation.test.mts"),
+  );
+  assert.ok(
+    coordinatorSnapshotChange.nodeTests.has("scripts/release-metadata-context-recovery.test.mts"),
+  );
+  const custodyChange = classifyChanges(
+    [{ status: "M", path: "scripts/release-custody-provider.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(custodyChange.nodeTests.has("scripts/application-release-native.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-bootstrap-preparation.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/production-controller-admission.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-metadata-context-recovery.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-catalog-recovery.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-signing-handoff.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-immutable-publication.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-candidate-signing-recovery.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-catalog-signing.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-native-admission.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-admitted-aggregate-controller.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-signing-context-artifact.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-tuf-role-artifact.test.mts"));
   for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
     const file = `scripts/${name}.mts`;
     const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
     assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
     assert.ok(selected.nodeTests.has(`scripts/${name}.test.mts`), file);
     assert.ok(existsSync(new URL(`../scripts/${name}.test.mts`, import.meta.url)));
+  }
+  const artifactDownload = classifyChanges(
+    [{ status: "M", path: "scripts/github-artifact-download.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(artifactDownload.nodeTests.has("scripts/ci-health.test.mts"));
+  assert.ok(artifactDownload.nodeTests.has("scripts/observer-checkpoint-artifact.test.mts"));
+  for (const path of [
+    "scripts/observer-checkpoint-artifact.mts",
+    ".github/workflows/configured-upstream-observer.yml",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/observer-checkpoint-artifact.test.mts"), path);
   }
   const aqua = classifyChanges([{ status: "M", path: "scripts/aqua-integrity.mts" }], {
     fileExists: () => false,
@@ -4522,4 +4820,94 @@ void test("retained GitHub CLI and attestation changes select their actual guard
       assert.ok(selected.nodeTests.has(test), `${file} -> ${test}`);
     }
   }
+});
+
+void test("ordinary package identity follows complete Cargo workspace metadata and moves", async () => {
+  const { workspacePackagePrefixes } = await import("./ordinary-validation.mts");
+  const root = path.resolve("/workspace");
+  const pkg = (name: string, location: string) => ({
+    id: name + "-id",
+    name,
+    manifest_path: path.join(root, location, "Cargo.toml"),
+  });
+  const metadata = {
+    workspace_members: ["fresh-package-id"],
+    packages: [pkg("fresh-package", "components/moved")],
+  };
+  assert.deepEqual(
+    [...workspacePackagePrefixes(metadata, root)!],
+    [["components/moved/", "fresh-package"]],
+  );
+  for (const bad of [
+    { ...metadata, workspace_members: [...metadata.workspace_members, "absent"] },
+    {
+      ...metadata,
+      workspace_members: [...metadata.workspace_members, ...metadata.workspace_members],
+    },
+    { ...metadata, packages: [pkg("fresh-package", "../outside")] },
+    { ...metadata, packages: [...metadata.packages, ...metadata.packages] },
+  ])
+    assert.equal(workspacePackagePrefixes(bad, root), null);
+  const currentRoot = fileURLToPath(new URL("../", import.meta.url));
+  const selected = classifyChanges([{ path: "components/moved/src/lib.rs", status: "A" }], {
+    workspaceMetadata: () => ({
+      ...metadata,
+      packages: [
+        {
+          ...metadata.packages[0],
+          manifest_path: path.join(currentRoot, "components/moved/Cargo.toml"),
+        },
+      ],
+    }),
+  });
+  assert.ok(selected.packages.has("fresh-package"));
+  const uncertain = classifyChanges([{ path: "crates/unknown/src/lib.rs", status: "M" }], {
+    workspaceMetadata: () => null,
+  });
+  assert.ok(uncertain.workspaceRust);
+  assert.ok(
+    buildPlan(
+      uncertain,
+      fallbackContext([
+        { path: "crates/unknown/src/lib.rs", status: "M", oldMode: "100644", newMode: "100644" },
+      ]),
+    ).some((command) => command.id === "rust-workspace-tests"),
+  );
+  assert.doesNotThrow(() =>
+    classifyChanges([{ path: "docs/README.md", status: "M" }], {
+      workspaceMetadata: () => {
+        throw new Error("prose must not load Cargo");
+      },
+    }),
+  );
+});
+
+void test("ordinary metadata discovery cannot provision a missing Rust toolchain", async () => {
+  const { readWorkspaceMetadata } = await import("./ordinary-validation.mts");
+  assert.deepEqual(
+    readWorkspaceMetadata((command, args, options) => {
+      assert.equal(command, "cargo");
+      assert.deepEqual(args, [
+        "metadata",
+        "--offline",
+        "--locked",
+        "--no-deps",
+        "--format-version",
+        "1",
+      ]);
+      assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
+      assert.equal(options.timeout, 5000);
+      assert.equal(options.maxBuffer, 4 * 1024 * 1024);
+      return { status: 0, stdout: '{"observed":true}' };
+    }),
+    { observed: true },
+  );
+  assert.equal(
+    readWorkspaceMetadata(() => ({ status: 1, stdout: "" })),
+    null,
+  );
+  assert.equal(
+    readWorkspaceMetadata(() => ({ status: 0, stdout: "incomplete" })),
+    null,
+  );
 });

@@ -20,7 +20,7 @@ import {
 } from "./ci-workflow-fixture.mts";
 
 // Independently expected contract pin; Renovate updates it with the Action group.
-const reviewedInstallAction = "taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b"; // v2.89.0
+const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
 
 void test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", async () => {
   const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
@@ -392,7 +392,7 @@ void test("live upstream health has bounded independent triggers while catalog s
   const settings: unknown = parseDocument(health).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.on));
   for (const trigger of ["pull_request", "push"]) {
-    const section = settings.on[trigger];
+    const section: unknown = settings.on[trigger];
     assert.ok(isRecord(section) && Array.isArray(section.paths));
     for (const path of [
       "crates/portcove-core/catalog/**",
@@ -532,22 +532,28 @@ void test("deep audit evidence retains audit status without privilege changes", 
   assert.equal(bundle.with["if-no-files-found"], "error");
 });
 
-void test("ordinary controller tool rebuilds cover Windows driver acquisition and parser policy", async () => {
+void test("ordinary controller tool rebuilds cover Windows driver and bootstrap protection changes", async () => {
   const workflow = await readWorkflow(
     new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
   );
   const settings: unknown = parseDocument(workflow).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.on));
   for (const trigger of ["pull_request", "push"]) {
-    const section = settings.on[trigger];
+    const section: unknown = settings.on[trigger];
     assert.ok(isRecord(section) && Array.isArray(section.paths));
     for (const file of [
       "scripts/release-windows-webview-driver.mts",
       "scripts/release-windows-webview-driver.test.mts",
       "scripts/windows-webview-driver-policy.psm1",
       "scripts/bounded-zip.mts",
+      "scripts/application-release-private.mts",
     ])
       assert.ok(section.paths.includes(file), `${trigger}/${file}`);
+    assert.ok(
+      section.paths.includes("scripts/release-input-protections.mts") ||
+        section.paths.includes("scripts/release-*.mts"),
+      `${trigger}/scripts/release-input-protections.mts`,
+    );
   }
 });
 

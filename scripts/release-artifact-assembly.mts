@@ -1,7 +1,12 @@
-import { mkdir, mkdtemp } from "node:fs/promises";
+import { constants } from "node:fs";
+import { mkdir, mkdtemp, open, unlink } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { stageReleaseArtifact } from "./release-artifact-archive.mts";
 import { releaseBuildArtifactName } from "./release-package-policy.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
@@ -11,9 +16,9 @@ import {
   inspectTrustedAssemblyInput,
 } from "./trusted-release-assembly.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
   requireStablePublicBuildInputEvidence,
+  publicBuildReadCredential,
   verifyReleasePublicBuildInputs,
 } from "./release-public-build-provenance.mts";
 
@@ -30,7 +35,7 @@ export async function assembleReleaseArtifacts(
   evidenceRequest: ReleaseEvidenceRequest,
   options: {
     evidence?: ReleaseEvidenceOptions;
-    download?: typeof readGitHubArtifactArchive;
+    download?: SigningArchiveDownload;
     deadline?: number;
   } = {},
 ) {
@@ -38,9 +43,18 @@ export async function assembleReleaseArtifacts(
   rawAssembly = structuredClone(rawAssembly);
   rawArchives = structuredClone(rawArchives);
   evidenceRequest = structuredClone(evidenceRequest);
+  const download = options.download;
+  const evidence = { ...options.evidence };
+  const scoped = readOnlyReleaseChildEnvironment() !== undefined;
   const started = performance.now();
-  const deadline = Math.min(started + 15 * 60 * 1000, options.deadline ?? Infinity);
+  const deadline = Math.min(
+    started + 15 * 60 * 1000,
+    options.deadline ?? Infinity,
+    evidence.deadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
   const active = () => {
+    if (evidence.signal?.aborted) throw new Error("artifact assembly cancelled");
     if (!Number.isFinite(deadline) || performance.now() >= deadline)
       throw new Error("artifact assembly deadline exhausted");
   };
@@ -85,14 +99,16 @@ export async function assembleReleaseArtifacts(
     archives.reduce((sum, a) => sum + a.bytes, 0) > 2 * 1024 * 1024 * 1024
   )
     throw new Error("artifact matrix is duplicated or exceeds total bytes");
-  const runner = createGitHubRunner({ cwd: privateRoot, maxBuffer: 2 * 1024 * 1024 });
-  const evidenceOptions = options.evidence ?? {
-    api: new GitHubApiClient((args, input) => {
-      if (args[0] !== "api") throw new Error("artifact evidence is API-only");
-      return runner(["api", "--hostname", "github.com", ...args.slice(1)], input);
-    }),
+  const credential = download
+    ? evidence.credential
+    : (evidence.credential ?? publicBuildReadCredential(deadline));
+  const evidenceOptions = {
+    ...evidence,
+    ...(credential ? { credential } : {}),
+    deadline,
   };
-  const before = collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
+  const { reserve } = evidenceOptions;
+  const before = await collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
   const check = (evidence: typeof before) => {
     for (const archive of archives) {
       const matched = evidence.artifacts.filter((a) => a.id === archive.artifact_id);
@@ -125,22 +141,43 @@ export async function assembleReleaseArtifacts(
   try {
     const publicBuildInputs = accepted.public_build_inputs
       ? await verifyReleasePublicBuildInputs(directory, accepted.public_build_inputs, before, {
-          download: options.download,
+          download,
+          credential,
+          deadline,
+          lookup: () => ({
+            deadline: evidenceOptions.deadline,
+            ...(reserve ? { reserve } : {}),
+          }),
         })
       : null;
     const inputs = path.join(directory, "inputs");
     await mkdir(inputs);
     for (const archive of archives) {
       active();
-      const bytes = (options.download ?? readGitHubArtifactArchive)(
-        `repos/boburning/portcove/actions/artifacts/${archive.artifact_id}/zip`,
-        {
-          cwd: directory,
-          maxBytes: archive.bytes,
-          timeoutMs: Math.min(120000, Math.max(1, Math.floor(deadline - performance.now()))),
-        },
-      );
+      const endpoint = `repos/boburning/portcove/actions/artifacts/${archive.artifact_id}/zip`;
+      const transferDeadline = Math.min(deadline, performance.now() + 120000);
+      const bytes = download
+        ? await download(endpoint, {
+            cwd: directory,
+            maxBytes: archive.bytes,
+            timeoutMs: Math.max(1, Math.floor(transferDeadline - performance.now())),
+          })
+        : await acquirePackageArchive(
+            directory,
+            endpoint,
+            archive,
+            credential!,
+            transferDeadline,
+            {
+              ...(evidenceOptions.signal ? { signal: evidenceOptions.signal } : {}),
+              ...(evidenceOptions.fetch ? { fetch: evidenceOptions.fetch } : {}),
+              ...(evidenceOptions.reserve ? { lookup: { reserve: evidenceOptions.reserve } } : {}),
+            },
+            scoped,
+          );
       active();
+      if (performance.now() >= transferDeadline)
+        throw new Error("release package archive deadline exhausted");
       await stageReleaseArtifact(
         inputs,
         bytes,
@@ -150,10 +187,10 @@ export async function assembleReleaseArtifacts(
           bytes: archive.bytes,
           sha256: archive.sha256,
         },
-        { exactProducerAttempt: true },
+        { exactProducerAttempt: true, deadline },
       );
     }
-    const after = collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
+    const after = await collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
     check(after);
     if (accepted.public_build_inputs)
       requireStablePublicBuildInputEvidence(accepted.public_build_inputs, before, after);
@@ -185,4 +222,75 @@ export async function assembleReleaseArtifacts(
   } catch (cause) {
     throw new Error(`artifact assembly refused; retain owned directory ${directory}`, { cause });
   }
+}
+
+export async function acquirePackageArchive(
+  directory: string,
+  endpoint: string,
+  archive: { artifact_id: number; bytes: number },
+  credential: NonNullable<ReleaseEvidenceOptions["credential"]>,
+  deadline: number,
+  delivery: Pick<
+    Parameters<typeof downloadGitHubArtifactArchiveFile>[2],
+    "signal" | "fetch" | "lookup"
+  >,
+  scoped: boolean,
+) {
+  const filename = path.join(directory, `package-${archive.artifact_id}.zip`);
+  await downloadGitHubArtifactArchiveFile(endpoint, filename, {
+    credential,
+    deadline,
+    maxBytes: archive.bytes,
+    ...(delivery.signal ? { signal: delivery.signal } : {}),
+    ...(delivery.fetch || scoped
+      ? {
+          fetch(input, init) {
+            if (scoped) assertTrustedDirectNode("release package archive");
+            return (delivery.fetch ?? globalThis.fetch)(input, init);
+          },
+        }
+      : {}),
+    ...(delivery.lookup ? { lookup: delivery.lookup } : {}),
+  });
+  let bytes: Buffer;
+  try {
+    const file = await open(
+      filename,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+    );
+    try {
+      const metadata = await file.stat();
+      if (!metadata.isFile() || metadata.size !== archive.bytes)
+        throw new Error("release package archive byte count changed");
+      bytes = Buffer.allocUnsafe(archive.bytes);
+      let offset = 0;
+      while (offset < bytes.length) {
+        if (delivery.signal?.aborted) throw new Error("release package archive cancelled");
+        if (performance.now() >= deadline)
+          throw new Error("release package archive deadline exhausted");
+        const { bytesRead } = await file.read(
+          bytes,
+          offset,
+          Math.min(1024 * 1024, bytes.length - offset),
+          null,
+        );
+        if (bytesRead === 0) throw new Error("release package archive was truncated");
+        offset += bytesRead;
+      }
+      const final = await file.stat();
+      if (
+        final.size !== metadata.size ||
+        final.mtimeMs !== metadata.mtimeMs ||
+        final.ctimeMs !== metadata.ctimeMs
+      )
+        throw new Error("release package archive changed during staging");
+    } finally {
+      await file.close();
+    }
+  } finally {
+    await unlink(filename);
+  }
+  if (delivery.signal?.aborted) throw new Error("release package archive cancelled");
+  if (performance.now() >= deadline) throw new Error("release package archive deadline exhausted");
+  return bytes;
 }

@@ -349,11 +349,35 @@ async function catalogContinuationBehavior(
       tools = { identity: { ...manifest.controller, run_id: "current" } },
       controls = { evidence_scope: "github.com", readMaintenance: () => ({}) };
     const executionEnvironment = process.env;
+    executionEnvironment.GH_TOKEN = "inert-catalog-continuation";
+    let asyncMaintenanceReads = 0;
+    Object.assign(controls, {
+      async readCatalogRecoveryMaintenance(
+        token: string,
+        reserve: () => { settle(observation: { dispatched: boolean }): void },
+      ) {
+        assert.equal(token, "inert-catalog-continuation");
+        reserve().settle({ dispatched: true });
+        asyncMaintenanceReads++;
+        return {};
+      },
+    });
     const toolsReceipt = Object.freeze({ kind: "inert-tool-receipt" });
     const contextReceipt = Object.freeze({ kind: "inert-context-receipt" });
     const receivedRoles: object[] = [];
     let mutateEnvironment = false,
       roleIndex = 0;
+    let recoveryDeadline: number | undefined;
+    const assertRecoveryTransport = (options: unknown) => {
+      const transport = (
+        options as { transport: { credential: { token: string }; deadline: number } }
+      ).transport;
+      assert.deepEqual(Object.keys(transport).sort(), ["credential", "deadline"]);
+      assert.deepEqual(transport.credential, { token: "inert-catalog-continuation" });
+      assert.ok(Number.isFinite(transport.deadline));
+      recoveryDeadline ??= transport.deadline;
+      assert.equal(transport.deadline, recoveryDeadline);
+    };
     const peers = {
       assert,
       Buffer,
@@ -386,26 +410,11 @@ async function catalogContinuationBehavior(
         return tools;
       },
       GitHubApiClient: class {
-        request(method: string, endpoint: string) {
-          assert.equal(method, "GET");
-          const route = endpoint.replace("repos/boburning/portcove/", "");
-          if (route === "actions/runs/9988" || route === "actions/runs/9988/attempts/1")
-            return { status: 200, body: fixture("context").run };
-          const job = /^actions\/jobs\/([0-9]+)$/u.exec(route);
-          if (job) {
-            const row = outputs
-              .map((output) => fixture(output))
-              .find((row) => row.job.id === Number(job[1]));
-            assert.ok(row);
-            return { status: 200, body: row.job };
-          }
-          assert.equal(route, "actions/runs/9988/artifacts?per_page=100&page=1");
-          const artifacts = outputs.flatMap((output) => fixture(output).inventory.artifacts);
-          artifacts[0]!.digest = `sha256:${hash(archive)}`;
-          artifacts[0]!.size_in_bytes = archive.length;
-          return { status: 200, body: { total_count: artifacts.length, artifacts } };
+        request() {
+          throw new Error("unexpected legacy metadata read");
         }
       },
+      coordinatorCommandDeadline: () => undefined,
       createGitHubRunner: () => () => {
         throw new Error("injected client should own transport");
       },
@@ -424,19 +433,38 @@ async function catalogContinuationBehavior(
           actor_id: "1",
         },
       }),
-      recoverRemoteCoordinator: async () => ({ repository: parent, checkpoint, input }),
+      recoverRemoteCoordinator: async (_parent: string, _scope: unknown, options: unknown) => {
+        recoveryDeadline = undefined;
+        assertRecoveryTransport(options);
+        return { repository: parent, checkpoint, input };
+      },
       inspectCatalogPublicationDescriptor: (raw: unknown) => raw,
       inspectCapacityOperation: (raw: unknown) => raw,
       prepareControlReadiness: () => ({}),
       retainControlStepLocator: async () => {},
       waitForControlArtifact: async () => ({}),
-      authenticateCatalogReleaseControlSource: async () => controls,
+      authenticateCatalogReleaseControlSource: async (
+        _environment: unknown,
+        _workflow: unknown,
+        options: unknown,
+      ) => {
+        assert.ok(isRecord(options) && options.catalogRecoveryObserver === true);
+        return controls;
+      },
       catalogCoordinatorMaintenanceIdentity: () => "same-controls",
       authenticateCapacityExecutor: async () => ({}),
+      ensureOwnedCheckpointJournalHistory: async () => false,
       controllerOidcSubject: () => "fixed",
-      readRemoteCoordinatorSnapshot: async () => ({ checkpoint, input }),
+      readRemoteCoordinatorSnapshot: async (_parent: string, _scope: unknown, options: unknown) => {
+        assertRecoveryTransport(options);
+        return { checkpoint, input };
+      },
       refreshCapacityExecutor: async () => ({}),
-      readGitHubArtifactArchive: () => archive,
+      acquireSigningContextArchive: async (_directory: string, item: unknown, options: unknown) => {
+        assert.ok(isRecord(item) && item.bytes === archive.length && item.sha256 === hash(archive));
+        assert.ok(isRecord(options) && options.token === executionEnvironment.GH_TOKEN);
+        return archive;
+      },
       inspectSigningContextArchive: () => ({ manifest, manifest_sha256: "6".repeat(64) }),
       inspectCatalogSigningBinding: () => ({ facts: { descriptor } }),
       receiveCatalogSigningContextArtifact: async () => {
@@ -489,12 +517,12 @@ async function catalogContinuationBehavior(
         _receipt: object,
         _executor: object,
         raw: { checkpoint: string },
-        guards: { refresh: () => Promise<void>; beforeMutation: () => void },
+        guards: { refresh: () => Promise<void>; beforeMutation: () => Promise<void> },
       ) => {
         assert.equal(raw.checkpoint, checkpoint);
         await guards.refresh();
         if (mutateEnvironment) executionEnvironment.PORTCOVE_CATALOG_AUTHORITIES = "changed";
-        guards.beforeMutation();
+        await guards.beforeMutation();
         calls.push("exact-handoff");
         return { checkpoint: "next" };
       },
@@ -508,10 +536,40 @@ async function catalogContinuationBehavior(
         return operation;
       },
     };
+    let sdkReads = 0;
+    globalThis.fetch = async (input, init) => {
+      assert.ok(typeof input === "string");
+      const url = new URL(input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(init?.method, "GET");
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token inert-catalog-continuation",
+      );
+      assert.ok(url.pathname.startsWith("/repos/boburning/portcove/"));
+      const route = url.pathname.slice("/repos/boburning/portcove/".length);
+      sdkReads++;
+      if (route === "actions/runs/9988" || route === "actions/runs/9988/attempts/1")
+        return Response.json(fixture("context").run);
+      const job = /^actions\/jobs\/([0-9]+)$/u.exec(route);
+      if (job) {
+        const row = outputs
+          .map((output) => fixture(output))
+          .find((row) => row.job.id === Number(job[1]));
+        assert.ok(row);
+        return Response.json(row.job);
+      }
+      assert.equal(route, "actions/runs/9988/artifacts");
+      assert.equal(url.searchParams.get("per_page"), "100");
+      assert.equal(url.searchParams.get("page"), "1");
+      const artifacts = outputs.flatMap((output) => fixture(output).inventory.artifacts);
+      artifacts[0]!.digest = `sha256:${hash(archive)}`;
+      artifacts[0]!.size_in_bytes = archive.length;
+      return Response.json({ total_count: artifacts.length, artifacts });
+    };
     const moduleOwners: Record<string, string[]> = {
       "release-controller-tool-admission.mts": ["verifiedControllerToolPaths"],
       "github-api.mts": ["GitHubApiClient", "createGitHubRunner"],
-      "github-binary.mts": ["readGitHubArtifactArchive"],
       "release-coordinator-recovery.mts": [
         "recoverRemoteCoordinator",
         "readRemoteCoordinatorSnapshot",
@@ -519,7 +577,11 @@ async function catalogContinuationBehavior(
       ],
       "release-coordinator-state.mts": ["readRetainedCapacityOperation"],
       "release-coordinator-remote.mts": ["inspectCoordinatorRemoteNamespace"],
-      "release-coordinator-deadline.mts": ["withCoordinatorDeadline", "coordinatorCommandTimeout"],
+      "release-coordinator-deadline.mts": [
+        "withCoordinatorDeadline",
+        "coordinatorCommandTimeout",
+        "coordinatorCommandDeadline",
+      ],
       "release-authority-configuration.mts": ["requireControllerCatalogJobAuthorities"],
       "production-controller-admission.mts": [
         "readProductionControllerWorkflowBytes",
@@ -533,6 +595,7 @@ async function catalogContinuationBehavior(
       "assembler-job-identity.mts": ["controllerOidcSubject"],
       "release-capacity-executor.mts": [
         "authenticateCapacityExecutor",
+        "ensureOwnedCheckpointJournalHistory",
         "refreshCapacityExecutor",
         "recoverOwnedCapacityEffect",
       ],
@@ -540,6 +603,7 @@ async function catalogContinuationBehavior(
       "release-control-handshake.mts": ["prepareControlReadiness", "waitForControlArtifact"],
       "release-control-step-bridge.mts": ["retainControlStepLocator"],
       "release-signing-context-artifact.mts": [
+        "acquireSigningContextArchive",
         "inspectSigningContextArchive",
         "receiveCatalogSigningContextArtifact",
         "requireReceivedCatalogSigningContext",
@@ -590,6 +654,8 @@ async function catalogContinuationBehavior(
       "catalog-publication-recovered",
       "catalog continuation entry must reach the exact recovered decision",
     );
+    assert.equal(sdkReads, 40);
+    assert.ok(asyncMaintenanceReads > 1, "initial and refreshed maintenance must use SDK");
     assert.deepEqual(calls, [
       "original-context",
       "original-definitions",
@@ -900,14 +966,14 @@ void test("actual continuation guard renews and checks maintenance LAST after de
     changed = false;
   const initial = {
       evidence_scope: "github.com",
-      readMaintenance: () => {
+      readCatalogRecoveryMaintenance: async () => {
         events.push("old-maintenance");
         return "stable";
       },
     },
     fresh = {
       evidence_scope: "github.com",
-      readMaintenance: () => {
+      readCatalogRecoveryMaintenance: async () => {
         events.push("final-maintenance");
         return changed ? "changed" : "stable";
       },
@@ -926,8 +992,9 @@ void test("actual continuation guard renews and checks maintenance LAST after de
       checkpoint,
       descriptor,
       stable: "stable",
-      api: {},
-      spawn: undefined,
+      readerToken: "inert-catalog-continuation",
+      reserve() {},
+      recoveryTransport: {},
       digest,
       path,
       performance: { now: () => now },
@@ -947,10 +1014,18 @@ void test("actual continuation guard renews and checks maintenance LAST after de
       refreshCapacityExecutor: async () => {
         events.push("executor");
       },
-      authenticateCatalogReleaseControlRound: async () => {
+      authenticateCatalogReleaseControlRound: async (
+        _directory: string,
+        _facts: string,
+        _phase: string,
+        _round: number,
+        options: unknown,
+      ) => {
+        assert.ok(isRecord(options) && options.catalogRecoveryObserver === true);
         events.push("renew");
         return fresh;
       },
+      isRecord,
       catalogCoordinatorMaintenanceIdentity: (raw: unknown) => raw,
     },
   ) as () => Promise<void>;

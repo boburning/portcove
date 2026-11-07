@@ -11,10 +11,9 @@ import * as signing from "../release-catalog-signing.mts";
 import * as config from "../release-authority-configuration.mts";
 import * as journal from "../release-coordinator-state.mts";
 import * as bootstrap from "../release-bootstrap-public-inputs.mts";
+import * as custody from "../release-custody-provider.mts";
 import * as executors from "../release-capacity-executor.mts";
 import * as live from "../release-live-control-admission.mts";
-import * as github from "../github-api.mts";
-import * as binary from "../github-binary.mts";
 import * as provider from "../release-pages-provider.mts";
 import * as remote from "../release-coordinator-remote.mts";
 import * as operation from "../release-capacity-operation.mts";
@@ -88,7 +87,7 @@ try {
     executor = {},
     controls = {
       evidence_scope: "github.com",
-      readMaintenance: () => {
+      readSdkMaintenance: async () => {
         if (controlsClock >= 60) throw new Error("controlled original control window expired");
         return {
           pause: { publication_paused: false },
@@ -136,9 +135,22 @@ try {
       },
     }),
   });
+  const bootstrapProvider = Object.freeze({});
+  install("release-custody-provider", {
+    ...custody,
+    createReleaseCustodyProvider: async (
+      options: Parameters<typeof custody.createReleaseCustodyProvider>[0],
+    ) => {
+      if (options.maxBytes === 128 * 1024) return custody.createReleaseCustodyProvider(options);
+      assert.equal(options.maxBytes, 512 * 1024);
+      assert.ok(options.deadline <= deadline);
+      return bootstrapProvider;
+    },
+  });
   install("release-bootstrap-public-inputs", {
     ...bootstrap,
-    readConfiguredCatalogBootstrapSite: async () => {
+    readConfiguredCatalogBootstrapSite: async (input: object) => {
+      assert.equal(input, bootstrapProvider);
       bootstrapReads++;
       if (bootstrapReads >= expireAtBootstrap) controlsClock = 61;
       return {
@@ -181,6 +193,19 @@ try {
   });
   install("release-capacity-executor", {
     ...executors,
+    // This retained fixture exercises the historical explicit legacy route.
+    // Selected history/signature acceptance is covered by its own fixtures.
+    ensureOwnedCheckpointJournalHistory: async (
+      actual: object,
+      _repository: string,
+      checkpoint: string,
+      controls: () => Promise<void>,
+    ) => {
+      assert.equal(actual, executor);
+      assert.equal(checkpoint, "settled");
+      await controls();
+      return false;
+    },
     capacityExecutorIdentity: (value: object) => {
       assert.equal(value, executor);
       return identity;
@@ -206,30 +231,6 @@ try {
       return { checkpoint: "settled", operation_id: op.id, ...(observed as object) };
     },
   });
-  install("github-api", {
-    ...github,
-    GitHubApiClient: class {
-      request() {
-        return {
-          status: 200,
-          body: {
-            id: 70,
-            name: "application-update-site-123-1",
-            expired: false,
-            digest: `sha256:${hash(zip)}`,
-            size_in_bytes: zip.length,
-            workflow_run: {
-              id: 123,
-              repository_id: 1354613114,
-              head_repository_id: 1354613114,
-              head_sha: identity.controller_revision,
-            },
-          },
-        };
-      }
-    },
-  });
-  install("github-binary", { ...binary, readGitHubArtifactArchive: () => zip });
   install("release-pages-provider", {
     ...provider,
     createPagesProviderTransport: () => ({
@@ -253,15 +254,66 @@ try {
   });
   const tar = await readFile(prepared.archive);
   zip = createAuditZip([["artifact.tar", tar]]);
-  await deployment.verifyUploadedSiteArchive(prepared.session, {
-    artifact_id: 70,
-    run_id: 123,
-    run_attempt: 1,
-    controller_revision: identity.controller_revision,
-  });
-  // This fetch is another explicitly controlled byte boundary, not public proof.
   const originalFetch = globalThis.fetch;
+  const previousReader = process.env.GH_TOKEN;
+  const token = "ghs_SYNTHETIC_SITE_UPLOAD_READER";
+  process.env.GH_TOKEN = token;
+  const routes: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    const headers = new Headers(init?.headers);
+    routes.push(url.pathname);
+    if (url.origin === "https://api.github.com") {
+      assert.equal(headers.get("authorization"), `token ${token}`);
+      if (url.pathname.endsWith("/zip"))
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://productionresultssa10.blob.core.windows.net/actions-results/pages?sig=synthetic",
+          },
+        });
+      assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/70");
+      return Response.json({
+        id: 70,
+        name: "application-update-site-123-1",
+        expired: false,
+        digest: `sha256:${hash(zip)}`,
+        size_in_bytes: zip.length,
+        workflow_run: {
+          id: 123,
+          repository_id: 1354613114,
+          head_repository_id: 1354613114,
+          head_sha: identity.controller_revision,
+        },
+      });
+    }
+    assert.equal(init?.credentials, "omit");
+    assert.equal(headers.has("authorization"), false);
+    return new Response(Uint8Array.from(zip));
+  };
+  try {
+    await deployment.verifyUploadedSiteArchive(prepared.session, {
+      artifact_id: 70,
+      run_id: 123,
+      run_attempt: 1,
+      controller_revision: identity.controller_revision,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousReader === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousReader;
+  }
+  const artifactRoute = "/repos/boburning/portcove/actions/artifacts/70";
+  assert.deepEqual(routes, [
+    artifactRoute,
+    artifactRoute + "/zip",
+    "/actions-results/pages",
+    artifactRoute,
+  ]);
+  // This fetch is another explicitly controlled byte boundary.
   const marker = Buffer.from(JSON.stringify(prepared.generation));
+  process.env.GH_TOKEN = token;
   globalThis.fetch = async (value) => {
     if (typeof value !== "string") throw new Error("controlled fixed URL string required");
     const url = value,
@@ -328,6 +380,8 @@ try {
     assert.equal(posts, 1);
   } finally {
     globalThis.fetch = originalFetch;
+    if (previousReader === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousReader;
   }
   console.log(
     "controlled catalog composition/archive/sole-pages/atomic-cursor PASS; no actual authority",

@@ -8,10 +8,12 @@ import { isRecord, errorCode } from "./runtime-values.mts";
 import { readBoundedEvidenceFile } from "./development-evidence.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { GitHubApiClient, createGitHubRunner, rateLimitFromResponse } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
-import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
+import { rateLimitFromResponse } from "./github-operation.mts";
+import { createGitHubClient } from "./github-client.mts";
+import { readObserverMetadata } from "./upstream-observer.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import {
   validateCatalogObserverCheckpoint,
   newCatalogObserverCheckpoint,
@@ -691,8 +693,11 @@ type RecoveryOptions = {
   config: string;
   current: Producer;
   deadline: number;
-  api: GitHubRestReader;
-  download?: typeof readGitHubArtifactArchive;
+  api: { read(endpoint: string): Promise<GitHubMetadataResponse> };
+  download?: (
+    endpoint: string,
+    bounds: { maxBytes: number; timeoutMs: number },
+  ) => Buffer | Promise<Buffer>;
   now?: () => number;
   log?: (event: {
     route: string;
@@ -705,13 +710,17 @@ type RecoveryOptions = {
 /** Complete ordered prefix through the retention boundary, not an all-history
  * inventory. Keep the existing hundred-record ceiling without eagerly fetching
  * a hundred large GitHub run records for a six-hour scheduled consumer. */
-function scheduledRunWindow(read: (route: string) => unknown, currentRun: number, now: number) {
+async function scheduledRunWindow(
+  read: (route: string) => Promise<unknown>,
+  currentRun: number,
+  now: number,
+) {
   const runs: Record<string, unknown>[] = [],
     seen = new Set<number>();
   let total: number | undefined,
     previousCreated = Infinity;
   for (let page = 1; page <= 10; page++) {
-    const raw = read(
+    const raw = await read(
       `actions/workflows/${workflowId}/runs?branch=main&event=schedule&per_page=10&page=${page}`,
     );
     requireValue(
@@ -758,8 +767,8 @@ function scheduledRunWindow(read: (route: string) => unknown, currentRun: number
 /** No caller flag can renew this permit. Only the first natural schedule after
  * the pinned failed run may replace an absent tree with explicitly unknown data. */
 async function initializeApprovedBaseline(
-  read: (route: string) => unknown,
-  inventory: ReturnType<typeof scheduledRunWindow>,
+  read: (route: string) => Promise<unknown>,
+  inventory: Awaited<ReturnType<typeof scheduledRunWindow>>,
   options: RecoveryOptions,
   now: () => number,
 ) {
@@ -818,16 +827,18 @@ async function initializeApprovedBaseline(
     "one-time baseline schedule boundary differs",
   );
   assertRun(active, current, active.created_at);
-  const verifyCurrent = () => {
-    const raw = read(`actions/runs/${current.run}`);
+  const verifyCurrent = async () => {
+    const raw = await read(`actions/runs/${current.run}`);
     assertRun(raw, current, active.created_at);
     requireValue(
       isRecord(raw) && raw.status === "in_progress" && raw.conclusion === null,
       "baseline run is not active",
     );
   };
-  verifyCurrent();
-  const ancestry = read(`compare/${permit.main_anchor}...${current.source}?per_page=1&page=2`);
+  await verifyCurrent();
+  const ancestry = await read(
+    `compare/${permit.main_anchor}...${current.source}?per_page=1&page=2`,
+  );
   requireValue(
     isRecord(ancestry) &&
       ["ahead", "identical"].includes(String(ancestry.status)) &&
@@ -844,7 +855,7 @@ async function initializeApprovedBaseline(
   ] as const) {
     await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source input");
     const local = (await readBoundedEvidenceFile(path.join(root, filename), limit)).bytes;
-    const metadata = read(`contents/${filename}?ref=${current.source}`);
+    const metadata = await read(`contents/${filename}?ref=${current.source}`);
     const blob = createHash("sha1").update(`blob ${local.length}\0`).update(local).digest("hex");
     requireValue(
       isRecord(metadata) &&
@@ -865,8 +876,8 @@ async function initializeApprovedBaseline(
     "baseline catalog/configuration differs",
   );
   catalogObservationSources({ ...documents.catalog, listings: documents.listings.listings });
-  verifyCurrent();
-  const after = scheduledRunWindow(read, current.run, now());
+  await verifyCurrent();
+  const after = await scheduledRunWindow(read, current.run, now());
   const identities = (runs: typeof inventory.runs) =>
     JSON.stringify(runs.map((run) => [run.id, run.run_attempt, run.head_sha, run.created_at]));
   requireValue(
@@ -902,7 +913,7 @@ async function initializeApprovedBaseline(
     path.join(root, "work", `${permit.id}.consumed.json`),
     "baseline consumption receipt",
   );
-  verifyCurrent();
+  await verifyCurrent();
   requireValue(now() < deadline, "baseline publication deadline exhausted");
   // Retain even on failure: same-run invocation cannot renew a consumed permit.
   await writeFile(receipt, JSON.stringify(baseline), { flag: "wx" });
@@ -955,9 +966,9 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     );
     if (providerRemaining !== null) providerRemaining--;
   };
-  const read = (route: string) => {
+  const read = async (route: string) => {
     admit();
-    const response = api.request("GET", `repos/${repository}${route ? `/${route}` : ""}`);
+    const response = await api.read(`repos/${repository}${route ? `/${route}` : ""}`);
     remaining();
     requireValue(
       response.status === 200 &&
@@ -976,7 +987,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     return response.body;
   };
   // The provider, not an environment or artifact claim, appoints the default branch.
-  const repo = read("");
+  const repo = await read("");
   requireValue(
     isRecord(repo) &&
       repo.id === repositoryId &&
@@ -1037,7 +1048,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   } catch (error) {
     if (errorCode(error) !== "ENOENT") throw error;
   }
-  const inventory = scheduledRunWindow(read, current.run, now());
+  const inventory = await scheduledRunWindow(read, current.run, now());
   let expectedHistory = false;
   let reachedAgeBoundary = false;
   for (const raw of inventory.runs) {
@@ -1070,7 +1081,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     // GitHub includes file patches only on comparison page one. Global status
     // and merge-base identity remain present on page two, even with no commits.
     // No commit/file inventory is claimed or needed for this ancestry predicate.
-    const comparison = read(`compare/${source.source}...${current.source}?per_page=1&page=2`);
+    const comparison = await read(`compare/${source.source}...${current.source}?per_page=1&page=2`);
     requireValue(
       isRecord(comparison) &&
         ["ahead", "identical"].includes(String(comparison.status)) &&
@@ -1081,8 +1092,9 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     const tooOld = now() - Date.parse(raw.created_at) > maximumAge;
     const artifacts = tooOld
       ? { artifacts: [] }
-      : readCompleteRunArtifactInventory((page) =>
-          read(`actions/runs/${source.run}/artifacts?per_page=100&page=${page}`),
+      : await readCompleteRunArtifactInventoryAsync(
+          async (page) =>
+            await read(`actions/runs/${source.run}/artifacts?per_page=100&page=${page}`),
         );
     const name = snapshotName(config, source),
       matches = artifacts.artifacts.filter((row) => row.name === name);
@@ -1090,8 +1102,8 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     if (!matches.length) {
       // Explicit migration only: inspect trusted old source, never silently cold-start
       // after a deployed snapshot publisher failed to retain its history.
-      const oldWorkflow = read(`contents/${workflow}?ref=${source.source}`);
-      const oldConfig = read(`contents/release/upstream-observer.json?ref=${source.source}`);
+      const oldWorkflow = await read(`contents/${workflow}?ref=${source.source}`);
+      const oldConfig = await read(`contents/release/upstream-observer.json?ref=${source.source}`);
       requireValue(
         isRecord(oldWorkflow) &&
           oldWorkflow.encoding === "base64" &&
@@ -1132,10 +1144,11 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         artifact.workflow_run.head_sha === source.source,
       "checkpoint artifact identity unavailable",
     );
+    requireValue(options.download, "checkpoint artifact transport unavailable");
     admit();
-    const archive = (options.download ?? readGitHubArtifactArchive)(
+    const archive = await options.download(
       `repos/${repository}/actions/artifacts/${Number(artifact.id)}/zip`,
-      { cwd: root, maxBytes: Number(artifact.size_in_bytes), timeoutMs: remaining() },
+      { maxBytes: Number(artifact.size_in_bytes), timeoutMs: remaining() },
     );
     remaining();
     requireValue(
@@ -1149,8 +1162,8 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         snapshot.producer.source === source.source,
       "snapshot producer differs",
     );
-    const after = read(`actions/artifacts/${Number(artifact.id)}`),
-      runAfter = read(`actions/runs/${source.run}`);
+    const after = await read(`actions/artifacts/${Number(artifact.id)}`),
+      runAfter = await read(`actions/runs/${source.run}`);
     requireValue(
       isRecord(after) &&
         after.id === artifact.id &&
@@ -1207,6 +1220,37 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   };
 }
 
+export async function recoverObserverCheckpointWithSdk({
+  token,
+  fetch,
+  ...options
+}: Omit<RecoveryOptions, "api" | "download"> & { token: string; fetch?: typeof globalThis.fetch }) {
+  const credential = { kind: "explicit" as const, token };
+  const deadline = performance.now() + Math.max(0, options.deadline - (options.now ?? Date.now)());
+  const sdk = await createGitHubClient({
+    credential,
+    deadline,
+    maxBytes: observerSnapshotLimit,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      (url.pathname === `/repos/${repository}` || url.pathname.startsWith(`/repos/${repository}/`)),
+    ...(fetch ? { fetch } : {}),
+  });
+  return recoverObserverCheckpoint({
+    ...options,
+    api: { read: (endpoint) => readObserverMetadata(sdk, endpoint) },
+    download: (endpoint, { maxBytes, timeoutMs }) =>
+      downloadGitHubArtifactArchive(endpoint, {
+        credential,
+        deadline: Math.min(deadline, performance.now() + timeoutMs),
+        maxBytes,
+        lookup: { requestTimeoutMs: timeoutMs },
+        ...(fetch ? { fetch } : {}),
+      }),
+  });
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const root = fileURLToPath(new URL("../", import.meta.url));
@@ -1230,21 +1274,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         Date.now() + 60000,
         Date.parse(process.env.PORTCOVE_OBSERVER_OPPORTUNITY_DEADLINE_UTC ?? ""),
       );
-      const api = new GitHubApiClient((args, input) =>
-        createGitHubRunner({
-          cwd: root,
-          maxBuffer: observerSnapshotLimit + 16384,
-          timeoutMs: Math.max(1, Math.min(15000, deadline - Date.now())),
-        })(args, input),
-      );
+      const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+      requireValue(token, "checkpoint recovery requires its explicit credential");
       console.log(
         JSON.stringify(
-          await recoverObserverCheckpoint({
+          await recoverObserverCheckpointWithSdk({
             root,
             config,
             current,
             deadline,
-            api,
+            token,
             log: (event) =>
               console.log(JSON.stringify({ kind: "observer-recovery-metadata", ...event })),
           }),

@@ -60,12 +60,15 @@ export const nativeHelperRegistryPath = "scripts/native-helper-dependencies.mts"
 export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
   ...Object.fromEntries(
     [
-      "native-linux-isolated-session.mts",
       "native-linux-isolated-plan.mts",
       "native-linux-public-plan.mts",
       "native-linux-driver-http.mts",
     ].map((name) => [helper(name), Object.freeze(["../../../scripts/runtime-values.mts"])]),
   ),
+  [helper("native-linux-isolated-session.mts")]: Object.freeze([
+    "../../../scripts/runtime-values.mts",
+    "../../../scripts/controller-node-runtime.mts",
+  ]),
   [helper("desktop-native-account-session.mts")]: Object.freeze([
     "../../../scripts/native-qualification-account-client.mts",
     "../../../scripts/release-hosted-native-windows-worker-contract.mts",

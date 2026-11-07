@@ -93,7 +93,8 @@ pub struct SourceApplicationInspection {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceReleaseApplicability {
-    /// Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.
+    /// Open code: `artifact_bound`, `upstream_release_bound`,
+    /// `integration_contract_bound`, or `not_rebound`.
     pub state_code: String,
     #[serde(default)]
     pub reviewed_bindings: Vec<crate::SourceContractApplicability>,
@@ -182,17 +183,17 @@ pub(crate) fn unavailable_report(
     let (state_code, summary, next_action) = match health {
         SourceHealth::Changed => (
             "source_changed",
-            "These game files have changed since you added them.",
+            "These files have changed since you added them.",
             "These files have changed since they were added. Choose an unchanged copy to update their location. To use different files, add them again so Portcove can check them.",
         ),
         SourceHealth::Missing => (
             "source_missing",
-            "Portcove can’t find these game files at their saved location.",
+            "Portcove can’t find these files at their saved location.",
             "Reconnect the drive or choose an unchanged copy at its new location. To use different files, add them again so Portcove can check them.",
         ),
         _ => (
             "source_could_not_be_checked",
-            "Portcove couldn’t check these original game files.",
+            "Portcove couldn’t check the selected files.",
             "Check the problem below, make sure Portcove can read the files, then check them again.",
         ),
     };
@@ -294,7 +295,9 @@ fn assemble_report(
                 contract: contract.clone(),
                 contract_result: contract_result(contract, inspection.as_ref()),
                 release_applicability: SourceReleaseApplicability {
-                    state_code: if contract
+                    state_code: if contract.release_policy.is_some() {
+                        "integration_contract_bound"
+                    } else if contract
                         .applicability
                         .iter()
                         .any(|binding| binding.artifact_sha256.is_some())
@@ -460,7 +463,7 @@ fn report_message(
     if health == SourceHealth::Changed {
         return (
             "source_changed",
-            "These game files have changed since you added them.",
+            "These files have changed since you added them.",
             "These files have changed since they were added. Choose an unchanged copy to update their location. To use different files, add them again so Portcove can check them.",
         );
     }
@@ -493,7 +496,7 @@ fn report_message(
             "recognized_exact",
             "These files match a recognized edition.",
             if health == SourceHealth::Current {
-                "These files still match the edition you added. Open the game to check the next step."
+                "These files still match the edition you added. Open this game’s page in Portcove to see the next step."
             } else {
                 "Choose how to add these files."
             },
@@ -525,8 +528,8 @@ fn report_message(
             },
         ) => (
             "check_failed",
-            "The game files failed a required format check.",
-            "Review the check result and choose valid original game files before continuing.",
+            "The selected files failed a required format check.",
+            "Review the check result and choose files in the required format.",
         ),
         (
             _,
@@ -550,7 +553,7 @@ fn report_message(
         ),
         _ => (
             "not_evaluated",
-            "These original game files haven’t been fully checked.",
+            "These files haven’t been fully checked.",
             "Check the required game editions and finish checking your files.",
         ),
     }
@@ -751,7 +754,7 @@ mod tests {
         let mut inspection = report.inspection.unwrap();
         assert_eq!(
             report_message(SourceHealth::Current, &inspection).2,
-            "These files still match the edition you added. Open the game to check the next step."
+            "These files still match the edition you added. Open this game’s page in Portcove to see the next step."
         );
 
         inspection.validator = Some(ObservedSourceValidator {

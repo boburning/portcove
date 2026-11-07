@@ -214,6 +214,66 @@ void test("transport clock preserves provider-start budget across subprocesses a
       /changed|identity/,
     );
 });
+void test("actual controller transport and standalone bridge use fixed Jobs SDK; retained clock loads no SDK", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "sdk-controller-transport-clock-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const phase = "payload";
+  await retainControllerJobSettlement(root, phase, 0, false);
+  const output = path.join(root, "output.txt");
+  const run = (script: string, args: string[], retained = false) => {
+    const entry = fileURLToPath(new URL(`./${script}.mts`, import.meta.url));
+    const source = `
+      import assert from 'node:assert/strict';
+      import { registerHooks } from 'node:module';
+      import { pathToFileURL } from 'node:url';
+      let requests = 0;
+      if (${JSON.stringify(retained)}) {
+        registerHooks({resolve(specifier,context,next){
+          assert.ok(!specifier.endsWith('release-custody-provider.mts'), 'retained clock loaded SDK');
+          return next(specifier,context);
+        }});
+      }
+      globalThis.fetch = async (input, init) => {
+        requests++;
+        assert.ok(!${JSON.stringify(retained)}, 'retained clock dispatched');
+        const url = new URL(input instanceof Request ? input.url : input);
+        assert.equal(url.origin, 'https://api.github.com');
+        assert.equal(url.pathname, '/repos/boburning/portcove/actions/runs/123/attempts/1/jobs');
+        assert.deepEqual(Object.fromEntries(url.searchParams), {page:'1',per_page:'100'});
+        assert.equal(new Headers(init.headers).get('authorization'), 'token fixed-controller-cli-fixture');
+        return Response.json({total_count:1,jobs:[{
+          id:4,run_id:123,run_attempt:1,head_sha:process.env.GITHUB_SHA,status:'in_progress',
+          name:'Sign admitted updater payloads',started_at:new Date(Date.now()-1000).toISOString(),
+        }]});
+      };
+      process.argv = [process.execPath, ${JSON.stringify(entry)}, ...${JSON.stringify(args)}];
+      process.on('beforeExit',()=>assert.equal(requests, ${retained ? 0 : 1}));
+      await import(pathToFileURL(process.argv[1]).href);
+    `;
+    return execFileSync(process.execPath, ["--input-type=module", "--eval", source], {
+      env: {
+        ...process.env,
+        ...identity,
+        RUNNER_TEMP: root,
+        GITHUB_OUTPUT: output,
+        GH_TOKEN: retained ? "" : "fixed-controller-cli-fixture",
+      },
+      encoding: "utf8",
+      timeout: 10000,
+    });
+  };
+  run("release-controller-transport", ["next", phase, "1"]);
+  const file = path.join(root, "controller-transport-payload-clock.json");
+  const retained = await readFile(file, "utf8");
+  assert.match(retained, /"job_id":4/u);
+  run("release-controller-transport", ["next", phase, "1"], true);
+  assert.equal(await readFile(file, "utf8"), retained);
+  run("release-control-step-bridge", [phase, "0"]);
+  const emitted = await readFile(output, "utf8");
+  assert.equal(emitted.split("\ndone\n").length - 1, 2);
+  assert.match(emitted, /ready=false/u);
+});
+
 void test("owned key client kernel identity handles spaces/parentheses and distinguishes exited state", () => {
   const fields = ["Z", ...Array.from({ length: 18 }, () => "0"), "12345", "0"];
   assert.deepEqual(inspectControllerKeyProcess(`42 (fixed (key) client) ${fields.join(" ")}`), {

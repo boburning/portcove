@@ -1,12 +1,58 @@
-import { orderedJsonValue as canonical } from "./json-values.mts";
+import type {
+  createGitHubClient,
+  GitHubRequestPolicy,
+  GitHubDeferralState,
+  GitHubAttemptObservation,
+} from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import { orderedJsonSha256 as observationHash } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createHash } from "node:crypto";
 
-export const observationHash = (value: unknown): string => {
-  const serialized = JSON.stringify(canonical(value));
-  if (serialized === undefined) throw new TypeError("Observation is not JSON serializable");
-  return createHash("sha256").update(serialized).digest("hex");
-};
+/** Existing observer metadata contracts retain exact received bytes through the SDK. */
+export async function readObserverMetadata(
+  sdk: Awaited<ReturnType<typeof createGitHubClient>>,
+  endpoint: string,
+  policy: GitHubRequestPolicy = { replay: "once", attempts: 0 },
+) {
+  const evidence: { attempt?: GitHubAttemptObservation } = {};
+  const previousObserve = policy.observe;
+  policy.observe = (attempt) => {
+    evidence.attempt = attempt;
+    previousObserve?.(attempt);
+  };
+  try {
+    const response = await sdk.request({
+      method: "GET",
+      url: new URL(endpoint, "https://api.github.com/").href,
+      request: { portcove: policy },
+    });
+    if (!evidence.attempt)
+      throw new GitHubApiError("invalid_response", "Observer response evidence is unavailable");
+    return {
+      status: response.status,
+      headers: new Map(Object.entries(evidence.attempt.headers)),
+      body: response.data as unknown,
+      bodyBytes: evidence.attempt.bytes,
+    };
+  } catch (error) {
+    if (error instanceof GitHubApiError)
+      throw new GitHubApiError(error.code, error.message, {
+        status: evidence.attempt?.status ?? error.status,
+        responseBytes: evidence.attempt?.bytes ?? error.responseBytes,
+        rateLimit: error.rateLimit,
+        retryAfter: error.retryAfter,
+        requestId: error.requestId,
+        responseDate: error.responseDate,
+      });
+    throw error;
+  } finally {
+    if (previousObserve) policy.observe = previousObserve;
+    else delete policy.observe;
+  }
+}
+
+export { orderedJsonSha256 as observationHash } from "./json-values.mts";
+
 export interface ObserverBudget {
   requests: number;
   pages_per_collection: number;
@@ -61,7 +107,7 @@ interface CachedPage {
 }
 export interface ObserverRequestOptions {
   headers: Record<string, string>;
-  redirect: "error";
+  redirect: "error" | "manual";
   signal: AbortSignal;
 }
 export type ObserverFetch = (url: string, options: ObserverRequestOptions) => Promise<Response>;
@@ -76,6 +122,7 @@ export interface ProviderObservation extends Record<string, unknown> {
   facts: {
     repository: ReturnType<typeof repositoryFact>;
     releases: (ReturnType<typeof releaseFact> & { assets: ReturnType<typeof assetFact>[] })[];
+    checksum_sidecars?: ChecksumText[];
   };
   consumed: { requests: number; response_bytes: number; conditional_hits: number };
   batch_consumed?: ProviderObservation["consumed"];
@@ -98,7 +145,15 @@ export interface ObservationContinuation {
   first_validated_at: string | null;
   validation_order_sha256: string | null;
   selected_asset_release_ids?: number[];
+  /** Operation-owned transport progress; never integrity or eligibility authority. */
+  asset_redirects?: Record<string, string[]>;
   consumed: { requests: number; response_bytes: number; conditional_hits: number };
+}
+/** One invocation owns transport allowances across continued source batches. */
+export interface ObserverGitHubScope {
+  deadline: number;
+  failedReads: Map<string, GitHubRequestPolicy>;
+  deferral: GitHubDeferralState;
 }
 export interface ObserveOptions {
   cache?: unknown;
@@ -106,6 +161,7 @@ export interface ObserveOptions {
   onCheckpoint?: (continuation: ObservationContinuation) => void | Promise<void>;
   signal?: AbortSignal;
   selectAssetReleases?: (headers: ProviderObservation) => Promise<readonly number[]>;
+  selectChecksumSources?: (observation: ProviderObservation) => Promise<readonly ChecksumSource[]>;
   /** Additional invocation-wide admission; cannot relax configured operation bounds. */
   admitRequest?: () => void;
   observeResponse?: (response: Response) => void;
@@ -116,7 +172,75 @@ export interface ObserveOptions {
   deadline?: number;
   sleep?: (milliseconds: number) => Promise<unknown>;
   token?: string;
+  githubScope?: ObserverGitHubScope;
 }
+export interface ChecksumSource {
+  release_id: number;
+  asset_id: number;
+}
+interface ChecksumText extends ChecksumSource {
+  text: string;
+}
+function checksumDeliveryUrl(value: unknown): boolean {
+  if (typeof value !== "string" || value.length > 8192) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      !url.hash &&
+      ["release-assets.githubusercontent.com", "objects.githubusercontent.com"].includes(
+        url.hostname,
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Read Core's selected integrity dependencies without duplicating its checksum rules. */
+export function checksumSourcesFromProjections(projections: readonly unknown[]): ChecksumSource[] {
+  const sources = new Map<number, ChecksumSource>();
+  for (const projection of projections) {
+    if (!isRecord(projection))
+      throw new ObservationFailure("core-binding", "Invalid Core projection");
+    if (
+      Array.isArray(projection.hold_reasons) &&
+      projection.hold_reasons.includes("channel-not-offered")
+    )
+      continue;
+    if (projection.checksum_sources === undefined) continue; // older projections remain held
+    requireFact(
+      Array.isArray(projection.checksum_sources),
+      "core-binding",
+      "Invalid checksum dependencies",
+    );
+    for (const source of projection.checksum_sources) {
+      requireFact(
+        isRecord(source) &&
+          Number.isSafeInteger(source.release_id) &&
+          Number(source.release_id) > 0 &&
+          Number.isSafeInteger(source.asset_id) &&
+          Number(source.asset_id) > 0,
+        "core-binding",
+        "Invalid checksum identity",
+      );
+      const exact = { release_id: Number(source.release_id), asset_id: Number(source.asset_id) };
+      requireFact(
+        !sources.has(exact.asset_id) ||
+          sources.get(exact.asset_id)!.release_id === exact.release_id,
+        "core-binding",
+        "Checksum identity appears in distinct releases",
+      );
+      sources.set(exact.asset_id, exact);
+    }
+  }
+  requireFact(sources.size <= 128, "budget", "Checksum dependency set exceeds its bound");
+  return [...sources.values()].sort((a, b) => a.asset_id - b.asset_id);
+}
+
 const apiRoot = "https://api.github.com";
 
 export class ObservationFailure extends Error {
@@ -287,7 +411,7 @@ function downloadUrl(value: unknown, config: { repository: string }, tag: string
   return textFact(value, "asset URL", 4096);
 }
 
-function assetFact(asset: unknown, config: { repository: string }, tag: string) {
+export function assetFact(asset: unknown, config: { repository: string }, tag: string) {
   requireFact(isRecord(asset), "invalid-metadata", "invalid asset object");
   const name = textFact(asset.name, "asset filename", 255);
   requireFact(
@@ -322,7 +446,7 @@ function assetFact(asset: unknown, config: { repository: string }, tag: string) 
   };
 }
 
-function releaseFact(release: unknown) {
+export function releaseFact(release: unknown) {
   requireFact(
     isRecord(release) &&
       typeof release.draft === "boolean" &&
@@ -346,7 +470,7 @@ function releaseFact(release: unknown) {
   };
 }
 
-function repositoryFact(
+export function repositoryFact(
   repository: unknown,
   config: Pick<ObserverConfig, "repository" | "repository_id">,
 ) {
@@ -608,6 +732,25 @@ function observerPageFacts(
 ) {
   const tail = new URL(address).pathname.slice(`/repos/${config.repository}`.length);
   if (tail === "") return repositoryFact(body, config);
+  if (/^\/releases\/assets\/\d+$/u.test(tail)) {
+    const id = Number(tail.split("/")[3]);
+    const matches = Object.entries(pages).flatMap(([url, page]) => {
+      if (
+        !/\/releases\/\d+\/assets$/u.test(new URL(url).pathname) ||
+        !isRecord(page) ||
+        !Array.isArray(page.body)
+      )
+        return [];
+      const assets: unknown[] = page.body;
+      return assets.filter((asset) => isRecord(asset) && asset.id === id);
+    });
+    requireFact(
+      matches.length === 1 && typeof body === "string" && Buffer.byteLength(body) <= 1024 * 1024,
+      "invalid-checkpoint",
+      "checksum text lacks its exact asset context or exceeds its bound",
+    );
+    return body;
+  }
   requireFact(
     Array.isArray(body) && body.length <= 100,
     "invalid-checkpoint",
@@ -753,6 +896,7 @@ export function validateObservationContinuation(
       ...(isRecord(value) && Object.hasOwn(value, "selected_asset_release_ids")
         ? ["selected_asset_release_ids"]
         : []),
+      ...(isRecord(value) && Object.hasOwn(value, "asset_redirects") ? ["asset_redirects"] : []),
     ],
     "observation continuation",
   );
@@ -832,6 +976,7 @@ export function validateObservationContinuation(
         !url.hash &&
         url.pathname.startsWith(repositoryPath) &&
         ((tail === "" && url.search === "") ||
+          (/^\/releases\/assets\/\d+$/u.test(tail) && url.search === "") ||
           (/^\/releases(?:\/\d+\/assets)?$/u.test(tail) &&
             url.searchParams.get("per_page") === "100" &&
             /^\d+$/u.test(url.searchParams.get("page") ?? "") &&
@@ -842,6 +987,32 @@ export function validateObservationContinuation(
       "continued page escaped its configured collection",
     );
     validatedPage(page, address, config, value.pages);
+  }
+  if (value.asset_redirects !== undefined) {
+    requireFact(
+      isRecord(value.asset_redirects) && Object.keys(value.asset_redirects).length <= 128,
+      "invalid-checkpoint",
+      "Checksum redirect progress exceeds its bound",
+    );
+    for (const [address, chain] of Object.entries(value.asset_redirects)) {
+      const url = new URL(address);
+      requireFact(
+        url.origin === apiRoot &&
+          !url.search &&
+          !url.hash &&
+          !url.username &&
+          !url.password &&
+          url.pathname.startsWith(`${repositoryPath}/releases/assets/`) &&
+          /^\d+$/u.test(url.pathname.slice(`${repositoryPath}/releases/assets/`.length)) &&
+          Array.isArray(chain) &&
+          chain.length > 0 &&
+          chain.length <= 3 &&
+          chain.every(checksumDeliveryUrl),
+        "invalid-checkpoint",
+        "Checksum redirect escaped its exact asset transport",
+      );
+      observerPageFacts(address, "", config, value.pages);
+    }
   }
   return value as unknown as ObservationContinuation;
 }
@@ -981,7 +1152,27 @@ export function reusableProviderObservation(
       assets.add(asset.id);
     }
   }
-  const facts = { repository, releases };
+  const checksum_sidecars = Object.entries(proof.pages)
+    .flatMap(([url, page]) => {
+      const match = new URL(url).pathname.match(/\/releases\/assets\/(\d+)$/u);
+      if (!match) return [];
+      const asset_id = Number(match[1]);
+      const release = releases.find((release) =>
+        release.assets.some((asset) => asset.id === asset_id),
+      );
+      requireFact(
+        release && typeof page.body === "string",
+        "invalid-checkpoint",
+        "checksum asset context differs",
+      );
+      return [{ release_id: release.id, asset_id, text: page.body }];
+    })
+    .sort((a, b) => a.asset_id - b.asset_id);
+  const facts = {
+    repository,
+    releases,
+    ...(checksum_sidecars.length ? { checksum_sidecars } : {}),
+  };
   requireFact(
     observationHash(facts) === observation.facts_sha256 &&
       observationHash(observation.facts) === observation.facts_sha256,
@@ -1111,7 +1302,77 @@ export async function observeUpstream(
     await options.onCheckpoint?.(structuredClone(continuation));
   };
 
-  async function request(
+  if (options.signal?.aborted)
+    throw new ObservationFailure(
+      "cancelled",
+      "Observation cancelled; retain the exact continuation",
+    );
+  const failedReads = options.githubScope?.failedReads ?? new Map<string, GitHubRequestPolicy>();
+  const { createGitHubClient } = await import("./github-client.mts");
+  const sdk = await createGitHubClient({
+    credential:
+      options.token === undefined
+        ? { kind: "anonymous" }
+        : { kind: "explicit", token: options.token },
+    deadline: Math.min(
+      options.githubScope?.deadline ?? Infinity,
+      performance.now() + Math.max(0, deadline - now()),
+    ),
+    ...(options.githubScope ? { deferral: options.githubScope.deferral } : {}),
+    maxBytes: config.budget.response_bytes,
+    wallNow: now,
+    ...(options.signal ? { signal: options.signal } : {}),
+    headers: {
+      accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "user-agent": "Portcove-upstream-observer",
+    },
+    fetch: async (input, init) =>
+      fetcher(input instanceof Request ? input.url : String(input), {
+        headers: Object.fromEntries(new Headers(init?.headers)),
+        redirect: "manual",
+        signal: init?.signal ?? AbortSignal.abort(),
+      }),
+    sleep: async (milliseconds) => {
+      await sleep(milliseconds);
+    },
+    reserve: () => {
+      if (now() >= deadline || consumed.requests >= config.budget.requests)
+        throw new GitHubApiError(
+          "budget_exhausted",
+          "observation request or time budget exhausted",
+        );
+      try {
+        options.admitRequest?.();
+      } catch {
+        throw new GitHubApiError("budget_exhausted", "observation request admission refused");
+      }
+      consumed.requests++;
+      return {
+        consumeBytes(bytes) {
+          consumed.response_bytes += bytes;
+          try {
+            options.consumeResponseBytes?.(bytes);
+          } catch {
+            throw new GitHubApiError("budget_exhausted", "observation response accounting refused");
+          }
+          if (consumed.response_bytes > config.budget.total_bytes)
+            throw new GitHubApiError("budget_exhausted", "provider response byte budget exhausted");
+        },
+        settle(observation) {
+          if (observation.status !== null)
+            options.observeResponse?.(
+              new Response(null, {
+                status: observation.status,
+                headers: observation.headers,
+              }),
+            );
+        },
+      };
+    },
+  });
+
+  async function requestChecksum(
     pathname: string,
     page: number | null = null,
     cached: unknown = null,
@@ -1151,7 +1412,7 @@ export async function observeUpstream(
         "observation request or time budget exhausted",
       );
       const headers: Record<string, string> = {
-        Accept: "application/vnd.github+json",
+        Accept: "application/octet-stream",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "Portcove-upstream-observer",
       };
@@ -1161,14 +1422,56 @@ export async function observeUpstream(
       consumed.requests++;
       let response;
       try {
-        response = await fetcher(url, {
-          headers,
-          redirect: "error",
-          signal: options.signal
-            ? AbortSignal.any([options.signal, AbortSignal.timeout(Math.min(15_000, remaining))])
-            : AbortSignal.timeout(Math.min(15_000, remaining)),
-        });
-      } catch {
+        const chain = [...(continuation.asset_redirects?.[url] ?? [])];
+        let address = chain.at(-1) ?? url;
+        for (let redirects = 0; ; redirects++) {
+          const hopRemaining = deadline - now();
+          requireFact(hopRemaining > 0, "budget", "checksum/provider deadline exhausted");
+          if (redirects) {
+            requireFact(
+              redirects <= 3 && now() < deadline && consumed.requests < config.budget.requests,
+              "budget",
+              "checksum redirect/request boundary exhausted",
+            );
+            options.admitRequest?.();
+            consumed.requests++;
+          }
+          response = await fetcher(address, {
+            headers:
+              new URL(address).origin === apiRoot
+                ? headers
+                : Object.fromEntries(
+                    Object.entries(headers).filter(
+                      ([key]) => !["Authorization", "X-GitHub-Api-Version"].includes(key),
+                    ),
+                  ),
+            redirect: "manual",
+            signal: options.signal
+              ? AbortSignal.any([
+                  options.signal,
+                  AbortSignal.timeout(Math.ceil(Math.min(15_000, hopRemaining))),
+                ])
+              : AbortSignal.timeout(Math.ceil(Math.min(15_000, hopRemaining))),
+          });
+          if (![301, 302, 303, 307, 308].includes(response.status)) break;
+          options.observeResponse?.(response);
+          const location = response.headers.get("location");
+          await response.body?.cancel();
+          requireFact(location, "asset-scope", "checksum redirect has no location");
+          const next = new URL(location, address);
+          requireFact(
+            checksumDeliveryUrl(next.href) && chain.length < 3,
+            "asset-scope",
+            "checksum redirect escaped GitHub asset delivery",
+          );
+          address = next.href;
+          chain.push(address);
+          continuation.asset_redirects ??= {};
+          continuation.asset_redirects[url] = chain;
+          await retain();
+        }
+      } catch (error) {
+        if (error instanceof ObservationFailure) throw error;
         if (options.signal?.aborted)
           throw new ObservationFailure(
             "cancelled",
@@ -1227,18 +1530,18 @@ export async function observeUpstream(
           "provider returned 304 without a validated conditional response",
         );
         consumed.conditional_hits++;
+        if (continuation.asset_redirects) delete continuation.asset_redirects[url];
         return { url, value: previous };
       }
       if (response.status !== 200) {
         await response.body?.cancel();
-        throw new ObservationFailure(
+        if (continuation.asset_redirects?.[url]) delete continuation.asset_redirects[url];
+        const failure = new ObservationFailure(
           "provider-status",
           `provider returned HTTP ${response.status}`,
         );
-      }
-      if (!(response.headers.get("content-type") ?? "").includes("application/json")) {
-        await response.body?.cancel();
-        throw new ObservationFailure("invalid-metadata", "provider response is not JSON");
+        failure.restartContinuation = true;
+        throw failure;
       }
       const chunks: Uint8Array[] = [];
       let bytes = 0;
@@ -1254,7 +1557,7 @@ export async function observeUpstream(
         consumed.response_bytes += bytesChunk.length;
         options.consumeResponseBytes?.(bytesChunk.length);
         requireFact(
-          bytes <= config.budget.response_bytes &&
+          bytes <= Math.min(config.budget.response_bytes, 1024 * 1024) &&
             consumed.response_bytes <= config.budget.total_bytes,
           "budget",
           "provider response byte budget exhausted",
@@ -1263,10 +1566,12 @@ export async function observeUpstream(
       }
       let body: unknown;
       try {
-        body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)));
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
+        body = text;
       } catch {
         throw new ObservationFailure("invalid-metadata", "provider returned malformed UTF-8 JSON");
       }
+      if (continuation.asset_redirects) delete continuation.asset_redirects[url];
       return {
         url,
         value: {
@@ -1276,6 +1581,137 @@ export async function observeUpstream(
           sha256: observationHash(body),
         },
       };
+    }
+  }
+
+  async function request(
+    pathname: string,
+    page: number | null = null,
+    cached: unknown = null,
+    replay = false,
+  ): Promise<{ url: string; value: CachedPage }> {
+    if (options.signal?.aborted)
+      throw new ObservationFailure(
+        "cancelled",
+        "Observation cancelled; retain the exact continuation",
+      );
+    const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
+    if (/^\/repos\/[^/]+\/[^/]+\/releases\/assets\/\d+$/u.test(pathname))
+      return requestChecksum(pathname, page, cached, replay);
+    const candidate = cached ?? prior[url];
+    let previous: CachedPage | undefined;
+    if (candidate) {
+      try {
+        const context = cached ? pages : priorContexts.get(url);
+        requireFact(context, "invalid-cache", "cached response context missing");
+        previous = { ...validatedPage(candidate, url, config, context) };
+      } catch {
+        throw new ObservationFailure("invalid-cache", "cached response identity is invalid");
+      }
+    }
+    if (replay) {
+      requireFact(previous, "invalid-checkpoint", "continued page is missing");
+      return { url, value: previous };
+    }
+    const policy: GitHubRequestPolicy = failedReads.get(url) ?? {
+      replay: "safe-read",
+      attempts: 0,
+      maxAttempts: config.budget.retries + 1,
+    };
+    failedReads.set(url, policy);
+    try {
+      const response = await sdk.request({
+        method: "GET",
+        url,
+        headers: previous?.etag ? { "if-none-match": previous.etag } : {},
+        request: { portcove: policy },
+      });
+      await policy.admissionSettled;
+      if (response.status === 304) {
+        requireFact(
+          previous?.etag,
+          "invalid-cache",
+          "provider returned 304 without a validated conditional response",
+        );
+        consumed.conditional_hits++;
+        failedReads.delete(url);
+        return { url, value: previous };
+      }
+      requireFact(
+        response.status === 200,
+        "provider-status",
+        `provider returned HTTP ${response.status}`,
+      );
+      requireFact(
+        (response.headers["content-type"] ?? "").includes("application/json"),
+        "invalid-metadata",
+        "provider response is not JSON",
+      );
+      // Endpoint types do not establish usable runtime JSON or domain identity.
+      const body: unknown = response.data;
+      requireFact(
+        typeof body === "object" && body !== null,
+        "invalid-metadata",
+        "provider returned malformed UTF-8 JSON",
+      );
+      failedReads.delete(url);
+      return {
+        url,
+        value: {
+          etag: response.headers.etag ?? "",
+          link: response.headers.link ?? "",
+          body,
+          sha256: observationHash(body),
+        },
+      };
+    } catch (error) {
+      if (error instanceof ObservationFailure) throw error;
+      if (options.signal?.aborted)
+        throw new ObservationFailure(
+          "cancelled",
+          "Observation cancelled; retain the exact continuation",
+        );
+      if (now() >= deadline)
+        throw new ObservationFailure(
+          "budget",
+          "Observation opportunity exhausted during provider request",
+        );
+      if (error instanceof GitHubApiError) {
+        if (error.code === "rate_limited") {
+          const retry = error.retryAfter;
+          const required =
+            retry && /^\d+$/u.test(retry) ? now() + Number(retry) * 1000 : Date.parse(retry ?? "");
+          const reset = error.rateLimit?.resetAt ? Date.parse(error.rateLimit.resetAt) : NaN;
+          const resume = Math.max(
+            now() + 60_000,
+            Number.isFinite(required) ? required : 0,
+            Number.isFinite(reset) ? reset : 0,
+          );
+          requireFact(
+            Number.isFinite(resume) && resume <= 8.64e15,
+            "invalid-metadata",
+            "provider retry clock is invalid",
+          );
+          throw new ObservationFailure(
+            "rate-limit",
+            "provider rate limit defers observation without advancing the last complete snapshot",
+            new Date(resume).toISOString(),
+          );
+        }
+        if (["response_limit", "budget_exhausted", "deadline_exceeded"].includes(error.code))
+          throw new ObservationFailure("budget", "provider response byte or time budget exhausted");
+        if (error.code === "invalid_response")
+          throw new ObservationFailure(
+            "invalid-metadata",
+            "provider returned malformed UTF-8 JSON",
+          );
+        if (error.status !== null)
+          throw new ObservationFailure("provider-status", `provider returned HTTP ${error.status}`);
+      }
+      throw new ObservationFailure(
+        "transport",
+        "provider transport failed within its retry budget",
+      );
     }
   }
 
@@ -1365,15 +1801,22 @@ export async function observeUpstream(
     );
     const headers = (await collection(`${repositoryPath}/releases`, releaseFact)).map(releaseFact);
     let selectedAssets: Set<number> | null = null;
-    if (config.format === 2) {
-      requireFact(
-        options.selectAssetReleases,
-        "invalid-config",
-        "scoped observation requires the maintained Core channel selector",
-      );
-      const facts = { repository, releases: headers.map((header) => ({ ...header, assets: [] })) };
-      const selected = await options.selectAssetReleases({
-        format: 2,
+    const releases: ProviderObservation["facts"]["releases"] = headers.map((header) => ({
+      ...header,
+      assets: [],
+    }));
+    const collected = new Set<number>();
+    const checksum_sidecars: ChecksumText[] = [];
+    const assetIds = new Set();
+    const previousSelection = continuation.selected_asset_release_ids;
+    function probe(): ProviderObservation {
+      const facts = {
+        repository,
+        releases,
+        ...(checksum_sidecars.length ? { checksum_sidecars } : {}),
+      };
+      return {
+        format: config.format,
         config_sha256: configHash,
         port_id: config.port_id,
         started_at: continuation.started_at,
@@ -1384,12 +1827,15 @@ export async function observeUpstream(
         coverage: {
           kind: "channel-candidate-assets",
           complete_release_headers: true,
-          asset_release_ids: [],
+          asset_release_ids: [...collected].sort((a, b) => a - b),
         },
         interval_semantics:
           "Inert Core channel-selection probe; not a completed provider observation",
         authority: "provider-observation-only",
-      });
+      };
+    }
+    async function selectAssets(): Promise<readonly number[]> {
+      const selected = await options.selectAssetReleases!(probe());
       requireFact(
         Array.isArray(selected) &&
           new Set(selected).size === selected.length &&
@@ -1399,12 +1845,59 @@ export async function observeUpstream(
         "core-selection",
         "Core requested an unknown or duplicate release identity",
       );
+      return selected as readonly number[];
+    }
+    if (config.format === 2) {
+      // Resume at the retained collection/selection frontier. Repeating the
+      // empty-assets probe would replace the catalog coordinator's separately
+      // bound post-assets Core cursor on every finite invocation.
+      const selected = previousSelection ?? (await selectAssets());
+      requireFact(
+        selected.every((id) => headers.some((header) => header.id === id)),
+        "core-selection",
+        "Retained Core selection names an unavailable release",
+      );
       selectedAssets = new Set(selected);
+    }
+    // Core can only skip an explicit other-platform stream after its complete
+    // assets are observed. Ask again after each collection, until every current
+    // candidate is covered. Each turn adds a release from the bounded headers;
+    // provider requests, bytes and continuation keep their existing budgets.
+    for (;;) {
+      if (selectedAssets && continuation.phase === "collect") {
+        continuation.selected_asset_release_ids = [...selectedAssets].sort((a, b) => a - b);
+        await retain();
+      }
+      for (const release of releases) {
+        if (collected.has(release.id) || (selectedAssets && !selectedAssets.has(release.id)))
+          continue;
+        const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
+        const assets = (
+          await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
+        ).map(normalizeAsset);
+        for (const asset of assets) {
+          if (assetIds.has(asset.id)) {
+            const failure = new ObservationFailure(
+              "invalid-metadata",
+              "asset identity appears in multiple releases",
+            );
+            failure.restartContinuation = true;
+            throw failure;
+          }
+          assetIds.add(asset.id);
+        }
+        release.assets = assets;
+        collected.add(release.id);
+      }
+      if (!selectedAssets) break;
+      const requested = await selectAssets();
+      const added = requested.filter((id) => !selectedAssets.has(id));
+      if (added.length === 0) break;
+      for (const id of added) selectedAssets.add(id);
+    }
+    if (selectedAssets) {
       const ordered = [...selectedAssets].sort((a, b) => a - b);
-      if (
-        continuation.selected_asset_release_ids &&
-        observationHash(continuation.selected_asset_release_ids) !== observationHash(ordered)
-      ) {
+      if (previousSelection && observationHash(previousSelection) !== observationHash(ordered)) {
         continuation.phase = "collect";
         continuation.validation_cursor = 0;
         continuation.first_validated_at = null;
@@ -1422,31 +1915,76 @@ export async function observeUpstream(
       }
       await retain();
     }
-    const releases: ProviderObservation["facts"]["releases"] = [];
-    const assetIds = new Set();
-    for (const release of headers) {
-      const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
-      const assets =
-        selectedAssets && !selectedAssets.has(release.id)
-          ? []
-          : (
-              await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
-            ).map(normalizeAsset);
-      for (const asset of assets) {
-        if (assetIds.has(asset.id)) {
-          const failure = new ObservationFailure(
-            "invalid-metadata",
-            "asset identity appears in multiple releases",
-          );
-          failure.restartContinuation = true;
-          throw failure;
-        }
-        assetIds.add(asset.id);
-      }
-      releases.push({ ...release, assets });
+    const requestedChecksums = (await options.selectChecksumSources?.(probe())) ?? [];
+    requireFact(
+      requestedChecksums.length <= 128 &&
+        new Set(requestedChecksums.map((s) => s.asset_id)).size === requestedChecksums.length,
+      "core-selection",
+      "Core checksum dependencies repeat or exceed their bound",
+    );
+    const expectedChecksumPaths = requestedChecksums
+      .map((source) => `${apiRoot}${repositoryPath}/releases/assets/${source.asset_id}`)
+      .sort();
+    const retainedChecksumPaths = Object.keys(pages)
+      .filter((url) => /\/releases\/assets\/\d+$/u.test(new URL(url).pathname))
+      .sort();
+    if (
+      continuation.phase === "validate" &&
+      observationHash(expectedChecksumPaths) !== observationHash(retainedChecksumPaths)
+    ) {
+      continuation.phase = "collect";
+      continuation.validation_cursor = 0;
+      continuation.first_validated_at = null;
+      continuation.last_validated_at = null;
+      continuation.validation_order_sha256 = null;
+      await retain();
     }
+    const checksumPaths = new Set<string>();
+    for (const source of requestedChecksums) {
+      const release = releases.find((release) => release.id === source.release_id);
+      const asset = release?.assets.find((asset) => asset.id === source.asset_id);
+      requireFact(
+        asset && asset.size <= 1024 * 1024,
+        "core-selection",
+        "Core checksum dependency is outside collected assets or its byte bound",
+      );
+      const pathname = `${repositoryPath}/releases/assets/${source.asset_id}`;
+      checksumPaths.add(`${apiRoot}${pathname}`);
+      const page = await read(pathname, null, (body) => {
+        requireFact(
+          typeof body === "string" && Buffer.byteLength(body) <= 1024 * 1024,
+          "invalid-metadata",
+          "Checksum text exceeds its bound",
+        );
+        return body;
+      });
+      checksum_sidecars.push({ ...source, text: page.body as string });
+    }
+    for (const url of Object.keys(pages)) {
+      if (/\/releases\/assets\/\d+$/u.test(new URL(url).pathname) && !checksumPaths.has(url))
+        delete pages[url];
+    }
+    if (continuation.asset_redirects)
+      for (const url of Object.keys(continuation.asset_redirects)) {
+        if (!checksumPaths.has(url)) delete continuation.asset_redirects[url];
+      }
+    await retain();
     // GitHub provides no atomic repository snapshot. Revalidate every consumed
     // page and preserve the observation interval; any detected change aborts.
+    if (selectedAssets) {
+      // Adaptive rounds may collect [newest, rolling, preceding-stable], while
+      // resume reconstructs the frontier in header order. Bind validation to a
+      // canonical order, keeping repository/header pages ahead of their assets.
+      const positions = new Map(headers.map((header, index) => [header.id, index]));
+      const position = (entry: (typeof requestOrder)[number]) => {
+        const id = entry.pathname.match(/\/releases\/(\d+)\/assets$/u)?.[1];
+        if (/\/releases\/assets\/\d+$/u.test(entry.pathname)) return headers.length;
+        return id ? positions.get(Number(id))! : -1;
+      };
+      requestOrder.sort(
+        (left, right) => position(left) - position(right) || (left.page ?? 0) - (right.page ?? 0),
+      );
+    }
     if (continuation.phase === "collect") {
       continuation.phase = "validate";
       continuation.validation_order_sha256 = observationHash(
@@ -1495,7 +2033,11 @@ export async function observeUpstream(
       "clock-or-budget",
       "observation clock moved backwards or exceeded its deadline",
     );
-    const facts = { repository, releases };
+    const facts = {
+      repository,
+      releases,
+      ...(checksum_sidecars.length ? { checksum_sidecars } : {}),
+    };
     return {
       observation: {
         format: config.format,

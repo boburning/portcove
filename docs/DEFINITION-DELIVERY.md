@@ -14,10 +14,14 @@ component fixtures do not complete either production outcome.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises native portable versions 2–7,
-managed PS1 version 2, N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–25. Staged-source creation
-versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
+The public inventory additionally advertises Libultraship portable version 2,
+native portable versions 2–7, managed PS1 version 2, N64 portable versions 2–4
+and staged-source portable versions 2–5, 8, 10–12 and 15–28. The inventory owner is
+`EngineTemplateCapability::current()` in
+[`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
+the version semantics and admission limits below remain part of each contract.
+
+Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
 Capability negotiation, new-definition admission and retained-state interpretation
@@ -150,19 +154,85 @@ restore preflights complete package conflicts across all retained runtimes befor
 publishing canonical data. This reuses the PS1 coexistence algorithm and grants
 no new publisher, executable, original-file or external-data authority.
 
-Version 25 supplies the bounded fresh-data isolation required by newer managed
-Sonic 3K, Sonic 1 and Mega Man X2 recipes. New indexed entries for these ready
-staged routes must declare `staged-source-portable` with `minimum_version: 25`
-and an inclusive `maximum_version` of at least 25. An interval starting at 24
-is insufficient: it would let a reader without the hold accept the recipe.
-The normal capability resolver therefore refuses these new entries on a
-version-24 inventory. Authors and publishers must emit that requirement; Core
-rejects underdeclared fresh entries rather than treating a guide as enforcement.
-The exact historical Direct package readers and retained entry projections keep
-their existing versions and bytes. Current Core applies its runtime compatibility
-checks independently of the retained envelope version. This is neither state ABI
-proof nor old flat-catalog, protected publication or #534 unchanged-client
-qualification. It introduces no new recipe field or console-family primitive.
+Version 25 introduced bounded fresh-data isolation for managed Sonic 3K,
+Sonic 1 and Mega Man X2 recipes. Retained entries and exact historical Direct
+package readers keep their creating versions and bytes. Current Core applies
+its runtime compatibility checks independently of the retained envelope version.
+
+Version 26 extends isolation to fresh Super Metroid recipes and enforces the
+archive boundary for all four families, including transitions with identical
+persistence scopes. New indexed entries for these ready staged routes must
+start their `staged-source-portable` interval at 26 or later; current Core
+rejects lower-bound underclaims. Reader 25 cannot enforce this boundary and its
+inventory refuses the new requirement. A different verified archive may replace
+or reuse a runtime only with original-only data in the active, canonical and
+retained target roots. An initialized restore receipt does not prove that shared
+player data came from that build.
+
+New guarded backups bind the verified producing archive into their content
+integrity stream; older raw-byte verifiers refuse them. Restore checks every
+actual retained destination before publication or synchronization. Unknown or
+mismatched producing builds cannot restore populated snapshots into a fresh
+guarded runtime. Restore journals retain one operation-owned, content-addressed
+copy of the reviewed manifest in `original_paths`; older restore readers refuse
+that nonempty envelope. Recovery rechecks that input and the phase-owned staged
+or published snapshot before mutation. Existing unbound backups keep their
+original hashes and exact historical administrative behavior, including SM
+v0.3.12. This grants no populated-data migration, state ABI proof, legacy state
+readability, native-game or protected-publication acceptance.
+
+Staged-source version 27 adds the explicit `archive_data_compatibility_v1`
+contract for ready runtime-local GitHub archives. New installations retain a
+format-10 installed envelope that older readers refuse, including embedded and
+unscoped contracts. Its bounded `shared_paths`
+identify reviewed conventional data that can reach compatible successor runtimes;
+all other declared persistent objects remain bound to their producing archive.
+`build_specific_progress_paths` identify progress requiring player review before
+activation. Automatic maintenance stages such an update and preserves the saved
+update preference. Runtime rollback carries current shared data; it does not rewind
+saves or establish an older reader's compatibility.
+
+The concrete data policy, original identity and persistent coordinates are hashed
+into the canonical namespace; the actual retained archive hash supplies each
+build-specific coordinate. New backup content framing authenticates that layout
+and refuses readers that would ignore it, including snapshots without an active
+runtime. Data-only restore can preserve that opaque layout across catalog changes,
+but cannot authorize a fresh runtime to consume it. Historical unpartitioned
+contracts retain their own interpretation and do not inherit version 27's policy.
+
+Staged-source version 28 adds optional `archive_data_transition_v1` for a
+reviewed one-time transition from an exact historical Direct creating contract
+and archive. This declaration is separate from the stable data policy, so adding
+it does not change an established version-27 namespace. The existing game-update
+review binds the complete retained-installation set, active selection, original,
+manifest and restore receipts, player-data preimage and temporary capacity. The
+player explicitly chooses the first update; automatic maintenance cannot admit
+an old installation into this policy.
+
+The existing lifecycle journal stages the new data layout, then fences every
+reviewed retained copy before publishing canonical data. A format-8 installation
+manifest preserves the creating contract, provider, artifact, executable and
+member identities, and adds only the separately reviewed data admission. Its new
+hash is conditionally recorded in the existing installation row. A strict
+version-2 restore receipt binds that hash. Older readers refuse these envelopes;
+missing or downgraded receipts do not grant data access. Recovery uses its frozen
+mapping authority even after catalog changes and holds unexpected data, active
+selection, retained-copy or metadata changes. Once cleanup has durably begun,
+recovery accepts only unchanged surviving entries from its frozen old-data tree,
+so partial deletion can resume while new or modified files remain preserved.
+Current conventional data is mirrored
+from the initialized active runtime, including deletions; its build-specific data
+stays bound to the original archive. Runtime rollback still does not rewind saves.
+
+The corresponding source contract may explicitly declare
+`release_policy: integration-contract-v1` once. It requires enforced original
+identities, existing evidence, a matching source profile and the provider-bound
+version-27 route. Exact historical applicability/evidence remains unchanged;
+ordinary future tag/archive identities use the reviewed integration policy.
+GitHub resolution retains repository, release and asset IDs in its acquisition
+proof and installation manifest. Changed bytes under a retained asset identity
+or replacement of its repository identity refuse; a rolling reference with a new
+asset identity remains a distinct artifact.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique
@@ -1358,6 +1428,12 @@ the retained revision/replay floor is not lowered. Status exposes the actual
 selection, revision, target and authority digests, expiry, counts, withdrawals
 and fallback reason. An expired tombstone is not an indefinite new authority over
 the bundled fallback. There is no startup fetch or unsigned GitHub JSON fallback.
+
+The existing target can carry listing format8 for supported GitLab descriptive
+observations. Exact native tag identities use the existing project/tag reference; GitHub numeric
+IDs retain their shape, and older incapable readers refuse the directory while
+retaining their last-good selection. This is data compatibility, not a publisher
+grant or permission to acquire or execute a package.
 
 CLI `catalog listing-refresh --metadata-base-url <https-base>
 --targets-base-url <https-base>` performs an explicit refresh under the installed

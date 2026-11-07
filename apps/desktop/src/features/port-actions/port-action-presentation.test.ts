@@ -164,7 +164,8 @@ it.each(
     portActionPresentation({ ...portStatus(), port_actions } as PortStatus, "rollback"),
   ).toEqual({
     blocked: true,
-    reason: "Current rollback availability is unavailable. Refresh the workspace to check again.",
+    reason:
+      "Portcove couldn’t check whether you can restore the previous version. Refresh to check again.",
   });
 });
 
@@ -212,12 +213,18 @@ it.each([
   ],
   ["publisher_scope_required", "This publisher is not approved for this port."],
   ["engine_capability_required", "This version of Portcove cannot use this route."],
-  ["ownership_migration_required", "An existing installation needs ownership review."],
+  [
+    "ownership_migration_required",
+    "Review which installation Portcove would manage before continuing.",
+  ],
   ["metadata_replay", "The catalog update is older than the accepted version."],
   ["refresh_incomplete", "The catalog update did not finish."],
   ["metadata_stale", "The catalog information needs refreshing."],
   ["recorded_identity_changed", "The accepted file identity changed."],
-  ["authenticated_integrity_required", "The required file integrity evidence is missing."],
+  [
+    "authenticated_integrity_required",
+    "Portcove is missing the expected verification for this download.",
+  ],
   ["local_integrity_failed", "A required local file check failed."],
   ["mandatory_check_failed", "A required check failed."],
   ["source_identity_mismatch", "The game files do not match the required edition."],
@@ -324,7 +331,7 @@ it.each([
   const status = { ...portStatus(), ...partial } as PortStatus;
   expect(portActionPresentation(status, "install")).toEqual({
     blocked: true,
-    reason: "Setup availability could not be confirmed. Refresh the workspace to check again.",
+    reason: "Portcove couldn’t check whether setup can continue. Refresh to check again.",
   });
 });
 
@@ -514,7 +521,7 @@ it.each([
     const action = portActionPresentation(status, "launch");
     expect(action.blocked).toBe(true);
     expect(action.reason).toBe(
-      "The selected game-file format cannot be used by this runtime. Select and validate the required format before playing.",
+      "This game program can’t use that file format. Choose and check a file in the required format.",
     );
     expect(installedCardInputPresentation(status)?.reasons).toEqual([action.reason]);
   },

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import {
@@ -84,8 +85,9 @@ void test("Windows first beta requires ratified profile and complete exact Windo
 });
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
-  deriveNativePublicationJourneys,
+  deriveNativePublicationJourneysWithSdk,
   deriveHostedNativePublicationJourneys,
+  createNativeCheckpointEvidenceReader,
   inspectNativeCompletionLineage,
   nativeCompletionUsesHistoricalLineage,
   inspectNativePublicationPredecessor,
@@ -153,6 +155,7 @@ const url = name => new URL(name + '.mts', base).href;
 const names = ['release-tuf-publication', 'release-signing-context-artifact', 'release-signing-context', 'release-coordinator-recovery'];
 const original = await Promise.all(names.map(name => import(url(name))));
 const { releaseCanonicalDigest: digest } = await import(url('release-canonical'));
+const { withReadOnlyReleaseChildren } = await import(url('release-readonly-child-environment'));
 const bytes = Buffer.from('{}');
 const sha = createHash('sha256').update(bytes).digest('hex');
 const configuration = structuredClone(data.configuration);
@@ -169,8 +172,19 @@ assert.equal(configuration.namespace, undefined);
 const contextReceipt = {}, tufReceipt = {};
 const manifest = { facts: { configuration: { namespace }, opportunity: {}, assembly: data.assembly, archives: data.archives }, binding: {} };
 let reads = 0;
+let dispatches = 0;
+let blockProxy = false;
+globalThis.fetch = async (input, init) => {
+  dispatches++;
+  const request = new Request(input, init);
+  assert.equal(request.method, 'GET');
+  assert.equal(request.url, 'https://api.github.com/repos/boburning/portcove');
+  assert.equal(request.headers.get('authorization'), 'token original-postsign-reader');
+  return Response.json({}, { status: 503 });
+};
 mock.module(url(names[0]), { namedExports: { ...original[0], requireActualTufPublication: async receipt => {
   assert.equal(receipt, tufReceipt);
+  process.env.GH_TOKEN = 'unrelated-late-ambient-reader';
   return { context_receipt: contextReceipt, publication: { repository_sha256: 'a'.repeat(64) } };
 } } });
 mock.module(url(names[1]), { namedExports: { ...original[1], requireReceivedSigningContext: async receipt => {
@@ -178,20 +192,38 @@ mock.module(url(names[1]), { namedExports: { ...original[1], requireReceivedSign
   return { manifest, context: data.root + '/context/manifest.json' };
 } } });
 mock.module(url(names[2]), { namedExports: { ...original[2], readBoundedReleaseContextFiles: async () => new Map(['trusted-root.json', 'offline-targets.json', 'payload.json'].map(name => [name, bytes])) } });
-mock.module(url(names[3]), { namedExports: { ...original[3], readRemoteCoordinatorSnapshot: async (_directory, selected) => {
+mock.module(url(names[3]), { namedExports: { ...original[3], readRemoteCoordinatorSnapshot: async (directory, selected, options) => {
   assert.deepEqual(selected, { schema_version: 1, namespace });
+  assert.deepEqual(options.transport, {
+    credential: { token: 'original-postsign-reader' },
+    deadline: options.transport.deadline,
+  });
+  assert.ok(options.transport.deadline > performance.now());
   reads++;
-  throw new Error('bounded synthetic reservation seam');
+  if (blockProxy) process.env.NODE_USE_ENV_PROXY = '1';
+  return original[3].readRemoteCoordinatorSnapshot(directory, selected, options);
 } } });
 const collector = await import(url('release-native-publication-admission') + '?selected-composition');
-for (const name of ['collectConfiguredNativePublicationQualificationPair', 'collectConfiguredNativePublicationCompletionPair']) {
-  await assert.rejects(collector[name](data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /configured post-sign native collection refused/);
-}
-assert.equal(reads, 2);
-manifest.facts.configuration.namespace = 'wrong-namespace';
-await assert.rejects(collector.collectConfiguredNativePublicationQualificationPair(data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /acquired candidate differs/);
-assert.equal(reads, 2);
-process.stdout.write('selected-reservation-seam:2\\n');
+process.env.GH_TOKEN = 'original-postsign-reader';
+await withReadOnlyReleaseChildren(data.root, async () => {
+  for (const name of ['collectConfiguredNativePublicationQualificationPair', 'collectConfiguredNativePublicationCompletionPair']) {
+    await assert.rejects(collector[name](data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /configured post-sign native collection refused/);
+  }
+  assert.equal(reads, 2);
+  assert.equal(dispatches, 2);
+  blockProxy = true;
+  try {
+    await assert.rejects(collector.collectConfiguredNativePublicationQualificationPair(data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /configured post-sign native collection refused/);
+    assert.equal(reads, 3);
+    assert.equal(dispatches, 2);
+  } finally {
+    delete process.env.NODE_USE_ENV_PROXY;
+  }
+  manifest.facts.configuration.namespace = 'wrong-namespace';
+  await assert.rejects(collector.collectConfiguredNativePublicationQualificationPair(data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /acquired candidate differs/);
+  assert.equal(reads, 3);
+});
+process.stdout.write('selected-reservation-seam:3\\n');
 `;
   const child = spawnSync(
     process.execPath,
@@ -208,7 +240,7 @@ process.stdout.write('selected-reservation-seam:2\\n');
     },
   );
   assert.equal(child.status, 0, child.stderr);
-  assert.equal(child.stdout.trim(), "selected-reservation-seam:2");
+  assert.equal(child.stdout.trim(), "selected-reservation-seam:3");
 });
 
 void test("hosted post-sign opportunities bind each exact package to a closed signed-repository journey and snapshot it", async (t) => {
@@ -394,7 +426,7 @@ void test("native proof archive preflights all members before bounded decoding a
   assert.throws(() => readHostedNativeProofArchive(small, performance.now() - 1), /deadline/);
 });
 
-void test("native proof artifact discovery brackets inert bytes with exact source-bound inventory and refuses drift", () => {
+void test("native proof artifact discovery brackets inert bytes with exact source-bound inventory and refuses drift", async () => {
   const expected = {
     controller_revision: "a".repeat(40),
     run_id: "123",
@@ -437,7 +469,7 @@ void test("native proof artifact discovery brackets inert bytes with exact sourc
       head_repository_id: 1354613114,
     },
   };
-  const run = (
+  const run = async (
     mode:
       | "ok"
       | "missing"
@@ -459,47 +491,82 @@ void test("native proof artifact discovery brackets inert bytes with exact sourc
       digest: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
       size_in_bytes: bytes.length,
     };
-    const api = {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        assert.equal(
-          endpoint,
-          "repos/boburning/portcove/actions/runs/123/artifacts?per_page=100&page=1",
-        );
-        reads++;
-        const artifacts =
-          mode === "missing"
-            ? []
-            : mode === "duplicate"
-              ? [current, { ...current, id: 11 }]
-              : [
-                  {
-                    ...current,
-                    ...(mode === "drift" && reads === 2 ? { id: 11 } : {}),
-                    ...(mode === "source"
-                      ? { workflow_run: { ...current.workflow_run, head_sha: "b".repeat(40) } }
-                      : {}),
-                  },
-                ];
-        return {
-          status: mode === "unavailable" ? 403 : 200,
-          headers: new Map<string, string>(),
-          body: { total_count: artifacts.length, artifacts },
-        };
-      },
+    const page = async (run: string, page: number) => {
+      assert.equal(run, "123");
+      assert.equal(page, 1);
+      reads++;
+      const artifacts =
+        mode === "missing"
+          ? []
+          : mode === "duplicate"
+            ? [current, { ...current, id: 11 }]
+            : [
+                {
+                  ...current,
+                  ...(mode === "drift" && reads === 2 ? { id: 11 } : {}),
+                  ...(mode === "source"
+                    ? { workflow_run: { ...current.workflow_run, head_sha: "b".repeat(40) } }
+                    : {}),
+                },
+              ];
+      return { total_count: artifacts.length, artifacts };
     };
-    const result = readHostedNativeProofArtifact(
-      api,
-      expected,
-      process.cwd(),
-      performance.now() + 10000,
-      (endpoint, options) => {
-        downloads++;
-        assert.equal(endpoint, "repos/boburning/portcove/actions/artifacts/10/zip");
-        assert.equal(options.maxBytes, bytes.length);
-        return mode === "digest" ? Buffer.alloc(bytes.length) : bytes;
-      },
-    );
+    const deadline = performance.now() + 10000;
+    const metadata =
+      mode === "ok" || mode === "unavailable"
+        ? await createReleaseCustodyProvider({
+            token: "inert-native-artifact",
+            deadline,
+            fetch: async (input, init) => {
+              const request = new Request(input, init);
+              const url = new URL(request.url);
+              assert.equal(url.origin, "https://api.github.com");
+              assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/123/artifacts");
+              assert.equal(url.searchParams.get("per_page"), "100");
+              assert.equal(url.searchParams.get("page"), "1");
+              assert.equal(request.method, "GET");
+              assert.equal(request.headers.get("authorization"), "token inert-native-artifact");
+              assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
+              if (mode === "unavailable")
+                return Response.json({ message: "forbidden" }, { status: 403 });
+              return Response.json(await page("123", 1));
+            },
+          })
+        : { runArtifacts: page };
+    const token = "inert-native-artifact";
+    const result = await readHostedNativeProofArtifact(metadata, expected, deadline, {
+      token,
+      ...(mode === "ok"
+        ? {
+            async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+              const url = new URL(input instanceof Request ? input.url : input);
+              const headers = new Headers(init?.headers);
+              if (url.origin === "https://api.github.com") {
+                downloads++;
+                assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/10/zip");
+                assert.equal(headers.get("authorization"), `token ${token}`);
+                return new Response(null, {
+                  status: 302,
+                  headers: {
+                    location:
+                      "https://productionresultssa10.blob.core.windows.net/actions-results/native?sig=synthetic",
+                  },
+                });
+              }
+              assert.equal(init?.credentials, "omit");
+              assert.equal(headers.has("authorization"), false);
+              return new Response(Uint8Array.from(bytes));
+            },
+          }
+        : {
+            async download(artifact: { id: number; bytes: number }, bound: number) {
+              downloads++;
+              assert.deepEqual(artifact, { id: 10, bytes: bytes.length });
+              assert.equal(bound, deadline);
+              return mode === "digest" ? Buffer.alloc(bytes.length) : bytes;
+            },
+          }),
+    });
     assert.equal(reads, 2);
     assert.equal(downloads, 1);
     assert.equal(result.authority, "none");
@@ -513,7 +580,7 @@ void test("native proof artifact discovery brackets inert bytes with exact sourc
     assert.equal(result.files.report.toString(), "{}");
     assert.equal(Object.hasOwn(result, "hosted_job"), false);
   };
-  run("ok");
+  await run("ok");
   for (const mode of [
     "missing",
     "duplicate",
@@ -523,7 +590,7 @@ void test("native proof artifact discovery brackets inert bytes with exact sourc
     "subject",
     "unavailable",
   ] as const)
-    assert.throws(() => run(mode));
+    await assert.rejects(run(mode));
   assert.throws(() => hostedNativeArtifactName({ ...expected, run_attempt: 2 }), /slot/);
 });
 
@@ -1081,7 +1148,13 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     initial_site_preimage_sha256: bootstrap.initial_site_preimage_sha256,
   });
   let reads = 0;
-  const input: Parameters<typeof deriveNativePublicationJourneys>[0] = {
+  const noRead = async () => {
+    reads++;
+    return assert.fail("initial lineage has no predecessor reads");
+  };
+  const derive = (data: Parameters<typeof deriveNativePublicationJourneysWithSdk>[0]) =>
+    deriveNativePublicationJourneysWithSdk(data, noRead);
+  const input: Parameters<typeof deriveNativePublicationJourneysWithSdk>[0] = {
     files: new Map([["payload.json", payload]]),
     coordinator_input: {
       metadata_bootstrap: bootstrap,
@@ -1121,16 +1194,6 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     signed_context_sha256: "2".repeat(64),
     platform_labels: ["windows-x86_64", "linux-x86_64"],
     public_pins: pins,
-    api: {
-      request: () => {
-        reads++;
-        throw new Error("unexpected provider request");
-      },
-      graphql: () => {
-        reads++;
-        throw new Error("unexpected provider query");
-      },
-    },
   };
   const candidate = {
     phase: "building",
@@ -1166,10 +1229,7 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   } = nextPublished;
   const beforePages = { ...current, published_metadata: published };
   assert.equal(nativeCompletionUsesHistoricalLineage(beforePages, input.manifest), false);
-  assert.deepEqual(
-    deriveNativePublicationJourneys({ ...input, coordinator_input: beforePages }),
-    deriveNativePublicationJourneys(input),
-  );
+  assert.deepEqual(await derive({ ...input, coordinator_input: beforePages }), await derive(input));
   assert.equal(nativeCompletionUsesHistoricalLineage(current, input.manifest), true);
   const wrongSeed = {
     ...current,
@@ -1185,8 +1245,8 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     published_metadata: { ...published, root_sha256: "0".repeat(64) },
   };
   assert.equal(nativeCompletionUsesHistoricalLineage(changedOldRoot, input.manifest), false);
-  assert.throws(
-    () => deriveNativePublicationJourneys({ ...input, coordinator_input: changedOldRoot }),
+  await assert.rejects(
+    () => derive({ ...input, coordinator_input: changedOldRoot }),
     /prior differs/,
   );
   assert.throws(
@@ -1207,13 +1267,10 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   assert.deepEqual(lineage.input, historical);
   assert.notEqual(lineage.input, historical);
   // The unchanged reserved/signing path must still refuse a newer public seed.
-  assert.throws(
-    () => deriveNativePublicationJourneys({ ...input, coordinator_input: current }),
-    /prior differs/,
-  );
+  await assert.rejects(() => derive({ ...input, coordinator_input: current }), /prior differs/);
   assert.deepEqual(
-    deriveNativePublicationJourneys({ ...input, coordinator_input: lineage.input }),
-    deriveNativePublicationJourneys(input),
+    await derive({ ...input, coordinator_input: lineage.input }),
+    await derive(input),
   );
   for (const name of [
     "prepared_commit",
@@ -1284,9 +1341,15 @@ void test("shared data-only journey derivation binds exact prior inventory and r
       }),
     /signed candidate/,
   );
-  const journeys = deriveNativePublicationJourneys(input);
+  const journeys = await derive(input);
   assert.equal(journeys.length, 2);
   assert.equal((journeys[0] as { kind: string }).kind, "initial-empty-feed");
+  assert.deepEqual(
+    await deriveNativePublicationJourneysWithSdk(input, async () =>
+      assert.fail("initial lineage has no predecessor metadata reads"),
+    ),
+    journeys,
+  );
   assert.equal(reads, 0);
   const locatorPins = {
     ...pins,
@@ -1300,16 +1363,25 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     },
   };
   const schema2 = inspectPublicationAuthorities(locatorPins, 2);
+  const noProof = { request: noRead, graphql: noRead };
   assert.deepEqual(
     await deriveHostedNativePublicationJourneys(
       { ...input, authority_schema_version: 4, public_pins: schema2 },
       os.tmpdir(),
       performance.now() + 60000,
+      noRead,
+      noProof,
     ),
     journeys,
   );
   await assert.rejects(
-    deriveHostedNativePublicationJourneys(input, os.tmpdir(), performance.now() + 60000),
+    deriveHostedNativePublicationJourneys(
+      input,
+      os.tmpdir(),
+      performance.now() + 60000,
+      noRead,
+      noProof,
+    ),
     /selected/,
   );
   await assert.rejects(
@@ -1317,30 +1389,29 @@ void test("shared data-only journey derivation binds exact prior inventory and r
       { ...input, authority_schema_version: 4, public_pins: schema2 },
       os.tmpdir(),
       performance.now() - 1,
+      noRead,
+      noProof,
     ),
     /deadline/,
   );
   assert.equal(reads, 0);
   assert.deepEqual(
-    deriveNativePublicationJourneys({
+    await derive({
       ...input,
       authority_schema_version: 2,
       public_pins: schema2,
     }),
     journeys,
   );
-  assert.throws(
-    () => deriveNativePublicationJourneys({ ...input, public_pins: schema2 }),
-    /schema2/,
-  );
-  assert.throws(() =>
-    deriveNativePublicationJourneys({
+  await assert.rejects(() => derive({ ...input, public_pins: schema2 }), /schema2/);
+  await assert.rejects(() =>
+    derive({
       ...input,
       files: new Map([["payload.json", Buffer.from("changed")]]),
     }),
   );
-  assert.throws(() =>
-    deriveNativePublicationJourneys({
+  await assert.rejects(() =>
+    derive({
       ...input,
       coordinator_input: { ...input.coordinator_input, metadata_bootstrap: null },
     }),
@@ -1349,6 +1420,89 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   const recordSha = createHash("sha256").update(record).digest("hex");
   const files = new Map(input.files);
   files.set(`prior/targets/${recordSha}.releases/old.json`, record);
-  assert.throws(() => deriveNativePublicationJourneys({ ...input, files }), /prior differs/);
+  await assert.rejects(() => derive({ ...input, files }), /prior differs/);
   assert.equal(reads, 0);
+});
+
+void test("historical native proof uses exact one-attempt SDK reads and refuses partial GraphQL evidence", async () => {
+  const { checkpointEvidenceRefQuery } =
+    await import("./release-coordinator-checkpoint-evidence.mts");
+  const checkpoint = "a".repeat(40);
+  const calls: string[] = [];
+  let charged = 0;
+  const proof = await createNativeCheckpointEvidenceReader(
+    "inert-native-proof",
+    performance.now() + 5000,
+    () => {},
+    () => {
+      charged++;
+    },
+    async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-native-proof");
+      calls.push(`${request.method} ${url.pathname}`);
+      return url.pathname === "/graphql"
+        ? Response.json({ data: {}, errors: [{ message: "incomplete" }] })
+        : Response.json({ sha: checkpoint });
+    },
+  );
+  assert.deepEqual(
+    await proof.request("GET", `repos/boburning/portcove/git/commits/${checkpoint}`),
+    {
+      status: 200,
+      body: { sha: checkpoint },
+    },
+  );
+  await assert.rejects(
+    async () => proof.request("PATCH", `repos/boburning/portcove/git/commits/${checkpoint}`),
+    /exact Git object GET/u,
+  );
+  await assert.rejects(
+    async () =>
+      proof.graphql(checkpointEvidenceRefQuery, {
+        name: `refs/tags/portcove-fixture-checkpoint-proof/${checkpoint}`,
+      }),
+    { code: "graphql_error" },
+  );
+  assert.equal(charged, 2);
+  assert.deepEqual(calls, [
+    `GET /repos/boburning/portcove/git/commits/${checkpoint}`,
+    "POST /graphql",
+  ]);
+});
+
+void test("historical native proof cuts off a stalled body at the inherited deadline", async () => {
+  const { withCoordinatorDeadline } = await import("./release-coordinator-deadline.mts");
+  let dispatches = 0;
+  let cancelled = false;
+  const proof = await createNativeCheckpointEvidenceReader(
+    "inert-native-proof",
+    performance.now() + 5000,
+    () => {},
+    () => {},
+    async () => {
+      dispatches++;
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("{"));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    },
+  );
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 500, async () =>
+      proof.request("GET", `repos/boburning/portcove/git/commits/${"a".repeat(40)}`),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(dispatches, 1);
+  assert.equal(cancelled, true);
 });

@@ -1,5 +1,11 @@
 # Development tools
 
+Start with [Frontend workflow](#frontend-workflow) for pinned tools and focused
+checks, [Warm single-session workflow](#warm-single-session-workflow) for pickup,
+and [Shared local resources](#shared-local-resources) before heavyweight work.
+[Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
+the detailed recipes and retained observations below do not add merge gates.
+
 ## Verification input and execution identities
 
 `native-rejected-listener-registration` is a standalone Windows qualification
@@ -17,15 +23,25 @@ entrypoints carry the same patch; successful registration and native unlisten
 retain upstream behavior. The maintained adapter regression uses the actual API
 package with an emulated transport. Review the patch and regression when updating
 that dependency; remove the patch only after equivalent upstream cleanup is proven.
-The version-bound `i18next-cli@1.82.0` patch makes both published ESM and
-CommonJS primary-translation loaders try the configured string `extract.defaultNS`
-before their existing namespace fallbacks. Upstream 1.81.0 otherwise misses
-Portcove's `settings.json`, so its nested-resource interpolation check can accept
-missing arguments. Unset/false defaults retain the existing fallbacks; this is
-not general multi-namespace discovery. The separate missing/provided nested-key
-fixtures exercise the actual CLI without inline defaults. Remove the patch only
-after a mature upstream release handles the configured namespace and passes those
-controls; 1.82.0's default-variable feature does not repair this loader.
+The `i18next-cli-default-namespace.patch` applies to `i18next-cli@>=1.82.4 <2`.
+Both published ESM and CommonJS primary-translation loaders try the configured
+string `extract.defaultNS` before their existing namespace fallbacks. Upstream
+1.81.0 otherwise misses Portcove's `settings.json`, so its nested-resource
+interpolation check can accept missing arguments. Unset/false defaults retain
+the existing fallbacks; this is not general multi-namespace discovery.
+
+The range selector lets compatible 1.x upgrades retain the patch instead of
+failing artifact generation on an unused old version key. Patch application
+remains mandatory: changed context or an out-of-range version fails installation;
+no unused-patch exemption is enabled. The separate missing/provided nested-key
+fixtures exercise the actual CLI without inline defaults. Review every upgrade
+and remove the patch only after a mature upstream release handles the configured
+namespace and passes those controls; 1.84.0's linter still guesses namespace names
+instead of reading the configured default. The narrow glob 13.0.6 and minimatch
+10.2.6 security overrides
+remain in policy: the pinned Renovate 44.156.3 tooling client still declares those
+versions, even though this CLI release consumes glob 14 and minimatch 11 directly.
+Validate their application in each generated tooling-client graph separately.
 
 Root pnpm `patches/*.patch` changes, including removal, select the complete UI
 suite. Their bytes also invalidate format, UI and release evidence fingerprints; unrelated
@@ -372,12 +388,17 @@ Consumers still validate the plan, digest and source bindings; compression is
 only transport. Local legacy `PORTCOVE_PLAN_JSON` input remains supported, while
 ambiguous transports, corrupt data and excessive inflation are rejected.
 
+Stylelint 18 loads the typed configuration directly through Node's native type
+stripping. `lint:style` selects `scripts/stylelint-config.mts` explicitly and then
+checks semantic-color, important-declaration, gradient and invalid-value refusal
+controls with the same configuration. The recommended selector/value rules stay
+enabled; no JavaScript configuration bridge is needed.
+
 The compatibility inventory is exactly:
 
-| File                                     | Consumer requirement                                                                                                                      | Checking and validation                                                                           |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `apps/desktop/public/theme-bootstrap.js` | Static HTML loads this public script before the application; Vite copies public files without transforming TypeScript.                    | Its public-directory project enables `checkJs`; theme bootstrap tests exercise the actual script. |
-| `apps/desktop/stylelint.config.mjs`      | Installed Cosmiconfig 9 rejects `.mts` configuration files. This one-line bridge loads the TypeScript implementation through native Node. | Root `checkJs`, the typed Stylelint configuration and actual `lint:style` execution.              |
+| File                                     | Consumer requirement                                                                                                   | Checking and validation                                                                           |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/desktop/public/theme-bootstrap.js` | Static HTML loads this public script before the application; Vite copies public files without transforming TypeScript. | Its public-directory project enables `checkJs`; theme bootstrap tests exercise the actual script. |
 
 The existing CI workflow contract checks this exact tracked JavaScript inventory.
 An additional compatibility file requires a concrete consumer reason and an
@@ -448,22 +469,56 @@ pnpm build
 
 Choose test commands by their runner and evidence scope:
 
-| Command                                           | Runner and evidence                                                                                                                                                            |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm test`                                       | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                                           |
-| `pnpm test:browser`                               | Vite+ `browser`, `browser-locale` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
-| `just test-ui <literal-test-file> ...`            | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                                    |
-| `just test-ui-related <literal-source-file> ...`  | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                                  |
-| `pnpm test:native-tools`                          | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                                      |
-| `pnpm exec vp test`                               | All four frontend projects: Node unit, Chromium browser, French/Auckland locale contracts and forced colors.                                                                   |
-| `just desktop-verify --list-scenarios` / `--plan` | Native harness inventory or execution plan; does not build or launch the app.                                                                                                  |
-| `just desktop-verify --scenario <id>`             | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                                     |
+| Command                                              | Runner and evidence                                                                                                                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test`                                          | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                                           |
+| `pnpm test:browser`                                  | Vite+ `browser`, `browser-locale` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
+| `just test-ui <literal-test-file> ...`               | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                                    |
+| `just test-ui-related <literal-source-file> ...`     | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                                  |
+| `just test-ui --last-failed [literal-test-file ...]` | Developer feedback: replay complete files with recent known failures, or the full requested scope when history is unavailable. Omit files to consider all four projects.       |
+| `pnpm test:native-tools`                             | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                                      |
+| `pnpm exec vp test`                                  | All four frontend projects: Node unit, Chromium browser, French/Auckland locale contracts and forced colors.                                                                   |
+| `just desktop-verify --list-scenarios` / `--plan`    | Native harness inventory or execution plan; does not build or launch the app.                                                                                                  |
+| `just desktop-verify --scenario <id>`                | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                                     |
 
 `pnpm test` covers only the unit project. Browser fixtures, compiler/shell
 contracts and native scenario observations each establish their stated scope;
 they do not establish installed-package, physical-device or human acceptance.
 Native scenarios can use inert fixtures; inspect the selected scenario's plan.
 The [native smoke workflow](#native-desktop-smoke-tests) describes that harness.
+
+Failed-file feedback uses Vitest 5.1's native results cache through its public
+API, rather than the raw `--last-failed` flag's cached test-name filter. Replaying
+the whole file includes renamed cases. Missing, incompatible, incomplete or older
+than six-hour records select the full requested scope; checkout/commit and
+configuration changes also invalidate older history. Added or moved tests have
+no record and force that fallback. Deleted tests are excluded by current discovery;
+an empty failure selection falls back to full execution. Cache paths must remain
+physically inside this checkout, and the resource wrapper serializes participating
+writers in one worktree. Other worktrees retain their own dependency/cache roots.
+No additional test-history files or per-iteration cache namespaces are created.
+The native cache is disposable with `pnpm exec vp test --clearCache`; run this
+only after this worktree's runners stop. Failed-file feedback is rejected in CI
+and coverage collection. Use ordinary `pnpm test`, `pnpm test:browser` and the
+complete-diff validation plan for acceptance.
+
+Vitest 5.1 also supports `--since-last-run` (`--sinceLastRun` in native CLI help),
+but its modification-time selection misses backdated checkouts/copies and new
+resources not loaded by the preceding run. Portcove does not enable it. Use
+`just test-ui-related <changed-source-file> ...` for iterative import-related
+feedback, exact files for closed selections, and full tests for shared/unknown
+impact. The [1.5 evaluation](qualification/viteplus-1.5-2026-11-04.md) records
+the release investigation, comparisons and deliberate deferrals.
+
+Browser projects retain request interception: the 1.5 comparison found slower
+warm runs with experimental import-map mocking. To investigate import maps with
+the pinned Chromium runtime, prefix the usual command with
+`PORTCOVE_BROWSER_IMPORT_MAP_MOCKS=1` on Linux/macOS, or set
+`$env:PORTCOVE_BROWSER_IMPORT_MAP_MOCKS = '1'` in PowerShell. Unset it (or use
+`0`) to restore interception. Browser API ports and Vite test-server ports are allocated by the
+OS; Tauri's development server retains port 1420. Upstream failure-only trace
+timelines complement the existing retained Playwright traces, screenshots and
+bounded case/run observations, including individual retry/repeat outcomes.
 
 Preview affected work, then choose literal files for focused feedback:
 
@@ -489,6 +544,14 @@ execute tests; they have no plan/list mode. Current shared test configuration is
 Selectors retain the deleted `apps/desktop/vitest.config.ts` and
 `apps/desktop/vitest.browser.config.ts` names for historical comparisons and both
 rename sides, so those changes still select full frontend tests and a build.
+
+For an exact browser timing assertion, dispatch the timed DOM events in the
+browser and advance the fake clock explicitly. Vitest Browser Mode advances
+fake timers while Playwright actions such as hover are pending, so an awaited
+hover can consume part of the interval being measured. The tooltip fixture
+parks the real pointer before mounting the triggers, then checks the 399 ms,
+400 ms, and adjacent-hover boundaries with controlled events. Run that fixture
+with `just test-ui src/browser/composition-feedback.browser.test.tsx`.
 
 For an opt-in ordering diagnostic, run a small literal family with an explicit
 unsigned 32-bit decimal seed:
@@ -565,6 +628,32 @@ Suite records retain nested hook failures; module records retain collection
 failures separately. A run context reports
 invalid/omitted diagnostics and unhandled errors. Diagnostics cannot replace the
 runner's original failure or exit.
+
+For a failed hosted frontend job, retain the complete log and inspect a compact
+excerpt before opening individual traces. With the run ID in `RUN_ID` and the
+failed producer job ID in `JOB_ID`, run this command from the repository root.
+
+```sh
+mkdir -p work
+log="work/frontend-${RUN_ID}-${JOB_ID}.log"
+gh run view "$RUN_ID" --job "$JOB_ID" --log > "$log" &&
+  jq -nRc '
+    def clip($n): (strings | .[:$n]) // "";
+    "Frontend test case observation: " as $marker
+    | limit(20; inputs
+      | index($marker) as $start
+      | select($start != null)
+      | .[($start + ($marker | length)):] | fromjson? | objects
+      | select(.outcome == "failed")
+      | {kind: (.kind | clip(16)), file: (.file | clip(160)), name: (.name | clip(160)),
+         message: ((.errors | arrays | .[0] | objects | .message) // "" | clip(240))})
+  ' "$log"
+```
+
+The excerpt shows up to 20 failed records and shortens displayed fields. If it
+is empty or lacks the cause, inspect the failing step, invocation context, and
+retained trace in the original evidence. Setup and collection can fail before
+a case record is emitted.
 
 Each invocation owns a fresh UUID; UUID plus observation index identifies a row.
 Definition hashes use project, repository-relative file, location and full name;
@@ -742,18 +831,42 @@ Complete each proposal through the existing Codex issue/PR delivery process:
    Existing Vite+ projects take the upstream version-only migration, not --full.
    Inspect every manifest, catalog, alias and override. Match the directly consumed
    browser provider to the target's bundled Vitest; verify every upgrade even when
-   the migrator updates it automatically.
+   the migrator updates it automatically. Coordinate the trusted Pack identity
+   in `scripts/release-controller-tools.mts`. Run the fixed controller Pack
+   identity test before publishing the upgrade.
 
-4. Preserve the 1440-minute/non-strict pnpm policy. Remove migrator-added
-   minimumReleaseAgeExclude entries for the bundle: non-strict resolution already
-   supports an explicit selection. Preserve allowBuilds restrictions and worktree
-   hook/signing adapters. Frozen-install, inspect `pnpm exec vp toolchain`, then
-   run checks, units/browser tests, build, affected cache/portability checks and
-   invalidated native acceptance.
+   `node --test --test-name-pattern="fixed controller Pack identity" scripts/release-controller-tools.test.mts`
+
+   Qualify the existing public controller tool build fixtures on Linux and
+   Windows. The builder, manifest producer and validator require that exact
+   identity.
+
+4. Preserve the 1440-minute/non-strict pnpm policy and remove migrator-added
+   `minimumReleaseAgeExclude` entries for the bundle. Preserve allowBuilds
+   restrictions and worktree hook/signing adapters. Run
+   `pnpm install --frozen-lockfile` against the final manifests and lockfile and
+   record its successful exit before publishing the candidate. If pnpm's
+   frozen-install policy rejects a release that is still too young, record the
+   release-age wait and defer the push until the package is eligible and the
+   same command passes. Inspect `pnpm exec vp toolchain`, then run checks,
+   units/browser tests, build, affected cache/portability checks and invalidated
+   native acceptance.
 5. Commit the coherent result in that worktree. Integrate it into the owned
-   proposal branch through normal Git merge and explicit conflict review; retain
-   the verified complete manifest/lock result. Obtain separate non-writing review,
-   complete exact-head CI, guarded merge and remote readback.
+   proposal branch through normal Git merge and explicit conflict review, keeping
+   the verified complete manifest/lock result. Before the first upgrade push,
+   run the hosted selector `node scripts/select-ci-plan.mts` locally with the
+   candidate's full committed diff. Use `GITHUB_EVENT_NAME=pull_request`,
+   `PORTCOVE_BASE_SHA` set to the reviewed target, `PORTCOVE_HEAD_SHA` set to the
+   candidate, and `GITHUB_SHA` set to the candidate if it already includes the
+   target or to the locally composed merge commit. Set
+   `PORTCOVE_FAST_VALIDATION_ACTIVATED=true` and
+   `PORTCOVE_PROSE_POLICY_ACTIVATED=true` as in the ordinary PR workflow.
+   Create `work/ci-plan` and set `GITHUB_OUTPUT` to an absolute file path there
+   to capture the selector's workflow outputs. Check
+   `work/ci-plan/validation-plan.json` for the expected obligations across the
+   full diff, including changes brought in from the proposal branch. Obtain
+   separate non-writing review, complete required CI on the published head, then
+   perform the guarded merge and remote readback.
 
 Repository postUpgradeTasks are not used: arbitrary commands are blocked by
 Renovate's default hosting policy, and no administrator allowedCommands support
@@ -1013,12 +1126,47 @@ For update/scan harness engineering, read [native IPC probes](reference/desktop-
 The configured Octokit integration in `scripts/github-client.mts` collects each
 metadata body under a byte cap before SDK parsing, defaults to 16 MiB and a
 15-second request deadline, and retains an original monotonic operation deadline.
+A supplied collection deadline can shorten that request limit but cannot lengthen
+it or renew an exhausted logical request.
 The production `capture-port` path uses asynchronous REST inventory and intake;
-Aqua, handoff evidence, postmerge metadata, repository settings and CI-health
-metadata use the same factory. Ordinary pagination uses the SDK iterator while
+Aqua, handoff evidence, postmerge metadata, repository settings, CI-health,
+Roadmap inventories and mutations, body edits, delivery checks, source provenance,
+discovery and upstream preparation use the same factory. Ordinary pagination uses the SDK iterator while
 preserving raw response/count evidence and refusing synthetic empty results for
-HTTP 409. API-version headers remain owned by each caller. Existing unmigrated
-callers still use the bounded legacy runner during #4319.
+HTTP 409. API-version headers remain owned by each caller. Configured upstream
+observation, fresh repository identity and checkpoint recovery also use the SDK,
+retaining their existing cache and completeness owners. Catalog health uses that
+SDK factory; remaining release caller families retain their bounded transports
+during #4319.
+Controller wake and the inert job-token dispatch fixture use asynchronous fixed-repository
+SDK operations, with frozen dependencies installed from the trusted selected checkout
+before credentialed scripts. Installation remains charged to the original provider-job
+55-second deadline. Complete acknowledged-run responses are retained before deadline
+refusal; incomplete streams supply no successful response evidence. Dispatch remains
+one attempt, with no automatic retry or release activation authority.
+Historical checkpoint and hosted native custody read exact attempt, job and
+source metadata through the SDK, retaining each proof's original deadline and
+the shared source/job request budget across later readback. Signature
+verification retains its separately bounded attestation subprocess.
+The verified publication controller uses SDK reads for its original provider job
+clock and retained upload locator, keeping the existing journal readback order.
+Publication result custody shares the bounded source, attempt, job and artifact
+metadata reader; refreshing its proof can only shorten the original deadline.
+Immutable Release custody also uses fixed SDK reads. The Release owner still
+requires the draft-inclusive inventory, exact version tag and asset readback
+before accepting an effect or reconciling an ambiguous mutation. Its fixed
+create, asset upload and publish effects use one SDK dispatch with the separate
+publication token. Redirects are refused, risk expiry is checked at dispatch,
+and a response alone never establishes settlement. Archive bytes remain with
+their existing owners.
+Signing-output and TUF role custody use the same SDK reader for sequential
+attempt, job and artifact checks around byte custody. A later role refresh
+can tighten the original deadline; archive reads and attestation keep their
+existing bounds and private execution environment.
+The maintained report
+publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
+main checkout installs frozen dependencies before the credentialed steps. Existing
+artifact-byte downloads remain staged acquisition work under the same owner.
 
 Eligible reads have at most three total attempts; writes run once and require
 authoritative reconciliation after ambiguity. Reusing a logical request policy
@@ -1031,8 +1179,37 @@ Explicit credentials never fall back to another source. Anonymous clients never
 inherit credentials. Eligible local tooling selects `GH_TOKEN`, then
 `GITHUB_TOKEN`, then resolves an existing `gh` login once per command; workflows
 must supply their credential. Retained attestation verification has its own
-bounded subprocess helper and cannot invoke `gh api`. Artifact-byte acquisition
-retains its existing bounded helper until its caller family migrates.
+bounded subprocess helper and cannot invoke `gh api`. Source-report and SBOM
+attestation verification use that retained path with the captured reader environment,
+original coordinator deadline and existing output limits. Timeout or output-limit
+failures cannot publish complete-looking proof; bounded diagnostics redact credentials
+before truncation. Pinned native verifier owners remain separate. Intel artifact cleanup is
+an explicit-credential workflow client: it completes each scoped SDK inventory
+before deletion, rereads identity and sends one DELETE followed by authoritative
+readback. Its trusted main workflow installs the locked packages before the token
+step. Existing cleanup eligibility and workflow permissions remain authoritative.
+Audit receipt discovery uses command-scoped SDK metadata reads and awaited
+identity/readback before importing evidence. Publication-source custody uses
+fixed SDK Git-object reads and pure queries with the captured job-reader token;
+exact object hashes, source closure and candidate-execution restrictions remain
+with the materializer. Trusted controller bundles include the locked SDK and
+refuse external runtime package imports. Native Check locator discovery awaits
+fixed source/App SDK reads, preserves complete stable inventories and returns inert
+locators only. Report authentication and native acceptance remain separate. Pages
+deployment creation and status readback use the configured SDK with one attempt
+and the existing final pre-POST guard. Recovery awaits provider/public-byte/provider
+observations and never treats absence as proof of no effect. Artifact-byte acquisition
+retains its existing bounded helper until its caller family migrates. The discovery
+worker now admits GitHub only for its original artifact ZIP byte route; external
+GET/HEAD provider reads remain separate from GitHub metadata.
+
+Discovery verifies its loaded bootstrap plus package manifests, lockfile,
+workspace and runtime inputs before and after refresh and dependency installation.
+A changed input requires restarting with current main. Frozen dependency setup
+uses the existing managed resource path, disables install hooks and receives no
+GitHub credentials; the SDK/session import and credential resolution follow it.
+The pre-install closure contains only repository modules and Node built-ins;
+checkpoint locking and canonical JSON hashing do not load the observer network client.
 
 Transport evidence is scoped to the command and distinguishes dispatched
 attempts. REST inventory owns cache validation and completeness. GraphQL callers
@@ -1189,6 +1366,12 @@ disjoint dependency ownership. Install from the repository root with
 `pnpm install --frozen-lockfile`. Root commands such as `pnpm
 format:check`, `pnpm lint`, `pnpm build`, and `pnpm
 test` forward to the desktop package without creating another lockfile.
+
+For a manifest or lockfile change, preview the complete diff with
+`just local-check --plan`. Run
+`just test-node scripts/dependency-automation.test.mts` for early feedback on
+the root and desktop dependency inventories and their shared dependency set.
+Run the changed consumer's tests alongside it before publishing the candidate.
 
 On Windows, run `./scripts/bootstrap-quality-tools.ps1`. It downloads the exact
 Aqua release named by `.aqua-version` from Aqua's official release origin, verifies
@@ -2222,7 +2405,17 @@ Its format-2 registry gives each test file one ownership record with
 `[suite, position]` memberships; suites retain their existing runner arguments.
 Positions are unique nonnegative safe integers within a suite. Gaps allow new
 records without renumbering others, and independent positions preserve suites
-with different execution orders. Legacy format-1 inputs remain readable for
+with different execution orders.
+Optional `ordinary_families` membership on that same test record supplies the
+ordinary selector's shared contract families. Add/move a test in the registry;
+do not synchronize another filename array in `ordinary-validation.mts`.
+Semantic safety input-to-family relationships (such as process containment) stay
+explicit in the selector. Cargo's bounded offline `metadata --no-deps` output
+supplies ordinary workspace package names and locations for Rust inputs, with
+`RUSTUP_AUTO_INSTALL=0` so selection never provisions a missing toolchain; missing,
+ambiguous or unavailable metadata retains conservative unknown/workspace coverage.
+Prose-only selection does not invoke Cargo, and no dependency graph crawl or
+persistent package cache is introduced. Legacy format-1 inputs remain readable for
 existing callers and fixtures.
 
 Add, rename or remove the ownership record, then run `node scripts/node-test-suites.mts --write`
@@ -3148,7 +3341,10 @@ custody. Windows process-identity inspection retains a finite 15-second harness
 budget under host I/O load; host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery
-requires an explicit completion marker; PID absence alone is insufficient.
+requires an explicit completion marker. If registration is missing after launch,
+recovery requires positive Linux supervisor cleanup from the original pinned
+verifier, exit of the original Linux owner, and unchanged custody. The Windows
+reservation is released only after its original owner and lease are rechecked.
 
 Prepare the scoped [scratch profiles](DEVELOPMENT-STORAGE.md#machine-scratch-profiles),
 then run from the updated WSL checkout:

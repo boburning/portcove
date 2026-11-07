@@ -260,7 +260,9 @@ describe("desktop components", () => {
     expect(html).toContain("1.0 TiB total storage capacity");
     expect(html).toContain('aria-label="Available capacity on the library volume"');
     expect(html).toContain("width:50%");
-    expect(html).toContain("Installed application files are kept separate from saves and settings");
+    expect(html).toContain(
+      "Check Saves &amp; backups on each game’s page for its save locations and backup options.",
+    );
     expect(html).toContain(
       "Metadata records installed versions, saved file locations and settings",
     );
@@ -341,7 +343,9 @@ describe("desktop components", () => {
     expect(html).toContain("Not found");
     expect(html).toContain("C:/Tools/chdman.exe");
     expect(html).toContain("E:/Missing/DolphinTool.exe");
-    expect(html).toContain("Future tool was not found. Choose its executable to continue.");
+    expect(html).toContain(
+      "Portcove couldn’t find Future tool. If it’s installed, choose its program file.",
+    );
     expect(html).toContain("Environment variable: PORTCOVE_FUTURE_TOOL");
     expect(html).toContain("Tool details");
     expect(html).toContain("Official site");
@@ -382,10 +386,10 @@ describe("desktop components", () => {
     expect(html).toContain("Create a support report");
     expect(html).toContain("Game-file contents and saved credentials are excluded");
     expect(html).toContain("paths, file names, and other metadata may remain");
-    expect(html).toContain("Review the bundle before sharing it");
+    expect(html).toContain("Review the support report before sharing it");
     expect(html).toContain("Examples of details that may remain");
     expect(html).toMatch(
-      /<p>[^<]*Game-file contents and saved credentials are excluded[^<]*paths, file names, and other metadata may remain[^<]*Review the bundle before sharing it\.<\/p>\s*<details>/u,
+      /<p>[^<]*Game-file contents and saved credentials are excluded[^<]*paths, file names, and other metadata may remain[^<]*Review the support report before sharing it\.<\/p>\s*<details>/u,
     );
     expect(html).toMatch(
       /<button[^>]*data-variant="outline"[^>]*>Create a support report<\/button>/u,
@@ -735,7 +739,7 @@ describe("desktop components", () => {
     expect(html).not.toContain(">Update file location</button>");
     expect(html).toContain("Review saved location removal");
     expect(html).not.toContain("Remove saved location…");
-    expect(html).not.toContain('aria-label="Saved-location removal impact"');
+    expect(html).not.toContain('aria-label="Review removal of the saved file location"');
     expect(html).toContain("Needs attention");
     expect(html).not.toContain("Checking identity");
   });

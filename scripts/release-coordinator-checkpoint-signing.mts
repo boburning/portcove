@@ -1,6 +1,7 @@
 /** Producer preparation inside the existing trusted controller. The owning
  * driver must establish its ratified history/current controls and durable remote
  * pending intent before invoking this adapter. There is no CLI or activation. */
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import path from "node:path";
@@ -29,7 +30,10 @@ import type { CheckpointProducerExpectation } from "./release-coordinator-checkp
 import { createCheckpointSigningStore } from "./release-app-registration-capture.mts";
 import { requirePreparedHostedNativeCustody } from "./release-hosted-native-acceptance.mts";
 import type { AppRegistrationStore } from "./release-app-registration-capture.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 import { createCheckpointSigningTransport } from "./release-checkpoint-signing-transport.mts";
 
 type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
@@ -104,13 +108,16 @@ export async function signCoordinatorCheckpointEvidence(
   const injected = Boolean(
     selected.environment || selected.fetcher || selected.identity || selected.createStore,
   );
+  const identityTransport = selected.identity?.transport;
   if (
     injected &&
     (!selected.fetcher ||
       !selected.environment ||
       !selected.createStore ||
       !selected.identity?.readKeys ||
-      !selected.identity.transport?.spawn)
+      !identityTransport ||
+      !("cwd" in identityTransport) ||
+      !identityTransport.spawn)
   )
     throw new Error("complete injected signing transport, identity and custody required");
   const capture = path.join(directory, `checkpoint-signing-${checkpoint.checkpoint}`);
@@ -127,7 +134,7 @@ export async function signCoordinatorCheckpointEvidence(
           checkpoint: checkpoint.checkpoint,
           subject_sha256: hash(input.subject),
           producer: expected.producer,
-          sdk: "@sigstore/sign@5.0.0",
+          sdk: `@sigstore/sign@${fixedReleaseToolDependencies().sigstoreSign}`,
           automatic_retry: false,
           signature_verification: "not-performed",
           authority: "none",
@@ -155,7 +162,10 @@ export async function signCoordinatorCheckpointEvidence(
       },
       {
         ...selected.identity,
-        transport: { ...selected.identity?.transport, cwd: directory, deadline },
+        transport:
+          identityTransport && "cwd" in identityTransport
+            ? { ...identityTransport, cwd: directory, deadline }
+            : { sdkToken: fixedReleaseReaderToken(), requireDirect: true, deadline },
       },
     );
     if (

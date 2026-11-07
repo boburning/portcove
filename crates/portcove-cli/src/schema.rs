@@ -30,6 +30,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
     serde_json::Value::Object(
         [
             (
+                "port_capability_report",
+                serde_json::json!(schema_for_contract::<portcove_core::PortCapabilityReport>(
+                    contract
+                )),
+            ),
+            (
                 "game_settings_contract",
                 serde_json::json!(schema_for_contract::<portcove_core::GameSettingsContract>(
                     contract

@@ -14,20 +14,25 @@ import { inspectControllerExecutionPurpose } from "./release-control-phases.mts"
 import { isRecord } from "./runtime-values.mts";
 import {
   controllerOidcSubject,
+  jobIdentityRefusalCode,
   controllerToolBootstrapProfile,
 } from "./assembler-job-identity.mts";
 const project = fileURLToPath(new URL("..", import.meta.url));
 const mode = process.argv[2];
+// Only fixed boundary labels leave this entrypoint. Errors can contain credentials.
+let boundary = "host";
 try {
   if (process.arch !== "x64" || (process.platform !== "linux" && process.platform !== "win32"))
     throw new Error("fixed controller bootstrap host required");
   const windows = process.platform === "win32";
   const profile = controllerToolBootstrapProfile(windows ? "windows-x86_64" : "linux-x86_64");
+  boundary = "purpose";
   if (
     windows &&
     inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) !== "application"
   )
     throw new Error("Windows tool bootstrap is application-only");
+  boundary = "operation";
   if (
     process.argv.length !== 3 ||
     (mode !== "build" &&
@@ -38,6 +43,12 @@ try {
     !path.isAbsolute(process.env.RUNNER_TEMP)
   )
     throw new Error("fixed bootstrap operation required");
+  boundary = "credential-boundary";
+  // Hosted runner images set these Azure CLI and DevOps CLI directory paths globally.
+  // The controller never invokes Azure CLI or passes its configuration onward.
+  delete process.env.AZURE_CONFIG_DIR;
+  delete process.env.AZURE_EXTENSION_DIR;
+  delete process.env.AZURE_DEVOPS_CACHE_DIR;
   for (const key of Object.keys(process.env))
     if (
       /^PORTCOVE_CATALOG_(?:DEFINITIONS|POLICY|SNAPSHOT|TIMESTAMP)_KEY$/u.test(key) ||
@@ -46,16 +57,22 @@ try {
       )
     )
       throw new Error("role credentials cannot enter controller bootstrap");
+  boundary = "source-revision";
   const commit = process.env.PORTCOVE_CONTROLLER_REVISION;
   if (!commit || !/^[a-f0-9]{40}$/u.test(commit))
     throw new Error("independently fixed controller revision required");
   if (mode === "prepare-windows-runtime" || mode === "prepare-windows-native-runtime") {
+    boundary = "windows-runtime-host";
     if (!windows) throw new Error("Fixed Windows runtime bootstrap only");
+    boundary =
+      mode === "prepare-windows-runtime" ? "windows-bootstrap-runtime" : "windows-native-runtime";
     if (mode === "prepare-windows-runtime") await prepareAdmittedWindowsBootstrapRuntime();
     else await prepareAdmittedWindowsNativeRuntime();
   } else if (mode === "build") {
+    boundary = "compiler-credential-boundary";
     if (process.env.GH_TOKEN || process.env.GITHUB_TOKEN)
       throw new Error("no GitHub read/write credential is needed during compilation");
+    boundary = "compiler-source-tree";
     const tree = execFileSync("git", ["rev-parse", `${commit}^{tree}`], {
       cwd: project,
       encoding: "utf8",
@@ -68,13 +85,17 @@ try {
         GIT_NO_REPLACE_OBJECTS: "1",
       },
     }).trim();
+    boundary = "compiler-output-custody";
     const outputParent = windows
       ? await mkdtemp(path.join(homedir(), ".pct-"))
       : process.env.RUNNER_TEMP;
+    boundary = "compiler-build";
     const built = await buildControllerTools(project, outputParent, { commit, tree });
+    boundary = "compiler-output";
     if (!process.env.GITHUB_OUTPUT) throw new Error("fixed bootstrap output channel unavailable");
     await appendFile(process.env.GITHUB_OUTPUT, `tools=${built.tools}\nsource_tree=${tree}\n`);
   } else {
+    boundary = "upload-policy";
     const policy: unknown = JSON.parse(
       (inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
       "catalog-publication"
@@ -83,6 +104,7 @@ try {
     );
     if (!isRecord(policy))
       throw new Error("ratified controller actor/ref configuration unavailable");
+    boundary = "upload-binding";
     const binding = await prepareControllerToolPredicate(
       process.env.RUNNER_TEMP,
       {
@@ -105,15 +127,18 @@ try {
         run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
       },
     );
+    boundary = "upload-output";
     if (!process.env.GITHUB_OUTPUT) throw new Error("fixed predicate output channel unavailable");
     await appendFile(
       process.env.GITHUB_OUTPUT,
       `predicate=${JSON.stringify(binding.predicate)}\nmanifest_sha256=${binding.manifest_sha256}\n`,
     );
   }
-} catch {
+} catch (error) {
+  const identityRefusal = jobIdentityRefusalCode(error);
+  const stage = identityRefusal ? `${boundary}/${identityRefusal}` : boundary;
   console.error(
-    "fixed controller bootstrap refused; retain private build/acquisition evidence; no automatic retry",
+    `fixed controller bootstrap refused at ${stage}; retain private build/acquisition evidence; no automatic retry`,
   );
   process.exitCode = 2;
 }

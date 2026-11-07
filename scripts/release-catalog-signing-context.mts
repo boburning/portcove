@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { spawnSync } from "node:child_process";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -29,7 +28,13 @@ import {
   inspectRemoteGitObject,
 } from "./release-coordinator-recovery.mts";
 import { inspectReleaseSourceTree } from "./release-source-changes.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { createFixedControlReadAllowance } from "./release-control-inputs.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import {
+  createReleaseCustodyProvider,
+  type CatalogAnchorMetadataProvider,
+} from "./release-custody-provider.mts";
 import {
   materializePublishedCatalogCompleteSite,
   requirePublishedCatalogCompleteSite,
@@ -76,8 +81,8 @@ type Executor = Parameters<typeof capacityExecutorIdentity>[0];
 type Owned = {
   session: Session;
   directory: string;
-  work: string;
   deadline: number;
+  credential: { token: string };
   files: ReturnType<typeof inventory>;
   facts: ReturnType<typeof inspectCatalogSigningFacts>;
   binding: ReturnType<typeof inspectCatalogSigningBinding>["binding"];
@@ -96,51 +101,23 @@ function remaining(owned: { deadline: number }, max = 15000) {
     throw new Error("catalog context original deadline exhausted");
   return Math.min(left, max);
 }
-function apiFor(owned: Pick<Owned, "directory" | "work" | "deadline">) {
-  let reads = 0;
-  const env = {
-    PATH: process.env.PATH,
-    SystemRoot: process.env.SystemRoot,
-    HOME: owned.work,
-    USERPROFILE: owned.work,
-    GH_CONFIG_DIR: path.join(owned.work, "gh-config"),
-    GH_TOKEN: process.env.GH_TOKEN,
-    GH_PROMPT_DISABLED: "1",
-    GH_NO_UPDATE_NOTIFIER: "1",
-    NO_COLOR: "1",
-  };
-  return new GitHubApiClient((args, input) => {
-    if (++reads > 32) throw new Error("catalog context bounded GET budget exhausted");
-    const response = createGitHubRunner({
-      cwd: owned.directory,
-      maxBuffer: 2 * 1024 ** 2,
-      timeoutMs: remaining(owned),
-      spawn: (command, args, settings) => spawnSync(command, args, { ...settings, env }),
-    })([...args, "--hostname", "github.com"], input);
-    remaining(owned);
-    return response;
-  });
-}
 /** Fixed ratified Git paths, complete bounded raw tree and exact Git blob hash.
  * This authenticates public bytes, not a new publisher or trust root. */
-export function readCatalogPublicAnchors(
-  api: Pick<GitHubApiClient, "request">,
-  pins: {
+export async function readCatalogPublicAnchors(
+  metadata: CatalogAnchorMetadataProvider,
+  rawPins: {
     commit: string;
     root: { path: string; bytes: number; sha256: string };
     offline_targets: { path: string; bytes: number; sha256: string };
   },
   deadline: number,
 ) {
-  const get = (route: string) => {
-    remaining({ deadline });
-    const response = api.request("GET", `repos/boburning/portcove/${route}`);
-    remaining({ deadline });
-    if (response.status !== 200) throw new Error("catalog public source unavailable");
-    return response.body;
-  };
-  const commit = inspectRemoteCommitObject(get(`git/commits/${pins.commit}`), pins.commit),
-    tree = inspectReleaseSourceTree(get(`git/trees/${commit.tree}?recursive=1`), commit.tree);
+  const pins = structuredClone(rawPins);
+  remaining({ deadline });
+  const commit = inspectRemoteCommitObject(await metadata.commit(pins.commit), pins.commit);
+  remaining({ deadline });
+  const tree = inspectReleaseSourceTree(await metadata.tree(commit.tree), commit.tree);
+  remaining({ deadline });
   const result = new Map<string, Buffer>();
   for (const [name, pin] of [
     ["trusted-root.json", pins.root],
@@ -155,7 +132,9 @@ export function readCatalogPublicAnchors(
       pin.bytes > 128 * 1024
     )
       throw new Error("catalog anchor is not bounded regular Git input");
-    const body = get(`git/blobs/${entry.oid}`);
+    remaining({ deadline });
+    const body = await metadata.blob(entry.oid);
+    remaining({ deadline });
     if (
       !isRecord(body) ||
       body.sha !== entry.oid ||
@@ -182,7 +161,7 @@ async function snapshot(owned: Owned) {
   return readRemoteCoordinatorSnapshot(
     owned.directory,
     { schema_version: 1, namespace: owned.session.namespace },
-    { transport: { cwd: owned.directory, deadline: owned.deadline } },
+    { transport: { credential: owned.credential, deadline: owned.deadline, requireDirect: true } },
   );
 }
 async function verifyState(owned: Owned) {
@@ -236,8 +215,8 @@ async function prepareContext(session: Session, parent: string) {
   const work = await mkdtemp(path.join(parent, "catalog-signing-context-")),
     directory = path.join(work, "context");
   await mkdir(directory, { mode: 0o700 });
-  const partial = { work, directory, deadline },
-    api = apiFor(partial),
+  const reserve = createFixedControlReadAllowance(),
+    credential = { token: fixedReleaseReaderToken() },
     authorities = await requireControllerCatalogJobAuthorities("coordinator"),
     pins = authorities.catalog.public_source;
   if (
@@ -246,7 +225,13 @@ async function prepareContext(session: Session, parent: string) {
     session.descriptor.prior.catalog_root_sha256 !== pins.root.sha256
   )
     throw new Error("catalog context ratified authority differs");
-  const files = readCatalogPublicAnchors(api, pins, deadline),
+  const metadata = await createReleaseCustodyProvider({
+    token: credential.token,
+    deadline,
+    reserve,
+    beforeDispatch: () => assertTrustedDirectNode("fixed catalog signing context"),
+  });
+  const files = await readCatalogPublicAnchors(metadata, pins, deadline),
     bundle = await readCatalogPublicationBundle(session.inspection.bundle, deadline);
   assertControllerCatalogPublisherScope(
     authorities.configuration,
@@ -305,7 +290,7 @@ async function prepareContext(session: Session, parent: string) {
   const state = await readRemoteCoordinatorSnapshot(
       directory,
       { schema_version: 1, namespace: session.namespace },
-      { transport: { cwd: directory, deadline } },
+      { transport: { credential, deadline, requireDirect: true, reserve } },
     ),
     seed = inspectPublishedCatalogMetadata(state.input.published_catalog_metadata);
   if (
@@ -377,12 +362,15 @@ async function prepareContext(session: Session, parent: string) {
     },
     prior,
   ).binding;
-  const current = session.controls.readMaintenance(api),
+  const current = await session.controls.readSdkMaintenance(reserve, {
+      deadline,
+      signingContext: true,
+    }),
     owned: Owned = {
       session,
       directory,
-      work,
       deadline,
+      credential,
       files: inventory(files),
       facts,
       binding,
@@ -509,7 +497,21 @@ export async function requireActualCatalogSigningContext(receipt: object, phaseD
   }
   return withCoordinatorDeadline(owned.deadline, () => readContext(receipt));
 }
-async function readContext(receipt: object) {
+/** Fresh controls and retained private-receipt inputs only. The owned signed
+ * journal checks mutable head/pending state during its checkpoint exchange. */
+export async function requireActualCatalogSigningCheckpointControls(
+  receipt: object,
+  phaseDeadline?: number,
+) {
+  const owned = contexts.get(receipt);
+  if (!owned) throw new Error("actual same-process catalog context required");
+  if (phaseDeadline !== undefined) {
+    remaining({ deadline: phaseDeadline });
+    owned.deadline = Math.min(owned.deadline, phaseDeadline);
+  }
+  await withCoordinatorDeadline(owned.deadline, () => readContext(receipt, false));
+}
+async function readContext(receipt: object, verifyCheckpointState = true) {
   const owned = contexts.get(receipt);
   if (!owned) throw new Error("actual same-process catalog context required");
   remaining(owned);
@@ -522,8 +524,7 @@ async function readContext(receipt: object) {
   if (authorities.configuration_sha256 !== owned.configuration_sha256)
     throw new Error("catalog protected authority changed");
   assertControllerCatalogPublisherScope(authorities.configuration, inspection.inspection, bundle);
-  const api = apiFor(owned),
-    semantic = await owned.session.recheck_semantic(owned.deadline);
+  const semantic = await owned.session.recheck_semantic(owned.deadline);
   if (
     semantic.proof_sha256 !== owned.facts.semantic_proof_sha256 ||
     inspection.tools_receipt !== owned.session.tools ||
@@ -531,7 +532,7 @@ async function readContext(receipt: object) {
     inspection.bundle_sha256 !== owned.facts.descriptor.bundle_sha256
   )
     throw new Error("catalog actual inspection/semantic proof changed");
-  await verifyState(owned);
+  if (verifyCheckpointState) await verifyState(owned);
   if (owned.site)
     await (owned.site_component === "catalog"
       ? requirePublishedCatalogCompleteSite(owned.site)
@@ -545,7 +546,10 @@ async function readContext(receipt: object) {
     owned.source = await owned.session.next_controls(owned.deadline);
     owned.observed = performance.now();
   }
-  const current = owned.source.readMaintenance(api);
+  const current = await owned.source.readSdkMaintenance(createFixedControlReadAllowance(), {
+    deadline: owned.deadline,
+    signingContext: true,
+  });
   if (catalogCoordinatorMaintenanceIdentity(current) !== owned.control_identity)
     throw new Error("catalog actual controls changed");
   remaining(owned);
@@ -640,6 +644,9 @@ export async function completeCoordinatorCatalogSigningContext(
               remote_identity: `github-actions:boburning/portcove:artifact:${handoff.artifact_id}`,
               evidence_sha256: handoff.predicate_sha256,
             };
+          },
+          async () => {
+            await requireActualCatalogSigningCheckpointControls(receipt, deadline);
           },
         );
       if (!handoff) throw new Error("catalog context upload has no independently read back output");

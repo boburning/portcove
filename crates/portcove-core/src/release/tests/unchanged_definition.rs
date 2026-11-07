@@ -1943,6 +1943,12 @@ async fn assert_native_engine_adoption_selection(id: &str) {
     assert!(port.channels.contains(&channel), "{id}");
     let observed = &case["release"];
     let name = case["selected_asset"].as_str().unwrap();
+    let scenarios: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/native-engine-release-scenarios.json"
+    ))
+    .unwrap();
+    let scenario = &scenarios[case["repository"].as_str().unwrap()];
+    let player_scenario = &scenario["players"][name];
     let selected = observed["assets"]
         .as_array()
         .unwrap()
@@ -1951,20 +1957,17 @@ async fn assert_native_engine_adoption_selection(id: &str) {
         .unwrap();
     let mut successor = observed.clone();
     let original_tag = observed["tag_name"].as_str().unwrap();
-    let next_tag = match original_tag {
-        "1.5.5" => "1.5.6",
-        "v0.9.7" => "v0.9.8",
-        "v0.82.1" => "v0.82.2",
-        "v3.0.2025.0616" => "v3.0.2025.0617",
-        "latest" => "latest",
-        _ => panic!("unreviewed source case"),
-    };
+    let next_tag = scenario["successor_tag"].as_str().unwrap();
     successor["tag_name"] = serde_json::json!(next_tag);
-    for asset in successor["assets"].as_array_mut().unwrap() {
-        let next = asset["name"].as_str().unwrap().replace(
-            original_tag.trim_start_matches('v'),
-            next_tag.trim_start_matches('v'),
-        );
+    let assets = successor["assets"].as_array_mut().unwrap();
+    let next_names = scenario["successor_asset_names"].as_array().unwrap();
+    assert_eq!(
+        assets.len(),
+        next_names.len(),
+        "{id}: complete successor inventory"
+    );
+    for (asset, next) in assets.iter_mut().zip(next_names) {
+        let next = next.as_str().unwrap();
         asset["name"] = serde_json::json!(next);
         asset["browser_download_url"] =
             serde_json::json!(format!("https://downloads.example.invalid/{next}"));
@@ -2001,10 +2004,7 @@ async fn assert_native_engine_adoption_selection(id: &str) {
     assert_eq!(next.version, next_tag, "{id}");
     assert_eq!(
         next.asset.name,
-        name.replace(
-            original_tag.trim_start_matches('v'),
-            next_tag.trim_start_matches('v')
-        ),
+        player_scenario["successor_asset"].as_str().unwrap(),
         "{id}"
     );
     assert_eq!(next.asset.sha256, "b".repeat(64), "{id}");
@@ -2023,16 +2023,9 @@ async fn assert_native_engine_adoption_selection(id: &str) {
         let mut player = selected.clone();
         let original_name = player["name"].as_str().unwrap().to_owned();
         let mutated = match mutation {
-            "wrong-cpu" => original_name
-                .replace("win32", "arm64")
-                .replace("win64", "arm64")
-                .replace("x86_64", "arm64")
-                .replace("windows-x64", "windows-arm64"),
-            "wrong-platform" => original_name
-                .replace("win32", "linux")
-                .replace("win64", "linux")
-                .replace("windows", "linux"),
-            _ => original_name.clone(),
+            "wrong-cpu" => player_scenario["wrong_cpu"].as_str().unwrap(),
+            "wrong-platform" => player_scenario["wrong_platform"].as_str().unwrap(),
+            _ => &original_name,
         };
         player["name"] = serde_json::json!(mutated);
         if mutation == "missing-integrity" {
@@ -2041,11 +2034,10 @@ async fn assert_native_engine_adoption_selection(id: &str) {
         let mut assets = vec![player.clone()];
         if mutation == "ambiguous" {
             player["id"] = serde_json::json!(999_999_999);
-            player["name"] = serde_json::json!(original_name.to_uppercase());
-            player["browser_download_url"] = serde_json::json!(format!(
-                "https://downloads.example.invalid/{}",
-                original_name.to_uppercase()
-            ));
+            let ambiguous = player_scenario["ambiguous_asset"].as_str().unwrap();
+            player["name"] = serde_json::json!(ambiguous);
+            player["browser_download_url"] =
+                serde_json::json!(format!("https://downloads.example.invalid/{ambiguous}"));
             assets.push(player);
         }
         let (root, _, server) =
@@ -2135,4 +2127,106 @@ async fn native_engine_selection_2612() {
         "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
     )
     .await;
+}
+
+#[tokio::test]
+async fn windows_archive_selection_advances_from_shared_release_inventories() {
+    #[derive(serde::Deserialize)]
+    struct Case {
+        inventory: String,
+        selected_assets: Vec<String>,
+        channel: Option<ReleaseChannel>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct OtherZipAsset {
+        inventory: String,
+        release_index: usize,
+        asset: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Corpus {
+        cases: std::collections::BTreeMap<String, Case>,
+        inventories: std::collections::BTreeMap<String, Vec<serde_json::Value>>,
+        other_zip_assets: Vec<OtherZipAsset>,
+    }
+
+    let catalog = crate::Catalog::embedded().unwrap();
+    let Corpus {
+        cases,
+        inventories,
+        other_zip_assets,
+    } = serde_json::from_str(include_str!(
+        "../../testdata/windows-archive-release-selection.json"
+    ))
+    .unwrap();
+    assert!(!cases.is_empty());
+    let mut enrolled = std::collections::BTreeSet::new();
+    for (id, case) in cases {
+        let port = catalog.port(&id).unwrap();
+        let channel = case.channel.unwrap_or(ReleaseChannel::Stable);
+        assert!(port.channels.contains(&channel), "{id}: enrolled channel");
+        let definition = serde_json::to_value(port).unwrap();
+        let observed = &inventories[&case.inventory];
+        assert!(observed.len() >= 2, "{id}");
+        assert_eq!(observed.len(), case.selected_assets.len(), "{id}");
+        for (index, name) in case.selected_assets.iter().enumerate() {
+            let release = &observed[index];
+            let tag = release["tag_name"].as_str().unwrap();
+            let expected = release["assets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|asset| asset["name"].as_str() == Some(name))
+                .unwrap();
+            assert!(enrolled.insert((case.inventory.clone(), index, name.clone())));
+            let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
+            let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
+            let selected = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, channel, Platform::WindowsX86_64)
+                .await
+                .unwrap();
+            assert_eq!(selected.version, tag, "{id}");
+            assert_eq!(&selected.asset.name, name, "{id}");
+            assert_eq!(
+                selected.asset.size,
+                expected["size"].as_u64().unwrap(),
+                "{id}"
+            );
+            assert_eq!(
+                selected.asset.sha256,
+                expected["digest"]
+                    .as_str()
+                    .unwrap()
+                    .strip_prefix("sha256:")
+                    .unwrap(),
+                "{id}"
+            );
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2, "{id}");
+        }
+        assert_eq!(serde_json::to_value(port).unwrap(), definition, "{id}");
+    }
+    let mut other_zips = std::collections::BTreeSet::new();
+    for asset in other_zip_assets {
+        assert!(other_zips.insert((asset.inventory, asset.release_index, asset.asset)));
+    }
+    for (group, observed) in inventories {
+        for (index, release) in observed.iter().enumerate() {
+            for asset in release["assets"].as_array().unwrap() {
+                let name = asset["name"].as_str().unwrap();
+                if name.ends_with(".zip") {
+                    let key = (group.clone(), index, name.to_owned());
+                    assert!(enrolled.remove(&key) ^ other_zips.remove(&key), "{key:?}");
+                }
+            }
+        }
+    }
+    assert!(enrolled.is_empty(), "unmatched selected ZIPs: {enrolled:?}");
+    assert!(
+        other_zips.is_empty(),
+        "unmatched other ZIPs: {other_zips:?}"
+    );
 }

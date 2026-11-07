@@ -11,6 +11,64 @@ import {
   acquireActualPublicJourneyContinuationPair,
 } from "./release-native-public-pair.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { readPublicationAllocationsWithSdk } from "./release-publication-inventory.mts";
+void test("public allocation inventory preserves SDK cursor and exact repository identity", async () => {
+  for (const wrongIdentity of [false, true]) {
+    const routes: string[] = [];
+    const result = readPublicationAllocationsWithSdk("portcove-public", {
+      token: "synthetic-public-reader",
+      deadline: performance.now() + 5000,
+      recheck: async () => {},
+      async fetch(input, init) {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        routes.push(url);
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token synthetic-public-reader",
+        );
+        if (routes.length === 1) {
+          assert.equal(url, "https://api.github.com/repos/boburning/portcove");
+          return Response.json({
+            id: 1354613114,
+            full_name: "boburning/portcove",
+            node_id: "R_fixture",
+          });
+        }
+        assert.equal(url, "https://api.github.com/graphql");
+        assert.ok(typeof init?.body === "string");
+        const wire: unknown = JSON.parse(init.body);
+        assert.ok(isRecord(wire) && isRecord(wire.variables));
+        const first = routes.length === 2;
+        assert.equal(wire.variables.cursor, first ? null : "next-fixture");
+        return Response.json({
+          data: {
+            repository: {
+              id: !first && wrongIdentity ? "R_other" : "R_fixture",
+              databaseId: 1354613114,
+              nameWithOwner: "boburning/portcove",
+              refs: {
+                totalCount: 2,
+                pageInfo: { hasNextPage: first, endCursor: first ? "next-fixture" : null },
+                nodes: [
+                  {
+                    id: `ref-${routes.length}`,
+                    name: `v0.0.${routes.length}`,
+                    prefix: "refs/tags/",
+                  },
+                ],
+              },
+            },
+          },
+        });
+      },
+    });
+    if (wrongIdentity) await assert.rejects(result, /ref repository identity differs/u);
+    else assert.deepEqual(await result, { allocations: [], intents: new Map() });
+    assert.equal(routes.length, 3);
+  }
+});
+
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 function fixture(count = 2) {
   const files = new Map<string, Buffer>(),

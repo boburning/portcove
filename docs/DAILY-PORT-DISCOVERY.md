@@ -76,6 +76,24 @@ confirmed this policy on October 28, 2026. Software changes retain the repositor
 independent review and CI requirements. Changed request or primary evidence stops
 delivery; prepare a fresh proposal instead of overwriting an in-flight issue.
 
+A candidate whose initial upstream repository metadata lookup returns HTTP 404
+can receive a **candidate hold** when it has no unfinished delivery or uncertain
+write. The versioned `proposal-bound-v2` receipt keeps that ordered slot, the
+observed status, repository identity, timestamp and resume condition. A slot
+held before primary evidence was available has an explicit unbound primary.
+Other evidence endpoints and failures still follow the existing admission and
+recovery rules. A repository 404 establishes inaccessibility to the executor.
+
+A pass finishes with `complete_with_holds` when all eligible candidates verify
+and the remaining candidates have recorded holds. Actions succeeds and reports
+held and pending counts separately. Ordinary events leave those candidates
+parked. An explicit owner `process` dispatch checks the exact repository ID and
+primary evidence again. It may bind previously unbound evidence before delivery,
+while a changed prior binding still requires explicit reconciliation. Previously
+verified deliveries carry forward as historical evidence on ordinary resume.
+Held slots remain part of the original logical batch and its full-doctor
+obligation at final completion.
+
 A partly created batch whose primary evidence changes can use an explicit owner
 reconciliation. After the finite old Actions job terminates, withdraw its owner
 proposal by prepending a dated explanation while retaining the original proposal
@@ -118,8 +136,12 @@ rebinding, provider retry, scheduler or model reviewer.
 
 The executor serializes repository-wide and drains retained proposal comments,
 so GitHub's replaceable pending workflow slot cannot erase a request. Explicit
-owner dispatch in `process` mode resumes the same queue. Every creation attempt
-has a durable bot receipt before POST and a stable marker in the issue. An
+owner dispatch in `process` mode resumes the same queue. The executor records `preflight` before candidate creation checks, then
+publishes and reads back `create-attempted` after those checks and before POST.
+A quota or inventory interruption during preflight can resume from fresh reads
+even if publishing the failure was impossible. The final checkpoint changes
+only the receipt comment, whose revision is distinct from issue semantics in
+the intake inventory. Every creation uses a stable issue marker. An
 ambiguous POST without a confirmed marker remains held; it is never recaptured.
 Confirmed issues recover through `normalize-port`, preserving owner changes by
 refusing mismatched bodies. Exactly one active item, the complete issue body,
@@ -238,18 +260,14 @@ including when a qualification mode was selected.
 
 ## Authority and setup
 
-Read #177, current #1422 and its latest explicit owner amendment at setup;
-retain their body hashes and refresh when changed. The October 22, 2026
-upstream-first amendment preserves the historical 317 records / 316 distinct
-identities and October 14 deferrals, and replaces the obligation to engineer
-every feasible retained port into full management before Public beta. Apply
-[integration ownership](CATALOG.md#integration-ownership): inspect official
-packages and supported upstream setup before proposing engineering. Monitor
-existing-installation opportunities, upstream dependencies and precise product
-deferrals without reversing them or counting them as delivered integrations.
-Read reconsideration triggers on the affected canonical issues.
-Later intake does not expand Required beta scope. Preserve the approved
-OpenRCT2 #1854 then CorsixTH #1807 sequence and active ownership.
+Read #177 for current discovery acceptance and
+[integration ownership](CATALOG.md#integration-ownership) for route investigation.
+Inspect official packages and supported upstream setup before proposing engineering.
+Monitor existing-installation opportunities, upstream dependencies and precise
+product deferrals. Read reconsideration triggers on the affected canonical issues.
+Record new candidates with neutral release and scheduling fields. Selection from
+the full backlog is a separate [Project decision](PROJECT-GOVERNANCE.md#selecting-approved-work).
+Preserve active ownership.
 
 Reuse #398's configured-upstream observation reports first, checking exact
 source/event/time/completeness and stale/exception fields. Do not change its
@@ -842,9 +860,17 @@ cannot claim no new ports or complete currency. Surface offered-integration
 integrity concerns first without claiming compromise from metadata alone.
 Do not recompute whole-project release readiness.
 
-The scheduler prompt should identify repo, this skill and durable checkpoint
+For generated proposals containing a listing summary or guide, record upstream
+facts and evidence before writing the player text. Follow the
+[Content design](CONTENT-DESIGN.md) standard for summaries, warnings, actions
+and references.
+
+The scheduler prompt should identify the repository, this skill, checkpoint
 path, daily metadata-write authority, approved model policy and result location.
-Keep the detailed specification here. Do not launch a second product writer.
+At each run, load this contract and the linked
+[work selection policy](PROJECT-GOVERNANCE.md#selecting-approved-work) from
+current remote `main`. Keep one investigator and one product writer per
+existing ownership boundary.
 
 Primary research retains exact successful GET positions and collection links in
 `active-run.json` under `research_progress`, with a 32 MiB physical envelope.

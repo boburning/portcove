@@ -119,7 +119,7 @@ function retainedRebootJob(value: unknown) {
   failurePropagates(job, "REBOOT_JOB");
   assert.ok(Array.isArray(job.steps), "UPDATER_REBOOT_STEPS");
   const steps = job.steps.map((step) => record(step, "UPDATER_REBOOT_STEP"));
-  assert.equal(steps.length, 15, "UPDATER_REBOOT_EXPLICIT_STEPS");
+  assert.equal(steps.length, 19, "UPDATER_REBOOT_EXPLICIT_STEPS");
   const normalized = (run: unknown) =>
     text(run, "UPDATER_REBOOT_COMMAND").trim().replaceAll("\r\n", "\n");
   const command = (run: string) => {
@@ -141,12 +141,19 @@ function retainedRebootJob(value: unknown) {
     },
     "UPDATER_REBOOT_SCOPE_INPUTS",
   );
-  const stage = command("python3 scripts/qualification/linux-reboot/prepare.py stage");
+  const setup = command(
+    "pnpm install --frozen-lockfile --prod --ignore-scripts\npython3 scripts/qualification/linux-reboot/qualification_archive.py",
+  );
+  assert.equal(setup.step["timeout-minutes"], 5, "UPDATER_REBOOT_DEPENDENCIES_BUDGET");
+  const acquire = command("node scripts/qualification/linux-reboot/acquire.mts");
   assert.deepEqual(
-    stage.step.env,
+    acquire.step.env,
     { GH_TOKEN: "${{ github.token }}" },
     "UPDATER_REBOOT_TOKEN_ONLY_TRANSPORT",
   );
+  assert.equal(acquire.step["timeout-minutes"], 15, "UPDATER_REBOOT_ACQUISITION_BUDGET");
+  const stage = command("python3 scripts/qualification/linux-reboot/prepare.py stage");
+  assert.equal(stage.step["timeout-minutes"], 15, "UPDATER_REBOOT_OFFLINE_AUDIT_BUDGET");
   const helper = command("python3 scripts/qualification/linux-reboot/prepare.py helper");
   assert.equal(helper.step["timeout-minutes"], 25, "UPDATER_REBOOT_HELPER_BUDGET");
   const runtime = command(
@@ -193,7 +200,7 @@ function retainedRebootJob(value: unknown) {
     "UPDATER_REBOOT_CONTROLLER_CHECKOUT",
   );
   assert.deepEqual(
-    steps[3]!.with,
+    steps[7]!.with,
     {
       ref: "d29563ea99263e33dbec693ecf0aebd9f3de709c",
       path: "work/updater-linux-reboot-helper-source",
@@ -202,23 +209,33 @@ function retainedRebootJob(value: unknown) {
     "UPDATER_REBOOT_FROZEN_HELPER_CHECKOUT",
   );
   assert.equal(steps[1]!.uses, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1");
-  assert.equal(steps[3]!.uses, steps[1]!.uses);
-  assert.equal(steps[4]!.uses, "./.github/actions/setup-rust");
-  assert.equal(steps[5]!.uses, "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0");
+  assert.equal(steps[2]!.uses, "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115");
+  assert.deepEqual(steps[2]!.with, { package_json_file: "package.json" });
+  assert.equal(steps[3]!.uses, "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1");
+  assert.deepEqual(steps[3]!.with, {
+    "node-version-file": ".node-version",
+    cache: "pnpm",
+    "cache-dependency-path": "pnpm-lock.yaml",
+  });
+  assert.equal(steps[7]!.uses, steps[1]!.uses);
+  assert.equal(steps[8]!.uses, "./.github/actions/setup-rust");
+  assert.equal(steps[9]!.uses, "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0");
   assert.equal(
-    normalized(steps[6]!.run),
+    normalized(steps[10]!.run),
     "./scripts/install-linux-desktop-prerequisites.sh",
     "UPDATER_REBOOT_SHARED_PREREQUISITES",
   );
-  assert.equal(steps[6]!["timeout-minutes"], 15, "UPDATER_REBOOT_SHARED_PREREQUISITE_BUDGET");
+  assert.equal(steps[10]!["timeout-minutes"], 15, "UPDATER_REBOOT_SHARED_PREREQUISITE_BUDGET");
   assert.equal(
-    normalized(steps[7]!.run),
+    normalized(steps[11]!.run),
     "sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install --yes --no-install-recommends qemu-system-x86 qemu-utils seabios ubuntu-keyring python3-jsonschema",
     "UPDATER_REBOOT_NO_PACKAGE_BUILD",
   );
-  assert.equal(steps[7]!["timeout-minutes"], 10, "UPDATER_REBOOT_VM_PREREQUISITE_BUDGET");
+  assert.equal(steps[11]!["timeout-minutes"], 10, "UPDATER_REBOOT_VM_PREREQUISITE_BUDGET");
   assert.deepEqual(
     [
+      setup.index,
+      acquire.index,
       stage.index,
       helper.index,
       runtime.index,
@@ -228,17 +245,30 @@ function retainedRebootJob(value: unknown) {
       retain.index,
       upload.index,
     ],
-    [2, 8, 9, 10, 11, 12, 13, 14],
+    [4, 5, 6, 12, 13, 14, 15, 16, 17, 18],
     "UPDATER_REBOOT_STAGE_ORDER",
   );
   for (const [index, step] of steps.entries()) {
     failurePropagates(step, "REBOOT_STEP");
     if (index !== retain.index && index !== upload.index)
       assert.equal(step.if, undefined, "UPDATER_REBOOT_REQUIRED_STEP");
-    if (![scope.index, stage.index, observe.index].includes(index))
+    if (![scope.index, acquire.index, observe.index].includes(index))
       assert.equal(step.env, undefined, "UPDATER_REBOOT_NO_HIDDEN_ENVIRONMENT");
   }
-  return { job, steps, scope, stage, helper, runtime, controls, freeze, observe, retain, upload };
+  return {
+    job,
+    steps,
+    scope,
+    acquire,
+    stage,
+    helper,
+    runtime,
+    controls,
+    freeze,
+    observe,
+    retain,
+    upload,
+  };
 }
 
 export function observeRetainedRebootScope(step: Fields, environment: Record<string, string>) {

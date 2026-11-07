@@ -17,6 +17,7 @@ import {
   readObserverSnapshotArchive,
   publishObserverSnapshot,
   recoverObserverCheckpoint,
+  recoverObserverCheckpointWithSdk,
   snapshotName,
   observerSnapshotLimit,
   encodeObserverSnapshot,
@@ -101,7 +102,7 @@ function transport() {
     downloads = 0;
   const routes: string[] = [];
   const api = {
-    request: (_method: string, endpoint: string) => {
+    read: async (endpoint: string) => {
       routes.push(endpoint);
       let body: unknown;
       if (endpoint === "repos/boburning/portcove")
@@ -157,17 +158,52 @@ function transport() {
 
 void test("fresh cache loss restores an exact failed scheduled producer and preserves its original checkpoint", async (t) => {
   const root = await directory(t),
-    f = transport();
-  const result = await recoverObserverCheckpoint({
+    f = transport(),
+    signed =
+      "https://productionresultssa1.blob.core.windows.net/actions-results/observer?sig=inert";
+  let clock = Date.now();
+  const deadline = clock + 60000;
+  const wire: string[] = [];
+  let late = false;
+  const options = {
     root,
     config,
     current,
-    deadline: Date.now() + 60000,
-    api: f.api,
-    download: f.download,
-  });
+    deadline,
+    now: () => clock,
+    token: "inert-observer-reader",
+    fetch: (async (input, init) => {
+      const request = new Request(input, init),
+        url = new URL(request.url);
+      assert.equal(request.method, "GET");
+      assert.equal(init?.redirect, "manual");
+      if (url.href === signed) {
+        wire.push("blob");
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(init?.credentials, "omit");
+        if (late) clock = deadline;
+        return new Response(new Uint8Array(f.archive));
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-observer-reader");
+      wire.push(url.pathname);
+      if (url.pathname === "/repos/boburning/portcove/actions/artifacts/7/zip")
+        return new Response(null, { status: 302, headers: { location: signed } });
+      const response = await f.api.read(url.pathname.slice(1) + url.search);
+      return Response.json(response.body, {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+      });
+    }) satisfies typeof globalThis.fetch,
+  };
+  const result = await recoverObserverCheckpointWithSdk(options);
   assert.equal(result.origin, "artifact");
-  assert.equal(f.count(), 1);
+  assert.deepEqual(wire.slice(-4), [
+    "/repos/boburning/portcove/actions/artifacts/7/zip",
+    "blob",
+    "/repos/boburning/portcove/actions/artifacts/7",
+    "/repos/boburning/portcove/actions/runs/101",
+  ]);
   assert.deepEqual(
     JSON.parse(
       await readFile(path.join(root, "work/upstream-observer/catalog/checkpoint.json"), "utf8"),
@@ -183,12 +219,24 @@ void test("fresh cache loss restores an exact failed scheduled producer and pres
     download: () => assert.fail("Valid cache needs no artifact"),
   });
   assert.equal(cache.origin, "cache");
+  const lateRoot = await directory(t);
+  wire.length = 0;
+  late = true;
+  await assert.rejects(
+    recoverObserverCheckpointWithSdk({ ...options, root: lateRoot }),
+    /recovery collection deadline exhausted/,
+  );
+  assert.deepEqual(wire.slice(-2), ["/repos/boburning/portcove/actions/artifacts/7/zip", "blob"]);
+  await assert.rejects(
+    readFile(path.join(lateRoot, "work/upstream-observer/catalog/checkpoint.json")),
+    { code: "ENOENT" },
+  );
 });
 
 void test("live-shaped discovery pages history and excludes comparison patches within the original metadata envelope", async (t) => {
   const root = await directory(t),
     f = transport(),
-    original = f.api.request;
+    original = f.api.read;
   f.publisher();
   const repoMetadata = Object.fromEntries(
     [
@@ -250,9 +298,9 @@ void test("live-shaped discovery pages history and excludes comparison patches w
     total_bytes: number;
     requests: number;
   }[] = [];
-  f.api.request = (...args) => {
-    const endpoint = args[1],
-      response = original(...args);
+  f.api.read = async (...args) => {
+    const endpoint = args[0],
+      response = await original(...args);
     let body = response.body;
     if (endpoint.includes("/actions/workflows/")) {
       const query = new URL(`https://api.github.com/${endpoint}`).searchParams,
@@ -318,10 +366,10 @@ void test("history pagination refuses changed totals, missing rows, duplicate id
   for (const defect of ["total", "missing", "duplicate", "order"]) {
     const root = await directory(t),
       f = transport(),
-      original = f.api.request;
-    f.api.request = (...args) => {
-      const result = original(...args);
-      if (!args[1].includes("/actions/workflows/")) return result;
+      original = f.api.read;
+    f.api.read = async (...args) => {
+      const result = await original(...args);
+      if (!args[0].includes("/actions/workflows/")) return result;
       const first = Array.from({ length: 10 }, (_, i) => ({
         ...f.run,
         id: 201 + i,
@@ -332,7 +380,7 @@ void test("history pagination refuses changed totals, missing rows, duplicate id
         id: defect === "duplicate" ? 201 : 211,
         created_at: new Date(Date.now() - (defect === "order" ? 0 : 100000)).toISOString(),
       };
-      const page2 = args[1].includes("page=2");
+      const page2 = args[0].includes("page=2");
       const body = {
         total_count: page2 && defect === "total" ? 12 : 11,
         workflow_runs: page2 ? (defect === "missing" ? [] : [second]) : first,
@@ -357,11 +405,11 @@ void test("history pagination refuses changed totals, missing rows, duplicate id
 void test("identical source ancestry uses global comparison facts when page two contains no commits", async (t) => {
   const root = await directory(t),
     f = transport(),
-    original = f.api.request;
-  f.api.request = (...args) => {
-    const result = original(...args);
-    if (!args[1].includes("/compare/")) return result;
-    assert.ok(args[1].endsWith("per_page=1&page=2"));
+    original = f.api.read;
+  f.api.read = async (...args) => {
+    const result = await original(...args);
+    if (!args[0].includes("/compare/")) return result;
+    assert.ok(args[0].endsWith("per_page=1&page=2"));
     const body = { status: "identical", merge_base_commit: { sha: source.source }, commits: [] };
     return { ...result, body, bodyBytes: Buffer.byteLength(JSON.stringify(body)) };
   };
@@ -466,7 +514,7 @@ async function baselineTransport(t: Parameters<typeof directory>[0], realCatalog
   const state = { runs: [active, anchor] as Record<string, unknown>[], total: 2 };
   const routes: string[] = [];
   const api = {
-    request: (_method: string, endpoint: string) => {
+    read: async (endpoint: string) => {
       routes.push(endpoint);
       let body: unknown;
       if (endpoint === "repos/boburning/portcove")
@@ -725,9 +773,9 @@ void test("one-time baseline refuses incomplete, replayed, foreign or changed in
     [
       "forbidden metadata",
       (f) => {
-        const request = f.options.api.request;
-        f.options.api.request = (method, route) => ({
-          ...request(method, route),
+        const request = f.options.api.read;
+        f.options.api.read = async (route) => ({
+          ...(await request(route)),
           ...(route.endsWith(`/actions/runs/${f.active.id}`) ? { status: 403 } : {}),
         });
       },
@@ -735,9 +783,9 @@ void test("one-time baseline refuses incomplete, replayed, foreign or changed in
     [
       "invalid advertised snapshot",
       (f) => {
-        const request = f.options.api.request;
-        f.options.api.request = (method, route) => {
-          const result = request(method, route);
+        const request = f.options.api.read;
+        f.options.api.read = async (route) => {
+          const result = await request(route);
           return route.includes("/artifacts?")
             ? {
                 ...result,
@@ -763,9 +811,9 @@ void test("one-time baseline refuses incomplete, replayed, foreign or changed in
     [
       "metadata envelope",
       (f) => {
-        const request = f.options.api.request;
-        f.options.api.request = (method, route) => ({
-          ...request(method, route),
+        const request = f.options.api.read;
+        f.options.api.read = async (route) => ({
+          ...(await request(route)),
           ...(route.endsWith(`/actions/runs/${f.active.id}`)
             ? { bodyBytes: observerSnapshotLimit }
             : {}),
@@ -775,9 +823,9 @@ void test("one-time baseline refuses incomplete, replayed, foreign or changed in
     [
       "provider reserve",
       (f) => {
-        const request = f.options.api.request;
-        f.options.api.request = (method, route) => ({
-          ...request(method, route),
+        const request = f.options.api.read;
+        f.options.api.read = async (route) => ({
+          ...(await request(route)),
           headers: new Map([
             ["x-ratelimit-limit", "100"],
             ["x-ratelimit-remaining", "5"],
@@ -788,9 +836,9 @@ void test("one-time baseline refuses incomplete, replayed, foreign or changed in
     [
       "source ancestry",
       (f) => {
-        const request = f.options.api.request;
-        f.options.api.request = (method, route) => {
-          const result = request(method, route);
+        const request = f.options.api.read;
+        f.options.api.read = async (route) => {
+          const result = await request(route);
           return route.includes(`/compare/${observerBaselinePermit.main_anchor}...`)
             ? {
                 ...result,
@@ -803,38 +851,38 @@ void test("one-time baseline refuses incomplete, replayed, foreign or changed in
     [
       "current rerun during admission",
       (f) => {
-        const request = f.options.api.request;
+        const request = f.options.api.read;
         let reads = 0;
-        f.options.api.request = (method, route) => {
+        f.options.api.read = async (route) => {
           if (route.endsWith(`/actions/runs/${f.active.id}`) && ++reads === 2)
             f.active.run_attempt = 2;
-          return request(method, route);
+          return await request(route);
         };
       },
     ],
     [
       "history changed during admission",
       (f) => {
-        const request = f.options.api.request;
+        const request = f.options.api.read;
         let reads = 0;
-        f.options.api.request = (method, route) => {
+        f.options.api.read = async (route) => {
           if (route.includes("/actions/workflows/") && ++reads === 2) f.state.total++;
-          return request(method, route);
+          return await request(route);
         };
       },
     ],
     [
       "local input changed during admission",
       (f) => {
-        const request = f.options.api.request;
+        const request = f.options.api.read;
         let reads = 0;
-        f.options.api.request = (method, route) => {
+        f.options.api.read = async (route) => {
           if (route.endsWith(`/actions/runs/${f.active.id}`) && ++reads === 2)
             writeFileSync(
               path.join(f.root, "crates/portcove-core/catalog/listings.json"),
               '{"listings":[],"changed":true}',
             );
-          return request(method, route);
+          return await request(route);
         };
       },
     ],
@@ -910,8 +958,11 @@ void test("foreign producers, altered artifact metadata and bounded-read failure
       f.artifact.workflow_run.head_sha = current.source;
     },
     (f: ReturnType<typeof transport>) => {
-      const original = f.api.request;
-      f.api.request = (...args) => ({ ...original(...args), bodyBytes: observerSnapshotLimit + 1 });
+      const original = f.api.read;
+      f.api.read = async (...args) => ({
+        ...(await original(...args)),
+        bodyBytes: observerSnapshotLimit + 1,
+      });
     },
   ];
   for (const mutate of mutations) {
@@ -1385,9 +1436,9 @@ void test("a linked work ancestor cannot redirect snapshot reads or publication 
 void test("recovery preserves the provider reserve and its original collection deadline", async (t) => {
   const root = await directory(t),
     f = transport(),
-    original = f.api.request;
-  f.api.request = (...args) => ({
-    ...original(...args),
+    original = f.api.read;
+  f.api.read = async (...args) => ({
+    ...(await original(...args)),
     headers: new Map([
       ["x-ratelimit-limit", "100"],
       ["x-ratelimit-remaining", "5"],
@@ -1407,10 +1458,10 @@ void test("recovery preserves the provider reserve and its original collection d
   assert.equal(f.routes.length, 1);
   assert.equal(f.count(), 0);
   const g = transport(),
-    originalRead = g.api.request;
+    originalRead = g.api.read;
   let clock = Date.now();
-  g.api.request = (...args) => {
-    const result = originalRead(...args);
+  g.api.read = async (...args) => {
+    const result = await originalRead(...args);
     clock += 101;
     return result;
   };
@@ -1433,10 +1484,10 @@ void test("recovery preserves the provider reserve and its original collection d
 void test("duplicate scheduled run identities refuse before accepting even the first artifact", async (t) => {
   const root = await directory(t),
     f = transport(),
-    original = f.api.request;
-  f.api.request = (...args) => {
-    const result = original(...args);
-    if (!args[1].includes("/actions/workflows/")) return result;
+    original = f.api.read;
+  f.api.read = async (...args) => {
+    const result = await original(...args);
+    if (!args[0].includes("/actions/workflows/")) return result;
     const body = { total_count: 2, workflow_runs: [f.run, f.run] };
     return { ...result, body, bodyBytes: Buffer.byteLength(JSON.stringify(body)) };
   };
@@ -1462,11 +1513,28 @@ void test("snapshot workflow keeps job-only read permission and shares the origi
   const workflow = parseDocument(text).toJS() as {
     permissions: unknown;
     jobs: {
-      observe: { permissions: unknown; steps: { name?: string; with?: Record<string, unknown> }[] };
+      observe: {
+        permissions: unknown;
+        steps: { name?: string; run?: string; env?: unknown; with?: Record<string, unknown> }[];
+      };
     };
   };
   assert.deepEqual(workflow.permissions, { contents: "read" });
   assert.deepEqual(workflow.jobs.observe.permissions, { contents: "read", actions: "read" });
+  const steps = workflow.jobs.observe.steps;
+  const install = steps.findIndex(
+    (step) => step.name === "Install locked observer dependencies before credentials",
+  );
+  const restore = steps.findIndex(
+    (step) => step.run === "node scripts/observer-checkpoint-artifact.mts restore",
+  );
+  assert.ok(install >= 0 && restore > install);
+  assert.equal(
+    steps[install]!.run,
+    "pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+  );
+  assert.equal(steps[install]!.env, undefined);
+  assert.deepEqual(steps[restore]!.env, { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" });
   assert.equal(
     workflow.jobs.observe.steps.find((step) => step.name === "Retain checkpoint recovery snapshot")!
       .with!["retention-days"],

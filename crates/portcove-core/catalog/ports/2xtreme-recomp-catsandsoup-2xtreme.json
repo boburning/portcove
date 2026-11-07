@@ -4,7 +4,7 @@
     "id": "2xtreme-recomp-catsandsoup-2xtreme",
     "name": "2Xtreme — 2Xtreme-recomp (catsandsoup)",
     "original_game_title": "2Xtreme",
-    "summary": "This early preview has project-reported disc preparation, intro and keyboard pause-menu support. Controller testing, full-speed play, settings, widescreen, original Options bindings, rumble, player 2, save states and notarization remain unfinished. Full playthroughs are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "An early 2Xtreme preview for Mac. You need your own USA CUE/BIN disc image. The app builds the game on first launch.",
     "project_url": "https://github.com/catsandsoup/2Xtreme-recomp",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -21,10 +21,16 @@
         }
       ],
       "warnings": [
-        "This early preview has project-reported disc preparation, intro and keyboard pause-menu support. Controller testing, full-speed play, settings, widescreen, original Options bindings, rumble, player 2, save states and notarization remain unfinished. Full playthroughs are unconfirmed.",
+        "This early Mac preview is not notarized. Check the project’s package and setup instructions before opening it.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/catsandsoup/2Xtreme-recomp"
+      "help_url": "https://github.com/catsandsoup/2Xtreme-recomp",
+      "references": [
+        {
+          "title": "Project testing notes",
+          "instruction": "This early preview has project-reported disc preparation, intro and keyboard pause-menu support. Controller testing, full-speed play, settings, widescreen, original Options bindings, rumble, player 2, save states and notarization remain unfinished. Full playthroughs are unconfirmed."
+        }
+      ]
     },
     "issue_number": 3500,
     "artwork": {

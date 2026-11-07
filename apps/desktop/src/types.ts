@@ -2,6 +2,7 @@ import type * as Requests from "./transport-input-types.generated";
 import type * as Events from "./transport-event-types.generated";
 import type { PortStatus } from "./transport-types.generated";
 import type * as Generated from "./transport-types.generated";
+export type PortCapabilityReport = Generated.TransportOutputs["port_capability_report"];
 
 export type SourceReuseReview = Generated.TransportOutputs["source_reuse_review"];
 export type SourceRegistrationReference = SourceReuseReview["reference"];

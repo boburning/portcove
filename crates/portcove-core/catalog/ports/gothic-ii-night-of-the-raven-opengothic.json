@@ -3,7 +3,7 @@
   "listing": {
     "id": "gothic-ii-night-of-the-raven-opengothic",
     "name": "Gothic II: Night of the Raven (OpenGothic)",
-    "summary": "Play Gothic II: Night of the Raven with your own original files and OpenGothic. Upstream reports the main quest and expansion are completable. Gothic I and 32-bit Union plugins are unsupported. Desktop prerelease routes use Windows DirectX 12/Vulkan, Linux Vulkan or macOS Metal; check the selected package’s CPU requirements. Portcove has not confirmed setup or gameplay.",
+    "summary": "Play Gothic II: Night of the Raven with OpenGothic and your own original game files.",
     "original_game_title": "Gothic II: Night of the Raven",
     "project_url": "https://github.com/Try/OpenGothic",
     "platforms": [],
@@ -27,15 +27,7 @@
         },
         {
           "title": "Preserve the actual working directory as well as game data",
-          "instruction": "Retain the creating working directory and established literal -g argument pointing to the actual absolute Gothic II data root, if used. Automatic discovery is not a reason to change a working data selection."
-        },
-        {
-          "title": "Check the working copy before registration",
-          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its game files or save compatibility."
-        },
-        {
-          "title": "Keep updates and removal under the existing owner",
-          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+          "instruction": "Retain the creating working directory and established literal -g argument pointing to the actual absolute Gothic II data root, if used. Automatic discovery is not a reason to change a working data selection. Finish setup upstream and start and quit the copy before registration. The ordinary prepared launch uses no arguments. Keep any literal arguments your existing copy needs."
         }
       ],
       "warnings": [
@@ -62,5 +54,47 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "release": {
+      "provider": "github",
+      "repository": "Try/OpenGothic",
+      "asset_hints": {
+        "windows-x86-64": ["opengothic_", "_win_x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Gothic2Notr.exe"]
+    },
+    "persistent_paths": ["Gothic.ini", "dbg.png"],
+    "persistent_file_patterns": [
+      {
+        "prefix": "save_slot_",
+        "suffix": ".sav"
+      }
+    ],
+    "runtime_mutable_paths": ["log.txt", "crash.log"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Install your own Gothic II: Night of the Raven in the default Steam or Akella Gothic II folder under Windows Program Files before Play. Keep the original files in that separate installation. OpenGothic finds those files itself. If you need an explicit -g path, use the separate prepared-copy route. This Windows x64 Preview route preserves local Gothic.ini, numbered save slots and the F11 capture dbg.png. Startup and crash logs stay with their runtime version. Rollback carries current saves and does not establish older-version save compatibility. Gothic I, Gothic II Classic and 32-bit Union plugins need a different setup."
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "Gothic2Notr.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the prepared working directory containing Gothic.ini and save slots",
+        "the separately owned original Gothic II installation"
+      ]
+    }
   }
 }

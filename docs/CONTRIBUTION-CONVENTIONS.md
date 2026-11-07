@@ -98,12 +98,15 @@ only conflicting work. The narrow verified Renovate review exception is owned by
 Applicable review, required exact-head CI, explicit acceptance and guarded
 merge remain required. Local feedback follows [QUALITY](QUALITY.md#required-hosted-baseline).
 
-Record the reviewed source head, target tip used for the comparison, and actual
-merge-base. If `main` advances without changing the source head, do not imply the
-later target revision was tested. An unrelated target advance does not by itself
-require a rebase, a full rerun, or a replacement review. A relevant dependency,
-schema, generated contract, patch, or policy interaction does require focused
-reconciliation.
+When queuing qualification, compose the pinned source head with the pinned
+target commit (for example, with `git merge-tree --write-tree TARGET SOURCE`).
+Record both SHAs, the merge-base and the resulting tree alongside the check
+evidence. Refresh the live `main` tip immediately before the guarded merge. If it
+advanced, recompute the composition against the new target and inspect the
+target delta for interactions with the reviewed change. Keep evidence tied to
+the tree it covered. An unrelated advance can keep the existing review and
+checks. A relevant dependency, schema, generated contract, patch or policy
+interaction requires focused reconciliation before merge.
 Review may begin on an exact local commit and complete before expensive final
 qualification. Blocking findings identify a concrete correctness, security,
 data-loss, compatibility, or acceptance defect; a promised safety hole remains

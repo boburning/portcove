@@ -2,16 +2,19 @@
  * immutable publisher. This transfers settled-result provenance, never a live
  * reservation, site deployment permission or completed public updater journey. */
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import type { ReleaseArtifactMetadataProvider } from "./release-custody-provider.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
@@ -50,6 +53,30 @@ function remaining(deadline: number, maximum = 15000) {
   if (!Number.isFinite(deadline) || value < 1)
     throw new Error("publication result deadline exhausted");
   return Math.min(value, maximum);
+}
+async function downloadResultArchive(
+  id: number,
+  bytes: number,
+  deadline: number,
+  token: string,
+  isolated: boolean,
+) {
+  remaining(deadline);
+  return downloadGitHubArtifactArchive(`${repository}actions/artifacts/${id}/zip`, {
+    credential: { kind: "explicit", token },
+    deadline: Math.min(
+      deadline,
+      coordinatorCommandDeadline() ?? Infinity,
+      performance.now() + 30000,
+    ),
+    maxBytes: bytes,
+    ...(isolated && {
+      fetch: (input, init) => {
+        assertTrustedDirectNode("publication result archive");
+        return globalThis.fetch(input, init);
+      },
+    }),
+  });
 }
 function exact(raw: unknown, keys: string): asserts raw is Record<string, unknown> {
   if (!isRecord(raw) || Object.keys(raw).sort().join(",") !== keys)
@@ -224,18 +251,21 @@ function predicate(
     authority: "none",
   };
 }
-function provider(api: GitHubRestReader, controller: Controller, deadline: () => number) {
+function provider(
+  metadata: ReleaseArtifactMetadataProvider,
+  controller: Controller,
+  deadline: () => number,
+) {
   let reads = 0;
-  const get = (suffix: string) => {
+  const read = async (operation: () => Promise<unknown>) => {
     remaining(deadline());
     if (++reads > 48) throw new Error("publication result readback budget exhausted");
-    const response = api.request("GET", repository + suffix);
+    const response = await operation();
     remaining(deadline());
-    if (response.status !== 200) throw new Error("publication result provider unavailable");
-    return response.body;
+    return response;
   };
-  const artifact = (item: Artifact, bundle: boolean) => {
-    const raw = get(`actions/artifacts/${item.id}`);
+  const artifact = async (item: Artifact, bundle: boolean) => {
+    const raw = await read(() => metadata.artifact(item.id));
     if (
       !isRecord(raw) ||
       raw.id !== item.id ||
@@ -256,7 +286,13 @@ function provider(api: GitHubRestReader, controller: Controller, deadline: () =>
       throw new Error("publication result immutable artifact provider differs");
     return { id: item.id, bytes: raw.size_in_bytes, sha256: item.sha256 };
   };
-  return { get, artifact };
+  return {
+    commit: (sha: string) => read(() => metadata.commit(sha)),
+    run: (id: string) => read(() => metadata.run(id)),
+    attempt: (id: string, attempt: number) => read(() => metadata.attempt(id, attempt)),
+    job: (id: number) => read(() => metadata.job(id)),
+    artifact,
+  };
 }
 
 /** Called only after the existing owned upload/readback. No supplied identity
@@ -267,6 +303,9 @@ export async function preparePublicationResultPredicate(
   deadline: number,
 ) {
   remaining(deadline);
+  uploaded = structuredClone(uploaded);
+  const reader = readOnlyReleaseChildEnvironment();
+  const token = (reader ?? process.env).GH_TOKEN ?? "";
   const actual = await requireOwnedPublicationResult(receipt);
   const raw = actual.record.controller;
   if (!isRecord(raw)) throw new Error("actual publisher controller missing");
@@ -281,20 +320,16 @@ export async function preparePublicationResultPredicate(
   hex(uploaded.sha256);
   if (!Number.isSafeInteger(uploaded.id) || uploaded.id < 1)
     throw new Error("uploaded result ID differs");
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({
-      cwd: actual.directory,
-      timeoutMs: remaining(deadline),
-      maxBuffer: 128 * 1024,
-    })([...args, "--hostname", "github.com"], input),
+  const metadata = await createReleaseCustodyProvider({ token, deadline, maxBytes: 128 * 1024 });
+  const source = provider(metadata, controller, () => deadline),
+    before = await source.artifact(uploaded, false);
+  const archive = await downloadResultArchive(
+    before.id,
+    before.bytes,
+    deadline,
+    token,
+    reader !== undefined,
   );
-  const source = provider(api, controller, () => deadline),
-    before = source.artifact(uploaded, false);
-  const archive = readGitHubArtifactArchive(`${repository}actions/artifacts/${before.id}/zip`, {
-    cwd: actual.directory,
-    maxBytes: before.bytes,
-    timeoutMs: remaining(deadline, 30000),
-  });
   remaining(deadline);
   if (archive.length !== before.bytes || hash(archive) !== before.sha256)
     throw new Error("uploaded result ZIP differs");
@@ -303,7 +338,7 @@ export async function preparePublicationResultPredicate(
     throw new Error("uploaded result differs from owned report");
   const record = reportInput(bytes, controller);
   await requireOwnedPublicationResult(receipt);
-  if (digest(before) !== digest(source.artifact(uploaded, false)))
+  if (digest(before) !== digest(await source.artifact(uploaded, false)))
     throw new Error("uploaded result custody changed");
   const value = predicate(record, actual.report_sha256, before);
   const destination = path.join(actual.directory, "immutable-release-result-predicate.json");
@@ -323,7 +358,7 @@ type Received = {
   bytes: Buffer;
   record: ReturnType<typeof reportInput>;
   context: object;
-  refresh: () => void;
+  refresh: () => Promise<void>;
   deadline: number;
   tighten: (deadline: number) => void;
   evidence: { name: string; bytes: Buffer }[];
@@ -381,15 +416,17 @@ export async function receivePublicationResultArtifact(
   contextReceipt: object,
   deadline: number,
   options: {
-    api?: GitHubRestReader;
-    download?: typeof readGitHubArtifactArchive;
-    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    metadata?: ReleaseArtifactMetadataProvider;
+    download?: (id: number, bytes: number, deadline: number) => Promise<Buffer>;
+    spawn?: RetainedGitHubSpawn;
   } = {},
 ) {
   const expected = expectedInput(rawExpected);
+  options = { ...options };
+  const token = process.env.GH_TOKEN ?? "";
   remaining(deadline);
   const injected =
-    options.api !== undefined || options.download !== undefined || options.spawn !== undefined;
+    options.metadata !== undefined || options.download !== undefined || options.spawn !== undefined;
   const directory = await mkdtemp(path.join(parent, "immutable-result-receiver-"));
   let phase = "provider-before";
   try {
@@ -402,22 +439,18 @@ export async function receivePublicationResultArtifact(
       USERPROFILE: home,
       TEMP: home,
       TMP: home,
-      GH_TOKEN: process.env.GH_TOKEN,
+      GH_TOKEN: token,
       GH_HOST: "github.com",
       GH_PROMPT_DISABLED: "1",
     };
-    const api =
-      options.api ??
-      new GitHubApiClient((args, input) =>
-        createGitHubRunner({
-          cwd: directory,
-          timeoutMs: remaining(deadline),
-          maxBuffer: 2 * 1024 ** 2,
-          spawn: (command, argv, settings) =>
-            spawnSync(command, argv, { ...settings, env: environment }),
-        })([...args, "--hostname", "github.com"], input),
-      );
-    const source = provider(api, expected, () => deadline);
+    const metadata =
+      options.metadata ??
+      (await createReleaseCustodyProvider({
+        token,
+        deadline,
+        currentDeadline: () => deadline,
+      }));
+    const source = provider(metadata, expected, () => deadline);
     const run = (raw: unknown) => {
       if (
         !isRecord(raw) ||
@@ -436,8 +469,8 @@ export async function receivePublicationResultArtifact(
         throw new Error("publication result producing controller run differs");
       return { id: raw.id, attempt: raw.run_attempt, source: raw.head_sha };
     };
-    const snapshot = () => {
-      const commit = source.get(`git/commits/${expected.controller_revision}`);
+    const snapshot = async () => {
+      const commit = await source.commit(expected.controller_revision);
       if (
         !isRecord(commit) ||
         commit.sha !== expected.controller_revision ||
@@ -447,32 +480,25 @@ export async function receivePublicationResultArtifact(
         throw new Error("publication result controller tree differs");
       return {
         source: { commit: commit.sha, tree: commit.tree.sha },
-        run: run(source.get(`actions/runs/${expected.run_id}`)),
-        attempt: run(
-          source.get(`actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`),
-        ),
-        artifact: source.artifact(expected.artifact, false),
-        bundle: source.artifact(expected.bundle, true),
+        run: run(await source.run(expected.run_id)),
+        attempt: run(await source.attempt(expected.run_id, expected.run_attempt)),
+        artifact: await source.artifact(expected.artifact, false),
+        bundle: await source.artifact(expected.bundle, true),
       };
     };
-    const before = snapshot();
-    const download = options.download ?? readGitHubArtifactArchive;
-    const acquire = (item: { id: number; bytes: number; sha256: string }) => {
-      const archive = download(`${repository}actions/artifacts/${item.id}/zip`, {
-        cwd: directory,
-        maxBytes: item.bytes,
-        timeoutMs: remaining(deadline, 30000),
-        spawn: (command, argv, settings) =>
-          spawnSync(command, argv, { ...settings, env: environment }),
-      });
+    const before = await snapshot();
+    const acquire = async (item: { id: number; bytes: number; sha256: string }) => {
+      const archive = options.download
+        ? await options.download(item.id, item.bytes, deadline)
+        : await downloadResultArchive(item.id, item.bytes, deadline, token, true);
       remaining(deadline);
       if (archive.length !== item.bytes || hash(archive) !== item.sha256)
         throw new Error("publication result opaque archive differs");
       return archive;
     };
     phase = "bounded-archives";
-    const archive = acquire(before.artifact),
-      bundleArchive = acquire(before.bundle);
+    const archive = await acquire(before.artifact),
+      bundleArchive = await acquire(before.bundle);
     const bytes = inspectPublicationResultArchive(archive),
       bundle = inspectPublicationResultArchive(bundleArchive, true);
     if (hash(bytes) !== expected.report_sha256)
@@ -502,8 +528,8 @@ export async function receivePublicationResultArtifact(
         digest(predicate(record, expected.report_sha256, before.artifact))
     )
       throw new Error("publication result signed association differs");
-    const readJob = () => {
-      const job = source.get(`actions/jobs/${record.producer.job_id}`);
+    const readJob = async () => {
+      const job = await source.job(record.producer.job_id);
       if (
         !isRecord(job) ||
         job.id !== record.producer.job_id ||
@@ -519,13 +545,13 @@ export async function receivePublicationResultArtifact(
         throw new Error("publication result completed fixed publisher differs");
       return job;
     };
-    const job = readJob();
-    const refresh = () => {
-      if (digest(snapshot()) !== digest(before) || digest(readJob()) !== digest(job))
+    const job = await readJob();
+    const refresh = async () => {
+      if (digest(await snapshot()) !== digest(before) || digest(await readJob()) !== digest(job))
         throw new Error("publication result provider custody changed");
     };
     await contextAssociation(record, contextReceipt, deadline);
-    refresh();
+    await refresh();
     remaining(deadline);
     const evidence = [
       { name: reportName, bytes },
@@ -588,7 +614,7 @@ export async function requireReceivedPublicationResult(receipt: object, phaseDea
     actual.deadline,
     "retained",
   );
-  actual.refresh();
+  await actual.refresh();
   // An authenticated historical report is not current provider enforcement.
   // Reuse the existing complete draft-inclusive Release/tag/asset readback.
   const identity = {
@@ -600,16 +626,11 @@ export async function requireReceivedPublicationResult(receipt: object, phaseDea
       sha256,
     })),
   };
-  const api = new GitHubApiClient((args, input) => {
-    const output = createGitHubRunner({
-      cwd: actual.directory,
-      timeoutMs: remaining(actual.deadline),
-      maxBuffer: 2 * 1024 ** 2,
-    })([...args, "--hostname", "github.com"], input);
-    remaining(actual.deadline);
-    return output;
+  const metadata = await createReleaseCustodyProvider({
+    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    deadline: actual.deadline,
   });
-  const observed = readImmutableReleaseState(api, identity);
+  const observed = await readImmutableReleaseState(metadata, identity);
   const transition = proposeImmutableReleaseTransition(identity, observed.release, observed.assets);
   if (transition.decision !== "complete")
     throw new Error("attested immutable Release is no longer complete");

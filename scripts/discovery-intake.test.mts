@@ -2,14 +2,15 @@ import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts"
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { RoadmapClient, validateConfig } from "./roadmap.mts";
+import { validateConfig } from "./roadmap.mts";
 import {
   renderPortIssueBody,
   renderPortResearchDeclaration,
   findPortIssueDuplicates,
 } from "./roadmap-issue.mts";
 
-import { GitHubApiClient } from "./github-api.mts";
+import type { RoadmapClient } from "./roadmap.mts";
+import { sdkRoadmap } from "./fixtures/roadmap-fixtures.mts";
 import { isRecord } from "./runtime-values.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { intakeAmendmentAction, validateDiscoveryIntakeBody } from "./daily-discovery-session.mts";
@@ -21,7 +22,7 @@ function required<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined);
   return value;
 }
-type Issue = ReturnType<RoadmapClient["repositoryIssue"]>;
+type Issue = Awaited<ReturnType<RoadmapClient["repositoryIssue"]>>;
 void test("discovery rejects the Brawl metadata omission before public creation", () => {
   const upstream = "https://github.com/example/brawl";
   const valid = renderPortIssueBody({ title: "Brawl", upstream, portKey: "brawl" });
@@ -60,7 +61,7 @@ void test("amendment recovery observes successful writes and refuses repetition 
       /no repeated write/,
     );
 });
-void test("catalog-ID direct intake recovery keeps its existing catalog identity without inventing a port key", () => {
+void test("catalog-ID direct intake recovery keeps its existing catalog identity without inventing a port key", async () => {
   const body = renderPortIssueBody({
     title: "Catalog Game",
     upstream: "https://example.test/engine",
@@ -73,31 +74,31 @@ void test("catalog-ID direct intake recovery keeps its existing catalog identity
     html_url: "https://github.com/boburning/portcove/issues/43",
     body,
   };
-  const client = new RoadmapClient(
-    config,
-    new GitHubApiClient(() => {
+  const client = await sdkRoadmap(config, {
+    allowMutations: true,
+    rest: () => {
       throw new Error("Unexpected body mutation");
-    }),
-  );
-  client.repositoryIssue = () => issue;
-  client.repositoryIssues = () => fixtureIssueInventory(client, []);
-  client.itemList = () => [];
-  client.projectContext = () => ({
+    },
+  });
+  client.repositoryIssue = async () => issue;
+  client.repositoryIssues = async () => await fixtureIssueInventory(client, []);
+  client.itemList = async () => [];
+  client.projectContext = async () => ({
     number: config.project.number,
     details: { id: "PVT" },
     fields: [],
   });
-  client.readInventory = () => [];
-  client.ensureIssueItem = () => ({ id: "ITEM43" });
-  client.setItemFields = () => {};
-  const result = client.normalizePortIssue({
+  client.readInventory = async () => [];
+  client.ensureIssueItem = async () => ({ id: "ITEM43" });
+  client.setItemFields = async () => {};
+  const result = await client.normalizePortIssue({
     number: 43,
     catalog: { ports: [{ id: "catalog-game" }] },
   });
   assert.equal(result.bodyChanged, false);
   assert.equal(result.projectItemAdded, true);
 });
-void test("captured issue identity survives failed Project intake and neutral normalization repairs the same issue", () => {
+void test("captured issue identity survives failed Project intake and neutral normalization repairs the same issue", async () => {
   const state: {
     issue: Issue | null;
     receipt: Issue | null;
@@ -105,27 +106,28 @@ void test("captured issue identity survives failed Project intake and neutral no
     fields: Readonly<Record<string, string>> | null;
   } = { issue: null, receipt: null, projectItem: null, fields: null };
   let creates = 0;
-  const api = new GitHubApiClient((args, input) => {
-    assert.equal(args[4], "POST");
-    assert.ok(required(args[2]).endsWith("/issues"));
-    const payload: unknown = JSON.parse(required(input));
-    assert.ok(
-      isRecord(payload) && typeof payload.title === "string" && typeof payload.body === "string",
-    );
-    creates++;
-    state.issue = {
-      ...payload,
-      title: payload.title,
-      body: payload.body,
-      number: 42,
-      node_id: "I42",
-      html_url: "https://github.com/boburning/portcove/issues/42",
-    };
-    return `HTTP/2 201\n\n${JSON.stringify(state.issue)}`;
+  const client = await sdkRoadmap(config, {
+    allowMutations: true,
+    rest: ({ method, endpoint, body: payload }) => {
+      assert.equal(method, "POST");
+      assert.equal(endpoint, `repos/${config.repository}/issues`);
+      assert.ok(
+        isRecord(payload) && typeof payload.title === "string" && typeof payload.body === "string",
+      );
+      creates++;
+      state.issue = {
+        ...payload,
+        title: payload.title,
+        body: payload.body,
+        number: 42,
+        node_id: "I42",
+        html_url: "https://github.com/boburning/portcove/issues/42",
+      };
+      return Response.json(state.issue, { status: 201 });
+    },
   });
-  const client = new RoadmapClient(config, api);
-  client.repositoryIssues = () =>
-    fixtureIssueInventory(
+  client.repositoryIssues = async () =>
+    await fixtureIssueInventory(
       client,
       state.issue
         ? [
@@ -140,12 +142,12 @@ void test("captured issue identity survives failed Project intake and neutral no
           ]
         : [],
     );
-  client.ensureIssueItem = () => {
+  client.ensureIssueItem = async () => {
     throw new Error("Project access failed");
   };
-  assert.throws(
-    () =>
-      client.createPortIssue({
+  await assert.rejects(
+    async () =>
+      await client.createPortIssue({
         title: "Game / Engine",
         upstream: "https://github.com/example/engine",
         portKey: "game-engine",
@@ -156,25 +158,25 @@ void test("captured issue identity survives failed Project intake and neutral no
     /Project access failed/,
   );
   assert.equal(required(state.receipt).number, 42);
-  assert.throws(
-    () =>
-      client.createPortIssue({
+  await assert.rejects(
+    async () =>
+      await client.createPortIssue({
         title: "Game / Engine",
         upstream: "https://github.com/example/engine",
         portKey: "game-engine",
       }),
     /durable issue/,
   );
-  client.repositoryIssue = () => required(state.issue);
-  client.itemList = () => (state.projectItem ? [state.projectItem] : []);
-  client.projectContext = () => ({
+  client.repositoryIssue = async () => required(state.issue);
+  client.itemList = async () => (state.projectItem ? [state.projectItem] : []);
+  client.projectContext = async () => ({
     number: config.project.number,
     details: { id: "PVT" },
     fields: [],
   });
-  client.readInventory = () => [];
-  client.ensureIssueItem = () => ({ id: "ITEM42" });
-  client.setItemFields = (id, values) => {
+  client.readInventory = async () => [];
+  client.ensureIssueItem = async () => ({ id: "ITEM42" });
+  client.setItemFields = async (id, values) => {
     const issue = required(state.issue);
     assert.ok(issue.state === undefined || issue.state === null || typeof issue.state === "string");
     state.fields = values;
@@ -187,7 +189,7 @@ void test("captured issue identity survives failed Project intake and neutral no
       })),
     };
   };
-  const result = client.normalizePortIssue({ number: 42, catalog: { ports: [] } });
+  const result = await client.normalizePortIssue({ number: 42, catalog: { ports: [] } });
   assert.equal(result.projectItemAdded, true);
   assert.equal(result.bodyChanged, false);
   assert.equal(required(state.fields).Status, "Inbox");

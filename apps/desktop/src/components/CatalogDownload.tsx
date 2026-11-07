@@ -1,3 +1,4 @@
+import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import {
   assetKey,
   releaseKey,
@@ -53,6 +54,24 @@ export function CatalogDownloadControl(props: DownloadControlProps) {
   );
 }
 
+function initialDownloadChoices(
+  libraryRoot: string | undefined,
+  entry: CatalogEntry,
+  upstream: string,
+) {
+  const { choice, warning } = readDownloadChoice(libraryRoot, entry.id, upstream);
+  const channel: DownloadChoice["channel"] =
+    choice?.channel ?? (entry.listing?.recommended_download_channel === "beta" ? "beta" : "stable");
+  return {
+    warning,
+    channel,
+    release: choice?.release ?? undefined,
+    package: choice?.package ?? "",
+    destination: choice?.destination ?? "",
+    extract: choice?.extract ?? true,
+  };
+}
+
 function useDownloadChoices({
   entry,
   generation,
@@ -62,26 +81,21 @@ function useDownloadChoices({
   libraryRoot,
 }: DownloadControlProps) {
   const upstream = entry.listing?.project_url ?? entry.definition?.project_url ?? "";
-  const [restored] = useState(() => readDownloadChoice(libraryRoot, entry.id, upstream));
-  const [choiceWarning, setChoiceWarning] = useState(restored.warning);
+  const [initial] = useState(() => initialDownloadChoices(libraryRoot, entry, upstream));
+  const [choiceWarning, setChoiceWarning] = useState(initial.warning);
   const extractionId = useId();
   const optionsId = useId();
   const downloadRegion = useRef<HTMLElement>(null);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const [result, setResult] = useState<CatalogDownloadCandidates>();
   const [selectedKey, setSelectedKey] = useState("");
-  const [releaseChoice, setReleaseChoice] = useState<ReleaseReference | undefined>(
-    restored.choice?.release ?? undefined,
-  );
-  const [packageChoice, setPackageChoice] = useState(restored.choice?.package ?? "");
-  const [channel, setChannel] = useState(
-    restored.choice?.channel ??
-      (entry.listing?.recommended_download_channel === "beta" ? "beta" : "stable"),
-  );
+  const [releaseChoice, setReleaseChoice] = useState(initial.release);
+  const [packageChoice, setPackageChoice] = useState(initial.package);
+  const [channel, setChannel] = useState(initial.channel);
   const [showOther, setShowOther] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [destination, setDestination] = useState(restored.choice?.destination ?? "");
-  const [extract, setExtract] = useState(restored.choice?.extract ?? true);
+  const [destination, setDestination] = useState(initial.destination);
+  const [extract, setExtract] = useState(initial.extract);
   const initialChoice = useRef({ releaseChoice, channel, packageChoice });
   const remember = (change: Partial<DownloadChoice>) => {
     setChoiceWarning(
@@ -196,6 +210,7 @@ function useDownloadChoices({
     busy,
     perform,
     choiceWarning,
+    updates: upstreamUpdatesDestination(upstream, result?.upstream_url),
     extractionId,
     optionsId,
     downloadRegion,
@@ -260,7 +275,9 @@ function DownloadChoicesView({
               : "Check upstream downloads"}
         </Button>
         {model.result && (
-          <ExternalLink href={model.result.upstream_url}>View upstream releases</ExternalLink>
+          <ExternalLink href={model.updates.url}>
+            {model.updates.releases ? "View upstream releases" : "Project website"}
+          </ExternalLink>
         )}
       </ActionRow>
       <ActionReviewFailure error={model.error} />
@@ -529,6 +546,7 @@ function PendingActions({
           await desktopApi.forgetPendingSetup(entry.id, pending.id, generation);
           return true;
         } catch (value) {
+          // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
           failure = value;
           throw value;
         }

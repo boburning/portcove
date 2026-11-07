@@ -1,6 +1,18 @@
-import { useCallback, useId, useState, type ReactElement, type ReactNode } from "react";
+import {
+  cloneElement,
+  useCallback,
+  useId,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { floatingMotion } from "./control-style";
+
+/** One group per application surface; portals retain this React context. */
+export function TooltipProvider({ children }: { children: ReactNode }) {
+  return <TooltipPrimitive.Provider delay={400}>{children}</TooltipPrimitive.Provider>;
+}
 
 /** Supplemental help only: essential instructions belong in visible content. */
 export function Tooltip({
@@ -10,7 +22,7 @@ export function Tooltip({
   side = "top",
 }: {
   label: ReactNode;
-  children: ReactElement;
+  children: ReactElement<{ "aria-describedby"?: string | undefined }>;
   disabled?: boolean;
   side?: TooltipPrimitive.Positioner.Props["side"];
 }) {
@@ -26,37 +38,34 @@ export function Tooltip({
         null,
     );
   }, []);
-  const existingDescription = (children.props as { "aria-describedby"?: string })[
-    "aria-describedby"
-  ];
+  const existingDescription = children.props["aria-describedby"];
   const description = open
     ? [existingDescription, id].filter(Boolean).join(" ")
     : existingDescription;
   return (
-    <TooltipPrimitive.Provider delay={400}>
-      <TooltipPrimitive.Root disabled={disabled} onOpenChange={setOpen}>
-        <TooltipPrimitive.Trigger
-          ref={retainSemanticOwner}
-          render={children}
-          aria-describedby={description}
-        />
-        <TooltipPrimitive.Portal container={portalContainer}>
-          <TooltipPrimitive.Positioner
-            positionMethod="fixed"
-            side={side}
-            sideOffset={6}
-            className="z-(--layer-floating)"
+    <TooltipPrimitive.Root disabled={disabled} onOpenChange={setOpen}>
+      <TooltipPrimitive.Trigger
+        ref={retainSemanticOwner}
+        // Render-element props take precedence in Base UI, so compose on that element too.
+        render={cloneElement(children, { "aria-describedby": description })}
+        aria-describedby={description}
+      />
+      <TooltipPrimitive.Portal container={portalContainer}>
+        <TooltipPrimitive.Positioner
+          positionMethod="fixed"
+          side={side}
+          sideOffset={6}
+          className="z-(--layer-floating)"
+        >
+          <TooltipPrimitive.Popup
+            id={id}
+            role="tooltip"
+            className={`max-w-[min(20rem,calc(100vw-2rem))] rounded-pc-md border border-pc-border bg-pc-surface px-3 py-2 text-sm text-pc-foreground shadow-(--shadow-floating) ${floatingMotion}`}
           >
-            <TooltipPrimitive.Popup
-              id={id}
-              role="tooltip"
-              className={`max-w-[min(20rem,calc(100vw-2rem))] rounded-pc-md border border-pc-border bg-pc-surface px-3 py-2 text-sm text-pc-foreground shadow-(--shadow-floating) ${floatingMotion}`}
-            >
-              {label}
-            </TooltipPrimitive.Popup>
-          </TooltipPrimitive.Positioner>
-        </TooltipPrimitive.Portal>
-      </TooltipPrimitive.Root>
-    </TooltipPrimitive.Provider>
+            {label}
+          </TooltipPrimitive.Popup>
+        </TooltipPrimitive.Positioner>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }

@@ -23,7 +23,12 @@ import {
 import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
   observeReleaseInputProtections,
+  createApplicationProtectionObservationReader,
+  createProtectionObservationReader,
   requireReleaseInputWriterPolicy,
+  requireApplicationReleaseProtectionDigest,
+  bootstrapProtectionFingerprints,
+  bootstrapProtectionRulesetFieldFingerprints,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import { capacityDigest } from "./release-capacity.mts";
@@ -188,7 +193,7 @@ void test("immutable conflicts, CAS refusal and ambiguous acknowledgment never o
   );
   assert.equal(recovered.mutations(), 1);
 });
-void test("isolated observer only GETs and refuses hidden bypass, inherited coverage and drift", () => {
+void test("isolated observer only GETs and refuses hidden bypass, inherited coverage and drift", async () => {
   for (const fault of [
     "",
     "bypass",
@@ -201,49 +206,50 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
     let refReads = 0;
     let settingReads = 0;
     const publication = fault.startsWith("release-");
-    const api = {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        let body: unknown;
-        const rule = {
-          id: 1,
-          source_type: fault === "inherited" ? "Organization" : "Repository",
-          source: "boburning/portcove",
-          enforcement: "active",
-          conditions: {
-            ref_name: { include: ["refs/heads/portcove-release-inputs"], exclude: [] },
-          },
-          bypass_actors: [],
-          rules: [{ type: "update" }],
+    const read = async (endpoint: string) => {
+      let body: unknown;
+      const rule = {
+        id: 1,
+        source_type: fault === "inherited" ? "Organization" : "Repository",
+        source: "boburning/portcove",
+        enforcement: "active",
+        conditions: {
+          ref_name: { include: ["refs/heads/portcove-release-inputs"], exclude: [] },
+        },
+        bypass_actors: [],
+        rules: [{ type: "update" }],
+      };
+      if (endpoint === "repos/boburning/portcove")
+        body = { id: 1354613114, full_name: "boburning/portcove" };
+      else if (endpoint.endsWith("/immutable-releases")) {
+        settingReads++;
+        body = {
+          enabled:
+            fault !== "release-disabled" && !(fault === "release-drift" && settingReads === 2),
+          enforced_by_owner: false,
         };
-        if (endpoint === "repos/boburning/portcove")
-          body = { id: 1354613114, full_name: "boburning/portcove" };
-        else if (endpoint.endsWith("/immutable-releases")) {
-          settingReads++;
-          body = {
-            enabled:
-              fault !== "release-disabled" && !(fault === "release-drift" && settingReads === 2),
-            enforced_by_owner: false,
-          };
-        } else if (endpoint.includes("/rulesets?")) body = [rule];
-        else if (endpoint.includes("/rulesets/1?"))
-          body = fault === "bypass" ? { ...rule, bypass_actors: undefined } : rule;
-        else if (endpoint.includes("/git/ref/heads/")) {
-          refReads++;
-          body = {
-            ref: `refs/heads/${endpoint.split("/").at(-1)}`,
-            object: { type: "commit", sha: fault === "drift" && refReads > 2 ? after : before },
-          };
-        } else if (endpoint.includes("/rules/branches/")) body = [{ type: "update" }];
-        else if (endpoint.includes("/protection")) body = { enforce_admins: { enabled: true } };
-        else throw new Error("unexpected observer route");
-        return { status: 200, headers: new Map<string, string>(), body };
-      },
+      } else if (endpoint.includes("/rulesets?")) body = [rule];
+      else if (endpoint.includes("/rulesets/1?"))
+        body = fault === "bypass" ? { ...rule, bypass_actors: undefined } : rule;
+      else if (endpoint.includes("/git/ref/heads/")) {
+        refReads++;
+        body = {
+          ref: `refs/heads/${endpoint.split("/").at(-1)}`,
+          object: { type: "commit", sha: fault === "drift" && refReads > 2 ? after : before },
+        };
+      } else if (endpoint.includes("/rules/branches/")) body = [{ type: "update" }];
+      else if (endpoint.includes("/protection")) body = { enforce_admins: { enabled: true } };
+      else throw new Error("unexpected observer route");
+      return { status: 200, body };
     };
     if ((fault && !publication) || fault === "release-drift")
-      assert.throws(() => observeReleaseInputProtections(api, { releasePublication: publication }));
+      await assert.rejects(
+        observeReleaseInputProtections(read, { releasePublication: publication }),
+      );
     else {
-      const result = observeReleaseInputProtections(api, { releasePublication: publication });
+      const result = await observeReleaseInputProtections(read, {
+        releasePublication: publication,
+      });
       assert.equal(result.admission, "hold");
       assert.equal(result.enforcement, "uninterpreted");
       if (fault === "release-ok") {
@@ -252,6 +258,59 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
       } else assert.throws(() => requireReleaseImmutabilityPolicy(result));
     }
   }
+});
+
+void test("application publication reads both protection inventories while isolating Contents ref credentials", async (t) => {
+  const rules = Array.from({ length: 34 }, (_, index) => ({
+    id: index + 1,
+    source_type: "Repository",
+    source: "boburning/portcove",
+    enforcement: "active",
+    conditions: {},
+    bypass_actors: [],
+    rules: [],
+  }));
+  const counts = { ref: 0, protection: 0 };
+  t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
+    assert.equal(init.method, "GET");
+    assert.equal(typeof input, "string");
+    const url = new URL(String(input));
+    assert.equal(url.origin, "https://api.github.com");
+    const endpoint = url.pathname;
+    const branch =
+      /^\/repos\/boburning\/portcove\/git\/ref\/heads\/(portcove-release-inputs|portcove-release-pause)$/u.exec(
+        endpoint,
+      )?.[1];
+    const credential = new Headers(init.headers).get("authorization");
+    if (branch) {
+      assert.equal(credential, "token inert-contents-reader");
+      counts.ref++;
+      return Response.json({
+        ref: "refs/heads/" + branch,
+        object: { type: "commit", sha: "a".repeat(40) },
+      });
+    }
+    assert.equal(credential, "token inert-protection-reader");
+    counts.protection++;
+    if (endpoint.endsWith("/portcove"))
+      return Response.json({ id: 1354613114, full_name: "boburning/portcove" });
+    if (endpoint.endsWith("/rulesets")) return Response.json(rules);
+    const rule = /\/rulesets\/(\d+)$/u.exec(endpoint)?.[1];
+    if (rule) return Response.json(rules[Number(rule) - 1]);
+    if (endpoint.includes("/rules/branches/")) return Response.json([]);
+    assert.ok(endpoint.endsWith("/immutable-releases"));
+    return Response.json({ enabled: true, enforced_by_owner: false });
+  });
+  const read = await createApplicationProtectionObservationReader({
+    token: "inert-protection-reader",
+    refToken: "inert-contents-reader",
+    deadline: performance.now() + 10_000,
+    maxBytes: 4 * 1024 ** 2,
+    guard() {},
+  });
+  const result = await observeReleaseInputProtections(read, { releasePublication: true });
+  assert.equal(result.inventory.rulesets.length, 34);
+  assert.deepEqual(counts, { ref: 4, protection: 77 });
 });
 
 void test("release immutability requires fresh complete isolated setting, not an imported enabled flag", () => {
@@ -275,6 +334,140 @@ void test("release immutability requires fresh complete isolated setting, not an
     { ...proof, inventory: { immutable_releases: { enabled: true } } },
   ])
     assert.throws(() => requireReleaseImmutabilityPolicy(value, now));
+});
+
+void test("bootstrap appointment binds protection and refs across observer principals", () => {
+  const now = Date.now();
+  const ruleset = {
+    id: 42,
+    created_at: "2026-10-28T07:42:05.000-04:00",
+    updated_at: "2026-11-06T20:45:09.273-05:00",
+    bypass_actors: [{ actor_id: 7, actor_type: "Integration", bypass_mode: "always" }],
+    rules: [{ type: "deletion" }],
+    current_user_can_bypass: "always",
+  };
+  const pauseRef = (sha: string) => ({
+    branch: "portcove-release-pause",
+    effective_rules: [],
+    ref: {
+      object: { sha, url: `https://api.github.com/repos/boburning/portcove/git/commits/${sha}` },
+    },
+  });
+  const inventory = {
+    immutable_releases: { enabled: true, enforced_by_owner: false },
+    rulesets: [ruleset],
+    branches: [pauseRef("a".repeat(40))],
+  };
+  const proof = (value: typeof inventory) => ({
+    schema_version: 1,
+    repository_id: 1354613114,
+    coverage: "current-repository-input-branches-and-release-immutability",
+    observed_at: new Date(now).toISOString(),
+    inventory: value,
+    inventory_sha256: capacityDigest(value),
+  });
+  const owner = proof(inventory);
+  const observer = proof({
+    ...inventory,
+    rulesets: [
+      {
+        ...ruleset,
+        created_at: "2026-10-28T11:42:05.000Z",
+        updated_at: "2026-11-07T01:45:09.273Z",
+        current_user_can_bypass: "never",
+      },
+    ],
+  });
+  const appointed = requireApplicationReleaseProtectionDigest(owner, true, now);
+  const fingerprints = bootstrapProtectionFingerprints(owner);
+  assert.deepEqual(bootstrapProtectionFingerprints(observer), fingerprints);
+  const fields = bootstrapProtectionRulesetFieldFingerprints(owner);
+  assert.deepEqual(bootstrapProtectionRulesetFieldFingerprints(observer), fields);
+  const actorsChanged = bootstrapProtectionRulesetFieldFingerprints(
+    proof({ ...inventory, rulesets: [{ ...ruleset, bypass_actors: [] }] }),
+  );
+  assert.notEqual(actorsChanged.fields.bypass_actors, fields.fields.bypass_actors);
+  assert.deepEqual(
+    {
+      ...actorsChanged,
+      fields: { ...actorsChanged.fields, bypass_actors: fields.fields.bypass_actors },
+    },
+    fields,
+  );
+  const changedRef = bootstrapProtectionFingerprints(
+    proof({
+      ...inventory,
+      branches: [pauseRef("b".repeat(40))],
+    }),
+  );
+  assert.notEqual(changedRef.refs, fingerprints.refs);
+  assert.deepEqual({ ...changedRef, refs: fingerprints.refs }, fingerprints);
+  assert.equal(fingerprints.ruleset_count, 1);
+  for (const digest of [
+    fingerprints.rulesets,
+    fingerprints.refs,
+    fingerprints.effective,
+    fingerprints.settings,
+  ])
+    assert.match(digest, /^[a-f0-9]{64}$/u);
+
+  assert.equal(requireApplicationReleaseProtectionDigest(observer, true, now), appointed);
+  for (const updated_at of ["2026-11-07T01:45:09.274Z", "2026-11-07T01:45:09.273-05:00"]) {
+    assert.notEqual(
+      requireApplicationReleaseProtectionDigest(
+        proof({
+          ...inventory,
+          rulesets: [{ ...ruleset, updated_at }],
+        }),
+        true,
+        now,
+      ),
+      appointed,
+    );
+  }
+  for (const updated_at of [
+    "2026-02-30T01:45:09.273Z",
+    "2026-11-07T01:45:09.2734Z",
+    "2026-11-07T01:45:09.273",
+  ]) {
+    assert.throws(
+      () =>
+        requireApplicationReleaseProtectionDigest(
+          proof({
+            ...inventory,
+            rulesets: [{ ...ruleset, updated_at }],
+          }),
+          true,
+          now,
+        ),
+      /bootstrap ruleset timestamp is malformed/u,
+    );
+  }
+  assert.equal(
+    requireApplicationReleaseProtectionDigest(owner, false, now),
+    owner.inventory_sha256,
+  );
+  assert.notEqual(
+    requireApplicationReleaseProtectionDigest(observer, false, now),
+    owner.inventory_sha256,
+  );
+  for (const changed of [
+    { ...inventory, rulesets: [{ ...ruleset, bypass_actors: [] }] },
+    { ...inventory, rulesets: [{ ...ruleset, rules: [] }] },
+    { ...inventory, branches: [pauseRef("b".repeat(40))] },
+  ])
+    assert.notEqual(
+      requireApplicationReleaseProtectionDigest(proof(changed), true, now),
+      appointed,
+    );
+  assert.throws(() =>
+    requireApplicationReleaseProtectionDigest(
+      { ...owner, inventory: observer.inventory },
+      true,
+      now,
+    ),
+  );
+  assert.throws(() => requireApplicationReleaseProtectionDigest(owner, true, now + 60001));
 });
 
 void test("writer policy requires fresh exact per-ref principals and unbypassable immutable ref rules", () => {
@@ -548,4 +741,40 @@ void test("legacy persisted classification refuses consumption and is never over
   assert.throws(() => readReviewedClassification(f.api, config, opportunity));
   assert.throws(() => persistReviewedClassification(f.api, config, opportunity, 303, () => {}));
   assert.equal(f.mutations(), 1);
+});
+
+void test("fixed protection reader uses the explicit observer credential and exact GET scope", async (t) => {
+  let dispatches = 0;
+  let guards = 0;
+  const deadline = performance.now() + 5000;
+  const read = await createProtectionObservationReader({
+    token: "inert-protection-observer",
+    deadline,
+    maxBytes: 4 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    guard: () => {
+      guards++;
+    },
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      dispatches++;
+      assert.equal(request.url, "https://api.github.com/repos/boburning/portcove");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-protection-observer");
+      assert.equal(guards, 1);
+      return Response.json({ id: 1354613114 });
+    },
+  );
+  await assert.rejects(async () => read("repos/boburning/elsewhere", deadline), /unscoped route/u);
+  assert.equal(dispatches, 0);
+  assert.deepEqual(await read("repos/boburning/portcove", deadline), {
+    status: 200,
+    body: { id: 1354613114 },
+  });
+  assert.equal(dispatches, 1);
+  assert.equal(guards, 2);
 });

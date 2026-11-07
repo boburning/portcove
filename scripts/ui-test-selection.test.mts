@@ -20,6 +20,7 @@ import {
   reconcileUiSelection,
   allowedUiSkippedFiles,
   uiShuffleSeed,
+  failedUiSpecifications,
 } from "./ui-test-selection.mts";
 import type {
   UiModuleObservation,
@@ -40,6 +41,57 @@ import { runMeasuredCoverage, readMeasuredCoverage } from "./test-coverage.mts";
 import { retainCoverageMap } from "./coverage-maps.mts";
 import { baselineTestEnvironment } from "./ci-baseline.mts";
 import { isRecord } from "./runtime-values.mts";
+
+void test("failed-test feedback replays complete current files and fails open to full coverage", () => {
+  const files = ["passing.test.ts", "failed.test.ts"];
+  const fresh = (file: string) => ({
+    failed: file.startsWith("failed"),
+    duration: 1,
+    lastRun: 100,
+    failedTests: ["old renamed case"],
+  });
+  assert.deepEqual(failedUiSpecifications(files, fresh, 90, 110), ["failed.test.ts"]);
+  for (const result of [
+    undefined,
+    {},
+    { failed: true },
+    { failed: false, duration: 1, lastRun: 100 },
+    { failed: true, duration: 1, lastRun: 90 },
+    { failed: true, duration: 1, lastRun: 111 },
+    { failed: true, duration: NaN, lastRun: 100 },
+  ])
+    assert.equal(
+      failedUiSpecifications(files, () => result, 90, 110),
+      files,
+    );
+  // Added/moved files have no record; a removed failure leaves no empty pass.
+  assert.equal(
+    failedUiSpecifications(
+      [...files, "moved.test.ts"],
+      (f) => (f === "moved.test.ts" ? undefined : fresh(f)),
+      90,
+      110,
+    ).length,
+    3,
+  );
+  assert.deepEqual(failedUiSpecifications(["passing.test.ts"], fresh, 90, 110), [
+    "passing.test.ts",
+  ]);
+});
+
+void test("failed-test feedback is rejected before runner initialization in CI", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/run-ui-tests.mts", "exact", "--last-failed"],
+    {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, CI: "true" },
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /cannot satisfy CI or coverage acceptance/);
+});
 
 void test("shuffled diagnostics reject ambiguous or unbounded seeds before runner initialization", () => {
   for (const seed of [undefined, "", "-1", "1.5", "01", "Infinity", "4294967296", "1e2"])
@@ -194,6 +246,42 @@ void test("only the exact disabled browser diagnostic receives an explicit skip 
   const permissions = allowedUiSkippedFiles([probe, ordinary, foreign], root, {});
   assert.equal(permissions.size, 1);
   assert.match(permissions.get(probe)?.reason ?? "", /diagnostic/);
+});
+
+void test("the declared Windows case may skip elsewhere only within a running suite", () => {
+  const root = path.resolve("desktop");
+  const file = path.join(root, "scripts/desktop-install-fixture.test.mts");
+  const name = "lifecycle timeout terminates a ready descendant process tree within a second bound";
+  const skipped = { fullName: name, result: () => ({ state: "skipped" as const }) };
+  const passed = {
+    fullName: "ordinary fixture case",
+    result: () => ({ state: "passed" as const }),
+  };
+  const observed = (cases: (typeof skipped | typeof passed)[]) =>
+    report([{ ...suite(file), children: { allTests: () => cases } }]);
+  const permissions = allowedUiSkippedFiles([file], root);
+  if (process.platform === "win32") {
+    assert.equal(permissions.size, 0);
+    assert.throws(
+      () => reconcileUiSelection(observed([passed, skipped]), [file], permissions),
+      /Unexpected UI skip/,
+    );
+  } else {
+    assert.equal(reconcileUiSelection(observed([passed, skipped]), [file], permissions).skipped, 1);
+    assert.throws(
+      () => reconcileUiSelection(observed([skipped]), [file], permissions),
+      /wholly skipped/,
+    );
+    assert.throws(
+      () =>
+        reconcileUiSelection(
+          observed([passed, { ...skipped, fullName: "different case" }]),
+          [file],
+          permissions,
+        ),
+      /Unexpected UI skip/,
+    );
+  }
 });
 
 void test("exact wrapper rejects a mixed valid/missing request before invoking its runner", () => {

@@ -3,13 +3,13 @@
 use super::*;
 use crate::{GithubReleaseProvider, GitlabReleaseProvider};
 
-pub(super) enum CatalogDownloadRepository {
+pub(crate) enum CatalogDownloadRepository {
     Github(String),
     Gitlab(String),
 }
 
 impl CatalogDownloadRepository {
-    pub(super) fn parse(value: &str) -> Result<Self> {
+    pub(crate) fn parse(value: &str) -> Result<Self> {
         let url = reqwest::Url::parse(value).map_err(|_| {
             PortcoveError::unsupported("upstream URL does not identify a supported repository")
         })?;
@@ -59,7 +59,7 @@ impl CatalogDownloadRepository {
         Ok(Self::Gitlab(parts.join("/")))
     }
 
-    pub(super) fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             Self::Github(name) | Self::Gitlab(name) => name,
         }

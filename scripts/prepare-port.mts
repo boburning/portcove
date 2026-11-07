@@ -1,10 +1,17 @@
 import {
+  acceptPackagePlayerObservation,
+  checkPackagePlayerObservationContinuity,
+  packagePlayerProjection,
+  packagePlayerProjectionKey,
+} from "./package-player-observation.mts";
+import {
   mkdirSync,
   mkdtempSync,
   lstatSync,
   readFileSync,
   writeFileSync,
   rmdirSync,
+  readdirSync,
   existsSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -22,7 +29,6 @@ import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import {
-  prepareCatalogArtwork,
   createIgdbInspector,
   createCoreImageValidator,
   readArtworkJson,
@@ -37,6 +43,8 @@ import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import { collectSettingsSource, qualifySettingsObservation } from "./settings-qualification.mts";
+import { prepareSettingsCandidate } from "./prepare-settings-candidate.mts";
 import {
   assessUpstreamLineage,
   checkLineageChange,
@@ -47,6 +55,8 @@ interface PrepareOptions {
   catalogRoot: string;
   outputDirectory: string;
   record?: unknown;
+  packageObservation?: { receipt: unknown; reference: string };
+  settingsNativeScope?: unknown;
   projectUrl?: string | undefined;
   issue?: string | undefined;
   id?: string | undefined;
@@ -112,6 +122,8 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
       completion_record: record.integration.setup_marker ?? null,
       next: "For manual preparation before Play, use an upstream atomically published JSON completion record beneath already declared player data when that contract exists. Core checks bounded structural progress only; upstream still owns edition/content validation. Native capability 2 is required. Do not invent a marker, execute a discovered helper, or add a marker for a game's own first-Play picker.",
     },
+    player_copy_review:
+      "Collect edition, package, platform and file-effect evidence first. Then write the browse summary and setup actions using docs/CONTENT-DESIGN.md. Put pre-action risks in warnings and preserve technical evidence in references.",
     launch_identity: {
       original_game_title: record.listing.original_game_title ?? null,
       next: record.listing.original_game_title
@@ -124,6 +136,39 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
       "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route. Generated executable caches need compatible producer identity or supported invalidation, not just a declared directory or ABI label.",
     scope:
       "Authoring observations only; Core retains package selection, trust and mutation authority.",
+  };
+}
+
+/** Advice only: distinctive declarations never follow from arbitrary guide prose. */
+export function declarativePreparationFeedback(record: AuthoredPort) {
+  const projections = [];
+  if (record.route_facts_v1) {
+    projections.push({
+      field: "route_facts_v1",
+      scope: record.route_facts_v1.managed_native
+        ? "Prepared-player guide and managed NativePortable presentation."
+        : "Prepared-player guide for the independent external route.",
+      next: "Keep the reviewed executable, literal arguments and external data locations explicit. Preserve bespoke setup and warnings. Reuse applicable accepted package/player inspections via the paired package observation options and keep independent expected facts.",
+    });
+  }
+  if (record.gba_staged_archive_v1) {
+    projections.push({
+      field: "gba_staged_archive_v1",
+      scope: "Managed Windows GBA archive paths and versioned mod policy for the upstream picker.",
+      next: "Check the exact package, original edition, picker lifetime and writer differences against the reviewed layout. Reuse matching staging, preservation and rollback evidence. Keep repository, release selectors, executable and external saves explicit.",
+    });
+  }
+  return {
+    status: projections.length > 0 ? "declared" : "undeclared",
+    projections,
+    next:
+      projections.length > 0
+        ? "Regenerate with generate-catalog.mts and review the concrete output. Use the Core proposal inspection for operational declarations."
+        : "Review docs/CATALOG.md for an applicable authoring projection. Establish the required facts before adopting one; otherwise keep the explicit integration or guide. This report does not assess whether the runtime supports an operation.",
+    original_files:
+      "An absent Core source_profile does not establish that no originals are required. Keep upstream original-file preparation and its owner explicit.",
+    release_progression:
+      "Initial acceptance or a changed integration needs its own applicable evidence. Ordinary releases already covered by stable rules use existing resolution/integrity checks without new version/applicability rows, wrappers, guide edits or routine owner/agent approval.",
   };
 }
 
@@ -337,11 +382,20 @@ type ArtworkOptions = Pick<
   "catalogRoot" | "outputDirectory" | "identities" | "validatorCli" | "credentialsFile" | "artwork"
 >;
 
-function artworkInspector(options: ArtworkOptions & { signal?: AbortSignal }, root: string) {
+function artworkInspector(
+  options: ArtworkOptions & { signal?: AbortSignal },
+  root: string,
+  validatorIdentity: string | null,
+) {
   let imageValidator: ImageValidator | undefined;
   const validateImage: ImageValidator = (bytes) => {
-    if (!options.validatorCli) throw new Error("Core image validation requires a compatible CLI.");
-    imageValidator ??= createCoreImageValidator(options.validatorCli, join(root, "images"));
+    if (!options.validatorCli || !validatorIdentity)
+      throw new Error("Core image validation requires a compatible CLI.");
+    imageValidator ??= createCoreImageValidator(
+      options.validatorCli,
+      join(root, "images"),
+      validatorIdentity,
+    );
     return imageValidator(bytes);
   };
   return (
@@ -393,8 +447,8 @@ function preparedRecordOutputs(
   const shared: Record<string, unknown> = structuredClone(authored.catalog);
   delete shared.ports;
   const assembled = assembleCatalogRecords(shared, proposed);
-  const operationalChanged =
-    observationHash(authored.catalog) !== observationHash(assembled.catalog);
+  const acceptedCatalogHash = observationHash(authored.catalog);
+  const operationalChanged = acceptedCatalogHash !== observationHash(assembled.catalog);
   let inspector: ReturnType<typeof coreProposalInspector> | undefined;
   const inspect = (kind: "core" | "listings-core", document: unknown) => {
     if (!options.validatorCli)
@@ -403,6 +457,7 @@ function preparedRecordOutputs(
     const key = observationHash({
       input: createHash("sha256").update(bytes).digest("hex"),
       validator: validatorIdentity,
+      ...(kind === "core" ? { repositoryAuthoring: true } : {}),
     });
     let receipt = cachedValue(root, kind, key);
     if (receipt === undefined) {
@@ -412,7 +467,7 @@ function preparedRecordOutputs(
       );
       receipt =
         kind === "core"
-          ? inspector.inspect("proposal", bytes)
+          ? inspector.inspect("proposal", bytes, true)
           : inspector.inspectListings("listings", bytes);
       if (!isRecord(receipt) || receipt.validator_artifact_sha256 !== validatorIdentity)
         throw new Error(
@@ -443,13 +498,15 @@ function preparedRecordOutputs(
     readArtworkJson(join(options.catalogRoot, "catalog-schema1-fixture.json")),
     readFileSync(join(options.catalogRoot, "catalog-legacy-additions-fixture.json")),
   );
-  const changed = assembled.records.filter(
-    (entry) =>
-      observationHash(entry) !==
-      observationHash(authored.records.find((old) => old.listing.id === entry.listing.id) ?? null),
-  );
+  const acceptedRecords = new Map(authored.records.map((record) => [record.listing.id, record]));
+  const changed = assembled.records.flatMap((entry) => {
+    const before = acceptedRecords.get(entry.listing.id);
+    const beforeHash = before ? observationHash(before) : null;
+    const afterHash = observationHash(entry);
+    return beforeHash === afterHash ? [] : [{ entry, before, beforeHash, afterHash }];
+  });
   const files = {
-    records: changed.map((entry) => ({
+    records: changed.map(({ entry }) => ({
       id: entry.listing.id,
       path: immutableJson(root, entry.listing.id, entry),
     })),
@@ -458,16 +515,15 @@ function preparedRecordOutputs(
     artwork: immutableJson(root, "artwork-evidence", artworkResult),
   };
   return {
-    accepted_catalog_sha256: observationHash(authored.catalog),
+    accepted_catalog_sha256: acceptedCatalogHash,
     accepted_listings_sha256: observationHash(authored.directory),
-    changed_records: changed.map((entry) => entry.listing.id),
-    record_changes: changed.map((entry) => {
-      const before = authored.records.find((old) => old.listing.id === entry.listing.id);
+    changed_records: changed.map(({ entry }) => entry.listing.id),
+    record_changes: changed.map(({ entry, before, beforeHash, afterHash }) => {
       return {
         id: entry.listing.id,
         action: before ? "modified" : "added",
-        before_sha256: before ? observationHash(before) : null,
-        after_sha256: observationHash(entry),
+        before_sha256: beforeHash,
+        after_sha256: afterHash,
         listing_fields: [
           ...new Set([...Object.keys(before?.listing ?? {}), ...Object.keys(entry.listing)]),
         ]
@@ -535,7 +591,10 @@ export async function preparePort(options: PrepareOptions) {
       projectUrl:
         options.projectUrl ?? explicit?.listing.project_url ?? selected?.listing.project_url,
       issue: options.issue,
-      route: options.route ?? "listing",
+      route:
+        options.settingsNativeScope !== undefined && options.releaseTag !== undefined
+          ? "download"
+          : (options.route ?? "listing"),
       releaseTag: options.releaseTag,
       resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
         const { base } = resolveIdentity(projectUrl, issuePortId);
@@ -568,6 +627,23 @@ export async function preparePort(options: PrepareOptions) {
       },
     });
     if (previous) checkLineageChange(previous, record);
+    if (previous?.package_observation_v1) {
+      // An explicit record is a proposal, never a replacement history authority.
+      if (record.package_observation_v1) {
+        checkPackagePlayerObservationContinuity(
+          previous.package_observation_v1,
+          record.package_observation_v1,
+        );
+      } else {
+        const listing = { ...record.listing };
+        delete listing.platforms;
+        record = checkedAuthoredPort({
+          ...record,
+          listing,
+          package_observation_v1: previous.package_observation_v1,
+        });
+      }
+    }
     checkObservedRepository(record, metadata.id);
     if (
       !record.integration &&
@@ -588,48 +664,158 @@ export async function preparePort(options: PrepareOptions) {
       record.listing.release_url = facts.release.body.html_url;
       record = checkedAuthoredPort(record);
     }
+    let packageObservation: unknown;
+    let settingsPackageObservation: unknown;
+    if (options.packageObservation) {
+      const receipt = options.packageObservation.receipt;
+      const rows = isRecord(receipt) && Array.isArray(receipt.rows) ? receipt.rows : undefined;
+      if (rows && rows.length > 128)
+        throw new Error("Accepted package receipt exceeds its finite row bound.");
+      const candidates: unknown[] = rows
+        ? rows.filter((row) => isRecord(row) && row.id === id)
+        : [receipt];
+      if (candidates.length !== 1)
+        throw new Error("Accepted package receipt needs one exact selected title row.");
+      settingsPackageObservation = candidates[0];
+      if (!record.settings_qualification_v1 || record.route_facts_v1?.prepared_player) {
+        const observation = acceptPackagePlayerObservation(
+          record,
+          candidates[0],
+          options.packageObservation.reference,
+          previous?.package_observation_v1 ?? record.package_observation_v1,
+        );
+        const key = packagePlayerProjectionKey(record, observation);
+        let projection = cachedValue(root, "package-player", key);
+        const reused = projection !== undefined;
+        if (projection === undefined) {
+          projection = packagePlayerProjection(record, observation);
+          retainValue(root, "package-player", key, projection);
+        }
+        const listing = { ...record.listing };
+        delete listing.platforms;
+        record = checkedAuthoredPort({ ...record, listing, package_observation_v1: observation });
+        packageObservation = {
+          reused,
+          scope_sha256: observation.scope_sha256,
+          cache_key: key,
+          projection,
+          scope:
+            "Accepted exact package/player evidence projected descriptively; no fresh byte inspection, support or publication authority.",
+        };
+      }
+    }
+    let settingsQualification: unknown;
+    let settingsSourceEvidence: string | undefined;
+    if (record.settings_qualification_v1 && options.settingsNativeScope !== undefined) {
+      try {
+        if (!options.validatorCli)
+          throw new Error("Settings qualification requires the captured capable Core client.");
+        const result = await prepareSettingsCandidate({
+          record,
+          catalog: authored.catalog,
+          facts,
+          scope: options.settingsNativeScope,
+          cli: options.validatorCli,
+          checkpoint: root,
+          releaseTag: options.releaseTag,
+          sourceOptions: options.facts,
+        });
+        record = checkedAuthoredPort({ ...record, settings_observation_v1: result.observation });
+        settingsQualification = result;
+      } catch (error) {
+        settingsQualification = {
+          status: "settings-unqualified",
+          reason:
+            error instanceof Error ? error.message : "Settings qualification could not complete.",
+          scope:
+            "Only optional settings qualification failed; existing package availability and basic operations are unchanged.",
+        };
+      }
+    } else if (record.settings_qualification_v1 && settingsPackageObservation !== undefined) {
+      try {
+        if (!options.validatorCli || !isRecord(facts.release?.body) || !facts.assets_complete)
+          throw new Error(
+            "Settings qualification needs a captured Core validator and complete selected release facts.",
+          );
+        const receipt = settingsPackageObservation;
+        const officialAsset = isRecord(receipt) ? receipt.official_asset : undefined;
+        if (
+          !isRecord(receipt) ||
+          !isRecord(officialAsset) ||
+          typeof receipt.source_revision !== "string" ||
+          typeof receipt.observed_archive_sha256 !== "string" ||
+          typeof facts.release.body.tag_name !== "string" ||
+          !facts.assets.some(
+            (asset) =>
+              isRecord(asset) &&
+              ["id", "name", "size", "digest", "browser_download_url"].every(
+                (field) => asset[field] === officialAsset[field],
+              ),
+          )
+        )
+          throw new Error(
+            "Settings package observation differs from the selected provider package.",
+          );
+        const sources = await collectSettingsSource(record, receipt.source_revision, {
+          ...options.facts,
+          releaseTag: facts.release.body.tag_name,
+        });
+        settingsSourceEvidence = immutableJson(root, "settings-source", sources);
+        const inspector = coreProposalInspector(
+          options.validatorCli,
+          mkdtempSync(join(root, "settings-core-")),
+        );
+        const observation = await qualifySettingsObservation(
+          record,
+          {
+            version: facts.release.body.tag_name,
+            platform: "windows-x86-64",
+            archive_sha256: receipt.observed_archive_sha256,
+            source_commit: receipt.source_revision,
+          },
+          receipt,
+          sources,
+          (bytes) => inspector.inspectSettings("settings-probe", bytes),
+        );
+        record = checkedAuthoredPort({ ...record, settings_observation_v1: observation });
+        settingsQualification = {
+          status: "qualified-proposal",
+          observation,
+          source_evidence: settingsSourceEvidence,
+          scope:
+            "Generated exact settings binding only; existing protected acceptance/publication and retained installation boundaries remain required.",
+        };
+      } catch (error) {
+        settingsQualification = {
+          status: "settings-unqualified",
+          source_evidence: settingsSourceEvidence,
+          reason:
+            error instanceof Error ? error.message : "Settings qualification could not complete.",
+          scope:
+            "Only optional settings qualification failed; package availability and basic operations retain their existing assessments.",
+        };
+      }
+    }
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
-    const acceptedArtwork = artworkCatalog(authored.records);
-    const proposalArtwork = artworkCatalog(records);
-    const identities = options.identities ?? {};
-    const artworkKey = observationHash({
-      acceptedArtwork,
-      proposalArtwork,
-      identities,
+    const inspector = artworkInspector(options, root, validatorIdentity);
+    const artwork = await prepareArtworkWorkset(artworkCatalog(records), {
+      root,
+      acceptedCatalog: artworkCatalog(authored.records),
+      inspector,
+      identities: options.identities ?? {},
       validatorIdentity,
+      selectedPortIds: [id],
     });
-    let artworkResult = cachedValue(root, "artwork", artworkKey);
-    let artworkReused = artworkResult !== undefined;
-    // Reuse successful preparation; a fallback remains independently retryable.
-    if (
-      isRecord(artworkResult) &&
-      isRecord(artworkResult.metrics) &&
-      Number(artworkResult.metrics.fallback) > 0
-    ) {
-      artworkResult = undefined;
-      artworkReused = false;
-    }
-    if (artworkResult === undefined) {
-      artworkResult = await prepareCatalogArtwork(proposalArtwork, {
-        acceptedCatalog: acceptedArtwork,
-        selectedPortIds: [id],
-        identities,
-        ...artworkInspector(options, root),
-      });
-      if (
-        isRecord(artworkResult) &&
-        isRecord(artworkResult.metrics) &&
-        Number(artworkResult.metrics.fallback) === 0
-      )
-        retainValue(root, "artwork", artworkKey, artworkResult);
-    }
     const prepared = preparedRecordOutputs(
       options,
       root,
       authored,
       records,
-      artworkResult,
-      artworkReused,
+      {
+        ...artwork,
+        ...("providerMetrics" in inspector ? { provider_metrics: inspector.providerMetrics } : {}),
+      },
+      artwork.reused,
       validatorIdentity,
     );
     const report = {
@@ -637,6 +823,11 @@ export async function preparePort(options: PrepareOptions) {
       port_id: id,
       route: record.integration ? "existing-integration" : (options.route ?? "listing"),
       lineage: assessUpstreamLineage(record),
+      ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
+      ...(settingsQualification === undefined
+        ? {}
+        : { settings_qualification: settingsQualification }),
+      declarative_authoring: declarativePreparationFeedback(record),
       canonical_preparation: canonicalPreparationFeedback(record, facts),
       portable_preparation: portablePreparationFeedback(record, facts),
       download_preparation: downloadPreparationFeedback(record, facts),
@@ -653,7 +844,9 @@ export async function preparePort(options: PrepareOptions) {
           ? "Review the exact declared archive pin and independent artifact/native evidence; no hosted-release hint selection or newer-version discovery is offered. Complete Core validation, capability version 3 negotiation (version 4 when the packaged-file Windows path policy is declared) and ordinary delivery checks."
           : options.route === "download" && !facts.assets_complete
             ? "Select an exact release or resolve the incomplete asset observation before package selection."
-            : "Review the proposed record files, copy accepted records into catalog/ports, regenerate, and complete the applicable review and delivery checks.",
+            : prepared.files.records.length === 0
+              ? "No authored record changes were proposed. Review the observed evidence and any limits for the intended operation."
+              : "Review the proposed record files, copy accepted records into catalog/ports, regenerate, and complete the applicable review and delivery checks.",
       scope:
         "Prepared local records only; listing visibility, executable acceptance and published user delivery are separate outcomes. No download, engine execution, issue mutation, signing or publication.",
     };
@@ -796,20 +989,24 @@ export async function prepareArtworkBatch(
     : null;
   const acceptedArtwork = artworkCatalog(authored.records);
   const identities = options.identities ?? {};
-  const artworkKey = observationHash({
-    acceptedArtwork,
-    identities,
-    validatorIdentity,
-    selectedPortIds: [...selected],
-    refreshPortIds,
-  });
   openCheckpoint(root);
   try {
-    // Accepted whole-batch receipts remain readable until this checkpoint has per-ID progress.
-    let artworkResult =
-      !options.maintenance && !existsSync(join(root, "artwork-gone.json"))
-        ? cachedValue(root, "artwork-batch", artworkKey)
-        : undefined;
+    // Read exact pre-workset batch receipts only in checkpoints that still carry them.
+    let artworkResult;
+    if (
+      !options.maintenance &&
+      !existsSync(join(root, "artwork-gone.json")) &&
+      readdirSync(root).some((name) => /^artwork-batch-[a-f0-9]{64}\.json$/u.test(name))
+    ) {
+      const legacyKey = observationHash({
+        acceptedArtwork,
+        identities,
+        validatorIdentity,
+        selectedPortIds: [...selected],
+        refreshPortIds,
+      });
+      artworkResult = cachedValue(root, "artwork-batch", legacyKey);
+    }
     let artworkReused = artworkResult !== undefined;
     if (
       isRecord(artworkResult) &&
@@ -824,7 +1021,7 @@ export async function prepareArtworkBatch(
       artworkReused = false;
     }
     if (artworkResult === undefined) {
-      const inspector = artworkInspector(options, root);
+      const inspector = artworkInspector(options, root, validatorIdentity);
       const result = await prepareArtworkWorkset(acceptedArtwork, {
         root,
         inspector,
@@ -911,6 +1108,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--artwork-ids",
     "--refresh-artwork",
     "--listing-observations",
+    "--package-observation",
+    "--package-observation-reference",
+    "--settings-native-scope",
   ]);
   for (let index = 2; index < process.argv.length; index += 2) {
     const name = process.argv[index]!;
@@ -918,6 +1118,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!allowed.has(name) || values.has(name) || !value || value.startsWith("--"))
       throw new Error("Unknown, repeated or missing prepare-port option.");
     values.set(name, value);
+  }
+  if (values.has("--settings-native-scope")) {
+    const { reenterResourceCommand } = await import("./resource-command.mts");
+    await reenterResourceCommand("rust", import.meta.url, {
+      executionTimeoutMilliseconds: 1_800_000,
+    });
   }
   const output = values.get("--output-dir");
   if (!output) throw new Error("--output-dir is required (a new or owned preparation checkpoint).");
@@ -952,6 +1158,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const route = values.get("--route") ?? "listing";
   if (route !== "listing" && route !== "download")
     throw new Error("--route must be listing or download.");
+  if (values.has("--package-observation") !== values.has("--package-observation-reference"))
+    throw new Error("Package observations require their exact retained receipt reference.");
   const input = values.get("--record");
   const identities = values.get("--identities");
   const common = {
@@ -992,6 +1200,28 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
             ? {
                 record: parseCatalogSource(
                   readArtworkInput(input, 512 * 1024).bytes.toString("utf8"),
+                ),
+              }
+            : {}),
+          ...(values.get("--package-observation")
+            ? {
+                packageObservation: {
+                  receipt: parseCatalogSource(
+                    readArtworkInput(
+                      values.get("--package-observation")!,
+                      16 * 1024 * 1024,
+                    ).bytes.toString("utf8"),
+                  ),
+                  reference: values.get("--package-observation-reference")!,
+                },
+              }
+            : {}),
+          ...(values.get("--settings-native-scope")
+            ? {
+                settingsNativeScope: parseCatalogSource(
+                  readArtworkInput(values.get("--settings-native-scope")!, 8192).bytes.toString(
+                    "utf8",
+                  ),
                 ),
               }
             : {}),

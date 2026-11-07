@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import test from "node:test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
@@ -106,6 +106,15 @@ function fullInstallationFixture(role: HostedReleaseAppRole = "semantic") {
         },
         { status: 201 },
       );
+    }
+    if (options.method === "DELETE") {
+      assert.equal(role, "storage_writer");
+      assert.equal(endpoint, "installation/token");
+      assert.equal(
+        new Headers(options.headers).get("authorization"),
+        "Bearer inert-full-installation-token",
+      );
+      return new Response(null, { status: 204 });
     }
     assert.equal(options.method, "GET");
     if (endpoint.startsWith("installation/")) {
@@ -425,6 +434,57 @@ void test("App registration directly captures one conversion and authenticates t
   assert.equal(f.calls.length, 2);
 });
 
+void test("App registration refuses a conversion redirect and retains no redirect address", async () => {
+  const f = appRegistrationFixture();
+  const redirect = "https://elsewhere.invalid/private-redirect?signature=inert";
+  let requests = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async (input, init) => {
+      requests++;
+      assert.equal(input, `https://api.github.com/app-manifests/${appCode}/conversions`);
+      assert.equal(init?.redirect, "error");
+      assert.equal(new Headers(init?.headers).has("authorization"), false);
+      return new Response(null, { status: 302, headers: { location: redirect } });
+    },
+  });
+  await assert.rejects(capture(appCallback), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.match(
+      error.message,
+      /registration body or private retention failed|registration response incomplete or refused/u,
+    );
+    assert.ok(!error.message.includes(redirect) && !error.message.includes(appCode));
+    return true;
+  });
+  assert.equal(requests, 1);
+  assert.equal(f.record("conversion-response.json").status, 302);
+  assert.ok(!f.privateFiles.has("result.json"));
+  for (const bytes of f.privateFiles.values()) assert.ok(!bytes.includes(Buffer.from(redirect)));
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(requests, 1);
+});
+
+void test("registration retains exact provider status 300 body before refusing", async () => {
+  const f = appRegistrationFixture();
+  const body = Buffer.from(' {"message":"Multiple Choices"}\n');
+  let requests = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async (_input, init) => {
+      requests++;
+      assert.equal(init?.redirect, "error");
+      return new Response(body, { status: 300 });
+    },
+  });
+  await assert.rejects(capture(appCallback), /registration response incomplete or refused/u);
+  assert.equal(requests, 1);
+  assert.deepEqual(f.privateFiles.get("conversion.body"), body);
+  assert.equal(f.record("conversion-response.json").status, 300);
+  assert.equal(f.record("conversion-response.json").complete, true);
+  assert.equal(f.privateFiles.has("result.json"), false);
+});
+
 void test("App conversion retains wrong-owner or expanded-permission effects without installing or retrying", async () => {
   for (const change of [
     { owner: { id: 1, login: "other" } },
@@ -462,6 +522,54 @@ void test("ambiguous conversion preserves pending intent and refuses a second PO
   assert.equal(f.record("conversion-transport.json").effect, "unknown");
   await assert.rejects(capture(appCallback), /already consumed/u);
   assert.equal(posts, 1);
+});
+
+void test("registration timeout retains a partial body without certifying EOF", async (t) => {
+  const f = appRegistrationFixture();
+  const prefix = Buffer.from('{"id":123');
+  const now = Date.now.bind(Date);
+  const deadline = now() + 30000;
+  let offset = 0;
+  t.mock.method(Date, "now", () => now() + offset);
+  let calls = 0,
+    cancelled = false;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    deadline,
+    store: {
+      ...f.options.store,
+      async write(name, bytes) {
+        await f.options.store.write(name, bytes);
+        if (name === "conversion-intent.json") offset = deadline - now() - 250;
+      },
+    },
+    transport: async () => {
+      calls++;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(prefix);
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { status: 201 },
+      );
+    },
+  });
+  const keepAlive = setTimeout(() => {}, 5000);
+  try {
+    await assert.rejects(capture(appCallback), /deadline expired|response incomplete/u);
+  } finally {
+    clearTimeout(keepAlive);
+  }
+  assert.equal(calls, 1);
+  assert.equal(cancelled, true);
+  assert.deepEqual(f.privateFiles.get("conversion.body"), prefix);
+  assert.equal(f.record("conversion-response.json").status, 201);
+  assert.equal(f.record("conversion-response.json").complete, false);
+  assert.equal(f.privateFiles.has("result.json"), false);
 });
 
 void test("registration preserves incomplete and oversized private response prefixes and stops", async () => {
@@ -2172,6 +2280,89 @@ void test("selected issuer identity is closed, purpose-specific and cannot add a
     assert.throws(() => inspectSemanticIssuerConfiguration(bad));
 });
 
+void test("storage-writer installation CLI reaches the source guard before private setup", () => {
+  const entry = new URL("./observe-hosted-release-app-installation.mts", import.meta.url);
+  const source = "a".repeat(40);
+  const output = execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+      import { registerHooks } from "node:module";
+      import { fileURLToPath } from "node:url";
+      const entry = ${JSON.stringify(entry.href)};
+      const source = ${JSON.stringify(source)};
+      registerHooks({ resolve(spec, context, next) {
+        if (context.parentURL === entry && spec === "./register-hosted-release-app.mts") {
+          const guard = "export function requireOrdinaryHostedAppSetupSource(source) { console.log(source); process.exit(0); }";
+          return { url: "data:text/javascript," + encodeURIComponent(guard), shortCircuit: true };
+        }
+        return next(spec, context);
+      } });
+      process.argv = [process.execPath, fileURLToPath(entry), "--role", "storage_writer",
+        "--expected-source", source, "--registration-source", source];
+      await import(entry);
+      `,
+    ],
+    { encoding: "utf8", timeout: 15000, windowsHide: true },
+  );
+  assert.equal(output.trim(), source);
+});
+
+void test("ordinary App setup CLIs load the SDK after source verification and before private setup", () => {
+  for (const name of ["register-hosted-release-app", "observe-hosted-release-app-installation"]) {
+    const entry = new URL(`./${name}.mts`, import.meta.url);
+    const registration = new URL("./register-hosted-release-app.mts", import.meta.url);
+    const source = "a".repeat(40);
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `
+      import { registerHooks } from "node:module";
+      import { fileURLToPath } from "node:url";
+      const entry = ${JSON.stringify(entry.href)};
+      const registration = ${JSON.stringify(registration.href)};
+      const source = ${JSON.stringify(source)};
+      const data = (module) => ({ url: "data:text/javascript," + encodeURIComponent(module), shortCircuit: true });
+      delete process.env.GITHUB_ACTIONS;
+      delete process.env.SUDO_UID;
+      Object.defineProperty(process, "platform", { value: "linux" });
+      process.getuid = () => 1000;
+      registerHooks({ resolve(spec, context, next) {
+        if (context.parentURL === registration) {
+          if (spec === "node:os") return data("export const userInfo = () => ({username:'boburning', homedir:'/home/boburning'});");
+          if (spec === "node:child_process") return data(
+            "export function execFileSync(_git, args) { if (args.includes('rev-parse')) return " + JSON.stringify(source) +
+            "; if (args.includes('status')) { console.log('source-verified'); return ''; } throw new Error('unexpected Git operation'); }");
+          if (spec === "node:http") return data("export function createServer() { console.log('listener-created'); throw new Error('unexpected listener'); }");
+        }
+        if (spec === "@octokit/core") {
+          console.log("sdk-import");
+          throw new Error("private package-loader diagnostic");
+        }
+        if (spec === "./release-owned-capture-store.mts") return data(
+          "export async function createAppRegistrationStore() { console.log('store-created'); throw new Error('unexpected store'); }" +
+          "export function createCheckpointSigningStore() {} export function createHostedNativeProofStore() {} export function syncRegistrationDirectory() {}");
+        return next(spec, context);
+      } });
+      process.argv = [process.execPath, fileURLToPath(entry), "--role", "storage_writer", "--expected-source", source,
+        ...(entry === registration ? [] : ["--registration-source", source])];
+      await import(entry);
+      `,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stderr);
+    assert.deepEqual(result.stdout.trim().split("\n"), ["source-verified", "sdk-import"]);
+    assert.match(result.stderr, /^The locked GitHub SDK is unavailable\./u);
+    assert.doesNotMatch(result.stderr, /private package-loader diagnostic/u);
+  }
+});
+
 void test("selected actual broker control flow publishes and reconciles both purposes with controlled capture/provider boundaries only", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "selected-semantic-broker-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -2261,4 +2452,122 @@ void test("selected actual broker control flow publishes and reconciles both pur
     actual_runtime: false,
     actual_provider: false,
   });
+});
+
+void test("new storage App manifest and observed identity keep the exact separately approved permission/callback boundary", () => {
+  const manifest = prepareHostedReleaseAppManifest("storage_writer");
+  assert.equal(manifest.name, "Portcove production storage writer");
+  assert.ok(manifest.name.length <= 34);
+  assert.deepEqual(manifest.default_permissions, { contents: "write", metadata: "read" });
+  assert.equal(manifest.redirect_url, "http://127.0.0.1:1456/github-app/manifest-callback");
+  assert.equal(manifest.public, false);
+  assert.equal(manifest.hook_attributes.active, false);
+  assert.deepEqual(manifest.default_events, []);
+  assert.equal(manifest.request_oauth_on_install, false);
+  const callback = {
+    ...appCallback,
+    url: `/github-app/manifest-callback?code=${appCode}&state=${appState}`,
+  };
+  assert.equal(inspectAppRegistrationCallback("storage_writer", appState, callback), appCode);
+  assert.throws(() => inspectAppRegistrationCallback("semantic", appState, callback));
+  const s = hostedAppReadback("semantic"),
+    o = hostedAppReadback("protection_observer", 124, 457),
+    w = hostedAppReadback("storage_writer", 125, 458);
+  const semantic = observeHostedReleaseApp("semantic", s.expected, s.clients),
+    observer = observeHostedReleaseApp("protection_observer", o.expected, o.clients),
+    writer = observeHostedReleaseApp("storage_writer", w.expected, w.clients);
+  assert.equal(
+    inspectHostedReleaseAppSeparation(semantic, observer, writer).storage_writer?.app_id,
+    125,
+  );
+  assert.throws(() =>
+    inspectHostedReleaseAppSeparation(semantic, observer, { ...writer, app_id: semantic.app_id }),
+  );
+  assert.throws(() =>
+    inspectHostedReleaseAppSeparation(semantic, observer, {
+      ...writer,
+      installation_id: observer.installation_id,
+    }),
+  );
+  w.values.app = { ...w.app, permissions: { ...w.app.permissions, checks: "write" } };
+  assert.throws(
+    () => observeHostedReleaseApp("storage_writer", w.expected, w.clients),
+    /boundary differs/,
+  );
+});
+void test("storage App capture keeps its one key privately and omits unused OAuth/webhook material and callback code", async () => {
+  const f = appRegistrationFixture();
+  const app = { ...f.app, permissions: { contents: "write", metadata: "read" } };
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    role: "storage_writer",
+    transport: async (_url, options) =>
+      options?.method === "POST"
+        ? Response.json(
+            {
+              ...app,
+              pem: f.pem,
+              client_secret: "unused-oauth-secret",
+              webhook_secret: "unused-webhook-secret",
+            },
+            { status: 201 },
+          )
+        : Response.json(app),
+  });
+  const result = await capture({
+    ...appCallback,
+    url: `/github-app/manifest-callback?code=${appCode}&state=${appState}`,
+  });
+  assert.equal(result.role, "storage_writer");
+  assert.equal(f.privateFiles.get("app.pem")!.toString(), f.pem);
+  const body = f.privateFiles.get("conversion.body")!.toString();
+  assert.ok(!body.includes("PRIVATE KEY"));
+  assert.ok(!body.includes("unused-oauth-secret") && !body.includes("unused-webhook-secret"));
+  assert.equal(f.record("conversion-response.json").encoding, "storage-app-allowlist");
+  assert.equal(Object.hasOwn(f.record("conversion-intent.json"), "code"), false);
+  assert.ok(!JSON.stringify(result).includes("PRIVATE KEY"));
+});
+void test("storage installation observation revokes its unfiltered metadata token and retains no usable token", async () => {
+  const f = fullInstallationFixture("storage_writer");
+  const result = await observeHostedAppInstallationScope(
+    "storage_writer",
+    Buffer.from(f.registration.pem),
+    f.expected,
+    f.registration.options.store,
+    { fetch: f.transport },
+  );
+  assert.equal(result.installation_repository_scope, "full-installation-observed");
+  assert.equal(result.metadata_token_revoked, true);
+  assert.equal(result.api_requests, 9);
+  assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 1);
+  assert.equal(f.calls.filter((c) => c.options.method === "DELETE").length, 1);
+  for (const bytes of f.registration.privateFiles.values())
+    assert.ok(!bytes.includes(Buffer.from("inert-full-installation-token")));
+});
+void test("storage installation refusal still revokes its metadata token and preserves both failures if cleanup also refuses", async () => {
+  for (const cleanupFails of [false, true]) {
+    const f = fullInstallationFixture("storage_writer");
+    const transport: typeof fetch = async (url, options) => {
+      assert(typeof url === "string");
+      if (url.includes("/installation/repositories"))
+        return Response.json({ total_count: 2, repositories: [] });
+      if (cleanupFails && options?.method === "DELETE") return new Response(null, { status: 403 });
+      return f.transport(url, options);
+    };
+    await assert.rejects(
+      observeHostedAppInstallationScope(
+        "storage_writer",
+        Buffer.from(f.registration.pem),
+        f.expected,
+        f.registration.options.store,
+        { fetch: transport },
+      ),
+      (error: unknown) =>
+        cleanupFails
+          ? error instanceof AggregateError && error.errors.length === 2
+          : error instanceof Error && /exactly boburning/.test(error.message),
+    );
+    assert.ok(f.registration.privateFiles.has("metadata-token-revocation.json"));
+    assert.ok(!f.registration.privateFiles.has("result.json"));
+  }
 });

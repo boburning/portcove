@@ -1,3 +1,4 @@
+import { countMessage } from "../localization";
 import { useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
@@ -11,7 +12,7 @@ import type {
   SourceProfile,
   SourceRecord,
 } from "../types";
-import { errorText, formatBytes, formatCountMessage, isCancellation } from "../view-model";
+import { errorText, formatBytes, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import { PreliminarySourceSelections } from "./PreliminarySourceSelections";
 import { sourceAdmissionPresentation } from "./SourceIdentity";
@@ -51,19 +52,11 @@ export function sourceDiscoveryResultSummary(
   entriesExamined: number,
   hashBytes: number,
 ) {
-  const matches = formatCountMessage(exactMatches, {
-    zero: "Found no exact matches.",
-    one: "Found 1 exact match.",
-    other: "Found {count} exact matches.",
-    unknown: "Exact match count is unavailable.",
+  const matches = countMessage(exactMatches, "exactMatches");
+  const entries = countMessage(entriesExamined, "examinedEntries", {
+    bytes: formatBytes(hashBytes),
   });
-  const entries = formatCountMessage(entriesExamined, {
-    zero: "Checked no files or folders",
-    one: "Checked 1 file or folder",
-    other: "Checked {count} files and folders",
-    unknown: "File and folder count is unavailable",
-  });
-  return `${matches} ${entries} (${formatBytes(hashBytes)} of verification data).`;
+  return `${matches} ${entries}`;
 }
 
 export function sourceDiscoveryLimitLabel(limit: string, source: "folder" | "inbox" = "folder") {
@@ -454,7 +447,7 @@ export function SourceImportReview({
         File requirement: <strong>{profile?.label ?? plan.profile_id}</strong>
       </p>
       <p role={admission.known ? undefined : "alert"}>
-        <strong>Source check: {admission.label}.</strong> {admission.explanation}
+        <strong>File check: {admission.label}.</strong> {admission.explanation}
       </p>
       <p>
         Selected location:{" "}
@@ -671,13 +664,9 @@ function SourceDiscoveryDialog({
           <section aria-label="Game-file folder search result">
             <p>
               {inboxStateMessage(inbox.state)}{" "}
-              {formatCountMessage(inbox.stats.entries_examined, {
-                zero: "Checked no files or folders",
-                one: "Checked 1 file or folder",
-                other: "Checked {count} files and folders",
-                unknown: "File and folder count is unavailable",
-              })}{" "}
-              ({formatBytes(inbox.stats.hash_bytes)} of verification data).
+              {countMessage(inbox.stats.entries_examined, "examinedEntries", {
+                bytes: formatBytes(inbox.stats.hash_bytes),
+              })}
             </p>
             {inbox.selected && (
               <p>

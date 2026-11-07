@@ -13,7 +13,7 @@ export function ChoiceFailure({ organization }: { organization: DetailOrganizati
     <p role="alert" className="mt-3 text-sm">
       {organization.failure === "read"
         ? "Saved choices could not be read."
-        : "This choice was not saved."}{" "}
+        : "Portcove couldn’t confirm that your choice was saved."}{" "}
       <Button
         variant="link"
         disabled={organization.busy}

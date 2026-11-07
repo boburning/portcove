@@ -129,11 +129,7 @@ fn fixture(port_id: &str) -> Fixture {
         canonical,
         runtime,
         original,
-        proposed: if port_id == SHIP {
-            json!(70)
-        } else {
-            json!(70)
-        },
+        proposed: json!(70),
     }
 }
 
@@ -537,7 +533,8 @@ fn read_only_configuration_refuses_review_without_journal_or_staging() {
     let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
         let fixture = fixture(port_id);
-        let mut permissions = fs::metadata(&fixture.canonical).unwrap().permissions();
+        let original_permissions = fs::metadata(&fixture.canonical).unwrap().permissions();
+        let mut permissions = original_permissions.clone();
         permissions.set_readonly(true);
         fs::set_permissions(&fixture.canonical, permissions).unwrap();
         let error = fixture
@@ -567,9 +564,7 @@ fn read_only_configuration_refuses_review_without_journal_or_staging() {
                     .to_string_lossy()
                     .starts_with(".portcove-settings-"))
         );
-        let mut permissions = fs::metadata(&fixture.canonical).unwrap().permissions();
-        permissions.set_readonly(false);
-        fs::set_permissions(&fixture.canonical, permissions).unwrap();
+        fs::set_permissions(&fixture.canonical, original_permissions).unwrap();
     }
 }
 
@@ -866,4 +861,32 @@ interruption_cases! {
     canonical_preimage_retired: CanonicalRetired,
     runtime_preimage_retired: RuntimeRetired,
     journal_retired_before_response: JournalRetired,
+}
+
+#[test]
+fn qualification_scope_uses_retained_editor_mirrors_and_requires_quiescence() {
+    let fixture = fixture(SHIP);
+    let before = fs::read(&fixture.canonical).unwrap();
+    let scope = fixture
+        .service
+        .inspect_settings_qualification_scope(SHIP)
+        .unwrap();
+    assert_eq!(scope["install_id"], fixture.install.id);
+    assert_eq!(
+        scope["files"][0]["canonical_path"],
+        json!(fixture.canonical)
+    );
+    assert_eq!(scope["files"][0]["runtime_path"], json!(fixture.runtime));
+    assert_eq!(fs::read(&fixture.canonical).unwrap(), before);
+    let _lock = fixture
+        .service
+        .library
+        .try_lock_port(SHIP, "owned probe")
+        .unwrap();
+    assert!(
+        fixture
+            .service
+            .inspect_settings_qualification_scope(SHIP)
+            .is_err()
+    );
 }

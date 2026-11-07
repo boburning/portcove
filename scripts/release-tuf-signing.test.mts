@@ -71,6 +71,35 @@ void test("TUF role policy forbids offline roles, exact dependency sets and exte
   for (const value of ["", "AQID\n", "a", "AQ==\n", "not a key", "A".repeat(32769)])
     assert.throws(() => decodeTufRoleKey(value));
 });
+
+void test("TUF context paths preserve explicit single-owner and unchanged-authority renewal profiles", () => {
+  const raw: unknown = JSON.parse(context.toString());
+  assert.ok(typeof raw === "object" && raw !== null);
+  const single = {
+    ...raw,
+    initial_root_profile: "single-owner-one-of-one-v1",
+    top_level_targets_profile: "online-unchanged-authority-v1",
+  };
+  assert.equal(inspectTufContextPaths(Buffer.from(JSON.stringify(single))).kind, "routine");
+  for (const invalid of [
+    { ...single, initial_root_profile: null },
+    { ...single, top_level_targets_profile: null },
+    { ...single, initial_root_profile: "legacy-two-of-three-v1" },
+    { ...single, top_level_targets_profile: "unknown" },
+  ])
+    assert.throws(() => inspectTufContextPaths(Buffer.from(JSON.stringify(invalid))));
+  const initial = { ...single, initial_bootstrap: "initial-bootstrap.json" } as Record<
+    string,
+    unknown
+  >;
+  delete initial.previous_repository;
+  assert.throws(() => inspectTufContextPaths(Buffer.from(JSON.stringify(initial))));
+  initial.top_level_targets_profile = "offline-pinned-v1";
+  assert.equal(
+    inspectTufContextPaths(Buffer.from(JSON.stringify(initial))).kind,
+    "initial-bootstrap",
+  );
+});
 void test("TUF worker refuses incomplete dependencies, wrong pins and expired phase before key/output", async () => {
   const f = await fixture();
   let keys = 0;

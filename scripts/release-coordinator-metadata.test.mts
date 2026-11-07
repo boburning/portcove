@@ -32,7 +32,10 @@ import {
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
 import { performance } from "node:perf_hooks";
-import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import {
+  checkpointProofFixture,
+  releaseCustodyFetch,
+} from "./fixtures/checkpoint-proof-fixture.mts";
 import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import childProcess from "node:child_process";
@@ -615,14 +618,16 @@ for (const expires of ["read", "first-object", "before-cas", "mutated-options"])
           stdout: JSON.stringify([{ verificationResult: proof.verification }]),
           stderr: "",
         };
-      const response = proof.api.request("GET", args[2]!);
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(response.body)}`,
-        stderr: "",
-      };
+      assert.fail("unexpected retained CLI route");
     });
     syncBuiltinESMExports();
+    t.mock.method(
+      globalThis,
+      "fetch",
+      releaseCustodyFetch(proof.provider, (_url, init) => {
+        assert.equal(new Headers(init?.headers).get("authorization"), "token inert-metadata-token");
+      }),
+    );
     await withReadOnlyReleaseChildren(directory, async () => {
       const receipt = await authenticateCoordinatorCheckpointEvidence(
         directory,

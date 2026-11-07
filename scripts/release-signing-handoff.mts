@@ -1,14 +1,17 @@
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { crc32, inflateRawSync } from "node:zlib";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import {
+  createReleaseCustodyProvider,
+  type SigningOutputMetadataProvider,
+} from "./release-custody-provider.mts";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { inspectCapacityExecutorIdentity } from "./release-capacity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
@@ -219,6 +222,16 @@ export async function handoffSigningOutput(
 /** This is provider/byte custody, not an attestation verifier or authority
  * constructor. The caller must own an actual executor session and later bind
  * these public bytes using the existing custom-predicate attestation path. */
+export type SigningArchiveDownload = (
+  endpoint: string,
+  bounds: {
+    cwd: string;
+    maxBytes: number;
+    timeoutMs: number;
+    lookup?: NonNullable<Parameters<typeof downloadGitHubArtifactArchive>[1]["lookup"]>;
+  },
+) => Buffer | Promise<Buffer>;
+
 export async function readSigningOutputArtifact(
   directory: string,
   raw: {
@@ -229,37 +242,36 @@ export async function readSigningOutputArtifact(
     files: readonly SigningOutputFile[];
   },
   options: {
-    api?: GitHubRestReader;
-    download?: typeof readGitHubArtifactArchive;
-    deadline?: number;
-    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
-    archiveSpawn?: NonNullable<Parameters<typeof readGitHubArtifactArchive>[1]>["spawn"];
+    metadata?: SigningOutputMetadataProvider;
+    fetch?: typeof globalThis.fetch;
+    download?: SigningArchiveDownload;
+    deadline: number;
     /** Data custody lifecycle only, never an authority or retry grant. */
     producerState?: "completed";
-  } = {},
+  },
 ) {
   const expected = structuredClone(raw),
     producer = inspectCapacityExecutorIdentity(expected.producer);
   const files: readonly SigningOutputFile[] = expected.files;
   const injected =
-    options.api !== undefined ||
-    options.download !== undefined ||
-    options.spawn !== undefined ||
-    options.archiveSpawn !== undefined;
+    options.metadata !== undefined || options.download !== undefined || options.fetch !== undefined;
   const deadline = options.deadline,
-    completedProducer = options.producerState === "completed",
-    apiSpawn = options.spawn ?? spawnSync,
-    archiveSpawn = options.archiveSpawn ?? spawnSync;
+    completedProducer = options.producerState === "completed";
   const remaining = (maximum: number) => {
-    if (deadline === undefined) return maximum;
     const value = Math.ceil(deadline - performance.now());
     if (!Number.isFinite(deadline) || value < 1 || value > 600000)
       throw new Error("signing readback total phase deadline exhausted");
     return Math.min(maximum, value);
   };
   remaining(15000);
-  const apiOption = options.api ? { request: options.api.request.bind(options.api) } : undefined,
-    download = options.download ?? readGitHubArtifactArchive;
+  const injectedMetadata = options.metadata;
+  const metadataOption = injectedMetadata && {
+    attempt: injectedMetadata.attempt.bind(injectedMetadata),
+    job: injectedMetadata.job.bind(injectedMetadata),
+    artifact: injectedMetadata.artifact.bind(injectedMetadata),
+  };
+  const download = options.download;
+  const fetch = options.fetch;
   if (
     Object.keys(expected).sort().join(",") !== "archive_sha256,artifact_id,files,name,producer" ||
     !path.isAbsolute(directory) ||
@@ -300,44 +312,16 @@ export async function readSigningOutputArtifact(
     files.reduce((sum: number, file: SigningOutputFile) => sum + file.bytes, 0) > 1024 * 1024
   )
     throw new Error("exact bounded signing output handoff required");
-  const environment = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) =>
-      ["PATH", "Path", "SystemRoot", "WINDIR", "GH_TOKEN"].includes(key),
-    ),
-  );
-  Object.assign(environment, {
-    HOME: directory,
-    USERPROFILE: directory,
-    XDG_CONFIG_HOME: directory,
-    GH_CONFIG_DIR: directory,
-    GH_HOST: "github.com",
-    GH_PROMPT_DISABLED: "1",
-  });
-  const api =
-    apiOption ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: directory,
-        maxBuffer: 128 * 1024,
-        timeoutMs: remaining(15000),
-        spawn: (command, arguments_, settings) =>
-          apiSpawn(command, arguments_, { ...settings, env: environment }),
-      })([...args, "--hostname", "github.com"], input),
-    );
+  const token = process.env.GH_TOKEN ?? "";
   let phase = "provider-before";
-  const get = (route: string) => {
+  const snapshot = async (metadata: SigningOutputMetadataProvider) => {
     remaining(15000);
-    const response = api.request("GET", `${base}/${route}`);
+    const run = await metadata.attempt(String(producer.run_id), Number(producer.run_attempt));
     remaining(15000);
-    if (response.status !== 200) throw new Error("signing output provider read refused");
-    return response.body;
-  };
-  const snapshot = () => {
-    const run = get(
-      `actions/runs/${String(producer.run_id)}/attempts/${String(producer.run_attempt)}`,
-    );
-    const job = get(`actions/jobs/${String(producer.job_id)}`);
-    const artifact = get(`actions/artifacts/${expected.artifact_id}`);
+    const job = await metadata.job(Number(producer.job_id));
+    remaining(15000);
+    const artifact = await metadata.artifact(expected.artifact_id);
+    remaining(15000);
     if (
       !isRecord(run) ||
       run.id !== Number(producer.run_id) ||
@@ -403,7 +387,15 @@ export async function readSigningOutputArtifact(
     };
   };
   try {
-    const before = snapshot();
+    const metadata =
+      metadataOption ??
+      (await createReleaseCustodyProvider({
+        token,
+        deadline,
+        maxBytes: 128 * 1024,
+        ...(fetch ? { fetch } : {}),
+      }));
+    const before = await snapshot(metadata);
     await writeFile(
       path.join(directory, "signing-output-provider-before.json"),
       JSON.stringify(before),
@@ -411,13 +403,26 @@ export async function readSigningOutputArtifact(
     );
     phase = "opaque-output-download";
     remaining(30000);
-    const archive = download(`${base}/actions/artifacts/${expected.artifact_id}/zip`, {
-      cwd: directory,
-      maxBytes: before.artifact.bytes,
-      timeoutMs: remaining(30000),
-      spawn: (command, args, settings) =>
-        archiveSpawn(command, args, { ...settings, env: environment }),
-    });
+    const endpoint = `${base}/actions/artifacts/${expected.artifact_id}/zip`;
+    const archive = download
+      ? await download(endpoint, {
+          cwd: directory,
+          maxBytes: before.artifact.bytes,
+          timeoutMs: remaining(30000),
+        })
+      : await downloadGitHubArtifactArchive(endpoint, {
+          credential: { kind: "explicit", token },
+          maxBytes: before.artifact.bytes,
+          deadline: Math.min(
+            deadline,
+            coordinatorCommandDeadline() ?? Infinity,
+            performance.now() + 30000,
+          ),
+          fetch(input, init) {
+            assertTrustedDirectNode("signing output archive");
+            return (fetch ?? globalThis.fetch)(input, init);
+          },
+        });
     remaining(15000);
     if (archive.length !== before.artifact.bytes || hash(archive) !== expected.archive_sha256)
       throw new Error("opaque signing output differs");
@@ -438,7 +443,7 @@ export async function readSigningOutputArtifact(
       if (!bytes.equals(local)) throw new Error("local signing output changed during handoff");
     }
     phase = "provider-after";
-    const after = snapshot();
+    const after = await snapshot(metadata);
     if (!isDeepStrictEqual(before, after)) throw new Error("signing output provider drifted");
     await writeFile(
       path.join(directory, "signing-output-provider-after.json"),

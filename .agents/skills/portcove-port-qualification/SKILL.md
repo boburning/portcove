@@ -16,6 +16,30 @@ aggregates are outputs. Reuse the checkpoint for unchanged observations, retry
 failed enrichment independently, and regenerate after reviewing the proposed
 record. Do not mutate sources or publish merely because preparation succeeded.
 
+Use `route_facts_v1` for a reviewed Windows prepared player basename,
+executable-parent working directory, literal arguments and external data
+locations. Prepared-player facts can also describe the independent external
+route of a staged-source archive. The optional `managed_native` subshape covers
+NativePortable GitHub integrations without a Core source binding. Keep upstream
+original-file setup, bespoke actions and immediate warnings explicit.
+
+Use `gba_staged_archive_v1` separately for the managed Windows staged GitHub
+archive with the reviewed GBA picker and writer layout. Supply the game code and
+versioned mod policy alongside the exact package selector, player, original and
+BIOS requirements, and external save locations. Reuse the matching staging and
+preservation evidence. A different writer layout needs an explicit integration
+and applicable qualification. See [catalog authoring](../../../docs/CATALOG.md#adding-or-changing-a-port).
+
+Use the existing `prepare-port.mts` feedback and reviewed per-ID record, followed
+by `generate-catalog.mts`; shared explanations and distinct lifecycle entrypoints
+are generated. Reuse accepted inspections with the existing paired package
+observation options to derive descriptive metadata and expected member facts.
+Independent initial acceptance remains necessary. Covered ordinary releases use
+the existing dynamic resolver and applicable integrity checks, with no new
+version/applicability row, guide rewrite, wrapper or routine agent approval.
+See `crates/portcove-core/catalog/ports/nhl-94-genesis-ninety-four.json` for a
+prepared route retaining explicit retail-ROM and save/state limitations.
+
 A discovery-only listing needs a stable implementation identity, truthful name,
 summary and attributable public origin. Unknown availability, missing artwork or
 unreviewed setup details do not require a full port investigation. Listing
@@ -61,3 +85,7 @@ Optional focused catalog feedback: `just test-rust -p portcove-core embedded_cat
 Confirm the actual test name before use. Required checks follow
 [QUALITY](../../../docs/QUALITY.md#required-hosted-baseline); admission/lifecycle
 acceptance remains explicit and operation scoped.
+
+When drafting a listing summary or setup guide, collect precise evidence first.
+Write the player explanation separately. Use the existing warning and reference
+fields and follow [Content design](../../../docs/CONTENT-DESIGN.md).

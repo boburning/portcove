@@ -27,6 +27,8 @@ WORKSPACE = Path("/home/runner/work/portcove/portcove")
 DEPENDENCIES = ("node_modules", "apps/desktop/node_modules")
 MAX_FILES = 100000
 MAX_BYTES = 2 * 1024 ** 3
+# Coordinated with controllerNodeMaximumBytes; only the closed Node tool identity.
+NODE_MAXIMUM_BYTES = 160 * 1024 ** 2
 RUNTIME_PACKAGES = ("bubblewrap", "libwebkit2gtk-4.1-0", "webkit2gtk-driver", "xvfb",
                     "x11-xkb-utils", "dbus-user-session", "dbus-x11", "at-spi2-core",
                     "libfuse2t64", "libayatana-appindicator3-1")
@@ -47,6 +49,11 @@ def need(value, message):
         raise RuntimeError(message)
 
 
+def tool_maximum_bytes(name):
+    need(name in ("node", "driver"), "fixed installation tool name differs")
+    return NODE_MAXIMUM_BYTES if name == "node" else 128 * 1024 ** 2
+
+
 def inspect_plan(raw):
     need(isinstance(raw, dict) and set(raw) == {
         "schema_version", "binding", "source_commit", "source_tree", "harness_sha256",
@@ -61,12 +68,12 @@ def inspect_plan(raw):
         r"linux:[a-f0-9-]{36}:[1-9][0-9]*:[1-9][0-9]*", raw["broker_identity"]), "broker generation absent")
     need(isinstance(raw["deadline_ns"], str) and re.fullmatch(r"[1-9][0-9]{0,19}", raw["deadline_ns"]), "original installation deadline absent")
     need(isinstance(raw["tools"], dict) and set(raw["tools"]) == {"node", "driver"}, "fixed installation tools differ")
-    for value in raw["tools"].values():
+    for name, value in raw["tools"].items():
         need(isinstance(value, dict) and set(value) == {"path", "bytes", "sha256"}, "installation tool identity differs")
         need(isinstance(value["path"], str) and value["path"].startswith("/home/runner/")
              and str(PurePosixPath(value["path"])) == value["path"] and ".." not in PurePosixPath(value["path"]).parts,
              "installation tool path differs")
-        need(type(value["bytes"]) is int and 0 < value["bytes"] <= 128 * 1024 ** 2
+        need(type(value["bytes"]) is int and 0 < value["bytes"] <= tool_maximum_bytes(name)
              and isinstance(value["sha256"], str) and re.fullmatch(r"[a-f0-9]{64}", value["sha256"]), "installation tool bound differs")
     need(isinstance(raw["context"], dict) and set(raw["context"]) == {
         "GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_WORKFLOW_REF"}, "setup correlation differs")
@@ -366,7 +373,10 @@ def prepare_source_dependencies(plan, settings):
     verify_installed_source(source, plan, check)
     owners = (0, os.getuid())
     metadata = json.loads(read_regular(source / "package.json", 65536, owners, check))
-    need(metadata.get("packageManager") == "pnpm@12.16.1", "native source package-manager pin differs")
+    manager = metadata.get("packageManager")
+    need(isinstance(manager, str) and re.fullmatch(r"pnpm@\d+\.\d+\.\d+", manager),
+         "native source package-manager pin differs")
+    expected_version = manager.removeprefix("pnpm@")
     workspace_config = read_regular(source / "pnpm-workspace.yaml", 65536, owners, check)
     need(hashlib.sha256(workspace_config).hexdigest() == settings["workspace_sha256"],
          "semantically validated workspace bytes changed")
@@ -405,7 +415,7 @@ def prepare_source_dependencies(plan, settings):
                    "PATH": str(Path(plan["tools"]["node"]["path"]).parent) + ":/usr/bin:/bin",
                    "TMPDIR": str(home), "CI": "true", "COREPACK_ENABLE_NETWORK": "0",
                    "npm_config_userconfig": "/dev/null", "npm_config_globalconfig": "/dev/null"}
-    need(command([str(executable), "--version"], check, environment=environment) == "12.16.1",
+    need(command([str(executable), "--version"], check, environment=environment) == expected_version,
          "native package-manager runtime differs")
     last_inventory = 0
     def install_check():
@@ -674,7 +684,7 @@ def install(plan):
     records, total = dependency_snapshot(source, owners, check)
     tools = {}
     for name, wanted in plan["tools"].items():
-        data = read_regular(wanted["path"], 128 * 1024 ** 2, owners, check)
+        data = read_regular(wanted["path"], tool_maximum_bytes(name), owners, check)
         need(len(data) == wanted["bytes"] and hashlib.sha256(data).hexdigest() == wanted["sha256"], "admitted tool bytes changed")
         tools[name] = data
     check()
@@ -715,7 +725,7 @@ def install(plan):
          "source dependency graph/bytes changed")
     for name, wanted in plan["tools"].items():
         filename = tool_directory / ("node" if name == "node" else "tauri-driver")
-        observed = read_regular(filename, 128 * 1024 ** 2, (0,), check)
+        observed = read_regular(filename, tool_maximum_bytes(name), (0,), check)
         need(len(observed) == wanted["bytes"] and hashlib.sha256(observed).hexdigest() == wanted["sha256"],
              "installed tool bytes differ")
     check()

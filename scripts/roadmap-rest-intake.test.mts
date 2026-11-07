@@ -266,6 +266,50 @@ await test("normal canonical intake completes viaREST with exact neutral Project
   await assert.rejects(() => client.repositoryIssues({ projectMemberships: true }), /archived/u);
 });
 
+await test("REST intake awaits durable issue receipt before Project mutation", async () => {
+  const { client, input, writes } = fixture();
+  let enter!: () => void, release!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const pending = client.createPortIssue({
+    ...input,
+    onIssueCreated: async () => {
+      enter();
+      await gate;
+    },
+  });
+  await entered;
+  try {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(writes.length, 1, "only issue creation can precede durable receipt completion");
+  } finally {
+    release();
+    await pending;
+  }
+  assert.equal(writes.length, 3);
+});
+
+await test("failed asynchronous issue receipt leaves creation observable without Project writes or replay", async () => {
+  const { client, input, writes } = fixture();
+  await assert.rejects(
+    client.createPortIssue({
+      ...input,
+      onIssueCreated: async () => {
+        await Promise.resolve();
+        throw new Error("Durable receipt write failed");
+      },
+    }),
+    /Durable receipt write failed/u,
+  );
+  assert.equal(writes.length, 1);
+  const observed = await client.repositoryIssues();
+  assert.equal(observed.issues.filter((issue) => issue.number === 2).length, 1);
+});
+
 await test("production REST SDK adapter performs inventory, creation and exact readback without CLI emulation", async () => {
   const source = fixture();
   const observations: string[] = [];

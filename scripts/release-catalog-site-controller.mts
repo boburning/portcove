@@ -8,7 +8,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
-import { currentSiteJobDeadline } from "./release-site-job-budget.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import {
   receiveControllerTools,
@@ -32,7 +33,6 @@ import {
 import { assertCatalogPublicationBaseline } from "./release-catalog-metadata-contract.mts";
 import { inspectCatalogPublicationDescriptor } from "./release-catalog-publication-contract.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import {
   authenticateCapacityExecutor,
   capacityExecutorIdentity,
@@ -116,7 +116,7 @@ export async function recoverActualCatalogSitePublication(
     output_parent: string;
     deadline: number;
   },
-  guards?: { refresh: () => Promise<void>; beforeMutation: () => void },
+  guards?: { refresh: () => Promise<void>; beforeMutation: () => Promise<void> },
 ) {
   const input = structuredClone(raw);
   remaining(input.deadline);
@@ -162,9 +162,9 @@ export async function runFixedCatalogSiteConfiguration(
     identity.controller_ref !== process.env.GITHUB_REF
   )
     throw new Error("catalog site invocation is not its original fixed job");
-  const deadline = currentSiteJobDeadline(
+  const deadline = await currentControllerJobDeadline(
+    "site-publication",
     identity,
-    parent,
     Math.min(started + 290000, phaseDeadline ?? Infinity),
   );
   return withCoordinatorDeadline(deadline, async () => {
@@ -229,8 +229,9 @@ export async function runCatalogSitePublicationController(
     const directory = await mkdtemp(path.join(parent, "catalog-site-controller-"));
     let stage = "current-journal-and-complete-site";
     try {
+      const transport = { credential: { token: fixedReleaseReaderToken() }, deadline };
       const state = await recoverRemoteCoordinator(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       let checkpoint = state.checkpoint;
       const subject = inspectCatalogPublicationDescriptor(state.input.catalog_publication);
@@ -251,16 +252,6 @@ export async function runCatalogSitePublicationController(
         deadline,
       );
       const producer = capacityExecutorIdentity(executor);
-      const api = new GitHubApiClient((args, body) => {
-        remaining(deadline);
-        const result = createGitHubRunner({
-          cwd: directory,
-          timeoutMs: remaining(deadline),
-          maxBuffer: 2 * 1024 ** 2,
-        })([...args, "--hostname", "github.com"], body);
-        remaining(deadline);
-        return result;
-      });
       let round = 0;
       const fresh = async () => {
         remaining(deadline);
@@ -271,23 +262,33 @@ export async function runCatalogSitePublicationController(
           digest({ descriptor: actual.descriptor, generation: prepared.generation.generation }),
           "site-publication",
           round,
-          { deadline },
+          { deadline, controlReader: "site-maintenance" },
         );
         if (controls.evidence_scope !== "github.com")
           throw new Error("actual catalog site controls required");
         return controls;
       };
       let controls = await fresh();
+      const checkpointControls = async () => {
+        remaining(deadline);
+        const facts = await controls.readSdkMaintenance();
+        if (
+          facts.purpose !== "catalog-site-publication-controls" ||
+          facts.pause.publication_paused ||
+          !facts.resource_policy_matches_controller
+        )
+          throw new Error("fresh catalog site controls hold this attempt");
+      };
       const boundary: Parameters<typeof executeOwnedCapacityEffect>[2] = async (pendingReceipt) => {
         remaining(deadline);
         const snapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
-          transport: { cwd: directory, deadline },
+          transport,
         });
         const pending = pendingReceipt
           ? requireOwnedCapacityPendingBoundary(executor, pendingReceipt)
           : undefined;
         inspectCatalogSiteReservation(snapshot, checkpoint, actual.descriptor, pending);
-        const facts = controls.readMaintenance(api);
+        const facts = await controls.readSdkMaintenance();
         if (
           facts.purpose !== "catalog-site-publication-controls" ||
           facts.pause.publication_paused ||
@@ -373,6 +374,7 @@ export async function runCatalogSitePublicationController(
             evidence_sha256: digest(readback),
           };
         },
+        checkpointControls,
       );
       checkpoint = uploaded.checkpoint;
       await boundary();
@@ -395,7 +397,7 @@ export async function runCatalogSitePublicationController(
       );
       remaining(deadline);
       const completed = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (completed.checkpoint !== result.checkpoint || completed.input.catalog_publication != null)
         throw new Error("catalog site final durable cursor readback differs");

@@ -173,16 +173,17 @@ All live Roadmap repository issue inventories use one verified direct GraphQL co
 
 Standalone and programmatic doctors use the same collector regardless of evidence reporting. Supplied collector-validated Roadmap inventories bypass duplicate collection. Otherwise doctor brackets its fresh repository issue read with independent active-Project count, identity and revision observations. The same issue traversal may project complete live issue-side Project memberships and their fields. A unique same-Project active set establishes Project coverage only when its size exhausts the stable independent count; this cardinality proof does not assume drafts, foreign issues or pull requests are absent. A smaller projection still requires full Project item enumeration; a larger projection, malformed nested connections, or changing revision/counts invalidate the observation. No persisted membership proof or partial traversal is reused. This avoids the Project-wide listing when fresh authoritative memberships already prove the whole set, while retaining complete-list coverage for broader Projects. A self-consistent but truncated Project traversal cannot establish missing memberships. Discovery also checks independently counted active-plus-archived membership in its existing Project revision reads; redacted Project content remains incomplete coverage. Discovery preserves metadata-first enumeration, revision checks, body-cache hashes, hydration batches of ten, archive scope, freshness and mutation invalidation. The generic connection validator is shared with Project/dependency traversals; their independent scope remains required.
 
-The collector makes one attempt. Only the standalone doctor may restart its whole read once after typed concurrent changes or an admitted timeout, connection reset, or HTTP 502/503/504. Fresh counts and provider quota must admit the replacement read within caller deadlines; rate limits, authentication, malformed/incomplete data, identity failures and exhausted budgets never trigger that retry. Every retry discards prior observations and Project context and repeats checkout-context checks. Discovery retains its own single recollection allowance without nested retry or expanded hard budgets.
+Each logical collection makes one traversal. Eligible SDK reads have at most three total transport attempts under the original deadline and budgets. Only the standalone doctor may restart its whole read once after typed concurrent changes or an admitted timeout, connection reset, or HTTP 502/503/504. Fresh counts and provider quota must admit the replacement read within caller deadlines; rate limits, authentication, malformed/incomplete data, identity failures and exhausted budgets never trigger that retry. Every retry discards prior observations and Project context and repeats checkout-context checks. Discovery retains its own single recollection allowance without expanded hard budgets. Whole-read recovery preserves exhausted transport allowances, original deadlines and remaining resources. Intentional stability observations remain distinct reads charged to the operation budget.
 
-Receipts preserve both read attempts, repository inventory proof, sanitized page/query fingerprints, counts, request IDs, timestamps, bytes, elapsed time and available provider quota/cost. Failed collection is inconclusive coverage, never missing canonical issues or duplicate-intake permission. Direct API metrics exclude internal requests made by GitHub CLI commands and do not claim total provider usage. Requests, response bytes, observed GraphQL points and requests of unknown cost are distinct. Quota estimates are admission headroom rather than exclusive reservations or guarantees about provider cost. Provenance generation preserves its prior snapshot when collection fails.
+Receipts preserve both read attempts, repository inventory proof, sanitized page/query fingerprints, counts, request IDs, timestamps, bytes, elapsed time and available provider quota/cost. Failed collection is inconclusive coverage, never missing canonical issues or duplicate-intake permission. SDK request metrics describe dispatched attempts; they exclude retained CLI verification and other provider activity and do not claim total provider usage. Requests, response bytes, observed GraphQL points and requests of unknown cost are distinct. Quota estimates are admission headroom rather than exclusive reservations or guarantees about provider cost. Provenance generation preserves its prior snapshot when collection fails.
 
-Repository Node tools execute GitHub requests through the shared
-`scripts/github-api.mts` transport. GraphQL queries and variables are serialized
-as one JSON stdin document rather than shell fields; REST bodies use the same
-boundary. That transport owns response headers, quota evidence and generic Link
-pagination, while this Roadmap client continues to own Project schema,
-completeness, mutation and readback decisions.
+The Roadmap command and its domain clients use the configured Octokit integration in
+`scripts/github-client.mts`, with awaited call chains and explicit credential
+scope. Raw SDK GraphQL requests preserve headers, quota, request IDs and response
+evidence without an extra metadata request. SDK pagination supplies pages while
+Roadmap retains schema, complete-inventory proofs, cache eligibility, mutation
+and readback decisions. Lock lifetime, cleanup and mutation/readback sequencing
+span awaited work. Writes run once; ambiguous results require reconciliation.
 
 Bulk Project field transitions admit logical specifications independently of
 assignment count. Applied specifications retain staged preflight, mutation,
@@ -224,6 +225,23 @@ HTTP failures, changed inputs, conflicting values and ambiguous writes stop with
 retained diagnostics. The continuation adds no daemon, hosted queue, credential
 or Project permission. Cancellation while waiting leaves durable progress; resume
 the same specification rather than editing away completed rows.
+
+For an ambiguous field batch, run
+`node scripts/roadmap.mts set-many --spec-file <original-spec> --recover`.
+This reads the applied journal and observes the bound Project fields without
+changing GitHub or the journal. The JSON classifies each assignment as
+`desired`, `original`, `conflicting` or `unreadable`. Review the evidence and
+the proposed `residual_spec` before saving it to a new file for guarded
+`set-many --apply`. The residual pins exact Project, item, content, field and option identities. It
+contains only original values on assignments without prior verified writes.
+Reversals and unreadable values require separate reconciliation. The observation
+does not run doctor or grant authority for another attempt.
+
+Before posting issue-body history, run
+`node scripts/roadmap-edit.mts --spec-file <path> --check`. This checks the
+proposed durable bodies and preserved markers against local preimages without
+credentials, a lock or a journal. Apply checks fresh live preimages and
+Project state.
 
 Issue-body batches use the same common Roadmap lock and bounded atomic journal
 publication, with an additional specification lock for same-operation ownership.
@@ -356,17 +374,15 @@ with quiet success and deduplicated exceptions identifying affected operations,
 failed rules, evidence and resume conditions. Discovery has no admission
 authority. Engineering/policy/authority changes still require scoped review;
 neither an agent nor a candidate may change its own protected acceptance rules.
-Routine authorized work follows mandatory CI, an actual separate non-writing
-reviewer result, substantive finding repair, current-revision and authority
-confirmation, then the guarded normal merge path. The exact incremental review
-and evidence contract is owned by
-[Contribution conventions](CONTRIBUTION-CONVENTIONS.md), not repeated here. An
-implementation or continuation request authorizes that routine workflow within
+Routine authorized work follows mandatory CI, [applicable review under Quality](QUALITY.md#review-scope),
+substantive finding repair, current-revision and authority confirmation, then the
+guarded normal merge path. [Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
+owns the delivery operations. An implementation or continuation request authorizes that routine workflow within
 its scope without repeated owner approval. Ask the owner only for an unresolved
 blocker, intrinsically required manual participation, or authority not already
-granted, and continue unrelated authorized work. Unavailable delegation holds
-the affected merge, not every other lane. A timeout, cancellation, empty
-response, or absence of comments is not a successful review. Administrator
+granted, and continue unrelated authorized work. When independent review is
+required, unavailable delegation holds the affected merge, not every other lane.
+A timeout, cancellation, empty response, or absence of comments is not a successful review. Administrator
 bypass is emergency-only. Protected
 acceptance, merge authority, signing/publication permission, credentials, and
 other meaningful boundaries require separate owner authorization; candidates
@@ -383,32 +399,13 @@ known safety failure in shipped scope. Reorder or edit Project fields instead
 of rewriting repository documentation. New ports do not automatically expand
 global V1 scope.
 
-The owner's November 3, 2026 decision supersedes the earlier blanket Public beta
-port commitment. The fixed Harbour Masters Windows integration minimum remains
-Required / Public beta: Ship of Harkinian (Shipwright) #58, 2Ship2Harkinian #59,
-SpaghettiKart #60, Starship #61, Ghostship #53, Lighthouse #62 and the existing
-PaperBoat integration #909. Consume completed admissions and exact accepted
-evidence without reopening them or adding universal gameplay/save/device proof.
-Future Harbour Masters projects, forks, libraries, releases and optional features
-do not expand this fixed set.
-
-Other unfinished title-specific completion under this rollout, catalog expansion and full historical/
-all-port completion are Planned / Unscheduled with no promised release. Preserve
-existing priorities, horizons, ownership, statuses, Port stages, acceptance, exact
-operation holds and historical evidence. #1422 retains 317 rows / 316 identities;
-#2510/#2926 retain the frozen 858-identity union and eventual acceptance. They
-remain open until genuinely complete; neither parentage nor references restore a
-beta deadline. No replacement Required 1.0 deadline is assigned. Existing separate later-release requirements, including #42’s finite risk-based representative qualification, remain unchanged. Completed
-outcomes and their historical release fields remain credited.
-
-Ports first finishes the fixed Harbour Masters minimum and actual exposed-operation
-defects, then independently continues useful non-gating integration and maintenance.
-Beta finishes required product/production acceptance and final integration without
-waiting for full-catalog or broad-parent closure. Canonical issue/Project changes
-are the normal handoff; no routine peer acknowledgment or coordinator is required.
-Shared product, preservation, safety and release requirements retain their existing
-finite Required owners. This is release scope, not engineering completion, beta
-readiness or publication authority.
+Initial Public beta is a product-readiness milestone. See the
+[release scope](ROADMAP.md#initial-public-beta). Port additions, title-specific
+maintenance and inventory accounting are release-independent. Use Planned /
+Unscheduled for approved work with no promised release and leave newly captured
+candidates neutral. Preserve prior delivery evidence and historical release records when retiring
+obsolete active associations. A representative evidence case establishes only the behavior and scope
+recorded by the accepting owner.
 
 ## Keeping current specifications readable
 
@@ -436,15 +433,25 @@ readiness analysis serve migrations and release declarations, not every PR.
 
 ## Selecting approved work
 
+For persistent runner prompts, keep the role, repository and operating boundaries
+in the prompt and point to this section on current `main`.
+
+> At pickup or resume, read Selecting approved work in
+> docs/PROJECT-GOVERNANCE.md from current remote main. Use the live Roadmap and
+> owning issue to select and verify the scope.
+
+When reconciling an installed prompt, read back its exact task ID, prompt,
+enabled state and cadence through the task's configuration interface. A card
+without configuration text establishes no prompt readback.
+
 Required determines release readiness. Planned is approved non-gating work that
 runners are expected to execute by Priority, Horizon, readiness and Project order.
 Use `roadmap.mts next` as the common execution queue; a Required-only readiness
 view is never the universal task selector. Deferred work remains inactive.
 
 One owner is accountable for each coherent candidate. At clean handoffs favor
-finishing accepted beta outcomes, exact remaining acceptance, demonstrated
-prerequisites for several beta outcomes or fitting frozen-cohort routes, and
-actual delivery bottlenecks. Immediate safety/data-loss problems and broken
+finishing accepted product outcomes, exact remaining acceptance and demonstrated
+shared delivery bottlenecks. Keep useful port work moving during beta preparation. Immediate safety/data-loss problems and broken
 required validation retain precedence. Required alone is not a scheduling
 algorithm; Planned work may be the best accelerator.
 Use existing Priority, Horizon and Project order with relevance, dependencies,
@@ -454,6 +461,19 @@ not block unrelated work. Give each coherent candidate one owner; a clean candid
 waiting for CI, independent review or an external prerequisite permits another
 independent task. Do not create new cloud implementation sessions, a dispatcher,
 lease system or reporting framework. Short-lived non-writing reviewers are allowed.
+
+Choose worthwhile port work from the entire backlog independently of release
+commitment. Start with the Port Pipeline and current canonical issue evidence.
+Consider player value and observed demand, attributable usable upstream artifacts,
+supported managed routes, reuse across integrations, shared gaps worth closing,
+actual investigation and maintenance costs, and concrete acquisition,
+compatibility, process and preservation holds. Retain uncertainty where evidence
+is stale or incomplete. Investigate selected candidates proportionately and batch
+work that actually shares a proven route. Track managed operations and useful
+user-managed fallbacks at their different scopes. Use existing Priority, Horizon,
+readiness and Project order for the active selection. Preserve valuable in-progress
+work and revisit selection at clean handoffs as evidence changes. Intake does not
+expand beta scope and release acceptance does not require exhausting the backlog.
 
 For each selected outcome credit delivered acceptance, name the exact remaining
 gap and select one bounded implementation or proof advancing closure. Identify
@@ -480,7 +500,7 @@ and queue order to record repeated deferrals, without a new scheduler or ledger.
 Preserve actual host/resource guards, applicable review, acceptance and spending boundaries. Choose a suitable model for the task within existing spending authority.
 
 The existing nightly development report leads with accepted beta outcomes advanced,
-frozen-cohort useful-route/final-disposition progress, and actual blockers or
+delivered port integrations and maintenance, and actual blockers or
 acceptance queues. Show material Required and Planned delivery, accepted
 assignments and repeatedly passed-over Ready Now/Next work with reasons and named
 predecessors. Separate scope additions and bookkeeping corrections from delivered
@@ -597,13 +617,13 @@ empty PRs or claim an unavailable upload succeeded. Then select the highest-valu
 independent eligible work in the same active session. An owner-only action is
 reported once with its effect; it does not suspend safe independent work.
 
-Preserve actual separate non-writing review, required exact-head hosted CI and
-explicit acceptance. Local validation is optional under
+Preserve [applicable review](QUALITY.md#review-scope), required exact-head hosted
+CI and explicit acceptance. Local validation is optional under
 [QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
 inputs and scope. A bounded reviewer receives the exact diff/head, relevant
 acceptance/contracts, risks and existing evidence; implementers handle findings
-directly. Missing independent review leaves a candidate awaiting review, never
-self-approved. Existing narrow dependency exceptions remain unchanged.
+directly. Where independent review is required, its absence leaves a candidate
+awaiting review, never self-approved. Existing narrow dependency exceptions remain unchanged.
 
 Use existing canonical owners for discoveries and narrow blockers. Record fact
 versus hypothesis, affected acceptance, evidence, disposition and resume action.
@@ -710,14 +730,14 @@ delivery authority remains required. #52 and #246 have no reciprocal blocker.
 The #917 design system, #921 development-agility consolidation, #925 domain and
 lifecycle foundations and genuinely required supporting work remain Required
 initial beta. Prioritize changes that improve development speed, explicit
-ownership, deterministic testing and safe iteration. The owner-approved
-fixed Harbour Masters integration minimum, repeatable onboarding (#254), truthful operation availability
-(#1168/#1169), account-free artwork (#1155/#208/#206), compatible definition
-delivery (#246), reusable public CLI/reference contracts (#30/#243), manual
-plugin-free Desktop Steam route (#290) and shared Linux/controller/storage/process
-safety remain required. Completed foundations remain consumed proof, not reopened
-work. A representative pilot does not complete eventual rollout acceptance; whole-rollout
-completion is non-gating and does not delay the independently finishable beta minimum.
+ownership, deterministic testing and safe iteration. Connected-folder discovery
+and selected setup (#244), repeatable onboarding (#254), truthful operation
+availability (#1168/#1169), account-free artwork (#1155/#208/#206), compatible
+definition delivery (#246), reusable public CLI/reference contracts (#30/#243),
+manual plugin-free Desktop Steam (#290) and shared Linux/controller/storage/process
+safety remain required. Use representative evidence at each owning requirement's
+scope. A port may depend on a required shared capability. Integrated proof belongs
+with the consuming acceptance owner and title completion stays independent.
 
 Steam Deck (#51/#213–#217/#535), macOS Intel/Apple Silicon (#45/#226), full
 user-ready Playnite (#910), automatic Steam entry management (#292), physical Xbox

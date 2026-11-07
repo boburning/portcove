@@ -353,14 +353,40 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
-        command: CatalogCommand::InspectProposal { file },
+        command:
+            CatalogCommand::InspectProposal {
+                file,
+                repository_authoring,
+            },
     } = &cli.command
     {
         render_read_success(
             mode,
             "catalog.inspect-proposal",
-            portcove_core::Catalog::inspect_proposal(file)?,
+            if *repository_authoring {
+                portcove_core::Catalog::inspect_repository_proposal(file)?
+            } else {
+                portcove_core::Catalog::inspect_proposal(file)?
+            },
             |report| catalog::proposal_inspection(report, cli.technical_details),
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command: CatalogCommand::InspectSettingsQualification { file },
+    } = &cli.command
+    {
+        let mut bytes = Vec::new();
+        std::fs::File::open(file)?
+            .take(4 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)?;
+        render_read_success(
+            mode,
+            "catalog.inspect-settings-qualification",
+            portcove_core::inspect_game_settings_qualification(&bytes)?,
+            |_| {
+                "Settings document qualification passed; upstream and publication acceptance remain separate.".into()
+            },
         )?;
         return Ok(ExitCode::SUCCESS);
     }
@@ -1371,6 +1397,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         human::profile_name(service.catalog(), &profile_id)
                     )
                 },
+            )?;
+        }
+        Commands::PortCapabilities { port_id } => {
+            render_read_success(
+                mode,
+                "port-capabilities",
+                service.port_capabilities(&port_id)?,
+                human::port_capabilities,
             )?;
         }
         Commands::Status { port_id } => {
@@ -3167,6 +3201,7 @@ fn command_name(command: &Commands) -> &'static str {
             ToolCommand::SetPath { .. } => "tool.set-path",
             ToolCommand::ClearPath { .. } => "tool.clear-path",
         },
+        Commands::PortCapabilities { .. } => "port-capabilities",
         Commands::Status { .. } => "status",
         Commands::Activity {
             command: Some(ActivityCommand::Log { .. }),
@@ -3908,6 +3943,7 @@ mod tests {
             vec!["portcove", "doctor"],
             vec!["portcove", "auth", "status"],
             vec!["portcove", "capabilities"],
+            vec!["portcove", "port-capabilities", "shipwright"],
             vec!["portcove", "source", "verify", "zelda64-recomp"],
             vec!["portcove", "source", "verify", "--all"],
             vec!["portcove", "catalog", "update", "--file", "catalog.json"],
@@ -4438,6 +4474,13 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
+        assert_eq!(capabilities.port_capability_schema, Some(1));
+        assert_eq!(capabilities.listing_formats, [5, 6, 7, 8]);
+        assert!(
+            capabilities
+                .commands
+                .contains(&"port-capabilities".to_owned())
+        );
         assert_eq!(
             capabilities.schema_version,
             portcove_core::API_SCHEMA_VERSION

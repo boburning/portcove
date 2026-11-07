@@ -1,8 +1,19 @@
+import { isBuiltin } from "node:module";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import assert from "node:assert/strict";
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+  symlink,
+  realpath,
+} from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
 import pinFixture from "./fixtures/upstream-health-fade-to-black.json" with { type: "json" };
@@ -680,27 +691,23 @@ void test("missing planner scope emits CLI failure artifacts without network wor
   t.after(() => rm(directory, { recursive: true, force: true }));
   await mkdir(path.join(directory, "scripts"));
   await mkdir(path.join(directory, ".github"));
-  for (const script of [
-    "upstream-health-monitor",
-    "upstream-health-triage",
-    "check-catalog-repositories",
-    "observe-configured-upstream",
-    "observer-checkpoint-storage",
-    "upstream-observer",
-    "upstream-health-inputs",
-    "upstream-lineage",
-    "release-path-safety",
-    "json-values",
-    "runtime-values",
-  ])
-    await copyFile(
-      new URL(`./${script}.mts`, import.meta.url),
-      path.join(directory, "scripts", `${script}.mts`),
-    );
-  await copyFile(
-    new URL("../.github/upstream-health-accounting.json", import.meta.url),
-    path.join(directory, ".github/upstream-health-accounting.json"),
-  );
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const closure = readFixtureModuleClosure(root, ["scripts/upstream-health-monitor.mts"]);
+  const packages = closure.external.filter((name) => !isBuiltin(name));
+  assert.deepEqual(packages, ["@octokit/core", "@octokit/plugin-paginate-rest"]);
+  for (const module of closure.modules) {
+    const destination = path.join(directory, module.path);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, module.bytes);
+  }
+  // Package availability is explicit; dependency discovery grants no provenance authority.
+  for (const name of packages) {
+    const destination = path.join(directory, "node_modules", name);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await symlink(await realpath(path.join(root, "node_modules", name)), destination, "junction");
+  }
+  for (const name of ["package.json", "pnpm-lock.yaml", ".github/upstream-health-accounting.json"])
+    await copyFile(path.join(root, name), path.join(directory, name));
   const denyNetwork = path.join(directory, "deny-network.mjs");
   await writeFile(
     denyNetwork,
@@ -731,6 +738,8 @@ void test("missing planner scope emits CLI failure artifacts without network wor
         GITHUB_RUN_ID: mainExecution.run_id,
         GITHUB_RUN_ATTEMPT: mainExecution.run_attempt,
         GITHUB_TOKEN: "",
+        GH_TOKEN: "",
+        REPOSITORY_TOKEN: "",
         GITHUB_OUTPUT: outputs,
         GITHUB_STEP_SUMMARY: stepSummary,
       },
@@ -1277,4 +1286,40 @@ void test("a shared repository retains more than 4096 catalog identities through
   );
   assert.equal(resumed.report.inventory.fresh_complete_port_ids.length, 4097);
   assert.equal(resumed.checkpoint!.observations[0]!.port_ids.length, 4097);
+});
+
+void test("a capped SDK response spends its read across same-operation recovery batches", async () => {
+  let sends = 0,
+    clock = epoch;
+  const fetch: HealthFetch = async () => {
+    sends++;
+    clock += 1000;
+    return new Response(JSON.stringify({ padding: "x".repeat(1024 * 1024) }), {
+      headers: { "content-type": "application/json" },
+    });
+  };
+  const first = await drainHealthMonitor(catalog(), null, {
+    ...options({ fetch, now: () => clock }),
+    sessionDeadline: epoch + 10000,
+  });
+  assert.equal(sends, 1);
+  assert.equal(first.report.collection.observations[0]?.reason, "budget");
+  assert.equal(first.report.collection.observations[0]?.http_status, 200);
+  assert.equal(first.report.collection.outcome, "incomplete");
+  assert.equal(first.report.session?.requests, 1);
+  // Even after a zero-request reused record, the original received status
+  // prevents a later same-session batch from renewing its transport allowance.
+  const third = await advanceHealthMonitor(
+    catalog(),
+    first.checkpoint,
+    options({ fetch, now: () => clock, sessionStartedAt: epoch, continueDueOnly: true }),
+  );
+  assert.equal(third.report.collection.consumed.requests, 0);
+  assert.equal(sends, 1);
+  clock = epoch + 60000;
+  await drainHealthMonitor(catalog(), third.checkpoint, {
+    ...options({ fetch, now: () => clock }),
+    sessionDeadline: clock + 10000,
+  });
+  assert.equal(sends, 2, "A new independent health observation may read again");
 });

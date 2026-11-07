@@ -111,6 +111,7 @@ export function useCatalogMedia(
     interest.current = visible ? media : undefined;
     if (media && visible) cache?.loadMedia(portId, media, () => current);
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       current = false;
       interest.current = undefined;
     };

@@ -1,4 +1,4 @@
-import type { createGitHubClient } from "./github-client.mts";
+import type { createGitHubClient, GitHubCredential } from "./github-client.mts";
 import type { ValidationGroup, ValidationPlan } from "./validation-plan.mts";
 import type { discoverCiPlan } from "./select-ci-plan.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -105,23 +105,30 @@ export async function discoverPostmergeReuse(
         windowsHide: true,
       }));
   let client: ReturnType<typeof createGitHubClient> | undefined;
+  let credential: Promise<GitHubCredential> | undefined;
   const api = async (route: string, binary = false): Promise<unknown> => {
     if (performance.now() >= deadline) throw new Error("Reuse observation deadline");
     if (options.read) return options.read(route, binary);
+    credential ??= import("./github-cli.mts").then(({ localDeveloperCredential }) =>
+      localDeveloperCredential({ deadline }),
+    );
+    const auth = await credential;
     if (binary)
-      return (await import("./github-binary.mts")).readGitHubArtifactArchive(`${prefix}/${route}`, {
-        cwd: process.cwd(),
-        maxBytes: 4 * 1024 * 1024,
-        timeoutMs: Math.max(1, Math.min(15000, Math.ceil(deadline - performance.now()))),
-      });
-    client ??= Promise.all([import("./github-client.mts"), import("./github-cli.mts")]).then(
-      ([{ createGitHubClient }, { localDeveloperCredential }]) =>
-        createGitHubClient({
-          credential: localDeveloperCredential({ deadline }),
-          deadline,
+      return (await import("./github-artifact-download.mts")).downloadGitHubArtifactArchive(
+        `${prefix}/${route}`,
+        {
+          credential: auth,
           maxBytes: 4 * 1024 * 1024,
-          allowRequest: (method, url) => method === "GET" && url.pathname.startsWith(`/${prefix}/`),
-        }),
+          deadline: Math.min(deadline, performance.now() + 15000),
+        },
+      );
+    client ??= import("./github-client.mts").then(({ createGitHubClient }) =>
+      createGitHubClient({
+        credential: auth,
+        deadline,
+        maxBytes: 4 * 1024 * 1024,
+        allowRequest: (method, url) => method === "GET" && url.pathname.startsWith(`/${prefix}/`),
+      }),
     );
     return (
       await (

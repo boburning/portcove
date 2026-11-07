@@ -441,7 +441,7 @@ function validateMatrices(
   );
   const portability = jobs.frontend_portability ?? {};
   qualificationAssert(
-    expression(portability.if) === portabilityCondition && portability["runs-on"] === "macos-26",
+    expression(portability.if) === portabilityCondition && portability["runs-on"] === "macos-15",
     "macOS contributor route changed",
   );
   requireConsumer(portability, "pnpm verify:frontend");

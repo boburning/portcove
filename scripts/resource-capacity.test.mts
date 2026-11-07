@@ -29,6 +29,7 @@ import {
   bridgeMessages,
   serveHostBridge,
   probeLinuxCustody,
+  proveUnboundLinuxRecovery,
   verifyBridgedCapacity,
   verifyHostReference,
   acquireBridgedCapacity,
@@ -406,6 +407,15 @@ void test(
       () => probeLinuxCustody(file, custody.invocation, "release"),
       /cleanup is not proven/u,
     );
+    const recoverWithoutHostBinding = () =>
+      proveUnboundLinuxRecovery(
+        (phase, expected) => probeLinuxCustody(file, custody.invocation, phase, expected),
+        (owner) => {
+          if (readProcessIdentity(owner.pid) === owner.identity)
+            throw new Error("Original Linux owner remains live; retain custody");
+        },
+      );
+    assert.throws(recoverWithoutHostBinding, /cleanup is not proven/u);
     assert.throws(
       () =>
         probeLinuxCustody(file, custody.invocation, "release", {
@@ -421,8 +431,14 @@ void test(
         child: { ...custody.child, pid: 2147483647, identity: "linux:absent" },
       }),
     );
+    assert.throws(recoverWithoutHostBinding, /owner remains live/u);
     const stopped = probeLinuxCustody(file, custody.invocation, "release");
     assert.equal(stopped.child?.pid, 2147483647);
+    await writeFile(
+      file,
+      JSON.stringify({ ...stopped, owner: { pid: 2147483647, identity: "linux:absent-owner" } }),
+    );
+    recoverWithoutHostBinding();
     await writeFile(file, JSON.stringify({ ...stopped, cleanupParent: { dev: 0, ino: 0 } }));
     assert.throws(
       () => probeLinuxCustody(file, custody.invocation, "release"),

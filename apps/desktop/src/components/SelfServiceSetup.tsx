@@ -1,5 +1,6 @@
+import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { Play } from "lucide-react";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
 import {
@@ -9,8 +10,9 @@ import {
 import type { Perform } from "../features/operations/use-operation-state";
 import { gameIdentityLabel } from "../port-identity";
 import type { PortStatus } from "../types";
+import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { CatalogDownloadControl, PendingSetupActions } from "./CatalogDownload";
-import { UserSelectedRuntimeControl } from "./ExternalRuntime";
+import { AuthoredPreparationGuidance, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -36,7 +38,23 @@ export function SelfServiceSetup({
   onChanged,
   render,
 }: SelfServiceSetupProps) {
+  const updates =
+    entry.listing &&
+    upstreamUpdatesDestination(entry.listing.project_url, entry.listing.release_url);
   const [editorOpen, setEditorOpen] = useState(false);
+  // Only this explicitly selected non-owning surface uses listing guidance.
+  // Keep the strict definition and the managed detail's retained guide intact.
+  const routeEntry = useMemo(
+    () => ({
+      ...entry,
+      presentation: {
+        ...entry.presentation,
+        manual_setup: entry.listing?.manual_setup ?? null,
+        manual_preparation: null,
+      },
+    }),
+    [entry],
+  );
   const editorId = useId();
   const editorHeading = useRef<HTMLHeadingElement>(null);
   const pending = entry.pendingSetup;
@@ -63,17 +81,20 @@ export function SelfServiceSetup({
     });
   };
   const playAction = registered ? (
-    <Button
-      data-focusable
-      variant="primary"
-      size="lg"
-      disabled={!launch.allowed || busy}
-      focusableWhenDisabled={launch.allowed && busy}
-      aria-busy={launch.allowed && busy}
-      onClick={play}
-    >
-      <Icon glyph={Play} className="fill-current" /> Play
-    </Button>
+    <div className="grid min-w-0 justify-items-start gap-2 wrap-anywhere">
+      <ExternalLaunchWarnings portId={entry.id} status={status} />
+      <Button
+        data-focusable
+        variant="primary"
+        size="lg"
+        disabled={!launch.allowed || busy}
+        focusableWhenDisabled={launch.allowed && busy}
+        aria-busy={launch.allowed && busy}
+        onClick={play}
+      >
+        <Icon glyph={Play} className="fill-current" /> Play
+      </Button>
+    </div>
   ) : null;
   const setup = (
     <section
@@ -82,6 +103,16 @@ export function SelfServiceSetup({
       className="self-service-setup grid gap-4"
       aria-label="Set up and launch"
     >
+      {!registered && entry.listing?.manual_setup && (
+        <div className="grid gap-3" aria-label="Upstream setup instructions">
+          <h3>Set up from upstream</h3>
+          <AuthoredPreparationGuidance
+            port={entry}
+            ownership="external"
+            setup={{ manual_setup: entry.listing.manual_setup }}
+          />
+        </div>
+      )}
       {pending && (
         <Notice intent={needsRecovery ? "warning" : "info"}>
           <div data-slot="notice-body">
@@ -98,9 +129,8 @@ export function SelfServiceSetup({
               </>
             ) : (
               <p>
-                Your download is saved. Confirm the game or launcher below to finish adding it. If
-                no launch target is available, open the download folder and follow the upstream
-                setup instructions, then return here. Nothing has been run yet.
+                Your download is ready for setup. If you still need to set it up, open the download
+                folder and follow the project’s guide. Then return here and choose the game program.
               </p>
             )}
             <code className="[overflow-wrap:anywhere]">{pending.path}</code>
@@ -112,7 +142,7 @@ export function SelfServiceSetup({
           <CatalogDownloadControl
             autoCheck
             libraryRoot={libraryRoot}
-            entry={entry}
+            entry={routeEntry}
             generation={generation}
             busy={busy}
             perform={perform}
@@ -157,12 +187,12 @@ export function SelfServiceSetup({
           <div className="grid gap-3 pt-2">
             <p>
               Keep using your current installation while preparing another copy. Downloading leaves
-              its files and launch details unchanged. Review the new executable before switching;
-              both copies and their saves stay where they are.
+              its files and launch details unchanged. Review the new game program before switching.
+              Check the project’s instructions for any shared save locations.
             </p>
             <CatalogDownloadControl
               libraryRoot={libraryRoot}
-              entry={entry}
+              entry={routeEntry}
               generation={generation}
               busy={busy}
               perform={perform}
@@ -178,11 +208,13 @@ export function SelfServiceSetup({
       {registered && entry.listing && (
         <div className="grid gap-2 text-sm">
           <p>
-            Registered installation. You or upstream manage updates; the version you downloaded may
-            not be the version Portcove currently launches.
+            Portcove opens the program shown in Launch details. Use the project’s tools to update
+            this installation. Downloading another version leaves this choice as it is.
           </p>
-          <ExternalLink href={entry.listing.release_url || entry.listing.project_url}>
-            Versions and updates on the project’s website
+          <ExternalLink href={updates!.url}>
+            {updates!.releases
+              ? "Versions and updates on the project’s website"
+              : "Project website"}
           </ExternalLink>
         </div>
       )}
@@ -198,7 +230,7 @@ export function SelfServiceSetup({
           </h2>
           <UserSelectedRuntimeControl
             libraryRoot={libraryRoot}
-            port={entry}
+            port={routeEntry}
             status={status}
             listingStatus={entry.listingStatus}
             generation={generation}

@@ -82,10 +82,33 @@ void test("required-source read failures and empty analysis cannot qualify with 
 
 void test("future versions and schemas require explicit compatibility review", () => {
   for (const value of [
-    { ...report(), version: "3.34.2" },
-    { ...report(), schema_version: 15 },
+    { ...report(), version: "3.38.1" },
+    { ...report(), version: "3.39.1" },
+    { ...report(), schema_version: 14 },
+    { ...report(), schema_version: 16 },
   ])
     assert.throws(() => evaluateFallowReport(value), /Unsupported Fallow report/);
+});
+
+void test("partial runtime coverage remains unknown and cannot erase static qualification failures", () => {
+  const runtimeSummary = {
+    data_source: "cloud",
+    last_received_at: null,
+    functions_tracked: null,
+    functions_unhit: null,
+    coverage_percent: null,
+    capture_policy: "positive_only",
+  };
+  const value = report({ issues: 1, critical: 1 });
+  Object.assign(value.health, { runtime_coverage: { summary: runtimeSummary } });
+  const result = evaluateFallowReport(value, { requireParseGate: true });
+  assert.deepEqual(result.failures, [
+    "1 dead-code or dependency findings",
+    "1 critical complexity findings",
+  ]);
+  assert.equal(runtimeSummary.functions_tracked, null);
+  assert.equal(runtimeSummary.functions_unhit, null);
+  assert.equal(runtimeSummary.coverage_percent, null);
 });
 
 void test("malformed request-outcome containers cannot pass as an empty request inventory", () => {

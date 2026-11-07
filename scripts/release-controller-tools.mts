@@ -5,11 +5,12 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
-import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
+// Trusted controller identity, independent of the source being bundled.
 export const controllerToolEntries = Object.freeze([
   "production-controller-admission",
   "release-control-ready",
@@ -127,6 +128,15 @@ export function controllerToolPlatformProfile(platform: ControllerToolPlatform) 
   });
 }
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+/** Closed inventory identity, never a basename inferred from an untrusted path. */
+export function controllerToolFileMaximumBytes(name: string) {
+  return name === "bin/node" || name === "bin/node.exe"
+    ? controllerNodeMaximumBytes
+    : 128 * 1024 ** 2;
+}
+export async function readControllerNodeFile(filename: string) {
+  return readControllerToolFile(filename, controllerNodeMaximumBytes);
+}
 export async function readControllerToolFile(
   filename: string,
   maximum = 128 * 1024 ** 2,
@@ -205,8 +215,10 @@ export function inspectControllerToolManifest(
     value.schema_version !== profile.schema_version ||
     value.platform !== profile.platform ||
     value.node_version !== controllerNodeVersion ||
-    value.bundler !== "vite-plus@1.4.0" ||
-    value.tauri_cli_version !== "2.12.2" ||
+    typeof value.bundler !== "string" ||
+    !/^vite-plus@\d+\.\d+\.\d+$/u.test(value.bundler) ||
+    typeof value.tauri_cli_version !== "string" ||
+    !/^\d+\.\d+\.\d+$/u.test(value.tauri_cli_version) ||
     typeof value.source_commit !== "string" ||
     !/^[a-f0-9]{40}$/.test(value.source_commit) ||
     typeof value.source_tree !== "string" ||
@@ -224,7 +236,7 @@ export function inspectControllerToolManifest(
       typeof file.bytes !== "number" ||
       !Number.isSafeInteger(file.bytes) ||
       file.bytes < 1 ||
-      file.bytes > 128 * 1024 ** 2 ||
+      file.bytes > controllerToolFileMaximumBytes(profile.paths[index]!) ||
       typeof file.sha256 !== "string" ||
       !/^[a-f0-9]{64}$/.test(file.sha256)
     )
@@ -239,15 +251,20 @@ export function inspectControllerToolManifest(
     source_tree: value.source_tree,
     platform: profile.platform,
     node_version: controllerNodeVersion,
-    bundler: "vite-plus@1.4.0",
-    tauri_cli_version: "2.12.2",
+    bundler: value.bundler,
+    tauri_cli_version: value.tauri_cli_version,
     files,
   };
 }
 /** No extraction: every opaque byte is checked before any receiver file write. */
 export function inspectControllerToolArchive(
   raw: Buffer,
-  expected: { source_commit: string; source_tree: string; platform?: ControllerToolPlatform },
+  expected: {
+    source_commit: string;
+    source_tree: string;
+    platform?: ControllerToolPlatform;
+    dependencies?: { bundler: string; tauri: string };
+  },
 ) {
   const profile = controllerToolPlatformProfile(expected.platform ?? "linux-x86_64");
   if (!Buffer.isBuffer(raw) || raw.length < 22 || raw.length > 320 * 1024 ** 2)
@@ -285,6 +302,12 @@ export function inspectControllerToolArchive(
     manifest.source_tree !== expected.source_tree
   )
     throw new Error("controller tool source/tree differs");
+  if (
+    expected.dependencies &&
+    (manifest.bundler !== expected.dependencies.bundler ||
+      manifest.tauri_cli_version !== expected.dependencies.tauri)
+  )
+    throw new Error("controller tool dependencies differ from fixed checkout");
   const files = new Map<string, Buffer>([["manifest.json", manifestBytes]]);
   for (const file of manifest.files) {
     const bytes = read(file.path, file.bytes);

@@ -25,6 +25,68 @@ function startupTargetUrl(value: unknown) {
   }
 }
 
+function captureEdgeStartupCapabilities(
+  get: (name: string) => unknown,
+  allowed: Record<string, string>,
+  errors: Record<string, string>,
+) {
+  try {
+    // Edge returns additional private fields beside this version. Read only
+    // the version rather than retaining the vendor capability object.
+    const edge = get("msedge");
+    if (!allowed.driverVersion && isRecord(edge) && typeof edge.msedgedriverVersion === "string")
+      allowed.driverVersion = edge.msedgedriverVersion.slice(0, 256);
+  } catch {
+    errors.driverVersion = "read-failed";
+  }
+  try {
+    const options = get("ms:edgeOptions");
+    const address = isRecord(options) ? options.debuggerAddress : undefined;
+    const match =
+      typeof address === "string" && address.length <= 128
+        ? /^(?:localhost|127\.0\.0\.1|\[::1\]):([1-9]\d{0,4})$/iu.exec(address)
+        : null;
+    if (match && Number(match[1]) <= 65535 && typeof address === "string")
+      allowed.debuggerAddress = address;
+  } catch {
+    errors.debuggerAddress = "read-failed";
+  }
+}
+
+async function captureStartupCapabilities(
+  browser: WebDriver | LinuxInspectorProtocol,
+  observation: Record<string, unknown>,
+) {
+  try {
+    if (!("getCapabilities" in browser) || typeof browser.getCapabilities !== "function")
+      observation.capabilities_unavailable = true;
+    else {
+      const capabilities: unknown = await browser.getCapabilities();
+      if (!isRecord(capabilities)) throw new Error("Capabilities are unavailable");
+      const getter = capabilities.get;
+      const get = (name: string): unknown =>
+        typeof getter === "function"
+          ? Reflect.apply(getter, capabilities, [name])
+          : capabilities[name];
+      const allowed: Record<string, string> = {};
+      const errors: Record<string, string> = {};
+      for (const name of ["browserName", "browserVersion", "platformName", "driverVersion"]) {
+        try {
+          const value = get(name);
+          if (typeof value === "string") allowed[name] = value.slice(0, 256);
+        } catch {
+          errors[name] = "read-failed";
+        }
+      }
+      captureEdgeStartupCapabilities(get, allowed, errors);
+      observation.capabilities = allowed;
+      if (Object.keys(errors).length) observation.capability_errors = errors;
+    }
+  } catch {
+    observation.capabilities_error = "read-failed";
+  }
+}
+
 /** Initial owned-startup observation only. Never switches the selected target. */
 async function captureStartupTargets(
   browser: WebDriver | LinuxInspectorProtocol,
@@ -76,58 +138,7 @@ async function captureStartupTargets(
   } catch {
     observation.handles_error = "read-failed";
   }
-  try {
-    if (!("getCapabilities" in browser) || typeof browser.getCapabilities !== "function")
-      observation.capabilities_unavailable = true;
-    else {
-      const capabilities: unknown = await browser.getCapabilities();
-      if (!isRecord(capabilities)) throw new Error("Capabilities are unavailable");
-      const getter = capabilities.get;
-      const get = (name: string): unknown =>
-        typeof getter === "function"
-          ? Reflect.apply(getter, capabilities, [name])
-          : capabilities[name];
-      const allowed: Record<string, string> = {};
-      const errors: Record<string, string> = {};
-      for (const name of ["browserName", "browserVersion", "platformName", "driverVersion"]) {
-        try {
-          const value = get(name);
-          if (typeof value === "string") allowed[name] = value.slice(0, 256);
-        } catch {
-          errors[name] = "read-failed";
-        }
-      }
-      try {
-        // Edge returns additional private fields beside this version. Read only
-        // the version rather than retaining the vendor capability object.
-        const edge = get("msedge");
-        if (
-          !allowed.driverVersion &&
-          isRecord(edge) &&
-          typeof edge.msedgedriverVersion === "string"
-        )
-          allowed.driverVersion = edge.msedgedriverVersion.slice(0, 256);
-      } catch {
-        errors.driverVersion = "read-failed";
-      }
-      try {
-        const options = get("ms:edgeOptions");
-        const address = isRecord(options) ? options.debuggerAddress : undefined;
-        const match =
-          typeof address === "string" && address.length <= 128
-            ? /^(?:localhost|127\.0\.0\.1|\[::1\]):([1-9]\d{0,4})$/iu.exec(address)
-            : null;
-        if (match && Number(match[1]) <= 65535 && typeof address === "string")
-          allowed.debuggerAddress = address;
-      } catch {
-        errors.debuggerAddress = "read-failed";
-      }
-      observation.capabilities = allowed;
-      if (Object.keys(errors).length) observation.capability_errors = errors;
-    }
-  } catch {
-    observation.capabilities_error = "read-failed";
-  }
+  await captureStartupCapabilities(browser, observation);
   try {
     const manager = browser.manage();
     if (!("logs" in manager)) observation.driver_logs_unavailable = true;

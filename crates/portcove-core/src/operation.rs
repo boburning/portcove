@@ -52,6 +52,7 @@ pub(crate) enum LifecycleOperationKind {
     ImportSource,
     GhostshipRecovery,
     SettingsChange,
+    ArchiveDataTransition,
 }
 
 impl fmt::Display for LifecycleOperationKind {
@@ -69,6 +70,7 @@ impl fmt::Display for LifecycleOperationKind {
             Self::ImportSource => "import_source",
             Self::GhostshipRecovery => "ghostship_recovery",
             Self::SettingsChange => "settings_change",
+            Self::ArchiveDataTransition => "archive_data_transition",
         })
     }
 }
@@ -86,6 +88,7 @@ impl FromStr for LifecycleOperationKind {
             "restore" => Some(Self::Restore),
             "delete_backup" => Some(Self::DeleteBackup),
             "activate" => Some(Self::Activate),
+            "archive_data_transition" => Some(Self::ArchiveDataTransition),
             "relocate" => Some(Self::Relocate),
             "import_source" => Some(Self::ImportSource),
             "ghostship_recovery" => Some(Self::GhostshipRecovery),
@@ -181,7 +184,7 @@ impl LifecycleOperation {
         if (self.install.is_some()
             && !matches!(
                 self.kind,
-                Install | Adopt | Prepare | Activate | GhostshipRecovery
+                Install | Adopt | Prepare | Activate | GhostshipRecovery | ArchiveDataTransition
             ))
             || (self.relocation.is_some() != (self.kind == Relocate))
             || (self.source_import.is_some() != (self.kind == ImportSource))
@@ -204,6 +207,7 @@ impl LifecycleOperation {
                         self.phase,
                         LifecyclePhase::Preparing | LifecyclePhase::MetadataCommitted
                     )))
+            || (self.kind == ArchiveDataTransition && self.install.is_none())
         {
             return Err(PortcoveError::state(
                 "lifecycle journal has a missing or foreign family payload",
@@ -838,6 +842,14 @@ pub(crate) enum SettingsFaultPoint {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleFaultPoint {
+    ArchiveDataTransitionPrepared,
+    ArchiveDataManifestPublished,
+    ArchiveDataManifestRecorded,
+    ArchiveDataReceiptFenced,
+    ArchiveDataCanonicalQuarantined,
+    ArchiveDataCanonicalPublished,
+    ArchiveDataTransitionCommitted,
+    ArchiveDataCleanupStarted,
     #[cfg(windows)]
     SettingsBoundary(SettingsFaultPoint),
     #[cfg(test)]

@@ -7,10 +7,26 @@ fn target(bytes: &[u8]) -> String {
 }
 
 fn projection() -> Value {
+    let catalog = crate::test_fixture::indexed_fixture_document(&Catalog::embedded().unwrap());
     json!({
         "contract_schema": 1, "representation": "catalog_projection",
-        "catalog": Catalog::embedded().unwrap().authoritative_document()
+        "catalog": catalog
     })
+}
+
+#[test]
+fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
+    let catalog = Catalog::embedded().unwrap();
+    let document = json!({
+        "contract_schema": 1, "representation": "catalog_projection",
+        "catalog": catalog.authoritative_document()
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let selected = entry(&document, &contract, 0);
+    assert_ne!(selected["stable_id"], "opentyrian-opentyrian");
+    let error = inspect(&selected, &contract).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(error.message.contains("embedded-only"));
 }
 
 // Malformed-contract checks need a complete source graph and two siblings,
@@ -82,6 +98,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
     let version = if crate::preparation::source::native(&typed) {
         6
+    } else if typed.windows_shipwright_persistence {
+        3
     } else if typed.windows_temp_directory.is_some() {
         5
     } else if typed.adapter == crate::AdapterKind::NativePortable
@@ -103,8 +121,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
     {
         20
-    } else if crate::persistence::requires_fresh_direct_data_guard(&typed) {
-        25
+    } else if let Some(version) = crate::persistence::fresh_direct_data_guard_capability(&typed) {
+        version
     } else if typed.mod_package_policy.is_some() {
         24
     } else if crate::persistence::ready_staged_archive(&typed) {
@@ -490,6 +508,11 @@ fn supported_new_id_needs_no_per_port_dispatch_and_does_not_mutate_embedded_cata
         .unwrap()
         .to_owned();
     document["catalog"]["ports"][0]["id"] = json!("redistributable-definition-fixture");
+    // The synthetic ID has no official Shipwright persistence authority.
+    document["catalog"]["ports"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("windows_shipwright_persistence");
     for collection in ["contracts", "qualification"] {
         for record in document["catalog"]["source_catalog"][collection]
             .as_array_mut()

@@ -95,6 +95,10 @@ export function createFrontendCaseObservations(
       const contract = declaration?.cases.includes(test.fullName) ? declaration : null;
       const expectedSkip = frontendCaseSkipAllowed(contract, environment);
       if (result.state === "skipped" && !expectedSkip) unexpectedSkips++;
+      const attempts =
+        result.state === "failed" || diagnostic?.retryCount || diagnostic?.repeatCount
+          ? test.attempts()
+          : [];
       record("test", {
         definition_id:
           file && name
@@ -119,6 +123,24 @@ export function createFrontendCaseObservations(
         repeat_count: integer(diagnostic?.repeatCount),
         errors: errors.slice(0, 2).map((error) => failure(error)),
         omitted_errors: Math.max(0, errors.length - 2),
+        ...(attempts.length
+          ? {
+              attempts: attempts.slice(0, 4).map((attempt) => ({
+                outcome: attempt.state,
+                retry_index: integer(attempt.retryIndex),
+                repeat_index: integer(attempt.repeatIndex),
+                duration_ms: duration(attempt.duration),
+                start_time_ms: duration(attempt.startTime),
+                // Original final errors above retain stacks and causes. Keep each
+                // attempt small enough to preserve the existing total row budget.
+                errors: (attempt.errors ?? [])
+                  .slice(0, 1)
+                  .map((error) => ({ message: text(error.message, 256) })),
+                omitted_errors: Math.max(0, (attempt.errors?.length ?? 0) - 1),
+              })),
+              omitted_attempts: Math.max(0, attempts.length - 4),
+            }
+          : {}),
       });
     } catch {
       invalid++;

@@ -26,10 +26,24 @@ tester.run("player-copy", playerCopy, {
     ),
     code("const view = <p>Verified local release</p>"),
     code(
+      "const view = <p>Check which saves are shared. Keep player.old1 outside the game folder.</p>",
+    ),
+    code(
+      "const view = <details><summary>Technical details</summary><p>Runtime executable: player.exe. SHA-256: abc123.</p></details>",
+    ),
+    code(
       'const code = "operation_hold"; const view = <details><summary>Technical details</summary><p>Execution intent</p></details>',
     ),
   ],
   invalid: [
+    invalid(
+      "const view = <p>Each keeps its own installation, files and saved data.</p>",
+      "unscoped-save-separation",
+    ),
+    invalid(
+      "const view = <p>Installed application files are kept separate from\n saves and settings.</p>",
+      "unscoped-save-separation",
+    ),
     invalid("const view = <p>Review this execution intent</p>", "engineering-handoff"),
     invalid(
       'const view = <button aria-label="Review operation hold">Review</button>',

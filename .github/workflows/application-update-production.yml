@@ -62,11 +62,82 @@ jobs:
           package-manager-cache: false
       - run: node scripts/production-controller-admission-cli.mts
         id: admit
+      - name: Observe exact publication pause before credential-bearing jobs
+        id: pause
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          retries: 0
+          debug: false
+          script: |
+            const repository = "https://api.github.com/repos/boburning/portcove";
+            const operation = AbortSignal.timeout(30_000);
+            async function get(suffix, limit, accept) {
+              const url = repository + suffix;
+              const signal = AbortSignal.any([operation, AbortSignal.timeout(10_000)]);
+              let bytes;
+              try {
+                const result = await github.request(`GET ${url}`, {
+                  headers: { accept },
+                  request: {
+                    signal,
+                    parseSuccessResponseBody: false,
+                    log: { debug() {}, info() {}, warn() {}, error() {} },
+                    fetch: async (input, init) => {
+                      if (input !== url || init.method !== "GET") throw Error("Unexpected pause route");
+                      const response = await fetch(input, { ...init, signal, redirect: "manual" });
+                      if (response.status !== 200 || !response.body) {
+                        await response.body?.cancel();
+                        throw Error("Pause response unavailable");
+                      }
+                      const reader = response.body.getReader();
+                      const chunks = [];
+                      let total = 0;
+                      try {
+                        for (;;) {
+                          const chunk = await reader.read();
+                          if (chunk.done) break;
+                          total += chunk.value.byteLength;
+                          if (total > limit) {
+                            await reader.cancel();
+                            throw Error("Pause response exceeds its bound");
+                          }
+                          chunks.push(chunk.value);
+                        }
+                      } finally {
+                        reader.releaseLock();
+                      }
+                      bytes = Buffer.concat(chunks, total);
+                      return new Response(null, { status: 200 });
+                    },
+                  },
+                });
+                signal.throwIfAborted();
+                if (result.status !== 200 || !bytes) throw Error("Pause response unavailable");
+                return JSON.parse(bytes.toString("utf8"));
+              } catch {
+                throw Error("Fixed publication pause read failed");
+              }
+            }
+            const head = async () => {
+              const ref = await get("/git/ref/heads/portcove-release-pause", 64 * 1024, "application/vnd.github+json");
+              if (ref?.ref !== "refs/heads/portcove-release-pause" || ref.object?.type !== "commit" ||
+                  typeof ref.object.sha !== "string" || !/^[a-f0-9]{40}$/.test(ref.object.sha))
+                throw Error("Publication pause ref identity unavailable");
+              return ref.object.sha;
+            };
+            const before = await head();
+            const pause = await get(`/contents/publication.json?ref=${before}`, 4096, "application/vnd.github.raw+json");
+            if (!pause || Object.keys(pause).sort().join(",") !== "publication_paused,schema_version" ||
+                pause.schema_version !== 1 || typeof pause.publication_paused !== "boolean")
+              throw Error("Publication pause schema differs");
+            if (await head() !== before) throw Error("Publication pause ref changed");
+            core.setOutput("publication_paused", String(pause.publication_paused));
     if: ${{ vars.PORTCOVE_CONTROLLER_REVISION == github.sha && vars.PORTCOVE_CONTROLLER_REF ==
       github.ref && ((inputs.publication_purpose == 'application' &&
       vars.PORTCOVE_CONTROLLER_ADMISSION != '') || (inputs.publication_purpose ==
       'catalog-publication' && vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION != '')) }}
     outputs:
+      publication_paused: ${{ steps.pause.outputs.publication_paused }}
       publication_purpose: ${{ steps.admit.outputs.publication_purpose }}
       classification_transport: ${{ steps.admit.outputs.classification_transport }}
       protection_app_id: ${{ steps.admit.outputs.protection_app_id }}
@@ -147,8 +218,8 @@ jobs:
       - admission
       - tool_bootstrap
       - tool_bootstrap_windows
-    if: ${{ !cancelled() && needs.admission.result == 'success' && needs.tool_bootstrap.result ==
-      'success' && ((needs.admission.outputs.publication_purpose == 'application' &&
+    if: ${{ !cancelled() && needs.admission.result == 'success' &&
+      needs.admission.outputs.publication_paused == 'false' && needs.tool_bootstrap.result == 'success' && ((needs.admission.outputs.publication_purpose == 'application' &&
       needs.tool_bootstrap_windows.result == 'success') ||
       (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
       needs.tool_bootstrap_windows.result == 'skipped')) }}
@@ -167,7 +238,7 @@ jobs:
       - &a4
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: 24.22.2
+          node-version: 26.13.0
           package-manager-cache: false
       - name: Write only the fixed bootstrap's bounded structured predicate
         env:
@@ -416,17 +487,36 @@ jobs:
           PORTCOVE_TOOL_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
           PORTCOVE_TOOL_ARTIFACT_SHA256: ${{ steps.upload.outputs.artifact-digest }}
         run: node scripts/release-controller-tool-bootstrap.mts bind-upload
+      - name: Retain bounded Windows runtime diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-windows-runtime-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/hosted-continuity-evidence/windows-runtime.json
+            work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json
+            work/hosted-continuity-evidence/windows-runtime-incomplete.json
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
+      - name: Retain bounded Windows compiler diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-windows-compiler-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ~/.pct-*/ct-*/failure.json
+            ~/.pct-*/ct-*/tools/manifest.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
       - name: Retain only bounded bootstrap diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: trusted-controller-tools-windows-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            work/hosted-continuity-evidence/windows-runtime.json
-            work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json
-            work/hosted-continuity-evidence/windows-runtime-incomplete.json
-            ~/.pct-*/ct-*/failure.json
-            ~/.pct-*/ct-*/tools/manifest.json
             ${{ runner.temp }}/controller-tools-windows-predicate.json
             ${{ runner.temp }}/controller-tool-binding-*/expected.json
             ${{ runner.temp }}/controller-tool-binding-*/provider-before.json
@@ -453,7 +543,31 @@ jobs:
       observation: ${{ steps.observe.outputs.observation }}
     steps:
       - *a1
+      - &controller_clock_pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          package_json_file: package.json
+          run_install: false
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+          PORTCOVE_RELEASE_READ_TOKEN: ""
       - *a2
+      - &controller_clock_install
+        name: Install the fixed controller clock dependencies before role credentials
+        shell: bash
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+          PORTCOVE_RELEASE_READ_TOKEN: ""
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_WORKFLOW_SHA" ]]
+          git diff --quiet HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc patches/
+          if [[ -e .npmrc ]]; then git ls-files --error-unmatch .npmrc >/dev/null; fi
+          install_home="$RUNNER_TEMP/controller-clock-install-home"
+          mkdir -m 700 "$install_home"
+          env -i PATH="$PATH" HOME="$install_home" CI=true pnpm --filter portcove-repository install --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/controller-clock-store"
       - id: probe
         env:
           PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ needs.admission.outputs.protection_app_id }}
@@ -502,9 +616,27 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - id: probe
         run: node scripts/release-reviewed-inputs.mts probe-production-request
+      - id: storage
+        if: ${{ steps.probe.outputs.storage_app_id != '' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible == 'true' }}
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ steps.probe.outputs.storage_app_id }}
+          private-key: ${{ secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY }}
+          owner: boburning
+          repositories: portcove
+          permission-contents: write
+      - name: Bind actual storage writer installation before classification use
+        if: ${{ steps.probe.outputs.storage_app_id != '' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible == 'true' }}
+        shell: bash
+        env:
+          EXPECTED_STORAGE_INSTALLATION: ${{ steps.probe.outputs.storage_installation_id }}
+          OBSERVED_STORAGE_INSTALLATION: ${{ steps.storage.outputs.installation-id }}
+        run: '[[ "$EXPECTED_STORAGE_INSTALLATION" =~ ^[1-9][0-9]*$ && "$OBSERVED_STORAGE_INSTALLATION" == "$EXPECTED_STORAGE_INSTALLATION" ]]'
       - id: writer
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
@@ -538,6 +670,9 @@ jobs:
           needs.classification_protection_observation.outputs.eligible == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          PORTCOVE_STORAGE_APP_TOKEN: ${{ steps.storage.outputs.token }}
+          PORTCOVE_STORAGE_APP_ID: ${{ steps.probe.outputs.storage_app_id }}
+          PORTCOVE_STORAGE_INSTALLATION_ID: ${{ steps.storage.outputs.installation-id }}
           PORTCOVE_TRUSTED_PROTECTION_OBSERVATION: ${{ needs.classification_protection_observation.outputs.observation }}
         run: node scripts/release-reviewed-inputs.mts persist-production-request
     if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
@@ -573,7 +708,9 @@ jobs:
       role_locators: ${{ steps.job.outputs.role_locators }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts coordinator
         id: authorities
@@ -581,29 +718,29 @@ jobs:
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+          app-id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_app_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
             fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.app_id ||
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
-          private-key: ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id)) }}
+          private-key: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY || (steps.authorities.outputs.credential_transport == 'legacy-app' && ((needs.admission.outputs.publication_purpose == 'catalog-publication' &&
             secrets.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY) ||
             (needs.admission.outputs.publication_purpose == 'application' &&
-            secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY) }}
+            secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY))) }}
           owner: boburning
           repositories: portcove
           permission-contents: write
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - &a8
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ needs.admission.outputs.publication_purpose ==
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_installation_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (needs.admission.outputs.publication_purpose ==
             'catalog-publication' &&
             fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.installation_id ||
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id)) }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
         run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
           "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - id: dispatch
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
@@ -641,6 +778,9 @@ jobs:
             && needs.admission.outputs.publication_purpose == 'application' && github.token ||
             steps.dispatch.outputs.token }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: coordinator
           phase: coordinator
   coordinator_protection_observation:
@@ -658,7 +798,9 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - uses: ./.github/actions/release-control-observer
         with:
           phase: coordinator
@@ -703,7 +845,9 @@ jobs:
       original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts admission
         id: authorities
@@ -711,22 +855,21 @@ jobs:
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
-          private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
+          app-id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_app_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id)) }}
+          private-key: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY || (steps.authorities.outputs.credential_transport == 'legacy-app' && (secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY)) }}
           owner: boburning
           repositories: portcove
           permission-contents: write
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - &a6
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_installation_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id)) }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
         run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
           "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -734,6 +877,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: building
           phase: admission
   protection_observation:
@@ -757,7 +903,9 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - uses: ./.github/actions/release-control-observer
         if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
           != 'reused' }}
@@ -973,7 +1121,9 @@ jobs:
       context_locator: ${{ steps.job.outputs.context_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts payload
         id: authorities
@@ -986,6 +1136,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: payload
           phase: payload
           role_key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -1020,7 +1173,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-releases
         id: authorities
@@ -1033,6 +1188,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-releases
           phase: tuf-releases
           role_key: ${{ secrets.PORTCOVE_TUF_RELEASES_KEY }}
@@ -1068,7 +1226,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-preview
         id: authorities
@@ -1081,6 +1241,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-preview
           phase: tuf-preview
           role_key: ${{ secrets.PORTCOVE_TUF_PREVIEW_KEY }}
@@ -1117,7 +1280,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-stable
         id: authorities
@@ -1130,6 +1295,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-stable
           phase: tuf-stable
           role_key: ${{ secrets.PORTCOVE_TUF_STABLE_KEY }}
@@ -1167,7 +1335,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-snapshot
         id: authorities
@@ -1180,6 +1350,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-snapshot
           phase: tuf-snapshot
           role_key: ${{ secrets.PORTCOVE_TUF_SNAPSHOT_KEY }}
@@ -1218,7 +1391,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-timestamp
         id: authorities
@@ -1231,6 +1406,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-timestamp
           phase: tuf-timestamp
           role_key: ${{ secrets.PORTCOVE_TUF_TIMESTAMP_KEY }}
@@ -1276,7 +1454,9 @@ jobs:
       publication_locator: ${{ steps.job.outputs.publication_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts release-publication
         id: authorities
@@ -1309,6 +1489,9 @@ jobs:
           PORTCOVE_RELEASE_PUBLICATION_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'fixed-job' && github.token || steps.publication.outputs.token }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: release-publication
           phase: release-publication
   site_publication:
@@ -1354,7 +1537,9 @@ jobs:
       decision: ${{ steps.job.outputs.decision }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts site-publication
         id: authorities
@@ -1367,6 +1552,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: site-publication
           phase: site-publication
   site_protection_observation:
@@ -1405,7 +1593,9 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - uses: ./.github/actions/release-control-observer
         with:
           phase: site-publication
@@ -1442,7 +1632,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-definitions
         id: authorities
@@ -1450,22 +1642,21 @@ jobs:
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.app_id }}
-          private-key: ${{ secrets.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
+          app-id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_app_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.app_id)) }}
+          private-key: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY || (steps.authorities.outputs.credential_transport == 'legacy-app' && (secrets.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY)) }}
           owner: boburning
           repositories: portcove
           permission-contents: write
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - &a10
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{
-            fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_installation_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.installation_id)) }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
         run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
           "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1473,6 +1664,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: catalog-definitions
           phase: catalog-definitions
           role_key: ${{ secrets.PORTCOVE_CATALOG_DEFINITIONS_KEY }}
@@ -1504,7 +1698,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-policy
         id: authorities
@@ -1517,6 +1713,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: catalog-policy
           phase: catalog-policy
           role_key: ${{ secrets.PORTCOVE_CATALOG_POLICY_KEY }}
@@ -1549,7 +1748,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-snapshot
         id: authorities
@@ -1562,6 +1763,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: catalog-snapshot
           phase: catalog-snapshot
           role_key: ${{ secrets.PORTCOVE_CATALOG_SNAPSHOT_KEY }}
@@ -1595,7 +1799,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-timestamp
         id: authorities
@@ -1608,6 +1814,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: catalog-timestamp
           phase: catalog-timestamp
           role_key: ${{ secrets.PORTCOVE_CATALOG_TIMESTAMP_KEY }}
@@ -1632,7 +1841,9 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - uses: ./.github/actions/release-control-observer
         with:
           phase: catalog-definitions

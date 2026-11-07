@@ -172,7 +172,7 @@ export function fallowArguments(
 }
 
 function validateAdvisory(report: unknown, mode: string) {
-  const expected = mode === "css" ? ["health", 12] : ["audit-brief", 13];
+  const expected = mode === "css" ? ["health", 13] : ["audit-brief", 14];
   if (
     !isRecord(report) ||
     report.kind !== expected[0] ||

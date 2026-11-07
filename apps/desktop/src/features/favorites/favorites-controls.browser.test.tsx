@@ -131,3 +131,30 @@ it("keeps an unknown existing query unresolved instead of treating it as an empt
   expect(saved.ids?.size).toBe(3);
   expect(saved.toggle).not.toHaveBeenCalled();
 });
+
+it("ends loading after a favorites read fails without reporting a successful empty search", async () => {
+  const saved = favorites({ ids: undefined, only: true, failure: "read", busy: false });
+  await root.rerender(
+    <PortBrowser
+      view="catalog"
+      ports={ports}
+      statuses={new Map()}
+      overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+      filter="all"
+      setFilter={vi.fn()}
+      onSelect={vi.fn()}
+      loading={false}
+      favorites={saved}
+    />,
+  );
+  expect(host.querySelector('[aria-label="Search results"]')?.textContent).toBe(
+    "Search results unavailable",
+  );
+  expect(host.textContent).not.toContain("Loading your port library");
+  expect(host.textContent).not.toMatch(/no (matching )?(ports|games) found/i);
+  const retry = [...host.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("Retry favorites"),
+  )!;
+  await act(async () => retry.click());
+  expect(saved.refresh).toHaveBeenCalledOnce();
+});

@@ -17,9 +17,8 @@ import {
 } from "./release-control-phases.mts";
 import {
   inspectControlStepReadiness,
-  controlBridgeOriginalDeadline,
+  readControlBridgeOriginalJob,
 } from "./release-control-step-bridge.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { inspectCatalogSigningBinding } from "./release-catalog-signing-contract.mts";
 import { retainReleaseRoutingMarker as retain } from "./release-routing-marker.mts";
 
@@ -738,12 +737,13 @@ export function controllerTransportClock(
   return monotonic + left;
 }
 async function originalDeadline(root: string, phase: Phase) {
+  const environment = { ...process.env };
   if (
-    process.env.GITHUB_RUN_ATTEMPT !== "1" ||
-    !/^[1-9][0-9]{0,15}$/u.test(process.env.GITHUB_RUN_ID ?? "") ||
-    !/^[a-f0-9]{40}$/u.test(process.env.GITHUB_SHA ?? "") ||
+    environment.GITHUB_RUN_ATTEMPT !== "1" ||
+    !/^[1-9][0-9]{0,15}$/u.test(environment.GITHUB_RUN_ID ?? "") ||
+    !/^[a-f0-9]{40}$/u.test(environment.GITHUB_SHA ?? "") ||
     !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
-      process.env.GITHUB_REF ?? "",
+      environment.GITHUB_REF ?? "",
     )
   )
     throw new Error("fixed transport source/run/ref unavailable");
@@ -753,32 +753,17 @@ async function originalDeadline(root: string, phase: Phase) {
     await assertOwnedUnlinkedPath(root, file, "original transport clock");
     return controllerTransportClock(old, phase);
   }
-  const runner = createGitHubRunner({ cwd: root, timeoutMs: 15000, maxBuffer: 2 * 1024 ** 2 });
-  const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
-  );
-  const response = api.request(
-    "GET",
-    `repos/boburning/portcove/actions/runs/${process.env.GITHUB_RUN_ID}/attempts/1/jobs?per_page=100`,
-  );
-  if (response.status !== 200) throw new Error("original producer job unavailable");
-  const deadline = controlBridgeOriginalDeadline(response.body, phase);
+  const { deadline, job } = await readControlBridgeOriginalJob(phase, environment);
   const profile = releaseControlPhaseProfile(phase);
-  if (!isRecord(response.body) || !Array.isArray(response.body.jobs))
-    throw new Error("original job inventory unavailable");
-  const job: unknown = response.body.jobs.find(
-    (entry: unknown) => isRecord(entry) && entry.name === profile.reader_name,
-  );
-  if (!isRecord(job)) throw new Error("original job unavailable");
   const clock = {
-    controller_revision: process.env.GITHUB_SHA,
-    execution_ref: process.env.GITHUB_REF,
+    controller_revision: environment.GITHUB_SHA,
+    execution_ref: environment.GITHUB_REF,
     job_id: job.id,
     job_name: profile.reader_name,
     phase,
     profile_ms: phaseBudgets[phase],
     run_attempt: 1,
-    run_id: process.env.GITHUB_RUN_ID,
+    run_id: environment.GITHUB_RUN_ID,
     started_at: job.started_at,
     monotonic_deadline_ns: (
       process.hrtime.bigint() +

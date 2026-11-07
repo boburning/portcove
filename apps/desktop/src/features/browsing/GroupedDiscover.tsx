@@ -188,7 +188,7 @@ export function GroupedDiscover({
               <DialogDescription>
                 {comparison.ports.length === 1
                   ? "Review this port’s setup requirements and reports."
-                  : `Compare ${comparison.ports.length} port projects. Each keeps its own installation, files and saved data.`}
+                  : `Compare setup requirements for ${comparison.ports.length} ports. Check each port’s instructions for shared save locations.`}
               </DialogDescription>
               <details className="my-4 text-xs text-pc-muted-foreground">
                 <summary data-focusable className="cursor-pointer py-2">
@@ -349,15 +349,11 @@ function DiscoverGameCard({
   open: (port: CatalogEntry, originKey: string) => void;
   compare: (group: GameGroup, trigger: HTMLButtonElement) => void;
 }) {
-  const chosen = resolveGameChoice(
+  const { first, actionGroup, status, exact, firstProject, projectLabel } = discoverCardIdentity(
     group,
     statuses,
-    organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
-  ).port;
-  const first = chosen ?? group.matchingPorts[0]!;
-  const actionGroup = chosen ? { ...group, matchingPorts: [chosen] } : group;
-  const status = statuses.get(first.id);
-  const exact = Boolean(chosen) || group.matchingPorts.length === 1;
+    organization,
+  );
   const observation = browsePortPresentation(first, status, "catalog");
   const descriptionId = `${descriptionPrefix}:${encodeURIComponent(first.id)}`;
   const describedBy = exact && (observation.input || observation.setup) ? descriptionId : undefined;
@@ -365,9 +361,6 @@ function DiscoverGameCard({
     group.ports.length === 1 && sourceDropEligible(first, status, nativeSourceDrag);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === first.id;
   const detailOrigin = `catalog:card:${first.id}`;
-  const firstProject = gameProjectLabel(first) || first.name;
-  const projectLabel =
-    group.ports.length === 1 ? firstProject : `${group.ports.length} separate port projects`;
   const { element: artworkElement, visible } = useArtworkVisibility();
   const { display: artwork } = useArtwork(first.id, "cover", visible);
   const artworkNotice = artworkDisplayNotice(artwork);
@@ -450,6 +443,29 @@ function DiscoverGameCard({
       )}
     </article>
   );
+}
+
+function discoverCardIdentity(
+  group: GameGroup,
+  statuses: ReadonlyMap<string, PortStatus>,
+  organization: Organization | undefined,
+) {
+  const chosen = resolveGameChoice(
+    group,
+    statuses,
+    organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
+  ).port;
+  const first = chosen ?? group.matchingPorts[0]!;
+  const firstProject = gameProjectLabel(first) || first.name;
+  return {
+    first,
+    actionGroup: chosen ? { ...group, matchingPorts: [chosen] } : group,
+    status: statuses.get(first.id),
+    exact: Boolean(chosen) || group.matchingPorts.length === 1,
+    firstProject,
+    projectLabel:
+      group.ports.length === 1 ? firstProject : `${group.ports.length} separate port projects`,
+  };
 }
 
 function DiscoverGameObservation({

@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { createElement } from "react";
@@ -37,6 +38,7 @@ const report: SourceInspectionReport = {
   evidence: [],
   legacy: { registration_identity_not_recorded: false, variant_unspecified_records: [] },
 };
+const queryClient = new QueryClient();
 let container: HTMLDivElement;
 let root: RenderResult;
 let state: ReturnType<typeof useSourceHealth>;
@@ -47,6 +49,7 @@ function Fixture({ sources = [source] }: { sources?: SourceRecord[] }) {
     sources,
     sources.map((item) => item.profile_id),
     "same-catalog",
+    queryClient,
   );
   return (
     <SettingsView
@@ -98,7 +101,7 @@ it.each(["failed", "cancelled"])(
     expect(row().textContent).not.toContain("Saved-file check did not pass.");
     expect(row().textContent).not.toContain(failure.presentation.technical_message);
     expect(row().textContent).not.toContain("private/source.z64");
-    expect(row().textContent).toContain(report.summary);
+    await expect.poll(() => row().textContent).toContain(report.summary);
     expect(row().textContent).toContain("Exact match");
     await act(async () => {
       reject({
@@ -109,7 +112,7 @@ it.each(["failed", "cancelled"])(
     });
     expect(row().textContent).not.toContain("Saved-file check did not pass.");
     expect(row().textContent).not.toContain(failure.presentation.technical_message);
-    expect(row().textContent).toContain(report.summary);
+    await expect.poll(() => row().textContent).toContain(report.summary);
     const check = [...row().querySelectorAll("button")].find(
       (button) => button.textContent === "Check file again",
     );
@@ -151,7 +154,7 @@ it("offers an explicit file check without inspecting on mount", async () => {
   expect(button).toBeDefined();
   await act(async () => button!.click());
   expect(inspect).toHaveBeenCalledTimes(1);
-  expect(row().textContent).toContain(report.summary);
+  await expect.poll(() => row().textContent).toContain(report.summary);
 });
 
 function row() {
@@ -215,7 +218,7 @@ it("coalesces same-turn read-only retry and shows the later successful inspectio
     resolve(report);
     await pending;
   });
-  expect(row().textContent).toContain(report.summary);
+  await expect.poll(() => row().textContent).toContain(report.summary);
   expect(row().textContent).not.toContain("Checking file…");
   expect(row().textContent).not.toContain(failure.presentation.summary);
   expect(verify).not.toHaveBeenCalled();
@@ -236,7 +239,7 @@ it("shows a successful explicit inspection without a pending or failure notice",
   const inspect = vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(report);
   await renderAndRequestCheck();
   expect(inspect).toHaveBeenCalledTimes(1);
-  expect(row().textContent).toContain(report.summary);
+  await expect.poll(() => row().textContent).toContain(report.summary);
   expect(row().textContent).not.toContain("Checking file…");
   expect(row().textContent).not.toContain("Check unavailable");
 });

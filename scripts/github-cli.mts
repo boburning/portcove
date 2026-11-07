@@ -2,7 +2,7 @@
 import { execFile, spawnSync } from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { promisify } from "node:util";
-import { GitHubApiError } from "./github-operation.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 import { errorCode } from "./runtime-values.mts";
 import type { GitHubCredential } from "./github-client.mts";
 
@@ -13,31 +13,57 @@ export type RetainedGitHubSpawn = (
   options: SpawnSyncOptionsWithStringEncoding,
 ) => { status: number | null; stdout: string; stderr: string; error?: Error | null };
 
-export function verifyGitHubAttestation(
-  args: readonly string[],
-  options: {
-    cwd: string;
-    timeoutMs: number;
-    maxBytes: number;
-    environment?: NodeJS.ProcessEnv;
-    spawn?: RetainedGitHubSpawn;
-  },
-) {
+type GitHubVerifierOptions = {
+  cwd: string;
+  timeoutMs: number;
+  maxBytes: number;
+  environment?: NodeJS.ProcessEnv;
+  spawn?: RetainedGitHubSpawn;
+};
+
+export function verifyGitHubAttestation(args: readonly string[], options: GitHubVerifierOptions) {
   if (args[0] !== "attestation" || args[1] !== "verify")
     throw new GitHubApiError(
       "request_refused",
       "Only retained attestation verification is admitted",
     );
+  return runGitHubVerifier(args, options, "attestation");
+}
+
+export function verifyGitHubRelease(
+  repository: string,
+  tag: string,
+  options: GitHubVerifierOptions,
+) {
+  if (
+    !/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/u.test(repository) ||
+    !/^v[0-9][a-zA-Z0-9.+-]*$/u.test(tag)
+  )
+    throw new GitHubApiError("request_refused", "Invalid retained Release verification target");
+  return runGitHubVerifier(
+    ["release", "verify", tag, "--repo", repository, "--format", "json"],
+    options,
+    "Release",
+  );
+}
+
+function runGitHubVerifier(
+  args: readonly string[],
+  options: GitHubVerifierOptions,
+  kind: "attestation" | "Release",
+) {
   if (
     !Number.isSafeInteger(options.timeoutMs) ||
     options.timeoutMs < 1 ||
+    options.timeoutMs > 2_147_483_647 ||
     !Number.isSafeInteger(options.maxBytes) ||
     options.maxBytes < 1
   )
     throw new GitHubApiError("invalid_configuration", "Invalid retained verifier bounds");
+  const environment = options.environment ?? process.env;
   const result = (options.spawn ?? spawnSync)("gh", args, {
     cwd: options.cwd,
-    env: options.environment,
+    env: environment,
     encoding: "utf8",
     timeout: options.timeoutMs,
     maxBuffer: options.maxBytes,
@@ -45,12 +71,38 @@ export function verifyGitHubAttestation(
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  if (result.error || result.status !== 0)
-    throw new GitHubApiError("command_failed", "Bounded GitHub attestation verification failed", {
-      cause: Object.assign(new Error("Verifier execution failed"), {
-        code: errorCode(result.error),
-      }),
+  const malformed = typeof result.stdout !== "string" || typeof result.stderr !== "string";
+  const exceeded =
+    (!malformed &&
+      (Buffer.byteLength(result.stdout) > options.maxBytes ||
+        Buffer.byteLength(result.stderr) > options.maxBytes)) ||
+    errorCode(result.error) === "ENOBUFS";
+  if (result.error || result.status !== 0 || malformed || exceeded) {
+    const code = exceeded ? "ENOBUFS" : errorCode(result.error);
+    const reason = exceeded
+      ? "Verifier output limit exceeded (ENOBUFS)"
+      : code === "ETIMEDOUT"
+        ? "Verifier execution timed out (ETIMEDOUT)"
+        : result.error
+          ? result.error.message
+          : malformed
+            ? "Verifier output is unavailable"
+            : result.stderr.trim() || `Verifier exited ${result.status}`;
+    const safe = sanitizeOperationError(reason, {
+      secrets: [environment.GH_TOKEN, environment.GITHUB_TOKEN].filter(
+        (value): value is string => typeof value === "string" && value.length > 0,
+      ),
     });
+    throw new GitHubApiError(
+      "command_failed",
+      `Bounded GitHub ${kind} verification failed: ${safe.message}`.slice(0, 1024),
+      {
+        cause: Object.assign(new Error("Verifier execution failed"), {
+          code,
+        }),
+      },
+    );
+  }
   return result.stdout.trim();
 }
 

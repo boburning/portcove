@@ -165,6 +165,7 @@ export function prepareReleaseResourceAmendmentProposal(
     ...slice4CapacityResources,
     aggregate_workflow_sha256: digest,
     input_workflow_sha256: digest,
+    wake_workflow_sha256: createHash("sha256").update(wake).digest("hex"),
     aggregate_job_minutes: app.filter((row) => !inputs(row.key)).map(minutes),
     input_job_minutes: app.filter((row) => inputs(row.key)).map(minutes),
     declared_job_minutes: proposedMinutes,

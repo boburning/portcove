@@ -1,25 +1,13 @@
-import type { SpawnSyncReturns } from "node:child_process";
-import { errorCode } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { constants, existsSync } from "node:fs";
-import {
-  access,
-  chmod,
-  cp,
-  mkdir,
-  mkdtemp,
-  readFile,
-  realpath,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, open, opendir, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
+import { Octokit } from "@octokit/core";
 import { parseDocument, stringify } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 
@@ -48,6 +36,7 @@ function parsedWorkflow(text: string) {
   assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
   return parsed as Record<string, unknown> & { jobs: Record<string, Record<string, unknown>> };
 }
+const reviewedSyftInput = "syft-version: v1.56.0";
 const workflowData = parsedWorkflow(workflow);
 function job(name: string) {
   const selected = workflowData.jobs[name];
@@ -102,51 +91,24 @@ function inlineRunScript(name: string, stepName: string) {
   return step.run;
 }
 
-const publicationScript = inlineRunScript("publish", "Create or reconcile draft release");
-// The publisher runs only on Ubuntu. Windows Git Bash process startup is both
-// materially slower and a different host contract; exact hosted Linux CI runs
-// this fixture against the same Bash boundary as the privileged job.
-const bashExecutable = process.platform === "win32" ? undefined : "bash";
-
-function mockPublisherArguments(script: string, bin: string, ghShim: string) {
-  return [
-    "-euo",
-    "pipefail",
-    "-c",
-    [
-      // Shell startup may reorder inherited PATH; establish fixture lookup afterwards.
-      'export PATH="$1:$PATH"',
-      "hash -r",
-      'if [[ "$(type -t gh)" != file || "$(command -v gh)" != "$2" ]]; then',
-      "  printf '%s\\n' 'Refusing publisher fixture: gh escaped its private shim' >&2",
-      "  exit 1",
-      "fi",
-      script,
-    ].join("\n"),
-    "portcove-mock-publisher",
-    bin,
-    ghShim,
-  ];
+const githubScriptPin = "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3";
+function inlineGitHubScript(jobName: string, stepName: string) {
+  const step = steps(jobName).find((step) => step.name === stepName);
+  assert.ok(step && isRecord(step.with));
+  assert.equal(step.uses, githubScriptPin);
+  assert.equal(step.with["github-token"], "${{ github.token }}");
+  assert.equal(step.with.retries, 0);
+  assert.equal(step.with.debug, false);
+  assert.equal(step.run, undefined);
+  assert.ok(typeof step.with.script === "string" && !step.with.script.includes("${{"));
+  return step.with.script;
 }
 
-// The production publisher runs on Ubuntu. This private fixture adapter maps
-// only its epoch/UTC ISO modes onto macOS's real BSD date parser.
-const mockBsdDateAdapter = [
-  "#!/usr/bin/env bash",
-  "set -euo pipefail",
-  'if [[ "$#" == 1 && "$1" == +%s ]]; then exec /bin/date +%s; fi',
-  'if [[ "$#" == 3 && "$1" == -d && "$3" == +%s ]]; then',
-  '  if [[ "$2" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$ ]]; then',
-  // Epoch seconds discard the fractional part on GNU date as well.
-  '    timestamp="${2%%.*}"',
-  '    timestamp="${timestamp%Z}Z"',
-  '    exec /bin/date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$timestamp" +%s',
-  "  fi",
-  "fi",
-  'printf "%s\\n" "Unsupported publisher fixture date mode" >&2',
-  "exit 2",
-  "",
-].join("\n");
+const metadataScript = inlineGitHubScript(
+  "assemble",
+  "Read existing draft metadata without write permission",
+);
+const publicationScript = inlineGitHubScript("publish", "Create or reconcile draft release");
 
 function assertWriteAuthority(data: typeof workflowData) {
   assert.deepEqual(data.permissions, { contents: "read" });
@@ -172,6 +134,38 @@ void test("write authority is split across isolated attestation and publication 
   assertWriteAuthority(workflowData);
   assert.doesNotMatch(attestSection, /actions\/checkout|run:/);
   assert.doesNotMatch(publishSection, /actions\/checkout|setup-node|node scripts/);
+});
+
+void test("release risk jobs install frozen dependencies before binding their reader token", () => {
+  for (const [name, operation] of [
+    ["assemble", "Bind the SBOM into the final checksum manifest"],
+    ["authorize_publication", "Recheck Linux release authorization before upload"],
+  ] as const) {
+    const selected = steps(name);
+    const checkout = selected.find((step) => String(step.uses).startsWith("actions/checkout@"));
+    assert.ok(isRecord(checkout?.with) && checkout.with["persist-credentials"] === false);
+    const setup = selected.findIndex((step) => String(step.uses).startsWith("pnpm/action-setup@"));
+    const install = selected.findIndex(
+      (step) => step.name === "Install frozen release risk dependencies before credentials",
+    );
+    const risk = selected.findIndex((step) => step.name === operation);
+    assert.ok(setup >= 0 && install > setup && risk > install);
+    if (name === "assemble") {
+      const sbom = selected.findIndex((step) =>
+        String(step.uses).startsWith("anchore/sbom-action@"),
+      );
+      assert.ok(sbom >= 0 && setup > sbom);
+    }
+    assert.deepEqual(selected[install]?.env, { GH_TOKEN: "", GITHUB_TOKEN: "" });
+    assert.match(
+      String(selected[install]?.run),
+      /env -i .* --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile/u,
+    );
+    assert.deepEqual(selected[risk]?.env, { GH_TOKEN: "${{ github.token }}" });
+    const env = workflowData.jobs[name]?.env;
+    assert.ok(!isRecord(env) || !("GH_TOKEN" in env));
+    assert.deepEqual(workflowData.jobs[name]?.permissions, { contents: "read" });
+  }
 });
 
 void test("cheap identity unlocks qualification and builds before the explicit result gate", () => {
@@ -286,7 +280,7 @@ void test("assembler reconciles the full matrix then generates and checksums the
   const finalize = assembleSection.indexOf("finalize-release-assets.mts");
   const upload = assembleSection.indexOf("name: release-final");
   assert(reconcile >= 0 && sbom > reconcile && finalize > sbom && upload > finalize);
-  assert.match(assembleSection, /syft-version: v1\.55\.0/);
+  assert.ok(assembleSection.includes(reviewedSyftInput));
   assert.match(assembleSection, /upload-release-assets: false/);
   assert.match(
     assembleSection,
@@ -353,445 +347,452 @@ void test("tag releases attest exact final bytes and the SBOM before draft mutat
 
 void test("publisher mutates drafts only from precomputed metadata and attested assets", () => {
   assert.equal(workflowData.jobs.publish?.if, "github.event_name == 'push'");
+  assert.equal(steps("publish").length, 3);
   artifact("publish", "download-artifact", {
     name: "release-final-${{ github.run_id }}-${{ github.run_attempt }}",
   });
   artifact("publish", "download-artifact", {
     name: "release-publication-metadata-${{ github.run_id }}-${{ github.run_attempt }}",
   });
-  assert.match(publishSection, /Refusing to modify non-draft release/);
-  assert.match(
-    publishSection,
-    /gh release create "\$RELEASE_TAG"[\s\S]*--generate-notes[\s\S]*--notes-file release-metadata\/generated-release-body\.md/,
+  assert.doesNotMatch(
+    publicationScript,
+    /gh release|child_process|import\(|releases\/latest|latest\/download/u,
   );
-  assert.match(publishSection, /gh release create "\$RELEASE_TAG"[\s\S]*--verify-tag/);
-  assert.doesNotMatch(publishSection, /gh release edit/);
-  assert.match(publishSection, /gh release delete-asset/);
-  assert.match(publishSection, /gh release upload/);
-  const create = publishSection.indexOf("gh release create");
-  const deletion = publishSection.indexOf("gh release delete-asset");
-  const upload = publishSection.indexOf("gh release upload");
-  assert(publishSection.lastIndexOf("assert_draft_release", deletion) > create);
-  assert(publishSection.lastIndexOf("assert_draft_release", upload) > deletion);
-  assert.doesNotMatch(publishSection, /releases\/latest|latest\/download/);
+  assert.deepEqual(
+    [...publicationScript.matchAll(/require\('([^']+)'\)/gu)].map((match) => match[1]),
+    ["node:crypto", "node:fs", "node:fs/promises"],
+  );
 });
 
-void test(
-  "mock publisher restores private lookup after startup reorder and refuses functions",
-  { skip: !bashExecutable },
-  async (t) => {
-    assert.ok(bashExecutable);
-    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "portcove-mock-path ' $ ; ")));
-    const evidence = await mkdtemp(path.join(os.tmpdir(), "portcove-mock-path-evidence-"));
-    console.log(`Retained synthetic mock lookup evidence: ${evidence}`);
-    t.after(async () => {
-      await cp(root, path.join(evidence, "terminal-fixture"), { recursive: true });
-      await rm(root, { recursive: true, force: true });
-    });
-    const bin = path.join(root, "private ' $ ; bin");
-    const decoyBin = path.join(root, "decoy ' $ ; bin");
-    await mkdir(bin);
-    await mkdir(decoyBin);
-    const ghShim = path.join(bin, "gh");
-    const decoyShim = path.join(decoyBin, "gh");
-    const privateMarker = path.join(root, "private-marker");
-    const decoyMarker = path.join(root, "decoy-marker");
-    const functionMarker = path.join(root, "function-marker");
-    const startupMarker = path.join(root, "startup-marker");
-    const startup = path.join(root, "startup ' $ ; .bash");
-    await writeFile(ghShim, '#!/usr/bin/env bash\nprintf "private\\n" >> "$MOCK_PRIVATE_MARKER"\n');
-    await writeFile(decoyShim, '#!/usr/bin/env bash\nprintf "decoy\\n" >> "$MOCK_DECOY_MARKER"\n');
-    await chmod(ghShim, 0o755);
-    await chmod(decoyShim, 0o755);
-    await writeFile(
-      startup,
-      [
-        'export PATH="$MOCK_DECOY_BIN:$PATH"',
-        'hash -p "$MOCK_DECOY_SHIM" gh',
-        'printf "startup\\n" >> "$MOCK_STARTUP_MARKER"',
-      ].join("\n"),
-    );
-    const environment = {
-      ...process.env,
-      PATH: `${bin}${path.delimiter}${process.env.PATH}`,
-      MOCK_DECOY_BIN: decoyBin,
-      MOCK_DECOY_SHIM: decoyShim,
-      MOCK_PRIVATE_MARKER: privateMarker,
-      MOCK_DECOY_MARKER: decoyMarker,
-      MOCK_FUNCTION_MARKER: functionMarker,
-      MOCK_STARTUP_MARKER: startupMarker,
-    };
-    const run = (args: readonly string[], overrides: NodeJS.ProcessEnv = {}) => {
-      // Inject the synthetic reorder after uncontrolled host startup, before the shared repair.
-      // The owned control file is positional data, never interpolated shell code.
-      const controlledArgs = [...args, startup];
-      const controlledScript = controlledArgs[3];
-      assert.ok(typeof controlledScript === "string");
-      controlledArgs[3] = `. "$3"\n${controlledScript}`;
-      return spawnSync(bashExecutable, controlledArgs, {
-        cwd: root,
-        env: { ...environment, ...overrides },
-        encoding: "utf8",
-        timeout: 5_000,
-        killSignal: "SIGKILL",
-      });
-    };
-    // Synthetic ordering/hash controls do not identify Local's historical startup mechanism.
-    const before = run([
-      "-euo",
-      "pipefail",
-      "-c",
-      'printf "%s\\n" "${PATH%%:*}" "$(command -v gh)" "$(hash -t gh)" "$PWD"',
-      "portcove-mock-negative-control",
-      bin,
-      ghShim,
-    ]);
-    const restored = run(
-      mockPublisherArguments(
-        'printf "%s\\n" "${PATH%%:*}" "$(type -t gh)" "$(command -v gh)" "$PWD"; gh',
-        bin,
-        ghShim,
-      ),
-    );
-    const refused = run(mockPublisherArguments("gh", bin, ghShim), {
-      "BASH_FUNC_gh%%": '() { printf "function\\n" >> "$MOCK_FUNCTION_MARKER"; }',
-    });
-    const safeResult = ({ status, signal, error, stdout, stderr }: SpawnSyncReturns<string>) => ({
-      status,
-      signal,
-      error: error ? { code: errorCode(error), message: error.message } : null,
-      stdout,
-      stderr,
-    });
-    await writeFile(
-      path.join(evidence, "synthetic-lookup.json"),
-      JSON.stringify(
-        {
-          scope:
-            "inert post-startup injected reorder/hash/function controls; not historical cause proof",
-          cwd: root,
-          expectedShim: ghShim,
-          decoyShim,
-          before: safeResult(before),
-          restored: safeResult(restored),
-          refused: safeResult(refused),
-        },
-        null,
-        2,
-      ),
-      { mode: 0o600 },
-    );
-    assert.equal(before.status, 0);
-    assert.deepEqual(before.stdout.trimEnd().split("\n"), [decoyBin, decoyShim, decoyShim, root]);
-    assert.ok(existsSync(startupMarker));
-    assert.equal(restored.status, 0);
-    assert.deepEqual(restored.stdout.trimEnd().split("\n"), [bin, "file", ghShim, root]);
-    assert.notEqual(refused.status, 0);
-    assert.match(refused.stderr, /Refusing publisher fixture: gh escaped its private shim/u);
-    assert.equal(await readFile(privateMarker, "utf8"), "private\n");
-    assert.equal(existsSync(decoyMarker), false);
-    assert.equal(existsSync(functionMarker), false);
-  },
-);
+const tag = "v0.1.0-beta.1";
+const commit = "a".repeat(40);
+const fixtureToken = "synthetic-token";
+const fixtureNow = Date.parse("2026-01-01T12:00:00Z");
+const releaseId = 101;
+const repositoryRoute = "/repos/boburning/portcove";
+const releasePath = `${repositoryRoute}/releases/${releaseId}`;
+const fixtureBody = "reviewed fixture notes\n";
+const digest = (bytes: string | ArrayBuffer) =>
+  createHash("sha256")
+    .update(typeof bytes === "string" ? bytes : Buffer.from(bytes))
+    .digest("hex");
 
-void test(
-  "publisher retries and recovers an interrupted draft without touching a published release",
-  {
-    skip:
-      process.platform !== "linux"
-        ? "The production publisher runs on Ubuntu with GNU date; catalog-full-2 and release-check execute this fixture on Linux."
-        : false,
-  },
-  async (t) => {
-    assert.ok(bashExecutable);
-    const root = await realpath(
-      await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-")),
-    );
-    const evidence = await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-evidence-"));
-    console.log(`Retained mock publisher diagnostics: ${evidence}`);
-    t.after(async () => {
-      // Preserve only this test's isolated mock files, before the original teardown.
-      await cp(root, path.join(evidence, "terminal-fixture"), { recursive: true });
-      await rm(root, { recursive: true, force: true });
-    });
-    const assets = path.join(root, "release-assets-aggregate");
-    const metadata = path.join(root, "release-metadata");
-    const bin = path.join(root, "bin");
-    const stateRoot = path.join(root, "release-state");
-    await mkdir(assets);
-    await mkdir(metadata);
-    await mkdir(bin);
-    await mkdir(stateRoot);
-    if (process.platform === "darwin") {
-      const dateShim = path.join(bin, "date");
-      await writeFile(dateShim, mockBsdDateAdapter);
-      await chmod(dateShim, 0o755);
-    }
-    await writeFile(path.join(assets, "alpha.bin"), "alpha");
-    await writeFile(path.join(assets, "beta.bin"), "beta");
-    await writeFile(path.join(metadata, "generated-release-body.md"), "fixture release\n");
-    await writeFile(path.join(stateRoot, "draft"), "false\n");
-    await writeFile(path.join(stateRoot, "assets"), "");
-    await writeFile(path.join(stateRoot, "create-calls"), "0\n");
-    const ghShim = path.join(bin, "gh");
-    await writeFile(
-      ghShim,
-      [
-        "#!/usr/bin/env bash",
-        "set -euo pipefail",
-        'state="$FAKE_GH_STATE"',
-        '[[ "${1:-}" == "release" ]] || exit 2',
-        'operation="${2:-}"',
-        "shift 3",
-        'if [[ "$operation" == "view" ]]; then',
-        '  [[ -f "$state/exists" ]] || exit 1',
-        '  if [[ "${2:-}" == "isDraft" ]]; then cat "$state/draft"',
-        '  elif [[ "${2:-}" == "assets" ]]; then cat "$state/assets"',
-        "  else exit 2",
-        "  fi",
-        'elif [[ "$operation" == "create" ]]; then',
-        '  [[ ! -f "$state/exists" ]] || { echo "duplicate release create" >&2; exit 1; }',
-        '  touch "$state/exists"',
-        '  printf "true\\n" > "$state/draft"',
-        '  : > "$state/assets"',
-        '  calls="$(cat "$state/create-calls")"',
-        '  printf "%s\\n" "$((calls + 1))" > "$state/create-calls"',
-        'elif [[ "$operation" == "delete-asset" ]]; then',
-        '  [[ -f "$state/exists" && "$(cat "$state/draft")" == "true" ]] || exit 1',
-        '  asset="${1:-}"',
-        '  grep -Fvx -- "$asset" "$state/assets" > "$state/assets.next" || true',
-        '  mv "$state/assets.next" "$state/assets"',
-        'elif [[ "$operation" == "upload" ]]; then',
-        '  [[ -f "$state/exists" && "$(cat "$state/draft")" == "true" ]] || exit 1',
-        '  asset="$(basename "${1:-}")"',
-        '  [[ "$asset" != "${FAKE_GH_FAIL_UPLOAD:-}" ]] || { echo "injected upload interruption" >&2; exit 1; }',
-        '  grep -Fxq -- "$asset" "$state/assets" || printf "%s\\n" "$asset" >> "$state/assets"',
-        '  sort -u -o "$state/assets" "$state/assets"',
-        "else exit 2",
-        "fi",
-        "",
-      ].join("\n"),
-    );
-    await chmod(ghShim, 0o755);
+type FixtureAsset = { id: number; name: string; size: number; digest: string; state: string };
+function fixtureAsset(id: number, name: string, bytes: string | ArrayBuffer): FixtureAsset {
+  return {
+    id,
+    name,
+    size: typeof bytes === "string" ? Buffer.byteLength(bytes) : bytes.byteLength,
+    digest: `sha256:${digest(bytes)}`,
+    state: "uploaded",
+  };
+}
 
-    const fixtureEnvironment = {
-      ...process.env,
-      GH_TOKEN: "controlled-fixture-only",
-      RELEASE_TAG: "v0.3.0-fixture",
-      LINUX_AUTHORIZED_AT: new Date().toISOString(),
-      LINUX_RISK_EXPIRES_AT: "2099-01-01T00:00:00Z",
-      FAKE_GH_STATE: stateRoot,
-      PATH: `${bin}${path.delimiter}${process.env.PATH}`,
-    };
-    const fixtureIdentities = await Promise.all(
-      [root, bin, ghShim].map(async (entry) => {
-        const metadata = await stat(entry, { bigint: true });
-        return {
-          path: entry,
-          realPath: await realpath(entry),
-          device: String(metadata.dev),
-          inode: String(metadata.ino),
-          mode: (metadata.mode & 0o7777n).toString(8),
-          uid: String(metadata.uid),
-          gid: String(metadata.gid),
-          size: String(metadata.size),
-          regularFile: metadata.isFile(),
-          directory: metadata.isDirectory(),
-        };
-      }),
-    );
-    const parentFixture = {
-      pathDelimiter: path.delimiter,
-      intendedPathFirstEntry: fixtureEnvironment.PATH.split(path.delimiter)[0],
-      identities: fixtureIdentities,
-      shimSha256: createHash("sha256")
-        .update(await readFile(ghShim))
-        .digest("hex"),
-      executableAccess: await access(ghShim, constants.X_OK).then(
-        () => ({ permitted: true, errorCode: null }),
-        (error) => ({ permitted: false, errorCode: errorCode(error) }),
-      ),
-    };
-    await writeFile(
-      path.join(evidence, "parent-fixture.json"),
-      JSON.stringify(parentFixture, null, 2),
-      { mode: 0o600 },
-    );
-    const childEvidence = (child: SpawnSyncReturns<string>) => ({
-      status: child.status,
-      signal: child.signal,
-      error: child.error
-        ? { name: child.error.name, message: child.error.message, code: errorCode(child.error) }
-        : null,
-      stdout: child.stdout,
-      stderr: child.stderr,
-    });
-    const binding = spawnSync(
-      bashExecutable,
-      mockPublisherArguments(
-        [
-          'printf "%s\\n" "$BASH_VERSION" "$(type -t gh)" "$(command -v gh)" "$(command -v bash)"',
-          'printf "%s\\n" "$PWD" "$(pwd -P)" "${PATH%%:*}"',
-          'case ":$PATH:" in *":${FAKE_GH_STATE%/*}/bin:"*) printf "true\\n";; *) printf "false\\n";; esac',
-          'if [[ -f "${FAKE_GH_STATE%/*}/bin/gh" ]]; then printf "true\\n"; else printf "false\\n"; fi',
-          'if [[ -x "${FAKE_GH_STATE%/*}/bin/gh" ]]; then printf "true\\n"; else printf "false\\n"; fi',
-        ].join("\n"),
-        bin,
-        ghShim,
-      ),
-      {
-        cwd: root,
-        encoding: "utf8",
-        env: fixtureEnvironment,
-        timeout: 5_000,
-        killSignal: "SIGKILL",
+type FixtureRequest = { origin: string; method: string; path: string; query: URLSearchParams };
+const requireBuiltin = createRequire(import.meta.url);
+const asyncPrototype: unknown = Object.getPrototypeOf(async () => undefined);
+const { constructor: AsyncFunction } = asyncPrototype as {
+  constructor: new (...args: string[]) => (...args: unknown[]) => Promise<void>;
+};
+
+async function publisherFixture(t: import("node:test").TestContext) {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-sdk-publisher-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const metadata = "release-metadata";
+  const payload = "release-assets-aggregate";
+  await mkdir(path.join(root, metadata));
+  await mkdir(path.join(root, payload));
+  const file = (relative: string) => path.join(root, relative);
+  const names = new Map([
+    ["Portcove-fixture.zip", "exact payload"],
+    ["Portcove-SBOM.spdx.json", '{"spdxVersion":"SPDX-2.3"}'],
+  ]);
+  names.set(
+    "SHA256SUMS.txt",
+    [...names].map(([name, bytes]) => `${digest(bytes)}  ${name}\n`).join(""),
+  );
+  for (const [name, bytes] of names) await writeFile(file(`${payload}/${name}`), bytes);
+  await writeFile(file(`${metadata}/generated-release-body.md`), fixtureBody);
+
+  const state = {
+    now: fixtureNow,
+    tagSha: commit,
+    draft: null as null | {
+      id: number;
+      tag_name: string;
+      draft: boolean;
+      body: string;
+      name: string;
+      prerelease: boolean;
+    },
+    assets: [] as FixtureAsset[],
+    before: undefined as undefined | ((request: FixtureRequest) => Response | undefined),
+    after: undefined as undefined | ((request: FixtureRequest) => Response | undefined),
+  };
+  const requests: FixtureRequest[] = [];
+  const effects: FixtureRequest[] = [];
+  const failures: string[] = [];
+  const outputs = new Map<string, unknown>();
+  const github = new Octokit({
+    auth: fixtureToken,
+    request: {
+      fetch: () => {
+        throw new Error("Workflow bypassed the injected fetch");
       },
-    );
-    const [
-      bashVersion,
-      ghKind,
-      ghPath,
-      bashPath,
-      childCwd,
-      childPhysicalCwd,
-      childPathFirstEntry,
-      childFixtureBinInPath,
-      childShimRegularFile,
-      childShimExecutable,
-      ...extraOutput
-    ] = binding.stdout?.trimEnd().split("\n") ?? [];
-    await writeFile(
-      path.join(evidence, "binding.json"),
-      JSON.stringify(
-        {
-          ...childEvidence(binding),
-          cwd: root,
-          expectedShim: ghShim,
-          bashVersion,
-          bashPath,
-          ghKind,
-          ghPath,
-          parentFixture,
-          childCwd,
-          childPhysicalCwd,
-          childPathFirstEntry,
-          childFixtureBinInPath,
-          childShimRegularFile,
-          childShimExecutable,
-          environmentPresence: {
-            BASH_ENV: Object.hasOwn(process.env, "BASH_ENV"),
-            ENV: Object.hasOwn(process.env, "ENV"),
-            SHELLOPTS: Object.hasOwn(process.env, "SHELLOPTS"),
-            BASHOPTS: Object.hasOwn(process.env, "BASHOPTS"),
-            exportedGhFunction: Object.keys(process.env).some((key: string) =>
-              key.startsWith("BASH_FUNC_gh"),
-            ),
+    },
+  });
+  const json = (value: unknown, status = 200) => Response.json(value, { status });
+  const fetcher = async (input: Request, init: RequestInit) => {
+    assert.ok(input instanceof Request);
+    assert.equal(init.redirect, "manual");
+    assert.ok(init.signal);
+    init.signal.throwIfAborted();
+    assert.equal(input.headers.get("authorization"), `token ${fixtureToken}`);
+    const url = new URL(input.url);
+    const request = {
+      origin: url.origin,
+      method: input.method,
+      path: url.pathname,
+      query: url.searchParams,
+    };
+    requests.push(request);
+    if (request.path !== "/graphql" && request.method !== "GET") effects.push(request);
+    const override = state.before?.(request);
+    if (override) return override;
+    if (request.origin === "https://uploads.github.com") {
+      assert.equal(request.path, `${releasePath}/assets`);
+      assert.equal(request.method, "POST");
+      const name = request.query.get("name");
+      assert.ok(
+        name &&
+          names.has(name) &&
+          state.draft?.draft &&
+          !state.assets.some((asset) => asset.name === name),
+      );
+      const bytes = await input.arrayBuffer();
+      assert.equal(input.headers.get("content-length"), String(bytes.byteLength));
+      assert.equal(input.headers.get("content-type"), "application/octet-stream");
+      assert.equal(Buffer.from(bytes).toString(), names.get(name));
+      const asset = fixtureAsset(1000 + effects.length, name, bytes);
+      state.assets.push(asset);
+      return state.after?.(request) ?? json(asset, 201);
+    }
+    assert.equal(request.origin, "https://api.github.com");
+    if (request.path === "/graphql") {
+      assert.equal(request.method, "POST");
+      const query: unknown = await input.json();
+      assert.ok(isRecord(query) && typeof query.query === "string");
+      assert.match(query.query, /release\(tagName: \$tag\)/u);
+      assert.deepEqual(query.variables, { tag });
+      const draft = state.draft;
+      return json({
+        data: {
+          repository: {
+            release: draft && {
+              databaseId: draft.id,
+              isDraft: draft.draft,
+              tagName: draft.tag_name,
+            },
           },
         },
-        null,
-        2,
-      ),
-      { mode: 0o600 },
-    );
-    // Never run the publisher fixture against a real gh command or imported function.
-    assert.equal(binding.status, 0, `Bash binding probe failed; diagnostics: ${evidence}`);
-    assert.equal(extraOutput.length, 0, `Ambiguous Bash binding output: ${evidence}`);
-    assert.ok(bashVersion && bashPath, `Missing Bash identity: ${evidence}`);
-    assert.equal(ghKind, "file", `gh is not the fixture executable; diagnostics: ${evidence}`);
-    assert.equal(ghPath, ghShim, `gh escaped its fixture; diagnostics: ${evidence}`);
-    // Exercise both accepted timestamp spellings with the real host parser,
-    // including the macOS adapter, before any mock publication is attempted.
-    const timestamps = ["2001-02-03T04:05:06Z", "2001-02-03T04:05:06.789Z"];
-    for (const timestamp of timestamps) {
-      const parsed: SpawnSyncReturns<string> = spawnSync(
-        bashExecutable,
-        mockPublisherArguments('date -d "$3" +%s', bin, ghShim).concat(timestamp),
-        {
-          cwd: root,
-          env: fixtureEnvironment,
-          encoding: "utf8",
-          timeout: 5_000,
-          killSignal: "SIGKILL",
-        },
-      );
-      assert.equal(parsed.status, 0, parsed.stderr);
-      assert.equal(parsed.stdout.trim(), String(Math.floor(Date.parse(timestamp) / 1_000)));
-    }
-    const unknownDateMode = spawnSync(
-      bashExecutable,
-      mockPublisherArguments("date --portcove-fixture-unknown-mode", bin, ghShim),
-      {
-        cwd: root,
-        env: fixtureEnvironment,
-        encoding: "utf8",
-        timeout: 5_000,
-        killSignal: "SIGKILL",
-      },
-    );
-    assert.notEqual(unknownDateMode.status, 0);
-    assert.equal(existsSync(path.join(stateRoot, "exists")), false);
-    const runPublisher = (overrides: NodeJS.ProcessEnv = {}) =>
-      spawnSync(bashExecutable, mockPublisherArguments(publicationScript, bin, ghShim), {
-        cwd: root,
-        encoding: "utf8",
-        // Five mock calls plus the binding probe fit the existing 30-second test budget.
-        timeout: 4_000,
-        killSignal: "SIGKILL",
-        env: { ...fixtureEnvironment, ...overrides },
       });
-    const readState = async () => {
-      const assetLines = (await readFile(path.join(stateRoot, "assets"), "utf8")).trim();
-      return {
-        exists: existsSync(path.join(stateRoot, "exists")),
-        draft: (await readFile(path.join(stateRoot, "draft"), "utf8")).trim() === "true",
-        assets: assetLines ? assetLines.split("\n") : [],
-        create_calls: Number((await readFile(path.join(stateRoot, "create-calls"), "utf8")).trim()),
-      };
-    };
-
-    for (const rejected of [
-      { LINUX_AUTHORIZED_AT: "" },
-      { LINUX_AUTHORIZED_AT: "2000-01-01T00:00:00Z" },
-      { LINUX_AUTHORIZED_AT: "2099-01-01T00:00:00Z" },
-      { LINUX_RISK_EXPIRES_AT: "corrupted" },
-      { LINUX_RISK_EXPIRES_AT: "2000-01-01T00:00:00Z" },
-    ]) {
-      const before = await readState();
-      assert.notEqual(runPublisher(rejected).status, 0);
-      assert.deepEqual(await readState(), before);
     }
-    const first = runPublisher();
-    await writeFile(
-      path.join(evidence, "first-publisher.json"),
-      JSON.stringify(childEvidence(first), null, 2),
-      { mode: 0o600 },
-    );
-    await cp(root, path.join(evidence, "first-fixture"), { recursive: true });
-    assert.equal(first.status, 0, `First mock publisher failed; diagnostics: ${evidence}`);
-    assert.deepEqual(await readState(), {
-      exists: true,
-      draft: true,
-      assets: ["alpha.bin", "beta.bin"],
-      create_calls: 1,
+    if (request.path === `${repositoryRoute}/git/ref/tags/${tag}`)
+      return json({ ref: `refs/tags/${tag}`, object: { type: "commit", sha: state.tagSha } });
+    if (request.path === `${repositoryRoute}/releases/tags/${tag}`)
+      return state.draft && !state.draft.draft ? json(state.draft) : json({}, 404);
+    if (request.path === `${repositoryRoute}/releases` && request.method === "POST") {
+      assert.equal(state.draft, null);
+      assert.deepEqual(await input.json(), {
+        tag_name: tag,
+        name: `Portcove ${tag}`,
+        draft: true,
+        prerelease: true,
+        generate_release_notes: true,
+        body: fixtureBody,
+      });
+      state.draft = {
+        id: releaseId,
+        tag_name: tag,
+        name: `Portcove ${tag}`,
+        draft: true,
+        prerelease: true,
+        body: `${fixtureBody}
+## Generated changes
+fixture change`,
+      };
+      return state.after?.(request) ?? json(state.draft, 201);
+    }
+    if (request.path === releasePath && request.method === "GET") return json(state.draft);
+    if (request.path === `${releasePath}/assets` && request.method === "GET") {
+      assert.equal(request.query.get("per_page"), "100");
+      const page = Number(request.query.get("page"));
+      return json(state.assets.slice((page - 1) * 100, page * 100));
+    }
+    if (
+      request.path.startsWith(`${repositoryRoute}/releases/assets/`) &&
+      request.method === "DELETE"
+    ) {
+      const id = Number(request.path.split("/").at(-1));
+      assert.ok(state.draft?.draft && state.assets.some((asset) => asset.id === id));
+      state.assets = state.assets.filter((asset) => asset.id !== id);
+      return state.after?.(request) ?? new Response(null, { status: 204 });
+    }
+    throw new Error("Unadmitted fixture request");
+  };
+  const run = async (scope: "assemble" | "publish", env: Record<string, string> = {}) => {
+    failures.length = 0;
+    const fixtureDate = new Proxy(Date, {
+      get: (target, key, receiver) =>
+        key === "now" ? () => state.now : (Reflect.get(target, key, receiver) as unknown),
     });
-    assert.equal(runPublisher().status, 0);
-    assert.equal((await readState()).create_calls, 1);
+    const native = {
+      lstat: (relative: string) => lstat(file(relative)),
+      open: (relative: string, flags: number) => open(file(relative), flags),
+      opendir: (relative: string) => opendir(file(relative)),
+      writeFile: (relative: string, bytes: string, options: { flag: string }) =>
+        writeFile(file(relative), bytes, options),
+    };
+    const inline = new AsyncFunction(
+      "github",
+      "context",
+      "core",
+      "require",
+      "process",
+      "fetch",
+      "Date",
+      scope === "assemble" ? metadataScript : publicationScript,
+    );
+    await inline(
+      github,
+      {
+        eventName: "push",
+        ref: `refs/tags/${tag}`,
+        sha: commit,
+        repo: { owner: "boburning", repo: "portcove" },
+      },
+      {
+        setFailed: (message: string) => failures.push(message),
+        setOutput: (key: string, value: unknown) => outputs.set(key, value),
+      },
+      (name: string): unknown =>
+        name === "node:fs/promises" ? native : (requireBuiltin(name) as unknown),
+      { env: { LINUX_AUTHORIZED_AT: new Date(fixtureNow).toISOString(), ...env } },
+      fetcher,
+      fixtureDate,
+    );
+    return [...failures];
+  };
+  const review = async () => {
+    for (const name of ["reviewed-draft.json", "reviewed-release-body.md"])
+      await rm(file(`${metadata}/${name}`), { force: true });
+    return run("assemble");
+  };
+  return { effects, file, names, outputs, requests, review, run, state };
+}
 
-    const interrupted = runPublisher({ FAKE_GH_FAIL_UPLOAD: "beta.bin" });
-    assert.notEqual(interrupted.status, 0);
-    assert.match(interrupted.stderr, /injected upload interruption/u);
-    assert.deepEqual((await readState()).assets, ["alpha.bin"]);
-    assert.equal(runPublisher().status, 0);
-    assert.deepEqual((await readState()).assets, ["alpha.bin", "beta.bin"]);
+void test("pinned workflow uses SDK routes and reconciles only the exact draft assets", async (t) => {
+  const fixture = await publisherFixture(t);
+  assert.deepEqual(await fixture.review(), []);
+  assert.equal(fixture.outputs.get("existing-draft"), false);
+  assert.deepEqual(await fixture.run("publish"), []);
+  assert.deepEqual(
+    fixture.effects.map(({ method, origin }) => [method, origin]),
+    [
+      ["POST", "https://api.github.com"],
+      ...[...fixture.names].map(() => ["POST", "https://uploads.github.com"]),
+    ],
+  );
+  assert.ok(fixture.state.draft?.draft);
+  const originalAssets = fixture.state.assets.slice();
+  assert.deepEqual(await fixture.review(), []);
+  assert.equal(fixture.outputs.get("existing-draft"), true);
+  fixture.effects.length = 0;
+  assert.deepEqual(await fixture.run("publish"), []);
+  assert.deepEqual(fixture.effects, []);
+  const stale = fixtureAsset(995, "stale draft file.zip", "stale");
+  fixture.state.assets.push(stale);
+  fixture.state.after = ({ method }) =>
+    method === "DELETE" ? new Response(null, { status: 502 }) : undefined;
+  assert.deepEqual(await fixture.run("publish"), []);
+  assert.deepEqual(fixture.state.assets, originalAssets);
+  assert.deepEqual(
+    fixture.effects.map(({ method, path: route }) => [method, route]),
+    [["DELETE", `${repositoryRoute}/releases/assets/${stale.id}`]],
+  );
+});
 
-    const published = { ...(await readState()), draft: false };
-    await writeFile(path.join(stateRoot, "draft"), "false\n");
-    const refused = runPublisher();
-    assert.notEqual(refused.status, 0);
-    assert.match(refused.stderr, /Refusing to modify non-draft release/u);
-    assert.deepEqual(await readState(), published);
-  },
-);
+void test("publisher attempts each mutation once and requires authoritative readback", async (t) => {
+  const fixture = await publisherFixture(t);
+  assert.deepEqual(await fixture.review(), []);
+  fixture.state.after = ({ path: route }) =>
+    route === `${repositoryRoute}/releases` ? new Response(null, { status: 502 }) : undefined;
+  assert.deepEqual(await fixture.run("publish"), [
+    "Draft creation outcome requires a new reviewed attempt",
+  ]);
+  assert.equal(fixture.effects.length, 1);
+  assert.ok(fixture.state.draft?.draft);
+  assert.deepEqual(await fixture.review(), []);
+  fixture.state.before = ({ origin }) =>
+    origin === "https://uploads.github.com"
+      ? new Response("sensitive provider body", { status: 502 })
+      : undefined;
+  fixture.state.after = undefined;
+  fixture.effects.length = 0;
+  assert.deepEqual(await fixture.run("publish"), ["Release asset mutation did not reconcile"]);
+  assert.equal(fixture.effects.length, 1);
+  assert.deepEqual(fixture.state.assets, []);
+  fixture.state.before = undefined;
+  fixture.state.after = ({ origin }) =>
+    origin === "https://uploads.github.com" ? new Response(null, { status: 502 }) : undefined;
+  fixture.effects.length = 0;
+  assert.deepEqual(await fixture.run("publish"), []);
+  assert.equal(fixture.effects.length, fixture.names.size);
+  assert.equal(fixture.state.assets.length, fixture.names.size);
+});
+
+void test("publisher fails closed on stale authority, changed evidence and redirects", async (t) => {
+  const fixture = await publisherFixture(t);
+  assert.deepEqual(await fixture.review(), []);
+  for (const [env, expected] of [
+    [
+      { LINUX_AUTHORIZED_AT: "malformed" },
+      "Linux release authorization timestamp is missing or invalid",
+    ],
+    [
+      { LINUX_AUTHORIZED_AT: new Date(fixtureNow - 901000).toISOString() },
+      "Linux release authorization is stale",
+    ],
+    [
+      { LINUX_AUTHORIZED_AT: new Date(fixtureNow + 1000).toISOString() },
+      "Linux release authorization is stale",
+    ],
+    [{ LINUX_RISK_EXPIRES_AT: new Date(fixtureNow).toISOString() }, "Linux risk approval expired"],
+  ] as const)
+    assert.deepEqual(await fixture.run("publish", env), [expected]);
+  assert.deepEqual(fixture.requests.slice(1), []);
+  const checksum = fixture.file("release-assets-aggregate/SHA256SUMS.txt");
+  const manifest = await readFile(checksum, "utf8");
+  await writeFile(checksum, manifest.replace(/^[a-f0-9]{64}/u, "0".repeat(64)));
+  assert.deepEqual(await fixture.run("publish"), ["Attested release asset checksum changed"]);
+  await writeFile(checksum, manifest);
+  fixture.state.tagSha = "b".repeat(40);
+  assert.deepEqual(await fixture.run("publish"), ["Release tag identity changed"]);
+  fixture.state.tagSha = commit;
+  fixture.state.before = ({ path: route }) =>
+    route.endsWith(`/git/ref/tags/${tag}`)
+      ? new Response(null, {
+          status: 302,
+          headers: { location: "https://unadmitted.example/sensitive" },
+        })
+      : undefined;
+  assert.deepEqual(await fixture.run("publish"), [
+    "Could not verify or reconcile the draft release",
+  ]);
+  assert.deepEqual(fixture.effects, []);
+  assert.ok(fixture.requests.every(({ origin }) => origin === "https://api.github.com"));
+});
+
+void test("publisher rejects incomplete asset pages and rechecks expiry before mutation", async (t) => {
+  const fixture = await publisherFixture(t);
+  assert.deepEqual(await fixture.review(), []);
+  assert.deepEqual(await fixture.run("publish"), []);
+  assert.deepEqual(await fixture.review(), []);
+  fixture.effects.length = 0;
+  const inventoryPath = `${releasePath}/assets`;
+  const repeatedPage = Array.from({ length: 100 }, (_, index) =>
+    fixtureAsset(3000 + index, `fixture-${index}.zip`, "fixture"),
+  );
+  fixture.state.before = ({ path: route }) =>
+    route === inventoryPath ? Response.json(repeatedPage) : undefined;
+  assert.deepEqual(await fixture.run("publish"), ["Release asset identity is invalid"]);
+  assert.ok(
+    fixture.requests.some(
+      ({ path: route, query }) => route === inventoryPath && query.get("page") === "2",
+    ),
+  );
+  assert.deepEqual(fixture.effects, []);
+
+  fixture.state.assets.push(fixtureAsset(995, "old asset.zip", "old"));
+  let observations = 0;
+  fixture.state.before = ({ path: route }) => {
+    if (route === inventoryPath && ++observations === 2) fixture.state.now += 1000;
+    return undefined;
+  };
+  const env = { LINUX_RISK_EXPIRES_AT: new Date(fixtureNow + 1000).toISOString() };
+  assert.deepEqual(await fixture.run("publish", env), ["Linux risk approval expired"]);
+  assert.deepEqual(fixture.effects, []);
+});
+
+void test("publisher verifies draft state after asset pagination before delete and upload", async (t) => {
+  for (const mutation of ["delete", "upload"]) {
+    await t.test(mutation, async (caseContext) => {
+      const fixture = await publisherFixture(caseContext);
+      assert.deepEqual(await fixture.review(), []);
+      assert.deepEqual(await fixture.run("publish"), []);
+      assert.deepEqual(await fixture.review(), []);
+      fixture.effects.length = 0;
+      if (mutation === "delete") {
+        fixture.state.assets.push(fixtureAsset(995, "old asset.zip", "old"));
+      } else {
+        fixture.state.assets.pop();
+      }
+      const draft = fixture.state.draft;
+      assert.ok(draft);
+      const inventoryPath = `${releasePath}/assets`;
+      let firstPages = 0;
+      fixture.state.before = ({ path: route, query }) => {
+        if (route !== inventoryPath) return;
+        if (query.get("page") === "1" && ++firstPages === 2) {
+          const page = [...fixture.state.assets];
+          while (page.length < 100) {
+            page.push(fixtureAsset(3000 + page.length, `fixture-${page.length}.zip`, "fixture"));
+          }
+          return Response.json(page);
+        }
+        if (query.get("page") === "2") draft.draft = false;
+        return undefined;
+      };
+      assert.deepEqual(await fixture.run("publish"), ["Refusing to modify non-draft release"]);
+      assert.deepEqual(fixture.effects, []);
+      assert.equal(fixture.requests.at(-2)?.query.get("page"), "2");
+      assert.equal(fixture.requests.at(-1)?.path, releasePath);
+    });
+  }
+});
+
+void test("read-only lookup rejects upstream errors and publisher refuses unreviewed or published state", async (t) => {
+  const fixture = await publisherFixture(t);
+  let transient = true;
+  fixture.state.before = ({ path: route }) => {
+    if (route !== "/graphql" || !transient) return;
+    transient = false;
+    return new Response("sensitive provider body", { status: 503 });
+  };
+  assert.deepEqual(await fixture.review(), []);
+  assert.equal(fixture.requests.length, 2);
+  assert.deepEqual(await fixture.run("publish"), []);
+  fixture.effects.length = 0;
+  assert.deepEqual(await fixture.run("publish"), [
+    "Release draft differs from the reviewed metadata",
+  ]);
+  assert.deepEqual(await fixture.review(), []);
+  assert.ok(fixture.state.draft);
+  fixture.state.draft.body += "\nchanged externally";
+  assert.deepEqual(await fixture.run("publish"), [
+    "Release draft differs from the reviewed metadata",
+  ]);
+  fixture.state.draft.draft = false;
+  assert.deepEqual(await fixture.review(), ["Refusing to modify non-draft release"]);
+  await writeFile(fixture.file("release-metadata/reviewed-draft.json"), "null");
+  assert.deepEqual(await fixture.run("publish"), ["Refusing to modify non-draft release"]);
+  fixture.state.before = ({ path: route }) =>
+    route === "/graphql"
+      ? Response.json({ errors: [{ message: "sensitive response" }] })
+      : undefined;
+  assert.deepEqual(await fixture.review(), ["Could not verify existing release metadata"]);
+  assert.deepEqual(fixture.effects, []);
+});
 
 void test("assembly and draft publication retain custody until downstream handoff or expiry", () => {
   assert.equal(workflowData.jobs.cleanup, undefined);

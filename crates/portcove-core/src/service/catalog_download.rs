@@ -463,6 +463,7 @@ impl PortcoveService {
     }
 
     fn require_download_available(&self, port_id: &str) -> Result<()> {
+        crate::managed_runtime_policy::require_acquisition_available(port_id)?;
         if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
             return Err(PortcoveError::unsupported(reason.clone()));
         }

@@ -16,13 +16,34 @@ impl PortcoveService {
         port_id: &str,
         activate: bool,
     ) -> Result<GameUpdatePlan> {
+        self.plan_game_update_with_data_locked(port_id, activate, true)
+            .await
+    }
+
+    pub(super) async fn plan_game_update_with_data_locked(
+        &self,
+        port_id: &str,
+        activate: bool,
+        review_data: bool,
+    ) -> Result<GameUpdatePlan> {
         let status = self.status(port_id)?;
         if status.active.is_none() {
             return Err(PortcoveError::not_found(
                 "install this game before reviewing an update",
             ));
         }
-        let plan = self.plan_install(port_id, Some(status.channel)).await?;
+        let mut plan = self.plan_install(port_id, Some(status.channel)).await?;
+        let transition = if review_data {
+            self.archive_data_transition_review(port_id, &plan.release)?
+        } else {
+            None
+        };
+        let data_transition = transition.as_ref().map(|review| {
+            let available_bytes = fs2::available_space(self.library.root()).ok();
+            plan.preservation_notices.push(format!("This first update preserves the current runtime and its build-specific states while carrying conventional saves/settings through the reviewed data transition. Keep the old runtime in Versions when your progress exists only in its snapshots. No state conversion or save rewind is performed. Temporary preservation needs an additional {} MiB in this library.", review.required_bytes.div_ceil(1024 * 1024)));
+            crate::ArchiveDataTransitionReview { preimage_sha256:review.preimage_sha256.clone(), producing_archive_sha256:review.active.artifact.sha256.clone(), retained_installations:review.installs.len() as u32,
+                temporary_space:crate::InstallSpaceRequirement { path:self.library.root().to_path_buf(), required_bytes:review.required_bytes, available_bytes, volume_identity:None, sufficient:available_bytes.map(|available|available>=review.required_bytes) } }
+        });
         let mut plan_sha256 = self.game_release_review_digest(
             "Portcove game update review v1",
             &plan,
@@ -38,8 +59,17 @@ impl PortcoveService {
             ))?);
         }
         let acquisition = self.acquisition_for_review(&status, &plan)?;
+        if let Some(review) = &transition {
+            plan_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "Portcove reviewed archive data transition v1",
+                plan_sha256,
+                &review.preimage_sha256,
+                review.required_bytes,
+            ))?);
+        }
         Ok(GameUpdatePlan {
             acquisition,
+            data_transition,
             assessment: game_update_plan_assessment(&plan),
             plan,
             activate,
@@ -152,6 +182,7 @@ impl PortcoveService {
             Some(port_id),
         )?;
         emit(operation.started());
+        let mut data_transition_completed = false;
         let result = async {
             let _guard = self.library.try_lock_port(port_id, "reviewed-update")?;
             let reviewed = operation
@@ -163,6 +194,23 @@ impl PortcoveService {
                 port_id,
                 &reviewed.plan_sha256,
             )?;
+            if let Some(transition) = &reviewed.data_transition {
+                self.apply_archive_data_transition(
+                    port_id,
+                    &reviewed.plan.release,
+                    &transition.preimage_sha256,
+                    &operation,
+                )?;
+                data_transition_completed = true;
+                operation.checkpoint().map_err(|error| {
+                    error
+                        .with_mutation_state(crate::MutationState::Committed)
+                        .detail(
+                            "data_transition",
+                            "completed; the creating runtime remains active",
+                        )
+                })?;
+            }
             let acquired = self.acquired_inputs(&reviewed, &operation)?;
             let status = self.status(port_id)?;
             operation.observe_release(&reviewed.plan.release.version, None);
@@ -194,6 +242,16 @@ impl PortcoveService {
             .await
         }
         .await;
+        let result = result.map_err(|error| {
+            if data_transition_completed {
+                error.detail(
+                    "data_transition",
+                    "completed; retained runtimes and their creating contracts were preserved",
+                )
+            } else {
+                error
+            }
+        });
         let result = self.finish_activity(activity, result);
         emit(operation.finished(OperationResult::from_result(&result)));
         result

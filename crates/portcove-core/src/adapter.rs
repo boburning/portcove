@@ -268,10 +268,16 @@ impl Adapter for StandardAdapter {
                 crate::path::unicode(&cache, "cache")?,
             );
         }
-        if self.0 == AdapterKind::LibultrashipPortable {
-            environment.insert("SHIP_HOME".into(), user_data_path.clone());
-        }
         let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
+        if self.0 == AdapterKind::LibultrashipPortable {
+            let ship_home =
+                if crate::installed_mutability::declared_shipwright_persistence(port, platform) {
+                    crate::path::unicode(&working_directory, "Shipwright working data")?
+                } else {
+                    user_data_path.clone()
+                };
+            environment.insert("SHIP_HOME".into(), ship_home);
+        }
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source

@@ -9,7 +9,8 @@ import {
   bootstrapPreimageCatalogPins,
 } from "./release-bootstrap-public-inputs.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
 import {
   inspectPublishedMetadata,
@@ -21,6 +22,7 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   refreshCapacityExecutor,
   recoverOwnedPublishedMetadata,
+  ensureOwnedCheckpointJournalHistory,
 } from "./release-capacity-executor.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
 import {
@@ -135,7 +137,7 @@ export async function recoverPublishedPagesMetadata(
   privateParent: string,
   phaseDeadline: number,
   freshBoundary: () => Promise<void>,
-  beforeMutation?: () => void,
+  beforeMutation?: () => Promise<void>,
 ) {
   const check = () => {
     if (!Number.isFinite(phaseDeadline) || performance.now() >= phaseDeadline)
@@ -163,6 +165,17 @@ export async function recoverPublishedPagesMetadata(
   const directory = await mkdtemp(path.join(privateParent, "pages-metadata-readback-"));
   try {
     await freshBoundary();
+    const checkpointControls = async () => {
+      if (!beforeMutation)
+        throw new Error("selected Pages recovery requires original live mutation controls");
+      await beforeMutation();
+    };
+    const signedJournal = await ensureOwnedCheckpointJournalHistory(
+      executor,
+      raw.repository,
+      raw.checkpoint,
+      checkpointControls,
+    );
     const result = await withCoordinatorDeadline(phaseDeadline, () =>
       recoverOwnedPublishedMetadata(
         executor,
@@ -172,13 +185,13 @@ export async function recoverPublishedPagesMetadata(
           const handoff = inspectSettledPagesMetadataHandoff(current.input);
           if (!handoff || capacityDigest(handoff.operation) !== capacityDigest(actualOperation))
             throw new Error("exact settled Pages checkpoint/operation changed");
-          const provider = createPagesProviderTransport(directory, {}, phaseDeadline);
+          const provider = createPagesProviderTransport({}, phaseDeadline);
           const expected = {
             artifact_id: handoff.expected.artifact_id,
             generation: handoff.expected.site_generation_sha256,
             controller_revision: handoff.operation.executor_identity!.controller_revision,
           };
-          if (provider.observeByGeneration(expected).status !== "succeed")
+          if ((await provider.observeByGeneration(expected)).status !== "succeed")
             throw new Error("settled Pages provider completion unavailable");
           const acquired = await materializePublishedCompleteSite(
             {
@@ -201,19 +214,14 @@ export async function recoverPublishedPagesMetadata(
               descriptor.root_sha256 !== authority.publication.public_source.root.sha256
             )
               throw new Error("bootstrap handoff differs from current protected setup");
-            const api = new GitHubApiClient((args, body) => {
-              check();
-              return createGitHubRunner({
-                cwd: directory,
-                timeoutMs: Math.max(
-                  1,
-                  Math.floor(Math.min(15000, phaseDeadline - performance.now())),
-                ),
-                maxBuffer: 16 * 1024 * 1024,
-              })([...args, "--hostname", "github.com"], body);
+            const provider = await createReleaseCustodyProvider({
+              token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+              deadline: phaseDeadline,
+              maxBytes: 16 * 1024 ** 2,
+              chargeRead: check,
             });
-            const source = readBootstrapPublicSource(
-              api,
+            const source = await readBootstrapPublicSource(
+              provider,
               authority.publication,
               descriptor.generated_at,
               phaseDeadline,
@@ -258,7 +266,7 @@ export async function recoverPublishedPagesMetadata(
           await requirePublishedCompleteSite(acquired.receipt);
           await inspectPreparedMetadataRenewal(verified);
           await readPublicApplicationSiteMarker(site.generation, phaseDeadline);
-          if (provider.observeByGeneration(expected).status !== "succeed")
+          if ((await provider.observeByGeneration(expected)).status !== "succeed")
             throw new Error("Pages provider changed during current-feed verification");
           await writeFile(
             path.join(directory, "current-publication.json"),
@@ -276,7 +284,8 @@ export async function recoverPublishedPagesMetadata(
           check();
           return published;
         },
-        beforeMutation,
+        !signedJournal && beforeMutation ? { readCurrent: beforeMutation } : undefined,
+        signedJournal ? checkpointControls : undefined,
       ),
     );
     check();

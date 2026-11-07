@@ -4,15 +4,14 @@ import base64
 import hashlib
 import json
 import os
-import resource
 import shutil
+import stat
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
 
 from common import child, hosted_context, identity, publish, require
-from qualification_archive import controls as archive_controls
 from qualification_archive import preflight
 
 HERE = Path(__file__).resolve().parent
@@ -41,73 +40,64 @@ def admit_provider(run, artifact):
 
 
 def stage():
-    workspace, root = hosted_context()
+    _, root = hosted_context()
     require(not (root / "tuple.json").exists(), "Never replace an earlier attempt")
-    archive_controls()
-    # Only this step receives the job-scoped actions:read token. Never transfer it to a guest.
-    private_home = root / "artifact-client-home"
-    private_home.mkdir(mode=0o700)
-    environment = {
-        "PATH": "/usr/bin:/bin",
-        "LANG": "C.UTF-8",
-        "HOME": str(private_home),
-        "GH_TOKEN": os.environ.get("GH_TOKEN", ""),
-        "GH_HOST": "github.com",
-        "GH_PROMPT_DISABLED": "1",
-    }
-    require(bool(environment["GH_TOKEN"]), "Read-only artifact transport credential required")
-    metadata = {}
-    for label, endpoint in [
-        ("run", f"repos/boburning/portcove/actions/runs/{COHORT['run']}"),
-        ("artifact", f"repos/boburning/portcove/actions/artifacts/{COHORT['artifact']}"),
-    ]:
-        text = child(root, "provider-" + label, ["gh", "api", endpoint], environment=environment, timeout=30)
-        require(len(text.encode()) <= 1024 * 1024, "Provider metadata bound")
-        metadata[label] = json.loads(text)
-    run, artifact = metadata["run"], metadata["artifact"]
-    admit_provider(run, artifact)
-    archive = root / "retained-cohort.zip"
-    result = None
-    failure = None
-
-    def limit_download():
-        resource.setrlimit(resource.RLIMIT_FSIZE, (COHORT["archive_bytes"] + 1, COHORT["archive_bytes"] + 1))
-
-    try:
-        with archive.open("xb") as output, (root / "artifact-download.stderr.private.txt").open("xb") as err:
-            result = subprocess.run(
-                ["gh", "api", f"repos/boburning/portcove/actions/artifacts/{COHORT['artifact']}/zip"],
-                env=environment,
-                stdout=output,
-                stderr=err,
-                timeout=600,
-                preexec_fn=limit_download,
-            )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        failure = error
-    publish(
-        root / "artifact-download.status.json",
-        {
-            "code": None if result is None else result.returncode,
-            "timed_out": isinstance(failure, subprocess.TimeoutExpired),
-            "error_type": None if failure is None else type(failure).__name__,
-            "stderr": identity(root / "artifact-download.stderr.private.txt"),
-            "scope": "Raw transport diagnostics remain private; no signed redirect URL or token is published",
-        },
-    )
-    if failure:
-        raise RuntimeError("Artifact transport failed; retain partial bytes and private diagnostics") from None
-    require(result.returncode == 0, "Artifact transport failed; no automatic retry")
-    actual = identity(archive)
     require(
-        actual["bytes"] == COHORT["archive_bytes"] and actual["sha256"] == COHORT["archive_sha256"],
-        "Artifact bytes disagree",
+        not any(
+            os.environ.get(key)
+            for key in (
+                "GH_TOKEN",
+                "GITHUB_TOKEN",
+                "PORTCOVE_GITHUB_TOKEN",
+                "GH_ENTERPRISE_TOKEN",
+                "GITHUB_ENTERPRISE_TOKEN",
+            )
+        ),
+        "Offline archive audit must not receive a GitHub credential",
     )
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+    with os.fdopen(os.open(root / "artifact-download.status.json", flags), "rb") as receipt:
+        info = os.fstat(receipt.fileno())
+        require(stat.S_ISREG(info.st_mode) and info.st_nlink == 1, "Direct regular acquisition receipt required")
+        raw = receipt.read(16385)
+    require(0 < len(raw) <= 16384, "Bounded artifact acquisition receipt required")
+    acquisition = json.loads(raw)
+    require(
+        type(acquisition["code"]) is int
+        and acquisition["code"] == 0
+        and acquisition["controller_source"] == os.environ["GITHUB_SHA"]
+        and acquisition["controller_run"] == os.environ["GITHUB_RUN_ID"]
+        and acquisition["controller_attempt"] == os.environ["GITHUB_RUN_ATTEMPT"]
+        and acquisition["before"] == acquisition["after"],
+        "Successful exact original artifact acquisition required",
+    )
+    before = acquisition["before"]
+    admit_provider(before["run"], before["artifact"])
+    archive = root / "retained-cohort.zip"
     wanted = {row["path"]: row for row in COHORT["files"]}
     require(len(wanted) == 17, "Only the frozen public tuple may enter the guest")
     audited = []
-    with archive.open("rb") as source:
+    with os.fdopen(os.open(archive, flags), "rb") as source:
         before = os.fstat(source.fileno())
+        require(
+            stat.S_ISREG(before.st_mode) and before.st_nlink == 1 and before.st_size == COHORT["archive_bytes"],
+            "Direct regular artifact with the frozen byte count required",
+        )
+        sha = hashlib.sha256()
+        remaining = before.st_size
+        while remaining:
+            block = source.read(min(1024 * 1024, remaining))
+            require(bool(block), "Truncated retained archive")
+            sha.update(block)
+            remaining -= len(block)
+        digest = sha.hexdigest()
+        require(
+            not source.read(1)
+            and digest == COHORT["archive_sha256"]
+            and acquisition["archive"] == {"bytes": before.st_size, "sha256": digest},
+            "Artifact bytes disagree",
+        )
+        source.seek(0)
         raw = preflight(source)
         require(len(raw) == COHORT["file_count"], "Frozen archive inventory changed")
         source.seek(0)
@@ -156,7 +146,8 @@ def stage():
                 target.chmod(0o444)
         after = os.fstat(source.fileno())
         require(
-            (before.st_ino, before.st_size, before.st_mtime_ns) == (after.st_ino, after.st_size, after.st_mtime_ns),
+            (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+            == (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns),
             "Archive changed during audit",
         )
     key = base64.b64decode((output / "updater-rehearsal/disposable.key.pub").read_bytes(), validate=True)

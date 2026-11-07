@@ -34,7 +34,8 @@ export function removalReviewPresentation(
 ): ActionPresentation {
   const unknown: ActionPresentation = {
     blocked: true,
-    reason: "Current removal availability is unavailable. Refresh the workspace to check again.",
+    reason:
+      "Portcove couldn’t check whether you can remove this installation. Refresh to check again.",
   };
   if (!status) return unknown;
   const assessments = status.port_actions;
@@ -67,12 +68,14 @@ const definitionReasons: Record<string, string> = {
   unknown_safety_semantics: "This definition has safety requirements Portcove cannot interpret.",
   publisher_scope_required: "This publisher is not approved for this port.",
   engine_capability_required: "This version of Portcove cannot use this route.",
-  ownership_migration_required: "An existing installation needs ownership review.",
+  ownership_migration_required:
+    "Review which installation Portcove would manage before continuing.",
   metadata_replay: "The catalog update is older than the accepted version.",
   refresh_incomplete: "The catalog update did not finish.",
   metadata_stale: "The catalog information needs refreshing.",
   recorded_identity_changed: "The accepted file identity changed.",
-  authenticated_integrity_required: "The required file integrity evidence is missing.",
+  authenticated_integrity_required:
+    "Portcove is missing the expected verification for this download.",
   local_integrity_failed: "A required local file check failed.",
   mandatory_check_failed: "A required check failed.",
   source_identity_mismatch: "The game files do not match the required edition.",
@@ -88,7 +91,7 @@ export function definitionHoldReason(context: "Setup" | "Launch", reason?: strin
 }
 
 const incompatibleSourceFallback =
-  "The selected game-file format cannot be used by this runtime. Select and validate the required format before playing.";
+  "This game program can’t use that file format. Choose and check a file in the required format.";
 
 const actionReasons: Record<string, string> = {
   route_not_offered: "This route is unavailable. Check the port details for current requirements.",
@@ -114,6 +117,24 @@ const actionReasons: Record<string, string> = {
   invalid_installation: "Portcove could not verify the installed files.",
 };
 
+/** Wording only; the original assessment remains available as detailed evidence. */
+export function capabilityActionReason(assessment: Assessment): string {
+  if (assessment.definition && assessment.definition.outcome !== "eligible")
+    return definitionHoldReason(
+      assessment.action === "launch" ? "Launch" : "Setup",
+      assessment.definition.reason,
+    );
+  if (assessment.reason === "available")
+    return "No current prerequisite is outstanding. Execution checks again.";
+  if (assessment.reason === "review_required") return "Review the operation before continuing.";
+  if (assessment.reason === "not_installed")
+    return "The installation or retained version required for this operation is absent.";
+  return (
+    actionReasons[assessment.reason] ??
+    "Review this operation's current requirements in its own panel."
+  );
+}
+
 function sourceFormatReason(status: PortStatus | undefined): string {
   if (status?.readiness?.source_assessment?.contract.state === "recognized_not_listed")
     return "This game edition is not supported by the installed version. Select and check a supported edition before playing.";
@@ -133,8 +154,10 @@ function unavailable(action: PresentedAction): ActionPresentation {
     blocked: true,
     reason:
       action === "install"
-        ? "Setup availability could not be confirmed. Refresh the workspace to check again."
-        : `Current ${action} availability is unavailable. Refresh the workspace to check again.`,
+        ? "Portcove couldn’t check whether setup can continue. Refresh to check again."
+        : action === "rollback"
+          ? "Portcove couldn’t check whether you can restore the previous version. Refresh to check again."
+          : "Portcove couldn’t check whether this game can start. Refresh to check again.",
   };
 }
 

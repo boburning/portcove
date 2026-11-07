@@ -581,6 +581,7 @@ export function executePlanWithReceipts(
 }
 
 export function requireFocusedArguments(kind: string, args: string[]) {
+  if (kind === "test-ui" && args.length === 1 && args[0] === "--last-failed") return;
   const hasSelection =
     kind === "test-node"
       ? args.some((value) => /\.(?:test|integration\.test)\.(?:[cm]?[jt]s)$/.test(value))
@@ -622,13 +623,15 @@ function runFocusedCommand(kind: string, args: string[]) {
   } else if (kind === "test-ui-related") {
     plan = [uiRelatedCommand(resolveUiSelection(args, desktopRoot, "related"))];
   } else if (kind === "test-ui") {
-    const files = resolveUiSelection(args, desktopRoot);
+    const lastFailed = args[0] === "--last-failed";
+    const requested = lastFailed ? args.slice(1) : args;
+    const files = lastFailed && !requested.length ? [] : resolveUiSelection(requested, desktopRoot);
     plan = [
       command(
         "ui-explicit-tests",
         "literal UI test files and execution reconciliation",
         process.execPath,
-        ["scripts/run-ui-tests.mts", "exact", ...files],
+        ["scripts/run-ui-tests.mts", "exact", ...(lastFailed ? ["--last-failed"] : []), ...files],
         { cwd: projectRoot },
       ),
     ];
@@ -678,7 +681,7 @@ export async function main(
 ) {
   if (argv.includes("--help")) {
     console.log(
-      "usage: local-validation.mts [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui FILES|test-ui-related FILES|test-node TESTS]",
+      "usage: local-validation.mts [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui FILES|test-ui --last-failed [FILES]|test-ui-related FILES|test-node TESTS]",
     );
     return;
   }

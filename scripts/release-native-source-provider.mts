@@ -13,19 +13,14 @@ import {
 
 export async function retainNativeSourceDeclarations(
   directory: string,
-  read: (pathname: (typeof nativeCompatibilitySourcePaths)[number]) => {
-    status?: number;
-    body: unknown;
-  },
-  readBlob?: (sha: string) => { status?: number; body: unknown },
+  read: (pathname: (typeof nativeCompatibilitySourcePaths)[number]) => Promise<unknown>,
+  readBlob?: (sha: string) => Promise<unknown>,
 ) {
   const files: Record<string, Buffer> = {};
   for (const pathname of nativeCompatibilitySourcePaths) {
-    const response = read(pathname);
-    let raw = response.body;
+    let raw = await read(pathname);
     const maximum = nativeSourceDeclarationByteLimit(pathname);
     if (
-      response.status !== 200 ||
       !isRecord(raw) ||
       raw.type !== "file" ||
       raw.path !== pathname ||
@@ -40,16 +35,15 @@ export async function retainNativeSourceDeclarations(
     // Contents omits bytes above its inline envelope. Resolve only the exact
     // immutable blob named by this path at the selected source commit.
     if (raw.encoding === "none" && raw.content === "") {
-      const blob = readBlob?.(raw.sha);
+      const blob = await readBlob?.(raw.sha);
       if (
-        blob?.status !== 200 ||
-        !isRecord(blob.body) ||
-        blob.body.sha !== raw.sha ||
-        blob.body.size !== raw.size ||
-        blob.body.encoding !== "base64"
+        !isRecord(blob) ||
+        blob.sha !== raw.sha ||
+        blob.size !== raw.size ||
+        blob.encoding !== "base64"
       )
         throw new Error("native immutable source blob differs from selected file");
-      raw = { ...raw, encoding: blob.body.encoding, content: blob.body.content };
+      raw = { ...raw, encoding: blob.encoding, content: blob.content };
     }
     if (
       !isRecord(raw) ||

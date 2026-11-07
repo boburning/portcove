@@ -7,6 +7,19 @@ use crate::{
     DefinitionContentIndex, PortDefinition, PortcoveError, Result, check_definition_capabilities,
 };
 
+pub(crate) fn require_indexed_persistence(port: &PortDefinition) -> Result<()> {
+    if port
+        .persistent_file_patterns
+        .iter()
+        .any(|pattern| pattern.allow_empty_middle)
+    {
+        return Err(PortcoveError::unsupported(
+            "empty-middle persistent file patterns are currently embedded-only",
+        ));
+    }
+    Ok(())
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct EntryDocument {
@@ -150,6 +163,7 @@ impl DefinitionContentIndex {
                 "entry port identity or complete typed projection is invalid",
             ));
         }
+        require_indexed_persistence(&port)?;
         if !retained && !port.release.managed_build.is_empty() {
             return Err(crate::cartridge_build::retired_creation());
         }
@@ -210,16 +224,16 @@ impl DefinitionContentIndex {
                 "manual native setup progress requires capability version 2",
             ));
         }
-        if !retained
-            && crate::persistence::requires_fresh_direct_data_guard(&port)
+        if let Some(version) = crate::persistence::fresh_direct_data_guard_capability(&port)
+            && !retained
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
-                    && requirement.minimum_version >= 25
+                    && requirement.minimum_version >= version
             })
         {
-            return Err(PortcoveError::verification(
-                "fresh Direct reader data isolation requires staged-source capability version 25",
-            ));
+            return Err(PortcoveError::verification(format!(
+                "fresh Direct reader data isolation requires staged-source capability version {version}",
+            )));
         }
         if !retained
             && crate::persistence::ready_staged_archive(&port)
@@ -309,6 +323,15 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(
                 "managed TFE initialization requires staged-source capability version 12",
+            ));
+        }
+        if port.windows_shipwright_persistence
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "libultraship-portable" && requirement.minimum_version >= 3
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Shipwright working-directory persistence requires libultraship-portable capability version 3",
             ));
         }
         if port.windows_runtime_path_policy.is_some()

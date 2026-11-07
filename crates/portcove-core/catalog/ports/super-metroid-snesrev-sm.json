@@ -26,7 +26,7 @@
         },
         {
           "title": "Review consent, then Play",
-          "instruction": "Review and consent to the selected executable, working directory and literal arguments. Registration does not build, start or repair the game. Choose Play separately; retained registration and relink remain subject to a new review when execution intent changes. Portcove observes the selected process. Close all actual players before changing the upstream copy."
+          "instruction": "Review and consent to the selected executable, working directory and literal arguments. Registration does not build, start or repair the game. Choose Play separately; retained registration and relink remain subject to a new review when the program, folder or launch arguments change. Portcove observes the selected process. Close all actual players before changing the upstream copy."
         },
         {
           "title": "Preserve the experimental runtime and saves",

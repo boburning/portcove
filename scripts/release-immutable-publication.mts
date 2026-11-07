@@ -39,8 +39,17 @@ import {
 import { parseReleaseChecksumManifest } from "./reconcile-release-assets.mts";
 import { prepareReleasePublicBuildInputs } from "./release-public-build-inputs.mts";
 import { verifyUpdaterInventory } from "./updater-artifact-inventory.mts";
-import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import { createGitHubClient } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import {
+  createReleaseCustodyProvider,
+  type ImmutableReleaseMetadataProvider,
+} from "./release-custody-provider.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   requireActualReleaseAdmissionContext,
   requireActualPublicationControllerContext,
@@ -57,7 +66,10 @@ import {
   readRemoteCoordinatorSnapshot,
   hydrateRetainedCoordinatorOperation,
 } from "./release-coordinator-recovery.mts";
-import { inspectCompactCapacityOperations } from "./release-capacity.mts";
+import {
+  inspectCompactCapacityOperations,
+  type ParsedCapacityOperation,
+} from "./release-capacity.mts";
 import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
 import { requireVerifiedReleaseSbomDocument } from "./release-acceptance-evidence.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
@@ -66,6 +78,7 @@ import type { AuthenticatedReleaseControlSource } from "./release-live-control-a
 import {
   withCoordinatorDeadline,
   coordinatorCommandTimeout,
+  coordinatorCommandDeadline,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
@@ -97,7 +110,7 @@ const ownedCompletions = new WeakMap<
     admission: object;
     checkpoint: string;
     operation: NonNullable<ReturnType<typeof inspectCapacityOperation>>;
-    readback: ReturnType<typeof verifyPreparedImmutableRelease>;
+    readback: Awaited<ReturnType<typeof verifyPreparedImmutableRelease>>;
     candidate: Record<string, unknown>;
     namespace: string;
     executor: ReturnType<typeof capacityExecutorIdentity>;
@@ -776,7 +789,7 @@ export async function rebindPreparedImmutableReleaseAfterPhase(
 /** Read-only feed prerequisite. Obtain the expected complete asset inventory from
  * the actual private preparation, not a caller's release receipt. This performs
  * no publication and does not clear the independent acceptance gates. */
-export function verifyPreparedImmutableRelease(
+export async function verifyPreparedImmutableRelease(
   session: PreparedReleasePublication,
   candidate: unknown,
   deadline?: number,
@@ -790,25 +803,13 @@ export function verifyPreparedImmutableRelease(
     candidate.version !== identity.version
   )
     throw new Error("immutable Release preparation differs from the current reservation");
-  const remaining = () => {
-    if (deadline !== undefined && !Number.isFinite(deadline))
-      throw new Error("immutable Release readback phase deadline exhausted");
-    const timeoutMs =
-      deadline === undefined ? 15000 : Math.floor(Math.min(15000, deadline - performance.now()));
-    if (timeoutMs < 1) throw new Error("immutable Release readback phase deadline exhausted");
-    return timeoutMs;
-  };
-  remaining();
-  const api = new GitHubApiClient((args, body) => {
-    const result = createGitHubRunner({
-      cwd: privateValue.session.directory,
-      timeoutMs: remaining(),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], body);
-    remaining();
-    return result;
+  publicationRemaining(deadline);
+  const metadata = await createReleaseCustodyProvider({
+    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    deadline: deadline ?? performance.now() + 24 * 15000,
   });
-  const actual = readImmutableReleaseState(api, identity);
+  const actual = await readImmutableReleaseState(metadata, identity);
+  publicationRemaining(deadline);
   const transition = proposeImmutableReleaseTransition(identity, actual.release, actual.assets);
   if (transition.decision !== "complete")
     throw new Error("feed publication requires the complete observed immutable Release");
@@ -823,12 +824,12 @@ export function verifyPreparedImmutableRelease(
 
 /** Complete release inventory includes drafts; a published-only tag lookup can
  * hide a retained draft after an ambiguous create. Embedded assets are ignored. */
-export function readImmutableReleaseState(
-  api: GitHubRestReader,
+export async function readImmutableReleaseState(
+  metadata: ImmutableReleaseMetadataProvider,
   identity: ReleasePublicationIdentity,
 ) {
   const wanted = expectedIdentity(identity);
-  return readImmutableReleaseCustodyState(api, {
+  return readImmutableReleaseCustodyState(metadata, {
     version: wanted.version,
     source_commit: wanted.source_commit,
     asset_names: wanted.assets.map((asset) => asset.filename),
@@ -838,8 +839,8 @@ export function readImmutableReleaseState(
 /** Raw GET custody only. A complete-byte identity remains mandatory for all
  * transition/effect and publication consumers. No placeholder lengths/hashes
  * are manufactured when an authenticated context omits a document length. */
-export function readImmutableReleaseCustodyState(
-  api: GitHubRestReader,
+export async function readImmutableReleaseCustodyState(
+  metadata: ImmutableReleaseMetadataProvider,
   rawIdentity: { version: string; source_commit: string; asset_names: readonly string[] },
 ) {
   const wanted = structuredClone(rawIdentity);
@@ -859,10 +860,10 @@ export function readImmutableReleaseCustodyState(
   wanted.version = classifyApplicationVersion(wanted.version).version;
   const all: Record<string, unknown>[] = [];
   for (let page = 1; page <= 16; page++) {
-    const response = api.request("GET", `${base}/releases?per_page=100&page=${page}`);
-    if (response.status !== 200 || !Array.isArray(response.body) || response.body.length > 100)
+    const pageRows = await metadata.releases(page);
+    if (!Array.isArray(pageRows) || pageRows.length > 100)
       throw new Error("release inventory unavailable");
-    for (const item of response.body as unknown[]) {
+    for (const item of pageRows as unknown[]) {
       if (
         !isRecord(item) ||
         !Number.isSafeInteger(item.id) ||
@@ -872,30 +873,19 @@ export function readImmutableReleaseCustodyState(
         throw new Error("release inventory duplicates or omits provider identity");
       all.push(item);
     }
-    if (response.body.length < 100) break;
+    if (pageRows.length < 100) break;
     if (page === 16) throw new Error("release inventory pagination bound exhausted");
   }
   const found = all.filter((r) => r.tag_name === `v${wanted.version}`);
   if (found.length > 1) throw new Error("reserved tag has multiple release identities");
-  let tag: ReturnType<GitHubRestReader["request"]>;
-  try {
-    tag = api.request("GET", `${base}/git/ref/tags/${encodeURIComponent(`v${wanted.version}`)}`);
-  } catch (error) {
-    // The real gh runner throws on HTTP errors. Only the exact tag GET's
-    // collected 404 is absence; authentication/refusal/timeout remains unknown.
-    // Complete authenticated Release inventory above is still mandatory.
-    if (!(error instanceof GitHubApiError) || error.status !== 404) throw error;
-    tag = { status: 404, body: null, headers: new Map() };
-  }
+  // Only the exact tag GET's observed HTTP 404 is absence. The authenticated
+  // draft-inclusive inventory above must still have completed.
+  const tag = await metadata.versionTag(`v${wanted.version}`);
   let tagCommit: string | null = null;
-  if (tag.status !== 404) {
-    if (
-      tag.status !== 200 ||
-      !isRecord(tag.body) ||
-      tag.body.ref !== `refs/tags/v${wanted.version}`
-    )
+  if (tag.kind === "present") {
+    if (!isRecord(tag.data) || tag.data.ref !== `refs/tags/v${wanted.version}`)
       throw new Error("release tag readback unavailable");
-    let target: unknown = tag.body.object;
+    let target: unknown = tag.data.object;
     for (let depth = 0; depth < 4; depth++) {
       if (
         !isRecord(target) ||
@@ -908,14 +898,10 @@ export function readImmutableReleaseCustodyState(
         break;
       }
       if (target.type !== "tag") throw new Error("release tag target is not a commit");
-      const annotated = api.request("GET", `${base}/git/tags/${target.sha}`);
-      if (
-        annotated.status !== 200 ||
-        !isRecord(annotated.body) ||
-        annotated.body.sha !== target.sha
-      )
+      const annotated = await metadata.annotatedTag(target.sha);
+      if (!isRecord(annotated) || annotated.sha !== target.sha)
         throw new Error("annotated release tag readback unavailable");
-      target = annotated.body.object;
+      target = annotated.object;
     }
     if (tagCommit !== wanted.source_commit)
       throw new Error("existing version tag differs; never move it");
@@ -927,21 +913,15 @@ export function readImmutableReleaseCustodyState(
     throw new Error("published release lacks the exact actual version tag");
   const collected: unknown[] = [];
   for (let page = 1; page <= 2; page++) {
-    const result = api.request(
-      "GET",
-      `${base}/releases/${current.id}/assets?per_page=100&page=${page}`,
-    );
-    if (result.status !== 200 || !Array.isArray(result.body) || result.body.length > 100)
+    const rows = await metadata.releaseAssets(current.id, page);
+    if (!Array.isArray(rows) || rows.length > 100)
       throw new Error("complete release asset readback unavailable");
-    collected.push(...(result.body as unknown[]));
+    collected.push(...(rows as unknown[]));
     if (collected.length > wanted.asset_names.length)
       throw new Error("unexpected release assets; preserve and reconcile");
-    if (result.body.length < 100) {
-      const detail = api.request("GET", `${base}/releases/${current.id}`);
-      if (
-        detail.status !== 200 ||
-        capacityDigest(release(detail.body, wanted)) !== capacityDigest(current)
-      )
+    if (rows.length < 100) {
+      const detail = await metadata.release(current.id);
+      if (capacityDigest(release(detail, wanted)) !== capacityDigest(current))
         throw new Error("release identity changed during asset readback");
       return { release: raw, assets: collected, tag_commit: tagCommit };
     }
@@ -952,7 +932,7 @@ export function readImmutableReleaseCustodyState(
 /** Fixed REST operation, invoked ONLY inside the caller's admitted existing
  * executor/pending-intent callback. No journal, retry, token discovery or CLI. */
 export async function performImmutableReleaseEffect(
-  effect: ImmutableReleaseEffect,
+  rawEffect: ImmutableReleaseEffect,
   assetBytes: Buffer | null,
   token: string,
   fetcher: typeof fetch = fetch,
@@ -960,6 +940,7 @@ export async function performImmutableReleaseEffect(
   riskExpiresAt?: number,
 ) {
   publicationRemaining(deadline);
+  const effect = structuredClone(rawEffect);
   if (!token || token.length > 16384)
     throw new Error("isolated publication credential unavailable");
   const upload = effect.kind === "upload-asset";
@@ -1022,30 +1003,65 @@ export async function performImmutableReleaseEffect(
         )
   )
     throw new Error("release operation escaped the fixed create/upload/publish boundary");
-  if (
-    riskExpiresAt !== undefined &&
-    (!Number.isFinite(riskExpiresAt) || Date.now() >= riskExpiresAt)
-  )
-    throw new Error("Linux risk authorization expired before Release provider mutation");
-  const response = await fetcher(endpoint, {
-    method: effect.method,
-    redirect: "error",
-    credentials: "omit",
+  const riskError = "Linux risk authorization expired before Release provider mutation";
+  const requireRisk = () => {
+    if (
+      riskExpiresAt !== undefined &&
+      (!Number.isFinite(riskExpiresAt) || Date.now() >= riskExpiresAt)
+    )
+      throw new Error(riskError);
+  };
+  requireRisk();
+  const operationDeadline = Math.min(
+    deadline ?? Infinity,
+    performance.now() + 120000,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  const body = upload ? new Uint8Array(assetBytes!) : JSON.stringify(effect.body);
+  let riskRefused = false;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline: operationDeadline,
+    requestTimeoutMs: 120000,
+    maxBytes: 512 * 1024,
+    baseUrl: upload ? "https://uploads.github.com" : "https://api.github.com",
     headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2026-03-10",
-      "Content-Type": upload ? "application/octet-stream" : "application/json",
+      accept: "application/vnd.github+json",
+      "x-github-api-version": "2026-03-10",
+      "content-type": upload ? "application/octet-stream" : "application/json",
     },
-    body: upload ? new Uint8Array(assetBytes!) : JSON.stringify(effect.body),
-    signal: AbortSignal.timeout(publicationRemaining(deadline, 120000)),
+    fetch: (input, init) => {
+      // This is the actual dispatch boundary, after the SDK's async setup.
+      try {
+        requireRisk();
+      } catch (error) {
+        riskRefused = true;
+        throw error;
+      }
+      return fetcher(input, { ...init, credentials: "omit" });
+    },
   });
-  // A non-success response can still have caused a partial remote effect.
-  await response.body?.cancel();
+  let status: number;
+  try {
+    const response = await client.request(`${effect.method} ${endpoint}`, {
+      data: body,
+      request: {
+        parseSuccessResponseBody: false,
+        portcove: { replay: "once", attempts: 0 },
+      },
+    });
+    status = response.status;
+  } catch (error) {
+    if (riskRefused) throw new Error(riskError);
+    if (error instanceof GitHubApiError && error.code === "deadline_exceeded")
+      throw new Error("immutable publication phase deadline exhausted", { cause: error });
+    throw new Error("release write response requires exact readback/recovery", { cause: error });
+  }
   publicationRemaining(deadline);
-  if (response.status !== (effect.kind === "publish-draft" ? 200 : 201))
+  // A non-success response can still have caused a partial remote effect.
+  if (status !== (effect.kind === "publish-draft" ? 200 : 201))
     throw new Error("release write response requires exact readback/recovery");
-  return { status: response.status }; // never trust the mutation response as settlement
+  return { status }; // never trust the mutation response as settlement
 }
 
 /** Data validation only; the caller must recover this exact remote checkpoint. */
@@ -1112,7 +1128,7 @@ export async function advanceImmutableReleasePublication(
       },
       operation: () => Promise<{ remote_identity: string; evidence_sha256: string }>,
     ) => Promise<{ checkpoint: string; operation_id: string; evidence_sha256: string }>;
-    api?: GitHubRestReader;
+    metadata?: ImmutableReleaseMetadataProvider;
     token: string;
     fetch?: typeof fetch;
     deadline?: number;
@@ -1127,30 +1143,26 @@ export async function advanceImmutableReleasePublication(
   session = state.session;
   active.add(sessionKey);
   try {
-    const api =
-      options.api ??
-      new GitHubApiClient((args, input) => {
-        const result = createGitHubRunner({
-          cwd: session.directory,
-          maxBuffer: 512 * 1024,
-          timeoutMs: publicationRemaining(options.deadline),
-        })([...args, "--hostname", "github.com"], input);
-        publicationRemaining(options.deadline);
-        return result;
-      });
+    const metadata =
+      options.metadata ??
+      (await createReleaseCustodyProvider({
+        token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+        deadline: options.deadline ?? performance.now() + 3 * 24 * 15000,
+        maxBytes: 512 * 1024,
+      }));
     const reservedState = await options.recover(state.checkpoint);
     publicationRemaining(options.deadline);
     await requireReservedAggregate(state.descriptor, reservedState);
     if (!isRecord(reservedState) || !isRecord(reservedState.input))
       throw new Error("reserved input missing");
     const candidate = reservedState.input.active_candidate;
-    const before = readImmutableReleaseState(api, session.identity);
+    const before = await readImmutableReleaseState(metadata, session.identity);
     publicationRemaining(options.deadline);
     const next = proposeImmutableReleaseTransition(session.identity, before.release, before.assets);
     if (next.decision === "complete")
       return {
         ...next,
-        evidence_scope: options.api || options.fetch ? "injected-provider" : "github.com",
+        evidence_scope: options.metadata || options.fetch ? "injected-provider" : "github.com",
       };
     const releaseExpectation = inspectReleaseEffectExpectation({
       before_checkpoint: state.checkpoint,
@@ -1183,17 +1195,19 @@ export async function advanceImmutableReleasePublication(
             effect.asset.bytes,
           )
         : null;
-    let started = false;
+    let entered = false,
+      started = false;
     const invocationCheckpoint = state.checkpoint;
     let knownSettlementCheckpoint: string | null = null;
     try {
       let evidenceSha256: string | null = null;
       let remoteIdentity: string | null = null;
-      let observed: ReturnType<typeof readImmutableReleaseState> | null = null;
+      let observed: Awaited<ReturnType<typeof readImmutableReleaseState>> | null = null;
       const settlement = await options.effect(effect, async () => {
-        if (started) throw new Error("a release effect may execute only once");
+        if (entered) throw new Error("a release effect may execute only once");
+        entered = true;
         publicationRemaining(options.deadline);
-        const immediate = readImmutableReleaseState(api, session.identity);
+        const immediate = await readImmutableReleaseState(metadata, session.identity);
         const immediateNext = proposeImmutableReleaseTransition(
           session.identity,
           immediate.release,
@@ -1232,7 +1246,7 @@ export async function advanceImmutableReleasePublication(
           options.deadline,
           options.riskExpiresAt,
         );
-        const after = readImmutableReleaseState(api, session.identity);
+        const after = await readImmutableReleaseState(metadata, session.identity);
         publicationRemaining(options.deadline);
         const nextAfter = proposeImmutableReleaseTransition(
           session.identity,
@@ -1332,7 +1346,7 @@ export async function advanceImmutableReleasePublication(
         settlement,
         authority: "none",
         automatic_continue: false,
-        evidence_scope: options.api || options.fetch ? "injected-provider" : "github.com",
+        evidence_scope: options.metadata || options.fetch ? "injected-provider" : "github.com",
       };
     } catch {
       // No second operation. Caller persists this ambiguity in its existing intent
@@ -1409,19 +1423,10 @@ export async function advanceOwnedImmutableReleasePublication(
   const token = process.env.PORTCOVE_RELEASE_PUBLICATION_TOKEN;
   if (!token || token.length > 16384 || /\s/u.test(token))
     throw new Error("dedicated Release publication credential unavailable");
-  const api = new GitHubApiClient((args, body) => {
-    const result = createGitHubRunner({
-      cwd: state.session.directory,
-      timeoutMs: publicationRemaining(deadline),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], body);
-    publicationRemaining(deadline);
-    return result;
-  });
   const readBoundary = async () => {
     publicationRemaining(deadline);
     requireAuthenticatedReleaseControlSource(controls, "release-publication");
-    const current = controls.read(api, admission.facts.opportunity);
+    const current = await controls.readSdkApplicationControls(admission.facts.opportunity);
     publicationRemaining(deadline);
     if (
       current.reader.job_id !== identity.job_id ||
@@ -1487,6 +1492,44 @@ export async function advanceOwnedImmutableReleasePublication(
   });
 }
 
+/** The exact publication job is provider evidence for a prior settled effect. */
+export async function requireTerminalImmutablePublisher(
+  original: Pick<
+    NonNullable<ParsedCapacityOperation["executor_identity"]>,
+    "job_id" | "run_id" | "run_attempt" | "controller_revision" | "check_run_id"
+  >,
+  token: string,
+  deadline: number,
+) {
+  const identity = { ...original };
+  if (
+    typeof identity.job_id !== "number" ||
+    !Number.isSafeInteger(identity.job_id) ||
+    identity.job_id < 1
+  )
+    throw new Error("original publisher job identity unavailable");
+  const metadata = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    maxBytes: 2 * 1024 ** 2,
+    beforeDispatch: () => assertTrustedDirectNode("fixed original immutable publisher"),
+  });
+  const job = await metadata.job(identity.job_id);
+  publicationRemaining(deadline);
+  if (
+    !isRecord(job) ||
+    job.id !== identity.job_id ||
+    String(job.run_id) !== identity.run_id ||
+    job.run_attempt !== identity.run_attempt ||
+    job.head_sha !== identity.controller_revision ||
+    job.name !== "Publish immutable application release" ||
+    job.status !== "completed" ||
+    job.check_run_url !==
+      `https://api.github.com/${base}/check-runs/${String(identity.check_run_id)}`
+  )
+    throw new Error("original publisher is not positively terminal; preserve prior effect");
+}
+
 /** Actual publisher continuation, never an imported success or release-presence
  * shortcut. The existing actual admission/executor and the original settled
  * publish operation must all agree before this observation can enter custody.
@@ -1528,17 +1571,8 @@ export async function observeOwnedImmutableReleaseCompletion(
   );
   await requireVerifiedReleaseSbomDocument(admission.sbom_receipt);
   requireAuthenticatedReleaseControlSource(controls, "release-publication");
-  const api = new GitHubApiClient((args, input) => {
-    const result = createGitHubRunner({
-      cwd: state.session.directory,
-      timeoutMs: publicationRemaining(deadline),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], input);
-    publicationRemaining(deadline);
-    return result;
-  });
-  const fresh = () => {
-    const current = controls.read(api, admission.facts.opportunity);
+  const fresh = async () => {
+    const current = await controls.readSdkApplicationControls(admission.facts.opportunity);
     const original = admission.admission.controls!;
     if (
       current.reader.job_id !== identity.job_id ||
@@ -1556,15 +1590,20 @@ export async function observeOwnedImmutableReleaseCompletion(
       throw new Error("owned publication completion controls changed or remain held");
     publicationRemaining(deadline);
   };
-  fresh();
+  await fresh();
   const namespace = admission.facts.configuration.namespace;
-  const snapshot = await readRemoteCoordinatorSnapshot(
-    state.session.directory,
-    { schema_version: 1, namespace },
-    {
-      transport: { cwd: state.session.directory, ...(deadline === undefined ? {} : { deadline }) },
-    },
-  );
+  const token = fixedReleaseReaderToken();
+  const evidenceDeadline = Math.min(deadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
+  const readDeadline = Number.isFinite(evidenceDeadline)
+    ? evidenceDeadline
+    : performance.now() + 120000;
+  const readSnapshot = () =>
+    readRemoteCoordinatorSnapshot(
+      state.session.directory,
+      { schema_version: 1, namespace },
+      { transport: { credential: { token }, deadline: readDeadline, requireDirect: true } },
+    );
+  const snapshot = await readSnapshot();
   if (snapshot.checkpoint !== state.checkpoint)
     throw new Error(
       "immutable publisher settlement checkpoint changed; reconcile before completion",
@@ -1622,7 +1661,7 @@ export async function observeOwnedImmutableReleaseCompletion(
       operation = attempts[0]!;
     }
   }
-  const readback = verifyPreparedImmutableRelease(session, candidate, deadline);
+  const readback = await verifyPreparedImmutableRelease(session, candidate, deadline);
   const effect = operation?.completed_effects[0];
   const original = operation?.executor_identity;
   if (
@@ -1649,34 +1688,12 @@ export async function observeOwnedImmutableReleaseCompletion(
   )
     throw new Error("immutable Release lacks its exact settled owned publish operation");
   requireRetainedPublishCandidate(candidate, operation, readback);
-  if (original.job_id !== identity.job_id || original.run_id !== identity.run_id) {
-    const response = api.request("GET", `${base}/actions/jobs/${String(original.job_id)}`);
-    const job = response.body;
-    publicationRemaining(deadline);
-    if (
-      response.status !== 200 ||
-      !isRecord(job) ||
-      job.id !== original.job_id ||
-      String(job.run_id) !== original.run_id ||
-      job.run_attempt !== original.run_attempt ||
-      job.head_sha !== original.controller_revision ||
-      job.name !== "Publish immutable application release" ||
-      job.status !== "completed" ||
-      job.check_run_url !==
-        `https://api.github.com/${base}/check-runs/${String(original.check_run_id)}`
-    )
-      throw new Error("original publisher is not positively terminal; preserve prior effect");
-  }
-  const after = await readRemoteCoordinatorSnapshot(
-    state.session.directory,
-    { schema_version: 1, namespace },
-    {
-      transport: { cwd: state.session.directory, ...(deadline === undefined ? {} : { deadline }) },
-    },
-  );
+  if (original.job_id !== identity.job_id || original.run_id !== identity.run_id)
+    await requireTerminalImmutablePublisher(original, token, readDeadline);
+  const after = await readSnapshot();
   if (after.checkpoint !== snapshot.checkpoint)
     throw new Error("publisher settlement changed during independent completion readback");
-  fresh();
+  await fresh();
   publicationRemaining(deadline);
   const receipt = Object.freeze({
     kind: "actual-owned-immutable-release-completion",
@@ -1716,7 +1733,7 @@ export async function requireOwnedImmutableReleaseCompletion(receipt: object) {
     "release-publication",
   );
   await requireVerifiedReleaseSbomDocument(admission.sbom_receipt);
-  const readback = verifyPreparedImmutableRelease(
+  const readback = await verifyPreparedImmutableRelease(
     retained.session,
     retained.candidate,
     retained.deadline,

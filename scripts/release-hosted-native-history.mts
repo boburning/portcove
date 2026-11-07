@@ -8,7 +8,11 @@ import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type {
+  CatalogAnchorMetadataProvider,
+  HistoricalJobProvider,
+} from "./release-custody-provider.mts";
+import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import { hydrateRetainedCoordinatorCheckpointExport } from "./release-coordinator-recovery.mts";
 import { readCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
 import {
@@ -197,8 +201,9 @@ type PredecessorArguments = [
   rawRecords: readonly unknown[],
   rawConfiguration: unknown,
   deadline: number,
-  api: CoordinatorRemoteApi,
+  api: CoordinatorCheckpointApi,
   options?: {
+    checkpointObjects?: (deadline: number) => Promise<CatalogAnchorMetadataProvider>;
     checkpoint?: Parameters<typeof authenticateCoordinatorCheckpointEvidence>[6];
     native?: Parameters<typeof collectHistoricalHostedNativeQualification>[5];
   },
@@ -256,8 +261,9 @@ async function collectHostedNativePredecessors(
   rawRecords: readonly unknown[],
   rawConfiguration: unknown,
   deadline: number,
-  api: CoordinatorRemoteApi,
+  api: CoordinatorCheckpointApi,
   options: {
+    checkpointObjects?: (deadline: number) => Promise<CatalogAnchorMetadataProvider>;
     checkpoint?: Parameters<typeof authenticateCoordinatorCheckpointEvidence>[6];
     native?: Parameters<typeof collectHistoricalHostedNativeQualification>[5];
   } = {},
@@ -265,6 +271,14 @@ async function collectHostedNativePredecessors(
   const records = structuredClone(rawRecords),
     namespace = inspectCoordinatorRemoteNamespace(rawConfiguration);
   const configuration = { schema_version: 1, namespace };
+  const captureJobProvider = (provider: HistoricalJobProvider): HistoricalJobProvider => ({
+    attempt: provider.attempt.bind(provider),
+    jobs: provider.jobs.bind(provider),
+    job: provider.job.bind(provider),
+  });
+  const checkpointObjects = options.checkpointObjects;
+  const checkpointProvider = options.checkpoint?.job?.provider;
+  const nativeProvider = options.native?.provider;
   const checkpointOptions =
     options.checkpoint === undefined
       ? undefined
@@ -284,14 +298,8 @@ async function collectHostedNativePredecessors(
             ? {
                 job: {
                   ...options.checkpoint.job,
-                  ...(options.checkpoint.job.api
-                    ? {
-                        api: {
-                          request: options.checkpoint.job.api.request.bind(
-                            options.checkpoint.job.api,
-                          ),
-                        },
-                      }
+                  ...(checkpointProvider
+                    ? { provider: captureJobProvider(checkpointProvider) }
                     : {}),
                 },
               }
@@ -312,11 +320,17 @@ async function collectHostedNativePredecessors(
                 },
               }
             : {}),
-          ...(options.native.api
-            ? { api: { request: options.native.api.request.bind(options.native.api) } }
+          ...(nativeProvider
+            ? {
+                provider: {
+                  ...captureJobProvider(nativeProvider),
+                  commit: nativeProvider.commit.bind(nativeProvider),
+                  file: nativeProvider.file.bind(nativeProvider),
+                },
+              }
             : {}),
         };
-  const provider: CoordinatorRemoteApi = {
+  const provider: CoordinatorCheckpointApi = {
     request: api.request.bind(api),
     graphql: api.graphql.bind(api),
   };
@@ -382,13 +396,15 @@ async function collectHostedNativePredecessors(
     active();
     phase = "checkpoint-objects";
     return await withCoordinatorDeadline(deadline, async () => {
+      if (!checkpointObjects)
+        throw new Error("historical native checkpoint object provider required");
       const checkpoint = await hydrateRetainedCoordinatorCheckpointExport(
         repository,
         pin.checkpoint,
-        { api: provider },
+        await checkpointObjects(deadline),
       );
       phase = "checkpoint-proof";
-      const evidence = readCoordinatorCheckpointEvidence(
+      const evidence = await readCoordinatorCheckpointEvidence(
         checkpoint,
         configuration,
         provider,

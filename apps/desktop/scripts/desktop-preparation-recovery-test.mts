@@ -641,7 +641,7 @@ export async function interruptedPreparationScenario({
       "cannot be recovered",
       "setup and any programs it started have stopped",
     ]) {
-      assert.ok(cleanupText.includes(required(expected)), expected);
+      assert.ok(cleanupText.includes(required(expected)), String(expected));
     }
     const cleanupAccessibility = path.join(output, "preparation-cleanup-accessibility.json");
     await captureAccessibilityReport(browser, cleanupAccessibility, artifacts);

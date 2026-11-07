@@ -4,7 +4,10 @@ import { fileURLToPath } from "node:url";
 import { runCheckedGit } from "./checked-git.mts";
 import { RoadmapClient, portFieldInitialization, runDoctor, validateConfig } from "./roadmap.mts";
 import { qualificationCatalogObservation } from "./roadmap-qualification.mts";
-import { GitHubApiClient, GitHubApiError, sanitizeOperationError } from "./github-api.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
+import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
+import type { Octokit } from "@octokit/core";
+import { discoveryGitHubScope } from "./discovery-github.mts";
 import {
   collectRoadmapInventory,
   collectRoadmapInventoryWithRecollection,
@@ -12,7 +15,10 @@ import {
 } from "./roadmap-inventory.mts";
 import { runScopedDoctor } from "./roadmap-scoped.mts";
 import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
-import { investigateDiscoveryUpstream } from "./daily-discovery-sources.mts";
+import {
+  DiscoveryRepositoryUnavailable,
+  investigateDiscoveryUpstream,
+} from "./daily-discovery-sources.mts";
 import {
   reconcileDiscoveryIntakeIdentity,
   discoveryGameKey,
@@ -36,17 +42,11 @@ import { observationHash } from "./upstream-observer.mts";
 import { validateGitHubBody } from "./github-body-text.mts";
 import { isRecord } from "./runtime-values.mts";
 import { hostedIntakeMaxPasses } from "./hosted-discovery-intake-runner.mts";
-import type { RoadmapInventory } from "./roadmap-inventory.mts";
+import type { RoadmapInventory, RoadmapInventoryClient } from "./roadmap-inventory.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
 export const hostedRequestMarker = "<!-- portcove-hosted-intake:v1 -->";
 
-export class HostedRoadmapClient extends RoadmapClient {
-  // The bounded transport accepts API calls only; reuse the complete schema reader.
-  override fieldList(number: number) {
-    return { fields: this.completeProjectContext(number).fields };
-  }
-}
 const receiptMarker = (id: number) => `<!-- portcove-hosted-intake-receipt:${id} -->`;
 const object = (v: unknown) => {
   if (!isRecord(v)) throw new Error("Expected structured intake data");
@@ -160,6 +160,7 @@ interface Comment {
   body: string;
   user: { login: string; type?: string };
   issue_url?: string;
+  updated_at?: string;
 }
 export function trustedHostedComment(raw: unknown, owner: string): Comment {
   const c = object(raw),
@@ -225,13 +226,13 @@ export function assertHostedCatalogIdentity(
       );
   }
 }
-export function assertHostedRecovery(
-  client: RoadmapClient,
+export async function assertHostedRecovery(
+  client: HostedRoadmapOperations,
   inventory: RoadmapInventory,
   number: number,
 ) {
   requireRoadmapInventory(inventory, client.config.repository, client, { planningIssue: number });
-  const issue = client.repositoryIssue(number);
+  const issue = await client.repositoryIssue(number);
   const assignees = object(issue).assignees;
   const rows = [...inventory.items, ...inventory.archivedItems].filter(
     (i) => i.content?.id === issue.node_id,
@@ -262,7 +263,24 @@ function compactDoctor(result: Awaited<ReturnType<typeof runScopedDoctor>>) {
     receipt_sha256: observationHash(result),
   };
 }
+type PlanSlot =
+  | Planned
+  | (Omit<Planned, "primary" | "evidence_sha256"> & {
+      primary: null;
+      evidence_sha256: null;
+    });
+const holdResume =
+  "Use owner process dispatch when the exact repository ID and primary evidence are accessible.";
+interface CandidateHold {
+  port_key: string;
+  repository_id: number;
+  upstream: string;
+  http_status: 404;
+  observed_at: string;
+  resume: string;
+}
 interface Delivery {
+  hold?: CandidateHold;
   status: string;
   created_issue?: number;
   item_id?: string;
@@ -279,7 +297,8 @@ interface Receipt {
   request_sha256: string;
   investigator: string;
   plan_sha256: string;
-  plan: Planned[];
+  plan: PlanSlot[];
+  plan_encoding?: "proposal-bound-v1" | "proposal-bound-v2";
   delivery: Delivery[];
   status: string;
   head: string;
@@ -301,7 +320,7 @@ export function hostedBody(c: Candidate, request: number) {
     blocker: c.resume,
   });
 }
-export function hostedPlanHash(requestHash: string, plan: Planned[]) {
+export function hostedPlanHash(requestHash: string, plan: PlanSlot[]) {
   return observationHash({
     request_sha256: requestHash,
     candidates: plan.map((p) => ({
@@ -328,7 +347,11 @@ function readHostedReceipt(
     stored.delivery.length !== proposal.candidates.length
   )
     throw new Error("Retained receipt body lineage or coverage differs");
-  if (stored.plan_encoding !== undefined && stored.plan_encoding !== "proposal-bound-v1")
+  if (
+    stored.plan_encoding !== undefined &&
+    stored.plan_encoding !== "proposal-bound-v1" &&
+    stored.plan_encoding !== "proposal-bound-v2"
+  )
     throw new Error("Unknown retained plan encoding");
   stored.plan = stored.plan.map((raw, index) => {
     const binding = object(raw),
@@ -336,7 +359,10 @@ function readHostedReceipt(
       body = hostedBody(candidate, bodyRequest);
     if (
       binding.body_sha256 !== observationHash(body) ||
-      binding.evidence_sha256 !== observationHash(binding.primary) ||
+      (binding.primary === null
+        ? stored.plan_encoding !== "proposal-bound-v2" || binding.evidence_sha256 !== null
+        : !isRecord(binding.primary) ||
+          binding.evidence_sha256 !== observationHash(binding.primary)) ||
       (stored.plan_encoding === undefined
         ? observationHash(binding.candidate) !== observationHash(candidate) || binding.body !== body
         : binding.candidate_index !== index || binding.port_key !== candidate.port_key)
@@ -352,16 +378,41 @@ function readHostedReceipt(
   });
   const receipt = stored as unknown as Receipt;
   const ids = new Set<number>();
-  for (const d of receipt.delivery) {
+  for (const [index, d] of receipt.delivery.entries()) {
     if (
       !d ||
-      !["prepared", "reviewed", "create-attempted", "created", "delivered", "existing"].includes(
-        d.status,
-      ) ||
+      ![
+        "prepared",
+        "preflight",
+        "reviewed",
+        "create-attempted",
+        "created",
+        "delivered",
+        "existing",
+      ].includes(d.status) ||
       (d.status === "delivered" && !d.created_issue) ||
       (d.status === "created" && !d.created_issue && !(d.created_comment && d.canonical_issue))
     )
       throw new Error("Retained delivery state is incomplete");
+    const slot = receipt.plan[index]!;
+    if (d.hold) {
+      const c = slot.candidate;
+      const h = d.hold;
+      if (
+        receipt.plan_encoding !== "proposal-bound-v2" ||
+        !canHold(d) ||
+        h.port_key !== c.port_key ||
+        h.repository_id !== c.repository_id ||
+        h.upstream !== c.upstream ||
+        h.http_status !== 404 ||
+        h.resume !== holdResume ||
+        typeof h.observed_at !== "string" ||
+        !Number.isFinite(Date.parse(h.observed_at))
+      )
+        throw new Error("Retained candidate hold is invalid");
+    } else if (slot.primary === null || "hold" in d) {
+      throw new Error("Unbound primary requires a candidate hold");
+    }
     if (d.canonical_issue !== undefined) positive(d.canonical_issue);
     if (d.created_comment !== undefined) positive(d.created_comment);
     if (d.status === "existing") {
@@ -385,12 +436,50 @@ function readHostedReceipt(
     throw new Error("Changed proposal or invalid retained plan; preserve prior receipt");
   return receipt;
 }
+function canHold(d: Delivery) {
+  return (
+    ["prepared", "preflight", "reviewed"].includes(d.status) &&
+    d.created_issue === undefined &&
+    d.created_comment === undefined &&
+    d.canonical_issue === undefined &&
+    !d.existing
+  );
+}
+function isDelivered(d: Delivery) {
+  return d.status === "delivered" || d.status === "existing";
+}
+function missingDeliveryProof(d: Delivery) {
+  if (!isDelivered(d) || !isRecord(d.doctor)) return true;
+  const doctor = d.doctor;
+  const issue = d.created_issue ?? d.canonical_issue;
+  if (
+    d.status === "delivered" &&
+    (!isRecord(d.fields) ||
+      Object.entries(portFieldInitialization(null)).some(
+        ([field, value]) => d.fields?.[field] !== value,
+      ))
+  )
+    return true;
+  return (
+    doctor.status !== "passed" ||
+    doctor.coverage !== "complete" ||
+    observationHash(doctor.issues) !== observationHash([issue]) ||
+    typeof doctor.receipt_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(doctor.receipt_sha256)
+  );
+}
+function deliveryCounts(delivery: readonly Delivery[], candidates = delivery.length) {
+  const delivered = delivery.filter((d) => d.status === "delivered").length;
+  const existing = delivery.filter((d) => d.status === "existing").length;
+  const held = delivery.filter((d) => d.hold).length;
+  return { delivered, existing, held, pending: candidates - delivered - existing };
+}
 function receiptBody(r: Receipt) {
   // Exact bodies are reconstructed from the hash-bound owner proposal. Do not
   // repeat its evidence in both candidate and rendered-body copies on the wire.
   const wire = {
     ...r,
-    plan_encoding: "proposal-bound-v1",
+    plan_encoding: r.plan_encoding ?? "proposal-bound-v1",
     plan: r.plan.map(({ candidate, body: _body, ...binding }, index) => ({
       ...binding,
       candidate_index: index,
@@ -403,12 +492,24 @@ function receiptBody(r: Receipt) {
     throw new Error("Hosted receipt exceeds its bounded comment envelope");
   return body;
 }
+export type HostedRoadmapOperations = RoadmapInventoryClient &
+  Pick<
+    RoadmapClient,
+    | "viewList"
+    | "projectAudit"
+    | "repositoryIssues"
+    | "createPortIssue"
+    | "normalizePortIssue"
+    | "repositoryIssue"
+    | "executionIssue"
+    | "setItemFields"
+  >;
 export class HostedIntakeBridge {
   // Failed mutations remain sticky even if publishing a later diagnostic works.
   uncertainMutations = 0;
-  mutation<T>(action: () => T): T {
+  async mutation<T>(action: () => T | Promise<T>): Promise<T> {
     this.uncertainMutations++;
-    const result = action();
+    const result = await action();
     this.uncertainMutations--;
     return result;
   }
@@ -425,23 +526,26 @@ export class HostedIntakeBridge {
   }
   planningIssues = new Set<number>();
   inventoryRecollections = 0;
-  readonly client: RoadmapClient;
+  readonly client: HostedRoadmapOperations;
+  readonly github: { project: Octokit; repository: Octokit };
   readonly head: string;
   readonly research: (repository: string) => ReturnType<typeof investigateDiscoveryUpstream>;
   readonly save: (name: string, value: unknown) => void;
-  readonly admitRecollection: (cache?: RoadmapInventory) => void;
-  readonly admitWarmInventory: (cache: RoadmapInventory) => void;
+  readonly admitRecollection: (cache?: RoadmapInventory) => void | Promise<void>;
+  readonly admitWarmInventory: (cache: RoadmapInventory) => void | Promise<void>;
   constructor(
-    client: RoadmapClient,
+    client: HostedRoadmapOperations,
+    github: { project: Octokit; repository: Octokit },
     head: string,
     research: (repository: string) => ReturnType<typeof investigateDiscoveryUpstream>,
     save: (name: string, value: unknown) => void,
-    admitRecollection: (cache?: RoadmapInventory) => void = () => {
+    admitRecollection: (cache?: RoadmapInventory) => void | Promise<void> = () => {
       throw new Error("Inventory recollection admission is not configured");
     },
-    admitWarmInventory: (cache: RoadmapInventory) => void = () => {},
+    admitWarmInventory: (cache: RoadmapInventory) => void | Promise<void> = () => {},
   ) {
     this.client = client;
+    this.github = github;
     this.head = head;
     this.research = research;
     this.save = save;
@@ -451,15 +555,44 @@ export class HostedIntakeBridge {
   get prefix() {
     return `repos/${this.client.config.repository}/issues`;
   }
-  comments() {
-    const before = object(this.client.api.request("GET", `${this.prefix}/177`).body);
-    const comments = this.client.api
-      .paginateRest(`${this.prefix}/177/comments?per_page=20`, {
-        identity: (v) => object(v).id,
-        label: "complete hosted intake request and receipt inventory",
-      })
-      .map((v) => object(v) as unknown as Comment);
-    const after = object(this.client.api.request("GET", `${this.prefix}/177`).body);
+  private async issueComments(issue: number, perPage: number) {
+    if (!Number.isSafeInteger(issue) || issue < 1) throw new Error("Invalid comment owner");
+    const rows: unknown[] = [],
+      ids = new Set<number>();
+    for await (const page of iterateGitHubPages(this.github.project, {
+      url: `https://api.github.com/${this.prefix}/${issue}/comments?per_page=${perPage}`,
+      headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    })) {
+      if (!Array.isArray(page.data)) throw new Error("Hosted comment inventory is incomplete");
+      for (const row of page.data as unknown[]) {
+        const id = positive(object(row).id);
+        if (ids.has(id)) throw new Error("Hosted comments contain duplicate identities");
+        ids.add(id);
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
+  async comments() {
+    const before = object(
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/177`, "https://api.github.com/").href,
+        })
+      ).data,
+    );
+    const comments = (await this.issueComments(177, 20)).map(
+      (v) => object(v) as unknown as Comment,
+    );
+    const after = object(
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/177`, "https://api.github.com/").href,
+        })
+      ).data,
+    );
     if (
       typeof before.node_id !== "string" ||
       before.node_id !== after.node_id ||
@@ -478,9 +611,14 @@ export class HostedIntakeBridge {
       throw new Error("Hosted request comment inventory is incomplete");
     return comments;
   }
-  fresh(c: Comment) {
+  async fresh(c: Comment) {
     const got = object(
-      this.client.api.request("GET", `${this.prefix}/comments/${c.id}`).body,
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/comments/${c.id}`, "https://api.github.com/").href,
+        })
+      ).data,
     ) as unknown as Comment;
     if (
       got.id !== c.id ||
@@ -491,28 +629,39 @@ export class HostedIntakeBridge {
       throw new Error("Hosted request or receipt preimage changed; stop and reread");
     return got;
   }
-  persist(receipt: Receipt, prior?: Comment) {
+  async persist(receipt: Receipt, prior?: Comment) {
     receipt.observed_at = new Date().toISOString();
     this.save(`receipt-${receipt.request_comment}`, receipt);
     const body = receiptBody(receipt);
-    if (prior) this.fresh(prior);
-    return this.mutation(() => {
+    if (prior) await this.fresh(prior);
+    return await this.mutation(async () => {
       const got = object(
-        this.client.api.request(
-          prior ? "PATCH" : "POST",
-          prior ? `${this.prefix}/comments/${prior.id}` : `${this.prefix}/177/comments`,
-          { body },
-        ).body,
+        (
+          await this.github.repository.request({
+            method: prior ? "PATCH" : "POST",
+            url: new URL(
+              prior ? `${this.prefix}/comments/${prior.id}` : `${this.prefix}/177/comments`,
+              "https://api.github.com/",
+            ).href,
+            data: { body },
+          })
+        ).data,
       );
       const observed = object(
-        this.client.api.request("GET", `${this.prefix}/comments/${positive(got.id)}`).body,
+        (
+          await this.github.project.request({
+            method: "GET",
+            url: new URL(`${this.prefix}/comments/${positive(got.id)}`, "https://api.github.com/")
+              .href,
+          })
+        ).data,
       );
       if (observed.body !== body || object(observed.user).login !== "github-actions[bot]")
         throw new Error("Bot receipt publication/readback is unconfirmed; no further mutation");
       return observed as unknown as Comment;
     });
   }
-  diagnostic(request: Comment, error: unknown, all: Comment[]) {
+  async diagnostic(request: Comment, error: unknown, all: Comment[]) {
     const marker = `<!-- portcove-hosted-intake-diagnostic:${request.id} -->`;
     const rows = all.filter(
       (c) => c.user.login === "github-actions[bot]" && c.body.startsWith(marker),
@@ -533,22 +682,33 @@ export class HostedIntakeBridge {
         : "Resolve the named failure and reread the exact proposal/plan before resuming; never repeat an ambiguous creation.",
     };
     const body = `${marker}\n\`\`\`json\n${JSON.stringify(diagnostic, null, 2)}\n\`\`\``;
-    if (previous) this.fresh(previous);
+    if (previous) await this.fresh(previous);
     const got = object(
-      this.client.api.request(
-        previous ? "PATCH" : "POST",
-        previous ? `${this.prefix}/comments/${previous.id}` : `${this.prefix}/177/comments`,
-        { body },
-      ).body,
+      (
+        await this.github.repository.request({
+          method: previous ? "PATCH" : "POST",
+          url: new URL(
+            previous ? `${this.prefix}/comments/${previous.id}` : `${this.prefix}/177/comments`,
+            "https://api.github.com/",
+          ).href,
+          data: { body },
+        })
+      ).data,
     );
     const after = object(
-      this.client.api.request("GET", `${this.prefix}/comments/${positive(got.id)}`).body,
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/comments/${positive(got.id)}`, "https://api.github.com/")
+            .href,
+        })
+      ).data,
     );
     if (after.body !== body || object(after.user).login !== "github-actions[bot]")
       throw new Error("Diagnostic publication readback is unconfirmed");
   }
-  primary(c: Candidate, request: number): Planned {
-    const primary = this.research(new URL(c.upstream).pathname.slice(1));
+  async primary(c: Candidate, request: number): Promise<Planned> {
+    const primary = await this.research(new URL(c.upstream).pathname.slice(1));
     if (
       primary.metadata.id !== c.repository_id ||
       normalizedUpstream(`https://github.com/${String(primary.metadata.full_name)}`) !==
@@ -572,15 +732,15 @@ export class HostedIntakeBridge {
       primary: identity,
     };
   }
-  inventory(cache?: RoadmapInventory, full = false) {
-    if (cache) this.admitWarmInventory(cache);
+  async inventory(cache?: RoadmapInventory, full = false) {
+    if (cache) await this.admitWarmInventory(cache);
     this.client._completeProjectContext = undefined;
     this.client._projectContext = undefined;
     let first: ReturnType<typeof sanitizeOperationError> | undefined;
-    return collectRoadmapInventoryWithRecollection(
+    return await collectRoadmapInventoryWithRecollection(
       this.client,
-      () =>
-        collectRoadmapInventory(
+      async () =>
+        await collectRoadmapInventory(
           this.client,
           cache,
           full
@@ -592,14 +752,14 @@ export class HostedIntakeBridge {
         ),
       this,
       {
-        before: (error) => {
+        before: async (error) => {
           first = sanitizeOperationError(error);
           this.save("inventory-recollection", {
             status: "pending",
             allowance: this.inventoryRecollections,
             first,
           });
-          this.admitRecollection(cache);
+          await this.admitRecollection(cache);
         },
         after: (status, error) =>
           this.save("inventory-recollection", {
@@ -656,13 +816,13 @@ export class HostedIntakeBridge {
     d: Delivery,
     owner: number,
     inventory: RoadmapInventory,
-    persist: () => void,
+    persist: () => void | Promise<void>,
   ) {
     if (d.created_issue || (d.canonical_issue && d.canonical_issue !== owner))
       throw new Error("Canonical owner changed during retained delivery");
     const expected = inventory.issues.find((issue) => issue.number === owner);
-    const freshOwner = () => {
-      const current = this.client.repositoryIssue(owner);
+    const freshOwner = async () => {
+      const current = await this.client.repositoryIssue(owner);
       if (
         !expected ||
         expected.id !== current.node_id ||
@@ -672,42 +832,52 @@ export class HostedIntakeBridge {
       )
         throw new Error("Existing canonical owner changed; preserve owner work");
     };
-    freshOwner();
+    await freshOwner();
     this.planningIssues.add(owner);
     const observation = { candidate: p.candidate, primary: p.primary };
     const marker = `<!-- portcove-hosted-observation:${observationHash(observation)} -->`;
     const body = `${marker}\nDated discovery observation from #177 for existing canonical owner #${owner}. Immutable repository ID and game scope match this owner; any proposed independent-implementation claim is superseded by that identity readback. Candidate prose below remains attributed investigator evidence, not verified qualification or a change to this owner's specification. No new implementation, catalog admission or planning change is claimed.\n\n\`\`\`json\n${JSON.stringify(observation, null, 2)}\n\`\`\``;
     validateGitHubBody(body);
-    const rows = this.client.api
-      .paginateRest(`${this.prefix}/${owner}/comments?per_page=100`, {
-        identity: (v) => object(v).id,
-        label: "complete existing-owner observation comments",
-      })
+    const rows = (await this.issueComments(owner, 100))
       .map((value) => object(value) as unknown as Comment)
       .filter((c) => c.user.login === "github-actions[bot]" && c.body.startsWith(marker));
     if (rows.length > 1) throw new Error("Ambiguous existing-owner observation marker");
     let comment = rows[0];
     if (!comment) {
       assertDiscoveryCommentMayPost(d);
-      freshOwner();
-      this.fresh(request);
+      await freshOwner();
+      await this.fresh(request);
       d.canonical_issue = owner;
-      comment = this.mutation(() =>
-        discoveryPost(
-          d,
-          () => {
-            const posted = object(
-              this.client.api.request("POST", `${this.prefix}/${owner}/comments`, { body }).body,
-            );
-            recordDiscoveryComment(d, posted.id, persist);
-            return posted as unknown as Comment;
-          },
-          persist,
-        ),
+      comment = await this.mutation(
+        async () =>
+          await discoveryPost(
+            d,
+            async () => {
+              const posted = object(
+                (
+                  await this.github.repository.request({
+                    method: "POST",
+                    url: new URL(`${this.prefix}/${owner}/comments`, "https://api.github.com/")
+                      .href,
+                    data: { body },
+                  })
+                ).data,
+              );
+              await recordDiscoveryComment(d, posted.id, persist);
+              return posted as unknown as Comment;
+            },
+            persist,
+          ),
       );
     }
     const observed = object(
-      this.client.api.request("GET", `${this.prefix}/comments/${positive(comment.id)}`).body,
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/comments/${positive(comment.id)}`, "https://api.github.com/")
+            .href,
+        })
+      ).data,
     ) as unknown as Comment;
     if (
       observed.body !== body ||
@@ -716,7 +886,7 @@ export class HostedIntakeBridge {
       (d.created_comment && d.created_comment !== observed.id)
     )
       throw new Error("Existing-owner observation readback differs");
-    freshOwner();
+    await freshOwner();
     d.canonical_issue = owner;
     d.created_comment = observed.id;
     d.observation_sha256 = observationHash(body);
@@ -725,23 +895,21 @@ export class HostedIntakeBridge {
     this.save(`doctor-${request.id}-${owner}`, doctor);
     d.doctor = compactDoctor(doctor);
     d.status = "existing";
-    persist();
+    await persist();
   }
-  status(request: Comment, all: Comment[]) {
+  async status(request: Comment, all: Comment[]) {
     trustedHostedComment(request, this.client.config.owner);
     const proposal = parseHostedRequest(request.body);
     const found = all.filter(
       (c) => c.user.login === "github-actions[bot]" && c.body.startsWith(receiptMarker(request.id)),
     );
     if (found.length > 1) throw new Error("Ambiguous hosted receipt identity");
-    const lineage = this.reconciliation(request, proposal, all);
+    const lineage = await this.reconciliation(request, proposal, all);
     const receipt = found[0]
       ? readHostedReceipt(found[0], request, proposal, lineage?.bodyRequest ?? request.id)
       : undefined;
     const deliveries = receipt?.delivery ?? [];
-    const delivered = deliveries.filter((d) => d.status === "delivered").length;
-    const existing = deliveries.filter((d) => d.status === "existing").length;
-    const pending = proposal.candidates.length - delivered - existing;
+    const counts = deliveryCounts(deliveries, proposal.candidates.length);
     const diagnostics = all.filter(
       (c) =>
         c.user.login === "github-actions[bot]" &&
@@ -749,8 +917,14 @@ export class HostedIntakeBridge {
     );
     if (diagnostics.length > 1) throw new Error("Ambiguous hosted diagnostic identity");
     let diagnostic: Record<string, unknown> | undefined;
-    if (!receipt && diagnostics[0]) {
-      const match = diagnostics[0].body.match(/```json\n([\s\S]+)\n```\s*$/u);
+    const latestDiagnostic = diagnostics[0];
+    if (
+      latestDiagnostic &&
+      (!receipt ||
+        (receipt.status === "complete_with_holds" &&
+          Date.parse(latestDiagnostic.updated_at ?? "") >= Date.parse(receipt.observed_at ?? "")))
+    ) {
+      const match = latestDiagnostic.body.match(/```json\n([\s\S]+)\n```\s*$/u);
       if (!match) throw new Error("Malformed hosted diagnostic");
       const value = object(JSON.parse(match[1]!));
       if (
@@ -759,32 +933,15 @@ export class HostedIntakeBridge {
       )
         diagnostic = value;
     }
-    if (receipt?.status === "complete") {
+    if (receipt?.status === "complete" || receipt?.status === "complete_with_holds") {
       if (
-        pending ||
-        deliveries.some((d) => {
-          if (!isRecord(d.doctor)) return true;
-          const doctor = d.doctor;
-          const issue = d.created_issue ?? d.canonical_issue;
-          if (
-            d.status === "delivered" &&
-            (!isRecord(d.fields) ||
-              Object.entries(portFieldInitialization(null)).some(
-                ([field, value]) => d.fields?.[field] !== value,
-              ))
-          )
-            return true;
-          return (
-            doctor.status !== "passed" ||
-            doctor.coverage !== "complete" ||
-            observationHash(doctor.issues) !== observationHash([issue]) ||
-            typeof doctor.receipt_sha256 !== "string" ||
-            !/^[a-f0-9]{64}$/u.test(doctor.receipt_sha256)
-          );
-        })
+        (receipt.status === "complete"
+          ? counts.pending !== 0
+          : counts.held === 0 || counts.pending !== counts.held) ||
+        deliveries.some((d) => !d.hold && missingDeliveryProof(d))
       )
         throw new Error("Complete receipt lacks candidate-bound scoped doctors");
-      if (proposal.candidates.length > 10) {
+      if (receipt.status === "complete" && proposal.candidates.length > 10) {
         const doctor = receipt.doctor;
         if (
           !isRecord(doctor) ||
@@ -815,24 +972,22 @@ export class HostedIntakeBridge {
       status:
         !receipt && !failure
           ? "submitted"
-          : receipt?.status === "complete"
-            ? "complete"
+          : receipt?.status === "complete" || receipt?.status === "complete_with_holds"
+            ? receipt.status
             : ((receipt?.status === "incomplete" || !receipt) && !recoverable) ||
                 (receipt?.status === "incomplete" &&
                   deliveries.some((d) => d.status === "create-attempted"))
               ? "blocked"
               : "partial",
       candidates: proposal.candidates.length,
-      delivered,
-      existing,
-      pending,
+      ...counts,
       full_doctor_required: proposal.candidates.length > 10,
       doctor: receipt?.doctor ?? null,
       last_error: failure ?? null,
       observed_at: receipt?.observed_at ?? null,
     };
   }
-  reconciliation(request: Comment, proposal: Proposal, all: Comment[]) {
+  async reconciliation(request: Comment, proposal: Proposal, all: Comment[]) {
     const ref = proposal.reconcile;
     if (!ref) return null;
     if (ref.request_comment >= request.id)
@@ -851,8 +1006,8 @@ export class HostedIntakeBridge {
       throw new Error("Ambiguous reconciliation source receipt identity");
     const source = trustedHostedComment(sources[0], this.client.config.owner),
       comment = receipts[0]!;
-    this.fresh(source);
-    this.fresh(comment);
+    await this.fresh(source);
+    await this.fresh(comment);
     const offset = source.body.indexOf(hostedRequestMarker);
     if (
       offset <= 0 ||
@@ -887,17 +1042,17 @@ export class HostedIntakeBridge {
       throw new Error("Reconciliation requires the exact incomplete partially created receipt");
     return { source, comment, receipt, bodyRequest };
   }
-  async process(request: Comment, all: Comment[]) {
+  async process(request: Comment, all: Comment[], { resumeHolds = false } = {}) {
     this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
-    this.fresh(request);
+    await this.fresh(request);
     const proposal = parseHostedRequest(request.body);
-    const lineage = this.reconciliation(request, proposal, all);
+    const lineage = await this.reconciliation(request, proposal, all);
     const bodyRequest = lineage?.bodyRequest ?? request.id;
-    const freshLineage = () => {
+    const freshLineage = async () => {
       if (lineage) {
-        this.fresh(lineage.source);
-        this.fresh(lineage.comment);
+        await this.fresh(lineage.source);
+        await this.fresh(lineage.comment);
       }
     };
     const found = all.filter(
@@ -907,20 +1062,104 @@ export class HostedIntakeBridge {
     let prior = found[0];
     let receipt: Receipt | undefined;
     if (prior) {
-      this.fresh(prior);
+      await this.fresh(prior);
       receipt = readHostedReceipt(prior, request, proposal, bodyRequest);
-      if (receipt.status === "complete") return receipt;
+      if (receipt.status === "complete") {
+        if (receipt.plan_encoding === "proposal-bound-v2") await this.status(request, all);
+        return receipt;
+      }
+      if (receipt.status === "complete_with_holds" && !resumeHolds) {
+        await this.status(request, all);
+        return receipt;
+      }
     }
-    const plan = proposal.candidates.map((c) => this.primary(c, bodyRequest));
+    const delivery = structuredClone(
+      receipt?.delivery ??
+        lineage?.receipt.delivery ??
+        proposal.candidates.map((): Delivery => ({ status: "prepared" })),
+    );
+    const historical = new Set<number>();
+    const plan: PlanSlot[] = [];
+    for (const [index, candidate] of proposal.candidates.entries()) {
+      const d = delivery[index]!;
+      const previous = receipt?.plan[index];
+      if (
+        previous &&
+        ((d.hold && !resumeHolds) ||
+          (!lineage && receipt?.plan_encoding === "proposal-bound-v2" && isDelivered(d)))
+      ) {
+        if (isDelivered(d)) {
+          if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
+          historical.add(index);
+        }
+        plan.push(previous);
+        continue;
+      }
+      try {
+        const fresh = await this.primary(candidate, bodyRequest);
+        if (previous?.primary && previous.evidence_sha256 !== fresh.evidence_sha256)
+          throw new Error(
+            "Primary evidence changed since preparation; a fresh proposal is required",
+          );
+        plan.push(fresh);
+        delete d.hold;
+      } catch (error) {
+        if (
+          lineage ||
+          !(error instanceof DiscoveryRepositoryUnavailable) ||
+          error.repository !== new URL(candidate.upstream).pathname.slice(1)
+        )
+          throw error;
+        if (previous?.primary && isDelivered(d)) {
+          if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
+          historical.add(index);
+          plan.push(previous);
+          continue;
+        }
+        if (!canHold(d)) throw error;
+        d.hold = {
+          port_key: candidate.port_key,
+          repository_id: candidate.repository_id,
+          upstream: candidate.upstream,
+          http_status: 404,
+          observed_at: new Date().toISOString(),
+          resume: holdResume,
+        };
+        const body = hostedBody(candidate, bodyRequest);
+        validateDiscoveryIntakeBody(body, candidate.upstream, candidate.port_key);
+        plan.push(
+          previous ?? {
+            candidate,
+            body,
+            body_sha256: observationHash(body),
+            primary: null,
+            evidence_sha256: null,
+          },
+        );
+      }
+    }
     this.planningIssues = new Set(
       (receipt?.delivery ?? lineage?.receipt.delivery ?? []).flatMap((d) =>
         d.created_issue ? [d.created_issue] : d.canonical_issue ? [d.canonical_issue] : [],
       ),
     );
-    let inventory = this.inventory();
+    let inventory = await this.inventory();
+    for (const [index, slot] of plan.entries()) {
+      if (
+        delivery[index]!.hold &&
+        inventory.issues.some((issue) =>
+          issue.body?.includes(
+            `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${slot.candidate.port_key} -->`,
+          ),
+        )
+      )
+        throw new Error("Held candidate has a retained creation marker; reconcile before resuming");
+    }
     if (!receipt) {
       const owners = new Map<number, number>();
       for (const [index, p] of plan.entries()) {
+        if (delivery[index]!.hold) continue;
+        if (!p.primary) throw new Error("Eligible candidate has no primary binding");
         const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
@@ -932,7 +1171,7 @@ export class HostedIntakeBridge {
         );
         if (owner) owners.set(index, owner);
       }
-      freshLineage();
+      await freshLineage();
       receipt = {
         schema_version: 1,
         request_comment: request.id,
@@ -940,14 +1179,13 @@ export class HostedIntakeBridge {
         investigator: proposal.investigator,
         plan_sha256: hostedPlanHash(observationHash(request.body), plan),
         plan,
-        delivery: lineage
-          ? structuredClone(lineage.receipt.delivery)
-          : plan.map((_p, index): Delivery => {
-              const owner = owners.get(index);
-              return owner === undefined
-                ? { status: "prepared" }
-                : { status: "prepared", canonical_issue: owner, existing: true };
-            }),
+        delivery: delivery.map((d, index) => {
+          const owner = owners.get(index);
+          return owner === undefined || lineage
+            ? d
+            : { ...d, canonical_issue: owner, existing: true };
+        }),
+        ...(delivery.some((d) => d.hold) ? { plan_encoding: "proposal-bound-v2" as const } : {}),
         ...(lineage ? { body_request_comment: bodyRequest } : {}),
         status: "prepared",
         head: this.head,
@@ -970,39 +1208,45 @@ export class HostedIntakeBridge {
         throw new Error(
           "Logical batch cannot retain complete delivery receipts; reduce evidence text",
         );
-      prior = this.persist(receipt);
+      prior = await this.persist(receipt);
     }
-    if (receipt.plan_sha256 !== hostedPlanHash(observationHash(request.body), plan))
-      throw new Error("Primary evidence changed since preparation; a fresh proposal is required");
-    freshLineage();
+    receipt.plan = plan;
+    receipt.plan_sha256 = hostedPlanHash(receipt.request_sha256, plan);
+    if (delivery.some((d) => d.hold)) receipt.plan_encoding = "proposal-bound-v2";
+    if (found.length) receipt.delivery = delivery;
+    await freshLineage();
     receipt.head = this.head;
     receipt.run = process.env.GITHUB_RUN_ID ?? "local";
     receipt.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
     receipt.status = "applying";
-    const persist = () => {
-      prior = this.persist(receipt, prior);
+    const persist = async () => {
+      prior = await this.persist(receipt, prior);
     };
-    persist();
+    await persist();
     try {
-      this.uncertainMutations++;
-      const writeProof = await probeHostedProjectWrite(this.client, 177);
-      this.uncertainMutations--;
-      this.save(`write-proof-${request.id}`, writeProof);
+      if (receipt.delivery.some((d, index) => !d.hold && !historical.has(index))) {
+        this.uncertainMutations++;
+        const writeProof = await probeHostedProjectWrite(this.client, 177);
+        this.uncertainMutations--;
+        this.save(`write-proof-${request.id}`, writeProof);
+      }
       // The same-option owner proof and receipt comments do not change this
       // projection. Refresh at the next actual mutation, not after no-op proof.
       let invalidated = false;
       for (const [index, p] of plan.entries()) {
         const d = receipt.delivery[index];
         if (!d) throw new Error("Retained delivery coverage differs");
+        if (d.hold || historical.has(index)) continue;
+        if (!p.primary) throw new Error("Eligible candidate has no primary binding");
         if (
           (d.created_issue || d.canonical_issue) &&
           (invalidated || Date.now() - Date.parse(inventory.observed_at) >= 90000)
         ) {
-          inventory = this.inventory(inventory);
+          inventory = await this.inventory(inventory);
           invalidated = false;
         }
-        this.fresh(request);
-        freshLineage();
+        await this.fresh(request);
+        await freshLineage();
         const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
@@ -1011,14 +1255,15 @@ export class HostedIntakeBridge {
         if (!d.created_issue && recovered.length) {
           d.created_issue = Number(recovered[0]!.number);
           this.planningIssues.add(d.created_issue);
-          persist();
-          inventory = this.inventory(inventory);
+          await persist();
+          inventory = await this.inventory(inventory);
           invalidated = false;
         }
         if (!d.created_issue && !d.canonical_issue && d.status === "create-attempted")
           throw new Error("Ambiguous issue POST without a confirmed marker; do not recapture");
         const owner = this.duplicates(inventory, p, d.created_issue);
         if (owner) {
+          if (d.status === "preflight") d.status = "prepared";
           await this.observeExisting(request, p, d, owner, inventory, persist);
           invalidated = true;
           continue;
@@ -1026,7 +1271,7 @@ export class HostedIntakeBridge {
         if (d.canonical_issue)
           throw new Error("Retained canonical ownership is no longer established");
         if (d.created_issue) {
-          const issue = assertHostedRecovery(this.client, inventory, d.created_issue);
+          const issue = await assertHostedRecovery(this.client, inventory, d.created_issue);
           if (issue.body !== p.body || issue.title !== `[Port] ${p.candidate.title}`)
             throw new Error("Created issue was revised; preserve owner changes and reconcile");
           const member = inventory.items.find((item) => item.content?.id === issue.node_id);
@@ -1039,83 +1284,80 @@ export class HostedIntakeBridge {
           if (!ready) {
             // A real normalization consumes a fresh target preimage, even when
             // the earlier routing observation looked repairable.
-            inventory = this.inventory(inventory);
+            inventory = await this.inventory(inventory);
             invalidated = false;
-            const latest = assertHostedRecovery(this.client, inventory, d.created_issue);
+            const latest = await assertHostedRecovery(this.client, inventory, d.created_issue);
             if (latest.body !== p.body || latest.title !== `[Port] ${p.candidate.title}`)
               throw new Error("Created issue was revised; preserve owner changes and reconcile");
-            const normalized = this.mutation(() =>
-              this.client.normalizePortIssue({
-                number: d.created_issue!,
-                catalog: qualificationCatalogObservation(
-                  JSON.parse(
-                    readFileSync(
-                      new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
-                      "utf8",
+            const normalized = await this.mutation(
+              async () =>
+                await this.client.normalizePortIssue({
+                  number: d.created_issue!,
+                  catalog: qualificationCatalogObservation(
+                    JSON.parse(
+                      readFileSync(
+                        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+                        "utf8",
+                      ),
                     ),
                   ),
-                ),
-                inventory,
-                repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
-              }),
+                  inventory,
+                  repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
+                }),
             );
             invalidated = true;
             d.item_id = normalized.itemId;
           }
         } else {
-          // Admit before publishing an intent as well as after that write. A
-          // denied read must not spend the last capacity on a new attempt.
-          this.admitWarmInventory(inventory);
-          // Persist the attempt before recollection: publishing it advances
-          // #177's revision, so the negative inventory must come afterwards.
-          d.status = "create-attempted";
-          persist();
-          let lateOwner: number | undefined;
-          try {
-            inventory = this.inventory(inventory);
-            invalidated = false;
-            this.fresh(request);
-            freshLineage();
-            lateOwner = this.duplicates(inventory, p);
-          } catch (error) {
-            d.status = "prepared"; // No POST has begun in this preflight.
-            persist();
-            throw error;
-          }
+          // Reserve room before publishing the checkpoint. A denial here is
+          // safe because no issue attempt has been recorded or dispatched.
+          await this.admitWarmInventory(inventory);
+          // Receipt updates change #177's revision but not its intake semantics.
+          // Keep the durable state resumable throughout the fresh negative inventory.
+          d.status = "preflight";
+          await persist();
+          inventory = await this.inventory(inventory);
+          invalidated = false;
+          await this.fresh(request);
+          await freshLineage();
+          const lateOwner = this.duplicates(inventory, p);
           if (lateOwner) {
             d.status = "prepared";
             d.canonical_issue = lateOwner;
             d.existing = true;
-            persist();
+            await persist();
             await this.observeExisting(request, p, d, lateOwner, inventory, persist);
             invalidated = true;
             continue;
           }
-          this.mutation(() =>
-            discoveryPost(
-              d,
-              () =>
-                this.client.createPortIssue({
-                  title: p.candidate.title,
-                  upstream: p.candidate.upstream,
-                  portKey: p.candidate.port_key,
-                  body: p.body,
-                  inventory,
-                  repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
-                  onIssueCreated: (issue) => {
-                    d.created_issue = issue.number;
-                    this.planningIssues.add(issue.number);
-                    d.status = "created";
-                    persist();
-                  },
-                }),
-              () => this.save(`receipt-${request.id}`, receipt),
-            ),
+          d.status = "create-attempted";
+          await persist();
+          await this.mutation(
+            async () =>
+              await discoveryPost(
+                d,
+                async () =>
+                  await this.client.createPortIssue({
+                    title: p.candidate.title,
+                    upstream: p.candidate.upstream,
+                    portKey: p.candidate.port_key,
+                    body: p.body,
+                    inventory,
+                    repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
+                    onIssueCreated: async (issue) => {
+                      d.created_issue = issue.number;
+                      this.planningIssues.add(issue.number);
+                      d.status = "created";
+                      await persist();
+                    },
+                  }),
+                () => this.save(`receipt-${request.id}`, receipt),
+              ),
           );
           invalidated = true;
         }
-        const issue = this.client.repositoryIssue(d.created_issue!);
-        const item = this.client.executionIssue(d.created_issue!).item;
+        const issue = await this.client.repositoryIssue(d.created_issue!);
+        const item = (await this.client.executionIssue(d.created_issue!)).item;
         if (issue.body !== p.body || item.content.id !== issue.node_id)
           throw new Error("Exact created body/item readback failed");
         const defaults = portFieldInitialization(null);
@@ -1132,10 +1374,11 @@ export class HostedIntakeBridge {
         this.save(`doctor-${request.id}-${d.created_issue}`, doctor);
         d.doctor = compactDoctor(doctor);
         d.status = "delivered";
-        persist();
+        await persist();
       }
-      if (plan.length > 10) {
-        inventory = this.inventory(inventory, true);
+      const held = receipt.delivery.some((d) => d.hold);
+      if (!held && plan.length > 10) {
+        inventory = await this.inventory(inventory, true);
         const global = await runDoctor(this.client.config, this.client, {
           quiet: true,
           inventory,
@@ -1148,16 +1391,16 @@ export class HostedIntakeBridge {
         };
         this.save(`global-doctor-${request.id}`, receipt.doctor);
       }
-      receipt.status = "complete";
+      receipt.status = held ? "complete_with_holds" : "complete";
       delete receipt.error;
       delete receipt.continuation;
-      persist();
+      await persist();
     } catch (error) {
       receipt.status = "incomplete";
       receipt.error = sanitizeOperationError(error);
       receipt.continuation = this.continuation(error);
       try {
-        persist();
+        await persist();
       } catch (publication) {
         this.save(`publication-failure-${request.id}`, sanitizeOperationError(publication));
       }
@@ -1166,8 +1409,8 @@ export class HostedIntakeBridge {
     return receipt;
   }
 }
-export async function probeHostedProjectWrite(client: RoadmapClient, issue: number) {
-  const before = client.executionIssue(issue).item;
+export async function probeHostedProjectWrite(client: HostedRoadmapOperations, issue: number) {
+  const before = (await client.executionIssue(issue)).item;
   const priority = fieldValue(before, "Priority");
   if (
     before.content.number !== issue ||
@@ -1182,8 +1425,8 @@ export async function probeHostedProjectWrite(client: RoadmapClient, issue: numb
     throw new Error("Write probe requires an authorized neutral Watchlist port with Priority None");
   const fields = client.config.fields.map((f) => [f.name, fieldValue(before, f.name) ?? null]);
   if (typeof before.id !== "string") throw new Error("Probe Project item ID is unavailable");
-  client.setItemFields(before.id, { Priority: priority });
-  const after = client.executionIssue(issue).item;
+  await client.setItemFields(before.id, { Priority: priority });
+  const after = (await client.executionIssue(issue)).item;
   if (
     before.id !== after.id ||
     before.content.id !== after.content.id ||
@@ -1201,18 +1444,39 @@ export async function probeHostedProjectWrite(client: RoadmapClient, issue: numb
     doctor: await runScopedDoctor(client.config, client, { issues: [issue] }),
   };
 }
-export function collectHostedRequests(
+export async function collectHostedRequests(
   bridge: Pick<HostedIntakeBridge, "comments" | "continuation">,
-  initialize: () => void,
+  initialize: () => void | Promise<void>,
 ) {
   try {
-    initialize();
-    return { status: "collected" as const, comments: bridge.comments() };
+    await initialize();
+    return { status: "collected" as const, comments: await bridge.comments() };
   } catch (error) {
     const continuation = bridge.continuation(error);
     if (!continuation) throw error;
     return { status: "held" as const, continuation, error: sanitizeOperationError(error) };
   }
+}
+export async function connectHostedGitHub(
+  config: ConstructorParameters<typeof RoadmapClient>[0],
+  budget: DiscoveryBudget,
+  credentials: { project: string; repository: string },
+  options: Parameters<typeof discoveryGitHubScope>[2] = {},
+) {
+  if (!credentials.project || !credentials.repository)
+    throw new GitHubApiError(
+      "credential_unavailable",
+      "Dedicated Project and repository credentials are required",
+    );
+  const projectScope = discoveryGitHubScope(budget, credentials.project, options);
+  const repositoryScope = discoveryGitHubScope(budget, credentials.repository, options);
+  const project = await createGitHubClient(projectScope);
+  const repository = await createGitHubClient(repositoryScope);
+  const client = await RoadmapClient.connect(config, {
+    ...projectScope,
+    repositoryMutations: repositoryScope,
+  });
+  return { client, project, repository };
 }
 async function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -1231,9 +1495,18 @@ async function main() {
         "Usage: node scripts/hosted-discovery-intake.mts status --request <comment-id> --json",
       );
     const id = positive(Number(args[1]));
-    const client = new HostedRoadmapClient(config);
+    const { localDeveloperCredential } = await import("./github-cli.mts");
+    const deadline = performance.now() + 120_000;
+    const scope = {
+      credential: localDeveloperCredential({ deadline }),
+      deadline,
+      failedReads: new Map(),
+    };
+    const client = await RoadmapClient.connect(config, scope);
+    const sdk = await createGitHubClient(scope);
     const bridge = new HostedIntakeBridge(
       client,
+      { project: sdk, repository: sdk },
       "status",
       () => {
         throw new Error("Status cannot research or write");
@@ -1242,10 +1515,10 @@ async function main() {
         throw new Error("Status cannot save or write");
       },
     );
-    const comments = bridge.comments();
+    const comments = await bridge.comments();
     const request = comments.find((c) => c.id === id);
     if (!request) throw new Error("Requested proposal is unavailable");
-    console.log(JSON.stringify(bridge.status(request, comments)));
+    console.log(JSON.stringify(await bridge.status(request, comments)));
     return;
   }
   const pass = process.env.HOSTED_INTAKE_PASS ?? "1";
@@ -1284,36 +1557,42 @@ async function main() {
   if (!process.env.GH_TOKEN || !process.env.REPOSITORY_TOKEN)
     throw new Error("Dedicated Project and repository credentials are required");
   const budget = new DiscoveryBudget("cold", (usage) => save("budget", usage));
-  const project = createDiscoveryTransport(budget, process.env.GH_TOKEN);
-  const repository = createDiscoveryTransport(budget, process.env.REPOSITORY_TOKEN);
-  const api = new GitHubApiClient((args, input) => {
-    const endpoint = args[2] ?? "",
-      method = args[args.indexOf("--method") + 1];
-    const repoMutation =
-      args[0] === "api" &&
-      args[1] !== "graphql" &&
-      ["POST", "PATCH"].includes(method ?? "") &&
-      endpoint.startsWith(`repos/${config.repository}/issues`);
-    return (repoMutation ? repository : project).runner(args, input);
+  const { client, project, repository } = await connectHostedGitHub(config, budget, {
+    project: process.env.GH_TOKEN,
+    repository: process.env.REPOSITORY_TOKEN,
   });
-  const client = new HostedRoadmapClient(config, api);
+  const http = createDiscoveryTransport(budget, process.env.GH_TOKEN);
   const head = runCheckedGit(["rev-parse", "HEAD"], { cwd: root }).trim();
-  const admitInventory = (cache?: RoadmapInventory) => {
+  const admitInventory = async (cache?: RoadmapInventory) => {
     const cost = cache ? discoveryInventoryCost(cache) : { requests: 1, bytes: 1 };
     // Leave enough existing capacity to restore prepared and publish a bounded
     // receipt/diagnostic if preflight cannot fit; this is not a usage reset.
-    budget.admit(cost.requests + 12, cost.bytes + 2 * 1024 * 1024);
+    await budget.admit(cost.requests + 12, cost.bytes + 2 * 1024 * 1024);
   };
   const bridge = new HostedIntakeBridge(
     client,
+    { project, repository },
     head,
-    (repo) => investigateDiscoveryUpstream({ api, budget, http: project, save }, repo),
+    async (repo) => await investigateDiscoveryUpstream({ sdk: project, budget, http, save }, repo),
     save,
     admitInventory,
     admitInventory,
   );
-  const initialize = () => {
-    const resources = object(object(api.request("GET", "rate_limit").body).resources);
+  const settleAdmission = async () => {
+    const failures = await budget.drain();
+    if (failures.length) {
+      try {
+        save(
+          "admission-cleanup",
+          failures.map((error) => sanitizeOperationError(error)),
+        );
+      } catch (error) {
+        console.error(JSON.stringify(sanitizeOperationError(error)));
+      }
+    }
+  };
+  const initialize = async () => {
+    const resources = object(object((await project.request("GET /rate_limit")).data).resources);
     for (const key of ["core", "graphql"]) {
       const rate = object(resources[key]);
       if (typeof rate.remaining !== "number" || typeof rate.reset !== "number")
@@ -1331,7 +1610,7 @@ async function main() {
       process.env.HOSTED_INTAKE_MODE === "probe" ||
       (isRecord(inputs) && inputs.mode === "probe")
     ) {
-      initialize();
+      await initialize();
       const issue = Number(
         process.env.HOSTED_INTAKE_PROBE || (isRecord(inputs) ? inputs.probe_issue : undefined),
       );
@@ -1344,16 +1623,19 @@ async function main() {
           run: process.env.GITHUB_RUN_ID,
           attempt: process.env.GITHUB_RUN_ATTEMPT,
         };
+        await settleAdmission();
         save("write-probe", result);
         console.log(JSON.stringify(result));
       } catch (error) {
+        await settleAdmission();
         save("write-probe", { status: "failed", head, error: sanitizeOperationError(error) });
         throw error;
       }
       return;
     }
-    const collected = collectHostedRequests(bridge, initialize);
+    const collected = await collectHostedRequests(bridge, initialize);
     if (collected.status === "held") {
+      await settleAdmission();
       save("summary", {
         status: "incomplete",
         head,
@@ -1389,6 +1671,7 @@ async function main() {
             return request;
           });
     const outcomes: {
+      counts?: ReturnType<typeof deliveryCounts>;
       request: number;
       status: string;
       continuation: string | null;
@@ -1396,10 +1679,13 @@ async function main() {
     }[] = [];
     for (const c of requests) {
       try {
-        await bridge.process(c, comments);
+        const receipt = await bridge.process(c, comments, {
+          resumeHolds: process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
+        });
         outcomes.push({
           request: c.id,
-          status: "complete",
+          status: receipt.status,
+          counts: deliveryCounts(receipt.delivery),
           continuation: null,
           progress: progress.get(c.id) ?? null,
         });
@@ -1407,7 +1693,7 @@ async function main() {
         let continuation = bridge.continuation(error);
         save(`failure-${c.id}`, sanitizeOperationError(error));
         try {
-          bridge.diagnostic(c, error, comments);
+          await bridge.diagnostic(c, error, comments);
         } catch (publication) {
           continuation = null;
           save(`publication-failure-${c.id}`, sanitizeOperationError(publication));
@@ -1420,7 +1706,8 @@ async function main() {
         });
       }
     }
-    const failed = outcomes.some((o) => o.status !== "complete");
+    const failed = outcomes.some((o) => o.status === "incomplete");
+    await settleAdmission();
     save("summary", {
       status: failed ? "incomplete" : "passed",
       head,
@@ -1429,11 +1716,13 @@ async function main() {
     });
     if (failed) process.exitCode = 1;
   } finally {
-    save("api-observations", api.observations);
+    await settleAdmission();
+    save("api-observations", budget.observations);
+    save("roadmap-observations", client.observations);
   }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  main().catch((error) => {
+  await main().catch((error) => {
     console.error(JSON.stringify(sanitizeOperationError(error)));
     process.exitCode = 1;
   });

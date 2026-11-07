@@ -195,3 +195,24 @@ void test("real worker exit/report/probe paths fail closed after a crash or sign
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+void test("complete with holds succeeds without an automatic continuation", () => {
+  const result = runHostedIntakePasses((pass) => {
+    assert.equal(pass, 1);
+    return {
+      status: "passed",
+      requests: 1,
+      outcomes: [
+        {
+          request: 42,
+          status: "complete_with_holds",
+          continuation: null,
+          progress: null,
+          counts: { delivered: 1, existing: 0, held: 1, pending: 1 },
+        },
+      ],
+    };
+  });
+  assert.equal(result.status, "passed");
+  assert.equal(result.outcomes[0]?.counts?.held, 1);
+});

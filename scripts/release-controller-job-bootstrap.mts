@@ -1,3 +1,4 @@
+import { readControllerNodeFile } from "./release-controller-tools.mts";
 /** Builtins-only source entry into the one fixed attested complete-job bundle. */
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -7,11 +8,11 @@ import {
   receiveControllerTools,
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
-import { readControllerToolFile } from "./release-controller-tools.mts";
 import { requireControllerJobSourceConfiguration } from "./release-authority-configuration.mts";
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 function positive(raw: unknown) {
   if (
     typeof raw !== "string" ||
@@ -54,6 +55,16 @@ export function assertControllerBootstrapEnvironment(environment: NodeJS.Process
     );
 }
 export async function launchFixedControllerJob(rawOperation: unknown) {
+  if (process.env.PORTCOVE_STORAGE_APP_TOKEN) {
+    const directory = process.env.RUNNER_TEMP;
+    if (!directory || !path.isAbsolute(directory))
+      throw new Error("clean fixed controller runtime required");
+    return withReadOnlyReleaseChildren(directory, () => launchControllerWorker(rawOperation));
+  }
+  return launchControllerWorker(rawOperation);
+}
+
+async function launchControllerWorker(rawOperation: unknown) {
   const environment = { ...process.env };
   if (
     ![
@@ -101,10 +112,9 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
     run_id: environment.GITHUB_RUN_ID ?? "",
     run_attempt: Number(environment.GITHUB_RUN_ATTEMPT),
   };
-  const deadline = currentControllerJobDeadline(
+  const deadline = await currentControllerJobDeadline(
     rawOperation,
     identity,
-    fileURLToPath(new URL("..", import.meta.url)),
     performance.now() + 570000,
   );
   const artifact = {
@@ -125,8 +135,8 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
     source.recheck();
     const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
     if (
-      sha(await readControllerToolFile(process.execPath)) !==
-      sha(await readControllerToolFile(tools.node))
+      sha(await readControllerNodeFile(process.execPath)) !==
+      sha(await readControllerNodeFile(tools.node))
     )
       throw new Error("actual job Node differs from attested executable");
     const entry = tools.entries["release-controller-job"];

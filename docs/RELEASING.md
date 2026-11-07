@@ -1,6 +1,86 @@
 # Releasing Portcove
 
+Start with [Release task order](#release-task-order) for reusable instructions.
+The [upstream-first integration record](#upstream-first-release-integration)
+retains dated rehearsal inputs, failures and limits; it does not grant a new run
+or publication. Live scope and remaining acceptance belong to the owning issues.
+
+## Release task order
+
+Use this route for the exact candidate and platforms being claimed. The current
+[Slice 4 producer, activation and storage holds](#inactive-slice-4-input-integration)
+and [protected tag/publication boundaries](#roadmap-readiness-snapshot) remain
+effective. Preparation, a successful rehearsal and an ordinary merge each retain
+their own scope; publication requires its existing explicit authority.
+
+The first public beta application release is Windows x86-64 only at the existing
+supported Windows/WebView2 baseline. Follow the
+[Windows/shared release boundary](DELIVERY.md#first-public-beta-host-boundary).
+Linux remains planned for a subsequent beta; retain its implementation, metadata
+and completed/unfinished evidence without requiring an unshipped Linux or macOS
+application artifact for this launch. Shared checks keep their appropriate hosts.
+The implemented `initial-beta-windows-x86_64-v1` reusable qualification profile
+has [explicit producer and consumer requirements](QUALITY.md#staged-audit-receipts).
+Its selection does not qualify actual candidate bytes or authorize publication.
+The `full` and historical `initial-beta-win-linux` paths retain their broader
+obligations.
+
+### Preflight
+
+Establish the [frozen source and input identities](#frozen-source-consistency)
+and the applicable [readiness record](#roadmap-readiness-snapshot). For Windows,
+follow [Windows preflight](#windows-preflight); the
+[isolated installer checks](#isolated-windows-installer-checks) explain its
+expected lifecycle evidence. Retain a failed command's output and owned evidence
+before diagnosing or repeating that step.
+
+### Build matrix
+
+Use the [declared package matrix](#declared-package-policy) for the required
+Desktop and standalone CLI outputs by operating system and processor.
+[Tagged build](#tagged-build) explains the actual producers, native Intel
+verification, checksum reconciliation, SBOM and draft assembly. The separate
+[release rehearsal](#release-rehearsal) exercises packaging without creating a
+tag, attestation or release. Each claimed platform keeps its own
+[upgrade acceptance](#upgrade-acceptance-and-technical-previews) and
+[signing/trust requirements](UPDATER-TRUST.md#owners-and-independent-trust-claims).
+Linux packages retain their [package-manager or AppImage ownership](UPGRADING.md#linux-package-choice).
+
+### Publish
+
+Follow the [frozen candidate's authorization boundaries](#roadmap-readiness-snapshot)
+and [draft review steps](#release-rehearsal). Review the tag build's exact assets,
+notes, checksums, channel and evidence before separately authorized publication;
+rehearsal bytes do not certify a later build. Then complete
+[public asset and attestation verification](#post-publication-verification-and-release-channels).
+Existing published releases and historical manifests remain unchanged.
+
+### Retain evidence
+
+Keep the linked [pre-publication snapshot and execution record](#roadmap-readiness-snapshot):
+exact source, run and attempt, package digests, selected platform observations,
+required check results, failures and limitations. Installer/session receipts
+retain their [process and preservation observations](#isolated-windows-installer-checks).
+Follow the existing [attempt-artifact retention and custody rules](#tagged-build);
+expiry is not proof of successor custody or free capacity. For retained native
+inputs, use the [verification evidence store](DEVELOPMENT-STORAGE.md#retained-verification-evidence).
+
+The existing [installed Windows update and staging-recovery guide](media/application-update/README.md)
+contains authentic test-build media and its exact receipt. The
+[first-launch guide](media/first-play/README.md) records a separate Windows
+development-build game journey. Their build, environment, input and observation
+limits remain attached to those guides; neither is qualification of a new
+release or a production update feed.
+
 ## Upstream-first release integration
+
+### November 4, 2026 rehearsal record
+
+The following records the rehearsal state and instructions at the inspected
+revision. Retain its exact sources, run identities, failures and constraints.
+Consult [#534](https://github.com/boburning/portcove/issues/534) for current
+production ownership and authorized continuation; this dated record does not
+schedule or authorize another execution.
 
 The November3 #534 reset retains Tauri NSIS packaging, detached payload verification,
 the authenticated TUF format and the installed updater. Native Actions jobs,
@@ -37,7 +117,12 @@ their original runner, timestamps and steps. Counting both observations duplicat
 about60minutes; actual executed time including the14-second refusal is about61.2.
 The original failures, certificates, signed bytes and baseline remain retained.
 
-The current `upstream-release-rehearsal.yml` is a **fixed public-only diagnostic
+The r5 replay is retired. Its immutable source and failure evidence remain
+available, and #534's maintained application qualification owns the unfinished
+uninstall-preservation and final public readback checks.
+[Recorded retirement decision](https://github.com/boburning/portcove/issues/4319#issuecomment-6699780365).
+
+The retired `upstream-release-rehearsal.yml` was a **fixed public-only diagnostic
 continuation** at `refs/tags/portcove-upstream-rehearsal-20261104r5`. It cannot build
 payloads or predecessors, generate signing keys, write a release or deploy a feed.
 It reuses the exact original r2 artifacts, manifest, acceptance certificate, public
@@ -109,72 +194,6 @@ no production unpause, private credential import, new App/key custody, account/T
 activation or announcement. Complete existing-key production joins and retire the
 superseded active machinery only through the qualified replacement and existing
 authority. Preserve old journals, immutable artifacts and failures.
-
-## Release task order
-
-Use this route for the exact candidate and platforms being claimed. The current
-[Slice 4 producer, activation and storage holds](#inactive-slice-4-input-integration)
-and [protected tag/publication boundaries](#roadmap-readiness-snapshot) remain
-effective. Preparation, a successful rehearsal and an ordinary merge each retain
-their own scope; publication requires its existing explicit authority.
-
-The first public beta application release is Windows x86-64 only at the existing
-supported Windows/WebView2 baseline. Follow the
-[Windows/shared release boundary](DELIVERY.md#first-public-beta-host-boundary).
-Linux remains planned for a subsequent beta; retain its implementation, metadata
-and completed/unfinished evidence without requiring an unshipped Linux or macOS
-application artifact for this launch. Shared checks keep their appropriate hosts.
-The additive `initial-beta-windows-x86_64-v1` profile must be delivered through
-the existing machinery and qualified on actual candidate bytes before use; this
-document does not claim it is implemented or authorize publication. The `full`
-and historical `initial-beta-win-linux` paths remain explicit broader profiles.
-
-### Preflight
-
-Establish the [frozen source and input identities](#frozen-source-consistency)
-and the applicable [readiness record](#roadmap-readiness-snapshot). For Windows,
-follow [Windows preflight](#windows-preflight); the
-[isolated installer checks](#isolated-windows-installer-checks) explain its
-expected lifecycle evidence. Retain a failed command's output and owned evidence
-before diagnosing or repeating that step.
-
-### Build matrix
-
-Use the [declared package matrix](#declared-package-policy) for the required
-Desktop and standalone CLI outputs by operating system and processor.
-[Tagged build](#tagged-build) explains the actual producers, native Intel
-verification, checksum reconciliation, SBOM and draft assembly. The separate
-[release rehearsal](#release-rehearsal) exercises packaging without creating a
-tag, attestation or release. Each claimed platform keeps its own
-[upgrade acceptance](#upgrade-acceptance-and-technical-previews) and
-[signing/trust requirements](UPDATER-TRUST.md#owners-and-independent-trust-claims).
-Linux packages retain their [package-manager or AppImage ownership](UPGRADING.md#linux-package-choice).
-
-### Publish
-
-Follow the [frozen candidate's authorization boundaries](#roadmap-readiness-snapshot)
-and [draft review steps](#release-rehearsal). Review the tag build's exact assets,
-notes, checksums, channel and evidence before separately authorized publication;
-rehearsal bytes do not certify a later build. Then complete
-[public asset and attestation verification](#post-publication-verification-and-release-channels).
-Existing published releases and historical manifests remain unchanged.
-
-### Retain evidence
-
-Keep the linked [pre-publication snapshot and execution record](#roadmap-readiness-snapshot):
-exact source, run and attempt, package digests, selected platform observations,
-required check results, failures and limitations. Installer/session receipts
-retain their [process and preservation observations](#isolated-windows-installer-checks).
-Follow the existing [attempt-artifact retention and custody rules](#tagged-build);
-expiry is not proof of successor custody or free capacity. For retained native
-inputs, use the [verification evidence store](DEVELOPMENT-STORAGE.md#retained-verification-evidence).
-
-The existing [installed Windows update and staging-recovery guide](media/application-update/README.md)
-contains authentic test-build media and its exact receipt. The
-[first-launch guide](media/first-play/README.md) records a separate Windows
-development-build game journey. Their build, environment, input and observation
-limits remain attached to those guides; neither is qualification of a new
-release or a production update feed.
 
 ## Inactive Slice 4 input integration
 
@@ -551,6 +570,16 @@ independently supplied public-key file. Both operations require `--label`,
 Only verification accepts `--version` to check a historical fixture explicitly.
 Inventories are evidence, not trust roots or executable feeds. Altered/rebuilt
 packages require new verification and cannot inherit previous package evidence.
+
+When changing the release-tools CLI grammar or error output, run
+`just test-rust -p portcove-release-tools --test cli` against the built binary.
+The [CLI contract tests](../crates/portcove-release-tools/tests/cli.rs) cover
+help, argument refusal, and the lowercase `usage: portcove-release-tools`
+marker expected by the no-argument controller probes. Review output and exit
+status against the [Linux probe](../scripts/qualify-controller-tool-build.mts)
+and [Windows probe](../scripts/qualify-controller-tools-windows.mts). The
+[controller tool build fixture](../.github/workflows/controller-tool-build-fixture.yml)
+exercises the packaged binary on both platforms.
 
 `scripts/reconstruct-application-update-records.mts` is the offline bridge from
 those verified inventories to the application record schema. It accepts a bounded
@@ -1238,6 +1267,49 @@ recovery remains required for the retained broader profile and subsequent Linux
 release. The existing canonical owner packet binds the final reviewed
 controller, configuration and exact protected grant before use.
 
+### Dedicated fixed-job storage credential
+
+The selected `three-app-fixed-jobs-v1` authority kind retains full schema4 and
+journal schema3, with exactly three distinct App/installation pairs. It adds
+`journal.apps.storage_writer` and `journal.storage_setup_plan_sha256`; the latter
+binds the separately approved storage amendment. The original
+`journal.setup_plan_sha256` and exact empty seed remain unchanged. Full and
+journal kinds must agree. Historical two-App and legacy profiles retain their
+existing closed contracts; missing fields cannot select a weaker fallback.
+
+The storage App has Contents write/Metadata read for this repository only. Its
+provider token is repository-wide, not branch-scoped. Exact UPDATE bypass rules
+appoint it only on the input-store and namespace coordinator-state branches;
+creation, deletion and non-fast-forward retention have no bypass. Fresh isolated
+observer collection must prove the actual journal policy as well as the existing
+input/pause policy. Retention protection alone cannot satisfy this path.
+
+Each fixed writer obtains its token only after original source/job/phase
+admission and binds the actual App and installation outputs. The token remains
+separate from job/read/effect credentials. The maintained checkpoint adapter
+retains exact object/OID/CAS/deadline limits, including its auxiliary intent and
+proof refs; classification Check reads use the job token. Private keys stay in
+the fixed mint Action. Candidate, native, signing and reviewer children receive
+no storage credential. Missing or mixed credentials refuse without ambient or
+legacy fallback. Minted tokens use the Action's positive post-job cleanup.
+
+The setup-only `storage_writer` role requests only Contents write/Metadata read
+and uses its appointed loopback callback. It retains one operational RSA key in
+a distinct create-only private staging slot; filtered response receipts omit the
+PEM, unused OAuth/webhook secrets and callback code. Seal the key into the
+existing encrypted vault and ciphertext backup, verify only its new-key restore,
+and positively clean its private staging before activation. Full installation
+observation mints an unfiltered Metadata-read token solely to prove the complete
+repository selection. The new role omits that token from retention and requires
+acknowledged revocation, with a90-second observation/30-second cleanup reserve
+inside the original120-second setup bound. Existing two-role ceremonies remain
+consumed; no old key/account setup is repeated.
+
+Source installation supplies no provider enforcement, credential, signing or
+execution acceptance. Complete credential-free inner/outer setup probing before
+private registration/import, preserve the live journal and completed custody
+ceremonies, and retain the original production pause/activation prerequisites.
+
 ### Durable local coordinator checkpoints
 
 The [coordinator and initial empty-feed implementation receipt](qualification/slice4-534-coordinator-and-initial-feed-2026-10-20.md)
@@ -1565,8 +1637,8 @@ selected objects before downloading and again before aggregate creation. Run
 identity and selected artifact metadata must remain unchanged. Run-level API
 objects still leave original producer jobs and attempts unknown.
 
-`scripts/github-binary.mts` pins transport to `github.com` and enforces byte and
-time limits in the subprocess before returning opaque bytes. Release downloads
+`scripts/github-artifact-download.mts` uses the scoped SDK for GitHub artifact
+lookup and streams the approved delivery with byte and deadline checks. Release downloads
 are bounded by their accepted byte counts, at most 512 MiB each, 2 GiB in total,
 and 120 seconds per download. Collection and assembly have a cooperative
 15-minute overall deadline. Audit reuse shares this transport while retaining
@@ -1740,6 +1812,7 @@ the association controls, not cryptographic or hosted attestation success.
 
 ### Read-only release-run evidence
 
+With the checkout’s frozen Node dependencies installed,
 `node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only
 API evidence for an exact completed current `Release` run and attempt. The
 request contains only schema version `1`, numeric `repository_id`, `run_id` and
@@ -1748,8 +1821,8 @@ hexadecimal digests (40, 40 and 64 characters). It verifies the commit/tree and
 workflow source bytes at that commit, reads every job page for that attempt and
 every artifact page for the run, then rechecks current run identity. A changed
 attempt, missing page, inconsistent total, duplicate identity or exhausted
-bound refuses the receipt. Bounds are 1,600 records per inventory, 40 GET
-requests, 120 seconds and 2 MiB per API reply.
+bound refuses the receipt. Bounds are 1,600 records per inventory, 40 dispatched
+GET attempts including retries, 120 seconds and 2 MiB per API reply.
 
 `node scripts/release-run-evidence.mts REQUEST.json ARTIFACT_ID RETAINED_FILE`
 also compares an already retained opaque file with that artifact's current
@@ -1757,10 +1830,10 @@ provider digest and exact byte count. Missing, expired or undigested artifacts
 refuse before file I/O. One regular-file handle streams at most 512 MiB using a
 64 KiB buffer plus a one-byte growth probe, checks mutation and SHA-256, then
 refreshes the complete API evidence and refuses changed run/artifact identity.
-Both collections and file comparison share a 40-request cap and cooperative
-120-second receipt/refusal deadline. An in-flight bounded `gh` call may finish
-after the deadline; filesystem I/O has no hard cancellation. This is not a
-process-termination guarantee. The receipt includes both complete API receipts
+Both collections and file comparison share the 40-attempt cap and original
+120-second deadline. The SDK applies that deadline to retry waits and response
+reads. Filesystem I/O is checked cooperatively before further work and before
+returning the receipt. The receipt includes both complete API receipts
 and their digests so its byte/metadata binding remains reviewable; it does not download, parse, extract
 or execute them. Provider upload size and digest describe the uploaded object
 in [GitHub's artifact uploader](https://github.com/actions/toolkit/blob/main/packages/artifact/src/internal/upload/upload-artifact.ts),
@@ -1842,6 +1915,16 @@ names and version/format mismatches, and produces the final inventory plus one
 public `SHA256SUMS.txt`. Filename checks identify the expected package; the
 extracted executable inspection is the practical architecture evidence for the
 CLI. Desktop runtime and installed-package qualification remain separate.
+
+## Windows application cutover
+
+The held `application-release.yml` workflow qualifies the Windows x86-64
+application and stages the replacement production path. Qualification binds
+the exact workflow, source, run attempt and Windows packaging evidence.
+Production requires a separately appointed protected control ref, active
+configuration, spending appointment and unpaused publication. The existing
+`release.yml` tag and report-repair entry points stay in service through
+qualification and cutover review.
 
 ## Windows preflight
 
@@ -2529,8 +2612,16 @@ its new complete hosted artifact and consolidated job wiring remain pending.
 Secret jobs must launch the authenticated bundle rather than install checkout
 dependencies or execute the unbundled entry. No role settings are activated.
 
-The dependency-free `release-controller-tool-launch.mts` implements that initial
-payload entry. It authenticates the tool artifact with the existing receiver,
+The current fixed workflow provisions the locked clock dependency before
+role credentials and obtains the original job deadline through the scoped SDK.
+Protected jobs then invoke their authenticated tool bundle. The
+[SDK source inventory](evidence/github-sdk-source-inventory-2026-11-04.md)
+tracks retained runtime and launcher retirement with #534.
+
+The earlier payload launcher contract remains in
+`release-controller-tool-launch.mts`. Its early clock is dependency-free.
+The current tool receiver uses the SDK for positive artifact acquisition.
+The launcher authenticates the tool artifact with the existing receiver,
 requires the running Node bytes to match the authenticated executable and imports
 only the fixed manifest-owned signing-controller bundle. That bundle performs
 its own actual receiver check to establish its module-private custody; no brand

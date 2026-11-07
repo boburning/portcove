@@ -34,7 +34,7 @@
         },
         {
           "title": "Review launch details, then choose Play",
-          "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
+          "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review the launch details, add the game, then choose Play. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
         },
         {
           "title": "Preserve the full creating runtime and every data root",

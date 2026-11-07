@@ -218,6 +218,7 @@ export function useOperationState(configuration: {
             event.parent_operation_id === null &&
             !record.context.activityId
           ) {
+            // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
             record = { ...record, context: { ...record.context, activityId: event.operation_id } };
             updateInvocations((current) => new Map(current).set(pendingId, record));
           }

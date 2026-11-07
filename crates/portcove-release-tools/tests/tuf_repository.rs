@@ -55,6 +55,15 @@ impl TestKey {
 }
 
 async fn write_root(directory: &Path, offline: &[TestKey], top: &[TestKey]) -> PathBuf {
+    write_root_with_threshold(directory, offline, top, 2).await
+}
+
+async fn write_root_with_threshold(
+    directory: &Path,
+    offline: &[TestKey],
+    top: &[TestKey],
+    threshold: u64,
+) -> PathBuf {
     let mut root = Root {
         spec_version: "1.0.0".into(),
         consistent_snapshot: true,
@@ -77,7 +86,7 @@ async fn write_root(directory: &Path, offline: &[TestKey], top: &[TestKey]) -> P
         RoleType::Root,
         RoleKeys {
             keyids: root_ids,
-            threshold: NonZeroU64::new(2).unwrap(),
+            threshold: NonZeroU64::new(threshold).unwrap(),
             _extra: HashMap::new(),
         },
     );
@@ -101,7 +110,11 @@ async fn write_root(directory: &Path, offline: &[TestKey], top: &[TestKey]) -> P
     let signed = SignedRole::new(
         root.clone(),
         &KeyHolder::Root(root),
-        &[offline[0].source(), offline[1].source()],
+        &offline
+            .iter()
+            .take(threshold as usize)
+            .map(TestKey::source)
+            .collect::<Vec<_>>(),
         &SystemRandom::new(),
     )
     .await

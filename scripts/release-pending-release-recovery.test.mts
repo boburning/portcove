@@ -5,6 +5,8 @@ import { artifactName } from "./release-package-policy.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
+import { downloadGitHubReleaseAsset } from "./github-artifact-download.mts";
+import type { GitHubAttemptObservation } from "./github-client.mts";
 import {
   capacityDigest as digest,
   inspectCapacityOperation,
@@ -27,9 +29,92 @@ import {
   planPendingReleaseAssets,
   observePendingCandidateRelease,
 } from "./release-pending-release-recovery.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { ImmutableReleaseMetadataProvider } from "./release-custody-provider.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const base = "repos/boburning/portcove";
+void test("locked release asset SDK accepts bounded direct bytes or anonymous signed bytes", async () => {
+  const token = "ghs_candidate_asset_fixture";
+  const bytes = new Uint8Array([0xff, 0x00, 0x80, 0x10]);
+  const origin = "https://release-assets.githubusercontent.com";
+  const delivery = `${origin}/github-production-release-asset-2e65be/123/456?sig=fixture`;
+  for (const mode of ["direct", "redirect", "unsafe", "oversize", "short", "stalled"] as const) {
+    const observations: GitHubAttemptObservation[] = [];
+    let signed = 0;
+    let lookup = 0;
+    let directSignal: AbortSignal | null | undefined;
+    const fetcher: typeof globalThis.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      if (url.origin === "https://api.github.com") {
+        lookup++;
+        directSignal = init?.signal;
+        assert.equal(url.pathname, `/${base}/releases/assets/700`);
+        assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+        assert.equal(new Headers(init?.headers).get("accept"), "application/octet-stream");
+        assert.equal(init?.redirect, "manual");
+        if (mode === "redirect" || mode === "unsafe")
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location:
+                mode === "redirect" ? delivery : "https://untrusted.example/path?sig=fixture",
+            },
+          });
+        if (mode === "stalled")
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(bytes.subarray(0, 1));
+              },
+            }),
+          );
+        return new Response(
+          mode === "oversize" ? new Uint8Array(5) : mode === "short" ? bytes.subarray(0, 2) : bytes,
+        );
+      }
+      assert.equal(url.href, delivery);
+      assert.equal(init?.redirect, "manual");
+      assert.equal(new Headers(init?.headers).has("authorization"), false);
+      signed++;
+      return new Response(bytes);
+    };
+    const keepAlive = setTimeout(() => {}, 2000);
+    try {
+      const read = downloadGitHubReleaseAsset(700, {
+        credential: { kind: "explicit", token },
+        deadline: performance.now() + (mode === "stalled" ? 250 : 5000),
+        maxBytes: 4,
+        fetch: fetcher,
+        lookup: {
+          reserve: () => ({
+            consumeBytes() {},
+            settle: (observation) => observations.push(observation),
+          }),
+        },
+      });
+      if (mode === "direct" || mode === "redirect")
+        assert.deepEqual(await read, Buffer.from(bytes));
+      else
+        await assert.rejects(read, {
+          code: {
+            unsafe: "redirect_refused",
+            oversize: "response_limit",
+            short: "invalid_response",
+            stalled: "deadline_exceeded",
+          }[mode],
+        });
+    } finally {
+      clearTimeout(keepAlive);
+    }
+    assert.equal(lookup, 1);
+    assert.equal(signed, mode === "redirect" ? 1 : 0);
+    assert.equal(observations.length, 1);
+    assert.equal(observations[0]?.dispatched, true);
+    assert.equal(observations[0]?.headers.location, undefined);
+    if (mode === "direct") assert.equal(observations[0]?.bytes, 4);
+    if (mode === "stalled") assert.equal(directSignal?.aborted, true);
+  }
+});
+
 const candidate = {
   phase: "publishing",
   version: "0.1.0-beta.1",
@@ -123,33 +208,40 @@ function fixture() {
   let present = true,
     tagCommit = candidate.prepared_commit;
   const requests: string[] = [];
-  const api: GitHubRestReader = {
-    request(method, endpoint) {
-      assert.equal(method, "GET");
-      requests.push(endpoint);
-      if (endpoint === `${base}/releases?per_page=100&page=1`)
-        return { status: 200, body: present ? [release] : [], headers: new Map() };
-      if (endpoint.startsWith(`${base}/git/ref/tags/`))
-        return {
-          status: 200,
-          body: {
-            ref: `refs/tags/v${candidate.version}`,
-            object: { type: "commit", sha: tagCommit },
-          },
-          headers: new Map(),
-        };
-      if (endpoint === `${base}/releases/321/assets?per_page=100&page=1`)
-        return { status: 200, body: assets, headers: new Map() };
-      if (endpoint === `${base}/releases/321`)
-        return { status: 200, body: release, headers: new Map() };
-      assert.fail(`unexpected GET ${endpoint}`);
+  const metadata: ImmutableReleaseMetadataProvider = {
+    async releases(page) {
+      assert.equal(page, 1);
+      requests.push("releases");
+      return present ? [release] : [];
+    },
+    async versionTag(tag) {
+      assert.equal(tag, `v${candidate.version}`);
+      requests.push("tag");
+      return {
+        kind: "present",
+        data: { ref: `refs/tags/${tag}`, object: { type: "commit", sha: tagCommit } },
+      };
+    },
+    async annotatedTag() {
+      assert.fail("unexpected annotated tag");
+    },
+    async releaseAssets(id, page) {
+      assert.equal(id, 321);
+      assert.equal(page, 1);
+      requests.push("assets");
+      return assets;
+    },
+    async release(id) {
+      assert.equal(id, 321);
+      requests.push("detail");
+      return release;
     },
   };
   return {
     expected,
     release,
     assets,
-    api,
+    metadata,
     sbom,
     requests,
     absent: () => {
@@ -213,9 +305,9 @@ void test("original failed publisher can be read back only after its exact fixed
     assert.throws(() => inspectPendingReleaseProducer(run, run, changed, op));
   assert.throws(() => inspectPendingReleaseProducer({ ...run, actor: { id: 999 } }, run, job, op));
 });
-void test("raw custody reader is closed and GET-only without inventing unknown document bytes", () => {
+void test("raw custody reader is closed and GET-only without inventing unknown document bytes", async () => {
   const f = fixture();
-  const result = readImmutableReleaseCustodyState(f.api, {
+  const result = await readImmutableReleaseCustodyState(f.metadata, {
     version: candidate.version,
     source_commit: candidate.prepared_commit,
     asset_names: f.assets.map((entry) => entry.name),
@@ -227,8 +319,8 @@ void test("raw custody reader is closed and GET-only without inventing unknown d
     ["same", "SAME"],
     Array.from({ length: 33 }, (_, i) => `asset${i}`),
   ])
-    assert.throws(() =>
-      readImmutableReleaseCustodyState(f.api, {
+    await assert.rejects(() =>
+      readImmutableReleaseCustodyState(f.metadata, {
         version: candidate.version,
         source_commit: candidate.prepared_commit,
         asset_names: names,
@@ -240,16 +332,16 @@ void test("positive create/upload/publish readback yields data-only exact effect
   const read = () => f.sbom;
   for (const suffix of ["create-draft", "upload:Portcove.exe", "upload:Portcove-SBOM.spdx.json"]) {
     const op = inspectPendingCandidateReleaseOperation(operation(suffix), candidate);
-    const before = await observePendingCandidateRelease(f.api, op, f.expected, read);
+    const before = await observePendingCandidateRelease(f.metadata, op, f.expected, read);
     assert.equal(before.authority, "none");
     f.assets[0]!.download_count++;
-    const after = await observePendingCandidateRelease(f.api, op, f.expected, read);
+    const after = await observePendingCandidateRelease(f.metadata, op, f.expected, read);
     assert.equal(digest(before.projection), digest(after.projection));
   }
   f.release.draft = false;
   f.release.immutable = true;
   const op = inspectPendingCandidateReleaseOperation(operation("publish"), candidate);
-  const result = await observePendingCandidateRelease(f.api, op, f.expected, read);
+  const result = await observePendingCandidateRelease(f.metadata, op, f.expected, read);
   assert.match(result.remote_identity, /:immutable:/);
   const retained = {
     ...op,
@@ -261,7 +353,7 @@ void test("positive create/upload/publish readback yields data-only exact effect
   f.assets[0]!.id += 100;
   f.assets[0]!.url = `https://api.github.com/${base}/releases/assets/${f.assets[0]!.id}`;
   await assert.rejects(
-    observePendingCandidateRelease(f.api, retained, f.expected, read),
+    observePendingCandidateRelease(f.metadata, retained, f.expected, read),
     /identity changed/,
   );
 });
@@ -270,13 +362,13 @@ void test("absent SBOM length stays unknown for draft custody and cannot complet
   f.assets.pop();
   const unavailable = () => assert.fail("missing SBOM has no downloadable length or byte claim");
   const create = inspectPendingCandidateReleaseOperation(operation("create-draft"), candidate);
-  const result = await observePendingCandidateRelease(f.api, create, f.expected, unavailable);
+  const result = await observePendingCandidateRelease(f.metadata, create, f.expected, unavailable);
   assert.equal(result.projection.assets.length, 3);
   f.release.draft = false;
   f.release.immutable = true;
   const publish = inspectPendingCandidateReleaseOperation(operation("publish"), candidate);
   await assert.rejects(
-    observePendingCandidateRelease(f.api, publish, f.expected, unavailable),
+    observePendingCandidateRelease(f.metadata, publish, f.expected, unavailable),
     /missing mandatory|prior asset identity changed/,
   );
 });
@@ -335,9 +427,15 @@ void test("journal pins exact original provider object/preimage, and legacy miss
   f.release.id = 322;
   f.release.url = `https://api.github.com/${base}/releases/322`;
   f.release.upload_url = `https://uploads.github.com/${base}/releases/322/assets{?name,label}`;
-  const remapped: GitHubRestReader = {
-    request(method, endpoint) {
-      return f.api.request(method, endpoint.replace("/releases/322", "/releases/321"));
+  const remapped: ImmutableReleaseMetadataProvider = {
+    ...f.metadata,
+    async releaseAssets(id, page) {
+      assert.equal(id, 322);
+      return f.metadata.releaseAssets(321, page);
+    },
+    async release(id) {
+      assert.equal(id, 322);
+      return f.metadata.release(321);
     },
   };
   await assert.rejects(
@@ -422,8 +520,8 @@ void test("missing, partial, wrong bytes and changed tag never become no-effect 
     if (selected === "wrong-digest") f.assets[0]!.digest = `sha256:${"f".repeat(64)}`;
     const read = () => (selected === "wrong-sbom-bytes" ? Buffer.from("tampered") : f.sbom);
     const op = inspectPendingCandidateReleaseOperation(operation(suffix), candidate);
-    await assert.rejects(observePendingCandidateRelease(f.api, op, f.expected, read));
-    assert.ok(f.requests.length > 0); // The fake API itself rejects every non-GET.
+    await assert.rejects(observePendingCandidateRelease(f.metadata, op, f.expected, read));
+    assert.ok(f.requests.length > 0);
   }
 });
 void test("copied context/Tough claims cannot derive pending Release expectations", async () => {
@@ -453,18 +551,30 @@ void test("source-bound coordinator pending continuation verifies custody then r
     settlements = 0;
   const calls: string[] = [];
   const pending = inspectPendingCandidateReleaseOperation(operation("publish"), candidate);
+  const provider = Object.freeze({
+    async run() {
+      return { terminal: true };
+    },
+    async attempt() {
+      return { terminal: true };
+    },
+    async job() {
+      return { terminal: true };
+    },
+  });
+  const checkpointControls = async () => {};
+  const readReleaseAsset = async () => Buffer.alloc(0);
   const context = {
+    checkpointControls,
+    readReleaseAsset,
     pendingRelease: pending,
     context: {},
     publication: {},
     toolsReceipt: {},
     active: candidate,
     deadline: 170000,
-    api: {},
+    metadata: provider,
     input: { repository: "bare", remote_configuration: {} },
-    directory: "private",
-    environment: {},
-    base,
     executor: {},
     assert,
     digest,
@@ -476,12 +586,18 @@ void test("source-bound coordinator pending continuation verifies custody then r
     guard: async () => {
       calls.push("fresh-controls-current-CP");
     },
-    get: () => ({ terminal: true }),
     inspectPendingReleaseProducer: () => ({ original: true }),
     requireRetainedActualTufPublication: async () => {
       calls.push("retained-Tough");
     },
-    observePendingCandidateRelease: async () => {
+    observePendingCandidateRelease: async (
+      metadata: unknown,
+      _operation: unknown,
+      _expected: unknown,
+      read: unknown,
+    ) => {
+      assert.equal(metadata, provider);
+      assert.equal(read, readReleaseAsset);
       observations++;
       calls.push("GET-only-observation");
       if (mode === "missing") throw new Error("missing original target");
@@ -495,7 +611,11 @@ void test("source-bound coordinator pending continuation verifies custody then r
       _executor: unknown,
       input: { checkpoint: string },
       readback: (raw: unknown) => Promise<unknown>,
+      beforeMutation: unknown,
+      controls: unknown,
     ) => {
+      assert.equal(beforeMutation, undefined);
+      assert.equal(controls, checkpointControls);
       calls.push("actual-coordinator-exclusive-recovery");
       assert.equal(input.checkpoint, "before");
       const result = await readback(

@@ -234,6 +234,44 @@ void test("identity and exact-head violations reject or leave the fast lane", ()
   assert.equal(classify({ pull: { base: { sha: base, ref: "release" } } }).verdict, "reject");
 });
 
+void test("CLI tools stay controlled while runtime and type libraries retain eligibility", () => {
+  const files = [
+    { filename: "apps/desktop/package.json", status: "modified" },
+    { filename: "pnpm-lock.yaml", status: "modified" },
+  ];
+  for (const [currentVersion, newVersion, updateType] of [
+    ["1.84.0", "1.84.1", "patch"],
+    ["1.84.0", "1.85.0", "minor"],
+  ] as const) {
+    const result = classify({
+      files,
+      pull: {
+        body: body({
+          packageName: "i18next-cli",
+          dependencyType: "devDependencies",
+          currentVersion,
+          newVersion,
+          updateType,
+        }),
+      },
+    });
+    assert.equal(result.verdict, "manual-review-required");
+    assert.equal(result.reason, "executable tool updates require controlled review");
+  }
+  for (const [packageName, dependencyType, currentVersion, newVersion] of [
+    ["i18next", "dependencies", "26.7.1", "26.7.2"],
+    ["@types/react", "devDependencies", "19.3.0", "19.3.1"],
+  ] as const) {
+    assert.equal(
+      classify({
+        files,
+        pull: { body: body({ packageName, dependencyType, currentVersion, newVersion }) },
+      }).verdict,
+      "metadata-required",
+    );
+  }
+});
+
 void test("grouped security pre-1.0 major and configured ecosystem updates stay manual", () => {
   const second = body({ packageName: "other", currentVersion: "2.0.0", newVersion: "2.0.1" })
     .split("\n")
@@ -739,4 +777,37 @@ void test("optional bot debug metadata fails closed and update hints require act
       .upstream_issue,
     null,
   );
+});
+
+void test("strict SemVer and stable forward eligibility through the fast-lane classifier", () => {
+  for (const [currentVersion, newVersion, updateType, eligible] of [
+    ["1.2.3", "1.2.4", "patch", true],
+    ["v1.2.3", "v1.3.0", "minor", true],
+    ["1.2.3+old.01", "1.2.4+new.02", "patch", true],
+    ["1.2.3", "1.3.0+build", "minor", true],
+    ["01.2.3", "1.2.4", "patch", false],
+    ["1.2.3", "1.02.4", "patch", false],
+    ["1.2.3", "1.2.04", "patch", false],
+    ["1.2.3+foo..bar", "1.2.4", "patch", false],
+    ["1.2.3", "1.2.4+foo..bar", "patch", false],
+    ["1.2.3", "1.2.4+", "patch", false],
+    ["1.2", "1.2.4", "patch", false],
+    ["=1.2.3", "1.2.4", "patch", false],
+    ["1.2.3-beta", "1.2.4", "patch", false],
+    ["1.2.3", "1.3.0-rc.1", "minor", false],
+    ["1.2.3+one", "1.2.3+two", "patch", false],
+    ["1.2.3", "1.2.3", "patch", false],
+    ["1.2.3", "1.2.2", "patch", false],
+    ["1.2.3", "1.1.9", "minor", false],
+    ["1.2.3", "2.0.0", "minor", false],
+    ["1.2.3", "1.3.0", "patch", false],
+    ["1.2.3", "1.2.4", "minor", false],
+    ["1.2.3", "9007199254740992.0.0", "minor", false],
+  ] as const) {
+    assert.equal(
+      classify({ pull: { body: body({ currentVersion, newVersion, updateType }) } }).verdict,
+      eligible ? "metadata-required" : "manual-review-required",
+      `${currentVersion} -> ${newVersion} (${updateType})`,
+    );
+  }
 });

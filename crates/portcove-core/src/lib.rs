@@ -2,6 +2,8 @@ mod activity_diagnostics;
 mod adapter;
 mod application_runtime;
 mod archive;
+mod archive_data;
+mod archive_data_transition;
 mod artwork;
 mod artwork_image;
 mod artwork_ingestion;
@@ -211,7 +213,7 @@ pub use game_recommendations::{
 pub use game_settings::{
     GameSetting, GameSettingChange, GameSettingChoice, GameSettingReview, GameSettingType,
     GameSettingView, GameSettingsContract, GameSettingsFile, GameSettingsFileView,
-    GameSettingsFormat, GameSettingsRelease, GameSettingsView,
+    GameSettingsFormat, GameSettingsRelease, GameSettingsView, inspect_game_settings_qualification,
 };
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
 pub use gitlab::GitlabReleaseProvider;
@@ -272,13 +274,15 @@ pub use retained_build::{
 };
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionDestinationPreview, AdoptionPreview,
-    AdoptionSkippedEntry, BackupAction, BackupActionPreview, CatalogDownloadAssetId,
+    AdoptionSkippedEntry, AdvisoryApplicability, BackupAction, BackupActionPreview,
+    CapabilityAdvisory, CapabilityFeature, CapabilityMode, CatalogDownloadAssetId,
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRelease, CatalogDownloadReleaseId,
     CatalogDownloadRequest, CatalogForeignAssetId, CatalogForeignReleaseId,
     CatalogPackageAssessment, IdentifiedLaunchRequest, InstallOverrides, InstallationProtection,
     ManagedRouteChangePreview, ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState,
-    PlayerDataProtection, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
+    PlayerDataProtection, PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport,
+    PortCapabilityRoute, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
     SetupLaunchTarget, SetupLaunchTargets,
 };
 pub use signed_catalog::{

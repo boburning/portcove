@@ -1,5 +1,7 @@
 import {
   projectListingObservation,
+  projectGitLabListingObservation,
+  listingProviderIdentity,
   listingObservationReleaseIds,
   listingProjectionHash,
   listingDeclarationHash,
@@ -15,8 +17,15 @@ import {
   observationHash,
   ObservationFailure,
   validateObserverConfig,
+  checksumSourcesFromProjections,
 } from "./upstream-observer.mts";
-import type { ObserverConfig, ObserveOptions, ProviderObservation } from "./upstream-observer.mts";
+import type {
+  ChecksumSource,
+  ObserverGitHubScope,
+  ObserverConfig,
+  ObserveOptions,
+  ProviderObservation,
+} from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
 
 export interface ObservablePort {
@@ -41,6 +50,8 @@ interface SelectionProgress {
   cursor: number;
   release_ids: number[];
   sha256: string;
+  checksum_sources?: ChecksumSource[];
+  checksum_sources_sha256?: string;
 }
 interface PolicyProgress {
   binding: string;
@@ -168,34 +179,22 @@ export function catalogObservationSources(input: unknown) {
     )
       throw new Error("Listing observation requires unique stable identities");
     listingIds.add(listing.id);
-    let url: URL;
-    try {
-      url = new URL(
-        typeof listing.release_url === "string" ? listing.release_url : String(listing.project_url),
-      );
-    } catch {
+    const identity = listingProviderIdentity(listing);
+    if (!identity) {
+      held.push({
+        port_id: listing.id,
+        reason: "listing-provider-observation-unsupported",
+        resume_condition:
+          "Provide a reviewed supported GitHub/GitLab repository identity; no release absence or acquisition authority is inferred.",
+      });
+      seen.add(listing.id);
       continue;
     }
-    const match =
-      /^\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:\/releases(?:\/.*)?)?\/?$/u.exec(
-        url.pathname,
-      );
-    if (
-      url.protocol !== "https:" ||
-      url.hostname !== "github.com" ||
-      url.username ||
-      url.password ||
-      url.port ||
-      url.search ||
-      url.hash ||
-      !match
-    )
-      continue;
-    const repository = `${match[1]}/${match[2]}`;
-    const key = observationHash({ provider: "github", repository });
+    const { provider, repository } = identity;
+    const key = observationHash({ provider, repository });
     const source: ObservableSource = sources.get(key) ?? {
       key,
-      provider: "github",
+      provider,
       repository,
       ports: [],
       scope_sha256: "",
@@ -394,6 +393,15 @@ export function validateCatalogObserverCheckpoint(
         throw new Error("Invalid Core continuation binding");
       if (key === "selection_progress") {
         if (
+          progress.checksum_sources !== undefined &&
+          (!Array.isArray(progress.checksum_sources) ||
+            progress.checksum_sources_sha256 !== observationHash(progress.checksum_sources) ||
+            observationHash(
+              checksumSourcesFromProjections([{ checksum_sources: progress.checksum_sources }]),
+            ) !== progress.checksum_sources_sha256)
+        )
+          throw new Error("Invalid Core checksum continuation");
+        if (
           !Number.isSafeInteger(progress.cursor) ||
           Number(progress.cursor) < 0 ||
           !Array.isArray(progress.release_ids) ||
@@ -418,17 +426,19 @@ export function validateCatalogObserverCheckpoint(
 type SourceResult = Awaited<ReturnType<typeof advanceObservation>>;
 export interface CatalogObservationOptions extends Pick<
   ObserveOptions,
-  "fetch" | "signal" | "sleep" | "token"
+  "fetch" | "signal" | "sleep" | "token" | "githubScope"
 > {
   now?: () => number;
   deadline?: number;
   excludedSources?: ReadonlySet<string>;
+  prioritizeConfigured?: boolean;
   providerFetch?: typeof fetch;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
     source: ObservableSource,
     observations: Record<string, unknown>[],
     policies: unknown[],
+    report?: { exception: { rule: string } },
   ) => Promise<void>;
   config: ObserverConfig;
   policyIdentity: string;
@@ -485,6 +495,11 @@ export async function advanceCatalogObservations(
       "Normalized current Core definition or descriptive declaration identities are required",
     );
   const deadline = Math.min(now() + template.budget.duration_ms, options.deadline ?? Infinity);
+  const githubScope: ObserverGitHubScope = options.githubScope ?? {
+    deadline: performance.now() + Math.max(0, deadline - now()),
+    failedReads: new Map(),
+    deferral: { primary: new Map(), secondary: 0 },
+  };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
   const scopeBinding = (source: ObservableSource) =>
@@ -542,6 +557,13 @@ export async function advanceCatalogObservations(
   const attempted: string[] = [];
   const completed: string[] = [];
   const failures: { source: string; repository: string; rule: string; details: string }[] = [];
+  const isConfigured = (source: (typeof sources)[number]) =>
+    source.repository === template.repository &&
+    source.ports.some((port) => port.id === template.port_id);
+  const configuredTurn = (source: (typeof sources)[number]) =>
+    options.prioritizeConfigured === true &&
+    isConfigured(source) &&
+    state.sources[source.key]?.attempted_sequence !== state.sequence;
   const pending = sources
     .filter((source) => {
       if (options.excludedSources?.has(source.key)) return false;
@@ -555,10 +577,13 @@ export async function advanceCatalogObservations(
           (!progress.retry_at || Date.parse(progress.retry_at) <= now()))
       );
     })
+    // Give the configured source an early turn without taking consecutive
+    // turns away from the catalog when hosted opportunities are short.
     .sort(
       (a, b) =>
-        (state.sources[a.key]?.attempted_sequence ?? state.sequence) -
-          (state.sources[b.key]?.attempted_sequence ?? state.sequence) ||
+        Number(configuredTurn(b)) - Number(configuredTurn(a)) ||
+        (state.sources[a.key]?.attempted_sequence ?? -1) -
+          (state.sources[b.key]?.attempted_sequence ?? -1) ||
         a.key.localeCompare(b.key),
     );
   const capacity = () =>
@@ -662,6 +687,7 @@ export async function advanceCatalogObservations(
       !freshOfflineCandidate
     )
       continue;
+    const firstConfiguredTurn = index === 0 && configuredTurn(source);
     operationBytes = 0;
     const progress = state.sources[source.key] ?? {
       provider: source.provider ?? "github",
@@ -755,7 +781,7 @@ export async function advanceCatalogObservations(
             },
             project: async (portId, observation) => {
               const port = source.ports.find((consumer) => consumer.id === portId)!;
-              if (!options.projectProvider)
+              if (port.kind !== "listing" && !options.projectProvider)
                 throw new ObservationFailure(
                   "core-provider-capability",
                   "Provider Core projection capability is unavailable",
@@ -780,7 +806,25 @@ export async function advanceCatalogObservations(
                 retained.format === 2
               )
                 return retained;
-              const policy = await options.projectProvider(portId, observation);
+              const projected =
+                port.kind === "listing"
+                  ? projectGitLabListingObservation(
+                      port.listing!,
+                      observation,
+                      template.stale_after_hours,
+                    )
+                  : await options.projectProvider!(portId, observation);
+              const policy =
+                port.kind !== "listing" && port.listing && source.provider === "gitlab"
+                  ? {
+                      ...(projected as Record<string, unknown>),
+                      listing_update: projectGitLabListingObservation(
+                        port.listing,
+                        observation,
+                        template.stale_after_hours,
+                      ).listing_update,
+                    }
+                  : projected;
               if (
                 !isRecord(policy) ||
                 policy.format !== 2 ||
@@ -865,6 +909,23 @@ export async function advanceCatalogObservations(
           rule,
           details: error instanceof Error ? error.message : "Provider operation failed",
         });
+        if (source.ports.some((port) => port.listing) && options.exportProvider) {
+          try {
+            await options.exportProvider(source, [], progress.last_complete_policies, {
+              exception: { rule },
+            });
+          } catch (handoffError) {
+            failures.push({
+              source: source.key,
+              repository: source.repository,
+              rule: "provider-failure-handoff",
+              details:
+                handoffError instanceof Error
+                  ? handoffError.message
+                  : "Provider failure handoff unavailable",
+            });
+          }
+        }
         if (
           rule === "budget" &&
           before !==
@@ -877,9 +938,7 @@ export async function advanceCatalogObservations(
       continue;
     }
     try {
-      const legacy =
-        source.repository === template.repository &&
-        source.ports.some((port) => port.id === template.port_id);
+      const legacy = isConfigured(source);
       if (
         legacy &&
         progress.repository_id !== null &&
@@ -979,14 +1038,77 @@ export async function advanceCatalogObservations(
           await options.commit(structuredClone(state));
           coreProgress++;
         }
-        policies.push(...pendingPolicies.policies);
+        policies.splice(0, policies.length, ...pendingPolicies.policies);
         return policies[source.ports.findIndex((port) => port.id === config.port_id)];
       };
       let sourceRequests = 0;
+      const available = capacity();
+      const fairShare = Math.floor(available / (pending.length - index));
+      // Give the configured source room to collect or revalidate a page set
+      // on its first turn, while reserving at least half the estimated capacity
+      // for other sources. Every request still passes the shared admission.
+      const collectionShare = firstConfiguredTurn
+        ? Math.min(template.budget.pages_per_collection, Math.floor(available / 2))
+        : 0;
       const quantum = Math.max(
         1,
-        Math.min(template.budget.requests, Math.floor(capacity() / (pending.length - index))),
+        Math.min(template.budget.requests, Math.max(fairShare, collectionShare)),
       );
+      const selectAssetReleases = async (headers: ProviderObservation) => {
+        if (
+          progress.selection_progress?.binding !== binding ||
+          progress.selection_progress.facts_sha256 !== headers.facts_sha256 ||
+          progress.selection_progress.checksum_sources === undefined
+        )
+          progress.selection_progress = {
+            binding,
+            facts_sha256: headers.facts_sha256,
+            cursor: 0,
+            release_ids: [],
+            sha256: observationHash([]),
+            checksum_sources: [],
+            checksum_sources_sha256: observationHash([]),
+          };
+        const selection = progress.selection_progress;
+        if (
+          selection.cursor > source.ports.length ||
+          selection.sha256 !== observationHash(selection.release_ids) ||
+          selection.release_ids.some(
+            (id) => !headers.facts.releases.some((release) => release.id === id),
+          )
+        )
+          throw new ObservationFailure(
+            "invalid-checkpoint",
+            "Continued Core selection differs from exact policy or release headers",
+          );
+        const candidates = new Set(selection.release_ids);
+        for (let index = selection.cursor; index < source.ports.length; index++) {
+          const port = source.ports[index]!;
+          const policy = await projectBound(port, config.repository_id, scoped(headers, port.id));
+          if (port.listing)
+            for (const id of listingObservationReleaseIds(headers)) candidates.add(id);
+          for (const projection of policy.projections as unknown[]) {
+            if (
+              isRecord(projection) &&
+              port.channels.includes(String(projection.channel)) &&
+              isRecord(projection.channel_candidate) &&
+              Number.isSafeInteger(projection.channel_candidate.id)
+            )
+              candidates.add(Number(projection.channel_candidate.id));
+          }
+          selection.checksum_sources = checksumSourcesFromProjections([
+            { checksum_sources: selection.checksum_sources },
+            ...(policy.projections as unknown[]),
+          ]);
+          selection.checksum_sources_sha256 = observationHash(selection.checksum_sources);
+          selection.release_ids = [...candidates].sort((a, b) => a - b);
+          selection.sha256 = observationHash(selection.release_ids);
+          selection.cursor = index + 1;
+          await options.commit(structuredClone(state));
+          coreProgress++;
+        }
+        return selection.release_ids;
+      };
       const result = await options.withSourceLock(config, async () => {
         const priorSource = decodeStoredObserverCheckpoint(
           await options.load(config),
@@ -1011,6 +1133,7 @@ export async function advanceCatalogObservations(
         const result = await advanceObservation(config, priorSource, {
           deadline,
           ...(options.fetch ? { fetch: options.fetch } : {}),
+          githubScope,
           ...(options.token ? { token: options.token } : {}),
           ...(options.signal ? { signal: options.signal } : {}),
           ...(options.sleep ? { sleep: options.sleep } : {}),
@@ -1029,56 +1152,10 @@ export async function advanceCatalogObservations(
           },
           observeResponse,
           consumeResponseBytes,
-          selectAssetReleases: async (headers) => {
-            if (
-              progress.selection_progress?.binding !== binding ||
-              progress.selection_progress.facts_sha256 !== headers.facts_sha256
-            )
-              progress.selection_progress = {
-                binding,
-                facts_sha256: headers.facts_sha256,
-                cursor: 0,
-                release_ids: [],
-                sha256: observationHash([]),
-              };
-            const selection = progress.selection_progress;
-            if (
-              selection.cursor > source.ports.length ||
-              selection.sha256 !== observationHash(selection.release_ids) ||
-              selection.release_ids.some(
-                (id) => !headers.facts.releases.some((release) => release.id === id),
-              )
-            )
-              throw new ObservationFailure(
-                "invalid-checkpoint",
-                "Continued Core selection differs from exact policy or release headers",
-              );
-            const candidates = new Set(selection.release_ids);
-            for (let index = selection.cursor; index < source.ports.length; index++) {
-              const port = source.ports[index]!;
-              const policy = await projectBound(
-                port,
-                config.repository_id,
-                scoped(headers, port.id),
-              );
-              if (port.listing)
-                for (const id of listingObservationReleaseIds(headers)) candidates.add(id);
-              for (const projection of policy.projections as unknown[]) {
-                if (
-                  isRecord(projection) &&
-                  port.channels.includes(String(projection.channel)) &&
-                  isRecord(projection.channel_candidate) &&
-                  Number.isSafeInteger(projection.channel_candidate.id)
-                )
-                  candidates.add(Number(projection.channel_candidate.id));
-              }
-              selection.release_ids = [...candidates].sort((a, b) => a - b);
-              selection.sha256 = observationHash(selection.release_ids);
-              selection.cursor = index + 1;
-              await options.commit(structuredClone(state));
-              coreProgress++;
-            }
-            return selection.release_ids;
+          selectAssetReleases,
+          selectChecksumSources: async (observation) => {
+            await selectAssetReleases(observation);
+            return progress.selection_progress!.checksum_sources!;
           },
           project: projectAll,
           commitContinuation: (checkpoint) => options.save(config, checkpoint),

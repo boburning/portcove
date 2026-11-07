@@ -77,6 +77,31 @@ impl PortcoveService {
         })
     }
 
+    /// Read-only native-qualification locations from the same retained settings
+    /// context used by the actual editor. This grants no additional write paths.
+    #[cfg(any(test, feature = "qualification-fixtures"))]
+    pub fn inspect_settings_qualification_scope(&self, port_id: &str) -> Result<serde_json::Value> {
+        let _ownership = self
+            .library
+            .try_lock_port(port_id, "inspect-settings-qualification")?;
+        let context = self.settings_context_already_locked(port_id)?;
+        let descriptor =
+            context.port.game_settings.as_ref().ok_or_else(|| {
+                PortcoveError::unsupported("retained settings declaration is absent")
+            })?;
+        Ok(serde_json::json!({
+            "install_id": context.install.id,
+            "definition_sha256": hex::encode(Sha256::digest(serde_json::to_vec(&context.port)?)),
+            "files": descriptor.files.iter().map(|file| serde_json::json!({
+                "file_id": file.id,
+                "path": file.path,
+                "canonical_path": self.library.user_dir(&context.port.id).join(&file.path),
+                "runtime_path": (!context.direct).then(|| context.runtime_root.join(&file.path)),
+            })).collect::<Vec<_>>(),
+            "authority": "read-only retained qualification scope; no publication or execution authority",
+        }))
+    }
+
     pub fn get_game_settings(&self, port_id: &str) -> Result<GameSettingsView> {
         let _ownership = self.library.try_lock_port(port_id, "read-game-settings")?;
         let context = match self.settings_context_already_locked(port_id) {

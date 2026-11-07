@@ -1,5 +1,10 @@
 # Architecture
 
+For a change, start at [Find the owning boundary](#find-the-owning-boundary),
+then read the affected subsystem. Core owns durable policy; adapters and
+presentation consume it. Detailed implementation and dated evidence below retain
+their stated scopes; live acceptance belongs to the owning issue.
+
 Library collection layout is a profile-local React preference scoped by the
 canonical library browsing key. `useCollectionLayout` owns covers/rows persistence
 separately from existing browsing envelopes. Invalid/missing values start at
@@ -146,6 +151,21 @@ adapter names. `not_checked` source metadata permits review or a Core-guarded tr
 it does not establish original-byte identity or compatibility.
 
 ## Discovery listings and user-owned setup
+
+`service/capabilities.rs` aggregates existing operation and listing assessments
+into an inert per-route feature report. Its cheap workspace projection performs
+no additional filesystem, settings, backup or provider reads. Focused detail
+reuses the existing backup/protection and retained settings services and checks
+installation identity again before returning. CLI and the generation-bound Tauri
+adapter expose the same report. Desktop route presentation keeps managed setup,
+accepted-package registration and explicit existing-copy selection distinct;
+installed Play and pending setup retain their own owners and priority.
+
+Optional recommendation observations and descriptive listing advisories never
+grant operations, change recommendation choice or refresh history. Missing or
+malformed advice cannot override an otherwise permitted action. A manual update
+route and external backup exclusion describe management ownership, not gameplay
+failure or the game's ability to save.
 
 Upstream observation, metadata eligibility, accepted artifact integrity,
 published definition, installed operability and qualification at a stated scope
@@ -1522,24 +1542,33 @@ Make such changes as one reviewed migration: explain the pressure and tradeoffs 
 
 In this document, “thin adapter” means that the CLI and desktop do not reimplement catalog, installation, release, source, or library policy. Adapters may own concerns that exist only at their boundary, including argument and IPC translation, native dialogs, credential-store access, process attachment, and presentation-shaped aggregation. If a boundary concern becomes reusable domain behavior, move it behind the shared authority instead of copying it.
 
-Repository-owned Node tools are migrating from `scripts/github-api.mts` to
-one credential-scoped Octokit factory in `scripts/github-client.mts`.
+Repository-owned Node tools use the credential-scoped Octokit factory in
+`scripts/github-client.mts`.
 The configured SDK owns bounded metadata transport, attempt accounting and
 request evidence. Pure error/result shaping lives in `github-operation.mts`;
 `github-cli.mts` owns eligible local credential resolution and retained bounded
 attestation verification. These modules cannot depend on domain tooling.
 
 The `capture-port` production REST inventory/intake path and ordinary Aqua,
-handoff, postmerge, repository-settings and CI-health metadata readers use this asynchronous boundary.
-Other callers temporarily retain the legacy transport while #4319 migrates their
-families. Existing artifact-byte acquisition remains separately bounded. Domain
-owners retain authorization, cache eligibility, completeness, reconciliation and
-release policy. SDK endpoint types do not replace runtime validation.
+handoff, postmerge, repository-settings, CI-health and advisory PR readers use
+this asynchronous boundary. Roadmap inventories/mutations, body edits, PR delivery,
+source provenance, discovery and upstream preparation now use it as well.
+Release callers use it for journal, run, artifact and publication metadata.
+Fixed workflow operations use a separately configured pinned action. The
+[dated source inventory](evidence/github-sdk-source-inventory-2026-11-04.md)
+tracks the remaining appointed and held legacy users. Bounded byte transfers
+retain their separate owners. Domain owners retain authorization, cache eligibility,
+completeness, reconciliation, runtime validation and release policy.
 
 Automation-facing operations retain their versioned result envelopes and
 sanitized errors. Project mutations remain quota-aware and readback-gated;
 ambiguous writes produce recovery evidence rather than automatic replay. The
 migration grants no publication or activation authority.
+
+Core sends GitHub metadata and device requests through Octocrab over its
+configured reqwest clients. The separate device client is anonymous. Core
+enforces the metadata body limit and operation deadlines, owns credential and
+cache transitions, and applies its existing separate download policy.
 
 The CLI's schema module assembles the transport schema inventory from existing
 Rust `JsonSchema`/Serde definitions. Explicit input and output contracts use
@@ -2476,7 +2505,7 @@ existing crate dependency rules remain unchanged.
 
 Before launch, catalog-declared persistent paths are synchronized from `user/<port-id>/` into the active version. They are collected from that exact launched version when the child exits and before update, staged activation, rollback, removal, or backup. Synchronization refuses symlink destinations and ancestors. A per-version marker prevents a fresh release's defaults from replacing established user data while still recovering changes after an abnormal exit. Adapters may also use an upstream storage contract: Libultraship receives `SHIP_HOME`, N64 recomp releases get their upstream-supported `portable.txt` marker, and a reviewed catalog entry can declare a portable marker beside its executable together with a narrowly validated source-import variable and fixed arguments. Mutable paths are resolved against the same working directory the adapter launches, including when a release archive contains a wrapper directory.
 
-Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. A scan admits at most 4,096 directory entries and 1,024 matching regular files; links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 5 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, records the qualified target platform and each immutable file's executable intent, and rejects changed rules or permissions during import. Schema 2-4 manifests remain readable without silently acquiring executable metadata they never recorded. Signed catalog delivery keeps persistence rules frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
+Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. Embedded persistent patterns can explicitly match an empty interior. Indexed definitions and disposable runtime patterns keep the existing nonempty interior contract. A scan admits at most 4,096 directory entries and 1,024 matching regular files; links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 5 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, records the qualified target platform and each immutable file's executable intent, and rejects changed rules or permissions during import. Schema 2-4 manifests remain readable without silently acquiring executable metadata they never recorded. Signed catalog delivery keeps persistence rules frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
 
 Catalog `runtime_mutable_file_patterns` reuses that anchored filename syntax for narrowly reviewed, disposable files created inside the managed runtime working directory. Core projects both pattern classes into the existing manifest `mutable_file_patterns`, with their separately resolved directories, so immutable verification has one fail-closed matching boundary. Only `persistent_file_patterns` participates in enumeration, backup, restore and migration; runtime-only matches never become player-data ownership. Catalog validation refuses unsupported adapters, overlapping declarations, executables, source materialization, Portcove metadata, exact runtime paths and persistent data, while manifest construction and import repeat the resolved executable/runtime checks. An absent field preserves prior catalog serialization and existing manifest schemas require no new authority. External per-user paths remain outside this contract.
 
@@ -3468,6 +3497,15 @@ directly, and the former root `use-portcove.ts` compatibility module is removed
 without a re-export. None of this shell state is persisted or authoritative for
 domain behavior.
 
+Source inspection uses the workspace's QueryClient for result, error, loading
+state and in-flight sharing. Disabled query observers never start native work on
+mount, focus, reconnect or invalidation. Explicit requests use zero stale time,
+no retries and zero inactive retention; keys bind profile, hook lifetime and a
+fresh registration/catalog/selection baseline identity. Retiring a baseline
+removes its queries; abort checks reject frontend continuation after native IPC
+completes, without claiming native cancellation. Verification retains its
+separate operation and latest-request ownership.
+
 The `features/source-health` read owner records each requested saved-file
 inspection as idle, pending, current, failed or cancelled. Mounting, selection
 and automatic workspace refresh leave content inspection idle; the user starts a
@@ -3579,7 +3617,25 @@ backup creation, launch preparation, activation, rollback and removal collect
 launched working data before replacing or removing it. An existing non-directory
 `Save` root on either side holds the operation without overwriting it. Ordinary
 changed regular save bytes retain normal synchronization and safety-backup rules.
-This bounded compatibility repair does not qualify another release or platform.
+That exact exception continues to read historical manifests. New official
+Shipwright stable Windows 9.x portable ZIP installations retain
+`windows_shipwright_persistence` and use the same checked working-directory
+mirrors for settings and saves. The retained declaration applies only to the
+Windows route. Core validates the stable release and portable asset family
+before acquisition, stages before activation, and refuses overlaps with
+immutable archive members or incompatible data paths. The launch working
+directory and `SHIP_HOME` agree for this route. Independent definitions require
+Libultraship template capability version 3. Existing direct-storage installs
+retain their creating contracts. A transition between different storage modes
+holds the current installation for supported data migration.
+
+The stable Windows rule reflects the upstream portable setup and same-folder
+upgrade contract and the measured 9.3.0 and 9.3.1 working-directory behavior.
+Core retains the exact archive identity for every install. Another major,
+preview build or nonportable package requires separate data review. Mirroring
+randomizer files preserves bytes. Upstream does not guarantee that older seeds
+run on a newer build. [Windows setup](https://www.shipofharkinian.com/setup-guide/windows)
+and [upstream upgrade guide](https://www.shipofharkinian.com/setup-guide/update).
 
 ZIP readers bound metadata before constructing the parser: cartridge sources allow 1 GiB, 4,096 entries and 16 MiB of metadata; file-set ZIPs allow 2 GiB with the same entry and metadata limits; artifacts allow 8 GiB, 100,000 entries and 128 MiB of metadata; runtime archives allow 64 GiB, 4,096 entries and 16 MiB of metadata. A bounded immutable metadata window gates the pinned ZIP parser, including ZIP64 extension allocation. Selected source ZIPs use private temporary snapshots for payload and identity reads. Discovery can reject incomplete member inventories before creating a full snapshot. Direct file sets bound each selected member to 512 MiB and aggregate reads to 2 GiB. Preparation checkpoints reach every verification pass; cancellation retains worker ownership until reads and decoders stop.
 
@@ -3743,7 +3799,7 @@ acceptance.
 
 Settings > Library & storage owns one Library recovery composition: prepare a
 manual recovery copy, checked restore, and Move as distinct tasks. The guide links
-to Tasks & history and each installed entry’s existing Saves and storage page;
+to Activity’s Tasks and History sections and each installed entry’s existing Saves and storage page;
 only that page’s current Core assessment grants save-backup eligibility. An empty
 or idle Activity view cannot prove process quiescence. Export metadata after
 applicable backups; then close games, Portcove and all other clients before copying.

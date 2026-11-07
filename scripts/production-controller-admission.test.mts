@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import filesystem from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
+import { Octokit } from "@octokit/core";
 import { parse } from "yaml";
 import {
   admitProductionController,
@@ -288,40 +290,61 @@ void test("hosted native parent default path retains original source and issuer 
     ),
   );
   const sourceRequests: string[] = [];
+  const catalog = sourceInputs.get(nativeCompatibilitySourcePaths[2])!;
+  const catalogBlob = createHash("sha1")
+    .update(Buffer.from(`blob ${catalog.length}\0`))
+    .update(catalog)
+    .digest("hex");
+  let catalogBlobReads = 0;
+
   let tokenCalls = 0,
     metadataCalls = 0;
-  t.mock.method(globalThis, "fetch", async (endpoint: string | URL | Request) => {
-    const endpointUrl = endpoint instanceof Request ? endpoint.url : endpoint.toString();
-    if (endpointUrl.includes("/.well-known/jwks"))
-      return new Response(JSON.stringify({ keys: [jwk] }));
-    assert.equal(
-      new URL(endpointUrl).searchParams.get("audience"),
-      "portcove-hosted-native-linux-v1",
-    );
-    tokenCalls++;
-    return new Response(JSON.stringify({ value: good.token }));
-  });
   t.mock.method(
-    childProcess,
-    "spawnSync",
-    (
-      command: string,
-      args: readonly string[],
-      options: Parameters<typeof good.transport.spawn>[2],
-    ) => {
-      metadataCalls++;
-      assert.equal(options?.env?.GH_TOKEN, "inert-reader-only");
-      for (const key of ["ACTIONS_ID_TOKEN_REQUEST_TOKEN", "PORTCOVE_SEMANTIC_APP_KEY"])
-        assert.equal(options?.env?.[key], undefined);
-      const endpoint = args.find((value) => value.startsWith("repos/boburning/portcove/contents/"));
-      if (endpoint) {
-        sourceRequests.push(endpoint);
-        const pathname = endpoint
-          .slice("repos/boburning/portcove/contents/".length)
-          .split("?ref=")[0]!;
+    globalThis,
+    "fetch",
+    async (endpoint: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(endpoint instanceof Request ? endpoint.url : endpoint.toString());
+      if (url.origin === "https://api.github.com") {
+        const prefix = "/repos/boburning/portcove/contents/";
+        assert.equal(init?.method, "GET");
+        const headers = new Headers(init?.headers);
+        assert.equal(headers.get("authorization"), "token inert-reader-only");
+        if (url.pathname.startsWith("/repos/boburning/portcove/actions/")) {
+          assert.equal(init?.redirect, "manual");
+          const captured = readOnlyReleaseChildEnvironment();
+          assert.equal(captured?.GH_TOKEN, "inert-reader-only");
+          assert.equal(captured?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+          assert.equal(captured?.PORTCOVE_SEMANTIC_APP_KEY, undefined);
+          metadataCalls++;
+          return Response.json(good.metadata(url.pathname + url.search));
+        }
+
+        assert.equal(headers.get("x-github-api-version"), "2022-11-28");
+        if (url.pathname === `/repos/boburning/portcove/git/blobs/${catalogBlob}`) {
+          assert.equal(url.search, "");
+          catalogBlobReads++;
+          return Response.json({
+            sha: catalogBlob,
+            size: catalog.length,
+            encoding: "base64",
+            content: catalog.toString("base64"),
+          });
+        }
+        assert.ok(url.pathname.startsWith(prefix));
+        const pathname = decodeURIComponent(url.pathname.slice(prefix.length));
         const bytes = sourceInputs.get(pathname as (typeof nativeCompatibilitySourcePaths)[number]);
         assert.ok(bytes);
-        const body = {
+        sourceRequests.push(pathname + url.search);
+        if (pathname === nativeCompatibilitySourcePaths[2])
+          return Response.json({
+            type: "file",
+            path: pathname,
+            encoding: "none",
+            size: bytes.length,
+            content: "",
+            sha: catalogBlob,
+          });
+        return Response.json({
           type: "file",
           path: pathname,
           encoding: "base64",
@@ -331,18 +354,18 @@ void test("hosted native parent default path retains original source and issuer 
             .update(Buffer.from(`blob ${bytes.length}\0`))
             .update(bytes)
             .digest("hex"),
-        };
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-          stderr: "",
-        } as ReturnType<typeof childProcess.spawnSync>;
+        });
       }
-      return good.transport.spawn(command, args, options) as ReturnType<
-        typeof childProcess.spawnSync
-      >;
+      if (url.pathname.includes("/.well-known/jwks"))
+        return new Response(JSON.stringify({ keys: [jwk] }));
+      assert.equal(url.searchParams.get("audience"), "portcove-hosted-native-linux-v1");
+      tokenCalls++;
+      return new Response(JSON.stringify({ value: good.token }));
     },
   );
+  t.mock.method(childProcess, "spawnSync", () => {
+    throw new Error("Hosted native parent identity must use the scoped SDK");
+  });
   syncBuiltinESMExports();
   const configured = JSON.stringify(configuration);
   const pending = createActualHostedNativeParentSource(
@@ -357,6 +380,23 @@ void test("hosted native parent default path retains original source and issuer 
   assert.equal(metadataCalls, 0);
   assert.deepEqual(await readdir(parent), []);
   process.env.PORTCOVE_RELEASE_AUTHORITIES = configured;
+  process.env.NODE_USE_ENV_PROXY = "1";
+  try {
+    await assert.rejects(
+      createActualHostedNativeParentSource(
+        parent,
+        "linux-x86_64",
+        "payload-signing",
+        performance.now() + 10000,
+      ),
+      /hosted native parent source refused/u,
+    );
+    assert.equal(tokenCalls, 1);
+    assert.equal(metadataCalls, 0);
+  } finally {
+    if (before.NODE_USE_ENV_PROXY === undefined) delete process.env.NODE_USE_ENV_PROXY;
+    else process.env.NODE_USE_ENV_PROXY = before.NODE_USE_ENV_PROXY;
+  }
   const receipt = await createActualHostedNativeParentSource(
     parent,
     "linux-x86_64",
@@ -364,6 +404,8 @@ void test("hosted native parent default path retains original source and issuer 
     performance.now() + 10000,
   );
   const actual = await requireActualHostedNativeParentSource(receipt);
+  assert.equal(tokenCalls, 2);
+  assert.equal(metadataCalls, 5);
   assert.equal(actual.producer.run_id, nativeIdentityExpected.run_id);
   assert.equal(actual.producer.run_attempt, 1);
   assert.equal(actual.producer.configuration_sha256, releaseCanonicalDigest(configuration));
@@ -421,7 +463,10 @@ void test("hosted native parent default path retains original source and issuer 
         if (outcome === "prior-hold")
           throw new CoordinatorRemoteError("hold", { phase: "repository-and-reservation" });
         await requireActualHostedNativeParentSource(originalParent);
-        assert.ok(options.retainDesktopPackage);
+        assert.equal(options.api, undefined);
+        assert.ok(options.nativeSource && options.retainDesktopPackage);
+        assert.equal(options.nativeSource.token, "inert-reader-only");
+        options.nativeSource.guard();
         await options.retainDesktopPackage(
           file,
           outcome === "bad-bytes" ? Buffer.from("changed") : packageBytes,
@@ -467,11 +512,11 @@ void test("hosted native parent default path retains original source and issuer 
   assert.equal(readOnlyReleaseChildEnvironment(), undefined);
   const declarations = await hostedCandidate.readActualHostedNativeSourceDeclarations(selected);
   assert.deepEqual(declarations.candidate, selectedValue.candidate);
+  assert.equal(catalogBlobReads, 1);
   assert.deepEqual(
     sourceRequests,
     nativeCompatibilitySourcePaths.map(
-      (pathname) =>
-        `repos/boburning/portcove/contents/${pathname}?ref=${selectedValue.candidate.source_commit}`,
+      (pathname) => `${pathname}?ref=${selectedValue.candidate.source_commit}`,
     ),
   );
   assert.equal(readOnlyReleaseChildEnvironment(), undefined);
@@ -1363,6 +1408,119 @@ const workflow = await readFile(
   "utf8",
 );
 
+void test("fixed pause step brackets the raw bounded document through locked Octokit", async () => {
+  const parsed = parse(workflow) as {
+    jobs: {
+      admission: { steps: { id?: string; uses?: string; with?: Record<string, unknown> }[] };
+    };
+  };
+  const pause = parsed.jobs.admission.steps.find((step) => step.id === "pause");
+  assert.equal(pause?.uses, "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3");
+  assert.equal(pause.with?.retries, 0);
+  assert.equal(pause.with?.debug, false);
+  const script = pause.with?.script;
+  assert.ok(typeof script === "string" && !script.includes("${{"));
+  const base = "https://api.github.com/repos/boburning/portcove";
+  const ref = "/git/ref/heads/portcove-release-pause";
+  const sha = "a".repeat(40);
+  for (const scenario of [
+    "paused",
+    "unpaused",
+    "changed",
+    "oversized",
+    "failed-body",
+    "redirect",
+  ]) {
+    const calls: string[] = [];
+    const outputs: unknown[] = [];
+    const execute = runInNewContext(`(async () => {${script}})()`, {
+      github: new Octokit({ auth: "inert" }),
+      core: { setOutput: (...values: unknown[]) => outputs.push(values) },
+      AbortSignal,
+      Response,
+      Buffer,
+      fetch: async (input: string, init: RequestInit) => {
+        const suffix = input.slice(base.length);
+        assert.equal(input, base + suffix);
+        assert.equal(init.redirect, "manual");
+        assert.equal(new Headers(init.headers).get("authorization"), "token inert");
+        calls.push(suffix);
+        if (suffix === ref)
+          return Response.json({
+            ref: "refs/heads/portcove-release-pause",
+            object: {
+              type: "commit",
+              sha: scenario === "changed" && calls.length === 3 ? "b".repeat(40) : sha,
+            },
+          });
+        assert.equal(suffix, `/contents/publication.json?ref=${sha}`);
+        assert.equal(new Headers(init.headers).get("accept"), "application/vnd.github.raw+json");
+        if (scenario === "redirect")
+          return new Response(null, {
+            status: 302,
+            headers: { location: "https://example.invalid/" },
+          });
+        if (scenario === "oversized") return new Response(" ".repeat(4097));
+        if (scenario === "failed-body")
+          return new Response(
+            new ReadableStream({
+              pull(controller) {
+                controller.error(new Error("raw provider exception"));
+              },
+            }),
+          );
+        return Response.json({ publication_paused: scenario !== "unpaused", schema_version: 1 });
+      },
+    }) as Promise<void>;
+    if (scenario === "paused" || scenario === "unpaused") {
+      await execute;
+      assert.deepEqual(outputs, [["publication_paused", String(scenario === "paused")]]);
+    } else {
+      await assert.rejects(
+        execute,
+        /Fixed publication pause read failed|Publication pause ref changed/u,
+      );
+      assert.deepEqual(outputs, []);
+    }
+    assert.deepEqual(calls, [
+      ref,
+      `/contents/publication.json?ref=${sha}`,
+      ...(["paused", "unpaused", "changed"].includes(scenario) ? [ref] : []),
+    ]);
+  }
+});
+
+void test("held receiver leaves both tool producers available and fences protected consumers", () => {
+  const { jobs } = parse(workflow) as {
+    jobs: Record<
+      string,
+      {
+        needs?: string | string[];
+        if?: string;
+        outputs?: Record<string, string>;
+      }
+    >;
+  };
+  assert.equal(
+    jobs.admission?.outputs?.publication_paused,
+    "${{ steps.pause.outputs.publication_paused }}",
+  );
+  assert.equal(jobs.tool_bootstrap?.needs, "admission");
+  assert.equal(jobs.tool_bootstrap_windows?.needs, "admission");
+  assert.match(
+    jobs.tool_attest?.if ?? "",
+    /needs\.admission\.outputs\.publication_paused == 'false'/u,
+  );
+  for (const name of ["classification_protection_observation", "classification_writer"]) {
+    assert.ok(jobs[name]?.needs?.includes("tool_attest"));
+    assert.doesNotMatch(jobs[name]?.if ?? "", /always\(\)|!cancelled\(\)/u);
+  }
+  for (const name of ["coordinator", "coordinator_protection_observation"]) {
+    assert.ok(jobs[name]?.needs?.includes("tool_attest"));
+    assert.match(jobs[name]?.if ?? "", /needs\.tool_attest\.result == 'success'/u);
+  }
+});
+
 void test("configured held workflow enforces bootstrap identities before checkout or any credential role", () => {
   const parsed = parse(workflow) as {
     env: Record<string, string>;
@@ -2079,11 +2237,12 @@ void test("Windows source bootstrap retains the existing bounded source authorit
   );
 });
 
-void test("native provider allocation comes only from the original branded workflow literal and preserves the provider start", async () => {
-  const { admittedNativeProviderMaximumMilliseconds: maximum, nativeOriginalJobDeadline } =
-    await import("./release-signing-job-budget.mts");
-  const { stripTypeScriptTypes } = await import("node:module"),
-    { runInNewContext } = await import("node:vm");
+void test("native provider allocation comes only from the original branded workflow literal and preserves the provider start", async (t) => {
+  const {
+    admittedNativeProviderMaximumMilliseconds: maximum,
+    nativeOriginalJobDeadline,
+    currentNativeJobDeadline,
+  } = await import("./release-signing-job-budget.mts");
   const currentIdentity = {
     run_id: "987654",
     run_attempt: 1,
@@ -2117,90 +2276,83 @@ void test("native provider allocation comes only from the original branded workf
       ),
     };
   };
-  const moduleText = await readFile(
-      new URL("./release-signing-job-budget.mts", import.meta.url),
-      "utf8",
-    ),
-    functions =
-      moduleText.slice(
-        moduleText.indexOf("function signingOriginalJobDeadline("),
-        moduleText.indexOf("export function tufOriginalJobDeadline("),
-      ) +
-      moduleText.slice(
-        moduleText.indexOf("function nativeClockRole("),
-        moduleText.indexOf("/** One original shared observer allocation"),
-      ),
-    program = stripTypeScriptTypes(
-      functions.replace(/^export /gmu, "") +
-        "\ncurrentNativeJobDeadline(selectedPlatform,identity,'fixed',processDeadline,receipt,workflowBytes)",
-      { mode: "transform" },
+  const prior = new Map<string, string | undefined>();
+  for (const [key, value] of Object.entries({
+    GITHUB_RUN_ID: currentIdentity.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: currentIdentity.controller_revision,
+    GITHUB_REF: currentIdentity.controller_ref,
+    GH_TOKEN: "inert-native-clock-reader",
+  })) {
+    prior.set(key, process.env[key]);
+    process.env[key] = value;
+  }
+  t.after(() => {
+    for (const [key, value] of prior) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  const providerStarted = Date.parse("2026-10-28T11:59:50Z");
+  let observedNow = providerStarted + 10000;
+  const mono = 1000;
+  t.mock.method(Date, "now", () => observedNow);
+  t.mock.method(performance, "now", () => mono);
+  let selected: "linux-x86_64" | "windows-x86_64" = "linux-x86_64";
+  let dispatches = 0;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    dispatches++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/987654/attempts/1/jobs");
+    assert.deepEqual(Object.fromEntries(url.searchParams), { page: "1", per_page: "100" });
+    assert.equal(
+      new Headers(init?.headers).get("authorization"),
+      "token inert-native-clock-reader",
     );
+    return Response.json({
+      total_count: 1,
+      jobs: [
+        {
+          id: 1,
+          name: hostedNativeJobProfile(selected).job,
+          run_id: 987654,
+          run_attempt: 1,
+          head_sha: policy.revision,
+          status: "in_progress",
+          started_at: new Date(providerStarted).toISOString(),
+        },
+      ],
+    });
+  });
   for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
     const job = productionHostedNativeJob(platform, "payload-signing");
     for (const minutes of [10, 25, 35]) {
       const f = fixture(platform, minutes);
       assert.equal(maximum(platform, f.source, f.bytes, currentIdentity), minutes * 60000 - 30000);
-      const now = Date.parse("2026-10-28T12:00:00Z"),
-        mono = 1000;
-      const inventory = {
-        total_count: 1,
-        jobs: [
-          {
-            id: 1,
-            name: hostedNativeJobProfile(platform).job,
-            run_id: 987654,
-            run_attempt: 1,
-            head_sha: policy.revision,
-            status: "in_progress",
-            started_at: new Date(now - 10000).toISOString(),
-          },
-        ],
-      };
-      let observedNow = now;
-      const sandbox = {
-        selectedPlatform: platform,
-        identity: currentIdentity,
-        processDeadline: 1e9,
-        receipt: f.source,
-        workflowBytes: f.bytes,
-        requireAdmittedProductionSource,
-        Buffer,
-        Uint8Array,
-        maximumProductionControllerWorkflowBytes,
-        createHash,
-        isRecord,
-        hostedNativeJobProfile,
-        Date: { now: () => observedNow, parse: Date.parse },
-        performance: { now: () => mono },
-        process: {
-          env: {
-            GITHUB_RUN_ID: "987654",
-            GITHUB_RUN_ATTEMPT: "1",
-            GITHUB_SHA: policy.revision,
-            GITHUB_REF: policy.execution_ref,
-          },
-        },
-        createGitHubRunner: () => () => {},
-        GitHubApiClient: class {
-          request() {
-            return { status: 200, body: inventory };
-          }
-        },
-      };
-      const first: unknown = runInNewContext(program, sandbox);
+      selected = platform;
+      observedNow = providerStarted + 10000;
+      const before = dispatches;
+      const first = await currentNativeJobDeadline(
+        platform,
+        currentIdentity,
+        1e9,
+        f.source,
+        f.bytes,
+      );
       assert.equal(first, mono + minutes * 60000 - 30000 - 10000);
       observedNow += 20000;
       assert.equal(
-        runInNewContext(program, sandbox),
-        Number(first) - 20000,
+        await currentNativeJobDeadline(platform, currentIdentity, 1e9, f.source, f.bytes),
+        first - 20000,
         "A later read cannot renew provider.started_at",
       );
-      sandbox.processDeadline = 1500;
       assert.equal(
-        runInNewContext(program, sandbox),
+        await currentNativeJobDeadline(platform, currentIdentity, 1500, f.source, f.bytes),
         1500,
         "An existing earlier owner/process deadline only shortens the provider window",
       );
+      assert.equal(dispatches - before, 3);
       assert.throws(() =>
         maximum(
           platform,
@@ -2274,4 +2426,59 @@ void test("native provider allocation comes only from the original branded workf
       "Extra unbranded JSON/caller maxima cannot extend the legacy fixture API",
     );
   }
+});
+
+void test("dedicated storage profile binds three distinct Apps and an additional grant without replacing its exact seed or base setup", () => {
+  const legacy = selectedPublicationAuthoritiesFixture("application");
+  const storage = { app_id: 90001, installation_id: 90002 };
+  const journal = {
+    ...legacy.journal,
+    kind: "three-app-fixed-jobs-v1",
+    storage_setup_plan_sha256: "7".repeat(64),
+    apps: { ...legacy.journal.apps, storage_writer: storage },
+  };
+  const raw = { ...legacy, kind: "three-app-fixed-jobs-v1", journal };
+  const parsed = inspectSelectedPublicationAuthorityConfiguration(raw);
+  assert.deepEqual(parsed.journal.journal_seed, legacy.journal.journal_seed);
+  assert.equal(parsed.journal.setup_plan_sha256, legacy.journal.setup_plan_sha256);
+  assert.equal(parsed.journal.storage_setup_plan_sha256, "7".repeat(64));
+  assert.deepEqual(parsed.journal.apps.storage_writer, storage);
+  assert.notEqual(releaseCanonicalDigest(parsed), releaseCanonicalDigest(legacy));
+  for (const changed of [
+    { ...raw, kind: legacy.kind },
+    { ...raw, journal: legacy.journal },
+    { ...raw, journal: { ...journal, storage_setup_plan_sha256: undefined } },
+    { ...raw, journal: { ...journal, storage_setup_plan_sha256: "bad" } },
+    { ...raw, journal: { ...journal, storage_setup_plan_sha256: journal.setup_plan_sha256 } },
+    { ...raw, journal: { ...journal, apps: legacy.journal.apps } },
+    {
+      ...raw,
+      journal: {
+        ...journal,
+        apps: { ...journal.apps, storage_writer: { ...storage, app_id: 15368 } },
+      },
+    },
+    {
+      ...raw,
+      journal: {
+        ...journal,
+        apps: {
+          ...journal.apps,
+          storage_writer: {
+            ...storage,
+            installation_id: legacy.journal.apps.semantic.installation_id,
+          },
+        },
+      },
+    },
+    {
+      ...raw,
+      journal: {
+        ...journal,
+        apps: { ...journal.apps, storage_writer: legacy.journal.apps.protection_observer },
+      },
+    },
+  ])
+    assert.throws(() => inspectSelectedPublicationAuthorityConfiguration(changed));
+  assert.deepEqual(inspectSelectedPublicationAuthorityConfiguration(legacy), legacy);
 });

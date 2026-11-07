@@ -1,13 +1,71 @@
 use super::*;
 use portcove_release_tools::tuf_repository::{
     TufRepositoryError,
-    isolated::{OnlineRole, RoleReport, assemble_tuf_repository, sign_tuf_role},
+    isolated::{
+        OnlineRole, RoleReport, assemble_tuf_repository, inspect_tuf_context, sign_tuf_role,
+    },
 };
 
 #[path = "isolated/bootstrap.rs"]
 mod bootstrap;
 #[path = "isolated/renewal.rs"]
 mod renewal;
+
+#[tokio::test]
+async fn public_context_inspection_requires_no_private_key_and_detects_record_changes() {
+    let mut fixture = Fixture::new(false).await;
+    fixture.keys.clear();
+    let initial = inspect_tuf_context(&fixture.root().join("context.json"))
+        .await
+        .unwrap();
+    assert_eq!(initial.authority, "none");
+    assert!(initial.records > 0);
+    assert!(initial.records_unchanged);
+    assert_eq!(
+        initial.root_sha256,
+        sha256(&fs::read(fixture.root().join("trusted-root.json")).unwrap())
+    );
+    fixture.add_version();
+    let changed = inspect_tuf_context(&fixture.root().join("context.json"))
+        .await
+        .unwrap();
+    assert!(changed.records > initial.records);
+    assert!(!changed.records_unchanged);
+    assert!(
+        fs::read_dir(fixture.root().join("jobs"))
+            .unwrap()
+            .next()
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn public_context_inspection_refuses_expiry_and_authenticated_prior_tampering() {
+    let mut fixture = Fixture::new(false).await;
+    fixture.keys.clear();
+    fixture.context["expires"]["timestamp"] = json!("2000-01-01T00:00:00Z");
+    fixture.save_context();
+    assert!(
+        inspect_tuf_context(&fixture.root().join("context.json"))
+            .await
+            .is_err()
+    );
+
+    let mut fixture = Fixture::new(false).await;
+    fixture.keys.clear();
+    fs::write(fixture.root().join("seed/metadata/timestamp.json"), b"{}").unwrap();
+    assert!(
+        inspect_tuf_context(&fixture.root().join("context.json"))
+            .await
+            .is_err()
+    );
+    assert!(
+        fs::read_dir(fixture.root().join("jobs"))
+            .unwrap()
+            .next()
+            .is_none()
+    );
+}
 
 struct Fixture {
     directory: tempfile::TempDir,
@@ -55,6 +113,10 @@ fn export_public_fixture(fixture: &Fixture) {
 
 impl Fixture {
     async fn new(populated_seed: bool) -> Self {
+        Self::with_profile(populated_seed, false).await
+    }
+
+    async fn with_profile(populated_seed: bool, single_owner: bool) -> Self {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path();
         let offline = [
@@ -74,7 +136,11 @@ impl Fixture {
             .iter()
             .map(|name| TestKey::generate(root, &format!("{name}.der")))
             .collect();
-        write_root(root, &offline, &role_keys[..3]).await;
+        if single_owner {
+            write_root_with_threshold(root, &offline[..1], &role_keys[..3], 1).await;
+        } else {
+            write_root(root, &offline, &role_keys[..3]).await;
+        }
         let records = root.join("records");
         fs::create_dir(&records).unwrap();
         write_records(&records);
@@ -91,11 +157,14 @@ impl Fixture {
                 .unwrap()
                 .to_string()
         };
-        let bootstrap = json!({"schema_version":2,"generated_at":now.to_string(),"trusted_root":"trusted-root.json",
+        let mut bootstrap = json!({"schema_version":2,"generated_at":now.to_string(),"trusted_root":"trusted-root.json",
             "reconstructed_records":"records","payload_key_registry":"payload.json","output":"seed",
             "keys":{"targets":"targets.der","snapshot":"snapshot.der","timestamp":"timestamp.der","releases":"releases.der","preview":"preview.der","stable":"stable.der"},
             "versions":{"targets":1,"snapshot":1,"timestamp":1,"releases":1,"preview":1,"stable":1},
             "expires":{"targets":future(60),"snapshot":future(6),"timestamp":future(1),"releases":future(60),"preview":future(6),"stable":future(6)}});
+        if single_owner {
+            bootstrap["initial_root_profile"] = json!("single-owner-one-of-one-v1");
+        }
         write_json(&root.join("bootstrap.json"), &bootstrap);
         build_tuf_repository(&root.join("bootstrap.json"))
             .await
@@ -114,6 +183,10 @@ impl Fixture {
             context["versions"][role] = json!(2);
         }
         let mut keys = HashMap::new();
+        if single_owner {
+            keys.insert("root", fs::read(&offline[0].0).unwrap());
+            keys.insert("targets", fs::read(&role_keys[0].0).unwrap());
+        }
         for (name, key) in names.into_iter().zip(&role_keys) {
             if name != "targets" {
                 keys.insert(name, fs::read(&key.0).unwrap());

@@ -13,7 +13,7 @@ The `Protect main` ruleset blocks deletion and force-pushes, requires a pull
 request and resolved review threads, and requires the `catalog`,
 `dependency-review`, `frontend`, `rust`, and `rust-quality` checks from
 `.github/workflows/ci.yml` on the current source head. Strict base freshness is
-disabled, so an independently reviewed unchanged source may merge behind
+disabled, so an unchanged source with applicable review may merge behind
 unrelated `main` advances after the interaction checks in
 [Quality](QUALITY.md#routine-merge-freshness). Required approvals are zero;
 last-push and mandatory CODEOWNERS approval are disabled.
@@ -25,9 +25,11 @@ it is emergency-only, never the routine solo-maintainer path.
 Repository auto-merge capability is enabled, but pull requests are not enrolled
 automatically. Routine authorized work uses the exact-head guarded immediate
 merge in [Contribution conventions](CONTRIBUTION-CONVENTIONS.md) only after all
-mandatory checks, an actual separate non-writing reviewer-subagent result,
+mandatory checks, [applicable review under Quality](QUALITY.md#review-scope),
 substantive finding repair, resolved threads, and current revision/authority
-confirmation. Auto-merge remains an explicitly justified deferred exception.
+confirmation. Quality owns review scope, including independent non-writing review
+for substantive behavior and higher-consequence boundaries; a Markdown extension
+does not make normative policy low risk. Auto-merge remains an explicitly justified deferred exception.
 Candidate-controlled workflow changes cannot establish or remove their own
 trusted gate. Fully unattended engineering requires a separately implemented
 trusted controller and end-to-end negative/recovery proof; this policy change

@@ -14,7 +14,14 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { performance } from "node:perf_hooks";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import type { GitHubCredential } from "./github-client.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { releaseBuildArtifactName } from "./release-package-policy.mts";
 import {
   prepareReleasePublicBuildInputs,
@@ -23,7 +30,7 @@ import {
 import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
-type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
+type Evidence = Awaited<ReturnType<typeof collectReleaseRunEvidence>>;
 const maximumExpandedBytes = 512 * 1024;
 const members = new Map([
   ["root.json", 256 * 1024],
@@ -199,6 +206,13 @@ export function requireStablePublicBuildInputEvidence(
     throw new Error("public build input provider evidence changed during collection");
 }
 
+export function publicBuildReadCredential(deadline: number): GitHubCredential {
+  const scoped = readOnlyReleaseChildEnvironment();
+  return scoped
+    ? { kind: "explicit", token: scoped.GH_TOKEN ?? "" }
+    : localDeveloperCredential({ environment: { ...process.env }, deadline });
+}
+
 /** Verify PUBLIC configuration provenance only. No compiler/package-content,
  * semantic acceptance, signing, publication or execution claim is established.
  * The caller obtains evidence using the existing source/tree/workflow collector
@@ -207,21 +221,57 @@ export async function verifyReleasePublicBuildInputs(
   privateRoot: string,
   rawBinding: unknown,
   evidence: Evidence,
-  options: { download?: typeof readGitHubArtifactArchive | undefined } = {},
+  options: {
+    download?: SigningArchiveDownload | undefined;
+    deadline?: number | undefined;
+    credential?: GitHubCredential | undefined;
+    lookup?: () => NonNullable<Parameters<typeof downloadGitHubArtifactArchive>[1]["lookup"]>;
+  } = {},
 ) {
+  const { download, deadline: callerDeadline, lookup } = options;
+  const deadline = Math.min(callerDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
+  const scoped = readOnlyReleaseChildEnvironment() !== undefined;
+  let credential = options.credential;
   const binding = inspectPublicBuildInputBinding(structuredClone(rawBinding));
   evidence = structuredClone(evidence);
   requirePublicBuildInputProviderBinding(binding, evidence);
+  if (!download)
+    credential ??= publicBuildReadCredential(Math.min(deadline, performance.now() + 120000));
   const directory = await mkdtemp(path.join(path.resolve(privateRoot), "public-build-provenance-"));
   let phase = "download";
   try {
     const receipts = [];
     const compilerInputs = [];
     for (const item of binding.artifacts) {
-      const received = (options.download ?? readGitHubArtifactArchive)(
-        `repos/boburning/portcove/actions/artifacts/${item.artifact_id}/zip`,
-        { cwd: directory, maxBytes: item.bytes, timeoutMs: 120000 },
-      );
+      phase = "download";
+      const transferDeadline = Math.min(deadline, performance.now() + 120000);
+      const timeoutMs = Math.floor(transferDeadline - performance.now());
+      if (!Number.isFinite(timeoutMs) || timeoutMs < 1)
+        throw new Error("public build artifact deadline exhausted");
+      const endpoint = `repos/boburning/portcove/actions/artifacts/${item.artifact_id}/zip`;
+      const received = download
+        ? await download(endpoint, {
+            cwd: directory,
+            maxBytes: item.bytes,
+            timeoutMs,
+            ...(lookup ? { lookup: lookup() } : {}),
+          })
+        : await downloadGitHubArtifactArchive(endpoint, {
+            credential: credential!,
+            deadline: transferDeadline,
+            maxBytes: item.bytes,
+            ...(scoped
+              ? {
+                  fetch(input, init) {
+                    assertTrustedDirectNode("public build archive");
+                    return globalThis.fetch(input, init);
+                  },
+                }
+              : {}),
+            ...(lookup ? { lookup: lookup() } : {}),
+          });
+      if (performance.now() >= transferDeadline)
+        throw new Error("public build artifact deadline exhausted");
       if (
         !Buffer.isBuffer(received) ||
         received.length !== item.bytes ||
@@ -280,12 +330,12 @@ export async function verifyReleasePublicBuildInputs(
       binding,
       receipts,
       compiler_inputs: compilerInputs,
-      evidence_scope: options.download ? "injected-provider" : "github.com",
+      evidence_scope: download ? "injected-provider" : "github.com",
       scope:
         "public configuration bytes and archive provenance only; no compiler-content or execution claim",
       authority: "none",
     };
-    if (!options.download)
+    if (!download)
       verifiedPublicInputs.set(result, {
         snapshot: digest(Buffer.from(JSON.stringify(result))),
         release_profile: binding.release_profile ?? "initial-beta-win-linux",

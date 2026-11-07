@@ -1,0 +1,219 @@
+/** Bounded native provider I/O shared by the fixed release jobs. No scheduling,
+ * state authority, credential selection or execution grant lives here. */
+import assert from "node:assert/strict";
+import { verifyGitHubRelease } from "./github-cli.mts";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, writeFile, appendFile } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { performance } from "node:perf_hooks";
+import { crc32, inflateRawSync } from "node:zlib";
+import { inspectBoundedZip } from "./bounded-zip.mts";
+import { isRecord } from "./runtime-values.mts";
+import { releasePathContains } from "./release-path-safety.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+export const applicationRepository = "repos/boburning/portcove";
+export const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+export async function writeApplicationJson(filename: string, value: unknown) {
+  await mkdir(path.dirname(filename), { recursive: true });
+  await writeFile(filename, `${JSON.stringify(value)}\n`, { flag: "wx", mode: 0o600 });
+}
+export async function readApplicationJson(
+  filename: string,
+  maximum = 1024 * 1024,
+): Promise<unknown> {
+  const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
+  const bytes = await readBoundedPublicBuildInputFile(
+    path.dirname(filename),
+    path.basename(filename),
+    maximum,
+  );
+  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+}
+export async function applicationOutput(name: string, value: string | number | boolean) {
+  assert.match(name, /^[a-z_]+$/u);
+  assert.ok(!/[\r\n\0]/u.test(String(value)) && String(value).length <= 65536);
+  assert.ok(process.env.GITHUB_OUTPUT);
+  await appendFile(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+}
+export function verifyApplicationRelease(tag: string, deadline: number) {
+  const environment = readOnlyReleaseChildEnvironment();
+  return verifyGitHubRelease("boburning/portcove", tag, {
+    cwd: process.cwd(),
+    timeoutMs: Math.min(120000, Math.floor(deadline - performance.now())),
+    maxBytes: 2 * 1024 ** 2,
+    ...(environment === undefined ? {} : { environment }),
+  });
+}
+type ApplicationDataExpectation = {
+  id: number;
+  name: string;
+  run_id: string;
+  source: string;
+  files: readonly string[];
+  maximum_file_bytes?: number;
+  maximum_archive_bytes?: number;
+  retain_archive?: string;
+};
+
+export async function receiveApplicationData(
+  directory: string,
+  rawExpected: ApplicationDataExpectation,
+) {
+  const expected = structuredClone(rawExpected);
+  const maximum = validateDataExpectation(expected);
+  const originalDeadline = coordinatorCommandDeadline() ?? Infinity;
+  const fetchDirect: typeof globalThis.fetch = (input, init) => {
+    assertTrustedDirectNode("fixed application artifact receiver");
+    return globalThis.fetch(input, init);
+  };
+  const token = fixedReleaseReaderToken();
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline: Math.min(originalDeadline, performance.now() + 30000),
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    fetch: fetchDirect,
+  });
+  const metadata = await provider.artifact(expected.id);
+  const identity = inspectDataArchiveMetadata(metadata, expected, maximum);
+  const endpoint = `${applicationRepository}/actions/artifacts/${expected.id}/zip`;
+  const deadline = Math.min(originalDeadline, performance.now() + 120000);
+  const scratch = await mkdtemp(path.join(os.tmpdir(), "application-data-archive-"));
+  let archive: Buffer;
+  try {
+    const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
+    const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
+    const filename = "archive.zip";
+    const maxBytes = identity.bytes;
+    await downloadGitHubArtifactArchiveFile(endpoint, path.join(scratch, filename), {
+      credential: { kind: "explicit", token },
+      deadline,
+      maxBytes,
+      fetch: fetchDirect,
+    });
+    archive = await readBoundedPublicBuildInputFile(scratch, filename, maxBytes);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+  if (performance.now() >= deadline)
+    throw new Error("application artifact transfer deadline exhausted");
+  return extractApplicationArchive(directory, expected, maximum, identity, archive);
+}
+
+/** Verify a staged provider archive without opening a network transport. */
+export async function receiveStagedApplicationToolData(
+  directory: string,
+  rawExpected: ApplicationDataExpectation,
+  scratch: string,
+) {
+  const expected = structuredClone(rawExpected);
+  const maximum = validateDataExpectation(expected);
+  const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
+  const raw = await readBoundedPublicBuildInputFile(scratch, "metadata.json", 4096);
+  const metadata: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+  const identity = inspectDataArchiveMetadata(metadata, expected, maximum);
+  const archive = await readBoundedPublicBuildInputFile(scratch, "archive.zip", identity.bytes);
+  return extractApplicationArchive(directory, expected, maximum, identity, archive);
+}
+
+function validateDataExpectation(expected: ApplicationDataExpectation) {
+  assert.ok(Number.isSafeInteger(expected.id) && expected.id > 0);
+  assert.match(expected.source, /^[a-f0-9]{40}$/u);
+  assert.match(expected.run_id, /^[1-9][0-9]{0,15}$/u);
+  assert.ok(Number.isSafeInteger(Number(expected.run_id)));
+  assert.ok(
+    expected.files.length > 0 &&
+      expected.files.length <= 64 &&
+      expected.files.every((name) => name.length <= 256) &&
+      new Set(expected.files).size === expected.files.length,
+  );
+  const maximum = expected.maximum_archive_bytes ?? 512 * 1024 ** 2;
+  assert.ok(maximum > 0 && maximum <= 512 * 1024 ** 2);
+  return maximum;
+}
+
+function inspectDataArchiveMetadata(
+  metadata: unknown,
+  expected: ApplicationDataExpectation,
+  maximum: number,
+) {
+  assert.ok(
+    isRecord(metadata) &&
+      metadata.expired === false &&
+      metadata.id === expected.id &&
+      metadata.name === expected.name,
+  );
+  assert.ok(
+    Number.isSafeInteger(metadata.size_in_bytes) &&
+      Number(metadata.size_in_bytes) >= 22 &&
+      Number(metadata.size_in_bytes) <= maximum,
+  );
+  assert.ok(typeof metadata.digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(metadata.digest));
+  assert.ok(
+    isRecord(metadata.workflow_run) &&
+      metadata.workflow_run.id === Number(expected.run_id) &&
+      metadata.workflow_run.head_sha === expected.source &&
+      metadata.workflow_run.repository_id === 1354613114,
+  );
+  return { bytes: Number(metadata.size_in_bytes), sha256: metadata.digest.slice(7) };
+}
+
+async function extractApplicationArchive(
+  directory: string,
+  expected: ApplicationDataExpectation,
+  maximum: number,
+  identity: { bytes: number; sha256: string },
+  archive: Buffer,
+) {
+  assert.equal(archive.length, identity.bytes);
+  assert.equal(sha256(archive), identity.sha256);
+  const parsed = inspectBoundedZip(
+    archive,
+    {
+      compressedBytes: maximum,
+      expandedBytes: 2 * 1024 ** 3,
+      files: expected.files.length,
+      nameBytes: 256,
+      allowedPaths: new Set(expected.files),
+    },
+    { deadline: Date.now() + 30000 },
+  );
+  assert.equal(parsed.entries.length, expected.files.length);
+  for (const entry of parsed.entries)
+    assert.ok(entry.bytes >= 0 && entry.bytes <= (expected.maximum_file_bytes ?? 512 * 1024 ** 2));
+  await mkdir(path.dirname(directory), { recursive: true });
+  await mkdir(directory, { recursive: false });
+  for (const entry of parsed.entries) {
+    const compressed = archive.subarray(entry.data, entry.dataEnd);
+    const bytes =
+      entry.method === 0
+        ? compressed
+        : inflateRawSync(compressed, { maxOutputLength: Math.max(1, entry.bytes) });
+    assert.equal(bytes.length, entry.bytes);
+    assert.equal(crc32(bytes), entry.crc);
+    const destination = path.join(directory, entry.name);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, bytes, { flag: "wx", mode: 0o600 });
+  }
+  if (expected.retain_archive) {
+    assert.ok(path.isAbsolute(expected.retain_archive));
+    assert.ok(
+      !releasePathContains(directory, expected.retain_archive),
+      "archive must remain outside the extracted input tree",
+    );
+    await mkdir(path.dirname(expected.retain_archive), { recursive: true });
+    await writeFile(expected.retain_archive, archive, { flag: "wx", mode: 0o600 });
+  }
+  return { id: expected.id, bytes: archive.length, sha256: identity.sha256 };
+}
+export async function applicationFileIdentity(filename: string) {
+  const bytes = await readFile(filename);
+  return { filename: path.basename(filename), bytes: bytes.length, sha256: sha256(bytes) };
+}

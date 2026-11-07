@@ -91,9 +91,7 @@ export function RegisteredSourceSetup({
         async () => {
           const plan = await desktopApi.planSourceRelink(selected, path, generation);
           if (JSON.stringify(plan.original) !== JSON.stringify(source))
-            throw new Error(
-              "The saved registration changed. Refresh before repairing its location.",
-            );
+            throw new Error("The saved file location changed. Refresh before updating it.");
           return desktopApi.relinkSource(selected, path, plan.preview_sha256, generation);
         },
         {
@@ -130,8 +128,8 @@ export function RegisteredSourceSetup({
     >
       <h2>Use saved original files</h2>
       <p>
-        Check an existing registration for each game's own requirements. Your originals stay where
-        they are.
+        Choose original files you’ve already added to see which ports may use them. The files stay
+        where they are.
       </p>
       <label className="min-w-0">
         Saved game files
@@ -182,15 +180,13 @@ export function RegisteredSourceSetup({
       {review && (
         <div aria-live="polite">
           <h3 ref={heading} tabIndex={-1}>
-            Choose an implementation for these files
+            Choose a port for these files
           </h3>
           <p>{review.inspection.summary}</p>
           <p>{review.inspection.next_action}</p>
           {!review.applications.length && (
             <p>
-              No integration currently offers checked reuse of these files. Review the game's
-              existing setup requirements; this does not prevent an otherwise valid existing launch
-              or prepared-copy route.
+              No ports offer file reuse here. Open the game’s page to check its other setup options.
             </p>
           )}
           {review.applications.map((application) => {

@@ -343,7 +343,7 @@ export type WindowsOwnerMechanismState = WindowsOwnerSupervisorState & {
 };
 
 type WindowsOwnerStageMechanism = {
-  kind: "payload-signing" | "release-publication";
+  kind: "payload-signing" | "release-publication" | "ordinary-public-initial";
   directory: string;
   binding: Record<string, unknown>;
   workerRequestSha: string;

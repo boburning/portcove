@@ -64,29 +64,30 @@ void test("provider acknowledgement identity survives actual pending readback an
     generation: operation.site_expectation.site_generation_sha256,
   };
   const calls: string[] = [];
-  const provider = createPagesProviderTransport(".", {
+  const provider = createPagesProviderTransport({
     token: async () => "inert-controlled-token",
-    api: {
-      request(method, endpoint, body) {
-        calls.push(`${method} ${endpoint}`);
-        if (method === "POST") {
-          assert.deepEqual(body, {
-            artifact_id: expected.artifact_id,
-            pages_build_version: expected.generation,
-            oidc_token: "inert-controlled-token",
-          });
-          return {
-            status: 200,
-            headers: new Map<string, string>(),
-            body: {
-              id: expected.generation,
-              status_url: `https://api.github.com/repos/boburning/portcove/pages/deployments/${expected.generation}`,
-              page_url: "https://boburning.github.io/portcove/",
-            },
-          };
-        }
-        assert.equal(endpoint, `repos/boburning/portcove/pages/deployments/${expected.generation}`);
-        return { status: 200, headers: new Map<string, string>(), body: { status: "succeed" } };
+    operations: {
+      async create(body) {
+        calls.push("create");
+        assert.deepEqual(body, {
+          artifact_id: expected.artifact_id,
+          pages_build_version: expected.generation,
+          oidc_token: "inert-controlled-token",
+        });
+        return {
+          status: 200,
+          headers: new Map<string, string>(),
+          body: {
+            id: expected.generation,
+            status_url: `https://api.github.com/repos/boburning/portcove/pages/deployments/${expected.generation}`,
+            page_url: "https://boburning.github.io/portcove/",
+          },
+        };
+      },
+      async observe(id) {
+        assert.equal(id, expected.generation);
+        calls.push(`observe ${id}`);
+        return { status: 200, body: { status: "succeed" } };
       },
     },
   });
@@ -111,8 +112,8 @@ void test("provider acknowledgement identity survives actual pending readback an
   const published = publishedPagesMetadataFromCurrentFacts(descriptor, handoff);
   assert.equal(published.publication.remote_identity, completed.remote_identity);
   assert.equal(published.publication.site_generation_sha256, accepted.generation);
-  assert.equal(calls.filter((call) => call.startsWith("POST ")).length, 1);
-  assert.equal(calls.filter((call) => call.startsWith("GET ")).length, 2);
+  assert.equal(calls.filter((call) => call === "create").length, 1);
+  assert.equal(calls.filter((call) => call.startsWith("observe ")).length, 2);
   assert.equal(readback.evidence.evidence_scope, "injected-provider");
 });
 

@@ -7,7 +7,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
 import {
-  RoadmapClient,
   executeSetMany,
   validateConfig,
   executionSnapshot as cliSnapshot,
@@ -30,8 +29,9 @@ import {
   roadmapHealthSummary,
   findRoadmapHealthComment,
 } from "./roadmap-health.mts";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
+import { sdkRoadmap } from "./fixtures/roadmap-fixtures.mts";
 
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
@@ -41,7 +41,7 @@ const connection = <T,>(nodes: T[]) => ({
   nodes,
   pageInfo: { hasNextPage: false, endCursor: null },
 });
-function fixture() {
+async function fixture() {
   const values = new Map([
     ["Status", "Inbox"],
     ["Priority", "None"],
@@ -67,9 +67,11 @@ function fixture() {
     content: { ...issue, __typename: "Issue" },
     fieldValues: fields(),
   });
-  const client = new RoadmapClient(config);
-  client.projectDetails = () => ({ id: "PVT" });
-  client.completeProjectContext = () => ({
+  const client = await sdkRoadmap(config, {
+    graphql: async () => assert.fail("Unexpected transport"),
+  });
+  client.projectDetails = async () => ({ id: "PVT" });
+  client.completeProjectContext = async () => ({
     number: config.project.number,
     details: { id: "PVT" },
     fields: config.fields.map((field) => ({
@@ -81,16 +83,16 @@ function fixture() {
   const queries: string[] = [];
   let mutations = 0,
     rates = 0;
-  client.sampleGraphqlRate = () => ({
+  client.sampleGraphqlRate = async () => ({
     resource: "graphql",
     used: ++rates,
     remaining: 4999 - rates,
     resetAt: "2099-01-01T00:00:00Z",
   });
-  client.itemList = () => {
+  client.itemList = async () => {
     throw new Error("Global Project listing must not run");
   };
-  client.graphql = (query, variables) => {
+  client.graphql = async (query, variables) => {
     queries.push(query);
     if (query.includes("updateProjectV2ItemFieldValue")) {
       mutations++;
@@ -124,7 +126,7 @@ function fixture() {
 }
 
 void test("scoped doctor uses real direct issue reads and never needs the failing global listing", async () => {
-  const f = fixture();
+  const f = await fixture();
   const result = await runScopedDoctor(config, f.client, { issues: [1], catalog: { ports: [] } });
   assert.equal(result.coverage, "complete");
   assert.equal(result.global_health, "not_evaluated");
@@ -135,36 +137,31 @@ void test("scoped doctor uses real direct issue reads and never needs the failin
 
 for (const ownerType of ["User", "Organization"] as const) {
   void test(`scoped doctor resolves a ${ownerType} Project through observable API reads`, async () => {
-    const f = fixture();
+    const f = await fixture();
     const root = ownerType === "Organization" ? "organization" : "user";
     const otherRoot = ownerType === "Organization" ? "user" : "organization";
-    const client = new RoadmapClient(config, (args, input) => {
-      assert.equal(args[0], "api", "Project CLI owner inference must not run");
-      if (args[2] === `users/${config.owner}`) {
-        assert(args.includes("GET"));
-        return JSON.stringify({ login: config.owner, type: ownerType });
-      }
-      assert.equal(args[1], "graphql");
-      const request: unknown = JSON.parse(input ?? "null");
-      assert(isRecord(request) && typeof request.query === "string" && isRecord(request.variables));
-      if (request.query.includes("projectV2(number:")) {
-        assert(request.query.includes(`${root}(login: $login)`));
-        assert(!request.query.includes(`${otherRoot}(login:`));
-        assert.deepEqual(request.variables, { login: config.owner, number: config.project.number });
-        return JSON.stringify({
-          data: {
-            [root]: { projectV2: { id: "PVT", number: config.project.number } },
-          },
-        });
-      }
-      return JSON.stringify({ data: f.client.graphql(request.query, request.variables) });
+    const client = await sdkRoadmap(config, {
+      rest: ({ method, endpoint }) => {
+        assert.equal(method, "GET");
+        assert.equal(endpoint, `users/${config.owner}`);
+        return { login: config.owner, type: ownerType, node_id: "OWNER" };
+      },
+      graphql: async (query, variables) => {
+        if (query.includes("projectV2(number:")) {
+          assert(query.includes(`${root}(login: $login)`));
+          assert(!query.includes(`${otherRoot}(login:`));
+          assert.deepEqual(variables, { login: config.owner, number: config.project.number });
+          return { [root]: { projectV2: { id: "PVT", number: config.project.number } } };
+        }
+        return await f.client.graphql(query, variables);
+      },
     });
     const result = await runScopedDoctor(config, client, { issues: [1], catalog: { ports: [] } });
     assert.equal(result.coverage, "complete");
     assert.equal(result.global_health, "not_evaluated");
     assert.deepEqual(result.scope.checked_issues, [1]);
     assert.deepEqual(
-      client.api.observations.map(({ operation }) => operation),
+      client.observations.map(({ operation }) => operation),
       [`GET users/${config.owner}`, "POST graphql", "POST graphql", "POST graphql"],
     );
     assert.equal(f.queries.length, 2);
@@ -172,23 +169,21 @@ for (const ownerType of ["User", "Organization"] as const) {
   });
 }
 
-void test("selected Project lookup rejects absent or mismatched identities before issue reads", () => {
+void test("selected Project lookup rejects absent or mismatched identities before issue reads", async () => {
   for (const project of [
     null,
     {},
     { id: "", number: config.project.number },
     { id: "PVT", number: 999 },
   ]) {
-    const client = new RoadmapClient(config, (args) => {
-      assert.equal(args[0], "api");
-      if (args[2] === `users/${config.owner}`) return JSON.stringify({ type: "User" });
-      return JSON.stringify({ data: { user: { projectV2: project } } });
+    const client = await sdkRoadmap(config, {
+      graphql: async () => ({ user: { projectV2: project } }),
     });
-    assert.throws(
-      () => client.executionIssue(1),
+    await assert.rejects(
+      async () => await client.executionIssue(1),
       /selected Project identity is unavailable or mismatched/,
     );
-    assert.equal(client.api.observations.length, 2);
+    assert.equal(client.observations.length, 2);
   }
 });
 
@@ -197,11 +192,10 @@ void test("Project discovery retains provider authentication failures and their 
     ["owner", 401],
     ["project", 403],
   ] as const) {
-    const client = new RoadmapClient(config, (args) => {
-      assert.equal(args[0], "api");
-      if (stage === "project" && args[2] === `users/${config.owner}`)
-        return JSON.stringify({ type: "User" });
-      throw new GitHubApiError("http_error", "Project credential was refused", { status });
+    const refused = () => Response.json({ message: "Project credential was refused" }, { status });
+    const client = await sdkRoadmap(config, {
+      rest: () => (stage === "owner" ? refused() : { type: "User", node_id: "OWNER" }),
+      graphql: refused,
     });
     await assert.rejects(
       runScopedDoctor(config, client, { issues: [1], catalog: { ports: [] } }),
@@ -215,17 +209,17 @@ void test("Project discovery retains provider authentication failures and their 
         return true;
       },
     );
-    assert.equal(client.api.observations.length, stage === "owner" ? 1 : 2);
+    assert.equal(client.observations.length, stage === "owner" ? 1 : 2);
   }
 });
 
 void test("direct prerequisites use their own complete memberships rather than absence in a scoped subset", async () => {
   for (const present of [true, false]) {
-    const f = fixture();
+    const f = await fixture();
     f.values.set("Target release", config.active_release);
     f.values.set("Release commitment", "Required");
     const graphql = f.client.graphql.bind(f.client);
-    f.client.graphql = (query, variables) => {
+    f.client.graphql = async (query, variables) => {
       const dependency = {
         ...f.issue,
         id: "I2",
@@ -242,7 +236,7 @@ void test("direct prerequisites use their own complete memberships rather than a
             },
           ],
         };
-      const result = graphql(query, variables);
+      const result = await graphql(query, variables);
       assert(isRecord(result) && isRecord(result.repository) && isRecord(result.repository.issue));
       result.repository.issue.blockedBy = connection([dependency]);
       return result;
@@ -253,8 +247,8 @@ void test("direct prerequisites use their own complete memberships rather than a
   }
 });
 
-void test("dependency memberships query only actual identities in bounded batches", () => {
-  const f = fixture();
+void test("dependency memberships query only actual identities in bounded batches", async () => {
+  const f = await fixture();
   const dependencies = Array.from({ length: 11 }, (_, index) => ({
     ...f.issue,
     id: `I${index + 2}`,
@@ -263,7 +257,7 @@ void test("dependency memberships query only actual identities in bounded batche
   }));
   const initial = f.client.graphql.bind(f.client);
   const batches: unknown[][] = [];
-  f.client.graphql = (query, variables) => {
+  f.client.graphql = async (query, variables) => {
     assert.match(query, /rateLimit\{cost limit remaining resetAt used\}/u);
     if (query.includes("nodes(ids:")) {
       const ids = variables?.ids;
@@ -278,12 +272,12 @@ void test("dependency memberships query only actual identities in bounded batche
       };
     }
     assert.doesNotMatch(query, /blockedBy[^]*projectItems/u);
-    const result = initial(query, variables);
+    const result = await initial(query, variables);
     assert(isRecord(result) && isRecord(result.repository) && isRecord(result.repository.issue));
     result.repository.issue.blockedBy = connection(dependencies);
     return result;
   };
-  const result = f.client.executionIssue(1);
+  const result = await f.client.executionIssue(1);
   assert.deepEqual(
     batches.map((batch) => batch.length),
     [10, 1],
@@ -296,7 +290,7 @@ void test("dependency memberships query only actual identities in bounded batche
   assert.equal(result.relationships.blockedBy[0]?.url, dependencies[0]?.url);
 });
 
-void test("dependency hydration refuses incomplete identities and concurrent content changes", () => {
+void test("dependency hydration refuses incomplete identities and concurrent content changes", async () => {
   const corruptions: ((nodes: Record<string, unknown>[]) => unknown[])[] = [
     () => [],
     () => [null],
@@ -310,7 +304,7 @@ void test("dependency hydration refuses incomplete identities and concurrent con
     ([node]) => [{ ...node, state: "CLOSED" }],
   ];
   for (const [index, corrupt] of corruptions.entries()) {
-    const f = fixture();
+    const f = await fixture();
     const dependency = {
       ...f.issue,
       id: "I2",
@@ -318,20 +312,20 @@ void test("dependency hydration refuses incomplete identities and concurrent con
       url: `https://github.com/${config.repository}/issues/2`,
     };
     const initial = f.client.graphql.bind(f.client);
-    f.client.graphql = (query, variables) => {
+    f.client.graphql = async (query, variables) => {
       if (query.includes("nodes(ids:"))
         return {
           nodes: corrupt([
             { ...dependency, __typename: "Issue", projectItems: connection([f.item()]) },
           ]),
         };
-      const result = initial(query, variables);
+      const result = await initial(query, variables);
       assert(isRecord(result) && isRecord(result.repository) && isRecord(result.repository.issue));
       result.repository.issue.blockedBy = connection([dependency]);
       return result;
     };
-    assert.throws(
-      () => f.client.executionIssue(1),
+    await assert.rejects(
+      async () => await f.client.executionIssue(1),
       (error: unknown) => {
         assert(error instanceof InventoryError);
         assert.equal(
@@ -349,7 +343,7 @@ void test("dependency hydration refuses incomplete identities and concurrent con
 });
 
 void test("planning failures retain the complete checked scope without granting coverage to provider failures", async () => {
-  const f = fixture();
+  const f = await fixture();
   f.issue.state = "CLOSED";
   await assert.rejects(
     runScopedDoctor(config, f.client, { issues: [1], catalog: { ports: [] } }),
@@ -359,7 +353,7 @@ void test("planning failures retain the complete checked scope without granting 
       return true;
     },
   );
-  f.client.executionIssue = () => {
+  f.client.executionIssue = async () => {
     throw new InventoryError("inventory_incomplete", "Missing membership");
   };
   await assert.rejects(
@@ -410,28 +404,31 @@ void test("diagnostics show bounded redacted findings and provider reset evidenc
   }
 });
 
-void test("direct item resolution validates configured Project, issue binding, archive and complete fields", () => {
-  const f = fixture();
-  assert.equal(f.client.directProjectItem("#1").id, "PVTI1");
+void test("direct item resolution validates configured Project, issue binding, archive and complete fields", async () => {
+  const f = await fixture();
+  assert.equal((await f.client.directProjectItem("#1")).id, "PVTI1");
   for (const corruption of [
     { isArchived: true },
     { project: { id: "foreign" } },
     { fieldValues: { ...f.item().fieldValues, totalCount: 99 } },
     { content: { ...f.issue, __typename: "Issue", number: 2 } },
   ]) {
-    const bad = fixture();
+    const bad = await fixture();
     const graphql = bad.client.graphql.bind(bad.client);
-    bad.client.graphql = (query, variables) =>
+    bad.client.graphql = async (query, variables) =>
       query.includes("ScopedProjectItem")
         ? { node: { ...bad.item(), ...corruption } }
         : graphql(query, variables);
-    assert.throws(() => bad.client.directProjectItem("#1"), /identity|binding|truncated|outside/);
+    await assert.rejects(
+      async () => await bad.client.directProjectItem("#1"),
+      /identity|binding|truncated|outside/,
+    );
     assert.equal(bad.mutations(), 0);
   }
 });
 
 void test("ordinary set-many runs automatic scoped validation after exact readback", async () => {
-  const f = fixture();
+  const f = await fixture();
   const result = await executeSetMany({
     config,
     client: f.client,
@@ -455,7 +452,7 @@ void test("scoped status consistency includes closed and reopened unscheduled wo
     ["CLOSED", "Done", true],
     ["OPEN", "Inbox", true],
   ] as const) {
-    const f = fixture();
+    const f = await fixture();
     f.issue.state = state;
     f.values.set("Status", status);
     const check = runScopedDoctor(config, f.client, { issues: [1], catalog: { ports: [] } });
@@ -481,7 +478,7 @@ void test("production batch outcomes retain typed doctor causes and completed mu
     [new GitHubApiError("rate_limited", "Quota reset pending", { status: 429 }), "rate_limit"],
     [new GitHubApiError("budget_exhausted", "Reserve exhausted"), "budget"],
   ] as const) {
-    const f = fixture();
+    const f = await fixture();
     await assert.rejects(
       executeSetMany({
         config,
@@ -519,18 +516,18 @@ void test("production batch outcomes retain typed doctor causes and completed mu
 });
 
 void test("scoped concurrent edits invalidate success and invalid requests make no API calls", async () => {
-  const f = fixture();
+  const f = await fixture();
   const graphql = f.client.graphql.bind(f.client);
   let reads = 0;
-  f.client.graphql = (query, variables) => {
+  f.client.graphql = async (query, variables) => {
     if (++reads === 2) f.issue.body = "Changed required work";
-    return graphql(query, variables);
+    return await graphql(query, variables);
   };
   await assert.rejects(
     runScopedDoctor(config, f.client, { issues: [1], catalog: { ports: [] } }),
     /changed during validation/,
   );
-  const invalid = fixture();
+  const invalid = await fixture();
   for (const issues of [[], [0], [1.5]])
     await assert.rejects(
       runScopedDoctor(config, invalid.client, { issues }),
@@ -990,13 +987,13 @@ void test("loading scoped evaluation does not initialize the Roadmap CLI", () =>
 
 void test("scoped checks cover 127 requested records and more than 100 direct related records without a global inventory", async () => {
   for (const related of [false, true]) {
-    const f = fixture(),
+    const f = await fixture(),
       read = f.client.executionIssue.bind(f.client);
-    f.client.executionIssue = (number) => {
+    f.client.executionIssue = async (number) => {
       f.issue.number = number;
       f.issue.id = `I${number}`;
       f.issue.url = `https://github.com/${config.repository}/issues/${number}`;
-      const result = read(number);
+      const result = await read(number);
       result.item.id = `PVTI${number}`;
       if (related && number === 1)
         result.relationships.blocking = Array.from({ length: 126 }, (_, i) => ({
@@ -1019,14 +1016,14 @@ void test("scoped checks cover 127 requested records and more than 100 direct re
   }
 });
 void test("oversized aggregate scoped evidence refuses honestly while a smaller scope remains usable", async () => {
-  const f = fixture(),
+  const f = await fixture(),
     read = f.client.executionIssue.bind(f.client);
   f.issue.body = "Evidence " + "x".repeat(512 * 1024);
-  f.client.executionIssue = (number) => {
+  f.client.executionIssue = async (number) => {
     f.issue.number = number;
     f.issue.id = `I${number}`;
     f.issue.url = `https://github.com/${config.repository}/issues/${number}`;
-    const result = read(number);
+    const result = await read(number);
     result.item.id = `PVTI${number}`;
     return result;
   };

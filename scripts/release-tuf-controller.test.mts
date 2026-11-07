@@ -769,3 +769,104 @@ void test("actual TUF pre-key guard checks controls last after slow reservation 
     ["current", "stale-controls", "expired-after-controls"],
   );
 });
+
+void test("fixed controller clocks use bounded one-shot SDK jobs reads and the scoped credential", async (t) => {
+  const { currentCatalogJobDeadline, currentControllerJobDeadline } =
+    await import("./release-signing-job-budget.mts");
+  const { withReadOnlyReleaseChildren } = await import("./release-readonly-child-environment.mts");
+  const { releaseControlPhaseProfile } = await import("./release-control-phases.mts");
+  const identity = {
+    run_id: "123",
+    run_attempt: 1,
+    controller_revision: "a".repeat(40),
+    controller_ref: "refs/heads/main",
+  };
+  const environment = {
+    GITHUB_RUN_ID: identity.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: identity.controller_revision,
+    GITHUB_REF: identity.controller_ref,
+    GH_TOKEN: "inert-clock-job-token",
+  };
+  const prior = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, environment);
+  t.after(() => {
+    for (const [key, value] of prior) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  let next = false;
+  let role:
+    | "coordinator"
+    | "catalog-definitions"
+    | "building"
+    | "payload"
+    | "tuf-releases"
+    | "site-publication" = "coordinator";
+  let requests = 0;
+  let started = new Date(Date.now() - 1000).toISOString();
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    requests++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/123/attempts/1/jobs");
+    assert.deepEqual(Object.fromEntries(url.searchParams), { per_page: "100", page: "1" });
+    assert.equal(init?.method, "GET");
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-clock-job-token");
+    return Response.json(
+      {
+        total_count: 1,
+        jobs: [
+          {
+            id: 1,
+            run_id: 123,
+            run_attempt: 1,
+            head_sha: identity.controller_revision,
+            status: "in_progress",
+            started_at: started,
+            name:
+              role === "building"
+                ? "Authenticate release control inputs"
+                : releaseControlPhaseProfile(role).reader_name,
+          },
+        ],
+      },
+      next ? { headers: { link: `<${url.href.replace("page=1", "page=2")}>; rel="next"` } } : {},
+    );
+  });
+  const deadline = performance.now() + 15000;
+  assert.equal(await currentControllerJobDeadline("coordinator", identity, deadline), deadline);
+  next = true;
+  await assert.rejects(
+    currentControllerJobDeadline("coordinator", identity, deadline),
+    /original controller job budget unavailable/u,
+  );
+  const scoped = await mkdtemp(path.join(os.tmpdir(), "sdk-clock-scope-"));
+  t.after(() => rm(scoped, { force: true, recursive: true }));
+  next = false;
+  role = "catalog-definitions";
+  await withReadOnlyReleaseChildren(scoped, async () => {
+    process.env.GH_TOKEN = "inert-ambient-replacement";
+    assert.equal(await currentCatalogJobDeadline(role, identity, deadline), deadline);
+    for (const operation of ["building", "payload", "tuf-releases", "site-publication"] as const) {
+      role = operation;
+      assert.equal(await currentControllerJobDeadline(operation, identity, deadline), deadline);
+    }
+    role = "building";
+    const wall = Date.now();
+    started = new Date(wall - 500000).toISOString();
+    const before = performance.now();
+    const original = await currentControllerJobDeadline("building", identity, before + 405000);
+    assert.ok(original >= before + (wall + 25000 - Date.now()));
+    assert.ok(original <= performance.now() + 25000);
+    started = new Date(wall - 526000).toISOString();
+    await assert.rejects(
+      currentControllerJobDeadline("building", identity, performance.now() + 405000),
+      /original TUF job budget exhausted/u,
+    );
+  });
+  delete process.env.GH_TOKEN;
+  await assert.rejects(currentControllerJobDeadline("coordinator", identity, deadline));
+  assert.equal(requests, 9);
+});

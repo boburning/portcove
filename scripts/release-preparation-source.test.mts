@@ -4,7 +4,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { hydrateReleasePreparationSource } from "./release-preparation-source.mts";
+import { performance } from "node:perf_hooks";
+import {
+  hydrateReleasePreparationSource,
+  hydrateReleasePreparationSourceWithSdk,
+} from "./release-preparation-source.mts";
 import {
   prepareReleaseVersion,
   exportPreparedReleaseVersion,
@@ -227,12 +231,31 @@ void test("preparation binds candidate workflow tree identity to fixed trusted b
   );
 });
 void test(
-  "fresh sparse source custody prepares byte-identical objects without unrelated blobs or Git history",
+  "fixed SDK source custody prepares byte-identical sparse objects without unrelated blobs or history",
   { timeout: 60000 },
   async (t) => {
     const f = await fixture(t);
     const full = await prepareReleaseVersion(f.full, f.classification, ["0.1.0-alpha.2"]);
-    const report = hydrateReleasePreparationSource(f.sparse, f.expected, f.api);
+    const deadline = performance.now() + 10000;
+    const report = await hydrateReleasePreparationSourceWithSdk(
+      f.sparse,
+      f.expected,
+      {
+        token: "inert-preparation-source",
+        deadline,
+        guard() {},
+        currentDeadline: () => deadline,
+        async fetch(input, init) {
+          const request = new Request(input, init);
+          const url = new URL(request.url);
+          assert.equal(url.origin, "https://api.github.com");
+          assert.equal(request.headers.get("authorization"), "token inert-preparation-source");
+          const result = f.api.request(request.method, url.pathname.slice(1) + url.search);
+          return Response.json(result.body, { status: result.status });
+        },
+      },
+      { trustedReleaseWorkflow: Buffer.from("name: fixed trusted release\n") },
+    );
     assert.equal(report.authority, "none");
     assert.equal(report.paths.length, 5);
     const untouched = f.entries.find((entry) => entry.path === "runtime/unrelated.exe")!;
@@ -262,6 +285,31 @@ void test(
     );
   },
 );
+void test("fixed SDK hydration refuses a late tree before importing any objects", async (t) => {
+  const f = await fixture(t);
+  let clock = Math.floor(performance.now());
+  const deadline = clock + 10000;
+  t.mock.method(performance, "now", () => clock);
+  await assert.rejects(
+    hydrateReleasePreparationSourceWithSdk(f.sparse, f.expected, {
+      token: "inert-preparation-source",
+      deadline,
+      guard() {},
+      currentDeadline: () => deadline,
+      async fetch(input, init) {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        const result = f.api.request(request.method, url.pathname.slice(1) + url.search);
+        if (url.pathname.includes("/git/trees/")) clock = deadline + 1;
+        return Response.json(result.body, { status: result.status });
+      },
+    }),
+    /deadline/u,
+  );
+  assert.equal(f.calls.length, 2);
+  assert.throws(() => f.git(f.sparse, ["cat-file", "-e", f.expected.source_commit]));
+  assert.throws(() => f.git(f.sparse, ["cat-file", "-e", f.expected.source_tree]));
+});
 for (const mode of ["truncated", "changed", "traversal", "symlink"])
   void test(
     `source custody refuses ${mode} before preparation refs or execution`,

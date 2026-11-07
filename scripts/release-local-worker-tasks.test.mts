@@ -118,12 +118,14 @@ void test("semantic WSL task starts only the existing bounded oneshot, with no d
     "--distribution Ubuntu-24.04 --user portcove-review --exec /usr/bin/systemctl --user start --wait portcove-semantic-worker.service",
   );
   assert.equal(task.settings.execution_time_limit, "PT47M");
+  assert.match(task.xml, /^<\?xml version="1\.0"\?>\n/u);
   assert.doesNotMatch(task.action.arguments, /bash|--shell|--user root/u);
   assert.match(task.xml, /<Interval>PT5M<\/Interval>/u);
   assert.match(
     task.linux_service,
     /TimeoutStartSec=2700\nTimeoutStopSec=30\nKillMode=control-group/,
   );
+  assert.match(task.linux_service, /^Environment=PATH=%h\/\.cargo\/bin:\/usr\/bin:\/bin$/mu);
   assert.equal(task.timer_enabled, false);
   assert.equal(
     createHash("sha256").update(task.linux_service).digest("hex"),

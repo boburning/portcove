@@ -53,6 +53,7 @@
     },
     "original_game_title": "WarioWare: Twisted!"
   },
+  "gba_staged_archive_v1": { "game_code": "RZWE", "versioned_mods": false },
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -68,14 +69,6 @@
     "executable_hints": {
       "windows-x86-64": ["WarioWareTwistedRecomp.exe"]
     },
-    "persistent_paths": ["config.ini", "keybinds.ini", "rom.cfg", "bios.cfg", "game.toml", "saves"],
-    "runtime_mutable_paths": [
-      "recomp_cache",
-      "diagnostics",
-      "recomp_master_misses_RZWE.toml.frag",
-      "recomp_coverage_RZWE.json",
-      "replay-divergence.state"
-    ],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],

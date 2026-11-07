@@ -107,12 +107,18 @@ export function discoverCiPlan(
   const checkout = checkedSha(checkoutSha, "checkout SHA");
   const selectedProfile = inspectReleaseProfile(releaseProfile);
   const releasePlatforms = qualificationPlatformsForProfile(selectedProfile);
+  const legacyReleaseCaller =
+    callerWorkflow === "release.yml" &&
+    ["workflow_call", "workflow_dispatch", "push"].includes(eventName);
+  const windowsApplicationCaller =
+    callerWorkflow === "application-release.yml" &&
+    selectedProfile === "initial-beta-windows-x86_64-v1" &&
+    eventName === "workflow_dispatch";
   if (
     selectedProfile !== "full" &&
     (!forceQualification ||
       qualificationCaller !== "release" ||
-      callerWorkflow !== "release.yml" ||
-      !["workflow_call", "workflow_dispatch", "push"].includes(eventName))
+      !(legacyReleaseCaller || windowsApplicationCaller))
   )
     throw new Error("reduced profile requires explicitly forced release reusable qualification");
   const qualify = (

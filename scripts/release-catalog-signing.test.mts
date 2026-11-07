@@ -8,6 +8,8 @@ import { execFileSync } from "node:child_process";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { isRecord } from "./runtime-values.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { readCatalogPublicAnchors } from "./release-catalog-signing-context.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import {
   checkpointReleaseOpportunity,
@@ -45,7 +47,7 @@ import {
   runCatalogRoleController,
   assembleActualCatalogRepository,
   catalogRoleControllerDeadline,
-  recheckCatalogSemanticProof,
+  recheckFixedCatalogSemanticProof,
 } from "./release-catalog-signing.mts";
 import { requireReceivedCatalogRoleArtifact } from "./release-tuf-role-artifact.mts";
 import {
@@ -67,7 +69,10 @@ import {
   prepareSemanticReviewHandoff,
   semanticReviewCheckName,
 } from "./release-semantic-review.mts";
-import { readIndependentCatalogSemanticReview } from "./release-control-inputs.mts";
+import {
+  createFixedControlReadAllowance,
+  readIndependentCatalogSemanticReviewWithSdk,
+} from "./release-control-inputs.mts";
 import { assertCatalogListingClassification } from "./release-catalog-publication-contract.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -490,7 +495,7 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
   const make = raw as (
     directory: string,
     budget: { check: () => void; monotonicDeadline: number },
-    guard: () => void,
+    guard: (() => void) | { readCurrent: () => Promise<void> },
   ) => typeof journal;
   let expired = false;
   const guarded = make("inert", { monotonicDeadline: 100, check() {} }, () => {
@@ -514,13 +519,16 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
   assert.equal(observed.filter((value) => value !== "guard").length, before);
   guarded.request("GET");
   assert.equal(observed.at(-1), "GET");
-  // Run the actual producer callback too: a synchronous Check GET may consume
+  // Run the actual producer callback too: the awaited Check GET may consume
   // the remaining control lifetime while the enclosing job is still live.
-  const callbackCall = source.indexOf("api: guardedCoordinatorJournal(directory, budget, () => {"),
-    callbackStart = source.indexOf("() => {", callbackCall),
-    callbackEnd = source.indexOf("\n            }),", callbackStart);
-  assert.ok(callbackCall > 0 && callbackEnd > callbackStart);
+  const receiver = source.indexOf("export async function prepareActualCoordinatorCatalogSigning("),
+    callbackStart = source.indexOf("const beforeMutation = {", receiver),
+    callbackEnd = source.indexOf("const signedJournal = ", callbackStart);
+  assert.ok(receiver > 0 && callbackStart > receiver && callbackEnd > callbackStart);
   let clock = 59;
+  let check = Promise.withResolvers<void>(),
+    enteredControls = Promise.withResolvers<void>(),
+    controls = Promise.withResolvers<void>();
   const order: string[] = [],
     budget = {
       monotonicDeadline: 170,
@@ -529,36 +537,52 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
       },
     };
   const actualCallback: unknown = runInNewContext(
-    `(${stripTypeScriptTypes(`${source.slice(callbackStart, callbackEnd)}\n}`)})`,
+    `${stripTypeScriptTypes(source.slice(callbackStart, callbackEnd))}\nbeforeMutation`,
     {
       budget,
-      api: {},
-      authorities: {},
-      inputs: { opportunity: {}, check_id: 1 },
       semantic: { proof_sha256: "same" },
       stable: "stable",
-      readCatalogCoordinatorReview() {
+      async readReview() {
         order.push("Check GET");
+        await check.promise;
         clock += 2;
         return { proof_sha256: "same" };
       },
-      initialControls: {
-        readMaintenance() {
-          order.push("maintenance");
-          if (clock >= 60) throw new Error("original controls expired");
-          return "stable";
-        },
+      async readMaintenance() {
+        order.push("maintenance");
+        enteredControls.resolve();
+        await controls.promise;
+        if (clock >= 60) throw new Error("original controls expired");
+        return "stable";
       },
       catalogCoordinatorMaintenanceIdentity: (value: unknown) => value,
     },
     { timeout: 1000, contextCodeGeneration: { strings: false, wasm: false } },
   );
-  assert.equal(typeof actualCallback, "function");
-  const lastGuard = make("inert", budget, actualCallback as () => void),
+  const lastGuard = make("inert", budget, actualCallback as { readCurrent: () => Promise<void> }),
     writesBefore = observed.filter((value) => value === "POST").length;
-  assert.throws(() => lastGuard.request("POST"), /controls expired/);
+  const refused = Promise.resolve(lastGuard.request("POST"));
+  assert.deepEqual(order, ["Check GET"]);
+  check.resolve();
+  await enteredControls.promise;
   assert.deepEqual(order, ["Check GET", "maintenance"]);
   assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
+  controls.resolve();
+  await assert.rejects(refused, /controls expired/);
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
+
+  clock = 0;
+  check = Promise.withResolvers();
+  enteredControls = Promise.withResolvers();
+  controls = Promise.withResolvers();
+  const accepted = Promise.resolve(lastGuard.request("POST"));
+  check.resolve();
+  await enteredControls.promise;
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
+  controls.resolve();
+  await accepted;
+  assert.deepEqual(order, ["Check GET", "maintenance", "Check GET", "maintenance"]);
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore + 1);
 });
 void test("catalog context transports exact independent purpose, full byte inventory and lossless u64 wire", () => {
   const f = fixture(),
@@ -822,7 +846,7 @@ void test("imported contexts, preparations, roles and assemblies cannot reach re
     ),
   );
 });
-void test("catalog same App Check receiver binds fresh exact proof without importing a local capture", () => {
+void test("catalog same App Check receiver binds fresh exact proof without importing a local capture", async (t) => {
   const f = fixture(),
     op = f.facts.semantic_opportunity,
     handoff = prepareSemanticReviewHandoff(op, {
@@ -840,32 +864,31 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
     app: { id: 101 },
     output: { ...handoff.proposed_request.body.output, annotations_count: 0 },
   };
-  let observed = body,
-    reads = 0;
-  const api = {
-    request(method: string, route: string) {
-      reads++;
-      assert.equal(method, "GET");
-      return {
-        status: 200,
-        headers: new Map<string, string>(),
-        body: route.endsWith("check-runs/303")
-          ? observed
-          : { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture" },
-      };
-    },
-    graphql() {
-      throw new Error("no mutation");
-    },
+  let observed = body;
+  const routes: string[] = [];
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(request.method, "GET");
+    assert.equal(request.headers.get("authorization"), "token inert-catalog-reader");
+    routes.push(url.pathname);
+    return Response.json(
+      url.pathname.endsWith("/check-runs/303")
+        ? observed
+        : { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture" },
+    );
   };
-  const proof = readIndependentCatalogSemanticReview(
-      api,
-      {
-        schema_version: 1,
-        review_app_id: 101,
-        writer_app_id: 202,
-        review_check_name: semanticReviewCheckName,
-      },
+  const deadline = performance.now() + 5000;
+  const legacyProducer = {
+    schema_version: 1,
+    review_app_id: 101,
+    writer_app_id: 202,
+    review_check_name: semanticReviewCheckName,
+  };
+  const proof = await readIndependentCatalogSemanticReviewWithSdk(
+      { token: "inert-catalog-reader", deadline, guard() {}, fetch },
+      legacyProducer,
       op,
       303,
     ),
@@ -888,26 +911,23 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
       semantic_proof_sha256: proof_sha256,
       context_sha256: hash(catalogSigningContextBytes(facts)),
     },
-    authorities = {
-      semantic_producer: {
-        schema_version: 1,
-        review_app_id: 101,
-        writer_app_id: 202,
-        review_check_name: semanticReviewCheckName,
-      },
-    };
-  assert.equal(
-    recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior)
-      .semantic_check_id,
-    303,
+    authorities = { semantic_producer: legacyProducer };
+  const priorToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-catalog-reader";
+  t.after(() => {
+    if (priorToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = priorToken;
+  });
+  t.mock.method(globalThis, "fetch", fetch);
+  const initial = await recheckFixedCatalogSemanticProof(
+    deadline,
+    authorities,
+    facts,
+    binding,
+    descriptor.prior,
   );
-  const before = reads;
-  assert.equal(
-    recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior)
-      .semantic_proof_sha256,
-    proof_sha256,
-  );
-  assert.ok(reads > before);
+  assert.equal(initial.semantic_check_id, 303);
+  assert.equal(initial.semantic_proof_sha256, proof_sha256);
   const selected = {
     semantic_producer: {
       schema_version: 2,
@@ -916,19 +936,16 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
       review_check_name: semanticReviewCheckName,
     },
   };
-  assert.equal(
-    recheckCatalogSemanticProof(api, selected, facts, binding, descriptor.prior)
-      .semantic_proof_sha256,
-    proof_sha256,
-  );
-  assert.throws(() =>
-    recheckCatalogSemanticProof(
-      api,
-      { semantic_producer: { ...selected.semantic_producer, purpose: "application" } },
-      facts,
-      binding,
-      descriptor.prior,
-    ),
+  routes.length = 0;
+  const acquire = (authority: { semantic_producer: unknown }) =>
+    recheckFixedCatalogSemanticProof(deadline, authority, facts, binding, descriptor.prior);
+  assert.equal((await acquire(selected)).semantic_proof_sha256, proof_sha256);
+  assert.deepEqual(routes, [
+    "/repos/boburning/portcove",
+    "/repos/boburning/portcove/check-runs/303",
+  ]);
+  await assert.rejects(
+    acquire({ semantic_producer: { ...selected.semantic_producer, purpose: "application" } }),
   );
   for (const changed of [
     { app: { id: 202 } },
@@ -937,24 +954,126 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
     { external_id: "wrong-purpose" },
   ]) {
     observed = { ...body, ...changed };
-    assert.throws(() =>
-      recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior),
-    );
-    assert.throws(() =>
-      recheckCatalogSemanticProof(api, selected, facts, binding, descriptor.prior),
-    );
+    await assert.rejects(acquire(authorities));
+    await assert.rejects(acquire(selected));
   }
   observed = body;
-  assert.throws(() =>
-    recheckCatalogSemanticProof(
-      api,
+  await assert.rejects(
+    recheckFixedCatalogSemanticProof(
+      deadline,
       authorities,
       { ...facts, semantic_proof_sha256: "8".repeat(64) },
       binding,
       descriptor.prior,
     ),
   );
+  routes.length = 0;
+  const reserve = createFixedControlReadAllowance();
+  for (let read = 0; read < 16; read++) {
+    await recheckFixedCatalogSemanticProof(
+      deadline,
+      authorities,
+      facts,
+      binding,
+      descriptor.prior,
+      reserve,
+    );
+  }
+  await assert.rejects(
+    recheckFixedCatalogSemanticProof(
+      deadline,
+      authorities,
+      facts,
+      binding,
+      descriptor.prior,
+      reserve,
+    ),
+  );
+  assert.equal(routes.length, 32);
+
+  await t.test(
+    "coordinator gives each GET its own timeout inside the original phase",
+    async (timing) => {
+      const source = await readFile(
+        new URL("./release-coordinator-driver.mts", import.meta.url),
+        "utf8",
+      );
+      const preparation = source.indexOf(
+          "export async function prepareActualCoordinatorCatalogSigning(",
+        ),
+        optionsStart = source.indexOf("const readOptions = {", preparation),
+        optionsEnd = source.indexOf("await verifyCatalogCoordinatorBaseline(", optionsStart),
+        reviewStart = source.indexOf("async function readCatalogCoordinatorReview("),
+        reviewEnd = source.indexOf("async function recheckActualCatalogReview(", reviewStart);
+      assert.ok(preparation > 0 && optionsStart > preparation && optionsEnd > optionsStart);
+      assert.ok(reviewStart > 0 && reviewEnd > reviewStart);
+      const phaseDeadline = 41000;
+      let clock = 1000,
+        wallCutoff = phaseDeadline,
+        bodyTimes = [11000, 11000];
+      timing.mock.method(performance, "now", () => clock);
+      const timedFetch: typeof globalThis.fetch = async (input, init) => {
+        const response = await fetch(input, init);
+        const elapsed = bodyTimes.shift();
+        assert.ok(elapsed !== undefined);
+        const stream = response.body?.pipeThrough(
+          new TransformStream<Uint8Array, Uint8Array>({
+            transform(chunk, controller) {
+              clock += elapsed;
+              controller.enqueue(chunk);
+            },
+          }),
+        );
+        return new Response(stream, { headers: response.headers });
+      };
+      timing.mock.method(globalThis, "fetch", timedFetch);
+      const read = runInNewContext(
+        stripTypeScriptTypes(
+          source.slice(optionsStart, optionsEnd) + source.slice(reviewStart, reviewEnd),
+        ) +
+          "\n(authorities, opportunity) => readCatalogCoordinatorReview(readOptions, authorities, opportunity, 303)",
+        {
+          performance,
+          budget: {
+            monotonicDeadline: phaseDeadline,
+            remaining(maximum = 170000) {
+              return Math.min(maximum, phaseDeadline - clock, wallCutoff - clock);
+            },
+            check() {
+              if (clock >= Math.min(phaseDeadline, wallCutoff)) throw new Error("phase expired");
+            },
+          },
+          readOnlyReleaseChildEnvironment: () => undefined,
+          fixedReleaseReaderToken: () => "inert-catalog-reader",
+          inspectCatalogSemanticOpportunity: (opportunity: unknown) => opportunity,
+          readIndependentCatalogSemanticReviewWithSdk,
+          capacityDigest: digest,
+        },
+      ) as (
+        authority: { semantic_producer: unknown },
+        opportunity: unknown,
+      ) => Promise<{
+        proof_sha256: string;
+      }>;
+      routes.length = 0;
+      assert.equal((await read(selected, op)).proof_sha256, proof_sha256);
+      assert.deepEqual(routes, [
+        "/repos/boburning/portcove",
+        "/repos/boburning/portcove/check-runs/303",
+      ]);
+      assert.equal(clock, 23000);
+
+      clock = 1000;
+      bodyTimes = [11000, 16000];
+      await assert.rejects(read(selected, op), { code: "deadline_exceeded" });
+      clock = 1000;
+      wallCutoff = 20000;
+      bodyTimes = [11000, 11000];
+      await assert.rejects(read(selected, op), { code: "deadline_exceeded" });
+    },
+  );
 });
+
 void test("catalog context and role ready/predicate routes reach fixed upload and normalized attestation names", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "catalog-routing-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -1116,4 +1235,92 @@ void test("large descriptive directory crosses catalog signing preflight, archiv
       assertCatalogListingClassification(falseReport, f.facts.semantic_opportunity.classification),
     /classification/,
   );
+});
+
+void test("locked SDK authenticates catalog anchor bytes through the exact commit, tree and blobs", async () => {
+  const objectId = (kind: string, bytes: Buffer) =>
+    createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
+  const anchors = [
+    { path: "offline.json", bytes: Buffer.from("offline fixture") },
+    { path: "root.json", bytes: Buffer.from("root fixture") },
+  ].map((item) => ({ ...item, sha: objectId("blob", item.bytes) }));
+  const [offline, root] = anchors as [(typeof anchors)[number], (typeof anchors)[number]];
+  const tree = objectId(
+    "tree",
+    Buffer.concat(
+      anchors.flatMap((a) => [Buffer.from(`100644 ${a.path}\0`), Buffer.from(a.sha, "hex")]),
+    ),
+  );
+  const actor = { name: "Fixture", email: "fixture@example.invalid", date: "2026-01-01T00:00:00Z" };
+  const person = `${actor.name} <${actor.email}> ${Date.parse(actor.date) / 1000} +0000`;
+  const message = "catalog fixture";
+  const commit = objectId(
+    "commit",
+    Buffer.from(`tree ${tree}\nauthor ${person}\ncommitter ${person}\n\n${message}`),
+  );
+  const pin = (a: typeof root) => ({
+    path: a.path,
+    bytes: a.bytes.length,
+    sha256: createHash("sha256").update(a.bytes).digest("hex"),
+  });
+  const pins = { commit, root: pin(root), offline_targets: pin(offline) };
+  let truncated = false;
+  const calls: string[] = [];
+  const deadline = performance.now() + 15000;
+  const provider = await createReleaseCustodyProvider({
+    token: "inert-catalog-anchor",
+    deadline,
+    fetch: async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url),
+        prefix = "/repos/boburning/portcove/git";
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-catalog-anchor");
+      calls.push(url.pathname);
+      if (url.pathname === `${prefix}/commits/${commit}`)
+        return Response.json({
+          sha: commit,
+          tree: { sha: tree },
+          parents: [],
+          author: actor,
+          committer: actor,
+          message,
+        });
+      if (url.pathname === `${prefix}/trees/${tree}`) {
+        assert.equal(url.search, "?recursive=1");
+        return Response.json({
+          sha: tree,
+          truncated,
+          tree: anchors.map((a) => ({ path: a.path, mode: "100644", type: "blob", sha: a.sha })),
+        });
+      }
+      const item = anchors.find((a) => url.pathname === `${prefix}/blobs/${a.sha}`);
+      assert.ok(item);
+      return Response.json({
+        sha: item.sha,
+        size: item.bytes.length,
+        encoding: "base64",
+        content: item.bytes.toString("base64"),
+      });
+    },
+  });
+  assert.deepEqual(
+    [...(await readCatalogPublicAnchors(provider, pins, deadline))],
+    [
+      ["trusted-root.json", root.bytes],
+      ["offline-targets.json", offline.bytes],
+    ],
+  );
+  const prefix = "/repos/boburning/portcove/git";
+  assert.deepEqual(calls, [
+    `${prefix}/commits/${commit}`,
+    `${prefix}/trees/${tree}`,
+    `${prefix}/blobs/${root.sha}`,
+    `${prefix}/blobs/${offline.sha}`,
+  ]);
+  truncated = true;
+  calls.length = 0;
+  await assert.rejects(readCatalogPublicAnchors(provider, pins, deadline), /truncated/u);
+  assert.deepEqual(calls, [`${prefix}/commits/${commit}`, `${prefix}/trees/${tree}`]);
 });

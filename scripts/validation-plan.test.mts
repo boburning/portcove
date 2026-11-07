@@ -301,6 +301,8 @@ void test("scoped beta matcher and Roadmap release consumer retain protected qua
 void test("coordinator state and remote transport retain protected release qualification ownership", () => {
   for (const file of [
     "scripts/release-checkpoint-job-identity.mts",
+    "scripts/release-custody-provider.mts",
+    "scripts/release-wake-provider.mts",
     "scripts/release-coordinator-checkpoint-authentication.mts",
     "scripts/release-coordinator-checkpoint-authentication.test.mts",
     "scripts/release-coordinator-checkpoint-signing.mts",
@@ -320,7 +322,6 @@ void test("coordinator state and remote transport retain protected release quali
     "scripts/release-artifact-archive.mts",
     "scripts/release-artifact-assembly.mts",
     "scripts/bounded-zip.mts",
-    "scripts/github-binary.mts",
     "scripts/assembler-job-identity.mts",
     "scripts/trusted-aggregate-attestation.mts",
     "scripts/production-aggregate-steps.mts",
@@ -648,5 +649,16 @@ void test("both version runtime adapters inherit protected policy across lifecyc
       assert.equal(selected.qualification_required, original.qualification_required);
       assert.deepEqual(selected.platforms, original.platforms);
     }
+  }
+});
+
+void test("copy producers select their owned hosted contracts without a Desktop source edit", () => {
+  for (const [path, group] of [
+    ["integrations/playnite/ManagementWindow.cs", "rust"],
+    ["crates/portcove-core/src/failure.rs", "rust"],
+    ["crates/portcove-cli/src/human.rs", "rust"],
+    ["crates/portcove-core/catalog/ports/bountyhunterkanden-secondhunt.json", "catalog"],
+  ] as const) {
+    assert.ok(plan([change(path)]).groups.includes(group), path);
   }
 });

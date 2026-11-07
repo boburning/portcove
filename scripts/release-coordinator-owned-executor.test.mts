@@ -30,6 +30,7 @@ import {
 import { performance } from "node:perf_hooks";
 import {
   checkpointProofFixture,
+  releaseCustodyFetch,
   fixedJobJournalAuthoritiesFixture,
   selectedPublicationAuthoritiesFixture,
 } from "./fixtures/checkpoint-proof-fixture.mts";
@@ -166,37 +167,63 @@ async function selectedOwnedHistoryFixture(
     t.mock.restoreAll();
     syncBuiltinESMExports();
   });
-  t.mock.method(globalThis, "fetch", async (raw: Parameters<typeof fetch>[0]) => {
-    assert.ok(typeof raw === "string" || raw instanceof URL);
-    const url = typeof raw === "string" ? raw : raw.href;
-    if (url === "https://token.actions.githubusercontent.com/.well-known/jwks")
-      return new Response(JSON.stringify({ keys: [identityJwk] }));
-    assert.equal(
-      url,
-      "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
-    );
-    return new Response(JSON.stringify({ value: identity.token }));
-  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (raw: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(raw instanceof Request ? raw.url : raw);
+      if (url.href === "https://api.github.com/graphql") {
+        heads++;
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-selected-job-token",
+        );
+        assert.ok(typeof init?.body === "string");
+        const query: unknown = JSON.parse(init.body);
+        assert.ok(
+          isRecord(query) && typeof query.query === "string" && query.query.startsWith("query("),
+        );
+        return Response.json({
+          data: {
+            repository: {
+              databaseId: 1354613114,
+              nameWithOwner: "boburning/portcove",
+              state: {
+                prefix: "refs/heads/",
+                name: "portcove-fixture-coordinator-state",
+                target: { __typename: "Commit", oid: seed.checkpoint },
+              },
+              intent: null,
+            },
+          },
+        });
+      }
+      if (url.origin === "https://api.github.com") {
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-selected-job-token",
+        );
+        const page = url.searchParams.get("page");
+        if (page) assert.equal(url.searchParams.get("per_page"), "100");
+        const route = page ? `${url.pathname}?per_page=100&page=${page}` : url.pathname;
+        return Response.json(identity.metadata(route));
+      }
+      if (url.href === "https://token.actions.githubusercontent.com/.well-known/jwks")
+        return new Response(JSON.stringify({ keys: [identityJwk] }));
+      assert.equal(
+        url.href,
+        "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
+      );
+      return new Response(JSON.stringify({ value: identity.token }));
+    },
+  );
   t.mock.method(
     childProcess,
     "spawnSync",
-    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      if (command !== "gh") return actualSpawn(command, args, options);
-      if (args[1] !== "graphql") return identity.transport.spawn(command, args, options);
-      heads++;
-      assert.equal(options.env?.GH_TOKEN, "inert-selected-job-token");
-      assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
-      assert.ok(typeof options.input === "string");
-      const query: unknown = JSON.parse(options.input);
-      assert.ok(
-        isRecord(query) && typeof query.query === "string" && query.query.startsWith("query("),
-      );
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify({ data: { repository: { databaseId: 1354613114, nameWithOwner: "boburning/portcove", state: { prefix: "refs/heads/", name: "portcove-fixture-coordinator-state", target: { __typename: "Commit", oid: seed.checkpoint } }, intent: null } } })}`,
-        stderr: "",
-      };
-    },
+    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) =>
+      command === "gh"
+        ? identity.transport.spawn(command, args, options)
+        : actualSpawn(command, args, options),
   );
   syncBuiltinESMExports();
   const deadline = performance.now() + jobBudget;
@@ -254,6 +281,9 @@ async function selectedEffectFixture(
     { ...capacityExecutorJobProfile("coordinator"), runAttempt: 1 },
   );
   const proof = checkpointProofFixture(undefined, undefined, { run_attempt: 1 });
+  const custodyFetch = releaseCustodyFetch(proof.provider, (_url, init) => {
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-selected-job-token");
+  });
   const remote = f.fixture;
   remote.refs.clear();
   remote.refs.set(remote.stateRef, f.seed.checkpoint);
@@ -265,12 +295,102 @@ async function selectedEffectFixture(
       status,
       headers: { "content-type": "application/json" },
     });
+  const journalReply = (method: string, route: string, raw: unknown) => {
+    let body: unknown,
+      status = 200;
+    if (route !== "/graphql") {
+      const reply = remote.api.request(method, route.slice(1), raw);
+      body = reply.body;
+      status = reply.status!;
+    } else {
+      assert.ok(isRecord(raw) && typeof raw.query === "string" && isRecord(raw.variables));
+      const variables = raw.variables;
+      if (raw.query.startsWith("mutation")) {
+        assert.ok(isRecord(variables.input) && Array.isArray(variables.input.refUpdates));
+        const input = variables.input;
+        const updates = input.refUpdates;
+        assert.ok(Array.isArray(updates));
+        assert.equal(input.repositoryId, "R_fixture");
+        for (const update of updates) {
+          assert.ok(isRecord(update));
+          assert.equal(update.force, false);
+          assert.equal(remote.refs.get(String(update.name)) ?? "0".repeat(40), update.beforeOid);
+        }
+        for (const update of updates) {
+          assert.ok(isRecord(update));
+          if (!faults.ambiguousFinal || !String(update.name).includes("checkpoint-proof/"))
+            remote.refs.set(String(update.name), String(update.afterOid));
+        }
+        if (faults.ambiguousFinal && updates.length > 2)
+          throw new Error("partial final CAS response lost");
+        body = { data: { updateRefs: { clientMutationId: input.clientMutationId } } };
+      } else {
+        const node: Record<string, unknown> = {
+          __typename: "Repository",
+          id: "R_fixture",
+          databaseId: 1354613114,
+          nameWithOwner: "boburning/portcove",
+        };
+        for (const [alias, name] of Object.entries(variables)) {
+          if (typeof name !== "string" || !name.startsWith("refs/")) continue;
+          const split = name.indexOf("/", 5) + 1,
+            oid = remote.refs.get(name);
+          node[alias] = oid
+            ? {
+                name: name.slice(split),
+                prefix: name.slice(0, split),
+                target: { __typename: "Commit", oid },
+              }
+            : null;
+        }
+        body = { data: { [raw.query.includes("node(id:") ? "node" : "repository"]: node } };
+      }
+    }
+    return { body, status };
+  };
   t.mock.method(
     globalThis,
     "fetch",
     async (raw: Parameters<typeof fetch>[0], settings?: RequestInit) => {
-      traffic.calls++;
       const url = typeof raw === "string" ? raw : raw instanceof URL ? raw.href : raw.url;
+      traffic.calls++;
+      if (
+        url === "https://api.github.com/graphql" ||
+        url.startsWith("https://api.github.com/repos/boburning/portcove/git/")
+      ) {
+        assert.equal(
+          new Headers(settings?.headers).get("authorization"),
+          "token inert-selected-job-token",
+        );
+        assert.ok(settings?.method);
+        const payload: unknown =
+          typeof settings.body === "string" ? JSON.parse(settings.body) : undefined;
+        const { body, status } = journalReply(settings.method, new URL(url).pathname, payload);
+        return json(body, status);
+      }
+      if (url === "https://api.github.com/repos/boburning/portcove/actions/jobs/502") {
+        faults.originalJobReads++;
+        assert.equal(settings?.method, "GET");
+        assert.equal(
+          new Headers(settings.headers).get("authorization"),
+          "token inert-selected-job-token",
+        );
+        return json({
+          id: 502,
+          run_id: 9988,
+          run_attempt: 1,
+          head_sha: f.expected.controller_revision,
+          status: faults.originalTerminal ? "completed" : "in_progress",
+          conclusion: faults.originalTerminal ? "failure" : null,
+          check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/778",
+        });
+      }
+      if (url.startsWith("https://api.github.com/repos/boburning/portcove/actions/")) {
+        // Historical custody requests carry the custody provider's fixed API version.
+        if (new Headers(settings?.headers).get("x-github-api-version") === "2022-11-28")
+          return custodyFetch(raw, settings);
+        return oldFetch(raw, settings);
+      }
       if (url === "https://fixture.actions.githubusercontent.com/oidc?audience=sigstore")
         return json({ value: sigstore.token });
       if (url === "https://fulcio.sigstore.dev/api/v2/signingCert") {
@@ -323,23 +443,6 @@ async function selectedEffectFixture(
     (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
       if (command !== "gh") return actualSpawn(command, args, options);
       traffic.calls++;
-      if (args[2]?.endsWith("/actions/jobs/502")) {
-        faults.originalJobReads++;
-        assert.equal(args[args.indexOf("--method") + 1], "GET");
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify({
-            id: 502,
-            run_id: 9988,
-            run_attempt: 1,
-            head_sha: f.expected.controller_revision,
-            status: faults.originalTerminal ? "completed" : "in_progress",
-            conclusion: faults.originalTerminal ? "failure" : null,
-            check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/778",
-          })}`,
-          stderr: "",
-        };
-      }
       if (args[0] === "attestation") {
         const bundle: unknown = JSON.parse(
           readFileSync(args[args.indexOf("--bundle") + 1]!, "utf8"),
@@ -358,75 +461,7 @@ async function selectedEffectFixture(
           stderr: "",
         };
       }
-      if (String(options.cwd).includes("checkpoint-verification-")) {
-        const response = proof.api.request("GET", args[2]!);
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
-          stderr: "",
-        };
-      }
-      if (!String(options.env?.GH_CONFIG_DIR).includes("journal-api-"))
-        return f.identity.transport.spawn(command, args, options);
-      assert.equal(options.env?.GH_TOKEN, "inert-selected-job-token");
-      assert.equal(options.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
-      assert.ok(typeof options.input === "string" || options.input === undefined);
-      const raw: unknown = options.input === undefined ? undefined : JSON.parse(options.input);
-      let body: unknown,
-        status = 200;
-      if (args[1] !== "graphql") {
-        const reply = remote.api.request(args[args.indexOf("--method") + 1]!, args[2]!, raw);
-        body = reply.body;
-        status = reply.status!;
-      } else {
-        assert.ok(isRecord(raw) && typeof raw.query === "string" && isRecord(raw.variables));
-        const variables = raw.variables;
-        if (raw.query.startsWith("mutation")) {
-          assert.ok(isRecord(variables.input) && Array.isArray(variables.input.refUpdates));
-          const input = variables.input;
-          const updates = input.refUpdates;
-          assert.ok(Array.isArray(updates));
-          assert.equal(input.repositoryId, "R_fixture");
-          for (const update of updates) {
-            assert.ok(isRecord(update));
-            assert.equal(update.force, false);
-            assert.equal(remote.refs.get(String(update.name)) ?? "0".repeat(40), update.beforeOid);
-          }
-          for (const update of updates) {
-            assert.ok(isRecord(update));
-            if (!faults.ambiguousFinal || !String(update.name).includes("checkpoint-proof/"))
-              remote.refs.set(String(update.name), String(update.afterOid));
-          }
-          if (faults.ambiguousFinal && updates.length > 2)
-            throw new Error("partial final CAS response lost");
-          body = { data: { updateRefs: { clientMutationId: input.clientMutationId } } };
-        } else {
-          const node: Record<string, unknown> = {
-            __typename: "Repository",
-            id: "R_fixture",
-            databaseId: 1354613114,
-            nameWithOwner: "boburning/portcove",
-          };
-          for (const [alias, name] of Object.entries(variables)) {
-            if (typeof name !== "string" || !name.startsWith("refs/")) continue;
-            const split = name.indexOf("/", 5) + 1,
-              oid = remote.refs.get(name);
-            node[alias] = oid
-              ? {
-                  name: name.slice(split),
-                  prefix: name.slice(0, split),
-                  target: { __typename: "Commit", oid },
-                }
-              : null;
-          }
-          body = { data: { [raw.query.includes("node(id:") ? "node" : "repository"]: node } };
-        }
-      }
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 ${status} Fixture\r\n\r\n${JSON.stringify(body)}`,
-        stderr: "",
-      };
+      return f.identity.transport.spawn(command, args, options);
     },
   );
   syncBuiltinESMExports();
@@ -494,7 +529,10 @@ for (const route of ["operation", "application", "catalog"] as const) {
         : route === "application"
           ? recoverOwnedPublishedMetadata(f.session, input, readback)
           : recoverOwnedPublishedCatalogMetadata(f.session, input, readback);
-    await assert.rejects(work(), /exact bound journal/);
+    await assert.rejects(
+      work(),
+      /requires original live checkpoint controls before history binding/,
+    );
     assert.equal(readbacks, 0);
     assert.equal(f.heads(), 0);
     await assert.rejects(work(), /stopped/);
@@ -704,7 +742,7 @@ void test("selected source cannot fall back to a lingering App token before hist
         return { remote_identity: "must-not-run", evidence_sha256: "d".repeat(64) };
       },
     ),
-    /selected effect requires its exact bound journal/,
+    /requires original live checkpoint controls before history binding/,
   );
   assert.equal(effects, 0);
   assert.equal(f.heads(), 0, "no legacy journal request reached the provider");

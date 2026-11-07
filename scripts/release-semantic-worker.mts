@@ -1,3 +1,4 @@
+import { controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 import {
   assertCatalogReviewRequestBaseline,
   inspectCatalogReviewRequest,
@@ -121,7 +122,7 @@ export function renderSemanticWorkerUnits(
   )
     throw new Error("initial probe requires its fixed configuration basename");
   return {
-    service: `[Unit]\nDescription=Portcove bounded semantic request worker\nAfter=network-online.target\n\n[Service]\nType=oneshot\nWorkingDirectory=${workerCheckout}\nExecStart=${config.runtime.node_executable} ${workerCheckout}/scripts/release-semantic-worker.mts ${configurationPath} ${configurationSha256}\nUMask=0077\nTimeoutStartSec=2700\nTimeoutStopSec=30\nKillMode=control-group\nRestart=no\nStandardOutput=journal\nStandardError=journal\n`,
+    service: `[Unit]\nDescription=Portcove bounded semantic request worker\nAfter=network-online.target\n\n[Service]\nType=oneshot\nWorkingDirectory=${workerCheckout}\nEnvironment=PATH=%h/.cargo/bin:/usr/bin:/bin\nExecStart=${config.runtime.node_executable} ${workerCheckout}/scripts/release-semantic-worker.mts ${configurationPath} ${configurationSha256}\nUMask=0077\nTimeoutStartSec=2700\nTimeoutStopSec=30\nKillMode=control-group\nRestart=no\nStandardOutput=journal\nStandardError=journal\n`,
     timer:
       "[Unit]\nDescription=Observe Portcove semantic requests automatically\n\n[Timer]\nOnBootSec=2min\nOnUnitInactiveSec=5min\nRandomizedDelaySec=30s\nUnit=portcove-semantic-worker.service\n\n[Install]\nWantedBy=timers.target\n",
     initial_state: {
@@ -392,14 +393,14 @@ async function runInitialSemanticSetupProbe(
         await readBoundedPublicBuildInputFile(
           path.dirname(config.runtime.node_executable),
           path.basename(config.runtime.node_executable),
-          128 * 1024 * 1024,
+          controllerNodeMaximumBytes,
         ),
       ) !== config.runtime.node_sha256 ||
       digest(
         await readBoundedPublicBuildInputFile(
           path.dirname(process.execPath),
           path.basename(process.execPath),
-          128 * 1024 * 1024,
+          controllerNodeMaximumBytes,
         ),
       ) !== config.runtime.node_sha256
     )
@@ -413,7 +414,7 @@ async function runInitialSemanticSetupProbe(
   });
   try {
     await requirePrivateOwnerPath(directory, false);
-    const qualification = { ...config.runtime, output_parent: directory };
+    const qualification = { schema_version: 1, ...config.runtime, output_parent: directory };
     await retainProbeJson(directory, "qualification.json", qualification);
     const status = await runResourceCommand(
       "analysis",

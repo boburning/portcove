@@ -8,6 +8,7 @@ use std::{
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
+use octocrab::Octocrab;
 use reqwest::{StatusCode, header};
 use serde::{Deserialize, de::DeserializeOwned};
 use tokio::sync::{Mutex, RwLock};
@@ -66,7 +67,8 @@ pub trait ReleaseProvider: Send + Sync {
 
 #[derive(Clone)]
 pub struct GithubReleaseProvider {
-    client: reqwest::Client,
+    api_transport: reqwest::Client,
+    device_transport: reqwest::Client,
     download_client: reqwest::Client,
     network_bounds: ProviderNetworkBounds,
     api_root: String,
@@ -99,6 +101,7 @@ struct DeviceSession {
 pub(crate) struct ReleaseSelectionCacheKey {
     adapter: AdapterKind,
     n64_runtime_at_executable_parent: bool,
+    partitioned_archive: bool,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -112,6 +115,7 @@ impl ReleaseSelectionCacheKey {
         Self {
             adapter: port.adapter,
             n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent,
+            partitioned_archive: port.archive_data_compatibility_v1.is_some(),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -135,6 +139,12 @@ impl ReleaseSelectionCacheKey {
 struct CachedRelease {
     stored_at: Instant,
     release: ResolvedRelease,
+    identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+}
+
+struct ResolvedGithub {
+    release: ResolvedRelease,
+    identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
@@ -151,6 +161,7 @@ const GITHUB_MAX_RELEASE_PAGES: usize = 10;
 const PROVIDER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const PROVIDER_READ_IDLE_TIMEOUT: Duration = Duration::from_secs(15);
 const PROVIDER_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+const PROVIDER_USER_AGENT: &str = concat!("Portcove/", env!("CARGO_PKG_VERSION"));
 // A UI and CLI retry can coexist, but abandoned device flows cannot accumulate.
 const DEVICE_SESSION_MAX_ENTRIES: usize = 8;
 const DEVICE_SESSION_MAX_AGE: Duration = Duration::from_secs(15 * 60);
@@ -283,11 +294,19 @@ impl GithubReleaseProvider {
         credential: Option<GithubCredential>,
         qualification: bool,
     ) -> Result<Self> {
-        let metadata_builder = reqwest::Client::builder();
-        let metadata_builder = if qualification {
-            metadata_builder.no_proxy()
-        } else {
-            metadata_builder
+        let build_sdk_transport = || {
+            let mut transport = reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .retry(reqwest::retry::never())
+                .connect_timeout(bounds.connect)
+                .read_timeout(bounds.read_idle)
+                .timeout(bounds.request);
+            if qualification {
+                transport = transport.no_proxy();
+            }
+            transport
+                .build()
+                .map_err(|error| PortcoveError::network(error.to_string()))
         };
         let download_builder = reqwest::Client::builder();
         let download_builder = if qualification {
@@ -295,23 +314,16 @@ impl GithubReleaseProvider {
         } else {
             download_builder
         };
-        let client = metadata_builder
-            .redirect(reqwest::redirect::Policy::none())
-            .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
-            .connect_timeout(bounds.connect)
-            .read_timeout(bounds.read_idle)
-            .timeout(bounds.request)
-            .build()
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
         let download_client = download_builder
             .redirect(reqwest::redirect::Policy::limited(5))
-            .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+            .user_agent(PROVIDER_USER_AGENT)
             .connect_timeout(bounds.connect)
             .read_timeout(bounds.read_idle)
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         Ok(Self {
-            client,
+            api_transport: build_sdk_transport()?,
+            device_transport: build_sdk_transport()?,
             download_client,
             network_bounds: bounds,
             api_root: api_root.into(),
@@ -413,15 +425,78 @@ impl GithubReleaseProvider {
         Ok(provider)
     }
 
-    fn request(&self, url: &str) -> reqwest::RequestBuilder {
-        let request = self.client.get(url);
+    fn metadata_headers(
+        &self,
+        url: &str,
+        token: Option<&str>,
+        cached: Option<&HttpCacheEntry>,
+    ) -> Result<header::HeaderMap> {
+        let mut headers = header::HeaderMap::new();
         if same_origin(url, &self.api_root)
-            && let Some(token) = self.active_token()
+            && let Some(token) = token
         {
-            request.bearer_auth(token)
-        } else {
-            request
+            let mut value = header::HeaderValue::from_str(&format!("Bearer {token}"))
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            value.set_sensitive(true);
+            headers.insert(header::AUTHORIZATION, value);
         }
+        if let Some(cached) = cached {
+            for (name, value) in [
+                (header::IF_NONE_MATCH, cached.etag.as_deref()),
+                (header::IF_MODIFIED_SINCE, cached.last_modified.as_deref()),
+            ] {
+                if let Some(value) = value {
+                    headers.insert(
+                        name,
+                        header::HeaderValue::from_str(value)
+                            .map_err(|error| PortcoveError::network(error.to_string()))?,
+                    );
+                }
+            }
+        }
+        Ok(headers)
+    }
+
+    fn metadata_request(
+        &self,
+        url: &str,
+        token: Option<&str>,
+        cached: Option<&HttpCacheEntry>,
+    ) -> impl std::future::Future<Output = Result<reqwest::Response>> + Send + 'static + use<> {
+        let headers = self.metadata_headers(url, token, cached);
+        let url = url.to_owned();
+        let origin = self.api_root.clone();
+        let transport = self.api_transport.clone();
+        async move {
+            let response = github_sdk_client(&origin, transport)?
+                ._get_with_headers(url.as_str(), Some(headers?))
+                .await
+                .map_err(github_sdk_request_error)?;
+            // Keep the raw status, headers and streaming body for Core's
+            // conditional cache, provider errors and bounded response reader.
+            Ok(response.map(reqwest::Body::wrap).into())
+        }
+    }
+
+    async fn device_post(
+        &self,
+        endpoint: &str,
+        fields: &[(&str, &str)],
+    ) -> Result<reqwest::Response> {
+        let body = serde_urlencoded::to_string(fields)
+            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let request = http::Request::post(format!("{}{endpoint}", self.web_root))
+            .header(header::ACCEPT, "application/json")
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(header::CONTENT_LENGTH, body.len())
+            .body(body)
+            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        // The web protocol has its own anonymous SDK client and pool.
+        let response = github_sdk_client(&self.web_root, self.device_transport.clone())?
+            .execute(request)
+            .await
+            .map_err(github_sdk_request_error)?;
+        Ok(response.map(reqwest::Body::wrap).into())
     }
 
     fn active_token(&self) -> Option<String> {
@@ -430,13 +505,6 @@ impl GithubReleaseProvider {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .token
             .clone()
-    }
-
-    fn credential_source(&self) -> GithubAuthSource {
-        self.credential
-            .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .source
     }
 
     #[cfg(test)]
@@ -507,36 +575,11 @@ impl GithubReleaseProvider {
         })
     }
 
-    fn apply_conditional_headers(
-        request: reqwest::RequestBuilder,
-        cached: Option<&HttpCacheEntry>,
-    ) -> reqwest::RequestBuilder {
-        let Some(cached) = cached else { return request };
-        let request = if let Some(etag) = cached.etag.as_deref() {
-            request.header(header::IF_NONE_MATCH, etag)
-        } else {
-            request
-        };
-        if let Some(value) = cached.last_modified.as_deref() {
-            request.header(header::IF_MODIFIED_SINCE, value)
-        } else {
-            request
-        }
-    }
-
     async fn get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
         let cached = self.cached_http_response(url);
-        let response = Self::apply_conditional_headers(self.request(url), cached.as_ref())
-            .send()
-            .await
-            .map_err(|error| {
-                #[cfg(test)]
-                observe_test_response(ResponseTestEvent::Failed(
-                    ResponseTestPhase::Headers,
-                    error.is_timeout(),
-                ));
-                PortcoveError::network(error.to_string())
-            })?;
+        let response = self
+            .metadata_request(url, self.active_token().as_deref(), cached.as_ref())
+            .await?;
         if response.status() == StatusCode::NOT_MODIFIED {
             let cached = cached
                 .ok_or_else(|| PortcoveError::state("GitHub returned 304 without cached data"))?;
@@ -607,12 +650,7 @@ impl GithubReleaseProvider {
         }
         // Authenticated cache and ambient credentials are not authority for a new
         // managed grant. Revalidate public repository identity on the actual API.
-        let response = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let response = self.metadata_request(url, None, None).await?;
         if !response.status().is_success() {
             return Err(github_http_error(response.status(), response.headers()));
         }
@@ -650,13 +688,31 @@ impl GithubReleaseProvider {
         )))
     }
 
+    #[cfg(test)]
     async fn cached_release(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedRelease> {
-        let mut cache = self.cache.write().await;
-        cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
-        cache.get(key).map(|entry| entry.release.clone())
+        self.cached_selection(key).await.map(|value| value.release)
     }
 
+    async fn cached_selection(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedGithub> {
+        let mut cache = self.cache.write().await;
+        cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
+        cache.get(key).map(|entry| ResolvedGithub {
+            release: entry.release.clone(),
+            identity: entry.identity.clone(),
+        })
+    }
+
+    #[cfg(test)]
     async fn store_release(&self, key: ReleaseSelectionCacheKey, release: ResolvedRelease) {
+        self.store_selection(key, release, None).await;
+    }
+
+    async fn store_selection(
+        &self,
+        key: ReleaseSelectionCacheKey,
+        release: ResolvedRelease,
+        identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    ) {
         let mut cache = self.cache.write().await;
         cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
         if !cache.contains_key(&key)
@@ -673,6 +729,7 @@ impl GithubReleaseProvider {
             CachedRelease {
                 stored_at: Instant::now(),
                 release,
+                identity,
             },
         );
     }
@@ -680,8 +737,14 @@ impl GithubReleaseProvider {
     pub fn auth_status(
         &self,
     ) -> impl std::future::Future<Output = Result<GithubAuthStatus>> + Send + 'static + use<> {
-        let source = self.credential_source();
-        let authenticated = self.active_token().is_some();
+        let (source, token) = {
+            let credential = self
+                .credential
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            (credential.source, credential.token.clone())
+        };
+        let authenticated = token.is_some();
         let url = if authenticated {
             format!("{}/user", self.api_root)
         } else {
@@ -690,16 +753,9 @@ impl GithubReleaseProvider {
         // Authentication observation needs no library/cache authority. Capture
         // only the request and response facts, so a pending network read cannot
         // retain the provider's library lease across a desktop handoff.
-        let request = self.request(&url);
+        let request = self.metadata_request(&url, token.as_deref(), None);
         async move {
-            let response = request.send().await.map_err(|error| {
-                #[cfg(test)]
-                observe_test_response(ResponseTestEvent::Failed(
-                    ResponseTestPhase::Headers,
-                    error.is_timeout(),
-                ));
-                PortcoveError::network(error.to_string())
-            })?;
+            let response = request.await?;
             let status = response.status();
             let rate_limit = rate_limit_from_headers(response.headers());
             if status == StatusCode::UNAUTHORIZED && authenticated {
@@ -763,15 +819,9 @@ impl GithubReleaseProvider {
             )
             .with_known_cause(crate::failure::KnownFailureCause::DeviceLoginUnavailable)
         })?;
-        let url = format!("{}/login/device/code", self.web_root);
         let response = self
-            .client
-            .post(url)
-            .header(header::ACCEPT, "application/json")
-            .form(&[("client_id", client_id.as_str())])
-            .send()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+            .device_post("/login/device/code", &[("client_id", client_id.as_str())])
+            .await?;
         let status = response.status();
         if !status.is_success() {
             return Err(github_http_error(status, response.headers()));
@@ -849,19 +899,16 @@ impl GithubReleaseProvider {
                 session.intent,
             )
         };
-        let url = format!("{}/login/oauth/access_token", self.web_root);
         let response = self
-            .client
-            .post(url)
-            .header(header::ACCEPT, "application/json")
-            .form(&[
-                ("client_id", client_id.as_str()),
-                ("device_code", device_code.as_str()),
-                ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
-            ])
-            .send()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+            .device_post(
+                "/login/oauth/access_token",
+                &[
+                    ("client_id", client_id.as_str()),
+                    ("device_code", device_code.as_str()),
+                    ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
+                ],
+            )
+            .await?;
         let status = response.status();
         if !status.is_success() {
             return Err(github_http_error(status, response.headers()));
@@ -908,13 +955,7 @@ impl GithubReleaseProvider {
 
     async fn validate_token(&self, token: &str) -> Result<()> {
         let url = format!("{}/user", self.api_root);
-        let response = self
-            .client
-            .get(url)
-            .bearer_auth(token)
-            .send()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let response = self.metadata_request(&url, Some(token), None).await?;
         if response.status().is_success() {
             Ok(())
         } else {
@@ -946,29 +987,7 @@ impl GithubReleaseProvider {
         target: &GithubAsset,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<Option<String>> {
-        let exact_name = format!("{}.sha256", target.name);
-        let exact = assets
-            .iter()
-            .any(|asset| asset.name.eq_ignore_ascii_case(&exact_name));
-        let sidecars = assets
-            .iter()
-            .filter(|asset| {
-                if exact {
-                    asset.name.eq_ignore_ascii_case(&exact_name)
-                } else {
-                    ["sha256sums", "sha256sums.txt", "checksums.txt"]
-                        .iter()
-                        .any(|name| asset.name.eq_ignore_ascii_case(name))
-                }
-            })
-            .take(CHECKSUM_MAX_SIDECARS + 1)
-            .collect::<Vec<_>>();
-        if sidecars.len() > CHECKSUM_MAX_SIDECARS {
-            return Err(PortcoveError::verification(
-                "selected checksum authority exceeds the 8-sidecar limit",
-            )
-            .detail("reason", "checksum_source_limit"));
-        }
+        let (exact, sidecars) = checksum_sidecars(assets, target)?;
         let mut checksum = None;
         let client = match scope {
             Some(scope) => reqwest::Client::builder()
@@ -1004,6 +1023,38 @@ impl GithubReleaseProvider {
         }
         Ok(checksum)
     }
+}
+
+/// Pure authority selection shared by resolution and inert observation. Exact
+/// per-asset sidecars take precedence; every applicable authority must agree.
+fn checksum_sidecars<'a>(
+    assets: &'a [GithubAsset],
+    target: &GithubAsset,
+) -> Result<(bool, Vec<&'a GithubAsset>)> {
+    let exact_name = format!("{}.sha256", target.name);
+    let exact = assets
+        .iter()
+        .any(|asset| asset.name.eq_ignore_ascii_case(&exact_name));
+    let sidecars = assets
+        .iter()
+        .filter(|asset| {
+            if exact {
+                asset.name.eq_ignore_ascii_case(&exact_name)
+            } else {
+                ["sha256sums", "sha256sums.txt", "checksums.txt"]
+                    .iter()
+                    .any(|name| asset.name.eq_ignore_ascii_case(name))
+            }
+        })
+        .take(CHECKSUM_MAX_SIDECARS + 1)
+        .collect::<Vec<_>>();
+    if sidecars.len() > CHECKSUM_MAX_SIDECARS {
+        return Err(PortcoveError::verification(
+            "selected checksum authority exceeds the 8-sidecar limit",
+        )
+        .detail("reason", "checksum_source_limit"));
+    }
+    Ok((exact, sidecars))
 }
 
 fn merge_checksum_entries(
@@ -1063,6 +1114,7 @@ impl ReleaseProvider for GithubReleaseProvider {
         let scope = self.bind_qualification_scope(scope.as_ref())?;
         self.resolve_with_scope(port, channel, platform, scope.as_ref())
             .await
+            .map(|selection| selection.release)
     }
 
     async fn resolve_scoped(
@@ -1072,27 +1124,30 @@ impl ReleaseProvider for GithubReleaseProvider {
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<crate::ScopedResolvedRelease> {
+        let inferred = match (scope, &self.library) {
+            (None, Some(library)) => {
+                let (catalog, _) = library.load_catalog()?;
+                crate::definition_repository::publisher_policy::acquisition_scope(
+                    library, &catalog, &port.id,
+                )?
+            }
+            _ => None,
+        };
+        let scope = scope.or(inferred.as_ref());
         #[cfg(feature = "qualification-fixtures")]
         let bound_scope = self.bind_qualification_scope(scope)?;
         #[cfg(feature = "qualification-fixtures")]
         let scope = bound_scope.as_ref();
-        if scope.is_none() {
-            return self
-                .resolve(port, channel, platform)
-                .await
-                .and_then(|release| {
-                    crate::ScopedResolvedRelease::legacy(release)
-                        .for_selection(port, platform, channel)
-                });
-        }
-        let release = self
+        let selected = self
             .resolve_with_scope(port, channel, platform, scope)
             .await?;
-        match scope {
-            Some(scope) => crate::ScopedResolvedRelease::managed(release, scope.clone()),
-            None => Ok(crate::ScopedResolvedRelease::legacy(release)),
+        let mut resolved = match scope {
+            Some(scope) => crate::ScopedResolvedRelease::managed(selected.release, scope.clone()),
+            None => Ok(crate::ScopedResolvedRelease::legacy(selected.release)),
         }?
-        .for_selection(port, platform, channel)
+        .for_selection(port, platform, channel)?;
+        resolved.github_identity = selected.identity;
+        Ok(resolved)
     }
 }
 
@@ -1103,7 +1158,7 @@ impl GithubReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
-    ) -> Result<ResolvedRelease> {
+    ) -> Result<ResolvedGithub> {
         crate::curated_acquisition::require_runtime_scope(port, scope)?;
         if let Some(scope) = scope {
             scope.require_current()?;
@@ -1162,13 +1217,22 @@ impl GithubReleaseProvider {
         // Curated selection revalidates mutable release, asset and tag identity;
         // only the separately verified byte cache may be reused.
         if curated.is_none()
-            && let Some(release) = self.cached_release(&cache_key).await
+            && let Some(selection) = self.cached_selection(&cache_key).await
         {
+            if selection
+                .identity
+                .as_ref()
+                .is_some_and(|identity| Some(identity.repository_id) != repository.id)
+            {
+                return Err(PortcoveError::verification(
+                    "GitHub repository identity changed since cached selection",
+                ));
+            }
             if let Some(scope) = scope {
                 scope.require_current()?;
-                scope.require_asset_url(&release.asset.url)?;
+                scope.require_asset_url(&selection.release.asset.url)?;
             }
-            return Ok(release);
+            return Ok(selection);
         }
         let releases = match scope {
             Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
@@ -1270,8 +1334,31 @@ impl GithubReleaseProvider {
                 sha256,
             },
         };
-        self.store_release(cache_key, resolved.clone()).await;
-        Ok(resolved)
+        let identity = match (repository.id, release.id, asset.id) {
+            (Some(repository_id), Some(release_id), Some(asset_id)) => {
+                let identity = crate::definition_acquisition::GithubArtifactIdentity {
+                    repository: port.release.repository.clone(),
+                    repository_id,
+                    release_id,
+                    asset_id,
+                    tag: release.tag_name.clone(),
+                };
+                identity.validate()?;
+                Some(identity)
+            }
+            _ if port.archive_data_compatibility_v1.is_some() => {
+                return Err(PortcoveError::verification(
+                    "GitHub release observation is missing exact repository, release or asset identity",
+                ));
+            }
+            _ => None,
+        };
+        self.store_selection(cache_key, resolved.clone(), identity.clone())
+            .await;
+        Ok(ResolvedGithub {
+            release: resolved,
+            identity,
+        })
     }
 }
 
@@ -1280,7 +1367,9 @@ fn native_release_applies_to_platform(
     platform: Platform,
     release: &GithubRelease,
 ) -> bool {
-    if port.adapter != AdapterKind::NativePortable || port.release.curated.contains_key(&platform) {
+    if (port.adapter != AdapterKind::NativePortable && port.archive_data_compatibility_v1.is_none())
+        || port.release.curated.contains_key(&platform)
+    {
         return true;
     }
     let mut other_platform_player = false;
@@ -1431,6 +1520,32 @@ fn rate_limit_from_headers(headers: &header::HeaderMap) -> Option<GithubRateLimi
             .parse()
             .ok()?,
     })
+}
+
+fn github_sdk_client(origin: &str, transport: reqwest::Client) -> Result<Octocrab> {
+    // The SDK starts a worker on the current runtime. Create it inside the
+    // request future and keep the connection pools on the synchronous provider.
+    Octocrab::builder()
+        .base_uri(origin)
+        .and_then(|builder| {
+            builder
+                .add_header(header::USER_AGENT, PROVIDER_USER_AGENT.into())
+                .build_with_reqwest(transport)
+        })
+        .map_err(|error| PortcoveError::network(error.to_string()))
+}
+
+fn github_sdk_request_error(error: octocrab::Error) -> PortcoveError {
+    let transport = std::iter::successors(Some(&error as &dyn std::error::Error), |error| {
+        error.source()
+    })
+    .find_map(|error| error.downcast_ref::<reqwest::Error>());
+    #[cfg(test)]
+    observe_test_response(ResponseTestEvent::Failed(
+        ResponseTestPhase::Headers,
+        transport.is_some_and(reqwest::Error::is_timeout),
+    ));
+    PortcoveError::network(transport.map_or_else(|| error.to_string(), ToString::to_string))
 }
 
 fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
@@ -1795,10 +1910,67 @@ fn is_sha256(value: &str) -> bool {
 mod tests {
     use super::*;
     use crate::test_http::{
-        DeadlineServer, observe_response, serve_deadline, serve_http, serve_routed_http,
+        DeadlineServer, observe_response, serve_deadline, serve_http, serve_http_bytes,
+        serve_routed_http,
     };
 
     mod unchanged_definition;
+
+    #[tokio::test]
+    async fn github_selection_retains_exact_ids_through_cache_and_refuses_repository_rebinding() {
+        let port = crate::Catalog::embedded()
+            .unwrap()
+            .port("shipwright")
+            .unwrap()
+            .clone();
+        let response = |value: serde_json::Value| {
+            let body = value.to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let repository = serde_json::json!({"id":1,"archived":false});
+        let releases = serde_json::json!([{"id":2,"tag_name":"fixture-n","draft":false,"prerelease":false,
+            "assets":[{"id":3,"name":"game-windows.zip","size":42,"digest":format!("sha256:{}","a".repeat(64)),
+            "browser_download_url":"https://github.com/HarbourMasters/Shipwright/releases/download/fixture-n/game-windows.zip"}]}]);
+        let (origin, _, server) = serve_http(vec![
+            response(repository.clone()),
+            response(releases),
+            response(repository),
+            response(serde_json::json!({"id":4,"archived":false})),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let first = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap();
+        let identity = first.github_identity.unwrap();
+        assert_eq!(
+            (
+                identity.repository_id,
+                identity.release_id,
+                identity.asset_id
+            ),
+            (1, 2, 3)
+        );
+        assert_eq!(identity.tag, "fixture-n");
+        let cached = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap();
+        assert_eq!(cached.github_identity, Some(identity));
+        assert_eq!(cached.release.asset.sha256, "a".repeat(64));
+        assert!(
+            provider
+                .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+                .await
+                .unwrap_err()
+                .message
+                .contains("repository identity changed")
+        );
+        server.join().unwrap();
+    }
 
     #[tokio::test]
     async fn pending_auth_status_http_observation_releases_library_lease() {
@@ -2336,6 +2508,7 @@ mod tests {
         let oldest_key = ReleaseSelectionCacheKey {
             adapter: AdapterKind::NativePortable,
             n64_runtime_at_executable_parent: false,
+            partitioned_archive: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2359,6 +2532,7 @@ mod tests {
                     ReleaseSelectionCacheKey {
                         adapter: AdapterKind::NativePortable,
                         n64_runtime_at_executable_parent: false,
+                        partitioned_archive: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,
@@ -3317,56 +3491,112 @@ mod tests {
     fn authenticated_requests_use_a_bearer_header() {
         let provider = GithubReleaseProvider::with_api_root("https://example.invalid").unwrap();
         provider.set_credential(Some("test-token".into()), GithubAuthSource::CredentialStore);
-        let request = provider
-            .request("https://example.invalid/repos/example/project")
-            .build()
+        let headers = provider
+            .metadata_headers(
+                "https://example.invalid/repos/example/project",
+                provider.active_token().as_deref(),
+                None,
+            )
             .unwrap();
-        assert_eq!(
-            request
-                .headers()
-                .get(reqwest::header::AUTHORIZATION)
-                .unwrap(),
-            "Bearer test-token"
-        );
+        assert_eq!(headers[header::AUTHORIZATION], "Bearer test-token");
+        assert!(headers[header::AUTHORIZATION].is_sensitive());
     }
 
     #[test]
     fn anonymous_requests_do_not_send_authorization() {
         let provider = GithubReleaseProvider::with_api_root("https://example.invalid").unwrap();
-        let request = provider
-            .request("https://example.invalid/repos/example/project")
-            .build()
+        let headers = provider
+            .metadata_headers(
+                "https://example.invalid/repos/example/project",
+                provider.active_token().as_deref(),
+                None,
+            )
             .unwrap();
-        assert!(
-            !request
-                .headers()
-                .contains_key(reqwest::header::AUTHORIZATION)
-        );
+        assert!(!headers.contains_key(header::AUTHORIZATION));
     }
 
     #[test]
     fn tokens_are_not_sent_to_release_asset_origins() {
         let provider = GithubReleaseProvider::with_api_root("https://api.example.invalid").unwrap();
         provider.set_credential(Some("test-token".into()), GithubAuthSource::CredentialStore);
-        let request = provider
-            .request("https://downloads.example.invalid/checksums.txt")
-            .build()
-            .unwrap();
-        assert!(
-            !request
-                .headers()
-                .contains_key(reqwest::header::AUTHORIZATION)
-        );
+        let token = provider.active_token();
+        for url in [
+            "https://downloads.example.invalid/checksums.txt",
+            "https://api.example.invalid.attacker.test/repos/project",
+            "https://api.example.invalid:444/repos/project",
+            "http://api.example.invalid/repos/project",
+        ] {
+            let headers = provider
+                .metadata_headers(url, token.as_deref(), None)
+                .unwrap();
+            assert!(!headers.contains_key(header::AUTHORIZATION), "{url}");
+        }
+    }
 
-        let lookalike = provider
-            .request("https://api.example.invalid.attacker.test/repos/project")
-            .build()
-            .unwrap();
-        assert!(
-            !lookalike
-                .headers()
-                .contains_key(reqwest::header::AUTHORIZATION)
+    #[tokio::test]
+    async fn github_device_posts_use_the_anonymous_form_protocol() {
+        let (origin, requests, server) = serve_http(vec![
+            ok_json(r#"{"login":"fixture"}"#, ""),
+            ok_json(
+                r#"{"device_code":"device&code","user_code":"ABCD","verification_uri":"https://github.com/login/device","expires_in":120,"interval":5}"#,
+                "",
+            ),
+            ok_json(r#"{"error":"authorization_pending"}"#, ""),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        provider.set_credential(Some("api-secret".into()), GithubAuthSource::CredentialStore);
+        assert_eq!(
+            provider.auth_status().await.unwrap().login.as_deref(),
+            Some("fixture")
         );
+        let response = provider
+            .device_post("/login/device/code", &[("client_id", "client id")])
+            .await
+            .unwrap();
+        let code: DeviceCodeResponse = parse_bounded_json(response, "fixture code").await.unwrap();
+        let now = Instant::now();
+        provider.device_sessions.lock().await.insert(
+            "fixture".into(),
+            DeviceSession {
+                client_id: "client id".into(),
+                device_code: code.device_code,
+                intent: 0,
+                created_at: now,
+                expires_at: now + Duration::from_secs(60),
+                next_poll_at: now,
+                interval: Duration::from_secs(5),
+            },
+        );
+        assert_eq!(
+            provider.poll_device_login("fixture").await.unwrap().state,
+            GithubDeviceLoginState::Pending
+        );
+        server.join().unwrap();
+        let api_request = requests.recv().unwrap().to_ascii_lowercase();
+        let agent = format!(
+            "\r\nuser-agent: {}",
+            PROVIDER_USER_AGENT.to_ascii_lowercase()
+        );
+        assert!(api_request.starts_with("get /user "));
+        assert!(api_request.contains("\r\nauthorization: bearer api-secret\r\n"));
+        assert!(api_request.contains(&agent));
+        for (path, body) in [
+            ("/login/device/code", "client_id=client+id"),
+            (
+                "/login/oauth/access_token",
+                "client_id=client+id&device_code=device%26code&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+            ),
+        ] {
+            let request = requests.recv().unwrap();
+            let (headers, received) = request.split_once("\r\n\r\n").unwrap();
+            let headers = headers.to_ascii_lowercase();
+            assert!(headers.starts_with(&format!("post {path} ")));
+            assert!(headers.contains("\r\naccept: application/json"));
+            assert!(headers.contains("\r\ncontent-type: application/x-www-form-urlencoded"));
+            assert!(!headers.contains("\r\nauthorization:"));
+            assert!(headers.contains(&agent));
+            assert_eq!(received, body);
+        }
     }
 
     #[tokio::test]
@@ -3606,14 +3836,11 @@ mod tests {
             )
             .unwrap();
         let cached = provider.cached_http_response(url).unwrap();
-        let request =
-            GithubReleaseProvider::apply_conditional_headers(provider.request(url), Some(&cached))
-                .build()
-                .unwrap();
+        let headers = provider.metadata_headers(url, None, Some(&cached)).unwrap();
 
-        assert_eq!(request.headers()[header::IF_NONE_MATCH], "\"release-etag\"");
+        assert_eq!(headers[header::IF_NONE_MATCH], "\"release-etag\"");
         assert_eq!(
-            request.headers()[header::IF_MODIFIED_SINCE],
+            headers[header::IF_MODIFIED_SINCE],
             "Mon, 01 Sep 2026 12:00:00 GMT"
         );
     }
@@ -3766,6 +3993,69 @@ mod tests {
         server.join().unwrap();
         assert_eq!(error.code, crate::ErrorCode::Verification);
         assert!(error.message.contains("1048576 byte limit"));
+    }
+
+    #[tokio::test]
+    async fn github_sdk_caps_chunked_metadata_before_parsing_or_caching() {
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nETag: \"fixture\"\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{PROVIDER_JSON_MAX_BYTES:x}\r\n"
+        )
+        .into_bytes();
+        response.resize(response.len() + PROVIDER_JSON_MAX_BYTES, b' ');
+        response.extend_from_slice(b"\r\n1\r\nx\r\n0\r\n\r\n");
+        let (root, _, server) = serve_http_bytes(vec![response]);
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let provider =
+            GithubReleaseProvider::with_api_root_and_library(root.clone(), library).unwrap();
+        let url = format!("{root}/metadata");
+        let error = provider
+            .get_json::<serde_json::Value>(&url)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("4194304 byte limit"));
+        assert!(provider.cached_http_response(&url).is_none());
+    }
+
+    #[tokio::test]
+    async fn dropping_github_sdk_metadata_body_closes_the_incomplete_response() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let root = format!("http://{}", listener.local_addr().unwrap());
+        let peer = tokio::spawn(async move {
+            tokio::time::timeout(Duration::from_secs(3), async {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut buffer = [0; 4096];
+                assert!(stream.read(&mut buffer).await.unwrap() > 0);
+                stream
+                    .write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\n{\r\n")
+                    .await
+                    .unwrap();
+                match stream.read(&mut buffer).await {
+                    Ok(0) => {}
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::ConnectionReset
+                                | std::io::ErrorKind::ConnectionAborted
+                        ) => {}
+                    result => panic!("incomplete metadata connection remained active: {result:?}"),
+                }
+            })
+            .await
+            .unwrap();
+        });
+        let provider = GithubReleaseProvider::with_api_root(&root).unwrap();
+        let mut response = provider
+            .metadata_request(&format!("{root}/metadata"), None, None)
+            .await
+            .unwrap();
+        assert_eq!(response.chunk().await.unwrap().unwrap().as_ref(), b"{");
+        drop(response);
+        peer.await.unwrap();
     }
 
     #[test]

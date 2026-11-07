@@ -74,7 +74,7 @@ pub(crate) enum CatalogCommand {
     },
     /// Export every descriptive listing, including projects without a managed integration.
     Listings {
-        /// Listing document format; 5 preserves references as legacy flat steps.
+        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations.
         #[arg(long)]
         format_version: Option<u32>,
     },
@@ -91,6 +91,14 @@ pub(crate) enum CatalogCommand {
     /// Validate inert catalog declarations without changing the trusted catalog.
     InspectProposal {
         /// Inert catalog proposal JSON file; inspection does not sign, trust or publish it.
+        file: PathBuf,
+        /// Also check the repository's authored catalog summary convention.
+        #[arg(long)]
+        repository_authoring: bool,
+    },
+    /// Probe inert settings samples through Core's document editor without library writes.
+    InspectSettingsQualification {
+        /// Bounded JSON qualification input; this does not trust or publish a binding.
         file: PathBuf,
     },
     /// Validate a lightweight listing projection without opening a library or trusting it.
@@ -220,6 +228,7 @@ impl CatalogCommand {
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
+            Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
             Self::InspectDefinitionPublication { .. } => "catalog.inspect-definition-publication",
             Self::InspectObservation { .. } => "catalog.inspect-observation",
@@ -417,6 +426,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectProposal { .. } => {
             unreachable!("proposal inspection executes before opening a library")
+        }
+        CatalogCommand::InspectSettingsQualification { .. } => {
+            unreachable!("settings qualification executes before opening a library")
         }
         CatalogCommand::InspectListings { .. } => {
             unreachable!("listing inspection executes before opening a library")

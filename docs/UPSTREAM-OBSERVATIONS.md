@@ -39,7 +39,7 @@ separately attributed and does not prove scheduled execution.
 pages and each release's complete asset collection. It preserves provider
 release order, draft/prerelease flags, numeric identities, tags, publication
 clocks, asset names, URLs, sizes and provider digest claims. It discards prose
-and recommendations. GitHub API redirects are refused; pagination links must
+and recommendations. Metadata API redirects are refused; pagination links must
 stay inside the exact collection, and asset URLs inside the configured
 repository and release. Duplicate IDs, malformed data and partial pagination
 fail the run. Every consumed page is revalidated after collection against its
@@ -82,8 +82,13 @@ and performs no network requests. The format-1 result is exported by
 Format 2 adds explicit `channel-candidate-assets` coverage for catalog-scale
 observation. It retains every release header in provider order and identifies
 which release IDs have complete asset collections. An inert header-only probe
-asks the same Core projection for channel candidates; the observer then collects
-only those asset collections and revalidates all consumed pages. Missing candidate
+asks the same Core projection for channel candidates; the observer collects
+those asset collections and asks Core again until the current candidates are
+covered. NativePortable uses runtime's platform-stream predicate: a complete
+Linux-only player release can expose the preceding Windows candidate. Uncollected
+assets cannot establish another platform's stream. Each continuation retains
+the existing request, byte and time budgets and revalidates all consumed pages.
+Missing candidate
 coverage produces `release-asset-observation-incomplete`, never metadata eligibility.
 Unknown, repeated or foreign coverage IDs and asset payloads outside declared
 coverage are refused. Format 1 retains its existing full-asset semantics; existing
@@ -102,9 +107,30 @@ Each platform/channel projection retains the latest observed release, its
 channel candidate, latest metadata-eligible asset, and hold reasons. Core's
 existing prerelease policy recognizes RC/preview tags even when the provider's
 prerelease flag is false; Preview (`beta`) retains its existing stable fallback, while
-Rolling requires the catalog's explicit rolling tag. A held newest candidate
+Rolling requires the catalog's explicit rolling tag. A held newest applicable candidate
 does not fall through to an older release and call it current. Missing or
 ambiguous platform assets and absent provider SHA-256 claims remain held.
+When the runtime's supported checksum policy can supply the missing digest,
+Core returns exact release/asset dependencies rather than a manual task. The
+collector fetches those asset texts through GitHub's asset API, retains bounded
+UTF-8 facts and revalidates every used text. Both inspector and runtime share
+exact `<asset>.sha256` precedence, aggregate filename matching, all-source
+agreement, eight-source and one-MiB-per-source limits. Incomplete or conflicting
+text cannot produce an eligible asset.
+
+Checksum transport alone permits at most three redirects to the fixed GitHub
+asset delivery hosts. Each physical request consumes existing admission and
+each hop uses the remaining deadline. Operation-owned redirect progress resumes
+even with a one-request source quantum; API credentials never reach the CDN.
+The same checkpoint/cache preserves text and metadata. Changed dependencies reset
+validation order; unchanged fresh facts can be reprojected without changing their
+observation clock. Checksum metadata does not establish artifact-byte verification
+or protected acquisition/publication authority.
+
+These provider and text facts remain observations, never admitted artifact bytes.
+Actual acquisition retains exact installed artifact/provider identity and refuses
+changed bytes under that binding. A new rolling asset ID identifies distinct bytes;
+this observer does not rewrite the old installed identity or supply publication.
 The observed host archive flag is retained in the digested facts as maintenance
 information; it is not a hold by itself.
 The output includes the adapter capability and exact catalog-definition hash.
@@ -187,7 +213,8 @@ without repeating completed Core calls. Provider and Core clocks are never
 manufactured by a later resume.
 
 Request admission uses received provider capacity with a five-percent reserve,
-observed request cost, remaining runtime and fair source turns. Unknown quota uses
+observed request cost and remaining runtime. Eligible sources without a recorded
+turn go first, then the least recently attempted sources. Unknown quota uses
 the existing finite request envelope; it is not assumed available. Quantum/runtime
 exhaustion has no provider retry clock. Actual depletion and provider retry
 responses defer the shared provider until its reset. A budget-limited source with
@@ -211,7 +238,9 @@ one `report.json` and its existing consumer/configuration binding. Catalog repor
 use a separate, uniquely owned handoff directory for each invocation, exported as
 `catalog-upstream-observations-RUN-ATTEMPT`. It contains inert observations and
 per-port Core policies for #246's existing supplied-observation → bounded-candidate
-path. Historical fallback policies retain their own facts/definition identities
+path. Source files carry their own coverage and consumer IDs. The legacy
+configured report carries its unmonitored inventory, and the catalog summary
+reports coverage across configured sources. Historical fallback policies retain their own facts/definition identities
 and are explicitly held as unknown current state. No automatic acceptance,
 publication, signing or player update eligibility follows from this handoff.
 
@@ -319,8 +348,14 @@ per collection; retained pages do not consume another collection allowance.
 These bounds do not cap the total legitimate collection across resumed batches.
 Each batch also retains
 4 MiB per response, 16 MiB total response bytes and three minutes of observation.
-Transport/server failures allow two retries with bounded backoff; rate-limit
-responses defer to the provider retry clock rather than sleep through a job.
+Eligible transient transport/server failures use the configured GitHub SDK with
+at most two retries; smaller configured allowances remain effective. Cancellation,
+resource limits and invalid metadata remain terminal. Continued catalog batches
+retain the command's original monotonic deadline and exhausted logical-read
+allowances. Rate-limit responses respect provider waits and defer whenever those
+waits cannot fit the original bounds. The existing observer owns conditional
+cache reuse, facts digests, identity validation and complete-versus-prefix proofs;
+the SDK supplies bounded transport and request evidence.
 Conditional requests count against the request budget. No game artifact bytes
 are downloaded. The core input is bounded to 4 MiB, its process to thirty
 seconds, and the entire hosted job to ten minutes on one fixed Linux runner.
@@ -435,6 +470,16 @@ is not a required merge check; the deterministic catalog checks remain required
 under [QUALITY](QUALITY.md#required-hosted-baseline).
 The workflow's format-1 monitor report embeds the format-3 collection alongside
 batch selection and inventory history.
+
+GitHub metadata uses the configured Octokit integration, preserving this collector's
+single-attempt reads, explicit API/media headers and command-wide request, byte and
+monotonic time limits. A bounded redirect response can supply the existing reviewed
+repository-identity diagnostic; its Location is never followed. Failed body reads,
+resource refusal and command cancellation remain failures. A cancelled unfinished
+read does not publish a fresh provider observation. GitLab metadata and credential-free
+artifact HEAD requests retain their separate owner. Domain tests can provide narrow
+asynchronous metadata operations with explicit byte evidence; transport tests exercise
+the actual locked SDK.
 
 The inventory includes declared GitHub/GitLab repositories, current project
 locations, DirectManifest artifact locations and locatable historical
@@ -793,16 +838,26 @@ account, signing authority or production activation is introduced.
 ## Descriptive consumers and accepted listing corrections
 
 The same scheduled coordinator also reads the reviewed listing directory. GitHub
-listing consumers share repository identity, conditional page collection, quotas,
+and supported public GitLab listing consumers share repository identity, conditional page collection, quotas,
 continuation and last-complete facts with operational consumers. A listing never
 needs an adapter or managed definition. Explicit consumer kind, declaration hash,
 projection implementation/schema-inventory hash and repository identity bind its
 scope. An accepted observation does not invalidate its unchanged declaration.
-Other descriptive providers remain outside this GitHub route; no absence claim
-is inferred for them.
+Only explicit credential-free HTTPS identities on github.com or gitlab.com enter
+the existing provider collectors. Unsupported hosts or source shapes are reported
+as observation unsupported, never as an empty release history. Existing GitLab
+metadata pagination proofs, request budgets, per-origin quotas and checkpoints
+also apply to listings; no new collector or per-title task is introduced.
 
 Descriptive consumers request complete asset collections for at most four newest
-published release headers. This is a bounded release window, not complete
+published release headers. GitLab uses exact tag identities and generic registry
+file IDs, sizes and provider digest claims through its existing collector. Release
+links without supported exact registry metadata leave asset coverage incomplete;
+no size, digest or acquisition permission is guessed. GitLab does not have a
+GitHub numeric release ID or provider prerelease flag; tags remain strings and
+its upcoming releases are excluded. Existing project/tag release references and
+Desktop identity keys are reused, without a parallel provider identity model. Listing format8 fences this provider shape;
+older readers retain their last accepted directory. This is a bounded release window, not complete
 repository history. Drafts are excluded. Release assets retain exact provider
 identities, names, URLs, sizes and optional digest claims. Authored literal
 filename hints can annotate platform candidates; these are neither compatibility

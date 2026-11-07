@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import {
   decodeStoredObserverCheckpoint,
+  withCheckpointLock,
   observerSourceCheckpointLimit,
 } from "./observer-checkpoint-storage.mts";
 import {
@@ -24,6 +25,7 @@ import {
   reusableProviderObservation,
   compactObserverCache,
   validateObserverCache,
+  checksumSourcesFromProjections,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -294,29 +296,22 @@ export async function advanceObservation(
         if (retained) {
           let covered = true;
           if (config.format === 2) {
-            const facts = {
-              ...retained.facts,
-              releases: retained.facts.releases.map((release) => ({ ...release, assets: [] })),
-            };
-            const headers = {
-              ...retained,
-              facts,
-              facts_sha256: observationHash(facts),
-              coverage: {
-                kind: "channel-candidate-assets" as const,
-                complete_release_headers: true as const,
-                asset_release_ids: [],
-              },
-            };
             if (!options.selectAssetReleases)
               throw new ObservationFailure(
                 "core-binding",
                 "Current Core selection is required before provider fact reuse",
               );
-            const selected = await options.selectAssetReleases(headers);
+            const selected = await options.selectAssetReleases(retained);
             const known = new Set(retained.coverage!.asset_release_ids);
             covered = selected.every((id) => known.has(id));
           }
+          if (covered && options.selectChecksumSources)
+            covered = (await options.selectChecksumSources(retained)).every((source) =>
+              retained.facts.checksum_sidecars?.some(
+                (text) =>
+                  text.asset_id === source.asset_id && text.release_id === source.release_id,
+              ),
+            );
           if (covered)
             result = {
               observation: retained,
@@ -514,31 +509,7 @@ export async function atomicJson(filename: string, value: unknown) {
   }
 }
 
-/** Never steal an interrupted coordinator's lock; preserve its checkpoint for recovery. */
-export async function withCheckpointLock<T>(
-  statePath: string,
-  operation: () => T | Promise<T>,
-): Promise<T> {
-  const lockPath = await assertOwnedUnlinkedPath(
-    path.join(repositoryRoot, "work"),
-    `${statePath}.lock`,
-    "observer coordinator lock",
-  );
-  await mkdir(path.dirname(lockPath), { recursive: true });
-  const handle = await open(lockPath, "wx");
-  try {
-    await handle.writeFile(
-      JSON.stringify({
-        pid: process.pid,
-        started_at: new Date().toISOString(),
-      }),
-    );
-    return await operation();
-  } finally {
-    await handle.close();
-    await rm(lockPath);
-  }
-}
+export { withCheckpointLock } from "./observer-checkpoint-storage.mts";
 
 interface InspectionBounds {
   deadline: number;
@@ -636,6 +607,18 @@ export function catalogObservationDefinitionHashes(report: unknown, bytes: Buffe
 export async function projectObservation(
   cli: string,
   config: ObserverConfig,
+  directory: string,
+  observation: Observation,
+  bounds?: InspectionBounds,
+): Promise<unknown> {
+  return projectObservedFacts(cli, config, directory, observation, bounds);
+}
+
+/** Reuse the same Core projection when the caller already collected bounded facts;
+ * this entry does not construct cadence or scheduling policy. */
+export async function projectObservedFacts(
+  cli: string,
+  config: Pick<ObserverConfig, "port_id" | "repository_id">,
   directory: string,
   observation: Observation,
   bounds?: InspectionBounds,
@@ -763,6 +746,12 @@ async function main(args: string[]) {
     const result = await advanceObservation(config, checkpoint, {
       ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
       project,
+      selectChecksumSources: async (observation: Observation) => {
+        const projection = await project(observation);
+        if (!isRecord(projection) || !Array.isArray(projection.projections))
+          throw new ObservationFailure("core-binding", "Core checksum selection is unavailable");
+        return checksumSourcesFromProjections(projection.projections);
+      },
       ...(config.format === 2
         ? {
             selectAssetReleases: async (headers: Observation) => {

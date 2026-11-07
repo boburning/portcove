@@ -5,6 +5,7 @@ import { writeFile } from "node:fs/promises";
 import {
   prepareCoordinatorSigningContext,
   requireCoordinatorSigningContext,
+  requireCoordinatorSigningCheckpointControls,
   bindCoordinatorSigningContextPending,
   bindCoordinatorSigningContextBoundary,
 } from "./release-metadata-signing-context.mts";
@@ -114,6 +115,9 @@ export async function completeCoordinatorSigningContext(
             remote_identity: `github-actions:boburning/portcove:artifact:${handoff.artifact_id}`,
             evidence_sha256: handoff.predicate_sha256,
           };
+        },
+        async () => {
+          await requireCoordinatorSigningCheckpointControls(receipt, deadline);
         },
       );
       if (!handoff) throw new Error("actual metadata handoff was not independently read back");

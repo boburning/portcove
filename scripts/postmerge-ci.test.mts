@@ -296,3 +296,98 @@ void test("postmerge workflow installs locked dependencies before credentialed o
   const environment = steps[observe]?.env;
   assert.ok(isRecord(environment) && environment.GH_TOKEN);
 });
+
+void test("production reuse acquires the exact artifact through Octokit and an anonymous byte transfer", async (t) => {
+  const f = fixture();
+  const token = "inert-postmerge-test-token";
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  const delivery =
+    "https://productionresultssa10.blob.core.windows.net/actions-results/fixture.zip?sig=inert";
+  const seen: string[] = [];
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(init?.redirect, "manual");
+    const headers = new Headers(init?.headers);
+    if (url.href === delivery) {
+      assert.equal(headers.get("authorization"), null);
+      assert.equal(init?.credentials, "omit");
+      seen.push("signed-bytes");
+      return new Response(
+        Uint8Array.from((await f.read("actions/artifacts/9/zip", true)) as Buffer),
+      );
+    }
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(headers.get("authorization"), `token ${token}`);
+    const route = url.pathname.slice(`/repos/${repository}/`.length) + url.search;
+    seen.push(route);
+    return route === "actions/artifacts/9/zip"
+      ? new Response(null, { status: 302, headers: { location: delivery } })
+      : Response.json(await f.read(route));
+  });
+  const reuse = await discoverPostmergeReuse(f.plan, {
+    event: "push",
+    git: f.git,
+    discoverPlan: f.discoverPlan,
+  });
+  assert.equal(reuse?.tested_checkout, sha("c"));
+  assert.deepEqual(seen, [
+    ...Array.from(f.responses.keys()).slice(0, -1),
+    "signed-bytes",
+    "actions/runs/42",
+  ]);
+});
+
+void test("artifact transport refuses foreign redirects, excess bytes and stalled streams", async () => {
+  const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
+  const endpoint = "repos/boburning/portcove/actions/artifacts/9/zip";
+  const delivery =
+    "https://productionresultssa10.blob.core.windows.net/actions-results/fixture.zip?sig=inert";
+  for (const mode of ["foreign", "excess", "stalled"] as const) {
+    let calls = 0;
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        if (mode === "excess") controller.enqueue(new Uint8Array(23));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    // AbortSignal.timeout does not keep the test process alive by itself.
+    const keepAlive = setTimeout(() => {}, 250);
+    try {
+      await assert.rejects(
+        downloadGitHubArtifactArchive(endpoint, {
+          credential: { kind: "explicit", token: "inert-artifact-test-token" },
+          deadline: performance.now() + 100,
+          maxBytes: 22,
+          async fetch() {
+            calls++;
+            return calls === 1
+              ? new Response(null, {
+                  status: 302,
+                  headers: {
+                    location: mode === "foreign" ? "https://example.com/?sig=inert" : delivery,
+                  },
+                })
+              : new Response(stream);
+          },
+        }),
+        mode === "foreign"
+          ? /address refused/u
+          : mode === "excess"
+            ? /byte limit/u
+            : /deadline exhausted/u,
+      );
+      assert.equal(calls, mode === "foreign" ? 1 : 2);
+      assert.equal(cancelled, mode !== "foreign");
+    } finally {
+      clearTimeout(keepAlive);
+    }
+  }
+});

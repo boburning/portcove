@@ -1,6 +1,8 @@
 /** Scheduling observations only. Success here never admits signed inputs or a
  * native result; the original post-sign producer independently authenticates both. */
 import assert from "node:assert/strict";
+import type { GitHubRequestPolicy } from "./github-client.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const requiredNames = [
@@ -57,7 +59,7 @@ export async function waitForNativePostSignReadiness(input: {
 }) {
   for (let observation = 0; observation < 120; observation++) {
     input.active();
-    const raw = input.read();
+    const raw = await input.read();
     input.active();
     const jobs = inspectNativePostSignReadiness(raw, input.run, input.revision);
     await input.retain({ observation, jobs, authority: "none" });
@@ -68,4 +70,47 @@ export async function waitForNativePostSignReadiness(input: {
     input.active();
   }
   throw new Error("native prerequisite observation bound exhausted; retain and recover");
+}
+
+/** The fixed job's exact single-page observation. The owner retains only the
+ * last actual HTTP status, including refusals and interrupted bodies. */
+export async function createNativePostSignReader(
+  run: string,
+  deadline: number,
+  active: () => void,
+  retainStatus?: (status: number) => void,
+) {
+  assert.match(run, /^[1-9][0-9]{0,15}$/u);
+  const token = fixedReleaseReaderToken();
+  const { createGitHubClient } = await import("./github-client.mts");
+  const route = `/repos/boburning/portcove/actions/runs/${run}/attempts/1/jobs`;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    maxBytes: 2 * 1024 ** 2,
+    allowRequest(method, url) {
+      if (method !== "GET" || url.pathname !== route || url.search !== "?per_page=100")
+        return false;
+      // The SDK may await admission or deferral after the poll's earlier fence.
+      active();
+      return true;
+    },
+  });
+  return async () => {
+    let hasLink = false;
+    const policy: GitHubRequestPolicy = {
+      replay: "once",
+      attempts: 0,
+      observe(observation) {
+        if (observation.status !== null) retainStatus?.(observation.status);
+        hasLink = Object.hasOwn(observation.headers, "link");
+      },
+    };
+    const response = await client.request(`GET ${route}?per_page=100`, {
+      request: { portcove: policy },
+    });
+    assert.equal(response.status, 200);
+    assert.ok(!hasLink, "native prerequisite inventory requires one complete page");
+    return response.data as unknown;
+  };
 }

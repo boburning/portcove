@@ -9,6 +9,12 @@ fn signing_key() -> SigningKey {
 
 fn fixture(sequence: i64, now: i64) -> SignedCatalogPayload {
     let mut catalog = Catalog::embedded().unwrap().document().clone();
+    for port in &mut catalog.ports {
+        port.windows_shipwright_persistence = false;
+        for pattern in &mut port.persistent_file_patterns {
+            pattern.allow_empty_middle = false;
+        }
+    }
     catalog.ports[0].summary = format!("Synthetic signed metadata {sequence}");
     SignedCatalogPayload {
         sequence,
@@ -466,6 +472,7 @@ fn signed_runtime_updates_can_change_artifacts_but_not_execution_or_mutable_owne
                 .push(crate::PersistentFilePattern {
                     prefix: "profile_".into(),
                     suffix: ".sav".into(),
+                    allow_empty_middle: false,
                 }),
             _ => port.bundled_runtime.clear(),
         }
@@ -945,4 +952,70 @@ fn format_one_growth_at_the_exact_envelope_bound_preserves_verification_and_refu
     let overflow = serde_json::to_vec(&envelope).unwrap();
     assert_eq!(overflow.len(), MAX_CATALOG_BYTES + 1);
     assert!(signed_catalog::verify(&overflow, &[trust], now).is_err());
+}
+
+#[test]
+fn legacy_signed_catalog_cannot_supply_shipwright_persistence() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let verified =
+        signed_catalog::verify(&sign(&payload), std::slice::from_ref(&trust), now).unwrap();
+    assert!(
+        verified
+            .catalog
+            .port("shipwright")
+            .unwrap()
+            .windows_shipwright_persistence
+    );
+    payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "shipwright")
+        .unwrap()
+        .windows_shipwright_persistence = true;
+    let result = signed_catalog::verify(&sign(&payload), &[trust], now);
+    assert!(
+        matches!(result, Err(error) if error.message.contains("legacy signed catalogs cannot deliver"))
+    );
+}
+
+#[test]
+fn legacy_signed_catalog_keeps_compiled_empty_middle_patterns() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let trust = std::slice::from_ref(&trust);
+    let verified = signed_catalog::verify(&sign(&payload), trust, now).unwrap();
+    let installed = verified.catalog.port("opentyrian-opentyrian").unwrap();
+    assert!(installed.persistent_file_patterns.iter().any(|pattern| {
+        pattern.prefix == "demorec." && pattern.suffix == "1" && pattern.allow_empty_middle
+    }));
+
+    let port = payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "opentyrian-opentyrian")
+        .unwrap();
+    port.persistent_file_patterns[0].allow_empty_middle = true;
+    let result = signed_catalog::verify(&sign(&payload), trust, now);
+    assert!(matches!(result, Err(error) if error.message.contains("cannot deliver empty-middle")));
+
+    let port = payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "opentyrian-opentyrian")
+        .unwrap();
+    port.persistent_file_patterns[0].allow_empty_middle = false;
+    port.persistent_file_patterns[0].suffix.push('0');
+    assert!(signed_catalog::verify(&sign(&payload), trust, now).is_err());
 }

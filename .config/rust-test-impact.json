@@ -23,6 +23,30 @@
           "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/)"
         },
         {
+          "id": "route-enrollment-fixtures",
+          "reason": "generated entrypoints and independent expectations share both route inventories and the managed and prepared lifecycle families",
+          "paths": [
+            "crates/portcove-core/catalog/route-enrollment.generated.json",
+            "crates/portcove-core/src/testdata/accepted-route-expectations.generated.json",
+            "crates/portcove-core/src/testdata/managed-route-tests.generated.rs",
+            "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
+            "crates/portcove-core/src/testdata/route-enrollment-expectations.json"
+          ],
+          "filter": "test(/^service::native_portable::tests::managed_native_(declared_|declaration_inventory$)/) | test(/^service::user_selected::tests::prepared_guide_adoption_(declared_|declaration_inventory$)/)"
+        },
+        {
+          "id": "native-engine-adoption-fixture",
+          "reason": "the observed native engine corpus feeds retained release selection and retained, generated managed, and ready staged lifecycle cases",
+          "paths": ["crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json"],
+          "filter": "test(/^release::tests::unchanged_definition::native_engine_selection_/) | test(/^service::native_portable::tests::native_engine_adoption_/) | test(/::ready_staged_archive_observed_lifecycle_cases$/) | test(/^service::native_portable::tests::managed_native_(declared_|declaration_inventory$)/)"
+        },
+        {
+          "id": "windows-archive-selection-fixture",
+          "reason": "the independent Windows archive inventory is consumed by the shared compatible-release selection case",
+          "paths": ["crates/portcove-core/src/testdata/windows-archive-release-selection.json"],
+          "filter": "test(/::windows_archive_selection_advances_from_shared_release_inventories$/)"
+        },
+        {
           "id": "artwork-resolution",
           "reason": "artwork resolution, choice publication and owned-original reads require the complete artwork, import, move and transfer consumer families",
           "paths": ["crates/portcove-core/src/artwork.rs"],
@@ -115,7 +139,8 @@
             "crates/portcove-core/src/release.rs",
             "crates/portcove-core/src/release/observation.rs",
             "crates/portcove-core/src/release/observation_tests.rs",
-            "crates/portcove-core/src/release/tests/unchanged_definition.rs"
+            "crates/portcove-core/src/release/tests/unchanged_definition.rs",
+            "crates/portcove-core/src/testdata/native-engine-release-scenarios.json"
           ],
           "filter": "test(/^gitlab::tests::/) | test(/^providers::tests::/) | test(/^release::tests::/) | test(/^release::observation::tests::/)"
         },

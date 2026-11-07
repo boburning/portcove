@@ -759,13 +759,15 @@ mod tests {
                 &arguments,
             )
             .unwrap();
+        let mut changed_arguments = arguments.clone();
+        changed_arguments.push("--unreviewed-argument".into());
         assert!(
             service
                 .authorize_user_selected_runtime_relink(
                     id,
                     &replacement_executable,
                     &replacement,
-                    &[],
+                    &changed_arguments,
                     &preview.preview_sha256,
                 )
                 .is_err()
@@ -909,6 +911,37 @@ mod tests {
         );
     }
 
+    // Actual catalog identities with an owned inert probe, never game execution.
+    // Keep the managed definition while exercising the independent external route.
+    fn assert_harbour_day_one_route(id: &str) {
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().adapter,
+            crate::AdapterKind::LibultrashipPortable
+        );
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            Vec::new(),
+            None,
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_ghostship_day_one_preserves_managed_route() {
+        assert_harbour_day_one_route("ghostship");
+    }
+
+    #[test]
+    fn prepared_guide_adoption_starship_day_one_preserves_managed_route() {
+        assert_harbour_day_one_route("starship");
+    }
+
     #[test]
     fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
         assert_listing_only_player_route("listing-only", None);
@@ -921,8 +954,6 @@ mod tests {
         service.catalog = Catalog::embedded().unwrap();
         let listing = service.catalog.listing(id).unwrap();
         assert!(listing.manual_setup.is_some());
-        assert!(listing.download_block_reason.is_none());
-        assert!(service.catalog.port(id).is_err());
         // The prefix is the owned probe's recording ABI. The suffix is the
         // individually reviewed player argument vector, never a shell command.
         let arguments: Vec<String> = ["--record".into(), "route-binding".into()]
@@ -1344,17 +1375,55 @@ mod tests {
         assert_bound_listing_player_route("re-volt-rvgl", "rvgl_launcher.exe", &[]);
     }
 
-    #[test]
-    fn prepared_guide_adoption_2738_tetris_player() {
-        assert_bound_listing_player_route("mstan-tetrisgbrecomp", "Tetris.exe", &[]);
-    }
+    include!("../testdata/prepared-route-tests.generated.rs");
 
     #[test]
-    fn prepared_guide_adoption_2725_n64_player() {
-        assert_bound_listing_player_route(
-            "n64hub-super-mario-64-recomp",
-            "SuperMario64Recompiled.exe",
-            &[],
+    fn prepared_guide_adoption_declaration_inventory() {
+        let declared = crate::test_fixture::route_enrollment()
+            .into_iter()
+            .map(|case| case.port_id)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            declared,
+            DECLARED_PREPARED_ROUTE_TEST_IDS
+                .iter()
+                .map(|id| (*id).to_owned())
+                .collect::<std::collections::BTreeSet<_>>()
+        );
+        assert_eq!(DECLARED_PREPARED_ROUTE_TEST_IDS.len(), declared.len());
+    }
+    fn assert_declarative_prepared_player_route(id: &str) {
+        let expectations = crate::test_fixture::route_expectations();
+        let case = crate::test_fixture::route_enrollment()
+            .into_iter()
+            .find(|case| case.port_id == id)
+            .unwrap();
+        let observed = expectations
+            .iter()
+            .find(|row| row["port_id"] == id)
+            .expect("new route needs independent reviewed expected facts");
+        assert_eq!(observed["executable"], case.prepared_player.executable);
+        assert_eq!(
+            observed["arguments"],
+            serde_json::to_value(&case.prepared_player.arguments).unwrap()
+        );
+        if case.managed_native {
+            let catalog = Catalog::embedded().unwrap();
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.adapter, crate::AdapterKind::NativePortable);
+            assert_ne!(port.release.provider, ReleaseSource::UserPrepared);
+            assert!(catalog.listing(id).unwrap().download_block_reason.is_none());
+        }
+        let args = case
+            .prepared_player
+            .arguments
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        assert_bound_listing_player_route(id, &case.prepared_player.executable, &args);
+        eprintln!(
+            "{}",
+            serde_json::json!({"kind":"owned-probe-prepared-route-lifecycle","port_id":id,"outcome":"passed","upstream_game_executed":false})
         );
     }
 
@@ -1545,6 +1614,7 @@ mod tests {
     fn assert_prepared_player_route(id: &str, selected_arguments: Option<&[&str]>) {
         let (_temporary, mut service, executable, working) = fixture(id);
         service.catalog = Catalog::embedded().unwrap();
+        let current_adapter = service.catalog.port(id).unwrap().adapter;
         // A new managed offer does not rewrite an existing registration's
         // creating contract. Unreplaced cases continue to bind current data.
         let retained_fixture = [
@@ -1554,14 +1624,16 @@ mod tests {
             include_str!("../testdata/bstone-retained-selected-2026-10-29.json"),
             include_str!("../testdata/devilution-retained-selected-2026-10-29.json"),
             include_str!("../testdata/native-engine-retained-selected-2026-11-02.json"),
+            include_str!("../testdata/gba-pokemon-retained-selected-2026-11-05.json"),
+            include_str!("../testdata/gba-ruby-sapphire-retained-selected-2026-11-06.json"),
         ]
         .into_iter()
         .find(|fixture| Catalog::from_json(fixture).unwrap().port(id).is_ok());
         if let Some(fixture) = retained_fixture {
-            assert_eq!(
-                service.catalog.port(id).unwrap().adapter,
-                crate::AdapterKind::NativePortable
-            );
+            assert!(matches!(
+                current_adapter,
+                crate::AdapterKind::NativePortable | crate::AdapterKind::StagedSourcePortable
+            ));
             service.catalog = Catalog::from_json(fixture)
                 .unwrap()
                 .with_embedded_listings()
@@ -1675,10 +1747,7 @@ mod tests {
         drop(service);
         let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
         if retained_fixture.is_some() {
-            assert_eq!(
-                service.catalog.port(id).unwrap().adapter,
-                crate::AdapterKind::NativePortable
-            );
+            assert_eq!(service.catalog.port(id).unwrap().adapter, current_adapter);
         }
         #[cfg(windows)]
         if let Some(fixture) = retained_fixture {
@@ -2249,6 +2318,26 @@ mod tests {
         service.catalog = Catalog::embedded().unwrap();
         let before = serde_json::to_value(service.catalog.port("shipwright").unwrap()).unwrap();
         let record = register(&service, "shipwright", &executable, &working);
+        let report = service.port_capabilities("shipwright").unwrap();
+        let current = report.routes.last().unwrap();
+        assert_eq!(current.install_id.as_deref(), Some(record.id.as_str()));
+        assert_eq!(current.route, "user-selected");
+        let updates = current
+            .features
+            .iter()
+            .find(|row| row.feature == crate::CapabilityFeature::Updates)
+            .unwrap();
+        assert_eq!(updates.mode, crate::CapabilityMode::Manual);
+        assert!(updates.action.is_some());
+        assert_eq!(
+            service
+                .status("shipwright")
+                .unwrap()
+                .external_runtime
+                .as_ref()
+                .map(|r| &r.id),
+            Some(&record.id)
+        );
         let status = service.status("shipwright").unwrap();
         assert!(status.readiness.unwrap().launchable);
         assert!(
@@ -2270,16 +2359,6 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(retained.port("shipwright").is_err());
-    }
-
-    #[test]
-    fn vkquake_prepared_player_route_2697() {
-        assert_listing_only_player_route("quake-vkquake", Some(false));
-    }
-
-    #[test]
-    fn ironwail_prepared_player_route_2698() {
-        assert_listing_only_player_route("quake-ironwail", Some(false));
     }
 
     #[test]
@@ -2823,18 +2902,8 @@ mod tests {
     }
 
     #[test]
-    fn dune_ii_dune_dynasty_prepared_player_route_2569() {
-        assert_listing_only_player_route("dune-ii-dune-dynasty", Some(false));
-    }
-
-    #[test]
     fn might_and_magic_vii_openenroth_prepared_player_route_2885() {
         assert_listing_only_player_route("might-and-magic-vii-openenroth", Some(false));
-    }
-
-    #[test]
-    fn gothic_ii_night_of_the_raven_opengothic_prepared_player_route_2578() {
-        assert_listing_only_player_route("gothic-ii-night-of-the-raven-opengothic", Some(false));
     }
 
     #[test]
@@ -2850,11 +2919,6 @@ mod tests {
     #[test]
     fn jazz_jackrabbit_2_jazz2_resurrection_prepared_player_route_2682() {
         assert_listing_only_player_route("jazz-jackrabbit-2-jazz2-resurrection", Some(false));
-    }
-
-    #[test]
-    fn heroes_of_might_and_magic_ii_fheroes2_prepared_player_route_2582() {
-        assert_listing_only_player_route("heroes-of-might-and-magic-ii-fheroes2", Some(false));
     }
 
     #[test]
@@ -3059,13 +3123,8 @@ mod tests {
     }
 
     #[test]
-    fn body_harvest_recompiled_frontend_license_player_route_1448() {
-        assert_listing_only_player_route("body-harvest-recompiled", Some(false));
-    }
-
-    #[test]
     fn cbfd_recompiled_sciaschi_frontend_license_player_route_1216() {
-        assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(false));
+        assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(true));
     }
 
     #[test]

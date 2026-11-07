@@ -1,6 +1,8 @@
 use std::path::Path;
 
 mod phases;
+mod port_capabilities;
+pub(crate) use port_capabilities::port_capabilities;
 mod task_results;
 mod transfers;
 pub(crate) use phases::phase_name;
@@ -23,7 +25,7 @@ pub(crate) fn game_file_query(
                 portcove_core::GameFileQueryState::FilesMissing => "Files missing",
                 portcove_core::GameFileQueryState::NeedsChecking => "Needs checking",
                 portcove_core::GameFileQueryState::NoFilesRequired => "No files to add in Portcove",
-                portcove_core::GameFileQueryState::UnavailableContext => "Context unavailable",
+                portcove_core::GameFileQueryState::UnavailableContext => "File check unavailable",
             };
             let selected = match route.route {
                 portcove_core::GameFileRouteKind::ManagedInstall => "managed setup",
@@ -150,7 +152,7 @@ pub(crate) fn library_move_result(result: &LibraryMoveResult) -> String {
 
 pub(crate) fn activity_diagnostic(captures: &[portcove_core::ActivityDiagnostic]) -> String {
     if captures.is_empty() {
-        return "No retained diagnostic capture is available for this activity.".into();
+        return "No saved task output is available.".into();
     }
     captures
         .iter()
@@ -636,7 +638,7 @@ pub(crate) fn backup_action_preview(
         ),
     };
     format!(
-        "{action} review\nPort: {port}\nBackup: {}\nArchive folder: {}\nCreated (UTC): {}\nFiles: {}\nSize: {} ({} bytes)\nBackup SHA-256: {}\nCurrent managed saved data exists: {}\n{consequences}\nReview SHA-256: {}\nConsent is bound to the reviewed contents; changed inputs require a new review.",
+        "{action} review\nPort: {port}\nBackup: {}\nArchive folder: {}\nCreated (UTC): {}\nFiles: {}\nSize: {} ({} bytes)\nBackup SHA-256: {}\nCurrent managed saved data exists: {}\n{consequences}\nReview SHA-256: {}\nIf the files change, review them again before confirming.",
         clean(&preview.backup.id),
         clean(&preview.backup.path.display().to_string()),
         utc_time(preview.backup.created_at),
@@ -1355,7 +1357,7 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
             },
             PortActionReason::ReviewRequired => match assessment.action {
                 PortAction::Update => {
-                    "Review the current update candidate; saved policy is not consent."
+                    "Review the update before installing it. Your saved update preference is unchanged."
                 }
                 PortAction::RegisterExternal => {
                     "Review the prepared folder with external preview before registration."
@@ -3008,7 +3010,7 @@ mod tests {
         assert!(!rendered.contains('\u{8}'));
         assert_eq!(
             super::activity_diagnostic(&[]),
-            "No retained diagnostic capture is available for this activity."
+            "No saved task output is available."
         );
     }
 
@@ -3517,7 +3519,7 @@ mod tests {
         };
         assert!(
             decision(Availability::Waiting, Reason::ReviewRequired)
-                .contains("saved policy is not consent")
+                .contains("Review the update before installing it")
         );
         assert!(
             decision(Availability::NotOffered, Reason::NotInstalled)

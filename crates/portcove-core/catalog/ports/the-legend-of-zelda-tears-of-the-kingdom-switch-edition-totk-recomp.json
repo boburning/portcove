@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-tears-of-the-kingdom-switch-edition-totk-recomp",
     "name": "The Legend of Zelda: Tears of the Kingdom — Switch edition (totk-recomp)",
-    "summary": "An experimental Tears of the Kingdom Linux x86-64 port translating AArch64 main and parts of the SDK to C++ with native services and NVN-to-Vulkan support. The separate zeldaret matching-decompilation project does not establish its playability. The author reports one Steam Deck outdoor walk at 62–64 FPS, rather than full-game stability or completion. First start warms shaders; faster code generation is planned. A PC clang O2 build took 17 minutes elapsed and 2.1 CPU hours; a one-to-1.5-hour Deck estimate is unmeasured. There are no release files. Use build_from_xci.sh to import, generate, compile and package privately; the launcher’s game-build button is not connected, so the command line is required. Build requirements include exactly Capstone 5.0.9, 16 GB RAM and 45 GB peak disk. Linux x86-64 needs AVX2 on Haswell/Zen 2 or newer; distrobox Ubuntu 24.04 or Linux PC builds are documented. Windows/macOS are unconfirmed. Supply your own version 1.0.0 cartridge XCI, title 0100F2C0115B6000, main build ID 082CE09B06E33A12 and prod.keys with master-key revision 0x0E. Other versions are unsupported; separate firmware and exact regional hashes are unspecified. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "An experimental Linux port of Tears of the Kingdom built from your own version 1.0.0 cartridge image. Build and run it with the project’s tools.",
     "original_game_title": "The Legend of Zelda: Tears of the Kingdom — Switch edition",
     "project_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
     "platforms": [],
@@ -17,7 +17,25 @@
       "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2966
+    "issue_number": 2966,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Read the build instructions",
+          "instruction": "Follow the project’s instructions for build_from_xci.sh. You need your own Tears of the Kingdom 1.0.0 XCI and prod.keys. Portcove does not build or launch this project."
+        }
+      ],
+      "warnings": [
+        "The documented build needs 16 GB RAM and up to 45 GB of disk space. The Linux x86-64 version needs AVX2."
+      ],
+      "references": [
+        {
+          "title": "November 4, 2026 research notes",
+          "instruction": "An experimental Tears of the Kingdom Linux x86-64 port translating AArch64 main and parts of the SDK to C++ with native services and NVN-to-Vulkan support. The separate zeldaret matching-decompilation project does not establish its playability. The author reports one Steam Deck outdoor walk at 62–64 FPS, rather than full-game stability or completion. First start warms shaders; faster code generation is planned. A PC clang O2 build took 17 minutes elapsed and 2.1 CPU hours; a one-to-1.5-hour Deck estimate is unmeasured. There are no release files. Use build_from_xci.sh to import, generate, compile and package privately; the launcher’s game-build button is not connected, so the command line is required. Build requirements include exactly Capstone 5.0.9, 16 GB RAM and 45 GB peak disk. Linux x86-64 needs AVX2 on Haswell/Zen 2 or newer; distrobox Ubuntu 24.04 or Linux PC builds are documented. Windows/macOS are unconfirmed. Supply your own version 1.0.0 cartridge XCI, title 0100F2C0115B6000, main build ID 082CE09B06E33A12 and prod.keys with master-key revision 0x0E. Other versions are unsupported; separate firmware and exact regional hashes are unspecified. Portcove offers no setup or launch integration and has not tested gameplay."
+        }
+      ],
+      "help_url": "https://github.com/Muhammad1259-sigma/totk-recomp"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

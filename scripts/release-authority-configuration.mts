@@ -55,23 +55,29 @@ async function readControllerJobSourceConfiguration(
     throw new Error("complete fixed job source configuration unavailable");
   const configuration: unknown = JSON.parse(raw);
   const deadline = performance.now() + coordinatorCommandTimeout(15000);
-  const workflow = await readProductionControllerWorkflowBytes();
+  const catalog = purpose === "catalog-publication";
   let source;
-  if (purpose === "catalog-publication") {
-    const { authenticateCatalogControlReaderJob } =
-      await import("./release-live-control-admission.mts");
-    const actual = await authenticateCatalogControlReaderJob(environment, workflow, {
+  if (catalog || (isRecord(configuration) && configuration.kind === "three-app-fixed-jobs-v1")) {
+    const readers = await import("./release-live-control-admission.mts");
+    const authenticate = catalog
+      ? readers.authenticateCatalogControlReaderJob
+      : readers.authenticateControlReaderJob;
+    const actual = await authenticate(environment, await readProductionControllerWorkflowBytes(), {
       phase,
       deadline,
     });
     if (actual.identity.evidence_scope !== "github.com")
-      throw new Error("actual catalog OIDC identity required");
+      throw new Error(
+        catalog
+          ? "actual catalog OIDC identity required"
+          : "actual storage writer job OIDC identity required before credential routing",
+      );
     source = actual.admitted;
   } else {
     source = admitProductionInputReader(
       environment.PORTCOVE_CONTROLLER_ADMISSION,
       environment,
-      workflow,
+      await readProductionControllerWorkflowBytes(),
       phase,
     );
   }
@@ -126,6 +132,9 @@ export async function requireControllerJobCredentialRoute(rawPhase: unknown) {
         : {}),
       credential_transport:
         view.configuration.schema_version === 4 ? ("fixed-job" as const) : ("legacy-app" as const),
+      ...("journal" in view.configuration && view.configuration.journal.apps.storage_writer
+        ? { storage_writer: { ...view.configuration.journal.apps.storage_writer } }
+        : {}),
       source: view.source,
     }),
     recheck: captured.recheck,

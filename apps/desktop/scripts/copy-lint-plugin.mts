@@ -33,6 +33,13 @@ const rules = [
       "Explain the player's situation and next action; keep engineering evidence in technical details.",
   },
   {
+    id: "unscoped-save-separation",
+    pattern:
+      /\b(?:each keeps its own installation, (?:original-file requirements|files) and saved data|installed application files are kept separate from\s+saves and settings)\b/iu,
+    message:
+      "Describe save locations from the installation state. Separate program folders can share saves.",
+  },
+  {
     id: "generic-verified",
     pattern: /^verified[.!]?$/iu,
     message: "Name what was checked instead of a generic Verified label.",

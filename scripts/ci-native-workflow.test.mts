@@ -19,7 +19,7 @@ import {
 } from "./ci-workflow-fixture.mts";
 
 // Independently expected contract pin; Renovate updates it with the Action group.
-const reviewedInstallAction = "taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b"; // v2.89.0
+const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
 
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = workflowJobs(nativeDesignCompatibilityWorkflow);
@@ -493,7 +493,7 @@ void test("native design compatibility remains explicit, isolated, and non-publi
   );
   assert.equal(
     desktopScripts["lint:style"],
-    'stylelint --config stylelint.config.mjs --max-warnings 0 "src/**/*.css"',
+    'stylelint --config scripts/stylelint-config.mts --max-warnings 0 "src/**/*.css" && node scripts/check-stylelint-config.mts',
   );
 });
 
@@ -631,6 +631,14 @@ function assertOriginalControllerImportSetup(job: Record<string, unknown>) {
       installationIndex < accountIndex,
     "actual pinned Node and locked dependencies must precede original-C fixture",
   );
+  const discoveryIndex = index(
+    "Test discovery state replacement under actual Windows reader sharing",
+  );
+  if (discoveryIndex !== -1)
+    assert.ok(
+      installationIndex < discoveryIndex,
+      "SDK imports must be available before the filtered discovery test loads",
+    );
   const manager: unknown = steps[managerIndex],
     installation: unknown = steps[installationIndex],
     node: unknown = steps[nodeIndex];
@@ -642,7 +650,7 @@ function assertOriginalControllerImportSetup(job: Record<string, unknown>) {
       isRecord(node.with),
   );
   assert.equal(node.with["node-version-file"], ".node-version");
-  assert.equal(manager.uses, "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413");
+  assert.equal(manager.uses, "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115");
   assert.equal(manager.with.package_json_file, "package.json");
   assert.equal(typeof installation.run, "string");
   assert.deepEqual(executableLines(String(installation.run)), [

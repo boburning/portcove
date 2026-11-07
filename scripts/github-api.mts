@@ -2,26 +2,20 @@ import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-enviro
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import {
   coordinatorCommandTimeout,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
 
-import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
-import type { IncludedResponse, GitHubRestReader, GitHubRateLimit } from "./github-operation.mts";
-export {
+import {
   GitHubApiError,
-  sanitizeOperationError,
-  githubOperationEnvelope,
+  githubRateLimitMessage,
+  nextLink,
+  rateLimitFromResponse,
 } from "./github-operation.mts";
-export type {
-  IncludedResponse,
-  GitHubRestReader,
-  GitHubRateLimit,
-  OperationStatus,
-} from "./github-operation.mts";
-export type GitHubRunner = (args: readonly string[], input?: string) => string;
+import type { IncludedResponse, GitHubRestReader } from "./github-operation.mts";
+
+type GitHubRunner = (args: readonly string[], input?: string) => string;
 
 export function parseIncludedResponse(output: unknown): IncludedResponse {
   const raw: unknown = output ?? "";
@@ -55,21 +49,6 @@ export function parseIncludedResponse(output: unknown): IncludedResponse {
     body: bodyText.trim() ? JSON.parse(bodyText) : null,
     bodyBytes: Buffer.byteLength(bodyText),
   };
-}
-
-export { rateLimitFromResponse } from "./github-operation.mts";
-import { rateLimitFromResponse } from "./github-operation.mts";
-
-export { nextLink } from "./github-operation.mts";
-import { nextLink } from "./github-operation.mts";
-
-export function githubRateLimitMessage(
-  rate: Pick<GitHubRateLimit, "remaining" | "resetAt"> | null | undefined,
-  prefix = "GitHub API rate limit",
-) {
-  const remaining = rate?.remaining ?? "unknown";
-  const reset = rate?.resetAt ?? "unknown";
-  return `${prefix}: ${remaining} points remain; reset at ${reset}`;
 }
 
 function graphqlResponseError(response: IncludedResponse, operation: string) {
@@ -226,60 +205,10 @@ function responseError(error: unknown, operation: string) {
 }
 
 export class GitHubApiClient {
-  readonly run: GitHubRunner;
-  readonly observations: {
-    operation: string;
-    query_sha256?: string;
-    status: number | null;
-    request_id: string | null;
-    date: string | null;
-    bytes: number;
-    bytes_known: boolean;
-    elapsed_ms: number;
-    rate: GitHubRateLimit | null;
-    failure?: string;
-  }[] = [];
-  constructor(run: GitHubRunner = createGitHubRunner()) {
-    this.run = run;
-  }
+  readonly #run: GitHubRunner;
 
-  command(args: readonly string[], input?: string) {
-    return this.run(args, input);
-  }
-
-  private observe(
-    operation: string,
-    started: number,
-    response?: IncludedResponse,
-    error?: unknown,
-    query?: string,
-  ) {
-    this.observations.push({
-      operation,
-      ...(query ? { query_sha256: createHash("sha256").update(query).digest("hex") } : {}),
-      status: response?.status ?? (error instanceof GitHubApiError ? error.status : null),
-      request_id:
-        response?.headers.get("x-github-request-id") ??
-        (error instanceof GitHubApiError ? error.requestId : null),
-      date:
-        response?.headers.get("date") ??
-        (error instanceof GitHubApiError ? error.responseDate : null),
-      bytes: response
-        ? (response.bodyBytes ?? 0)
-        : error instanceof GitHubApiError
-          ? (error.responseBytes ?? 0)
-          : 0,
-      bytes_known:
-        response?.bodyBytes !== undefined ||
-        (error instanceof GitHubApiError && error.responseBytes !== null),
-      elapsed_ms: Date.now() - started,
-      rate: response
-        ? rateLimitFromResponse(response)
-        : error instanceof GitHubApiError
-          ? error.rateLimit
-          : null,
-      ...(error ? { failure: sanitizeOperationError(error).code } : {}),
-    });
+  constructor(run: GitHubRunner) {
+    this.#run = run;
   }
 
   request(
@@ -288,7 +217,6 @@ export class GitHubApiClient {
     body: unknown = null,
     headers: Readonly<Record<string, string>> = {},
   ) {
-    const started = Date.now();
     const operation = `${method} ${endpoint}`;
     if (
       Object.entries(headers).some(
@@ -300,7 +228,7 @@ export class GitHubApiClient {
     let response;
     try {
       response = parseIncludedResponse(
-        this.command(
+        this.#run(
           [
             "api",
             "--include",
@@ -317,35 +245,27 @@ export class GitHubApiClient {
         ),
       );
     } catch (error) {
-      this.observe(operation, started, undefined, error);
       throw responseError(error, operation);
     }
-    this.observe(operation, started, response);
     return { ...response, rateLimit: rateLimitFromResponse(response) };
   }
 
   graphql(query: string, variables: Readonly<Record<string, unknown>> = {}) {
-    const started = Date.now();
     const operation = "POST graphql";
     let response;
     try {
       response = parseIncludedResponse(
-        this.command(
+        this.#run(
           ["api", "graphql", "--include", "--input", "-"],
           `${JSON.stringify({ query, variables })}\n`,
         ),
       );
     } catch (error) {
-      this.observe(operation, started, undefined, error, query);
       throw responseError(error, operation);
     }
     const rateLimit = rateLimitFromResponse(response);
     const error = graphqlResponseError(response, operation);
-    if (error) {
-      this.observe(operation, started, response, error, query);
-      throw error;
-    }
-    this.observe(operation, started, response, undefined, query);
+    if (error) throw error;
     if (!response.body || typeof response.body !== "object" || !("data" in response.body)) {
       throw new GitHubApiError("invalid_response", "GitHub GraphQL response omitted data", {
         operation,

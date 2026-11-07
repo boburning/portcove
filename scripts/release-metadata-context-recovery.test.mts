@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mkdtemp, readdir, rm, mkdir, readFile } from "node:fs/promises";
-import childProcess, { execFileSync } from "node:child_process";
-import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { syncBuiltinESMExports } from "node:module";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { capacityDigest as digest } from "./release-capacity.mts";
@@ -195,35 +193,51 @@ void test("pending context readback requires positive terminal exact artifact, n
 void test("default GET-only pending upload transport reconciles failed producer bytes and preserves ambiguous refusals", async (t) => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "pending-context-readback-"));
   t.after(() => rm(parent, { recursive: true, force: true }));
-  const original = childProcess.spawnSync;
+  const originalToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-metadata-context-reader";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+  });
   for (const bootstrap of [false, true])
     for (const fault of ["", "absent", "changed-bytes", "changed-expected", "drift"]) {
       const f = pendingFixture(bootstrap),
         requests: string[] = [];
       let snapshots = 0,
         downloads = 0;
-      const mock = t.mock.method(
-        childProcess,
-        "spawnSync",
-        (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-          if (command !== "gh") return original(command, args, options);
-          assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-          assert.ok(options.timeout! > 0 && options.timeout! <= 30000);
-          assert.equal(options.env?.GH_HOST, "github.com");
-          const endpoint = args.find((a) => a.startsWith("repos/"));
-          assert.ok(endpoint);
+      const fetchMock = t.mock.method(
+        globalThis,
+        "fetch",
+        async (input: unknown, init?: RequestInit) => {
+          assert.ok(typeof input === "string" || input instanceof URL);
+          const url = new URL(input);
+          assert.equal(init?.method, "GET");
+          const headers = new Headers(init?.headers);
+          if (url.origin !== "https://api.github.com") {
+            assert.equal(init?.credentials, "omit");
+            assert.equal(headers.has("authorization"), false);
+            return new Response(
+              Uint8Array.from(fault === "changed-bytes" ? Buffer.from("changed") : f.archive),
+            );
+          }
+          assert.equal(headers.get("authorization"), "token inert-metadata-context-reader");
+          const endpoint = url.pathname.slice(1);
           requests.push(endpoint);
           if (endpoint.endsWith("/zip")) {
+            assert.equal(endpoint, "repos/boburning/portcove/actions/artifacts/99/zip");
             downloads++;
-            return {
-              status: 0,
-              stdout: fault === "changed-bytes" ? Buffer.from("changed") : f.archive,
-              stderr: Buffer.alloc(0),
-            };
+            return new Response(null, {
+              status: 302,
+              headers: {
+                location:
+                  "https://productionresultssa10.blob.core.windows.net/actions-results/context?sig=synthetic",
+              },
+            });
           }
-          assert.equal(args[args.indexOf("--method") + 1], "GET");
           let body: unknown;
-          if (endpoint.endsWith("/artifacts?per_page=100&page=1")) {
+          if (endpoint.endsWith("/artifacts")) {
+            assert.equal(url.searchParams.get("per_page"), "100");
+            assert.equal(url.searchParams.get("page"), "1");
             snapshots++;
             body = {
               total_count: fault === "absent" ? 0 : 1,
@@ -235,14 +249,9 @@ void test("default GET-only pending upload transport reconciles failed producer 
           } else if (endpoint.includes("actions/jobs/")) body = { ...f.job, conclusion: "failure" };
           else if (endpoint.includes("actions/runs/")) body = f.run;
           else throw new Error("unexpected pending readback route");
-          return {
-            status: 0,
-            stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-            stderr: "",
-          };
+          return Response.json(body);
         },
       );
-      syncBuiltinESMExports();
       try {
         const read = readPendingMetadataContextUpload(
           f.operation,
@@ -277,8 +286,7 @@ void test("default GET-only pending upload transport reconciles failed producer 
         }
         assert.equal(downloads, fault === "absent" ? 0 : 1);
       } finally {
-        mock.mock.restore();
-        syncBuiltinESMExports();
+        fetchMock.mock.restore();
       }
     }
 });
@@ -338,18 +346,21 @@ void test(
       stateBytes = git("cat-file", "blob", blob);
     const proof = { checkpoint: saved.checkpoint, id: f.raw.id, operation_sha256: digest(f.raw) };
     assert.throws(() => readRetainedCapacityOperation(sparse, proof));
-    const original = childProcess.spawnSync,
-      requests: string[] = [];
-    const mock = t.mock.method(
-      childProcess,
-      "spawnSync",
-      (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-        if (command !== "gh") return original(command, args, options);
-        assert.equal(args[args.indexOf("--method") + 1], "GET");
-        assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-        const endpoint = args.find((arg) => arg.startsWith("repos/"));
-        assert.ok(endpoint);
+    const requests: string[] = [];
+    const token = "synthetic-retained-metadata-fixture";
+    let unavailable = true;
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(url.search, "");
+        assert.equal(init?.method, "GET");
+        assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+        const endpoint = url.pathname.slice(1);
         requests.push(endpoint);
+        if (unavailable) return Response.json({ message: "Unavailable" }, { status: 503 });
         let body: unknown;
         if (endpoint === `repos/boburning/portcove/git/commits/${saved.checkpoint}`) {
           const person = {
@@ -380,18 +391,25 @@ void test(
             content: stateBytes.toString("base64"),
           };
         else throw new Error("unexpected fixture GET");
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-          stderr: "",
-        };
+        return Response.json(body);
       },
     );
-    syncBuiltinESMExports();
+    const previousToken = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = token;
     t.after(() => {
-      mock.mock.restore();
-      syncBuiltinESMExports();
+      if (previousToken === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previousToken;
     });
+    await assert.rejects(
+      withCoordinatorDeadline(performance.now() + 15000, () =>
+        readMetadataContextRetryReceipt(sparse, proof),
+      ),
+      (error: unknown) => error instanceof Error && "status" in error && error.status === 503,
+    );
+    assert.deepEqual(requests, [`repos/boburning/portcove/git/commits/${saved.checkpoint}`]);
+    assert.throws(() => readRetainedCapacityOperation(sparse, proof));
+    requests.length = 0;
+    unavailable = false;
     const actual = await withCoordinatorDeadline(performance.now() + 15000, () =>
       readMetadataContextRetryReceipt(sparse, proof),
     );

@@ -8,6 +8,15 @@ const MAX_MATCHING_FILES: usize = 1024;
 
 /// Check one newly declared path without following links or scanning a tree.
 pub(crate) fn require_absent_path(root: &Path, relative: &str) -> Result<()> {
+    require_path(root, relative, true)
+}
+
+/// Existing or absent coordinates must have exact spelling and ordinary parents.
+pub(crate) fn require_exact_path(root: &Path, relative: &str) -> Result<()> {
+    require_path(root, relative, false)
+}
+
+fn require_path(root: &Path, relative: &str, absent: bool) -> Result<()> {
     crate::archive::validate_relative_path(relative, false)?;
     for ancestor in root.ancestors() {
         match fs::symlink_metadata(ancestor) {
@@ -59,6 +68,9 @@ pub(crate) fn require_absent_path(root: &Path, relative: &str) -> Result<()> {
             return Ok(());
         };
         if index + 1 == components.len() {
+            if !absent {
+                return crate::path::refuse_symlink_ancestors(&found);
+            }
             return Err(PortcoveError::conflict("a newly declared player-data path is already present; preserve it before changing versions")
                 .detail("path", found.display().to_string()));
         }
@@ -81,7 +93,7 @@ pub(crate) fn validate_mod_package_policy(port: &PortDefinition) -> Result<()> {
 }
 
 // Exact historical readers keep their creating contracts. Newer managed
-// recipes for these three identities require the same bounded data guard in
+// recipes for these identities require the same bounded data guard in
 // both independent-definition admission and actual lifecycle operations.
 const LEGACY_PACKAGE: &str = "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99";
 
@@ -96,13 +108,30 @@ pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'sta
             "v0.1.4",
             "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
         )),
+        "super-metroid-recomp" => Some((
+            "v0.3.12",
+            "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+        )),
         _ => None,
+    }
+}
+
+pub(crate) fn fresh_direct_data_guard_capability(port: &crate::PortDefinition) -> Option<u32> {
+    if port.archive_data_transition_v1.is_some() {
+        Some(28)
+    } else if port.archive_data_compatibility_v1.is_some() {
+        Some(27)
+    } else {
+        requires_fresh_direct_data_guard(port).then_some(26)
     }
 }
 
 pub(crate) fn requires_fresh_direct_data_guard(port: &crate::PortDefinition) -> bool {
     if !ready_staged_archive(port) {
         return false;
+    }
+    if port.archive_data_compatibility_v1.is_some() {
+        return true;
     }
     let Some((version, sha256)) = legacy_direct_reader(&port.id) else {
         return false;
@@ -168,26 +197,36 @@ impl PersistentFilePattern {
             ));
         }
         crate::archive::validate_relative_path(&format!("{}x{}", self.prefix, self.suffix), false)?;
-        let suffix = self.suffix.to_ascii_lowercase();
-        if matches!(
-            suffix.rsplit('.').next(),
-            Some(
-                "exe"
-                    | "com"
-                    | "dll"
-                    | "so"
-                    | "dylib"
-                    | "appimage"
-                    | "jar"
-                    | "bat"
-                    | "cmd"
-                    | "ps1"
-                    | "sh"
-                    | "js"
-                    | "vbs"
-                    | "py"
-            )
-        ) {
+        let exact = self
+            .allow_empty_middle
+            .then(|| format!("{}{}", self.prefix, self.suffix));
+        if let Some(exact) = &exact {
+            crate::archive::validate_relative_path(exact, false)?;
+        }
+        if std::iter::once(self.suffix.as_str())
+            .chain(exact.as_deref())
+            .any(|name| {
+                matches!(
+                    name.to_ascii_lowercase().rsplit('.').next(),
+                    Some(
+                        "exe"
+                            | "com"
+                            | "dll"
+                            | "so"
+                            | "dylib"
+                            | "appimage"
+                            | "jar"
+                            | "bat"
+                            | "cmd"
+                            | "ps1"
+                            | "sh"
+                            | "js"
+                            | "vbs"
+                            | "py"
+                    )
+                )
+            })
+        {
             return Err(PortcoveError::usage(
                 "file patterns cannot select executable or script extensions",
             ));
@@ -196,8 +235,9 @@ impl PersistentFilePattern {
     }
 
     pub(crate) fn matches(&self, name: &str) -> bool {
+        let boundary = self.prefix.len() + self.suffix.len();
         !name.contains(['/', '\\'])
-            && name.len() > self.prefix.len() + self.suffix.len()
+            && (name.len() > boundary || (self.allow_empty_middle && name.len() == boundary))
             && name.starts_with(&self.prefix)
             && name.ends_with(&self.suffix)
     }
@@ -259,6 +299,23 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn empty_middle_requires_explicit_file_pattern_opt_in() {
+        let original = serde_json::json!({"prefix":"demorec.","suffix":"1"});
+        let mut pattern: PersistentFilePattern = serde_json::from_value(original.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&pattern).unwrap(), original);
+        assert!(!pattern.matches("demorec.1"));
+        assert!(pattern.matches("demorec.11"));
+        pattern.allow_empty_middle = true;
+        pattern.validate().unwrap();
+        assert!(pattern.matches("demorec.1"));
+        assert!(!pattern.matches("demorec.2"));
+        assert!(!pattern.matches("other/demorec.1"));
+        pattern.prefix = "unsafe.ex".into();
+        pattern.suffix = "e".into();
+        assert!(pattern.validate().is_err());
+    }
 
     #[test]
     fn empty_persistence_checks_preserve_files_directories_and_aliases() {
@@ -474,6 +531,7 @@ mod tests {
         port.runtime_mutable_file_patterns = vec![PersistentFilePattern {
             prefix: "psx_freeze_dump_".into(),
             suffix: ".json".into(),
+            allow_empty_middle: false,
         }];
         assert_eq!(entries(&port, &[root.path()]).unwrap(), ["tmc_test.sav"]);
         fs::create_dir(root.path().join("tmc_directory.sav")).unwrap();
@@ -499,7 +557,8 @@ mod tests {
             assert!(
                 PersistentFilePattern {
                     prefix: prefix.into(),
-                    suffix: suffix.into()
+                    suffix: suffix.into(),
+                    allow_empty_middle: false,
                 }
                 .validate()
                 .is_err()
@@ -509,10 +568,12 @@ mod tests {
             PersistentFilePattern {
                 prefix: "psx_freeze_dump_".into(),
                 suffix: ".json".into(),
+                allow_empty_middle: false,
             }
             .overlaps(&PersistentFilePattern {
                 prefix: "psx_freeze_dump_psx-runtime_".into(),
                 suffix: "_1.json".into(),
+                allow_empty_middle: false,
             })
         );
     }

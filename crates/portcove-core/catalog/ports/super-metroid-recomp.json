@@ -27,11 +27,11 @@
         },
         {
           "title": "Prepare the separate Preview player",
-          "instruction": "Open the linked v0.3.16 Preview release page and use its official Windows x64 ZIP in a new writable folder. Keep SuperMetroidSNESRecomp.exe, packaged config.ini, assets, framework pins, notices and all other companions together inside supermetroid-0.3.16-windows-x64. Use the packaged defaults without old configuration, states, mods, donor assets or developer/path overrides. Finish upstream setup deliberately. Register that folder’s SuperMetroidSNESRecomp.exe with the same containing folder as working directory and two literal argument lines: --rom then game.sfc. Do not select replay_diagnostic.py or a source/build helper as the player."
+          "instruction": "Open the linked v0.3.16 Preview release page and use its official Windows x64 ZIP in a new writable folder. Keep SuperMetroidSNESRecomp.exe, packaged config.ini, assets, framework pins, notices and all other companions together inside supermetroid-0.3.16-windows-x64. Use the packaged defaults without old configuration, states, mods, donor assets or developer/path overrides. Finish upstream setup deliberately. Register that folder\u2019s SuperMetroidSNESRecomp.exe with the same containing folder as working directory and two literal argument lines: --rom then game.sfc. Do not select replay_diagnostic.py or a source/build helper as the player."
         },
         {
           "title": "Choose Play and manage updates through the project",
-          "instruction": "You and upstream own this external package and its data. Play is explicit; removing its Portcove registration preserves the external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable for this copy. Settings changes can restart into a successor game window while the initial registered process exits. Do not rely on that initial process’s completion as proof that every game copy has stopped: close all windows/processes before copying or replacing runtime or data. Keep the shipped PolyForm Noncommercial and dependency notices; do not run Generate & rebuild, debug/replay helpers or extra mods as part of these instructions. A Portcove library containing any managed installation of this identity cannot also attach this external copy. Keep that managed installation and use the new upstream copy directly, or register only in a separate library with no managed installation, other registration or pending launch for this identity. Do not remove an older managed runtime or kept data just to enable registration."
+          "instruction": "You and upstream own this external package and its data. Play is explicit; removing its Portcove registration preserves the external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable for this copy. Settings changes can restart into a successor game window while the initial registered process exits. Do not rely on that initial process\u2019s completion as proof that every game copy has stopped: close all windows/processes before copying or replacing runtime or data. Keep the shipped PolyForm Noncommercial and dependency notices; do not run Generate & rebuild, debug/replay helpers or extra mods as part of these instructions. A Portcove library containing any managed installation of this identity cannot also attach this external copy. Keep that managed installation and use the new upstream copy directly, or register only in a separate library with no managed installation, other registration or pending launch for this identity. Do not remove an older managed runtime or kept data just to enable registration."
         }
       ],
       "warnings": [
@@ -57,15 +57,10 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "direct-manifest",
-      "direct": {
-        "windows-x86-64": {
-          "version": "v0.3.12",
-          "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.12/supermetroid-0.3.12-windows-x64.zip",
-          "size": 13802349,
-          "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
-          "published_at": "2026-10-17T22:09:41Z"
-        }
+      "provider": "github",
+      "repository": "mstan/SuperMetroidRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["supermetroid-", "-windows-x64.zip"]
       }
     },
     "source_profile": "super-metroid-snes-japan-usa",
@@ -77,7 +72,7 @@
     "runtime_source_hashes": {
       "game.sfc": "12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72"
     },
-    "launch_arguments": ["game.sfc"],
+    "launch_arguments": ["--rom", "game.sfc"],
     "launch_environment": {
       "SNESRECOMP_NO_LAUNCHER": "1"
     },
@@ -89,7 +84,10 @@
       "saves",
       "screenshots",
       "sm-video.ini",
-      "sm-video.ini.tmp"
+      "sm-video.ini.tmp",
+      "mods/preloaded/state.toml",
+      "mods/preloaded/state.toml.tmp",
+      "logs"
     ],
     "runtime_mutable_paths": [".snesrecomp_write_probe", "last_run_report.json"],
     "runtime_mutable_file_patterns": [
@@ -113,11 +111,25 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+      "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. The managed route selects compatible official Windows packages, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. The installation folder needs basic Latin characters and a short path. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can fall back to %TEMP%/SuperMetroidSNESRecomp/logs outside managed backup/removal. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included."
+    },
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "archive_data_compatibility_v1": {
+      "contract_id": "super-metroid-recomp-conventional-v1",
+      "shared_paths": [
+        "game.sfc",
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves/save.srm",
+        "sm-video.ini",
+        "sm-video.ini.tmp"
+      ],
+      "build_specific_progress_paths": ["saves"]
+    },
+    "archive_data_transition_v1": {
+      "predecessor_archive_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+      "creating_contract_sha256": "dbfb431248dd3126148a13d9e04e12aa371ecc042de09e0a2aac1fd1a5d6b02e"
     }
-  },
-  "release_maintenance": {
-    "reason": "The accepted managed build is retained for build-specific quickstates and its accepted original, launch and persistence contracts. Newer external Preview instructions describe a separately owned route.",
-    "reconsider_when": "Reassess a newly observed Windows package only after exact original/arguments, package companions, SRAM/quickstate preservation, developer options and full process lifetime have a bounded compatible transition."
   }
 }

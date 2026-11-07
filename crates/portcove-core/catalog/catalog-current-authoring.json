@@ -1031,6 +1031,36 @@
         "reviewed_at": "2026-10-30",
         "claim": "Tagged v0.2.1 requires the exact USA headerless 1572864-byte original, CRC947B0355 and SHA256f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed. Official Windows package SHA256334474edf3c575062eeabc0f8f2ac9e74d9bed304c18a521e0709294fdfcfc09 matched actual archive observation. Default logs are retained separately; no native gameplay or retained-state compatibility is inferred.",
         "immutable_url": "https://github.com/mstan/MegaManX2Recomp/blob/68caca6fe6d96ff423fd26266aedae2132ffb680/rom_identity.txt"
+      },
+      {
+        "id": "sonic-the-hedgehog-recomp-0-8-3-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SonicTheHedgehogRecomp",
+        "authority_ref": "5cfa5f92341459b28e3bcf66df068fe425bc1354",
+        "reviewed_at": "2026-11-04",
+        "claim": "Tagged v0.8.3 game/sonic1_spec.c requires 512KiB and CRCF9394E97 JUE REV00. Existing independent exact-stock SHA256 remains enforced. Selected publisher Windows SHA25654c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38. Package build-info binds the same title commit, engine755e7f6b740a0c0ab19af7d1d21e85061f8e622d and UIff71584e47facd1cb8e468340d2d71c2b4c1b91b. Source/package inspection does not establish gameplay, usable states or retained-state compatibility.",
+        "immutable_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/game/sonic1_spec.c",
+        "live_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/main/game/sonic1_spec.c"
+      },
+      {
+        "id": "mega-man-x2-snes-recomp-0-2-2-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/MegaManX2Recomp",
+        "authority_ref": "f1a975512b2d86f88c6805b05095a782860741d1",
+        "reviewed_at": "2026-11-04",
+        "claim": "Tagged v0.2.2 retains the exact original required by this existing source contract. Publisher Windows SHA256f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a. Package/source observation does not establish gameplay, native execution or retained-state compatibility.",
+        "immutable_url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/src/main.c",
+        "live_url": "https://github.com/mstan/MegaManX2Recomp/blob/main/src/main.c"
+      },
+      {
+        "id": "super-metroid-recomp-0-4-2-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMetroidRecomp",
+        "authority_ref": "a1457dc339cae7ab8f9f1795177c464b499f6ab7",
+        "reviewed_at": "2026-11-04",
+        "claim": "Tagged v0.4.2 retains the exact original required by this existing source contract. Publisher Windows SHA25672b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531. Package/source observation does not establish gameplay, native execution or retained-state compatibility.",
+        "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/rom_identity.txt",
+        "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
       }
     ],
     "identities": [
@@ -11314,7 +11344,8 @@
           "sonic-the-hedgehog-recomp-0-6-0-source-contract",
           "sonic-genesis-jue-rev00-no-intro-byte-identity",
           "sonic-the-hedgehog-recomp-0-7-3-source-contract",
-          "sonic-the-hedgehog-recomp-0-7-3-framework-input-contract"
+          "sonic-the-hedgehog-recomp-0-7-3-framework-input-contract",
+          "sonic-the-hedgehog-recomp-0-8-3-source-contract"
         ],
         "authority_ref": "5c165f6195a88b17d8da4ae619aec2b8f640d84f",
         "reviewed_at": "2026-10-29",
@@ -11329,10 +11360,15 @@
           {
             "upstream_ref": "v0.7.3",
             "artifact_sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8"
+          },
+          {
+            "upstream_ref": "v0.8.3",
+            "artifact_sha256": "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38"
           }
         ],
         "aliases": [],
-        "tombstones": []
+        "tombstones": [],
+        "release_policy": "integration-contract-v1"
       },
       {
         "id": "the-force-engine-dark-forces-managed-data",
@@ -11492,7 +11528,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "super-metroid-recomp-0-3-12-source-contract",
-          "super-metroid-snes-japan-usa-no-intro-byte-identity"
+          "super-metroid-snes-japan-usa-no-intro-byte-identity",
+          "super-metroid-recomp-0-4-2-source-contract"
         ],
         "authority_ref": "494df8541eb4dbd4bacf7eba08c53b52d9fba5ac",
         "reviewed_at": "2026-10-19",
@@ -11503,10 +11540,15 @@
           {
             "upstream_ref": "v0.3.12",
             "artifact_sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9"
+          },
+          {
+            "upstream_ref": "v0.4.2",
+            "artifact_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
           }
         ],
         "aliases": [],
-        "tombstones": []
+        "tombstones": [],
+        "release_policy": "integration-contract-v1"
       },
       {
         "id": "mega-man-x2-snes-recomp-game-source",
@@ -11522,7 +11564,8 @@
           "mega-man-x2-snes-recomp-0-1-4-source-contract",
           "mega-man-x2-snes-usa-no-intro-byte-identity",
           "mega-man-x2-snes-recomp-0-1-5-source-contract",
-          "mega-man-x2-snes-recomp-0-2-1-source-contract"
+          "mega-man-x2-snes-recomp-0-2-1-source-contract",
+          "mega-man-x2-snes-recomp-0-2-2-source-contract"
         ],
         "authority_ref": "68caca6fe6d96ff423fd26266aedae2132ffb680",
         "reviewed_at": "2026-10-30",
@@ -11541,10 +11584,15 @@
           {
             "upstream_ref": "v0.2.1",
             "artifact_sha256": "334474edf3c575062eeabc0f8f2ac9e74d9bed304c18a521e0709294fdfcfc09"
+          },
+          {
+            "upstream_ref": "v0.2.2",
+            "artifact_sha256": "f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a"
           }
         ],
         "aliases": [],
-        "tombstones": []
+        "tombstones": [],
+        "release_policy": "integration-contract-v1"
       },
       {
         "id": "resident-evil-gaiden-recomp-game-source",
@@ -13087,6 +13135,7 @@
         "macos-aarch64"
       ],
       "adapter": "libultraship-portable",
+      "windows_shipwright_persistence": true,
       "automated_tested_platforms": [
         "windows-x86-64"
       ],
@@ -13476,6 +13525,41 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Super Mario 64",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Keep your current Ghostship installation",
+              "instruction": "If Ghostship already works in Portcove, keep using Play and the management operations available for that installation. Do not replace it or move its data to use this alternative Windows setup. For a separately prepared copy, follow the steps below."
+            },
+            {
+              "title": "Download the official Windows package",
+              "instruction": "Use HarbourMasters/Ghostship on GitHub and its official 3.0.0 release. Download Nautilus-Alfa-Win64.zip and extract every file into a new folder outside your Portcove library. Keep existing installations and originals in place; do not extract over them."
+            },
+            {
+              "title": "Prepare your own Super Mario 64 files",
+              "instruction": "Use your own Super Mario 64 US .z64 file and keep it unchanged. Open Ghostship.exe, choose the file and let setup finish. Keep sm64.o2r with the rest of the extracted files. Close Ghostship before adding it to Portcove."
+            },
+            {
+              "title": "Add the prepared executable and play",
+              "instruction": "Open this game’s Files tab, expand Use an existing installation · Installation options, then choose Use an existing installation. Choose game executable and select Ghostship.exe from the prepared folder. Set Start in folder to that same folder and leave launch arguments empty. Review launch details and confirm the registration, then choose Play. Selecting a program records your intent to run it; it does not authenticate a publisher package."
+            }
+          ],
+          "warnings": [
+            "Do not replace only the Ghostship 3.0.0 program with 2.0.0 while using newer saves. For a managed copy, use the legacy save recovery review in Saves & backups if Portcove offers it. For an installation you maintain, keep the newer files and use your own recovery copy.",
+            "This guide covers Windows. Existing data, source and execution safeguards still apply; a held update or recovery does not by itself prevent an otherwise safe Play."
+          ],
+          "help_url": "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/README.md",
+          "references": [
+            {
+              "title": "Original file editions",
+              "instruction": "The Windows 3.0.0 route was checked with the US edition. The project’s guide also describes JP input, which was outside that check."
+            },
+            {
+              "title": "Updates and backups",
+              "instruction": "For this external copy, use the project’s tools to update it. Close the game and helpers, preserve the whole working folder including sm64.o2r, saves, mods, screenshots, ghostship.cfg.json and imgui.ini, then prepare a new version separately before changing launch details. Portcove offers launch and registration removal for this copy; it does not offer managed updates, backups, rollback, migration or deletion of its files. Removing the registration leaves the game and data in place. Existing Portcove-managed copies keep their own available update and recovery actions."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 1074,
           "cover_id": 329251,
@@ -13620,6 +13704,41 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Star Fox 64",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Download from the official Starship project",
+              "instruction": "Use HarbourMasters/Starship on GitHub, open its v2.0.0 release and download Starship-Barnard-Alfa-Windows.zip. Extract every file into a new folder outside your Portcove library. Keep existing originals, installations and saves in place."
+            },
+            {
+              "title": "Prepare the supported Star Fox 64 original",
+              "instruction": "Supply your own Star Fox 64 US 1.0 or US 1.1 Rev A original in .z64 format. JP and EU originals can supply optional voices with a US base; they cannot create the base game. Follow upstream’s conversion instructions if your dump is .n64 or .v64, keeping the original unchanged. Portcove registration does not validate or authenticate these original files."
+            },
+            {
+              "title": "Complete upstream setup before adding the game",
+              "instruction": "Open Starship.exe from the extracted folder and select the supported US .z64 original in the upstream file picker. Let it generate sf64.o2r. Keep that generated file, the separate shipped starship.o2r and all other package files in the game folder. A ROM launch argument or the shipped starship.o2r alone does not finish preparation. Close the game normally before registration."
+            },
+            {
+              "title": "Select the prepared game in Portcove",
+              "instruction": "Open this game’s Files tab, expand Use an existing installation · Installation options, then choose Use an existing installation. Choose game executable and select Starship.exe from the prepared folder. Set Start in folder to that folder and leave launch arguments empty. Review launch details and confirm the registration, then choose Play. Selecting this executable records your intent to run it; it does not authenticate it as an official publisher package."
+            }
+          ],
+          "warnings": [
+            "Portcove cannot automatically install the v2.0.0 Windows package because the expected download check is missing. Choosing Starship.exe yourself does not confirm who published it.",
+            "If the game crashes with DirectX 11, upstream documents switching to OpenGL through Settings or starship.cfg.json, then restarting. Preserve the configuration before editing it. This guide covers Windows; it does not qualify other platforms."
+          ],
+          "help_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
+          "references": [
+            {
+              "title": "Download check",
+              "instruction": "The inspected v2.0.0 release metadata did not publish a SHA-256 for Starship-Barnard-Alfa-Windows.zip. A locally calculated hash identifies the file but does not confirm who published it."
+            },
+            {
+              "title": "Updates and backups",
+              "instruction": "Use the project’s tools to update this copy. Close the game and helpers, preserve the whole working folder including sf64.o2r, mods, saves, starship.cfg.json and any legacy config.json, then prepare an update separately before changing launch details. Portcove offers launch and registration removal; it does not offer managed updates, backups, rollback, migration or deletion for these external files. Removing the registration preserves them. Any existing managed installation retains its own management and integrity checks."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 2591,
           "cover_id": 524514,
@@ -21687,15 +21806,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.7.3",
-            "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.7.3/SonicTheHedgehogRecomp-windows-x64-v0.7.3.zip",
-            "size": 4750567,
-            "sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8",
-            "published_at": "2026-10-28T16:23:58Z"
-          }
+        "provider": "github",
+        "repository": "mstan/SonicTheHedgehogRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SonicTheHedgehogRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "sonic-the-hedgehog-genesis-jue-rev00",
@@ -21715,7 +21832,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis original. This fresh managed route uses the checked official Windows v0.7.3 package and starts the base game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Raw .bin or .md files and ZIPs containing the matching original are accepted; headered or byte-swapped images are not converted. Default settings, local state filenames and thumbnails stay in the declared managed scope. Gameplay, usable quickstates and in-game save/load remain unqualified; runtime replacement does not establish save compatibility or rewind progress.",
+        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis original. The managed route selects compatible official Windows packages and starts the base game directly. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Raw .bin or .md files and ZIPs containing the matching original are accepted; headered or byte-swapped images are not converted. Default settings, local state filenames and thumbnails stay in the declared managed scope. Gameplay, usable quickstates and in-game save/load remain unqualified; runtime replacement does not establish save compatibility or rewind progress. Default diagnostic recording is enabled. The managed logs directory contains input history, machine snapshots, original/build identities, settings and mod sidecars; these can contain private game memory and local paths. Nothing uploads automatically. Share these files only deliberately. Keep each replay and its sidecars together. Upstream retains the current capture and two previous captures, with 64 MiB input-history and 32 MiB state-attachment limits per capture and a 16 MiB background queue; recording stops on its bounds or storage failure. GENESIS_REPLAY_RECORD=0 is an optional user opt-out. Keep developer/debug, replay-playback and custom path overrides disabled. Backups include the checked private original copy and these diagnostics. Keep packaged libraries, assets and PolyForm Noncommercial/dependency notices together. No game original is included. Experimental fresh Widescreen/Fit is upstream default; saved choices stay in their creating installation.",
         "original_game_title": "Sonic the Hedgehog",
         "artwork": {
           "game_id": 3192,
@@ -21757,7 +21874,8 @@
         "native_save_6.bin.thumb",
         "native_save_7.bin.thumb",
         "native_save_8.bin.thumb",
-        "native_save_9.bin.thumb"
+        "native_save_9.bin.thumb",
+        "logs"
       ],
       "runtime_mutable_paths": [
         "framelog_step2.txt",
@@ -21782,7 +21900,30 @@
         "floor_unsafe.toml",
         "floor_unsafe.toml.tmp",
         "floor_unsafe.prev.toml"
-      ]
+      ],
+      "archive_data_compatibility_v1": {
+        "contract_id": "sonic-the-hedgehog-recomp-conventional-v1",
+        "shared_paths": [
+          "game.bin",
+          "settings.ini",
+          "rom-Sonic1.cfg"
+        ],
+        "build_specific_progress_paths": [
+          "native_save_1.bin",
+          "native_save_2.bin",
+          "native_save_3.bin",
+          "native_save_4.bin",
+          "native_save_5.bin",
+          "native_save_6.bin",
+          "native_save_7.bin",
+          "native_save_8.bin",
+          "native_save_9.bin"
+        ]
+      },
+      "archive_data_transition_v1": {
+        "predecessor_archive_sha256": "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38",
+        "creating_contract_sha256": "622fd2271b421c4e4b1987983f8b4ed23315fcb731c496b142241e0bdab4a542"
+      }
     },
     {
       "id": "the-force-engine-dark-forces",
@@ -22622,15 +22763,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.12",
-            "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.12/supermetroid-0.3.12-windows-x64.zip",
-            "size": 13802349,
-            "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
-            "published_at": "2026-10-17T22:09:41Z"
-          }
+        "provider": "github",
+        "repository": "mstan/SuperMetroidRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "supermetroid-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "super-metroid-snes-japan-usa",
@@ -22645,6 +22784,7 @@
         "game.sfc": "12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72"
       },
       "launch_arguments": [
+        "--rom",
         "game.sfc"
       ],
       "launch_environment": {
@@ -22658,7 +22798,10 @@
         "saves",
         "screenshots",
         "sm-video.ini",
-        "sm-video.ini.tmp"
+        "sm-video.ini.tmp",
+        "mods/preloaded/state.toml",
+        "mods/preloaded/state.toml.tmp",
+        "logs"
       ],
       "runtime_mutable_paths": [
         ".snesrecomp_write_probe",
@@ -22685,7 +22828,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
+        "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. The managed route selects compatible official Windows packages, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. The installation folder needs basic Latin characters and a short path. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can fall back to %TEMP%/SuperMetroidSNESRecomp/logs outside managed backup/removal. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included.",
         "original_game_title": "Super Metroid",
         "manual_setup": {
           "steps": [
@@ -22724,12 +22867,32 @@
           "game_slug": "super-metroid",
           "match_kind": "underlying-game"
         }
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "archive_data_compatibility_v1": {
+        "contract_id": "super-metroid-recomp-conventional-v1",
+        "shared_paths": [
+          "game.sfc",
+          "config.ini",
+          "keybinds.ini",
+          "rom.cfg",
+          "saves/save.srm",
+          "sm-video.ini",
+          "sm-video.ini.tmp"
+        ],
+        "build_specific_progress_paths": [
+          "saves"
+        ]
+      },
+      "archive_data_transition_v1": {
+        "predecessor_archive_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+        "creating_contract_sha256": "dbfb431248dd3126148a13d9e04e12aa371ecc042de09e0a2aac1fd1a5d6b02e"
       }
     },
     {
       "id": "mega-man-x2-snes-recomp",
       "name": "Mega Man X2 Recompiled",
-      "summary": "Native Mega Man X2 recompilation with an exact original and pinned Windows runtime.",
+      "summary": "Native Mega Man X2 recompilation.",
       "project_url": "https://github.com/mstan/MegaManX2Recomp",
       "support_tier": "beta",
       "channels": [
@@ -22742,15 +22905,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.2.1",
-            "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.2.1/MegaManX2SNESRecomp-windows-x64-v0.2.1.zip",
-            "size": 13139404,
-            "sha256": "334474edf3c575062eeabc0f8f2ac9e74d9bed304c18a521e0709294fdfcfc09",
-            "published_at": "2026-10-30T04:14:58Z"
-          }
+        "provider": "github",
+        "repository": "mstan/MegaManX2Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MegaManX2SNESRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "mega-man-x2-snes-usa",
@@ -22807,7 +22968,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. This fresh managed route uses the checked official Windows v0.2.1 package and starts the game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files and the default logs directory remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Default diagnostic recording stays enabled. The logs directory contains session output, game memory, inputs, build/original identities, settings and mod options, which may include private local paths. No upload happens automatically; share diagnostics only with your consent. Each launch retains at most one hour of ten-second segments and 256 MiB of checkpoint bytes; older sessions accumulate until you remove them. Keep replay files and their save/config/mod sidecars together. A read-only installation can fall back to %TEMP%/MegaManX2SNESRecomp/logs, outside managed backup and removal scope. MMX_REPLAY_RECORD=0 is an optional user opt-out. Keep config.local.ini absent and separate developer trace, oracle and custom path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package.",
+        "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. The managed route selects compatible official Windows packages and starts the game directly. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files and the default logs directory remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Default diagnostic recording stays enabled. The logs directory contains session output, game memory, inputs, build/original identities, settings and mod options, which may include private local paths. No upload happens automatically; share diagnostics only with your consent. Each launch retains at most one hour of ten-second segments and 256 MiB of checkpoint bytes; older sessions accumulate until you remove them. Keep replay files and their save/config/mod sidecars together. A read-only installation can fall back to %TEMP%/MegaManX2SNESRecomp/logs, outside managed backup and removal scope. MMX_REPLAY_RECORD=0 is an optional user opt-out. Keep config.local.ini absent and separate developer trace, oracle and custom path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package.",
         "original_game_title": "Mega Man X2",
         "artwork": {
           "game_id": 1742,
@@ -22818,7 +22979,23 @@
           "match_kind": "underlying-game"
         }
       },
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "archive_data_compatibility_v1": {
+        "contract_id": "mega-man-x2-snes-recomp-conventional-v1",
+        "shared_paths": [
+          "game.sfc",
+          "config.ini",
+          "keybinds.ini",
+          "rom.cfg"
+        ],
+        "build_specific_progress_paths": [
+          "saves"
+        ]
+      },
+      "archive_data_transition_v1": {
+        "predecessor_archive_sha256": "f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a",
+        "creating_contract_sha256": "8d1aef60c763a9ccb3ee83e0f14434e22364d8a7ebf9b12b4b557ba8ea88167f"
+      }
     },
     {
       "id": "resident-evil-gaiden-recomp",
@@ -23266,7 +23443,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "For the documented upstream v0.1.12 route, finish Generate & Build outside Portcove using your own Japanese original (SHA-256 dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1; CRC32 c0aecdca). The downloaded setup host is not the prepared game. Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with its containing folder as working directory. Supply two literal argument lines: --no-launcher, then the actual absolute path to your Japanese .sfc file, without shell quotes. Preserve the complete project/build tree, original, private generated code, mods, saves and save states, working-directory or parent config.ini, executable-adjacent keybinds.ini and separately configured upstream profiles with their creating runtime. Finish rebuilds and updates upstream outside the selected Play session. Portcove records reviewed execution intent and supervises only the selected process; Play is separate and registration removal preserves all external files. Managed installation, rebuild, update, backup, rollback, migration and deletion are not offered for this external copy. Existing registrations retain their supported arguments; older Portcove-built installations retain their original installation, source, backup and recovery contracts. No older-save, mod or save-state compatibility is inferred.",
+        "manual_preparation": "For the documented upstream v0.1.12 route, finish Generate & Build outside Portcove using your own Japanese original (SHA-256 dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1; CRC32 c0aecdca). The downloaded setup host is not the prepared game. Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with its containing folder as working directory. Supply two literal argument lines: --no-launcher, then the actual absolute path to your Japanese .sfc file, without shell quotes. Preserve the complete project/build tree, original, private generated code, mods, saves and save states, working-directory or parent config.ini, executable-adjacent keybinds.ini and separately configured upstream profiles with their creating runtime. Finish rebuilds and updates upstream outside the selected Play session. Portcove saves the program and launch details you reviewed and tracks only that program; Play is separate and registration removal preserves all external files. Managed installation, rebuild, update, backup, rollback, migration and deletion are not offered for this external copy. Existing registrations retain their supported arguments; older Portcove-built installations retain their original installation, source, backup and recovery contracts. No older-save, mod or save-state compatibility is inferred.",
         "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
         "manual_setup": {
           "steps": [
@@ -24793,6 +24970,94 @@
               "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
             }
           ]
+        }
+      }
+    },
+    {
+      "id": "body-harvest-recompiled",
+      "name": "Body Harvest: Recompiled",
+      "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows copy or launch a copy you prepared.",
+      "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "mcsoderh/BodyHarvestRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BodyHarvestRecompiled-",
+            "-Windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BodyHarvestRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies the original and stores its private copy, settings and saves under %LOCALAPPDATA%\\BodyHarvestRecompiled. Back up that profile separately. Leave portable.txt out of the managed runtime to keep the profile outside it. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The managed route covers Windows x86-64. Use a separate upstream copy for portable.txt mode, Linux or macOS. Managed and external Windows copies can share the default profile. Check save compatibility before changing versions.",
+        "original_game_title": "Body Harvest",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed Windows copy on first Play",
+              "instruction": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies the original and stores its private copy, settings and saves under %LOCALAPPDATA%\\BodyHarvestRecompiled. Back up that profile separately. Leave portable.txt out of the managed runtime to keep the profile outside it."
+            },
+            {
+              "title": "Keep a complete permitted player",
+              "instruction": "On Windows, select BodyHarvestRecompiled.exe in your existing permitted copy; on native Linux x64, select BodyHarvestRecompiled. Keep its complete extracted folder and supplied assets/libraries together as the working directory. macOS uses the upstream application bundle. Linux ARM64 and Flatpak are separate upstream packages and preparation routes; Windows launch details do not apply to them. Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
+            },
+            {
+              "title": "Keep Flatpak data with the actual profile",
+              "instruction": "For an existing permitted Flatpak installation, follow upstream preparation and preserve the complete ~/.var/app/io.github.bodyharvestrecomp.bodyharvestrecomp folder alongside the actual profile. Its writable app area and normal/custom/portable profile can be different. Keep the working installation until its replacement is ready."
+            },
+            {
+              "title": "Select the prepared Windows player",
+              "instruction": "Select BodyHarvestRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback.",
+            "The managed route covers Windows x86-64. Use a separate upstream copy for portable.txt mode, Linux or macOS. Managed and external Windows copies can share the default profile. Check save compatibility before changing versions."
+          ],
+          "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
+          "references": [
+            {
+              "title": "Preserve the actual profile and working copy",
+              "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the actual BodyHarvestRecompiled profile, normally %LOCALAPPDATA%\\BodyHarvestRecompiled on Windows; the working folder for a Windows portable.txt copy; the real custom or platform-specific profile for other copies. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3426,
+          "cover_id": 258206,
+          "image_id": "co5j8e",
+          "image_sha256": "c14ab273e1271bb4fdee7feebc3bc6e9a34e7835e9fc42754f547fbbd853324a",
+          "game_slug": "body-harvest",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -27328,7 +27593,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove replaces its separate official managed runtime and preserves only the named local PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover the external Documents/My Games/dhewm3 profile. Runtime rollback carries current declared inputs; it does not rewind saves or promise older-runtime, recorded-demo or mod compatibility. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow. Existing external registrations retain every file and their user/upstream runtime owner; a catalog change never adopts them. Gameplay and populated-save compatibility remain unqualified.",
+        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: base/pak000.pk4, base/pak001.pk4, base/pak002.pk4, base/pak003.pk4, base/pak004.pk4, base/pak005.pk4, base/pak006.pk4, base/pak007.pk4, base/pak008.pk4. Its backup does not include external profiles. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow.",
         "original_game_title": "Doom 3 (classic)",
         "manual_setup": {
           "steps": [
@@ -27338,17 +27603,31 @@
             },
             {
               "title": "Keep an existing prepared copy",
-              "instruction": "Keep a working custom copy registered with dhewm3.exe, its actual runtime folder as working directory, and its own launch details. To read originals from another installation, use three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. You and upstream retain replacement and data ownership for that external copy; removing its registration preserves its files. This alternative does not make Portcove manage or migrate its originals, saves or runtime."
+              "instruction": "For a separately prepared copy, read originals from another installation using three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. This custom option retains the external route and does not make Portcove manage or migrate its originals, saves or runtime."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select dhewm3.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],
           "warnings": [
-            "Back up that external profile and your original game separately before changing engines or versions."
+            "Back up that external profile and your original game separately before changing engines or versions.",
+            "Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract.",
+            "Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow."
           ],
           "help_url": "https://dhewm3.org/#how-to-install",
           "references": [
             {
-              "title": "Keep your saves and existing copy",
-              "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: saves, settings, screenshots, demos and logs in actual Documents/My Games/dhewm3 with separate base and d3xp scopes; original game installation and any custom external profile. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: base/pak000.pk4, base/pak001.pk4, base/pak002.pk4, base/pak003.pk4, base/pak004.pk4, base/pak005.pk4, base/pak006.pk4, base/pak007.pk4, base/pak008.pk4. Its backup does not include external profiles."
             }
           ]
         }
@@ -28056,6 +28335,92 @@
       "windows_temp_directory": "temp"
     },
     {
+      "id": "dune-ii-dune-dynasty",
+      "name": "Dune II (Dune Dynasty)",
+      "summary": "Play Dune II with enhanced controls, widescreen rendering and skirmish battles.",
+      "project_url": "https://github.com/gameflorist/dunedynasty",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "gameflorist/dunedynasty",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dunedynasty-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "dunedynasty.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Follow upstream’s FILELIST.TXT and place the original files in %APPDATA%/Dune Dynasty/data. Keep the managed game folder clear of original files and executable-side dunedynasty.cfg so the player uses the external profile. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The managed route covers Windows x86-64. Back up the external Dune Dynasty profile separately. Keep using an independent upstream copy for executable-side profiles and other packages. Real saves across versions remain unverified.",
+        "original_game_title": "Dune II",
+        "manual_setup": {
+          "help_url": "https://github.com/gameflorist/dunedynasty/blob/v1.6.4/README.md#installation",
+          "steps": [
+            {
+              "title": "Put your own European Dune II v1.07 PAKs in the personal data folder before Play",
+              "instruction": "Follow upstream’s FILELIST.TXT and place the original files in %APPDATA%/Dune Dynasty/data. Keep the managed game folder clear of original files and executable-side dunedynasty.cfg so the player uses the external profile."
+            },
+            {
+              "title": "Finish setup before registering a prepared copy",
+              "instruction": "Use a permitted complete Windows Dune Dynasty copy with your own European Dune II 1.07 PAK files, following upstream’s FILELIST.TXT. Keep those data files in the prepared data directory or the actual personal Dune Dynasty/data directory used by the copy. Missing original data makes normal startup fail; attaching the engine alone does not prepare it. Optional music, soundfonts and enhancements have separate requirements and rights. The ordinary launch uses no arguments. Retain any supported arguments your prepared copy already needs and review its actual working directory."
+            },
+            {
+              "title": "Select the prepared Windows player",
+              "instruction": "Select dunedynasty.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+            "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+            "Do not create an executable-side config merely to register the game. Preserve that whole actual profile, its save directory, configuration, original data, custom campaigns/music and the old creating runtime before replacement. Original-format save reading is not a promise that every newer save works in an older engine.",
+            "The managed route covers Windows x86-64. Back up the external Dune Dynasty profile separately. Keep using an independent upstream copy for executable-side profiles and other packages. Real saves across versions remain unverified."
+          ],
+          "references": [
+            {
+              "title": "Dune Dynasty profile and compatibility notes",
+              "instruction": "Keep dunedynasty.cfg: an existing executable-side config selects portable state; otherwise Windows normally uses the current account’s roaming AppData/Dune Dynasty profile. Do not create an executable-side config merely to register the game. Preserve that whole actual profile, its save directory, configuration, original data, custom campaigns/music and the old creating runtime before replacement. Original-format save reading is not a promise that every newer save works in an older engine."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the complete personal Dune Dynasty profile or the actual executable-side data and configuration of your prepared copy. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 86,
+          "cover_id": 227952,
+          "image_id": "co4vw0",
+          "image_sha256": "cb25d42a8639c7aacaa27f3d6da453412e74f9dccda5df71123b5cb1b44c09f9",
+          "game_slug": "dune-ii-the-building-of-a-dynasty",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "elasota-aerofoil",
       "name": "Glider PRO / Aerofoil (elasota)",
       "summary": "Fly through Glider PRO’s houses with Aerofoil’s gamepad support and built-in house editor.",
@@ -28565,6 +28930,100 @@
       }
     },
     {
+      "id": "gothic-ii-night-of-the-raven-opengothic",
+      "name": "Gothic II: Night of the Raven (OpenGothic)",
+      "summary": "Play Gothic II: Night of the Raven with OpenGothic and your own original game files.",
+      "project_url": "https://github.com/Try/OpenGothic",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "github",
+        "repository": "Try/OpenGothic",
+        "asset_hints": {
+          "windows-x86-64": [
+            "opengothic_",
+            "_win_x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Gothic2Notr.exe"
+        ]
+      },
+      "persistent_paths": [
+        "Gothic.ini",
+        "dbg.png"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "save_slot_",
+          "suffix": ".sav"
+        }
+      ],
+      "runtime_mutable_paths": [
+        "log.txt",
+        "crash.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Install your own Gothic II: Night of the Raven in the default Steam or Akella Gothic II folder under Windows Program Files before Play. Keep the original files in that separate installation. OpenGothic finds those files itself. If you need an explicit -g path, use the separate prepared-copy route. This Windows x64 Preview route preserves local Gothic.ini, numbered save slots and the F11 capture dbg.png. Startup and crash logs stay with their runtime version. Rollback carries current saves and does not establish older-version save compatibility. Gothic I, Gothic II Classic and 32-bit Union plugins need a different setup.",
+        "original_game_title": "Gothic II: Night of the Raven",
+        "manual_setup": {
+          "help_url": "https://github.com/Try/OpenGothic/tree/2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "steps": [
+            {
+              "title": "Prepare the Night of the Raven runtime and data",
+              "instruction": "Use a complete permitted OpenGothic Windows copy and your own Gothic II: Night of the Raven data. Select native Gothic2Notr.exe with its matching resources/libraries. Gothic I, Gothic II Classic and existing 32-bit Union/AST/Ikarus plugins do not inherit compatibility from this route. Finish setup upstream rather than selecting an installer or a helper."
+            },
+            {
+              "title": "Preserve the actual working directory as well as game data",
+              "instruction": "Retain the creating working directory and established literal -g argument pointing to the actual absolute Gothic II data root, if used. Automatic discovery is not a reason to change a working data selection. Finish setup upstream and start and quit the copy before registration. The ordinary prepared launch uses no arguments. Keep any literal arguments your existing copy needs."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select Gothic2Notr.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+            "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+            "Preserve the complete creating working directory, actual original-data root, every save/config/mod and unknown file; do not assume the original vendor save directory contains all OpenGothic state."
+          ],
+          "references": [
+            {
+              "title": "OpenGothic settings and save locations",
+              "instruction": "The selected Windows code uses working-directory Gothic.ini and log.txt, separately from original System/Gothic.ini, and writes save_slot_0.sav/save_slot_N.sav relative to the working directory. Preserve the complete creating working directory, actual original-data root, every save/config/mod and unknown file; do not assume the original vendor save directory contains all OpenGothic state."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the prepared working directory containing Gothic.ini and save slots; the separately owned original Gothic II installation. Back up these locations separately; registration does not migrate or certify their compatibility."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 2481,
+          "cover_id": 94549,
+          "image_id": "co20yd",
+          "image_sha256": "8812ce12f59cc45ddcf21c68e7441266adfb7ef5b8896a542659a368ee1adcbe",
+          "game_slug": "gothic-ii-the-night-of-the-raven--1",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "gunstar-heroes-gunstars",
       "name": "Gunstar Heroes (gunstars)",
       "summary": "A native engine for Gunstar Heroes using your own original cartridge data.",
@@ -28762,6 +29221,91 @@
         "DOOMWADDIR": "originals"
       },
       "windows_temp_directory": "temp"
+    },
+    {
+      "id": "heroes-of-might-and-magic-ii-fheroes2",
+      "name": "Heroes of Might and Magic II (fheroes2)",
+      "summary": "Play Heroes of Might and Magic II with the fheroes2 engine and your own game resources.",
+      "project_url": "https://github.com/ihhub/fheroes2",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "ihhub/fheroes2",
+        "asset_hints": {
+          "windows-x86-64": [
+            "fheroes2_windows_x64_SDL2.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "fheroes2.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Create %HOME%/.fheroes2 if HOME points to an absolute personal folder, or %APPDATA%/fheroes2 if HOME is unset and APPDATA points to an absolute personal folder. Use a separately prepared copy if neither applies. Copy ANIM, DATA, MAPS and MUSIC from your own supported Heroes of Might and Magic II installation when present. Keep the directories and original files together. Use the same Windows account and environment for setup and Play. Keep originals out of the managed game folder. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The Windows x64 ZIP may need the Microsoft Visual C++ x64 Redistributable linked by upstream. Portcove runs no bundled resource, demo or prerequisite installer. Keep a separate backup of the actual external fheroes2 profile, including files/save, settings and custom maps. Use a separately prepared copy for custom profile or resource locations. Real save compatibility across versions remains unverified.",
+        "original_game_title": "Heroes of Might and Magic II",
+        "manual_setup": {
+          "help_url": "https://github.com/ihhub/fheroes2/tree/2685c2188b541660f1ce261b554c3e92f79b1775",
+          "steps": [
+            {
+              "title": "Copy your Heroes II resources to the personal fheroes2 folder before Play",
+              "instruction": "Create %HOME%/.fheroes2 if HOME points to an absolute personal folder, or %APPDATA%/fheroes2 if HOME is unset and APPDATA points to an absolute personal folder. Use a separately prepared copy if neither applies. Copy ANIM, DATA, MAPS and MUSIC from your own supported Heroes of Might and Magic II installation when present. Keep the directories and original files together. Use the same Windows account and environment for setup and Play. Keep originals out of the managed game folder."
+            },
+            {
+              "title": "Finish the supported Windows resource setup upstream",
+              "instruction": "Use a permitted complete fheroes2 Windows copy with its matching libraries and your own supported Heroes of Might and Magic II resources, or a demo you are separately permitted to use. The Windows ZIP instructions require upstream resource extraction or the documented manual ANIM/DATA/MAPS/MUSIC copy before normal play. The Linux Flatpak first-start resource picker is a different route. Portcove does not run the extraction BAT, acquire demo/original assets or install Windows redistributables for this prepared-copy route. Select native fheroes2.exe after setup."
+            },
+            {
+              "title": "Retain the actual resource and profile search paths",
+              "instruction": "Keep the creating working directory, complete runtime/resources and all original/custom maps and music. Windows profile selection checks an existing HOME environment first, using HOME/.fheroes2, then APPDATA/fheroes2, with an SDL preference fallback. Preserve the actual creating account/environment and selected config/data directories rather than assuming AppData is always used; Portcove does not inject environment variables. Keep fheroes2.cfg, the full data/profile tree including files/save, saves, custom files and unknowns. Do not force a new portable profile or treat the missing-resource error window as an original-data picker. Finish setup with upstream’s tools and start and quit the intended copy before registering it. Keep the creating version and actual data locations recoverable when replacing an external copy."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select fheroes2.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+            "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+            "The Windows x64 ZIP may need the Microsoft Visual C++ x64 Redistributable linked by upstream. Portcove runs no bundled resource, demo or prerequisite installer.",
+            "Keep a separate backup of the actual external fheroes2 profile, including files/save, settings and custom maps. Use a separately prepared copy for custom profile or resource locations. Real save compatibility across versions remains unverified."
+          ],
+          "references": [
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the actual external fheroes2 profile and the original and custom resources of your prepared copy. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 363,
+          "cover_id": 181622,
+          "image_id": "co3w52",
+          "image_sha256": "5ccdd9139481d07a292e276bc39f4153e84637a12338b3d8f75d11f2318d5364",
+          "game_slug": "heroes-of-might-and-magic-ii-the-succession-wars",
+          "match_kind": "underlying-game"
+        }
+      }
     },
     {
       "id": "hexen-crispy-doom-family",
@@ -30195,7 +30739,6 @@
           }
         }
       },
-      "runtime_subdirectory": "Marathon2-20260930",
       "executable_hints": {
         "windows-x86-64": [
           "Classic Marathon 2.exe"
@@ -30258,7 +30801,6 @@
           }
         }
       },
-      "runtime_subdirectory": "Marathon-20260930",
       "executable_hints": {
         "windows-x86-64": [
           "Classic Marathon.exe"
@@ -30320,7 +30862,6 @@
           }
         }
       },
-      "runtime_subdirectory": "MarathonInfinity-20260930",
       "executable_hints": {
         "windows-x86-64": [
           "Classic Marathon Infinity.exe"
@@ -30399,7 +30940,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use the official WiiCompiled setup through Wheel Wizard with your own clean, supported Mario Kart Wii disc. The reviewed route uses the resolved PAL RMCP01 source identity. Complete upstream preparation and establish a working vanilla player before registration; Portcove does not extract, translate, compile, repair or validate game data. Choose Base/WiiCompiled.exe inside the existing installation, with that Base folder as the working directory and no arguments. Keep the complete installation and its configured GameAssets together. Do not select WiiCompiled-Setup.exe, Wheel Wizard or a compiler as the player. This route covers the vanilla game, not Retro Rewind. Review the selected executable, folder and literal arguments and consent to that execution intent. Registration does not start the game. Choose Play separately when ready. Portcove retains the selection for restart or relink and observes the selected player process. Keep the whole portable folder, portable.txt marker and UserData together. Otherwise the normal Windows profile is LocalAppData/WiiCompiled; if that known folder is unavailable upstream can use WiiCompiled under the working directory. Preserve Config.toml, NAND saves/settings, Cache, Logs and all original disc files and game assets. Configured relative NAND and DVD paths resolve from the Config.toml folder; preserve every actual custom path too. Wheel Wizard and upstream retain preparation, repair and runtime replacement. Direct player registration does not run their provenance checks, moved-install healing or install-operation lock. Close every actual player and preserve all working files and data before upstream repair or updates. Removing the registration removes only Portcove metadata and preserves all external files. Do not move the Base folder alone or add/remove portable.txt to change profile locations. Different installations may share LocalAppData/WiiCompiled. Portcove registration does not authenticate the game disc, setup package, generated player or source/build provenance. The upstream runtime writes its profile, may seed missing files in a configured NAND and prunes entries older than four days in its Logs folder. Preserve diagnostic evidence before Play when needed. External files remain upstream/player owned; Portcove cannot guarantee their retention by the game. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. No original-game redistribution, Retro Rewind compatibility, gameplay/save-load or other-platform qualification is implied.",
+        "manual_preparation": "Use the official WiiCompiled setup through Wheel Wizard with your own clean, supported Mario Kart Wii disc. The reviewed route uses the resolved PAL RMCP01 source identity. Complete upstream preparation and establish a working vanilla player before registration; Portcove does not extract, translate, compile, repair or validate game data. Choose Base/WiiCompiled.exe inside the existing installation, with that Base folder as the working directory and no arguments. Keep the complete installation and its configured GameAssets together. Do not select WiiCompiled-Setup.exe, Wheel Wizard or a compiler as the player. This route covers the vanilla game, not Retro Rewind. Review the game program, start folder and launch arguments. Add the game, then choose Play when you’re ready. Portcove retains the selection for restart or relink and observes the selected player process. Keep the whole portable folder, portable.txt marker and UserData together. Otherwise the normal Windows profile is LocalAppData/WiiCompiled; if that known folder is unavailable upstream can use WiiCompiled under the working directory. Preserve Config.toml, NAND saves/settings, Cache, Logs and all original disc files and game assets. Configured relative NAND and DVD paths resolve from the Config.toml folder; preserve every actual custom path too. Wheel Wizard and upstream retain preparation, repair and runtime replacement. Direct player registration does not run their provenance checks, moved-install healing or install-operation lock. Close every actual player and preserve all working files and data before upstream repair or updates. Removing the registration removes only Portcove metadata and preserves all external files. Do not move the Base folder alone or add/remove portable.txt to change profile locations. Different installations may share LocalAppData/WiiCompiled. Portcove registration does not authenticate the game disc, setup package, generated player or source/build provenance. The upstream runtime writes its profile, may seed missing files in a configured NAND and prunes entries older than four days in its Logs folder. Preserve diagnostic evidence before Play when needed. External files remain upstream/player owned; Portcove cannot guarantee their retention by the game. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. No original-game redistribution, Retro Rewind compatibility, gameplay/save-load or other-platform qualification is implied.",
         "original_game_title": "Mario Kart Wii",
         "manual_setup": {
           "steps": [
@@ -30413,7 +30954,7 @@
             },
             {
               "title": "Confirm and choose Play separately",
-              "instruction": "Review the selected executable, folder and literal arguments and consent to that execution intent. Registration does not start the game. Choose Play separately when ready. Portcove retains the selection for restart or relink and observes the selected player process."
+              "instruction": "Review the game program, start folder and launch arguments. Add the game, then choose Play when you’re ready. Portcove retains the selection for restart or relink and observes the selected player process."
             }
           ],
           "warnings": [
@@ -31901,43 +32442,53 @@
       "persistent_file_patterns": [
         {
           "prefix": "demorec.",
-          "suffix": "0"
+          "suffix": "0",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "1"
+          "suffix": "1",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "2"
+          "suffix": "2",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "3"
+          "suffix": "3",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "4"
+          "suffix": "4",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "5"
+          "suffix": "5",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "6"
+          "suffix": "6",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "7"
+          "suffix": "7",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "8"
+          "suffix": "8",
+          "allow_empty_middle": true
         },
         {
           "prefix": "demorec.",
-          "suffix": "9"
+          "suffix": "9",
+          "allow_empty_middle": true
         }
       ],
       "presentation": {
@@ -32408,7 +32959,7 @@
     {
       "id": "pokemon-firered-fireredleafgreenrecomp",
       "name": "Pokémon FireRed / FireRedLeafGreenRecomp",
-      "summary": "Use the upstream FireRedRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play FireRedRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "support_tier": "beta",
       "channels": [
@@ -32421,26 +32972,42 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "mstan/FireRedLeafGreenRecomp",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "FireRedRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
+      "executable_hints": {
+        "windows-x86-64": [
+          "FireRedRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "mod_package_policy": "versioned-packages-v1",
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_BPRE.toml.frag",
+        "recomp_coverage_BPRE.json",
+        "replay-divergence.state"
+      ],
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "manual_preparation": "Choose Play to open the upstream picker and select your own matching USA v1.0 GBA original and retail GBA BIOS. Keep saves beside the original backed up separately. Portcove updates only its separate managed runtime.",
         "original_game_title": "Pokémon FireRed",
         "manual_setup": {
           "steps": [
@@ -32449,8 +33016,8 @@
               "instruction": "Use your own unchanged Pokémon FireRed USA v1.0/rev0 GBA original, SHA-1 41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
             },
             {
-              "title": "Finish upstream setup and select this game player",
-              "instruction": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+              "title": "Choose a managed or prepared copy",
+              "instruction": "Install the official Windows package through Portcove, then choose Play to select your matching original and BIOS in the game’s picker. To prepare a copy yourself, extract the complete FireRedRecomp Windows x64 ZIP and finish upstream ROM and BIOS setup before registering FireRedRecomp.exe with its containing folder as the working directory. Keep any working launch arguments. Keep the libraries, assets, mods and compiler companions together."
             },
             {
               "title": "Keep the data and compiler paths",
@@ -32463,9 +33030,15 @@
           ],
           "warnings": [
             "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-            "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+            "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
           ],
-          "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
+          "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases",
+          "references": [
+            {
+              "title": "Updates, backups and rollback",
+              "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1559,
@@ -32556,7 +33129,7 @@
     {
       "id": "pokemon-leafgreen-fireredleafgreenrecomp",
       "name": "Pokémon LeafGreen / FireRedLeafGreenRecomp",
-      "summary": "Use the upstream LeafGreenRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play LeafGreenRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "support_tier": "beta",
       "channels": [
@@ -32569,26 +33142,42 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "mstan/FireRedLeafGreenRecomp",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "LeafGreenRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
+      "executable_hints": {
+        "windows-x86-64": [
+          "LeafGreenRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "mod_package_policy": "versioned-packages-v1",
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_BPGE.toml.frag",
+        "recomp_coverage_BPGE.json",
+        "replay-divergence.state"
+      ],
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Open the linked official v0.0.6 release and extract its complete LeafGreenRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep LeafGreenRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working LeafGreenRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "manual_preparation": "Choose Play to open the upstream picker and select your own matching USA v1.0 GBA original and retail GBA BIOS. Keep saves beside the original backed up separately. Portcove updates only its separate managed runtime.",
         "original_game_title": "Pokémon LeafGreen",
         "manual_setup": {
           "steps": [
@@ -32597,8 +33186,8 @@
               "instruction": "Use your own unchanged Pokémon LeafGreen USA v1.0/rev0 GBA original, SHA-1 574fa542ffebb14be69902d1d36f1ec0a4afd71e, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
             },
             {
-              "title": "Finish upstream setup and select this game player",
-              "instruction": "Open the linked official v0.0.6 release and extract its complete LeafGreenRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep LeafGreenRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working LeafGreenRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+              "title": "Choose a managed or prepared copy",
+              "instruction": "Install the official Windows package through Portcove, then choose Play to select your matching original and BIOS in the game’s picker. To prepare a copy yourself, extract the complete LeafGreenRecomp Windows x64 ZIP and finish upstream ROM and BIOS setup before registering LeafGreenRecomp.exe with its containing folder as the working directory. Keep any working launch arguments. Keep the libraries, assets, mods and compiler companions together."
             },
             {
               "title": "Keep the data and compiler paths",
@@ -32611,9 +33200,15 @@
           ],
           "warnings": [
             "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-            "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+            "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
           ],
-          "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
+          "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases",
+          "references": [
+            {
+              "title": "Updates, backups and rollback",
+              "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1516,
@@ -32780,7 +33375,7 @@
     {
       "id": "pokemon-ruby-rubysapphirerecomp",
       "name": "Pokémon Ruby / RubySapphireRecomp",
-      "summary": "Use the upstream RubyRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play RubyRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "support_tier": "beta",
       "channels": [
@@ -32793,26 +33388,20 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "mstan/RubySapphireRecomp",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "RubyRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "manual_preparation": "Choose Play to open the upstream picker and select your own matching USA rev1 GBA original and retail GBA BIOS. Keep saves beside the original backed up separately. Portcove updates only its separate managed runtime.",
         "original_game_title": "Pokémon Ruby",
         "manual_setup": {
           "steps": [
@@ -32822,7 +33411,7 @@
             },
             {
               "title": "Finish upstream setup and select this game player",
-              "instruction": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+              "instruction": "For an external copy, open the official releases and extract the complete Windows RubyRecomp ZIP into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
             },
             {
               "title": "Keep the data and compiler paths",
@@ -32835,9 +33424,15 @@
           ],
           "warnings": [
             "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-            "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+            "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
           ],
-          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases",
+          "references": [
+            {
+              "title": "Updates, backups and rollback",
+              "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1557,
@@ -32847,7 +33442,33 @@
           "game_slug": "pokemon-ruby-version",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "RubyRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "config_ruby.ini",
+        "keybinds_ruby.ini",
+        "rom_ruby.cfg",
+        "bios_ruby.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_AXVE.toml.frag",
+        "recomp_coverage_AXVE.json",
+        "replay-divergence.state"
+      ],
+      "mod_package_policy": "versioned-packages-v1"
     },
     {
       "id": "pokemon-sapphire-gen1recomp",
@@ -32928,7 +33549,7 @@
     {
       "id": "pokemon-sapphire-rubysapphirerecomp",
       "name": "Pokémon Sapphire / RubySapphireRecomp",
-      "summary": "Use the upstream SapphireRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play SapphireRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "support_tier": "beta",
       "channels": [
@@ -32941,26 +33562,20 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "mstan/RubySapphireRecomp",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "SapphireRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "manual_preparation": "Choose Play to open the upstream picker and select your own matching USA rev1 GBA original and retail GBA BIOS. Keep saves beside the original backed up separately. Portcove updates only its separate managed runtime.",
         "original_game_title": "Pokémon Sapphire",
         "manual_setup": {
           "steps": [
@@ -32970,7 +33585,7 @@
             },
             {
               "title": "Finish upstream setup and select this game player",
-              "instruction": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+              "instruction": "For an external copy, open the official releases and extract the complete Windows SapphireRecomp ZIP into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
             },
             {
               "title": "Keep the data and compiler paths",
@@ -32983,9 +33598,15 @@
           ],
           "warnings": [
             "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-            "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+            "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
           ],
-          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases",
+          "references": [
+            {
+              "title": "Updates, backups and rollback",
+              "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1515,
@@ -32995,7 +33616,33 @@
           "game_slug": "pokemon-sapphire-version",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SapphireRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "config_sapphire.ini",
+        "keybinds_sapphire.ini",
+        "rom_sapphire.cfg",
+        "bios_sapphire.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_AXPE.toml.frag",
+        "recomp_coverage_AXPE.json",
+        "replay-divergence.state"
+      ],
+      "mod_package_policy": "versioned-packages-v1"
     },
     {
       "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",
@@ -33360,6 +34007,181 @@
       }
     },
     {
+      "id": "quake-ironwail",
+      "name": "Quake (Ironwail)",
+      "summary": "A native Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
+      "project_url": "https://github.com/andrei-drexler/ironwail",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "andrei-drexler/ironwail",
+        "asset_hints": {
+          "windows-x86-64": [
+            "ironwail",
+            "win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ironwail.exe"
+        ]
+      },
+      "launch_arguments": [
+        "-basedir",
+        ".",
+        "-noaddons"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_paths": [
+        "id1",
+        "history.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, history.txt. Its backup does not include external profiles. For store discovery, rerelease migration, expansions, mods or custom base directories, use a separately prepared copy. The managed route preserves id1 and console history only. Gameplay and real save compatibility across versions remain unverified.",
+        "original_game_title": "Quake",
+        "manual_setup": {
+          "help_url": "https://github.com/andrei-drexler/ironwail/tree/1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "steps": [
+            {
+              "title": "Copy your own classic Quake data beside the managed player",
+              "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
+            },
+            {
+              "title": "Prepare the existing Ironwail copy",
+              "instruction": "Use a complete permitted Windows copy with its matching libraries. Finish classic or rerelease setup with your own compatible Quake data, then start and quit it. The ordinary prepared launch uses no arguments. Keep the actual working folder and any literal arguments your prepared copy already needs for store, expansion, mod or custom base-directory choices."
+            },
+            {
+              "title": "Preserve old and new migration roots before changes",
+              "instruction": "Standalone copies may use their base/game folders; Windows store-selected copies can use actual Saved Games/Ironwail/original or Saved Games/Ironwail/rerelease. Keep the actual known-folder location, old Nightdive Studios/Quake tree, standalone/store/custom roots, ironwail.cfg and all saves/autosaves/screenshots/demos/mod/addon files and unknowns. Startup migration can rename episode directories and move recognized files, writing a new config and removing its old copy; it is not a read-only import. Finish any chosen upstream migration first and keep the full pre-migration tree recoverable. No cross-version mod/save/replay roundtrip is certified."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select ironwail.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+            "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+            "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile.",
+            "For store discovery, rerelease migration, expansions, mods or custom base directories, use a separately prepared copy. The managed route preserves id1 and console history only. Gameplay and real save compatibility across versions remain unverified."
+          ],
+          "references": [
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the actual prepared Quake directory and any store, rerelease, add-on or custom profile directories. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, history.txt. Its backup does not include external profiles."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "quake-vkquake",
+      "name": "Quake (vkQuake)",
+      "summary": "A Vulkan Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
+      "project_url": "https://github.com/Novum/vkQuake",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "Novum/vkQuake",
+        "asset_hints": {
+          "windows-x86-64": [
+            "vkquake",
+            "_windows_x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "vkQuake.exe"
+        ]
+      },
+      "launch_arguments": [
+        "-basedir",
+        ".",
+        "-nosteam"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_paths": [
+        "id1",
+        "vkQuake.cfg",
+        "history.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside vkQuake.exe before Play. Keep your original copy. Portcove starts the managed copy from this local base with Steam integration disabled. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, vkQuake.cfg, history.txt. Its backup does not include external profiles. A Vulkan-capable GPU and driver are required. Use a separately prepared copy for store discovery, rerelease data, expansions, mods, multiuser settings or custom base directories. Real save compatibility across versions remains unverified.",
+        "original_game_title": "Quake",
+        "manual_setup": {
+          "help_url": "https://github.com/Novum/vkQuake/tree/749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "steps": [
+            {
+              "title": "Copy your own classic Quake data beside the managed player",
+              "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside vkQuake.exe before Play. Keep your original copy. Portcove starts the managed copy from this local base with Steam integration disabled."
+            },
+            {
+              "title": "Prepare the existing vkQuake copy",
+              "instruction": "Use a complete permitted Windows x64 copy with its matching libraries and your own compatible Quake data. Finish its upstream setup and start and quit it before registration. The ordinary prepared launch uses no arguments. Keep the actual working folder and any literal arguments already needed for store, expansion, mod, custom base-directory or multiuser choices."
+            },
+            {
+              "title": "Preserve both portable and discovered profile roots",
+              "instruction": "Standalone copies can write beneath the prepared base/game directories, but store selection or -multiuser uses the actual SDL vkQuake preference directory (normally APPDATA/vkQuake on Windows). Preserve that actual root and basedirs.txt, global vkQuake.cfg, game-local configs, saves/autosaves/screenshots/demos, all base/id1/mod files, the complete runtime and unknowns. Keep relevant existing Steam/GOG/Epic/Nightdive and Steam-userdata/custom roots too; another runtime folder is not proof of independent state."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select vkQuake.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+            "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+            "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile.",
+            "A Vulkan-capable GPU and driver are required. Use a separately prepared copy for store discovery, rerelease data, expansions, mods, multiuser settings or custom base directories. Real save compatibility across versions remains unverified."
+          ],
+          "references": [
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the actual prepared Quake directory and any store, multiuser or custom profile directories. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, vkQuake.cfg, history.txt. Its backup does not include external profiles."
+            }
+          ]
+        }
+      }
+    },
+    {
       "id": "re-rac-rerac",
       "name": "Ratchet & Clank (2002) / ReRAC (re-rac)",
       "summary": "Explore Ratchet & Clank (2002) / ReRAC (re-rac) and follow the upstream project for requirements, downloads and setup.",
@@ -33447,6 +34269,106 @@
         }
       },
       "setup_marker": "game-data/extract-info.json"
+    },
+    {
+      "id": "retropulse03-winback-n64recomp",
+      "name": "WinBack: Covert Operations (WinBack Recompiled)",
+      "summary": "A Windows port of WinBack: Covert Operations. Set it up with your original US Nintendo 64 game file.",
+      "project_url": "https://github.com/RetroPulse03/WinBackRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "RetroPulse03/WinBackRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "WinBackRecompiled-",
+            "-Windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "WinBackRecompiled.exe"
+        ]
+      },
+      "launch_environment": {
+        "RECOMPLAUNCHER": "1"
+      },
+      "persistent_paths": [
+        "winback.us.z64",
+        "settings.json",
+        "saves",
+        "mods",
+        "mods.json",
+        "mods.json.tmp",
+        "mod_config",
+        "rt64"
+      ],
+      "runtime_mutable_paths": [
+        "logs/winback.log",
+        "logs/winback.previous.log"
+      ],
+      "archive_data_compatibility_v1": {
+        "contract_id": "winback-recomp-conventional-v1",
+        "shared_paths": [
+          "winback.us.z64",
+          "settings.json",
+          "saves/controller_pak_1.bin",
+          "saves/controller_pak_2.bin",
+          "saves/controller_pak_3.bin",
+          "saves/controller_pak_4.bin"
+        ],
+        "build_specific_progress_paths": [
+          "saves/checkpoints"
+        ]
+      },
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, select your own US WinBack Nintendo 64 game file in big-endian .z64 format. The game verifies and stores its copy inside the managed installation. Portcove preserves that copy, display settings and Controller Pak saves across compatible updates. Recorded checkpoints, mod files and renderer data stay with the runtime that created them. Runtime rollback carries current shared saves and does not rewind progress. Use Windows 10 or 11 with Vulkan and the x64 Microsoft Visual C++ 2015–2022 Redistributable.",
+        "original_game_title": "WinBack: Covert Operations",
+        "manual_setup": {
+          "help_url": "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
+          "steps": [
+            {
+              "title": "Prepare your Windows copy",
+              "instruction": "Extract the complete Windows x64 ZIP into a writable folder. Use Windows 10 or 11 with Vulkan support. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open WinBackRecompiled.exe and select your own big-endian WinBack USA .z64 (SHA-1 fa04477b321a95e1f7a2edcac5c09bfa6ef72041). The game verifies and keeps a copy in its folder."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select WinBackRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Save through the game before quitting. The BASIC level-select option does not restore previously recorded checkpoint progress. The project reports limited testing beyond the first mission.",
+            "The project reports that this release can crash on exit."
+          ],
+          "references": [
+            {
+              "title": "Setup instructions for the inspected release",
+              "instruction": "https://github.com/RetroPulse03/WinBackRecomp/releases/tag/v0.2.0"
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: ROM copy, settings.json, saves/ including Controller Pak and checkpoints, mods and renderer data in the game folder. Back up these locations separately; registration does not migrate or certify their compatibility."
+            }
+          ]
+        }
+      }
     },
     {
       "id": "rise-of-the-triad-barrett-lunarmeadow",
@@ -34290,7 +35212,7 @@
     {
       "id": "soulcalibur-ii-ring-out",
       "name": "Soulcalibur II / Ring Out",
-      "summary": "Register your already prepared Ring Out Windows runtime with your own Soulcalibur II USA disc data and generated module.",
+      "summary": "Play Soulcalibur II on Windows with Ring Out. Prepare a copy with your own USA disc and generated module before adding the game to Portcove.",
       "project_url": "https://github.com/jackpoison-prog/RingOut",
       "support_tier": "beta",
       "channels": [
@@ -34339,12 +35261,12 @@
               "instruction": "Use six separate literal argument tokens: --user-dir, the absolute path to this copy's userdata directory, --game, its absolute game directory, --module, and its absolute bin/gGRSEAF_recomp.dll path. Preserve spaces within each path token. Replace paths with your actual prepared locations; do not enter placeholders or --extract. The generated DLL is executable code and must be part of your permitted trusted prepared copy."
             },
             {
-              "title": "Review, consent and choose Play separately",
-              "instruction": "Review the exact runtime executable, root working directory and all six arguments, then consent to that execution intent. Registration does not start the game. Choose Play separately. Portcove retains the selection across restart and relink and observes the selected runtime process. Re-review and re-consent to every changed path after moving a copy."
+              "title": "Add the game, then choose Play",
+              "instruction": "Review the program, start folder and all six launch arguments. Add it to Portcove, then choose Play. If you move this copy, review every changed path before playing again."
             }
           ],
           "warnings": [
-            "Use an already permitted prepared copy and comply with its engine and component terms. Engine GPL/source statements do not license original-game files or generated game code. Core validates the selected execution intent; it does not authenticate the disc revision, generated DLL, package/build provenance or every component.",
+            "Use a prepared copy you have permission to use. The engine’s license does not give you rights to original game files or generated code. Portcove checks the selected launch details. Check the origin of your disc, package and generated DLL yourself.",
             "Explicit --user-dir avoids an unintended shared default profile; without it the runtime can use LOCALAPPDATA/moderngekko, an XDG/HOME profile or a working-directory fallback depending on its build. Explicit --game and --module avoid default-game.txt and module discovery. Keep your actual prior profiles and custom data paths; changing coordinates does not migrate them or prove state compatibility.",
             "Player startup creates and writes profile directories and settings; diagnostic, replay, texture/mod and configured external paths remain player-owned. Registration provides no sandbox or guarantee that upstream retains every file. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay, save/load, netplay and other platforms remain unqualified.",
             "The reviewed v1.7 publication is distinct from historical v1.6.1 assets whose bytes changed under one name. It does not repair that old integrity gap. Old package CREDITS/README version and source-bundle instructions are stale; preserve notices and follow the matching upstream source. No binary/source attestation or new distribution right is inferred.",
@@ -34354,7 +35276,7 @@
           "references": [
             {
               "title": "Preserve the complete copy and keep one update owner",
-              "instruction": "Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement. Close all actual players and preserve originals/data before upstream changes. Removing the registration removes only Portcove metadata and preserves external files."
+              "instruction": "Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement."
             }
           ]
         },
@@ -36477,6 +37399,85 @@
           "image_sha256": "5be6f8805116a07dd45e22561df0e93362d077d6913541cfa9861fc59df9c6c9",
           "game_slug": "the-elder-scrolls-iii-morrowind",
           "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+      "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
+      "summary": "Play the Nintendo 64 version of Toy Story 2 with widescreen rendering and smoother motion.",
+      "project_url": "https://github.com/Capridog/SpaceRanger",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "woodys-workshop/SpaceRanger",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SpaceRanger-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SpaceRanger.exe"
+        ]
+      },
+      "persistent_paths": [
+        "spaceranger-config"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose Load ROM in the SpaceRanger title screen. The player verifies and stores a private copy in spaceranger-config. Keep your independent original and use Start Game in the same player. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: spaceranger-config. Its backup does not include external profiles. This is a preview. Keep the portable profile and its Controller Pak recovery files backed up before updating. The managed backup includes the ROM copy and is for your own recovery. Real saves and all-level compatibility remain unverified.",
+        "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
+        "manual_setup": {
+          "help_url": "https://github.com/woodys-workshop/SpaceRanger/blob/0b7b3dd20d75441c40005ee468d375c230d431d0/README.md",
+          "steps": [
+            {
+              "title": "Choose your own USA Rev0 original on first Play",
+              "instruction": "Choose Load ROM in the SpaceRanger title screen. The player verifies and stores a private copy in spaceranger-config. Keep your independent original and use Start Game in the same player."
+            },
+            {
+              "title": "Prepare the exact USA Rev0 source",
+              "instruction": "Use a complete player and components you are independently permitted to use, with your own Toy Story 2: Buzz Lightyear to the Rescue N64 USA Rev0 ROM. The selected game registration checks normalized ROM bytes with XXH3-64 FD53C5EC8CE2530A; this is the actual revision-matching digest, not a SHA1, ownership test or package signature. The pinned runtime normalizes supported .z64/.v64/.n64 byte orders first. Other regions, revisions and console editions remain unsupported. For a prepared copy, finish Load ROM upstream before attachment and retain the independent original."
+            },
+            {
+              "title": "Keep exact dependency and font terms",
+              "instruction": "Retain the project GPLv3 notice and each runtime/renderer/frontend/component notice. The dependency manifest identifies official RecompFrontend base b1a1477c6556aeb7ed45defbfb5924f721efebc1, covered by the existing unchanged-base license follow-up, plus this title’s separate authored patch; the base grant does not license unrelated forks or original Disney/Pixar game data. Keep the Inter, Noto Emoji, PromptFont, renamed Fredoka and Bungee OFL notices and credits. Use only components you are independently permitted to use; source bindings are not binary reproducibility or a broader permission grant."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select SpaceRanger.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Back up spaceranger-config before using the upstream reset procedure. Resetting the folder to reselect a ROM also removes settings and any Controller Pak data.",
+            "Quit the game normally before updating or moving profile files. The upstream preview reports incomplete interpolation and frame pacing tested mainly on one PC.",
+            "This is a preview. Keep the portable profile and its Controller Pak recovery files backed up before updating. The managed backup includes the ROM copy and is for your own recovery. Real saves and all-level compatibility remain unverified."
+          ],
+          "references": [
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the complete spaceranger-config folder beside SpaceRanger.exe, including the validated ROM copy, settings, Controller Pak and its recovery siblings. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: spaceranger-config. Its backup does not include external profiles."
+            }
+          ]
         }
       }
     },

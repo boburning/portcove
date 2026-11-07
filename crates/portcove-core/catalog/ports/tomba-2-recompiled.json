@@ -44,6 +44,20 @@
       "warnings": [
         "Use the USA Tomba2Recomp.exe and preserve its cards plus the separate seamless-loading cache. Italian mappings, imported-character mods and complete native coverage require their own evidence."
       ]
+    },
+    "download_block_reason": "Portcove downloads are paused until permission for the bundled disc-derived native cache is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use."
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "Tomba2Recomp.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "saves/ and settings.toml beside the player, plus any configured card or settings locations",
+        "mods/ and cache/ beside the player",
+        "%LOCALAPPDATA%/Tomba2Recomp/seamless and any custom seamless-loading locations"
+      ]
     }
   }
 }

@@ -1,6 +1,6 @@
+import { requireStorageAppToken } from "./release-storage-credential.mts";
 import assert from "node:assert/strict";
 import childProcess from "node:child_process";
-import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
@@ -9,13 +9,58 @@ import test from "node:test";
 import { inspect } from "node:util";
 import {
   createCoordinatorJournalApi,
+  createLegacySiteCheckpointApi,
+  guardCoordinatorJournalWrites,
   createCheckpointJobTokenApi,
   createCheckpointHistoryReader,
+  createPreparedCheckpointObjectApi,
 } from "./release-coordinator-journal-api.mts";
 import { performance } from "node:perf_hooks";
 import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import { createHash } from "node:crypto";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+
+void test("legacy Pages writes wait for current controls and preserve independent readback", async (t) => {
+  const root = await fixture(t);
+  process.env.GH_TOKEN = "synthetic-site-job";
+  process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "synthetic-dedicated-journal";
+  const routes: string[] = [];
+  t.mock.method(globalThis, "fetch", async (input: string, init?: RequestInit) => {
+    assert.equal(new Headers(init?.headers).get("authorization"), "token synthetic-site-job");
+    const url = new URL(input);
+    routes.push(`${init?.method} ${url.pathname}`);
+    if (url.pathname === "/graphql") return Response.json({ data: { observed: true } });
+    return Response.json({ sha: "a".repeat(40) }, { status: init?.method === "POST" ? 201 : 200 });
+  });
+  let control = Promise.withResolvers<void>();
+  const api = guardCoordinatorJournalWrites(
+    createLegacySiteCheckpointApi(root, performance.now() + 10000),
+    { readCurrent: () => control.promise },
+  );
+  const repository = "repos/boburning/portcove";
+  const mutation = "mutation { updateRefs(input: {}) { clientMutationId } }";
+  const post = api.request("POST", `${repository}/git/blobs`, { content: "public" });
+  await api.request("GET", repository);
+  assert.deepEqual(routes, [`GET /${repository}`]);
+  control.resolve();
+  await post;
+
+  control = Promise.withResolvers<void>();
+  const cas = api.graphql(mutation, {});
+  await api.graphql("query { repository { id } }", {});
+  assert.deepEqual(routes, [
+    `GET /${repository}`,
+    `POST /${repository}/git/blobs`,
+    "POST /graphql",
+  ]);
+  control.reject(new Error("current site controls refused"));
+  await assert.rejects(async () => cas, /current site controls refused/u);
+  await assert.rejects(
+    async () => api.request("POST", `${repository}/git/blobs`, {}),
+    /current site controls refused/u,
+  );
+  assert.equal(routes.length, 3);
+});
 
 void test("history transport admits only bounded GET evidence and never opens collection time", async (t) => {
   const root = await fixture(t);
@@ -24,11 +69,11 @@ void test("history transport admits only bounded GET evidence and never opens co
   let clock = performance.now(),
     calls = 0;
   t.mock.method(performance, "now", () => clock);
-  t.mock.method(childProcess, "spawnSync", () => {
+  t.mock.method(globalThis, "fetch", async (_input: unknown, init?: RequestInit) => {
     calls++;
-    return { status: 0, stdout: 'HTTP/2.0 200 OK\r\n\r\n{"observed":true}', stderr: "" };
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-fixed-history-only");
+    return Response.json({ observed: true });
   });
-  syncBuiltinESMExports();
   const deadline = clock + 1000;
   const reader = createCheckpointHistoryReader(
     root,
@@ -42,11 +87,12 @@ void test("history transport admits only bounded GET evidence and never opens co
     ["GET", "repos/other/repo/actions/jobs/1"],
     ["GET", "repos/boburning/portcove/actions/runs/1"],
   ] as const)
-    assert.throws(() => reader.api.request(method, route), /only fixed repository GET/);
-  assert.throws(() => reader.api.graphql("mutation{}", {}), /only exact/);
+    await assert.rejects(() => reader.api.request(method, route), /only fixed repository GET/);
+  await assert.rejects(() => reader.api.graphql("mutation{}", {}), /only exact/);
   assert.equal(calls, 0);
-  for (let n = 0; n < 9; n++) reader.api.request("GET", "repos/boburning/portcove/actions/jobs/1");
-  assert.throws(
+  for (let n = 0; n < 9; n++)
+    await reader.api.request("GET", "repos/boburning/portcove/actions/jobs/1");
+  await assert.rejects(
     () => reader.api.request("GET", "repos/boburning/portcove/actions/jobs/1"),
     /request bound/,
   );
@@ -58,7 +104,7 @@ void test("history transport admits only bounded GET evidence and never opens co
     deadline,
   );
   clock = deadline + 1;
-  assert.throws(
+  await assert.rejects(
     () => expiring.api.request("GET", "repos/boburning/portcove/actions/jobs/1"),
     /original deadline/,
   );
@@ -74,29 +120,75 @@ void test("journal transport shares one role deadline and refuses late write res
   assert.throws(() => createCoordinatorJournalApi(root, clock - 1), /phase deadline/);
   assert.throws(() => createCoordinatorJournalApi(root, Infinity), /must be finite/);
   assert.deepEqual(await readdir(root), []);
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (_command: string, _args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      calls++;
-      assert.equal(options.timeout, 1000);
-      clock += 1001;
-      return {
-        status: 0,
-        stdout: 'HTTP/2.0 201 Created\r\n\r\n{"sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}',
-        stderr: "",
-      };
-    },
-  );
-  syncBuiltinESMExports();
+  t.mock.method(globalThis, "fetch", async () => {
+    calls++;
+    clock += 1001;
+    return Response.json({ sha: "a".repeat(40) }, { status: 201 });
+  });
   const api = createCoordinatorJournalApi(root, clock + 1000);
-  assert.throws(
-    () => api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" }),
-    /phase deadline/,
+  await assert.rejects(
+    api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" }),
+    /deadline/u,
   );
   assert.equal(calls, 1);
-  assert.throws(() => api.request("GET", "repos/boburning/portcove"), /phase deadline/);
+  await assert.rejects(api.request("GET", "repos/boburning/portcove"), /phase deadline/);
   assert.equal(calls, 1);
+});
+
+void test("dedicated journal refuses ambient certificate trust and proxy overrides before dispatch", async (t) => {
+  const root = await fixture(t);
+  process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "inert-journal-trust";
+  for (const [key, value] of [
+    ["NODE_OPTIONS", "--use-openssl-ca"],
+    ["NODE_OPTIONS", "--use-system-ca"],
+    ["NODE_OPTIONS", "--use-env-proxy"],
+    ["NODE_USE_SYSTEM_CA", "1"],
+    ["SSL_CERT_FILE", "/inert/ambient.pem"],
+    ["SSL_CERT_DIR", "/inert/ambient-certs"],
+  ] as const) {
+    const original = process.env[key];
+    process.env[key] = value;
+    try {
+      assert.throws(() => createCoordinatorJournalApi(root), /trusted direct Node runtime/u);
+    } finally {
+      if (original === undefined) delete process.env[key];
+      else process.env[key] = original;
+    }
+  }
+  assert.deepEqual(await readdir(root), []);
+});
+
+void test("dedicated journal aborts an in-flight write at the tighter coordinator deadline", async (t) => {
+  const root = await fixture(t);
+  process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "inert-journal-nested-deadline";
+  let dispatched = 0;
+  let aborted = false;
+  t.mock.method(globalThis, "fetch", async (_input: unknown, init?: RequestInit) => {
+    dispatched++;
+    assert.ok(init?.signal);
+    const signal = init.signal;
+    return new Promise<Response>((resolve, reject) => {
+      const safety = setTimeout(() => resolve(Response.json({ sha: "a".repeat(40) })), 4000);
+      signal.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(safety);
+          aborted = true;
+          reject(signal.reason);
+        },
+        { once: true },
+      );
+    });
+  });
+  const api = createCoordinatorJournalApi(root, performance.now() + 10000);
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 800, () =>
+      api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" }),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(dispatched, 1);
+  assert.equal(aborted, true);
 });
 
 async function fixture(t: test.TestContext) {
@@ -104,6 +196,9 @@ async function fixture(t: test.TestContext) {
   t.after(() => rm(root, { recursive: true, force: true }));
   const keys = [
     "GH_TOKEN",
+    "PORTCOVE_STORAGE_APP_TOKEN",
+    "PORTCOVE_STORAGE_APP_ID",
+    "PORTCOVE_STORAGE_INSTALLATION_ID",
     "GH_ENTERPRISE_TOKEN",
     "PORTCOVE_COORDINATOR_JOURNAL_TOKEN",
     "HTTPS_PROXY",
@@ -173,50 +268,32 @@ async function jobFixture(t: test.TestContext) {
   ]);
   let calls = 0;
   const controls = { advance: () => {}, repositoryId: 1354613114 };
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (_command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      calls++;
-      assert.equal(options.env?.GH_TOKEN, "inert-fixed-job-secret");
-      for (const key of [
-        "PORTCOVE_COORDINATOR_JOURNAL_TOKEN",
-        "PORTCOVE_PROTECTION_OBSERVER_TOKEN",
-        "PORTCOVE_SEMANTIC_TOKEN",
-        "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
-      ])
-        assert.equal(options.env?.[key], undefined);
-      assert.equal(path.dirname(options.env.GH_CONFIG_DIR!), root);
-      assert.equal(options.maxBuffer, 2 * 1024 * 1024);
-      assert.ok(options.timeout! > 0 && options.timeout! <= 15000);
-      assert.equal(inspect(args).includes("inert-fixed-job-secret"), false);
-      controls.advance();
-      let body: unknown = { sha: "d".repeat(40) };
-      if (args[1] === "graphql") {
-        assert.equal(typeof options.input, "string");
-        assert.ok(typeof options.input === "string");
-        const input = JSON.parse(options.input) as {
-          query: string;
-          variables: { input?: { clientMutationId: string } };
-        };
-        body = {
-          data:
-            input.query === mutation
-              ? { updateRefs: { clientMutationId: input.variables.input!.clientMutationId } }
-              : {
-                  [input.query === initial ? "repository" : "node"]: {
-                    __typename: "Repository",
-                    id: "R_fixture",
-                    databaseId: controls.repositoryId,
-                    nameWithOwner: "boburning/portcove",
-                  },
-                },
-        };
-      }
-      return { status: 0, stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(body)}`, stderr: "" };
-    },
-  );
-  syncBuiltinESMExports();
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    calls++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-fixed-job-secret");
+    controls.advance();
+    if (url.pathname !== "/graphql") return Response.json({ sha: "d".repeat(40) });
+    assert.ok(typeof init?.body === "string");
+    const payload = JSON.parse(init.body) as {
+      query: string;
+      variables: { input?: { clientMutationId: string } };
+    };
+    return Response.json({
+      data:
+        payload.query === mutation
+          ? { updateRefs: { clientMutationId: payload.variables.input!.clientMutationId } }
+          : {
+              [payload.query === initial ? "repository" : "node"]: {
+                __typename: "Repository",
+                id: "R_fixture",
+                databaseId: controls.repositoryId,
+                nameWithOwner: "boburning/portcove",
+              },
+            },
+    });
+  });
   return {
     root,
     checkpoint,
@@ -255,7 +332,7 @@ void test("fixed-job journal freezes its credential and exact tuple; foreign rea
   process.env.GH_TOKEN = "changed-after-capture";
   f.checkpoint.required_commits[0]!.oid = "9".repeat(40);
   assert.equal(
-    api.request("GET", `repos/boburning/portcove/git/commits/${"f".repeat(40)}`).status,
+    (await api.request("GET", `repos/boburning/portcove/git/commits/${"f".repeat(40)}`)).status,
     200,
   );
   for (const endpoint of [
@@ -264,17 +341,17 @@ void test("fixed-job journal freezes its credential and exact tuple; foreign rea
     `repos/boburning/portcove/git/commits/${"9".repeat(40)}`,
     "repos/boburning/portcove/git/refs",
   ])
-    assert.throws(() => api.request("GET", endpoint), /outside exact checkpoint/);
-  assert.throws(
+    await assert.rejects(() => api.request("GET", endpoint), /outside exact checkpoint/);
+  await assert.rejects(
     () => api.graphql(f.initial.replace('name:"portcove"', 'name:"other"'), f.refs),
     /outside exact checkpoint/,
   );
-  assert.throws(
+  await assert.rejects(
     () => api.graphql(f.initial, { ...f.refs, r3: "refs/heads/main" }),
     /outside exact checkpoint/,
   );
-  api.graphql(f.initial, f.refs);
-  assert.throws(
+  await api.graphql(f.initial, f.refs);
+  await assert.rejects(
     () => api.graphql(f.next, { id: "foreign", ...f.refs }),
     /outside exact checkpoint/,
   );
@@ -291,52 +368,53 @@ void test("fixed-job journal freezes its credential and exact tuple; foreign rea
     f.claim.input.refUpdates.map((ref) => ({ ...ref, afterOid: "0".repeat(40) })),
     [...f.claim.input.refUpdates, f.claim.input.refUpdates[0]!],
   ])
-    assert.throws(() => api.graphql(f.mutation, f.cas(changes)), /exact state/);
+    await assert.rejects(() => api.graphql(f.mutation, f.cas(changes)), /exact state/);
   assert.equal(f.calls(), 2);
-  assert.throws(
+  await assert.rejects(
     () =>
       api.request("POST", "repos/boburning/portcove/git/blobs", {
         content: "x".repeat(2 * 1024 * 1024),
       }),
     /bounded encoding/,
   );
-  assert.throws(
+  await assert.rejects(
     () => api.request("POST", "repos/boburning/portcove/git/blobs"),
     /bounded encoding/,
   );
   assert.equal(f.calls(), 2);
-  api.graphql(f.mutation, f.claim);
+  await api.graphql(f.mutation, f.claim);
   assert.equal(f.calls(), 3);
 });
 
-void test("fixed-job journal retains late CAS acknowledgment, then permits only original bounded tuple readback", async (t) => {
+void test("fixed-job journal stops late CAS acknowledgment and permits only original bounded tuple readback", async (t) => {
   const f = await jobFixture(t);
   let clock = performance.now();
   t.mock.method(performance, "now", () => clock);
   const deadline = clock + 1000;
   const api = createCheckpointJobTokenApi(f.root, f.checkpoint, f.configuration, deadline);
-  api.graphql(f.initial, f.refs);
+  await api.graphql(f.initial, f.refs);
   f.controls.advance = () => {
     clock = deadline + 1;
   };
-  assert.ok(
-    api.graphql(f.mutation, f.claim).data,
-    "late acknowledgment remains available to exchange",
-  );
+  await assert.rejects(api.graphql(f.mutation, f.claim), { code: "deadline_exceeded" });
   f.controls.advance = () => {};
-  assert.throws(() => api.graphql(f.mutation, f.claim), /original deadline/);
-  assert.throws(
+  await assert.rejects(() => api.graphql(f.mutation, f.claim), /original deadline/);
+  await assert.rejects(
     () => api.request("POST", "repos/boburning/portcove/git/blobs", {}),
     /original deadline/,
   );
-  assert.throws(
+  await assert.rejects(
     () => api.request("GET", `repos/boburning/portcove/git/commits/${"f".repeat(40)}`),
     /original deadline/,
   );
-  api.graphql(f.next, { id: "R_fixture", ...f.refs });
+  await assert.rejects(api.graphql(f.next, { id: "R_fixture", ...f.refs }), /original deadline/);
+  await api.graphql(f.next, { id: "R_fixture", ...f.refs }, { deadline, collecting: true });
   assert.equal(f.calls(), 3);
   clock = deadline + 30000;
-  assert.throws(() => api.graphql(f.next, { id: "R_fixture", ...f.refs }), /original deadline/);
+  await assert.rejects(
+    api.graphql(f.next, { id: "R_fixture", ...f.refs }, { deadline, collecting: true }),
+    /collection bound/,
+  );
   assert.equal(f.calls(), 3);
 });
 
@@ -345,9 +423,13 @@ void test("fixed-job journal never opens collection time before a CAS attempt", 
   let clock = performance.now();
   t.mock.method(performance, "now", () => clock);
   const api = createCheckpointJobTokenApi(f.root, f.checkpoint, f.configuration, clock + 1000);
-  api.graphql(f.initial, f.refs);
+  await api.graphql(f.initial, f.refs);
+  const deadline = clock + 1000;
   clock += 1001;
-  assert.throws(() => api.graphql(f.next, { id: "R_fixture", ...f.refs }), /original deadline/);
+  await assert.rejects(
+    api.graphql(f.next, { id: "R_fixture", ...f.refs }, { deadline, collecting: true }),
+    /attempted CAS/,
+  );
   assert.equal(f.calls(), 1);
 });
 
@@ -360,85 +442,82 @@ void test("fixed-job journal refuses foreign repository observation and enforces
     performance.now() + 10000,
   );
   f.controls.repositoryId = 1;
-  assert.throws(() => api.graphql(f.initial, f.refs), /repository identity/);
+  await assert.rejects(() => api.graphql(f.initial, f.refs), /repository identity/);
   f.controls.repositoryId = 1354613114;
-  api.graphql(f.initial, f.refs);
-  for (let n = 2; n < 16; n++) api.graphql(f.next, { id: "R_fixture", ...f.refs });
-  assert.throws(() => api.graphql(f.next, { id: "R_fixture", ...f.refs }), /request bound/);
+  await api.graphql(f.initial, f.refs);
+  for (let n = 2; n < 16; n++) await api.graphql(f.next, { id: "R_fixture", ...f.refs });
+  await assert.rejects(() => api.graphql(f.next, { id: "R_fixture", ...f.refs }), /request bound/);
   assert.equal(f.calls(), 16);
 });
-void test("journal subprocess receives only its frozen dedicated credential and private configuration", async (t) => {
+void test("journal SDK captures only its dedicated credential and refuses other routes", async (t) => {
   const root = await fixture(t);
   const token = "disposable-journal-only-secret";
   process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = token;
   process.env.GH_TOKEN = "provider-only-secret";
-  process.env.GH_ENTERPRISE_TOKEN = "enterprise-secret";
-  process.env.HTTPS_PROXY = "http://must-not-inherit.invalid";
-  process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "oidc-secret";
   let calls = 0;
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      calls++;
-      assert.equal(command, "gh");
-      assert.ok(options.env);
-      assert.ok(typeof options.env.GH_CONFIG_DIR === "string");
-      assert.deepEqual(args.slice(-2), ["--hostname", "github.com"]);
-      assert.equal(options.env.GH_TOKEN, token);
-      assert.equal(options.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
-      assert.equal(options.env.GH_ENTERPRISE_TOKEN, undefined);
-      assert.equal(options.env.HTTPS_PROXY, undefined);
-      assert.equal(options.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
-      assert.equal(options.env.GH_HOST, "github.com");
-      assert.equal(path.dirname(options.env.GH_CONFIG_DIR), root);
-      assert.equal(options.env.HOME, options.env.GH_CONFIG_DIR);
-      assert.equal(options.env.APPDATA, options.env.GH_CONFIG_DIR);
-      assert.equal(options.timeout, 15000);
-      assert.equal(options.maxBuffer, 2 * 1024 * 1024);
-      assert.equal(options.windowsHide, true);
-      assert.equal(inspect(args).includes(token), false);
-      return { status: 0, stdout: 'HTTP/2.0 200 OK\r\n\r\n{"ok":true}', stderr: "" };
-    },
-  );
-  syncBuiltinESMExports();
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    calls++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(init?.method, "GET");
+    assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+    if (url.pathname === "/repos/boburning/portcove") return Response.json({ ok: true });
+    assert.equal(url.pathname, `/repos/boburning/portcove/git/commits/${"a".repeat(40)}`);
+    return Response.json({ message: "Not Found" }, { status: 404 });
+  });
   const api = createCoordinatorJournalApi(root);
   process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "changed-after-construction";
-  assert.deepEqual(api.request("GET", "repos/boburning/portcove").body, { ok: true });
+  assert.deepEqual((await api.request("GET", "repos/boburning/portcove")).body, { ok: true });
+  assert.deepEqual(
+    await api.request("GET", `repos/boburning/portcove/git/commits/${"a".repeat(40)}`),
+    {
+      status: 404,
+      body: undefined,
+    },
+  );
   for (const [method, route] of [
     ["GET", "https://evil.invalid"],
     ["POST", "repos/boburning/portcove/git/refs"],
     ["GET", "repos/other/repo"],
     ["DELETE", "repos/boburning/portcove"],
   ] as const)
-    assert.throws(() => api.request(method, route), /fixed repository/u);
-  assert.equal(calls, 1);
+    await assert.rejects(api.request(method, route), /fixed repository/u);
+  assert.deepEqual(await readdir(root), []);
+  assert.equal(calls, 2);
   assert.equal(process.env.GH_TOKEN, "provider-only-secret");
 });
-void test("journal subprocess diagnostics redact its exact credential without losing timeout ambiguity", async (t) => {
+void test("journal SDK sends the exact write once and redacts provider diagnostics", async (t) => {
   const root = await fixture(t);
   const token = "nonstandard-disposable-sensitive-value";
   process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = token;
-  t.mock.method(childProcess, "spawnSync", () => ({
-    status: 0,
-    stdout: token,
-    stderr: token,
-    error: Object.assign(new Error(token), { code: "ETIMEDOUT" }),
-  }));
-  syncBuiltinESMExports();
+  const body = { content: "inert", encoding: "base64" };
+  let calls = 0;
+  let echo = false;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    calls++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.href, "https://api.github.com/repos/boburning/portcove/git/blobs");
+    assert.equal(init?.method, "POST");
+    assert.deepEqual(JSON.parse(typeof init.body === "string" ? init.body : ""), body);
+    if (echo) return Response.json({ sha: token }, { status: 201 });
+    return Response.json({ message: `GitHub unavailable ${token}` }, { status: 503 });
+  });
   const api = createCoordinatorJournalApi(root);
-  assert.throws(
-    () =>
-      api.request("POST", "repos/boburning/portcove/git/blobs", {
-        content: "inert",
-        encoding: "utf-8",
-      }),
+  await assert.rejects(
+    api.request("POST", "repos/boburning/portcove/git/blobs", body),
     (error: unknown) => {
       assert.equal(inspect(error, { depth: 10 }).includes(token), false);
-      assert.match(String(error), /timed out/u);
+      assert.match(String(error), /GitHub unavailable/u);
       return true;
     },
   );
+  assert.equal(calls, 1);
+  echo = true;
+  await assert.rejects(
+    api.request("POST", "repos/boburning/portcove/git/blobs", body),
+    /contained credential material/u,
+  );
+  assert.equal(calls, 2);
 });
 
 void test("fixed-job collection survives inherited execution expiry only for exact post-CAS tuple GET", async (t) => {
@@ -449,18 +528,81 @@ void test("fixed-job collection survives inherited execution expiry only for exa
   const api = createCheckpointJobTokenApi(f.root, f.checkpoint, f.configuration, deadline);
   await assert.rejects(
     withCoordinatorDeadline(deadline, async () => {
-      api.graphql(f.initial, f.refs);
-      api.graphql(f.mutation, f.claim);
+      await api.graphql(f.initial, f.refs);
+      await api.graphql(f.mutation, f.claim);
       clock = deadline + 1;
-      assert.throws(() => api.graphql(f.mutation, f.claim), /original deadline/);
-      assert.throws(
+      await assert.rejects(() => api.graphql(f.mutation, f.claim), /original deadline/);
+      await assert.rejects(
         () => api.request("GET", `repos/boburning/portcove/git/commits/${"f".repeat(40)}`),
         /original deadline/,
       );
-      api.graphql(f.next, { id: "R_fixture", ...f.refs });
-      assert.equal(f.calls(), 3, "exact collection query reached the fixed child");
+      await api.graphql(f.next, { id: "R_fixture", ...f.refs }, { deadline, collecting: true });
+      assert.equal(f.calls(), 3, "exact collection query dispatched through the SDK");
     }),
     /phase deadline/,
   );
   assert.equal(f.calls(), 3);
+});
+
+void test("new storage token cannot borrow a job/legacy credential or mismatched App installation", () => {
+  const expected = { app_id: 90001, installation_id: 90002 };
+  const environment = {
+    GH_TOKEN: "job-token",
+    PORTCOVE_COORDINATOR_JOURNAL_TOKEN: "legacy-token",
+    PORTCOVE_CONTROL_APP_TOKEN: "observer-token",
+    PORTCOVE_STORAGE_APP_TOKEN: "new-storage-token",
+    PORTCOVE_STORAGE_APP_ID: "90001",
+    PORTCOVE_STORAGE_INSTALLATION_ID: "90002",
+  };
+  assert.equal(requireStorageAppToken(expected, environment), "new-storage-token");
+  for (const changed of [
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: undefined },
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: "job-token" },
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: "legacy-token" },
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: "observer-token" },
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: "bad token" },
+    { ...environment, PORTCOVE_STORAGE_APP_ID: "15368" },
+    { ...environment, PORTCOVE_STORAGE_INSTALLATION_ID: "90003" },
+  ])
+    assert.throws(() => requireStorageAppToken(expected, changed));
+});
+void test("dedicated storage checkpoint adapter isolates the new token and preserves endpoint/deadline restrictions", async (t) => {
+  const root = await fixture(t);
+  const { checkpoint, configuration } = checkpointProofFixture();
+  process.env.GH_TOKEN = "job-read-only-here";
+  process.env.PORTCOVE_STORAGE_APP_TOKEN = "dedicated-storage-token";
+  process.env.PORTCOVE_STORAGE_APP_ID = "90001";
+  process.env.PORTCOVE_STORAGE_INSTALLATION_ID = "90002";
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async (_input: unknown, init?: RequestInit) => {
+    calls++;
+    assert.equal(new Headers(init?.headers).get("authorization"), "token dedicated-storage-token");
+    return Response.json({ observed: true }, { status: 201 });
+  });
+  const api = createCheckpointJobTokenApi(
+    root,
+    checkpoint,
+    configuration,
+    performance.now() + 1000,
+    { app_id: 90001, installation_id: 90002 },
+  );
+  for (const route of [
+    "repos/boburning/portcove/releases",
+    "repos/other/repo/git/blobs",
+    "repos/boburning/portcove/actions/jobs/1",
+  ])
+    await assert.rejects(() => api.request("POST", route, {}));
+  assert.equal(calls, 0);
+  await api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" });
+  assert.equal(calls, 1);
+  const prepared = createPreparedCheckpointObjectApi(root, performance.now() + 1000, {
+    app_id: 90001,
+    installation_id: 90002,
+  });
+  await assert.rejects(() => prepared.request("POST", "repos/boburning/portcove/git/refs", {}));
+  assert.throws(() => prepared.graphql("mutation { updateRefs }", {}));
+  assert.equal(calls, 1);
+  await prepared.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" });
+  assert.equal(calls, 2);
+  assert.equal(process.env.GH_TOKEN, "job-read-only-here");
 });

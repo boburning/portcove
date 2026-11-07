@@ -1,3 +1,4 @@
+import { checkCatalogAdvisories } from "./catalog-advisories.mts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -9,6 +10,7 @@ import {
   checkedAuthoredPort,
   checkedCurrentCatalog,
   parseCatalogSource,
+  projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
@@ -244,6 +246,21 @@ void test("per-port source projects all accepted operations unchanged and listin
     () => checkedAuthoredPort({ ...listing, integration: { id: listing.listing.id } }),
     /second integration authority/,
   );
+});
+
+void test("upstream package platforms extend only the descriptive listing", () => {
+  const { records, catalog, directory } = readCatalogSource(catalogRoot);
+  const id = "body-harvest-recompiled";
+  assert.deepEqual(catalog.ports.find((port) => port.id === id)?.platforms, ["windows-x86-64"]);
+  assert.deepEqual(directory.listings.find((port) => port.id === id)?.platforms, [
+    "windows-x86-64",
+    "linux-x86-64",
+    "macos-x86-64",
+    "macos-aarch64",
+  ]);
+  const duplicate = structuredClone(records.find((record) => record.listing.id === id)!);
+  duplicate.listing.platforms = ["windows-x86-64"];
+  assert.throws(() => checkedAuthoredPort(duplicate), /platform must be declared once/);
 });
 
 void test("authored JSON refuses duplicate decoded keys while retaining nested data and native grammar", () => {
@@ -556,4 +573,176 @@ void test("reference guides select strict new formats and retain actions and war
       text.includes("Separate program folders can share saves"),
     ),
   );
+});
+
+// Optional descriptive advice stays separate from operational authoring.
+{
+  const platforms = ["windows-x86-64"];
+  const record = {
+    id: "manual-runtime",
+    feature: "updates",
+    platform: platforms[0],
+    route: "existing-copy",
+    explanation: "Follow upstream instructions for updating this copy.",
+    provenance: "https://example.com/fixture",
+    observed_at: 1,
+    evidence: "manual-requirement",
+  };
+  const envelope = { format_version: 1, records: [record] };
+
+  await test("broad manual requirements need no invented artifact identity", () => {
+    checkCatalogAdvisories(envelope, platforms, 2);
+    checkedAuthoredPort({
+      format_version: 1,
+      listing: {
+        id: "fixture",
+        name: "Fixture",
+        summary: "Fixture project",
+        project_url: "https://example.com/fixture",
+        compatibility: envelope,
+      },
+    });
+  });
+
+  await test("authoring refuses future, malformed, duplicate, unsafe and unscoped advisory content", () => {
+    for (const value of [
+      { ...envelope, format_version: 2 },
+      { ...envelope, grants: true },
+      { ...envelope, records: [record, record] },
+      ...[
+        { command: "run" },
+        { feature: "grant" },
+        { route: "any" },
+        { observed_at: 3 },
+        { artifact_sha256: "a".repeat(64) },
+        { workaround: "Run `sh setup`" },
+        { workaround: "Open /home/player/game" },
+        { provenance: "https://user:secret@example.com" },
+      ].map((delta) => ({ ...envelope, records: [{ ...record, ...delta }] })),
+    ])
+      assert.throws(() => checkCatalogAdvisories(value, platforms, 2));
+  });
+}
+
+void test("GitLab descriptive observations derive listing format8 without changing operational output", () => {
+  const accepted = readCatalogSource(catalogRoot);
+  const records = structuredClone(accepted.records);
+  const record = records.find(
+    (entry) => entry.listing.project_url === "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+  );
+  assert.ok(record);
+  record.listing.upstream_observation = {
+    provider: "gitlab",
+    repository: "sonicdcer/MarioKart64Recomp",
+    repository_id: null,
+    status: "failed",
+    attempted_at: "2026-11-04T00:00:00Z",
+    observed_at: null,
+    fresh_until: null,
+    facts_sha256: null,
+    release_limit: 4,
+    releases: [],
+  };
+  const { ports: _ports, ...shared } = accepted.catalog;
+  const assembled = assembleCatalogRecords(shared, records);
+  assert.equal(assembled.directory.format_version, 8);
+  assert.deepEqual(assembled.catalog, accepted.catalog);
+  const compatibility = {
+    format_version: 1,
+    records: [
+      {
+        id: "manual-updates",
+        feature: "updates",
+        platform: "windows-x86-64",
+        route: "existing-copy",
+        explanation: "Follow upstream update instructions.",
+        provenance: "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+        observed_at: 1,
+        evidence: "manual-requirement",
+      },
+    ],
+  };
+  record.listing.compatibility = compatibility;
+  const combined = assembleCatalogRecords(shared, records);
+  assert.equal(combined.directory.format_version, 8);
+  assert.deepEqual(
+    combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
+    compatibility,
+  );
+  assert.deepEqual(combined.catalog, accepted.catalog);
+});
+
+void test("catalog player copy catches engineering handoffs and preserves technical references", () => {
+  const fixture = {
+    format_version: 1,
+    listing: {
+      id: "prose-fixture",
+      name: "Game port",
+      project_url: "https://example.org/port",
+      summary: "Set up this port with your original game files.",
+      manual_setup: {
+        steps: [
+          {
+            title: "Choose the game program",
+            instruction: "Choose player.exe and keep firmware.bin beside it.",
+          },
+        ],
+        warnings: ["Back up save.old1 before opening the game."],
+        references: [
+          {
+            title: "Technical details",
+            instruction: "The runtime writes an execution intent to the developer log.",
+          },
+        ],
+      },
+    },
+  };
+  assert.doesNotThrow(() => checkedAuthoredPort(fixture));
+  for (const field of ["summary", "instruction", "warning"] as const) {
+    const bad = structuredClone(fixture);
+    const text = "Review this execution intent before continuing.";
+    if (field === "summary") bad.listing.summary = text;
+    else if (field === "instruction") bad.listing.manual_setup.steps[0]!.instruction = text;
+    else bad.listing.manual_setup.warnings[0] = text;
+    assert.throws(() => checkedAuthoredPort(bad), /prose-fixture.*execution intent/i);
+  }
+});
+
+void test("Second Hunt keeps its version-scoped cleanup warning in the pre-action warnings", () => {
+  const source = readCatalogSource(catalogRoot);
+  const listing = source.directory.listings.find(
+    (entry) => entry.id === "bountyhunterkanden-secondhunt",
+  );
+  const guide = fixtureRecord(listing?.manual_setup);
+  const warnings = guide.warnings;
+  assert.ok(Array.isArray(warnings));
+  assert.match(String(warnings[0]), /Before opening Second Hunt v0\.4\.2-beta on Windows/);
+  assert.match(String(warnings[0]), /ending in \.old or \.old followed by digits/);
+  assert.match(String(warnings[0]), /outside its entire program folder.*including portable saves/);
+});
+
+void test("reviewed GBA archive facts preserve both installed contract variants", () => {
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
+  for (const id of [
+    "mstan-dragonballzbuusfuryrecomp",
+    "mstan-dragonballzlegacyofgokuiirecomp",
+    "mstan-megamanzerorecomp",
+    "mstan-supermarioadvance2recomp",
+    "mstan-supermarioadvance4recomp",
+    "mstan-wariowaretwistedrecomp",
+  ]) {
+    const record = checkedAuthoredPort(
+      JSON.parse(readFileSync(join(catalogRoot, "ports", `${id}.json`), "utf8")),
+    );
+    assert.ok(record.gba_staged_archive_v1);
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)));
+    for (const field of ["persistent_paths", "runtime_mutable_paths", "mod_package_policy"]) {
+      const duplicate = structuredClone(record);
+      duplicate.integration![field] = [];
+      assert.throws(() => checkedAuthoredPort(duplicate), /already own/u);
+    }
+    const unsafe = structuredClone(record);
+    unsafe.gba_staged_archive_v1!.game_code = "../X";
+    assert.throws(() => checkedAuthoredPort(unsafe), /reviewed Windows staged GitHub archive/u);
+  }
 });

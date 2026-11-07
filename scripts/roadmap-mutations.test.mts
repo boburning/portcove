@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import type { GitHubRunner } from "./github-api.mts";
 import type { SetManyClient, SetManyAssignment } from "./roadmap.mts";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
@@ -13,8 +12,9 @@ import {
 import test from "node:test";
 
 import {
-  RoadmapClient,
   executeSetMany,
+  inspectSetManyRecovery,
+  parseArguments,
   executeCommitmentRename,
   maximumMutationChunkAssignments,
   planFieldReconciliation,
@@ -26,11 +26,10 @@ import {
   fixtureFind,
   fixtureElement,
   fixtureObject,
-  fixtureGraphql,
   config,
-  fixtureProjectDetails,
+  sdkRoadmap,
+  projectData,
 } from "./fixtures/roadmap-fixtures.mts";
-import type { RunnerCall } from "./fixtures/roadmap-fixtures.mts";
 
 function adaptiveSetManyFixture(
   count: number,
@@ -38,7 +37,7 @@ function adaptiveSetManyFixture(
     rates = null,
     mutationError = false,
   }: {
-    rates?: readonly ReturnType<SetManyClient["sampleGraphqlRate"]>[] | null;
+    rates?: readonly Awaited<ReturnType<SetManyClient["sampleGraphqlRate"]>>[] | null;
     mutationError?: boolean;
   } = {},
 ) {
@@ -54,7 +53,7 @@ function adaptiveSetManyFixture(
   const mutations: string[][] = [];
   let rateIndex = 0;
   const client: SetManyClient = {
-    sampleGraphqlRate() {
+    async sampleGraphqlRate() {
       const rate = rates?.[rateIndex] ?? {
         used: rateIndex,
         remaining: 5000 - rateIndex,
@@ -63,7 +62,7 @@ function adaptiveSetManyFixture(
       rateIndex += 1;
       return rate;
     },
-    planSetMany() {
+    async planSetMany() {
       const live = changes.map((change) => ({ ...change, observed: values.get(change.itemId) }));
       return {
         context: {},
@@ -72,13 +71,13 @@ function adaptiveSetManyFixture(
         assignments: changes.length,
       };
     },
-    verifySetMany(plan) {
+    async verifySetMany(plan) {
       return [...plan.pending, ...plan.alreadyApplied].map((change) => {
         const observed = values.get(change.itemId);
         return { ...change, observed, verified: observed === change.to };
       });
     },
-    applySetMany(_plan, pending) {
+    async applySetMany(_plan, pending) {
       mutations.push(pending.map((change) => change.itemId));
       for (const change of pending) values.set(change.itemId, change.to);
       if (mutationError) throw new Error("connection closed after send");
@@ -109,90 +108,90 @@ void test("Release commitment field migration is idempotent", () => {
   assert.equal(fixtureElement(planFieldReconciliation(desired, actual), 0).action, "keep");
 });
 
-void test("promotion validation happens before any GitHub mutation", () => {
+void test("promotion validation happens before any GitHub mutation", async () => {
   let calls = 0;
-  const client = new RoadmapClient(config, () => {
-    calls += 1;
-    return "";
+  const client = await sdkRoadmap(config, {
+    graphql: () => {
+      calls += 1;
+      throw new Error("Unexpected transport");
+    },
+    allowMutations: true,
   });
-  assert.throws(() => client.promote("PVTI_draft", "lightweight note"), /incomplete/);
+  await assert.rejects(
+    async () => await client.promote("PVTI_draft", "lightweight note"),
+    /incomplete/,
+  );
   assert.equal(calls, 0);
 });
 
-void test("move refuses ambiguous item references", () => {
+void test("move refuses ambiguous item references", async () => {
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
-  const runner: GitHubRunner = (args, input) => {
-    const project = fixtureProjectDetails(args, input, "PVT_project", 7);
-    if (project !== undefined) return project;
-    if (args[1] === "graphql")
-      return JSON.stringify({
-        data: {
-          node: {
-            items: {
-              totalCount: 3,
-              nodes: [
-                {
-                  id: "A",
-                  content: {
-                    __typename: "DraftIssue",
-                    id: "DI_same",
-                    updatedAt: "2026-10-17T00:00:00Z",
-                    body: "Draft",
-                    title: "Same",
-                  },
-                  fieldValues: {
-                    totalCount: 0,
-                    nodes: [],
-                    pageInfo: { hasNextPage: false, endCursor: null },
-                  },
+  const client = await sdkRoadmap(mockedConfig, {
+    graphql: (query) => {
+      if (query.includes("projectV2(number:")) return projectData("PVT_project", 7);
+      return {
+        node: {
+          items: {
+            totalCount: 3,
+            nodes: [
+              {
+                id: "A",
+                content: {
+                  __typename: "DraftIssue",
+                  id: "DI_same",
+                  updatedAt: "2026-10-17T00:00:00Z",
+                  body: "Draft",
+                  title: "Same",
                 },
-                {
-                  id: "B",
-                  content: {
-                    __typename: "DraftIssue",
-                    id: "DI_same",
-                    updatedAt: "2026-10-17T00:00:00Z",
-                    body: "Draft",
-                    title: "Same",
-                  },
-                  fieldValues: {
-                    totalCount: 0,
-                    nodes: [],
-                    pageInfo: { hasNextPage: false, endCursor: null },
-                  },
+                fieldValues: {
+                  totalCount: 0,
+                  nodes: [],
+                  pageInfo: { hasNextPage: false, endCursor: null },
                 },
-                {
-                  id: "C",
-                  content: {
-                    __typename: "DraftIssue",
-                    id: "DI_before",
-                    updatedAt: "2026-10-17T00:00:00Z",
-                    body: "Draft",
-                    title: "Before",
-                  },
-                  fieldValues: {
-                    totalCount: 0,
-                    nodes: [],
-                    pageInfo: { hasNextPage: false, endCursor: null },
-                  },
+              },
+              {
+                id: "B",
+                content: {
+                  __typename: "DraftIssue",
+                  id: "DI_same",
+                  updatedAt: "2026-10-17T00:00:00Z",
+                  body: "Draft",
+                  title: "Same",
                 },
-              ],
-              pageInfo: { hasNextPage: false, endCursor: null },
-            },
+                fieldValues: {
+                  totalCount: 0,
+                  nodes: [],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+              {
+                id: "C",
+                content: {
+                  __typename: "DraftIssue",
+                  id: "DI_before",
+                  updatedAt: "2026-10-17T00:00:00Z",
+                  body: "Draft",
+                  title: "Before",
+                },
+                fieldValues: {
+                  totalCount: 0,
+                  nodes: [],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
           },
         },
-      });
-    return "";
-  };
-  assert.throws(
-    () => new RoadmapClient(mockedConfig, runner).moveBefore("Same", "Before"),
-    /ambiguous/,
-  );
+      };
+    },
+  });
+  await assert.rejects(async () => await client.moveBefore("Same", "Before"), /ambiguous/);
 });
 
-void test("set-many validates transitions before one mutation and exact readback", () => {
-  const calls: RunnerCall[] = [];
+void test("set-many validates transitions before one mutation and exact readback", async () => {
+  const calls: string[] = [];
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
   let status = "Ready";
@@ -201,27 +200,13 @@ void test("set-many validates transitions before one mutation and exact readback
     nodes: [{ name: status, field: { name: "Status" } }],
     pageInfo: { hasNextPage: false, endCursor: null },
   });
-  const runner: GitHubRunner = (args, input) => {
-    calls.push({ args, input });
-    const project = fixtureProjectDetails(args, input, "PVT", 7);
-    if (project !== undefined) return project;
-    if (args[0] === "project" && args[1] === "field-list")
-      return JSON.stringify({
-        fields: [
-          {
-            id: "F_status",
-            name: "Status",
-            options: [
-              { id: "O_ready", name: "Ready" },
-              { id: "O_done", name: "Done" },
-            ],
-          },
-        ],
-      });
-    const request = fixtureGraphql(input);
-    if (request.query.includes("projectV2(number:"))
-      return JSON.stringify({
-        data: {
+  const client = await sdkRoadmap(mockedConfig, {
+    allowMutations: true,
+    graphql: (query, variables) => {
+      calls.push(query);
+      const request = { query, variables };
+      if (request.query.includes("projectV2(number:"))
+        return {
           user: {
             projectV2: {
               id: "PVT",
@@ -250,11 +235,9 @@ void test("set-many validates transitions before one mutation and exact readback
               },
             },
           },
-        },
-      });
-    if (request.query.includes("items(first: 50"))
-      return JSON.stringify({
-        data: {
+        };
+      if (request.query.includes("items(first: 50"))
+        return {
           node: {
             items: {
               totalCount: 1,
@@ -277,20 +260,17 @@ void test("set-many validates transitions before one mutation and exact readback
               pageInfo: { hasNextPage: false, endCursor: null },
             },
           },
-        },
-      });
-    if (request.query.includes("updateProjectV2ItemFieldValue")) {
-      status = "Done";
-      return JSON.stringify({ data: { f0: { projectV2Item: { id: "PVTI_838" } } } });
-    }
-    if (request.query.includes("nodes(ids:"))
-      return JSON.stringify({
-        data: { nodes: [{ id: "PVTI_838", fieldValues: fieldConnection() }] },
-      });
-    throw new Error(`unexpected GraphQL request: ${request.query}`);
-  };
-  const client = new RoadmapClient(mockedConfig, runner);
-  client.executionIssue = () => ({
+        };
+      if (request.query.includes("updateProjectV2ItemFieldValue")) {
+        status = "Done";
+        return { f0: { projectV2Item: { id: "PVTI_838" } } };
+      }
+      if (request.query.includes("nodes(ids:"))
+        return { nodes: [{ id: "PVTI_838", fieldValues: fieldConnection() }] };
+      throw new Error(`unexpected GraphQL request: ${request.query}`);
+    },
+  });
+  client.executionIssue = async () => ({
     item: {
       id: "PVTI_838",
       content: {
@@ -302,7 +282,7 @@ void test("set-many validates transitions before one mutation and exact readback
     },
     relationships: { blockedBy: [], blocking: [], parent: null, subIssues: [] },
   });
-  client.directProjectItem = () => ({
+  client.directProjectItem = async () => ({
     id: "PVTI_838",
     content: { number: 838 },
     fieldValues: [{ name: status, field: { name: "Status" } }],
@@ -311,15 +291,12 @@ void test("set-many validates transitions before one mutation and exact readback
     schema_version: 1,
     updates: [{ target: "#838", fields: { Status: { from: "Ready", to: "Done" } } }],
   };
-  const plan = client.planSetMany(spec);
+  const plan = await client.planSetMany(spec);
   assert.equal(plan.pending.length, 1);
-  client.applySetMany(plan);
-  assert.ok(client.verifySetMany(plan).every((result) => result.verified));
-  assert.equal(calls.filter((call) => call.input?.includes("items(first: 50")).length, 0);
-  assert.equal(
-    calls.filter((call) => call.input?.includes("updateProjectV2ItemFieldValue")).length,
-    1,
-  );
+  await client.applySetMany(plan);
+  assert.ok((await client.verifySetMany(plan)).every((result) => result.verified));
+  assert.equal(calls.filter((call) => call.includes("items(first: 50")).length, 0);
+  assert.equal(calls.filter((call) => call.includes("updateProjectV2ItemFieldValue")).length, 1);
 });
 
 void test("set-many specifications fail closed before GitHub access", () => {
@@ -399,7 +376,7 @@ void test("set-many reconciles an ambiguous mutation response without retrying",
 void test("set-many resumes already-applied assignments with exact readback and no repeated writes", async () => {
   const fixture = adaptiveSetManyFixture(2);
   for (const change of fixture.changes) fixture.values.set(change.itemId, change.to);
-  fixture.client.planSetMany = () => ({
+  fixture.client.planSetMany = async () => ({
     context: {},
     pending: [],
     alreadyApplied: fixture.changes,
@@ -407,7 +384,7 @@ void test("set-many resumes already-applied assignments with exact readback and 
   });
   let readbacks = 0;
   const verify = fixture.client.verifySetMany;
-  fixture.client.verifySetMany = (plan) => {
+  fixture.client.verifySetMany = async (plan) => {
     readbacks += 1;
     return verify(plan);
   };
@@ -477,7 +454,7 @@ void test("set-many refuses unexpected pre-chunk state without mutation", async 
   assert.equal(fixture.mutations.length, 0);
 });
 
-void test("commitment rename preserves IDs, assignments and metadata and resumes without mutation", () => {
+void test("commitment rename preserves IDs, assignments and metadata and resumes without mutation", async () => {
   const desired = { ...config, project: { ...config.project, number: 1 } };
   let fields: [
     {
@@ -501,9 +478,9 @@ void test("commitment rename preserves IDs, assignments and metadata and resumes
   ];
   let writes = 0;
   const client: Parameters<typeof executeCommitmentRename>[0]["client"] = {
-    fieldList: () => structuredClone(fields),
-    sampleGraphqlRate: () => ({ remaining: 2000 }),
-    itemList: () => [
+    fieldList: async () => structuredClone(fields),
+    sampleGraphqlRate: async () => ({ remaining: 2000 }),
+    itemList: async () => [
       {
         id: "a",
         fieldValues: [
@@ -515,34 +492,34 @@ void test("commitment rename preserves IDs, assignments and metadata and resumes
       },
       { id: "b", fieldValues: [] },
     ],
-    updateField: (id, options) => {
+    updateField: async (id, options) => {
       assert.equal(id, "field");
       writes++;
       fixtureElement(fields, 0).options = options;
     },
   };
-  assert.equal(executeCommitmentRename({ client, config: desired }).status, "planned");
+  assert.equal((await executeCommitmentRename({ client, config: desired })).status, "planned");
   assert.equal(writes, 0);
-  const result = executeCommitmentRename({ client, config: desired, apply: true });
+  const result = await executeCommitmentRename({ client, config: desired, apply: true });
   assert.equal(result.assignmentsVerified, 2);
   assert.equal(result.option, "planned");
   assert.equal(writes, 1);
   assert.equal(fixtureElement(fixtureElement(fields, 0).options, 1).color, "BLUE");
   assert.equal(fixtureElement(fixtureElement(fields, 0).options, 1).description, "Approved");
   assert.equal(
-    executeCommitmentRename({ client, config: desired, apply: true }).alreadyApplied,
+    (await executeCommitmentRename({ client, config: desired, apply: true })).alreadyApplied,
     true,
   );
   assert.equal(writes, 1);
   fixtureElement(fields, 0).options.push({ id: "duplicate", name: "Opportunistic" });
-  assert.throws(
-    () => executeCommitmentRename({ client, config: desired, apply: true }),
+  await assert.rejects(
+    async () => await executeCommitmentRename({ client, config: desired, apply: true }),
     /both historical and active/,
   );
   assert.equal(writes, 1);
 });
 
-void test("commitment rename refuses divergent assignment readback and reconciles ambiguous transport", () => {
+void test("commitment rename refuses divergent assignment readback and reconciles ambiguous transport", async () => {
   const fields: [
     {
       id: string;
@@ -565,9 +542,9 @@ void test("commitment rename refuses divergent assignment readback and reconcile
   ];
   let reads = 0;
   const client: Parameters<typeof executeCommitmentRename>[0]["client"] = {
-    fieldList: () => structuredClone(fields),
-    sampleGraphqlRate: () => ({ remaining: 1000 }),
-    itemList: () => [
+    fieldList: async () => structuredClone(fields),
+    sampleGraphqlRate: async () => ({ remaining: 1000 }),
+    itemList: async () => [
       {
         id: "a",
         fieldValues: [
@@ -575,16 +552,16 @@ void test("commitment rename refuses divergent assignment readback and reconcile
         ],
       },
     ],
-    updateField: (_id, opts) => {
+    updateField: async (_id, opts) => {
       fixtureElement(fields, 0).options = opts;
     },
   };
-  assert.throws(
-    () => executeCommitmentRename({ client, config, apply: true }),
+  await assert.rejects(
+    async () => await executeCommitmentRename({ client, config, apply: true }),
     /assignment changed/,
   );
   fixtureElement(fixtureElement(fields, 0).options, 1).name = "Opportunistic";
-  client.itemList = () => [
+  client.itemList = async () => [
     {
       id: "a",
       fieldValues: [
@@ -595,11 +572,14 @@ void test("commitment rename refuses divergent assignment readback and reconcile
       ],
     },
   ];
-  client.updateField = (_id, opts) => {
+  client.updateField = async (_id, opts) => {
     fixtureElement(fields, 0).options = opts;
     throw Error("lost response");
   };
-  assert.equal(executeCommitmentRename({ client, config, apply: true }).reconciledAfterError, true);
+  assert.equal(
+    (await executeCommitmentRename({ client, config, apply: true })).reconciledAfterError,
+    true,
+  );
 });
 
 void test("127 assignments resume from durable verified chunks without specification splitting", async (t) => {
@@ -680,7 +660,7 @@ void test("ambiguous partial bulk writes stay held until their exact targets are
   const journal = new SetManyJournal(file, inputFile, readSetManyInput(inputFile), config);
   const fixture = adaptiveSetManyFixture(2);
   let mutations = 0;
-  fixture.client.applySetMany = () => {
+  fixture.client.applySetMany = async () => {
     mutations++;
     fixture.values.set("ITEM_1", "Done");
     throw new Error("ambiguous connection loss");
@@ -703,6 +683,117 @@ void test("ambiguous partial bulk writes stay held until their exact targets are
   fixture.values.set("ITEM_2", "Done");
   assert.equal((await run(resumed)).status, "succeeded");
   assert.equal(mutations, 1);
+});
+
+void test("set-many recovery classifies exact field values without changing the applied journal", async (t) => {
+  assert.equal(
+    parseArguments(["set-many", "--spec-file", "plan.json", "--recover"]).options["--recover"],
+    true,
+  );
+  const root = mkdtempSync(path.join(tmpdir(), "roadmap-recovery-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const inputFile = path.join(root, "spec.json");
+  const journalFile = path.join(root, "journal.json");
+  const rows = adaptiveSetManyFixture(6).changes.map((row, index) => ({
+    ...row,
+    mutation_identity: { project_id: "PROJECT", field_id: "FIELD", option_id: "DONE" },
+    target_identity: { content_id: `ISSUE_${index + 1}`, kind: "Issue" },
+  }));
+  const spec = {
+    schema_version: 1,
+    updates: rows.map(({ target, from, to }) => ({
+      target,
+      fields: { Status: { from, to } },
+    })),
+  };
+  writeFileSync(inputFile, JSON.stringify(spec));
+  const journal = new SetManyJournal(journalFile, inputFile, readSetManyInput(inputFile), config);
+  const context = {
+    number: 1,
+    details: { id: "PROJECT" },
+    fields: [
+      {
+        id: "FIELD",
+        name: "Status",
+        options: [
+          { id: "READY", name: "Ready" },
+          { id: "DONE", name: "Done" },
+        ],
+      },
+    ],
+  };
+  journal.stagePlanning(rows.length, rows.length, context, rows);
+  journal.observe({ phase: "attempted", assignments: rows, changes: rows });
+  journal.observe({
+    phase: "readback",
+    assignments: rows,
+    changes: [{ ...rows[2]!, observed: "Done" }],
+  });
+  const before = readSetManyInput(journalFile);
+  const field = { id: "FIELD", name: "Status" };
+  const client = {
+    async sampleGraphqlRate(): Promise<never> {
+      throw Error("Recovery must not plan");
+    },
+    async planSetMany(): Promise<never> {
+      throw Error("Recovery must not plan");
+    },
+    async validateSetManyBindings() {
+      return context;
+    },
+    async readSetManyItems() {
+      return new Map([
+        ["ITEM_1", [{ field, name: "Done", optionId: "DONE" }]],
+        ["ITEM_2", [{ field, name: "Ready", optionId: "READY" }]],
+        ["ITEM_3", [{ field, name: "Ready", optionId: "READY" }]],
+        ["ITEM_4", [{ field, name: "Blocked", optionId: "BLOCKED" }]],
+        ["ITEM_5", [{ field, name: "Ready", optionId: "REPLACEMENT" }]],
+      ]);
+    },
+  };
+  const report = await inspectSetManyRecovery(client, config, spec, journal);
+  assert.equal(report.status, "partial");
+  assert.deepEqual(
+    report.fields.map(({ state }) => state),
+    ["desired", "original", "conflicting", "conflicting", "conflicting", "unreadable"],
+  );
+  assert.deepEqual(report.residual_spec, {
+    schema_version: 1,
+    updates: [
+      {
+        target: "ITEM_2",
+        expected_content: { content_id: "ISSUE_2", kind: "Issue" },
+        fields: {
+          Status: {
+            from: "Ready",
+            to: "Done",
+            expected_identity: {
+              project_id: "PROJECT",
+              field_id: "FIELD",
+              from_option_id: "READY",
+              option_id: "DONE",
+            },
+          },
+        },
+      },
+    ],
+  });
+  assert.equal(validateSetManySpec(config, report.residual_spec).assignments, 1);
+  assert.deepEqual(readSetManyInput(journalFile), before);
+  const unavailable = await inspectSetManyRecovery(
+    {
+      ...client,
+      async readSetManyItems() {
+        throw Error("Provider read failed");
+      },
+    },
+    config,
+    spec,
+    journal,
+  );
+  assert(unavailable.fields.every(({ state }) => state === "unreadable"));
+  assert.equal(unavailable.residual_spec, null);
+  assert.deepEqual(readSetManyInput(journalFile), before);
 });
 
 void test("bulk progress refuses changed resolved identities, malformed journals and oversized inputs", (t) => {
@@ -738,12 +829,14 @@ void test("bulk progress refuses changed resolved identities, malformed journals
   }
 });
 
-void test("final bulk readback requests at most25 distinct item identities per query", () => {
-  const client = new RoadmapClient(config, () => {
-    throw new Error("Unexpected transport");
+void test("final bulk readback requests at most25 distinct item identities per query", async () => {
+  const client = await sdkRoadmap(config, {
+    graphql: () => {
+      throw new Error("Unexpected transport");
+    },
   });
   const calls: number[] = [];
-  client.graphql = (_query, variables) => {
+  client.graphql = async (_query, variables) => {
     const ids = variables?.ids;
     assert.ok(Array.isArray(ids));
     calls.push(ids.length);
@@ -755,11 +848,14 @@ void test("final bulk readback requests at most25 distinct item identities per q
     };
   };
   const assignments = adaptiveSetManyFixture(127).changes;
-  assert.equal(client.readSetManyItems({ pending: assignments, alreadyApplied: [] }).size, 127);
+  assert.equal(
+    (await client.readSetManyItems({ pending: assignments, alreadyApplied: [] })).size,
+    127,
+  );
   assert.deepEqual(calls, [25, 25, 25, 25, 25, 2]);
-  client.graphql = () => ({ nodes: [] });
-  assert.throws(
-    () => client.readSetManyItems({ pending: assignments, alreadyApplied: [] }),
+  client.graphql = async () => ({ nodes: [] });
+  await assert.rejects(
+    async () => await client.readSetManyItems({ pending: assignments, alreadyApplied: [] }),
     /item count differs/,
   );
 });
@@ -820,12 +916,12 @@ function phasedFixture(count = 127, limit = 300) {
     })),
   };
   const client: SetManyClient = {
-    sampleGraphqlRate: () => ({
+    sampleGraphqlRate: async () => ({
       used: limit - remaining,
       remaining,
       resetAt: new Date(clock + 3600000).toISOString(),
     }),
-    planSetMany(input) {
+    async planSetMany(input) {
       const selected = validateSetManySpec(config, input);
       const rows = selected.updates.flatMap((update) =>
         Object.entries(update.fields).map(([fieldName, transition]) => {
@@ -850,14 +946,14 @@ function phasedFixture(count = 127, limit = 300) {
         alreadyApplied: rows.filter((row) => row.observed === row.to),
       };
     },
-    refreshSetManyPlan(input) {
-      return this.planSetMany(input);
+    async refreshSetManyPlan(input) {
+      return await this.planSetMany(input);
     },
-    validateSetManyBindings(rows) {
+    async validateSetManyBindings(rows) {
       if (rows.some((row) => JSON.stringify(row.mutation_identity) !== JSON.stringify(binding())))
         throw new Error("fixture binding changed");
     },
-    verifySetMany(plan) {
+    async verifySetMany(plan) {
       const rows = [...plan.pending, ...plan.alreadyApplied];
       charge(rows.length);
       return rows.map((row) => ({
@@ -867,7 +963,7 @@ function phasedFixture(count = 127, limit = 300) {
         item_revision: revision(row.itemId),
       }));
     },
-    applySetMany(_plan, rows) {
+    async applySetMany(_plan, rows) {
       charge(rows.length);
       mutations.push(rows.map((row) => row.itemId));
       for (const row of ambiguous ? rows.slice(0, 1) : rows) {
@@ -1202,8 +1298,8 @@ void test("a concurrent field reversal sharing an unchanged timestamp still fail
   );
   let reversed = false;
   const original = h.client.verifySetMany;
-  h.client.verifySetMany = (plan) =>
-    original.call(h.client, plan).map((row) => ({ ...row, item_revision: "a".repeat(64) }));
+  h.client.verifySetMany = async (plan) =>
+    (await original.call(h.client, plan)).map((row) => ({ ...row, item_revision: "a".repeat(64) }));
   await assert.rejects(
     executeSetMany({
       client: h.client,
@@ -1225,11 +1321,13 @@ void test("a concurrent field reversal sharing an unchanged timestamp still fail
   assert.equal(h.mutations.flat().length, 30);
 });
 
-void test("durable field readback binds exact field and option IDs despite duplicate display names", () => {
-  const client = new RoadmapClient(config, () => {
-    throw new Error("Unexpected transport");
+void test("durable field readback binds exact field and option IDs despite duplicate display names", async () => {
+  const client = await sdkRoadmap(config, {
+    graphql: () => {
+      throw new Error("Unexpected transport");
+    },
   });
-  client.completeProjectContext = () => ({
+  client.completeProjectContext = async () => ({
     number: config.project.number,
     details: { id: "PROJECT" },
     fields: [
@@ -1253,13 +1351,13 @@ void test("durable field readback binds exact field and option IDs despite dupli
     mutation_identity: { project_id: "PROJECT", field_id: "STATUS", option_id: "DONE" },
     target_identity: { content_id: "ISSUE", kind: "Issue" },
   };
-  client.validateSetManyBindings([row]);
+  await client.validateSetManyBindings([row]);
   const values = [
     { name: "Done", optionId: "DONE", field: { id: "OTHER", name: "Status" } },
     { name: "Ready", optionId: "READY", field: { id: "STATUS", name: "Status" } },
   ];
   let contentId = "ISSUE";
-  client.graphql = () => ({
+  client.graphql = async () => ({
     nodes: [
       {
         id: "ITEM_1",
@@ -1270,21 +1368,74 @@ void test("durable field readback binds exact field and option IDs despite dupli
       },
     ],
   });
-  const initial = client.verifySetMany({ pending: [row], alreadyApplied: [] });
+  const pinned = {
+    ...row,
+    expected_identity: { ...row.mutation_identity!, from_option_id: "READY" },
+  };
+  client.directProjectItem = async () => ({
+    id: row.itemId,
+    content: { id: contentId, __typename: "Issue" },
+    fieldValues: [values[1]!],
+  });
+  const spec = {
+    schema_version: 1,
+    updates: [
+      {
+        target: row.itemId,
+        expected_content: row.target_identity,
+        fields: {
+          Status: { from: row.from, to: row.to, expected_identity: pinned.expected_identity },
+        },
+      },
+    ],
+  };
+  assert.equal((await client.planSetMany(spec)).pending.length, 1);
+  await assert.rejects(
+    () =>
+      client.planSetMany({
+        ...spec,
+        updates: [
+          {
+            ...spec.updates[0],
+            fields: {
+              Status: {
+                from: row.from,
+                to: row.to,
+                expected_identity: {
+                  ...pinned.expected_identity,
+                  from_option_id: "SUPERSEDED_READY",
+                },
+              },
+            },
+          },
+        ],
+      }),
+    /expected field or option identity changed/,
+  );
+  values[1] = { ...values[1]!, optionId: "SAME_NAME_REPLACEMENT" };
+  await assert.rejects(
+    () => client.verifySetMany({ pending: [pinned], alreadyApplied: [] }),
+    /source option identity changed/,
+  );
+  values[1] = { ...values[1], optionId: "READY" };
+  const initial = await client.verifySetMany({ pending: [row], alreadyApplied: [] });
   assert.equal(initial[0]!.observed, "Ready");
   assert.equal(initial[0]!.verified, false);
   values[1] = { name: "Done", optionId: "DONE", field: { id: "STATUS", name: "Status" } };
-  assert.equal(client.verifySetMany({ pending: [row], alreadyApplied: [] })[0]!.verified, true);
+  assert.equal(
+    (await client.verifySetMany({ pending: [row], alreadyApplied: [] }))[0]!.verified,
+    true,
+  );
   const saved = values[1];
   values[1] = { ...saved, optionId: "" };
-  assert.throws(
-    () => client.verifySetMany({ pending: [row], alreadyApplied: [] }),
+  await assert.rejects(
+    async () => await client.verifySetMany({ pending: [row], alreadyApplied: [] }),
     /identity coverage is incomplete/,
   );
   values[1] = saved;
   contentId = "REPLACEMENT";
-  assert.throws(
-    () => client.verifySetMany({ pending: [row], alreadyApplied: [] }),
+  await assert.rejects(
+    async () => await client.verifySetMany({ pending: [row], alreadyApplied: [] }),
     /content identity changed/,
   );
 });

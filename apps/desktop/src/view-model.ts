@@ -1,3 +1,4 @@
+import { initializeLocalization } from "./localization";
 import { usesUserSelectedRuntime } from "./shared/external-runtime-trust";
 import {
   evaluateCatalogQuery,
@@ -181,29 +182,16 @@ function operationPresentation(value: string): OperationPresentation {
 }
 
 function progressDetail(completed: number, total: number, unit: ProgressUnit | undefined) {
-  if (unit === "bytes") return `${formatBytes(completed)} of ${formatBytes(total)}`;
-  const count = `${completed.toLocaleString()} of ${total.toLocaleString()}`;
-  if (unit === "ports") return `${count} ${total === 1 ? "port" : "ports"}`;
-  if (unit === "items") return `${count} ${total === 1 ? "item" : "items"}`;
-  return count;
-}
-
-type CountMessages = Partial<Record<"one" | "two" | "few" | "many", string>> & {
-  zero: string;
-  other: string;
-  unknown: string;
-};
-
-/** Complete messages use the UI language, currently English, for numbers and plurals. */
-export function formatCountMessage(
-  count: number | null | undefined,
-  messages: CountMessages,
-  locale = "en",
-) {
-  if (count == null || !Number.isSafeInteger(count) || count < 0) return messages.unknown;
-  const category = count === 0 ? "zero" : new Intl.PluralRules(locale).select(count);
-  const message = messages[category] ?? messages.other;
-  return message.replaceAll("{count}", new Intl.NumberFormat(locale).format(count));
+  const t = initializeLocalization().t;
+  if (unit === "bytes")
+    return t("progressBytes", {
+      ns: "counts",
+      completed: formatBytes(completed),
+      total: formatBytes(total),
+    });
+  if (unit === "ports") return t("progressPorts", { ns: "counts", count: total, completed });
+  if (unit === "items") return t("progressItems", { ns: "counts", count: total, completed });
+  return t("progressCount", { ns: "counts", completed, total });
 }
 
 export type View = "library" | "catalog" | "updates" | "settings";

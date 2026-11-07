@@ -1652,13 +1652,19 @@ function isIgdbKeyArtTypeName(value: unknown): value is string {
 
 // Reuse the actual core decoder through its existing CLI import into a fresh
 // task-owned library. No user library/choice or arbitrary provider command.
-export function createCoreImageValidator(cli: string, scratchRoot: string) {
+export function createCoreImageValidator(
+  cli: string,
+  scratchRoot: string,
+  expectedSha256?: string,
+) {
   mkdirSync(scratchRoot, { recursive: true });
   const root = mkdtempSync(join(resolve(scratchRoot), "core-image-validation-"));
   const artifact = join(root, process.platform === "win32" ? "validator.exe" : "validator");
   copyFileSync(resolve(cli), artifact);
   chmodSync(artifact, 0o500);
   const artifactSha256 = createHash("sha256").update(readFileSync(artifact)).digest("hex");
+  if (expectedSha256 !== undefined && artifactSha256 !== expectedSha256)
+    throw new Error("Core image validator changed during preparation.");
   let ordinal = 0;
   return (bytes: Buffer) => {
     const runRoot = join(root, String(++ordinal));

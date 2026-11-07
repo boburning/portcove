@@ -4,7 +4,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type { LibraryOrganization, OrganizationChange } from "../../types";
-import type { Organization } from "../organization/OrganizationControls";
+import { OrganizationControls, type Organization } from "../organization/OrganizationControls";
 import { GroupedLibrary } from "./GroupedLibrary";
 import { GroupedDiscover } from "./GroupedDiscover";
 import { desktopApi } from "../../api";
@@ -103,15 +103,21 @@ it("requires an acknowledged choice, retains alternatives and targets the chosen
   }
   await render(<Fixture />);
   expect(document.querySelectorAll("[data-library-game-id]")).toHaveLength(1);
+  expect(document.body.textContent).toContain(
+    "Check its setup instructions for shared save locations before switching.",
+  );
   expect(document.body.textContent).not.toContain("Play First project");
-  await page.getByRole("button", { name: "Use Second project", exact: true }).first().click();
+  await page.getByRole("button", { name: "Choose Second project", exact: true }).first().click();
   expect(document.body.textContent).not.toContain("Play Second project");
   accept(false);
   await expect
     .element(page.getByRole("alert"))
-    .toHaveTextContent("Your choice was not saved. Refresh choices before trying again.");
+    .toHaveTextContent(
+      "Portcove couldn’t confirm that your choice was saved. Refresh choices to check.",
+    );
   expect(launch).not.toHaveBeenCalled();
-  await page.getByRole("button", { name: "Use Second project", exact: true }).first().click();
+  await page.getByRole("button", { name: "Refresh choices" }).click();
+  await page.getByRole("button", { name: "Choose Second project", exact: true }).first().click();
   accept(true);
   await expect.element(page.getByRole("button", { name: "Play Second project" })).toBeVisible();
   await expect
@@ -228,7 +234,7 @@ it("a completed choice never navigates from a dismissed comparison", async () =>
     />,
   );
   await page.getByRole("button", { name: "Compare ports", exact: true }).click();
-  await page.getByRole("button", { name: "Use Second project", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Second project", exact: true }).click();
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   finish(true);
@@ -238,6 +244,97 @@ it("a completed choice never navigates from a dismissed comparison", async () =>
     game_id: "original-game",
     port_id: "second-port",
   });
+});
+
+it("reads back a committed port choice after its acknowledgement is lost", async () => {
+  let stored = empty;
+  const read = vi
+    .spyOn(desktopApi, "organizationPreferences")
+    .mockImplementation(async () => stored);
+  const write = vi.spyOn(desktopApi, "changeOrganization").mockImplementation(async () => {
+    stored = { ...empty, revision: 1, preferred_port_by_game: { "original-game": "second-port" } };
+    throw new Error("Response lost after saving");
+  });
+  function Fixture() {
+    const organization = useOrganization(1);
+    return (
+      <GroupedLibrary
+        all={[first, second]}
+        matching={[first, second]}
+        statuses={new Map()}
+        organization={organization}
+        onSelect={vi.fn()}
+        renderPort={(port) => <button>Play {port.name}</button>}
+      />
+    );
+  }
+  await render(<Fixture />);
+  await page
+    .getByRole("button", { name: /^(Choose|Use) Second project$/ })
+    .first()
+    .click();
+  await expect.element(page.getByRole("alert")).toMatchTextContent(/couldn’t confirm/);
+  await expect
+    .element(page.getByRole("button", { name: "Play Second project" }))
+    .not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Refresh choices" }).click();
+  await expect.element(page.getByRole("button", { name: "Play Second project" })).toBeVisible();
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(write).toHaveBeenCalledTimes(1);
+});
+
+it("re-enables an unsaved choice after a shared reload confirms the same revision", async () => {
+  vi.spyOn(desktopApi, "organizationPreferences")
+    .mockResolvedValueOnce(empty)
+    .mockRejectedValueOnce(new Error("Choices could not be read"))
+    .mockResolvedValue({ ...empty });
+  const write = vi
+    .spyOn(desktopApi, "changeOrganization")
+    .mockRejectedValue(new Error("Choice was not stored"));
+  function Fixture() {
+    const organization = useOrganization(1);
+    return (
+      <>
+        <OrganizationControls
+          organization={organization}
+          selected="all"
+          onSelect={vi.fn()}
+          discover={false}
+        />
+        <GroupedLibrary
+          all={[first, second]}
+          matching={[first, second]}
+          statuses={new Map()}
+          organization={organization}
+          onSelect={vi.fn()}
+          renderPort={(port) => <button>Play {port.name}</button>}
+        />
+      </>
+    );
+  }
+  await render(<Fixture />);
+  const choice = page.getByRole("button", { name: /^(Choose|Use) Second project$/ }).first();
+  await choice.click();
+  await expect.element(choice).toBeDisabled();
+  await page.getByRole("button", { name: "Collections", exact: true }).click();
+  const collections = page.getByRole("group", { name: "Library collections" });
+  const reload = collections.getByRole("button", { name: "Reload choices", exact: true });
+  await reload.click();
+  await expect
+    .element(collections.getByRole("alert"))
+    .toMatchTextContent(
+      /^Saved choices could not be refreshed\. Showing your last confirmed choices\./,
+    );
+  await expect.element(choice).toBeDisabled();
+  await reload.click();
+  await expect.element(collections.getByRole("alert")).not.toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(choice).toBeEnabled();
+  await expect.element(page.getByText(/couldn’t confirm that your choice/)).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Play Second project" }))
+    .not.toBeInTheDocument();
+  expect(write).toHaveBeenCalledTimes(1);
 });
 
 it("keeps the busy choice focusable and never steals focus after the player moves away", async () => {
@@ -265,7 +362,7 @@ it("keeps the busy choice focusable and never steals focus after the player move
     );
   }
   await render(<Fixture />);
-  const choice = page.getByRole("button", { name: "Use Second project", exact: true }).first();
+  const choice = page.getByRole("button", { name: "Choose Second project", exact: true }).first();
   await expect.element(choice).toBeEnabled();
   await choice.click();
   await expect.element(choice).toHaveAttribute("aria-busy", "true");

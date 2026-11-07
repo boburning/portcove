@@ -12,7 +12,9 @@ corrections. Agents investigate changed contracts and genuine exceptions.
 Normal use stays local-first, without paid inference, mandatory accounts,
 telemetry or redistribution of copyrighted game data.
 
-Execution uses one local delivery runner with independent non-writing review.
+Execution follows [candidate ownership and shared-resource safeguards](QUALITY.md#local-feedback-and-hosted-authority)
+and [applicable review](QUALITY.md#review-scope), with delivery operations in
+[Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
 The retired board preserves historical handoff discovery; it grants no new work.
 See [the pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
 
@@ -35,9 +37,18 @@ of accepted scope or release readiness.
 
 ```sh
 node scripts/roadmap.mts next
+# Initial public beta: Windows x86-64 planning assessment
+node scripts/roadmap.mts readiness --release "Public beta" --release-profile initial-beta-windows-x86_64-v1
+# Broader full-scope investigation
 node scripts/roadmap.mts readiness --release "Public beta"
 node scripts/roadmap.mts readiness --release "1.0"
 ```
+
+The Windows profile omits only the canonical Linux #49/#706 special automatic
+promotion; explicit Required roots and genuine blockers still count. Default/full
+readiness and `doctor` retain the broader assessment. See
+[Quality's profile boundary](QUALITY.md#staged-audit-receipts). Selecting a profile
+is not a passing result, native/package acceptance or signing/publication authority.
 
 **Required** must finish for its target release. **Planned** is approved work
 selected by Priority, Horizon, readiness and queue order; its classification
@@ -99,10 +110,14 @@ at the existing supported Windows/WebView2 baseline. Linux remains planned for a
 subsequent beta with its existing owners, implementation, support metadata and
 evidence retained. Existing before-1.0 commitments remain unchanged; no Linux
 release date is assigned. Shared trust, correctness and Windows-delivery checks
-remain required on their appropriate Linux/WSL/macOS or Windows hosts. Game
-original platforms and historical inventory membership are unchanged; the November 3
-owner decision removes the broad cohort completion deadline. See the
+remain required on their appropriate Linux/WSL/macOS or Windows hosts. See the
 [scope and evidence classes](DELIVERY.md#first-public-beta-host-boundary).
+
+Beta readiness depends on the required product, platform, reliability, usability,
+security and delivery outcomes. The first release has no title list, port count
+or inventory-completion requirement. Individual integrations and rollout work
+have their own acceptance and delivery paths.
+
 Required Windows and shared foundations include:
 
 - [Design system #917](https://github.com/boburning/portcove/issues/917),
@@ -114,12 +129,9 @@ Required Windows and shared foundations include:
   and [useful user-prepared integrations #1169](https://github.com/boburning/portcove/issues/1169).
 - [Repeatable onboarding #254](https://github.com/boburning/portcove/issues/254),
   [curated exact-byte acquisition #315](https://github.com/boburning/portcove/issues/315)
-  where needed, and the **fixed Harbour Masters Windows integration minimum**:
-  Ship of Harkinian / Shipwright #58, 2Ship2Harkinian #59, SpaghettiKart #60,
-  Starship #61, Ghostship #53, Lighthouse #62 and the existing PaperBoat #909.
-  Consume completed admissions and evidence without reopening them or adding a
-  universal gameplay/save/device campaign. Future projects, forks and optional
-  features do not expand this launch set.
+  where needed. Representative integrations demonstrate discovery, clear choices
+  and prerequisites, useful managed and user-prepared setup, first play, update
+  and recovery at the scope of the offered operations.
 - [Account-free artwork #1155](https://github.com/boburning/portcove/issues/1155)
   and [shared choices/cache/fallback #208](https://github.com/boburning/portcove/issues/208).
   Missing artwork is a specific nonblocking exception, not a port gate.
@@ -128,21 +140,18 @@ Required Windows and shared foundations include:
   [Windows application updates and shared trust #52](https://github.com/boburning/portcove/issues/52),
   applicable security, interruption, recovery and data preservation.
 
-Other unfinished title completion under this rollout, catalog expansion and the broad historical/
-all-port campaign are **Planned / Unscheduled**, with no promised release and no
-replacement Required 1.0 deadline. The nine title owners
-#342/#519/#520/#726/#141/#150/#320/#812/#1275 preserve their actual status, stage,
-acceptance and operation holds. #1422 retains 317 rows / 316 identities;
-#2510/#2926 retain the frozen 858-identity union and eventual acceptance. These
-parents stay open, but neither their closure nor exhaustive port requalification
-blocks the first beta or independently finishable shared product proof. Existing separate Required 1.0 requirements, including #42’s finite risk-based representative qualification, remain unchanged.
+Existing supported ports, representative integrations and appropriate fixtures
+can supply evidence at their actual scope. Record the capability, exact evidence
+and any independent title follow-up separately. Reuse completed admissions and
+observations. Keep frozen acceptance clients and exact production and installed
+proof where the owning requirement calls for them.
 
-Ports prioritizes the fixed Harbour Masters minimum and actual exposed-operation
-defects, then continues useful non-gating work independently. Beta finishes
-required product/production acceptance and final integration without waiting
-for broad rollout completion. Canonical issue/Project changes are the normal
-handoff. Completed #4154/#4155/#4156/#2228 stay completed; #534/#246/#315/#52/#1155/
-#921 and unaffected shared requirements retain their finite acceptance.
+Port work continues before, during and after beta. Select from the entire
+backlog under the [Project selection rules](PROJECT-GOVERNANCE.md#selecting-approved-work).
+The historical inventories in #1422 and #2510/#2926 preserve prior decisions and
+evidence. The canonical port issues own current scope, operation holds and
+delivery. Existing separate 1.0 requirements, including #42's finite risk-based
+representative qualification, retain their scope.
 
 For the exact release artifacts, upgrade paths, packaging and signing
 requirements for each claimed platform, follow the
@@ -174,12 +183,12 @@ A port does not need gameplay verification to be available. It needs a valid,
 useful integration that passes required admission checks. Verification adds
 evidence about how well that same integration works afterward.
 
-| Outcome                                                                      | Completion boundary                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Fast onboarding #254](https://github.com/boburning/portcove/issues/254)     | Reusable definition/artwork/evidence preparation, applicable checks and repeated ordinary authoring/maintenance use.                                                                                                                                                                                                                                                                                                      |
-| [Frozen rollout #1422](https://github.com/boburning/portcove/issues/1422)    | Ongoing Planned / Unscheduled, non-gating accounting for the historical 317 records / 316 identities through useful delivered integrations, upstream dependencies, product deferrals, pending work and retained legacy compatibility. Canonical issues own current dispositions; preserve stable identities, previous decisions, failures and duplicate evidence. Later discoveries do not expand that historical cohort. |
-| [Compatible delivery #246](https://github.com/boburning/portcove/issues/246) | Its independent new-definition → ordinary-compatible-artifact → compatible-correction journey on unchanged capable clients through protected acceptance/publication; actual provisioning remains [#534](https://github.com/boburning/portcove/issues/534).                                                                                                                                                                |
-| [Direct qualification #42](https://github.com/boburning/portcove/issues/42)  | The finite risk-based representative runtime/gameplay/audio/control/save-load commitment remains Required 1.0, outside ordinary beta admission.                                                                                                                                                                                                                                                                           |
+| Outcome                                                                      | Completion boundary                                                                                                                                                                                                                                        |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Fast onboarding #254](https://github.com/boburning/portcove/issues/254)     | Reusable definition/artwork/evidence preparation, applicable checks and repeated ordinary authoring/maintenance use.                                                                                                                                       |
+| [Port rollout #1422](https://github.com/boburning/portcove/issues/1422)      | Ongoing Planned / Unscheduled rollout. The historical inventory preserves identities, dispositions, duplicates and evidence. Select useful work from the entire live backlog and record delivery on its canonical owners.                                  |
+| [Compatible delivery #246](https://github.com/boburning/portcove/issues/246) | Its independent new-definition → ordinary-compatible-artifact → compatible-correction journey on unchanged capable clients through protected acceptance/publication; actual provisioning remains [#534](https://github.com/boburning/portcove/issues/534). |
+| [Direct qualification #42](https://github.com/boburning/portcove/issues/42)  | The finite risk-based representative runtime/gameplay/audio/control/save-load commitment remains Required 1.0, outside ordinary beta admission.                                                                                                            |
 
 Ordinary admission requires attributable project/game/implementation identity,
 an exact platform/architecture and useful route, demonstrated fit with implemented
@@ -499,11 +508,16 @@ integration, cold/warm/failure/interruption evidence and unchanged native comman
   [standing setup #966](https://github.com/boburning/portcove/issues/966) follow
   independently closable #244.
 - [First-family profiles #250](https://github.com/boburning/portcove/issues/250)
-  are Planned 1.0 after initial beta and consume the completed
+  cover the planned after-beta Ship journey from local mod intake to clean and
+  customized play and recovery. They consume the completed
   [retained-build foundation #1456](https://github.com/boburning/portcove/issues/1456).
-  Later loaders/sharing and
-  [GameBanana **and** Thunderstore #262](https://github.com/boburning/portcove/issues/262)
-  do not block that first local-package outcome.
+  [Provider delivery #262](https://github.com/boburning/portcove/issues/262)
+  covers independent GameBanana and Thunderstore paths, dynamic release
+  resolution with unchanged integrations, and proof of updates under standing
+  policy. [A different native loader #1457](https://github.com/boburning/portcove/issues/1457)
+  and [bounded recipe sharing #1458](https://github.com/boburning/portcove/issues/1458)
+  are separate follow-ons. The first local journey can ship independently of
+  all three. These planned additions sit outside required beta and 1.0 acceptance.
 - [Historical releases #40](https://github.com/boburning/portcove/issues/40),
   [game-centered discovery #251](https://github.com/boburning/portcove/issues/251),
   [save transfer #252](https://github.com/boburning/portcove/issues/252), then

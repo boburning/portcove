@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
@@ -9,29 +8,14 @@ import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts"
 import { stageReleaseArtifact, discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
 import { assembleReleaseArtifacts } from "./release-artifact-assembly.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import {
+  downloadGitHubArtifactArchive,
+  downloadGitHubArtifactArchiveFile,
+} from "./github-artifact-download.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const identity = (bytes: Buffer) => ({ bytes: bytes.length, sha256: hash(bytes) });
-
-void test("opaque transport discards real subprocess output overflow and timeout", () => {
-  const endpoint = "repos/boburning/portcove/actions/artifacts/123/zip";
-  for (const code of [
-    "process.stdout.write(Buffer.alloc(100001))",
-    "setInterval(() => {}, 1000)",
-  ]) {
-    assert.throws(
-      () =>
-        readGitHubArtifactArchive(endpoint, {
-          cwd: process.cwd(),
-          maxBytes: 100,
-          timeoutMs: 250,
-          spawn: (_command, _args, options) => spawnSync(process.execPath, ["-e", code], options),
-        }),
-      /bounded GitHub artifact transport failed/u,
-    );
-  }
-});
 
 async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-linux" = "full") {
   const f = await trustedAssemblyFixture(t, profile);
@@ -313,58 +297,6 @@ void test("CRC and independently expected content reject self-consistent changed
   );
 });
 
-void test("opaque transfer fixes github.com and bounds collection before returning any bytes", () => {
-  const endpoint = "repos/boburning/portcove/actions/artifacts/123/zip";
-  let calls = 0;
-  const opts = { cwd: process.cwd(), maxBytes: 100, timeoutMs: 15000 };
-  const bytes = readGitHubArtifactArchive(endpoint, {
-    ...opts,
-    spawn: (command, args, options) => {
-      calls++;
-      assert.equal(command, "gh");
-      assert.deepEqual(args, ["api", "--hostname", "github.com", endpoint]);
-      assert.equal(options.maxBuffer, 100);
-      assert.equal(options.timeout, 15000);
-      assert.equal(options.encoding, null);
-      assert.equal(options.shell, false);
-      return { status: 0, stdout: Buffer.alloc(100) };
-    },
-  });
-  assert.equal(bytes.length, 100);
-  assert.equal(calls, 1);
-  for (const result of [
-    { status: 0, stdout: Buffer.alloc(101) },
-    { status: 1, stdout: Buffer.alloc(20) },
-    {
-      status: null,
-      stdout: Buffer.alloc(100),
-      error: Object.assign(new Error("secret provider output"), { code: "ENOBUFS" }),
-    },
-    {
-      status: null,
-      stdout: Buffer.alloc(20),
-      error: Object.assign(new Error("secret provider output"), { code: "ETIMEDOUT" }),
-    },
-  ])
-    assert.throws(
-      () => readGitHubArtifactArchive(endpoint, { ...opts, spawn: () => result }),
-      /^Error: bounded GitHub artifact transport failed$/u,
-    );
-  for (const route of [
-    "https://evil.invalid/zip",
-    "repos/boburning/portcove/actions/artifacts/123/zip?token=x",
-    "--hostname",
-  ])
-    assert.throws(() =>
-      readGitHubArtifactArchive(route, {
-        ...opts,
-        spawn: () => {
-          assert.fail("invalid route reached transport");
-        },
-      }),
-    );
-});
-
 async function integration(
   t: test.TestContext,
   profile: "full" | "initial-beta-win-linux" = "full",
@@ -399,66 +331,63 @@ async function integration(
   let inventoryReads = 0;
   let drift = false;
   const timestamp = "2026-10-18T00:00:00Z";
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      const key = new URL(endpoint, "https://api.github.com/").pathname.replace(
-        "/repos/boburning/portcove",
-        "",
-      );
-      let body: unknown;
-      if (key === "/actions/runs/12345" || key === "/actions/runs/12345/attempts/1")
-        body = {
-          id: 12345,
-          run_attempt: 1,
-          head_sha: expected.revision,
-          repository: { id: expected.repository_id, full_name: "boburning/portcove" },
-          head_repository: { id: expected.repository_id },
-          path: ".github/workflows/release.yml",
-          status: "completed",
-          conclusion: "success",
-          workflow_id: 6,
-          event: "workflow_dispatch",
-          updated_at: timestamp,
-        };
-      else if (key === `/git/commits/${expected.revision}`)
-        body = { sha: expected.revision, tree: { sha: expected.tree } };
-      else if (key === "/contents/.github/workflows/release.yml")
-        body = {
-          type: "file",
-          path: ".github/workflows/release.yml",
-          encoding: "base64",
-          size: workflow.length,
-          content: workflow.toString("base64"),
-        };
-      else if (key === "/actions/runs/12345/attempts/1/jobs") body = { total_count: 0, jobs: [] };
-      else if (key === "/actions/runs/12345/artifacts") {
-        inventoryReads++;
-        body = {
-          total_count: archives.length,
-          artifacts: archives.map((a) => ({
-            id: a.artifact_id,
-            name: `release-build-${a.platform}-12345-1`,
-            size_in_bytes: a.bytes,
-            digest: `sha256:${drift && inventoryReads > 1 ? "0".repeat(64) : a.sha256}`,
-            expired: false,
-            created_at: timestamp,
-            expires_at: null,
-            workflow_run: {
-              id: 12345,
-              repository_id: expected.repository_id,
-              head_repository_id: expected.repository_id,
-              head_sha: expected.revision,
-            },
-          })),
-        };
-      } else assert.fail(`unexpected integration endpoint ${key}`);
-      return { status: 200, headers: new Map<string, string>(), body };
-    },
+  const read = async (endpoint: string) => {
+    const key = new URL(endpoint, "https://api.github.com/").pathname.replace(
+      "/repos/boburning/portcove",
+      "",
+    );
+    let body: unknown;
+    if (key === "/actions/runs/12345" || key === "/actions/runs/12345/attempts/1")
+      body = {
+        id: 12345,
+        run_attempt: 1,
+        head_sha: expected.revision,
+        repository: { id: expected.repository_id, full_name: "boburning/portcove" },
+        head_repository: { id: expected.repository_id },
+        path: ".github/workflows/release.yml",
+        status: "completed",
+        conclusion: "success",
+        workflow_id: 6,
+        event: "workflow_dispatch",
+        updated_at: timestamp,
+      };
+    else if (key === `/git/commits/${expected.revision}`)
+      body = { sha: expected.revision, tree: { sha: expected.tree } };
+    else if (key === "/contents/.github/workflows/release.yml")
+      body = {
+        type: "file",
+        path: ".github/workflows/release.yml",
+        encoding: "base64",
+        size: workflow.length,
+        content: workflow.toString("base64"),
+      };
+    else if (key === "/actions/runs/12345/attempts/1/jobs") body = { total_count: 0, jobs: [] };
+    else if (key === "/actions/runs/12345/artifacts") {
+      inventoryReads++;
+      body = {
+        total_count: archives.length,
+        artifacts: archives.map((a) => ({
+          id: a.artifact_id,
+          name: `release-build-${a.platform}-12345-1`,
+          size_in_bytes: a.bytes,
+          digest: `sha256:${drift && inventoryReads > 1 ? "0".repeat(64) : a.sha256}`,
+          expired: false,
+          created_at: timestamp,
+          expires_at: null,
+          workflow_run: {
+            id: 12345,
+            repository_id: expected.repository_id,
+            head_repository_id: expected.repository_id,
+            head_sha: expected.revision,
+          },
+        })),
+      };
+    } else assert.fail(`unexpected integration endpoint ${key}`);
+    return { status: 200, headers: new Map<string, string>(), body };
   };
   const options = {
-    evidence: { api },
-    download: (endpoint: string, options: Parameters<typeof readGitHubArtifactArchive>[1]) => {
+    evidence: { read },
+    download: (endpoint: string, options: Parameters<SigningArchiveDownload>[1]) => {
       const id = Number(endpoint.split("/").at(-2));
       const bytes = blobs.get(id)!;
       assert.equal(options.maxBytes, bytes.length);
@@ -470,6 +399,7 @@ async function integration(
     ...f,
     expected,
     archives,
+    blobs,
     options,
     setDrift: () => {
       drift = true;
@@ -564,5 +494,164 @@ void test("artifact matrix and run mismatch refuse before transport or private o
       options,
     ),
   );
+  assert.deepEqual(await readdir(f.stage), []);
+});
+
+void test("production assembly acquires exact package bytes through locked SDK redirects and awaits cleanup", async (t) => {
+  const f = await integration(t, "initial-beta-win-linux");
+  const order: string[] = [];
+  let short = false;
+  const results: Record<string, string>[] = [];
+  const evidence = {
+    credential: { kind: "explicit" as const, token: "explicit-assembly-fixture" },
+    async read(endpoint: string) {
+      order.push(endpoint);
+      return f.options.evidence.read(endpoint);
+    },
+    reserve() {
+      return {
+        consumeBytes() {},
+        settle(observation: { headers: Readonly<Record<string, string>> }) {
+          results.push({ ...observation.headers });
+        },
+      };
+    },
+    async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const headers = new Headers(init?.headers);
+      const id = Number(url.pathname.split("/").at(-2));
+      order.push(url.hostname);
+      assert.equal(init?.redirect, "manual");
+      if (url.hostname === "api.github.com") {
+        assert.match(url.pathname, /^\/repos\/boburning\/portcove\/actions\/artifacts\/\d+\/zip$/u);
+        assert.equal(headers.get("authorization"), "token explicit-assembly-fixture");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: `https://productionresultssa1.blob.core.windows.net/actions-results/${id}/package.zip?secret=fixture`,
+            "x-github-request-id": "SAFE-ID",
+          },
+        });
+      }
+      assert.equal(init?.credentials, "omit");
+      assert.equal(headers.has("authorization"), false);
+      const bytes = f.blobs.get(id)!;
+      return new Response(short ? bytes.subarray(0, bytes.length - 1) : bytes);
+    },
+  };
+  const result = await assembleReleaseArtifacts(f.stage, f.request, f.archives, f.expected, {
+    evidence,
+  });
+  assert.deepEqual(
+    order.filter((value) => value.endsWith(".com") || value.endsWith(".net")),
+    f.archives.flatMap(() => ["api.github.com", "productionresultssa1.blob.core.windows.net"]),
+  );
+  assert.equal(order.filter((value) => value.includes("/actions/runs/12345/artifacts")).length, 2);
+  assert.equal(results.length, f.archives.length);
+  assert.ok(
+    results.every(
+      (headers) => headers["x-github-request-id"] === "SAFE-ID" && !("location" in headers),
+    ),
+  );
+  assert.ok(!(await readdir(result.directory)).some((name) => name.endsWith(".zip")));
+  short = true;
+  await assert.rejects(
+    assembleReleaseArtifacts(f.stage, f.request, f.archives, f.expected, { evidence }),
+    (error: unknown) => error instanceof Error && /byte count differs/u.test(String(error.cause)),
+  );
+  const failed = (await readdir(f.stage)).find((name) => name !== path.basename(result.directory))!;
+  assert.deepEqual(await readdir(path.join(f.stage, failed)), ["inputs"]);
+});
+
+void test("file delivery streams above the memory cap and refuses an existing destination", async (t) => {
+  const f = await integration(t, "initial-beta-win-linux");
+  const filename = path.join(f.stage, "opaque.zip");
+  const endpoint = "repos/boburning/portcove/actions/artifacts/123/zip";
+  const chunk = new Uint8Array(1024 * 1024).fill(42);
+  let requests = 0;
+  const options = {
+    credential: { kind: "explicit" as const, token: "file-fixture" },
+    maxBytes: chunk.length * 9,
+    deadline: performance.now() + 30000,
+    async fetch(input: Parameters<typeof fetch>[0]) {
+      requests++;
+      if (new URL(input instanceof Request ? input.url : input).hostname === "api.github.com")
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://productionresultssa1.blob.core.windows.net/actions-results/pkg?secret=fixture",
+          },
+        });
+      let remaining = 9;
+      return new Response(
+        new ReadableStream({
+          pull(controller) {
+            if (remaining-- > 0) controller.enqueue(chunk);
+            else controller.close();
+          },
+        }),
+      );
+    },
+  };
+  await assert.rejects(
+    downloadGitHubArtifactArchive(endpoint, options),
+    /bounded github artifact/iu,
+  );
+  assert.equal(requests, 0);
+  await downloadGitHubArtifactArchiveFile(endpoint, filename, options);
+  assert.equal(requests, 2);
+  await assert.rejects(downloadGitHubArtifactArchiveFile(endpoint, filename, options), {
+    code: "EEXIST",
+  });
+  assert.equal(requests, 2);
+  const contents = await readFile(filename);
+  assert.equal(contents.length, options.maxBytes);
+  assert.equal(contents.at(-1), 42);
+});
+
+void test("file delivery cancellation joins partial-file cleanup after one SDK lookup", async (t) => {
+  const f = await integration(t, "initial-beta-win-linux");
+  const filename = path.join(f.stage, "cancelled.zip");
+  const controller = new AbortController();
+  let requests = 0;
+  let cancelled = false;
+  await assert.rejects(
+    downloadGitHubArtifactArchiveFile(
+      "repos/boburning/portcove/actions/artifacts/123/zip",
+      filename,
+      {
+        credential: { kind: "explicit", token: "file-fixture" },
+        deadline: performance.now() + 30000,
+        maxBytes: 2048,
+        signal: controller.signal,
+        async fetch(input) {
+          requests++;
+          if (new URL(input instanceof Request ? input.url : input).hostname === "api.github.com")
+            return new Response(null, {
+              status: 302,
+              headers: {
+                location:
+                  "https://productionresultssa1.blob.core.windows.net/actions-results/pkg?secret=fixture",
+              },
+            });
+          return new Response(
+            new ReadableStream({
+              start(stream) {
+                stream.enqueue(new Uint8Array(1024));
+                setTimeout(() => controller.abort(), 20);
+              },
+              cancel() {
+                cancelled = true;
+              },
+            }),
+          );
+        },
+      },
+    ),
+    (error: unknown) => error instanceof Error && /delivery cancelled/u.test(error.message),
+  );
+  assert.equal(requests, 2);
+  assert.ok(cancelled);
   assert.deepEqual(await readdir(f.stage), []);
 });
