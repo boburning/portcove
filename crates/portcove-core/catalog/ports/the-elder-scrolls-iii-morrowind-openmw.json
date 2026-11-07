@@ -20,7 +20,10 @@
     "release_url": "https://github.com/OpenMW/openmw/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["OpenMW-", "-Windows-x64.exe"]
+      "windows-x86-64": ["OpenMW-", "-Windows-x64.exe"],
+      "linux-x86-64": ["-linux-64bit.tar.gz"],
+      "macos-x86-64": ["openmw-", ".dmg"],
+      "macos-aarch64": ["openmw-", ".dmg"]
     },
     "manual_setup": {
       "steps": [
@@ -34,7 +37,7 @@
         },
         {
           "title": "Add the game and manage your files",
-          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. The Linux and Mac instructions below use the upstream launcher outside Portcove."
         }
       ],
       "warnings": [
@@ -45,9 +48,18 @@
         {
           "title": "Keep your originals and game data",
           "instruction": "Windows normally keeps OpenMW configuration, logs, saves and screenshots under the actual Documents/My Games/OpenMW folder. Custom configuration/user-data paths and external mod/data directories remain part of your setup. Preserve those actual locations, selected originals and load order with the player closed before upstream updates. OpenMW saves and original-engine saves are separate formats; keep their creating runtime rather than assuming conversion."
+        },
+        {
+          "title": "Set up OpenMW on Linux x86-64",
+          "instruction": "Download the non-debug Linux-64Bit tarball. If you download through Portcove, clear “Extract the archive after downloading”. Unpack it with your system archive tool so its library links are preserved. The inspected build requires glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. For an older host, check the upstream-documented distro or Flatpak route. Keep the complete extracted tarball directory together and start its openmw-launcher to finish the wizard. Use the upstream launcher for Play. Preserve configuration and logs in ~/.config/openmw and saves in ~/.local/share/openmw, or their actual XDG locations. The Flatpak has separate configuration and data under ~/.var/app/org.openmw.OpenMW."
+        },
+        {
+          "title": "Set up OpenMW on Mac",
+          "instruction": "Use the official Intel or Apple Silicon DMG for your Mac. Copy OpenMW.app out of the disk image and open it to finish the wizard and select your owned Morrowind files. Preserve ~/Library/Preferences/openmw and ~/Library/Application Support/openmw, plus any custom configuration, saves, mods and original-data locations. OpenMW-CS is the separate editor."
         }
       ]
-    }
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

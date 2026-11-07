@@ -283,17 +283,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/)))";
   const windowsDiagnosticsFilter =
     "package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)";
-  const windowsRelocationRecoveryFilter =
-    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine|original_paths)_intent$/)";
-  const linuxRelocationRecoveryFilter =
+  const windowsQuarantineAndPathsRecoveryFilter =
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|original_paths)_intent$/)";
+  const relocationRecoveryFilter =
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)";
-  const linuxRelocationRecovery = overrideFor(
-    linuxRelocationRecoveryFilter,
-    "x86_64-unknown-linux-gnu",
-  );
+  const linuxRelocationRecovery = overrideFor(relocationRecoveryFilter, "x86_64-unknown-linux-gnu");
   assert.deepEqual(linuxRelocationRecovery, {
     platform: "x86_64-unknown-linux-gnu",
-    filter: linuxRelocationRecoveryFilter,
+    filter: relocationRecoveryFilter,
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
@@ -324,18 +321,30 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       overrides.indexOf(overrideFor(windowsRecoveryFamilyFilter, "x86_64-pc-windows-msvc")),
     "The exact source-import90s identity must precede its60s family",
   );
-  const relocationRecovery = overrideFor(windowsRelocationRecoveryFilter, "x86_64-pc-windows-msvc");
-  assert.deepEqual(relocationRecovery, {
+  const windowsRelocationRecovery = overrideFor(relocationRecoveryFilter, "x86_64-pc-windows-msvc");
+  assert.deepEqual(windowsRelocationRecovery, {
     platform: "x86_64-pc-windows-msvc",
-    filter: windowsRelocationRecoveryFilter,
+    filter: relocationRecoveryFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 24, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  const windowsQuarantineAndPathsRecovery = overrideFor(
+    windowsQuarantineAndPathsRecoveryFilter,
+    "x86_64-pc-windows-msvc",
+  );
+  assert.deepEqual(windowsQuarantineAndPathsRecovery, {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsQuarantineAndPathsRecoveryFilter,
     "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
     "success-output": "immediate",
   });
-  assert.ok(
-    overrides.indexOf(relocationRecovery) <
-      overrides.indexOf(overrideFor(windowsRecoveryFamilyFilter, "x86_64-pc-windows-msvc")),
-    "The exact90s identity must precede its60s family",
-  );
+  for (const scoped of [windowsRelocationRecovery, windowsQuarantineAndPathsRecovery]) {
+    assert.ok(
+      overrides.indexOf(scoped) <
+        overrides.indexOf(overrideFor(windowsRecoveryFamilyFilter, "x86_64-pc-windows-msvc")),
+      "The Windows recovery budgets must precede their 60s family",
+    );
+  }
   const intelCuratedRepinFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)";
   assert.deepEqual(overrideFor(intelCuratedRepinFilter, "x86_64-pc-windows-msvc"), {
@@ -897,11 +906,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: psxProgressionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparationAndDriftFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsDiagnosticsFilter },
-      { platform: "x86_64-pc-windows-msvc", filter: windowsRelocationRecoveryFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: relocationRecoveryFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsQuarantineAndPathsRecoveryFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsSourceImportRecoveryFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsRetainedMovePolicyFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsReviewedPreparationFilter },
-      { platform: "x86_64-unknown-linux-gnu", filter: linuxRelocationRecoveryFilter },
+      { platform: "x86_64-unknown-linux-gnu", filter: relocationRecoveryFilter },
     ]
       .map(outputIdentity)
       .sort(),

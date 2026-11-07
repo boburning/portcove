@@ -7,9 +7,9 @@
     "project_url": "https://github.com/OpenRCT2/OpenRCT2",
     "issue_number": 1854,
     "availability": "packages",
-    "setup_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md",
+    "setup_url": "https://docs.openrct2.io/en/latest/",
     "original_game_title": "RollerCoaster Tycoon 2",
-    "release_url": "https://github.com/OpenRCT2/OpenRCT2/releases/tag/v0.5.6",
+    "release_url": "https://github.com/OpenRCT2/OpenRCT2/releases",
     "manual_setup": {
       "steps": [
         {
@@ -18,7 +18,21 @@
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md"
+      "help_url": "https://docs.openrct2.io/en/latest/",
+      "references": [
+        {
+          "title": "Use OpenRCT2 on Mac",
+          "instruction": "Download the official macos-universal ZIP for Intel or Apple Silicon. Unzip it, keep OpenRCT2.app together and open it to select your original RCT2 data. Keep the settings, saves and content under ~/Library/Application Support/OpenRCT2, including any custom data location. Maintain this copy outside Portcove."
+        },
+        {
+          "title": "Use the external Windows ARM64 or Linux package",
+          "instruction": "Choose the official Windows portable ARM64 ZIP on Windows ARM64. Keep the entire folder with openrct2.exe. On Linux, use the upstream x86-64 AppImage or the Flatpak documented by OpenRCT2. Follow upstream to select your original data. Preserve the actual OpenRCT2 profile before upgrading. Keep package-manager or upstream updates separate from a Portcove installation."
+        },
+        {
+          "title": "Set up OpenRCT2 on Android",
+          "instruction": "Use the upstream Android APK for Android 7 or newer on arm64, ARMv7 or x86-64. Copy your installed RCT2 data to the shared-storage rct2 folder. The app requests All files access on Android 11 and later, or storage permission on older Android, for the original files and its openrct2 profile. Back up that profile and your originals. Follow upstream to install or update the app with the same Android package identity and signer."
+        }
+      ]
     },
     "artwork": {
       "game_id": 331,
@@ -27,6 +41,11 @@
       "image_sha256": "42de270c535f8959e1275cce56d5600997bf71ebd5cb2324a545ddff12329456",
       "game_slug": "rollercoaster-tycoon-2",
       "match_kind": "underlying-game"
+    },
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "macos-x86-64": ["-macos-universal.zip"],
+      "macos-aarch64": ["-macos-universal.zip"]
     }
   },
   "integration": {
