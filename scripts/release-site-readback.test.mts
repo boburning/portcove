@@ -31,7 +31,16 @@ void test("initial production composition retains an appointed rehearsal invento
     else process.env.GH_TOKEN = previous;
   });
   try {
-    for (const mode of ["valid", "provider-drift", "bytes", "present", "redirect", "unavailable"]) {
+    for (const mode of [
+      "valid",
+      "catalog",
+      "catalog-failed-prior",
+      "provider-drift",
+      "bytes",
+      "present",
+      "redirect",
+      "unavailable",
+    ]) {
       const retained = "rehearsal/41788540335-1/application/metadata/1.root.json";
       const files = new Map([
         [".nojekyll", Buffer.alloc(0)],
@@ -58,13 +67,57 @@ void test("initial production composition retains an appointed rehearsal invento
         files: identities,
         inventory_sha256: capacityDigest(identities),
       };
+      const admission = {
+        role: "site-publication" as const,
+        selection: "serving" as const,
+        source: "b".repeat(40),
+        ref: "refs/tags/catalog-test",
+        run_id: "90",
+        run_attempt: 2,
+        job_id: 91,
+      };
+      const activeLog = "https://github.com/boburning/portcove/actions/runs/90/job/91";
       let observations = 0;
       const read = async (endpoint: string) => {
         const prefix = "repos/boburning/portcove";
         let body: unknown;
         if (endpoint === prefix) body = { id: 1354613114, full_name: "boburning/portcove" };
         else if (endpoint === `${prefix}/pages`) body = provider.pages;
-        else if (endpoint === `${prefix}/deployments?environment=github-pages&per_page=1`) {
+        else if (endpoint === `${prefix}/deployments?environment=github-pages&per_page=2`) {
+          observations++;
+          body = [
+            {
+              id: 555,
+              sha: admission.source,
+              ref: "catalog-test",
+              environment: "github-pages",
+              task: "deploy",
+              payload: {},
+              performed_via_github_app: { slug: "github-actions" },
+            },
+            {
+              id: 123,
+              sha: provider.source_commit,
+              ref: provider.ref,
+              environment: provider.environment,
+            },
+          ];
+        } else if (endpoint === `${prefix}/deployments/555/statuses?per_page=1`) {
+          body = [
+            { id: 556, state: "in_progress", log_url: activeLog, environment: "github-pages" },
+          ];
+        } else if (endpoint === `${prefix}/actions/jobs/91`) {
+          body = {
+            id: 91,
+            run_id: 90,
+            run_attempt: 2,
+            head_sha: admission.source,
+            head_branch: "catalog-test",
+            name: "Publish authenticated application site",
+            status: "in_progress",
+            html_url: activeLog,
+          };
+        } else if (endpoint === `${prefix}/deployments?environment=github-pages&per_page=1`) {
           observations++;
           body = [
             {
@@ -75,7 +128,13 @@ void test("initial production composition retains an appointed rehearsal invento
             },
           ];
         } else if (endpoint.endsWith("/statuses?per_page=1"))
-          body = [{ id: 456, state: "success", log_url: provider.log_url }];
+          body = [
+            {
+              id: 456,
+              state: mode === "catalog-failed-prior" ? "failure" : "success",
+              log_url: provider.log_url,
+            },
+          ];
         else throw new Error(`unexpected provider route ${endpoint}`);
         return { status: 200, oauthScopes: null, body };
       };
@@ -120,13 +179,26 @@ void test("initial production composition retains an appointed rehearsal invento
           assert.deepEqual(await readFile(path.join(observed.directory, name)), bytes);
         assert.equal(observations, 2);
         await rm(observed.directory, { recursive: true });
+      } else if (mode === "catalog") {
+        const observed = await materializeInitialApplicationRehearsal(
+          descriptor,
+          capacityDigest(descriptor),
+          directory,
+          { read, fetch: fetcher, admission },
+        );
+        assert.equal(observed.admission_id, 555);
+        assert.equal(observed.inventory_sha256, descriptor.inventory_sha256);
+        assert.equal(observations, 2);
+        for (const [name, bytes] of files)
+          assert.deepEqual(await readFile(path.join(observed.directory, name)), bytes);
+        await rm(observed.directory, { recursive: true });
       } else {
         await assert.rejects(
           materializeInitialApplicationRehearsal(
             descriptor,
             capacityDigest(descriptor),
             directory,
-            { read, fetch: fetcher },
+            { read, fetch: fetcher, ...(mode === "catalog-failed-prior" ? { admission } : {}) },
           ),
         );
       }

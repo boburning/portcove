@@ -197,6 +197,9 @@ interface PrivateDeployment {
     prior: ReturnType<typeof currentPublishedSite>;
     initialization?: NonNullable<ReturnType<typeof inspectCatalogInitialization>>;
     bootstrap_readback_sha256?: string;
+    initial_rehearsal_inventory_sha256?: string;
+    pages_admission_id?: number;
+    bootstrap_executor?: Awaited<ReturnType<typeof authenticateCapacityExecutor>>;
   };
   previous_generation: Composed["generation"] | null;
   prior_public_readback?: { generation: string; evidence_sha256: string };
@@ -681,6 +684,7 @@ async function retainPreparedSiteDeployment(
 export async function prepareCatalogSiteDeploymentFromActualRepository(
   assembly: object,
   raw: { repository: string; checkpoint: string; output_parent: string; deadline: number },
+  executor?: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
 ) {
   const request = structuredClone(raw);
   remaining(request.deadline, 15000);
@@ -742,9 +746,23 @@ export async function prepareCatalogSiteDeploymentFromActualRepository(
         : null
     : null;
   if (prior && !previous) throw new Error("current whole site has no appointed component");
+  const initialReadback = initialization
+    ? await readCatalogDeploymentBootstrap(
+        subject,
+        facts,
+        initialization,
+        request.output_parent,
+        deadline,
+        executor,
+      )
+    : null;
+  const rehearsal = initialReadback?.rehearsal;
+  if (rehearsal && (!executor || rehearsal.admission_id === undefined))
+    throw new Error("catalog rehearsal Pages admission unavailable");
   const composed = await composeCatalogSiteFiles({
     previous: previous?.directory ?? null,
     expected_previous_generation: prior?.generation_sha256 ?? null,
+    ...(rehearsal ? { initial_rehearsal: rehearsal } : {}),
     catalog: actual.repository,
     catalog_root_sha256: facts.root_sha256,
     output_parent: request.output_parent,
@@ -774,7 +792,20 @@ export async function prepareCatalogSiteDeploymentFromActualRepository(
   Object.freeze(generation);
   const session: DeploymentSession = Object.freeze({ kind: "prepared-catalog-site-deployment" });
   sessions.set(session, {
-    catalog: { assembly, subject, facts, prior, ...(initialization ? { initialization } : {}) },
+    catalog: {
+      assembly,
+      subject,
+      facts,
+      prior,
+      ...(initialization ? { initialization } : {}),
+      ...(rehearsal && executor && rehearsal.admission_id !== undefined
+        ? {
+            initial_rehearsal_inventory_sha256: rehearsal.inventory_sha256,
+            pages_admission_id: rehearsal.admission_id,
+            bootstrap_executor: executor,
+          }
+        : {}),
+    },
     deadline,
     generation,
     previous_generation: previous ? structuredClone(previous.generation) : null,
@@ -1076,6 +1107,50 @@ export async function readBackSiteDeployment(session: DeploymentSession) {
   return readPublicApplicationSite(prepared.generation, prepared.deadline);
 }
 
+async function readCatalogDeploymentBootstrap(
+  subject: ReturnType<typeof inspectCatalogPublicationDescriptor>,
+  facts: ReturnType<typeof inspectCatalogTufPublicationFacts>,
+  initialization: NonNullable<ReturnType<typeof inspectCatalogInitialization>>,
+  privateParent: string,
+  deadline: number,
+  executor?: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
+  admissionId?: number,
+) {
+  const provider = await createReleaseCustodyProvider({
+    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    deadline,
+    maxBytes: 512 * 1024,
+  });
+  const identity = executor ? await refreshCapacityExecutor(executor) : undefined;
+  if (identity && identity.role !== "site-publication")
+    throw new Error("catalog rehearsal requires the site publication executor");
+  const readback = await readConfiguredCatalogBootstrapSite(
+    provider,
+    new Date().toISOString(),
+    deadline,
+    privateParent,
+    identity && {
+      role: "site-publication",
+      selection: "serving",
+      source: identity.controller_revision,
+      ref: identity.execution_ref,
+      run_id: identity.run_id,
+      run_attempt: identity.run_attempt,
+      job_id: identity.job_id,
+      ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
+    },
+  );
+  if (
+    readback.configuration_sha256 !== subject.publisher_configuration_sha256 ||
+    readback.root_sha256 !== facts.root_sha256 ||
+    readback.source.source_tree !== initialization.source_tree ||
+    readback.setup_plan_sha256 !== initialization.setup_plan_sha256 ||
+    readback.historical_preimage_sha256 !== initialization.initial_site_preimage_sha256
+  )
+    throw new Error("catalog bootstrap configuration changed");
+  return readback;
+}
+
 /** Heavy acquisition precedes the fresh observer handshake. This receipt is
  * private continuation state; a later marker bracket cannot create it. */
 export async function verifyPriorPublicSite(session: DeploymentSession) {
@@ -1085,25 +1160,21 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
     if (catalog.prior !== null)
       throw new Error("existing site cannot use catalog bootstrap absence");
     const deadline = prepared.deadline!;
-    const provider = await createReleaseCustodyProvider({
-      token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    if (!catalog.initialization) throw new Error("catalog bootstrap initialization missing");
+    const readback = await readCatalogDeploymentBootstrap(
+      catalog.subject,
+      catalog.facts,
+      catalog.initialization,
+      prepared.directory,
       deadline,
-      maxBytes: 512 * 1024,
-    });
-    const readback = await readConfiguredCatalogBootstrapSite(
-      provider,
-      new Date().toISOString(),
-      deadline,
+      catalog.bootstrap_executor,
+      catalog.pages_admission_id,
     );
     if (
-      readback.configuration_sha256 !== catalog.subject.publisher_configuration_sha256 ||
-      readback.root_sha256 !== catalog.facts.root_sha256 ||
-      !catalog.initialization ||
-      readback.source.source_tree !== catalog.initialization.source_tree ||
-      readback.setup_plan_sha256 !== catalog.initialization.setup_plan_sha256 ||
-      readback.historical_preimage_sha256 !== catalog.initialization.initial_site_preimage_sha256
+      readback.rehearsal?.inventory_sha256 !== catalog.initial_rehearsal_inventory_sha256 ||
+      readback.rehearsal?.admission_id !== catalog.pages_admission_id
     )
-      throw new Error("catalog bootstrap configuration changed");
+      throw new Error("catalog bootstrap rehearsal inventory changed");
     catalog.bootstrap_readback_sha256 = capacityDigest(readback);
     await writeFile(
       path.join(prepared.directory, `initial-catalog-readback-${performance.now()}.json`),

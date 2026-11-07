@@ -89,14 +89,14 @@ async function readPagesAsync<T>(
 
 /** Same narrow provider projection used by the independently appointed initial
  * preimage. A generation marker alone cannot identify the deployment actor. */
-type FeedAdmission = {
+export type FeedAdmission = {
   run_id: string;
   run_attempt: number;
   source: string;
   ref: string;
   selection: "serving" | "current";
   deployment_id?: number;
-};
+} & ({ role?: undefined; job_id?: undefined } | { role: "site-publication"; job_id: number });
 
 export function readApplicationPagesStateAsync(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
@@ -163,6 +163,7 @@ function* applicationPagesState(admission?: FeedAdmission) {
     assert.ok(
       match?.[1] === admission.run_id &&
         Number.isSafeInteger(Number(match[2])) &&
+        (admission.job_id === undefined || Number(match[2]) === admission.job_id) &&
         deployment.sha === admission.source &&
         [admission.ref, admission.ref.slice("refs/tags/".length)].includes(deployment.ref) &&
         (admission.deployment_id === undefined || admission.deployment_id === deployment.id) &&
@@ -183,7 +184,10 @@ function* applicationPagesState(admission?: FeedAdmission) {
         job.run_attempt === admission.run_attempt &&
         job.head_sha === admission.source &&
         job.head_branch === admission.ref.slice("refs/tags/".length) &&
-        job.name === "feed" &&
+        job.name ===
+          (admission.role === "site-publication"
+            ? "Publish authenticated application site"
+            : "feed") &&
         job.status === "in_progress" &&
         job.html_url === status.log_url,
       "Pages environment admission job identity differs",
