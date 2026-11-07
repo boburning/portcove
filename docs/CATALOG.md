@@ -2261,8 +2261,8 @@ qualification records must not be added to that migration.
 
 #### Check the generated operational catalog
 
-After editing a strict integration or its listing summary directly, regenerate
-and inspect the final embedded catalog before pushing. Use the same trusted
+After regenerating for a direct edit to a strict integration or its listing
+summary, check and inspect the final embedded catalog before pushing. Use the same trusted
 CLI that preparation accepts as `--validator-cli`.
 
 ```sh
@@ -2278,7 +2278,7 @@ Core inspection also validates the declarations and summary convention.
 Reuse a successful preparation receipt when it covers the same exact bytes
 and repository-authoring mode.
 
-Use one thin preparation entry point for a new or updated record:
+#### Prepare a new or updated record
 
 Shared upstream families retain complete independent per-ID records. The existing
 authoring tests compare Raze's shared package/platform/profile/update facts and
