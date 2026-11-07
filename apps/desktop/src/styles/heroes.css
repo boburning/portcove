@@ -249,3 +249,33 @@
     }
   }
 }
+
+@layer utilities {
+  .game-hero-continue .game-hero-credits-slot:not(:has(details[open])) {
+    position: absolute;
+    inset-inline-end: 12px;
+    inset-block-end: 4px;
+  }
+  .game-hero-continue .game-hero-credits {
+    padding: 0 12px 8px;
+  }
+  .game-hero-continue .game-hero-credits[open] {
+    padding: 12px 24px;
+  }
+  .game-hero-continue .continue-details {
+    min-block-size: 24px;
+    padding: 0;
+    font-weight: 400;
+  }
+  @container library-query (max-width: 25rem) {
+    .game-hero-continue .game-hero-body {
+      padding: 20px 20px 32px;
+    }
+    .game-hero-continue .continue-title {
+      font-size: 1.25rem;
+    }
+    .game-hero-continue .continue-actions {
+      gap: 14px;
+    }
+  }
+}

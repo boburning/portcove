@@ -545,3 +545,63 @@
     }
   }
 }
+
+@layer utilities {
+  @container app-window (47.5rem < width <= 56.25rem) {
+    .app-shell {
+      grid-template-columns: 10.25rem minmax(0, 1fr);
+    }
+    .workspace-main {
+      --workspace-inline: 1.5rem;
+    }
+  }
+  @media (width < 42rem) {
+    .sidebar .nav-item {
+      min-block-size: 44px;
+    }
+    .sidebar-bottom {
+      padding-block-end: 20px;
+    }
+    [data-library-header] {
+      align-items: flex-start;
+    }
+    [data-library-header] [data-add-games-trigger] {
+      min-block-size: 37px;
+    }
+  }
+  @media (width <= 359px) {
+    [data-library-header] {
+      flex-wrap: wrap;
+    }
+    [data-library-header] > :first-child {
+      flex-basis: 100%;
+    }
+  }
+  @container workspace-header (14rem < width <= 20em) {
+    .workspace-toolbar > [aria-label="Current location"] > span:first-child,
+    .workspace-toolbar > [aria-label="Current location"] > span:nth-child(2),
+    .workspace-toolbar .command-trigger > kbd {
+      display: inline-flex;
+    }
+  }
+}
+
+@layer utilities {
+  @container app-window (width <= 47.5rem) {
+    .sidebar .nav-item {
+      min-block-size: 44px;
+    }
+    .sidebar-bottom {
+      padding-block-end: 20px;
+    }
+  }
+}
+
+@layer utilities {
+  [data-library-header] {
+    flex-wrap: wrap;
+  }
+  [data-library-header] > :first-child {
+    flex: 1 0 min(100%, 8.5rem);
+  }
+}
