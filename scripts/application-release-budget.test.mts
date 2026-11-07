@@ -589,7 +589,8 @@ void test("forward metadata maintenance counts original executions, refuses miss
     renewal_generated_at: "2026-11-04T00:00:00Z",
     run_custody: { release_id: 11, custody: member },
   };
-  const roleGuard = () => guardApplicationReleaseSource(roleSource, false);
+  const roleGuard = () =>
+    guardApplicationReleaseSource(roleSource, false, { useRegisteredBootstrapSource: true });
   const guarded = await roleGuard();
   assert.equal(guarded.budget.actual_milliseconds, 1800000);
   assert.equal(guarded.budget.attempts, 2);

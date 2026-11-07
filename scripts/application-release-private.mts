@@ -151,6 +151,8 @@ import type { ApplicationMetadataPublicationBinding } from "./application-releas
 import {
   inspectApplicationRunCustody,
   readRegisteredApplicationRuns,
+  emptyApplicationBootstrap,
+  isEmptyApplicationBootstrapCustody,
   createApplicationRunRegistrationProvider,
   inspectApplicationReleaseReference,
   readActualApplicationBudgetOwner,
@@ -272,8 +274,12 @@ async function assertCurrentApplicationSemantic(original: string, semantic: unkn
 async function guard(
   source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
   protection = true,
-  markStage?: (stage: "pause-read" | "custody-read" | "budget-read") => void,
+  options: {
+    markStage?: (stage: "pause-read" | "custody-read" | "budget-read") => void;
+    useRegisteredBootstrapSource?: boolean;
+  } = {},
 ) {
+  const { markStage, useRegisteredBootstrapSource } = options;
   const current = execution();
   await verifyApplicationReleaseTrust();
   assert.equal(
@@ -370,14 +376,30 @@ async function guard(
       assert.equal(expected.preparation[key], source.prepared[key]);
   }
   markStage?.("custody-read");
-  const registered = await readRegisteredApplicationRuns(
-    await createApplicationRunRegistrationProvider(),
-    Number(source.run_custody.release_id),
-    expected.opportunity,
-    expected.source,
-    expected.source_tree,
-    current,
-  );
+  const releaseId = Number(source.run_custody.release_id);
+  // The fixed source producer registered this custody and read it back before
+  // upload. The key-free context and publication jobs still read the live draft.
+  const useSource =
+    useRegisteredBootstrapSource &&
+    source.purpose === "metadata-bootstrap" &&
+    releaseId === emptyApplicationBootstrap.release_id &&
+    isEmptyApplicationBootstrapCustody(expected);
+  if (useSource)
+    assert.deepEqual(expected.runs.at(-1), {
+      id: current.run_id,
+      control_commit: current.source,
+      control_ref: current.ref,
+    });
+  const registered = useSource
+    ? expected
+    : await readRegisteredApplicationRuns(
+        await createApplicationRunRegistrationProvider(),
+        releaseId,
+        expected.opportunity,
+        expected.source,
+        expected.source_tree,
+        current,
+      );
   assertApplicationCustodyMetadataExtension(expected, registered);
   if (source.renewal_parent !== undefined) {
     inspectApplicationReleaseReference(source.renewal_parent);
@@ -456,7 +478,7 @@ async function stageBootstrapSite() {
   // This is the same key-free assembly job, after standard artifact upload.
   const source = await readApplicationJson(path.join(sourceDirectory, "source.json"));
   assert.ok(isRecord(source));
-  await guard(source, false);
+  await guard(source, false, { useRegisteredBootstrapSource: true });
   const current = execution();
   const assembly = await readApplicationJson("work/application-assembly/assembly.json");
   const site = await readApplicationJson("work/application-assembly/site.json");
@@ -2276,8 +2298,11 @@ async function observe() {
     const current = execution();
     const source = await readNativeApplicationSource();
     stage = "release-guard";
-    await guard(source, false, (next) => {
-      stage = next;
+    await guard(source, false, {
+      useRegisteredBootstrapSource: true,
+      markStage(next) {
+        stage = next;
+      },
     });
     stage = "reader-setup";
     // This process alone has the existing Administration-write App token. The
@@ -3113,7 +3138,7 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
     );
     if (source.purpose === "metadata-bootstrap") assert.equal(inspected.records, 0);
   }
-  await guard(source);
+  await guard(source, true, { useRegisteredBootstrapSource: true });
   await assertReservedApplicationContext(source, context);
   assertProtectionWriteWindow();
   const output = path.resolve(`work/application-role-${role}`);
@@ -3166,7 +3191,7 @@ async function assembleMetadata() {
       ? ["targets"]
       : []),
   ]);
-  await guard(source, false);
+  await guard(source, false, { useRegisteredBootstrapSource: true });
   const scratch = path.join(process.env.RUNNER_TEMP ?? "", "application-assembly");
   await mkdir(scratch);
   const config = path.join(scratch, "assemble.json");
@@ -3277,7 +3302,7 @@ async function assembleMetadata() {
       discovered,
       "prior cohort changed during actual site assembly",
     );
-    await guard(source, false);
+    await guard(source, false, { useRegisteredBootstrapSource: true });
     await writeApplicationJson("work/application-assembly/site.json", {
       schema_version: 1,
       authority: "none",
