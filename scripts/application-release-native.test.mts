@@ -1562,7 +1562,13 @@ void test("post-feed Windows proof uses the read-only ordinary account path only
   const job = raw.jobs.public_installed;
   assert.ok(isRecord(job) && isRecord(job.env));
   assert.equal(job["timeout-minutes"], 15);
-  assert.deepEqual(job.permissions, { contents: "read", actions: "read", checks: "read" });
+  assert.deepEqual(job.permissions, {
+    contents: "read",
+    actions: "read",
+    checks: "read",
+    pages: "read",
+    deployments: "read",
+  });
   assert.deepEqual(job.needs, ["source", "readback"]);
   assert.ok(typeof job.if === "string" && job.if.includes("windows_has_predecessor == 'true'"));
   assert.equal(job.env.PORTCOVE_WINDOWS_CANDIDATE_ATTEMPT, "${{ needs.readback.outputs.attempt }}");
@@ -1604,6 +1610,8 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
     contents: "write",
     actions: "read",
     checks: "read",
+    pages: "read",
+    deployments: "read",
     "id-token": "write",
     attestations: "write",
   });
@@ -1661,7 +1669,8 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
   assert.ok(Array.isArray(feed.needs) && feed.needs.includes("protection_feed"));
   assert.ok(isRecord(feedPrep.permissions));
   assert.equal(feedPrep.permissions.contents, "read");
-  assert.equal(feedPrep.permissions.pages, undefined);
+  assert.equal(feedPrep.permissions.pages, "read");
+  assert.equal(feedPrep.permissions.deployments, "read");
   assert.equal(feedPrep.permissions["id-token"], undefined);
   assert.ok(Array.isArray(feedPrep.steps));
   const feedSteps = feedPrep.steps.filter(isRecord);
@@ -2065,7 +2074,13 @@ void test("context reservations keep write credentials in the key-free job and p
   assert.equal(context.name, "context / execute");
   assert.equal(context["timeout-minutes"], 2);
   assert.equal(context.environment, "production-release-admission");
-  assert.deepEqual(context.permissions, { contents: "write", actions: "read", checks: "read" });
+  assert.deepEqual(context.permissions, {
+    contents: "write",
+    actions: "read",
+    checks: "read",
+    pages: "read",
+    deployments: "read",
+  });
   assert.equal(context.uses, undefined);
   assert.ok(
     isRecord(context.env) &&

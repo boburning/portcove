@@ -48,6 +48,31 @@ void test("assembly can read the retained Pages and deployment preimage", async 
   }
 });
 
+void test("application Pages readers declare their provider read permissions", async () => {
+  const workflow = parseDocument(
+    await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),
+  );
+  assert.deepEqual(workflow.errors, []);
+  for (const job of [
+    "source",
+    "context",
+    "assemble",
+    "publication_prepare",
+    "publication",
+    "feed_prepare",
+    "readback",
+    "public_installed",
+    "public_installed_readback",
+  ]) {
+    assert.equal(workflow.getIn(["jobs", job, "permissions", "pages"]), "read", job);
+    assert.equal(workflow.getIn(["jobs", job, "permissions", "deployments"]), "read", job);
+  }
+  assert.equal(workflow.getIn(["jobs", "feed", "permissions", "pages"]), "write");
+  assert.equal(workflow.getIn(["jobs", "feed", "permissions", "deployments"]), "read");
+  for (const job of ["releases", "preview", "stable", "snapshot", "timestamp", "payload"])
+    assert.equal(workflow.getIn(["jobs", job, "permissions", "pages"]), undefined, job);
+});
+
 void test("bootstrap observer jobs reserve setup and upload time around the bounded collector", async () => {
   const workflow = parseDocument(
     await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),

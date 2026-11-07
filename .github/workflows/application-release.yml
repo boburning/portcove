@@ -169,6 +169,8 @@ jobs:
       contents: write
       actions: read
       checks: read
+      pages: read
+      deployments: read
     outputs:
       source: ${{ steps.prepare.outputs.source }}
       source_attempt: ${{ steps.prepare.outputs.source_attempt }}
@@ -394,6 +396,8 @@ jobs:
       contents: write
       actions: read
       checks: read
+      pages: read
+      deployments: read
     env:
       GH_TOKEN: ${{ github.token }}
       PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
@@ -904,6 +908,8 @@ jobs:
       contents: write
       actions: read
       checks: read
+      pages: read
+      deployments: read
       id-token: write
       attestations: write
     env:
@@ -1009,6 +1015,8 @@ jobs:
       contents: write
       actions: read
       checks: read
+      pages: read
+      deployments: read
     env:
       GH_TOKEN: ${{ github.token }}
       PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
@@ -1112,6 +1120,8 @@ jobs:
       contents: read
       actions: read
       checks: read
+      pages: read
+      deployments: read
     env:
       GH_TOKEN: ${{ github.token }}
       PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
@@ -1219,6 +1229,7 @@ jobs:
       actions: read
       checks: read
       pages: write
+      deployments: read
       id-token: write
     env:
       GH_TOKEN: ${{ github.token }}
@@ -1288,6 +1299,8 @@ jobs:
       contents: read
       actions: read
       checks: read
+      pages: read
+      deployments: read
     env:
       GH_TOKEN: ${{ github.token }}
       PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
@@ -1364,6 +1377,8 @@ jobs:
       contents: read
       actions: read
       checks: read
+      pages: read
+      deployments: read
     env:
       GH_TOKEN: ${{ github.token }}
       PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
@@ -1452,6 +1467,8 @@ jobs:
       contents: read
       actions: read
       checks: read
+      pages: read
+      deployments: read
     env:
       GH_TOKEN: ${{ github.token }}
       PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
