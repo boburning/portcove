@@ -149,6 +149,11 @@ Selective GitHub retries can retain independent successful jobs from the same
 unchanged source/run when no newer authoritative execution supersedes them.
 Missing coverage, newer failure/pending results and wrong identities refuse
 success. Attempt-bound artifact chains retain strict producer/consumer lineage.
+The ordinary Windows Rust test jobs can reuse the artifact ID and attempt
+recorded by their successful build producer when rerunning a test job alone.
+If the artifact has expired or its provenance is unavailable, rerun the
+Windows build job and its dependent jobs. Qualification archives retain their
+same-attempt requirement and also need the producer and dependent jobs rerun.
 Rerun the dependent chain when an upstream artifact/input changes. The watcher
 keeps a fixed absolute observation deadline and never retries automatically.
 

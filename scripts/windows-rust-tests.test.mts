@@ -28,6 +28,7 @@ import {
   validateWindowsQualificationCoreManifest,
   windowsPartitionConfig,
   readWindowsQualificationCorePacket,
+  windowsRustProducerIdentity,
   qualificationBinaryListDigest,
   writeWindowsRustSkipRoutes,
   windowsRustSkipResultsDirectory,
@@ -724,6 +725,10 @@ void test("ordinary Windows Rust compiles once and joins every execution and liv
   );
   assert.ok(isRecord(execution.env));
   assert.equal(
+    execution.env.PORTCOVE_WINDOWS_PRODUCER_ATTEMPT,
+    "${{ needs.fast_rust.outputs.producer_attempt }}",
+  );
+  assert.equal(
     execution.env.PORTCOVE_WINDOWS_MANIFEST_SHA256,
     "${{ needs.fast_rust.outputs.manifest_sha256 }}",
   );
@@ -784,8 +789,34 @@ void test("ordinary Windows Rust compiles once and joins every execution and liv
     uploaded.with.name,
     "windows-rust-tests-${{ github.run_id }}-${{ github.run_attempt }}",
   );
-  assert.equal(downloaded.with.name, uploaded.with.name);
+  assert.equal(uploaded.id, "upload");
+  assert.equal(build.outputs.artifact_id, "${{ steps.upload.outputs.artifact-id }}");
+  assert.equal(build.outputs.producer_attempt, "${{ steps.identity.outputs.attempt }}");
+  const identity = workflowStep("fast_rust", "Record Windows test archive producer attempt");
+  assert.equal(identity.id, "identity");
+  assert.match(String(identity.run), /attempt=\$env:GITHUB_RUN_ATTEMPT/u);
+  const provenance = workflowStep(
+    "fast_rust_tests",
+    "Require and record Windows test archive provenance",
+  );
+  assert.deepEqual(provenance.env, {
+    PORTCOVE_WINDOWS_ARTIFACT_ID: "${{ needs.fast_rust.outputs.artifact_id }}",
+    PORTCOVE_WINDOWS_PRODUCER_ATTEMPT: "${{ needs.fast_rust.outputs.producer_attempt }}",
+  });
+  assert.match(String(provenance.run), /throw "Missing Windows test archive provenance/u);
+  assert.equal(downloaded.with["artifact-ids"], "${{ needs.fast_rust.outputs.artifact_id }}");
+  assert.equal(downloaded.with.name, undefined);
   assert.match(String(uploaded.with.path), /tests\.tar\.zst/u);
   assert.match(String(uploaded.with.path), /manifest\.json/u);
   assert.equal(uploaded.with["if-no-files-found"], "error");
+});
+
+void test("ordinary Windows retry identity uses only an explicit earlier producer attempt", () => {
+  const identity = qualificationPacketFixture().identity;
+  const consumer = { ...identity, attempt: "2" };
+  assert.deepEqual(windowsRustProducerIdentity(consumer, "1"), identity);
+  assert.deepEqual(windowsRustProducerIdentity(consumer, "2"), consumer);
+  assert.equal(consumer.attempt, "2");
+  for (const attempt of [undefined, "", "0", "-1", "1.5", "3"])
+    assert.throws(() => windowsRustProducerIdentity(consumer, attempt), /producer attempt/u);
 });

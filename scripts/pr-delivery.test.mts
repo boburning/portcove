@@ -1011,49 +1011,139 @@ void test("watcher rejects an attempt changed during otherwise successful job co
 });
 
 void test("REST merge uses the exact SHA and verifies remote completion", async () => {
-  const calls: { method: string | undefined; endpoint: string; payload: unknown }[] = [];
-  let merged = false;
-  const client = await deliveryFixture(({ method, endpoint, body: payload }) => {
-    calls.push({ method, endpoint, payload });
-    if (endpoint === "graphql") return Response.json(closingPage());
-    if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
-      return Response.json([{ sha: head, commit: { message: squashMessage.title } }]);
-    if (endpoint === `repos/boburning/portcove/git/commits/${merge}`)
-      return Response.json({
-        sha: merge,
-        message: `${squashMessage.title}\n\n${squashMessage.body}`,
-      });
-    if (endpoint === "repos/boburning/portcove/pulls/7") {
-      return Response.json(
-        merged ? pull({ merged: true, state: "closed", merge_commit_sha: merge }) : pull(),
-      );
-    }
-    if (endpoint.includes("check-runs"))
-      return Response.json({ total_count: required.length, check_runs: successfulRuns() });
-    if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
-    if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
-      merged = true;
-      assert.deepEqual(payload, {
-        merge_method: "squash",
-        sha: head,
-        commit_title: squashMessage.title,
-        commit_message: squashMessage.body,
-      });
-      return Response.json({
-        merged: true,
-        sha: merge,
-        message: "Pull Request successfully merged",
-      });
-    }
-    throw new Error(`unexpected endpoint ${endpoint}`);
+  for (const binding of [undefined, { run: 42, attempt: 2 }]) {
+    let workflowReads = 0;
+    const jobs = [
+      ...workflowJobs(),
+      ...workflowJobs().map((job) => ({
+        ...job,
+        id: job.id + 100,
+        run_attempt: 2,
+        check_run_url: job.check_run_url.replace(/\d+$/u, String(job.id + 100)),
+      })),
+    ];
+    const calls: { method: string | undefined; endpoint: string; payload: unknown }[] = [];
+    let merged = false;
+    const client = await deliveryFixture(({ method, endpoint, body: payload }) => {
+      calls.push({ method, endpoint, payload });
+      if (endpoint === "repos/boburning/portcove/actions/runs/42") {
+        workflowReads++;
+        return Response.json({
+          ...workflow({ status: "completed", conclusion: "success", run_attempt: 2 }),
+          repository: { full_name: "boburning/portcove" },
+        });
+      }
+      if (endpoint.includes("/actions/runs/42/jobs?"))
+        return Response.json({ total_count: jobs.length, jobs });
+      if (endpoint === "graphql") return Response.json(closingPage());
+      if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
+        return Response.json([{ sha: head, commit: { message: squashMessage.title } }]);
+      if (endpoint === `repos/boburning/portcove/git/commits/${merge}`)
+        return Response.json({
+          sha: merge,
+          message: `${squashMessage.title}\n\n${squashMessage.body}`,
+        });
+      if (endpoint === "repos/boburning/portcove/pulls/7") {
+        return Response.json(
+          merged ? pull({ merged: true, state: "closed", merge_commit_sha: merge }) : pull(),
+        );
+      }
+      if (endpoint.includes("check-runs"))
+        return Response.json({
+          total_count: binding ? jobs.length : required.length,
+          check_runs: binding
+            ? jobs.map((job) => ({
+                id: job.id,
+                name: job.name,
+                status: job.status,
+                conclusion: job.conclusion,
+                head_sha: head,
+              }))
+            : successfulRuns(),
+        });
+      if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
+      if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
+        merged = true;
+        assert.deepEqual(payload, {
+          merge_method: "squash",
+          sha: head,
+          commit_title: squashMessage.title,
+          commit_message: squashMessage.body,
+        });
+        return Response.json({
+          merged: true,
+          sha: merge,
+          message: "Pull Request successfully merged",
+        });
+      }
+      throw new Error(`unexpected endpoint ${endpoint}`);
+    });
+    const result = await client.merge(7, head, required, emptyIntent, squashMessage, binding);
+    assert.equal(result.result.sha, merge);
+    assert.equal(calls.filter((call) => call.method === "PUT").length, 1);
+    assert.equal(
+      calls.some((call) => call.endpoint === "graphql"),
+      true,
+    );
+    assert.equal(workflowReads, binding ? 2 : 0);
+  }
+});
+
+void test("bound merge refuses stale, pending, failed and invalid workflow identities", async () => {
+  for (const change of [
+    { id: 43 },
+    { head_sha: "d".repeat(40) },
+    { run_attempt: 3 },
+    { status: "in_progress", conclusion: null },
+    { conclusion: "failure" },
+  ]) {
+    const client = await deliveryFixture();
+    client.workflowRun = async () => ({
+      ...workflow({
+        status: "completed",
+        conclusion: "success",
+        run_attempt: 2,
+        ...change,
+      }),
+    });
+    await assert.rejects(
+      client.merge(7, head, required, emptyIntent, squashMessage, { run: 42, attempt: 2 }),
+      /Merge workflow/u,
+    );
+  }
+  for (const binding of [
+    { run: 0, attempt: 2 },
+    { run: 42, attempt: NaN },
+  ]) {
+    const client = await deliveryFixture();
+    await assert.rejects(
+      client.merge(7, head, required, emptyIntent, squashMessage, binding),
+      /positive run and attempt/u,
+    );
+  }
+});
+
+void test("bound merge refuses an attempt change after check and closure collection", async () => {
+  const client = await deliveryFixture();
+  let reads = 0;
+  client.workflowRun = async () => ({
+    ...workflow({
+      status: "completed",
+      conclusion: "success",
+      run_attempt: ++reads === 1 ? 2 : 3,
+    }),
   });
-  const result = await client.merge(7, head, required, emptyIntent, squashMessage);
-  assert.equal(result.result.sha, merge);
-  assert.equal(calls.filter((call) => call.method === "PUT").length, 1);
-  assert.equal(
-    calls.some((call) => call.endpoint === "graphql"),
-    true,
+  client.requiredCheckState = async () => ({
+    pull: pull(),
+    head,
+    contexts: requiredCheckContexts(successfulRuns(), [], required),
+  });
+  client.pullCommits = async () => [{ sha: head, commit: { message: squashMessage.title } }];
+  await assert.rejects(
+    client.merge(7, head, required, emptyIntent, squashMessage, { run: 42, attempt: 2 }),
+    /Merge workflow/u,
   );
+  assert.equal(reads, 2);
 });
 
 void test("merge command errors are reconciled through remote readback before retry", async () => {

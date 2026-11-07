@@ -831,6 +831,15 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready
 slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
+# PR #4607 Windows7 reached restart at85.634s before a90.338s cutoff.
+# The next full attempt passed at88.281s. Give this exact Windows case
+# finite120s for final checks and cleanup. Keep inner deadlines and assertions.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_toy_story_2_buzz_lightyear_to_the_rescue_n64_spaceranger$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
 # CI41914595618/a1 Windows7 retained a90.327s harness cutoff in SDLPal's
 # complete lifecycle. This case additionally exercises consented restore and
 # safety backup over six declared data probes. Give only this exact Windows
