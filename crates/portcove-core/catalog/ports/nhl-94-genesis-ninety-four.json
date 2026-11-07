@@ -3,7 +3,7 @@
   "listing": {
     "id": "nhl-94-genesis-ninety-four",
     "name": "NHL '94 (Genesis) (ninety-four)",
-    "summary": "Play NHL ’94 on Windows with the Ninety Four native engine and your own supported Genesis ROM. Install a managed runtime or attach a prepared copy. Modified rosters and online sessions have separate compatibility requirements.",
+    "summary": "Play NHL ’94 on Windows with the Ninety Four native engine and your own supported Genesis ROM. Modified rosters and online sessions have separate compatibility requirements.",
     "original_game_title": "NHL '94 (Genesis)",
     "project_url": "https://github.com/1nputs/ninety-four",
     "availability": "unknown",
