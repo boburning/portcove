@@ -171,14 +171,20 @@ pub(crate) fn assess_package_name(
             None,
         );
     }
-    let arm = has(&["arm64", "aarch64"]);
+    // Native macOS packages may use "arm" for Apple Silicon. On other
+    // platforms the same token still describes an unspecified older ARM ABI.
+    let macos_arm = platform_match
+        && matches!(platform, Platform::MacosAarch64 | Platform::MacosX86_64)
+        && has(&["arm"]);
+    let arm = has(&["arm64", "aarch64"]) || macos_arm;
     let intel = has(&["x64", "amd64", "win64", "winx64", "intel"])
         || name.contains("x86_64")
         || name.contains("x86-64");
     let legacy = has(&[
-        "i386", "i686", "win32", "x32", "32bit", "arm", "armv6", "armv7", "armv8",
+        "i386", "i686", "win32", "x32", "32bit", "armv6", "armv7", "armv8",
     ]) || name.contains("32-bit")
         || name.contains("32_bit")
+        || (has(&["arm"]) && !macos_arm)
         || (has(&["x86"]) && !intel);
     let universal = has(&["universal", "universal2"]) || (arm && intel);
     let wants_arm = platform == Platform::MacosAarch64;
@@ -379,6 +385,75 @@ mod tests {
                     "{id} on {platform:?}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn classic_engine_releases_recommend_the_observed_host_packages() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let vcmi = [
+            asset(1, "VCMI-Windows.zip"),
+            asset(2, "VCMI-Linux-x64.AppImage"),
+            asset(3, "VCMI-Linux-arm64.AppImage"),
+            asset(4, "VCMI-macOS-intel.dmg"),
+            asset(5, "VCMI-macOS-arm.dmg"),
+        ];
+        let trx = [
+            asset(1, "TRX-1.12-Windows_Installer.exe"),
+            asset(2, "TRX-1.12-Linux.zip"),
+            asset(3, "TRX-1.12-Mac.dmg"),
+            asset(4, "TRX-1.12-Windows.zip"),
+        ];
+        for (platform, vcmi_id, trx_id) in [
+            (Platform::WindowsX86_64, 1u64, 1u64),
+            (Platform::LinuxX86_64, 2, 2),
+            (Platform::MacosX86_64, 4, 3),
+            (Platform::MacosAarch64, 5, 3),
+        ] {
+            for (id, assets, expected) in [
+                ("vcmi-vcmi", vcmi.as_slice(), vcmi_id),
+                ("lostartefacts-trx", trx.as_slice(), trx_id),
+            ] {
+                let hints = &catalog.listing(id).unwrap().download_asset_hints[&platform];
+                assert_eq!(
+                    recommend_packages(assets, platform, hints, true).1,
+                    Some(expected.into()),
+                    "{id} on {platform:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn macos_arm_shorthand_selects_apple_silicon_and_keeps_older_arm_distinct() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut assets = [
+            asset(1, "opengoal-macos-arm-v0.3.9.tar.gz"),
+            asset(2, "opengoal-macos-intel-v0.3.9.tar.gz"),
+            asset(3, "opengoal-lsp-macos-arm-v0.3.9.bin"),
+        ];
+        assets[0].can_extract = true;
+        assets[1].can_extract = true;
+        for id in ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"] {
+            let port = catalog.port(id).unwrap();
+            for (platform, expected) in [(Platform::MacosAarch64, 1u64), (Platform::MacosX86_64, 2)]
+            {
+                let hints = &port.release.asset_hints[&platform];
+                assert_eq!(
+                    recommend_packages(&assets, platform, hints, true).1,
+                    Some(expected.into()),
+                    "{id} on {platform:?}"
+                );
+            }
+        }
+        for (platform, name) in [
+            (Platform::MacosAarch64, "game-macos-armv7.zip"),
+            (Platform::LinuxX86_64, "game-linux-arm.tar.gz"),
+        ] {
+            assert_eq!(
+                assess_package_name(name, true, platform, &[]).0,
+                "emulation"
+            );
         }
     }
 
