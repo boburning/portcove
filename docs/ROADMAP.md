@@ -508,11 +508,16 @@ integration, cold/warm/failure/interruption evidence and unchanged native comman
   [standing setup #966](https://github.com/boburning/portcove/issues/966) follow
   independently closable #244.
 - [First-family profiles #250](https://github.com/boburning/portcove/issues/250)
-  are Planned 1.0 after initial beta and consume the completed
+  cover the planned after-beta Ship journey from local mod intake to clean and
+  customized play and recovery. They consume the completed
   [retained-build foundation #1456](https://github.com/boburning/portcove/issues/1456).
-  Later loaders/sharing and
-  [GameBanana **and** Thunderstore #262](https://github.com/boburning/portcove/issues/262)
-  do not block that first local-package outcome.
+  [Provider delivery #262](https://github.com/boburning/portcove/issues/262)
+  covers independent GameBanana and Thunderstore paths, dynamic release
+  resolution with unchanged integrations, and proof of updates under standing
+  policy. [A different native loader #1457](https://github.com/boburning/portcove/issues/1457)
+  and [bounded recipe sharing #1458](https://github.com/boburning/portcove/issues/1458)
+  are separate follow-ons. The first local journey can ship independently of
+  all three. These planned additions sit outside required beta and 1.0 acceptance.
 - [Historical releases #40](https://github.com/boburning/portcove/issues/40),
   [game-centered discovery #251](https://github.com/boburning/portcove/issues/251),
   [save transfer #252](https://github.com/boburning/portcove/issues/252), then
