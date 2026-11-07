@@ -16,15 +16,25 @@
           "instruction": "Use your own Quake (N64) Nintendo 64 USA ROM. Check the required size and SHA-1 in games/quake-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
         },
         {
-          "title": "Follow upstream setup",
-          "instruction": "Use tools/import_rom.py --profile games/quake-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake quake-us-release target to produce the native quake-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
+          "title": "Build from source on Linux",
+          "instruction": "Follow the upstream Linux prerequisites. From the checkout root, run .venv/bin/python tools/import_rom.py --profile games/quake-us/profile.toml --rom \"/path/to/your-ROM.z64\" with your own .z64, .n64 or .v64 file. Run cmake --workflow --preset quake-us-release, then ./build/quake-us-release/bin/quake-us. The default keeps the ROM external. Keep the ROM and any locally generated game code private, including builds that embed it."
         }
       ],
       "warnings": [
         "The shared README does not confirm gameplay for this game. Check the linked game notes; progress reported for other games does not establish that this one works. A full playthrough and Portcove gameplay checks have not been confirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/polaco1782/v64recomp"
+      "help_url": "https://github.com/polaco1782/v64recomp",
+      "references": [
+        {
+          "title": "Build from source on Windows x64",
+          "instruction": "Follow the Windows setup guide in the upstream README for Visual Studio, Python and vcpkg. Use the same ROM profile with the Windows Python environment. From the checkout root, run .\\tools\\build_msvc_project.ps1 -Game quake-us -Configuration Release in PowerShell. Start the resulting build/msvc/quake-us/release/bin/Release/quake-us.exe from the checkout root and keep its dependency DLLs beside it. Preserve the checkout’s private local/ directory and any custom data paths before rebuilding."
+        },
+        {
+          "title": "Prepare a private Steam Deck copy",
+          "instruction": "Follow the upstream Steam Deck container guide on an x86-64 Linux PC and run ./tools/build_steamdeck.sh quake-us after importing your ROM. Keep the resulting package folder together. Supply your matching ROM at the local/ path named in its included instructions, then add launch.sh to Steam as a non-Steam game with compatibility tools disabled. Preserve local/ from the old copy before rebuilding or replacing it. Keep private packages and generated game code to yourself. Portcove has not observed Deck setup or gameplay."
+        }
+      ]
     },
     "issue_number": 3603
   },
