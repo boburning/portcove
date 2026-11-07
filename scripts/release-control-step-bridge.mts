@@ -3,7 +3,7 @@
  * identity. A stopped producer never causes unused observation rounds to wait. */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { appendFile, open } from "node:fs/promises";
+import { appendFile, open, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { createHash } from "node:crypto";
@@ -15,6 +15,61 @@ import { productionControllerWorkflow } from "./production-controller-admission.
 import { isRecord } from "./runtime-values.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+
+const catalogRefusalStages = {
+  launch: ["source-admission", "job-clock", "tool-custody", "attested-worker", "worker-settlement"],
+  operation: [
+    "actual-catalog-admission",
+    "catalog-reader-identity",
+    "catalog-tool-custody",
+    "catalog-journal-recovery",
+    "standalone-application-bootstrap-readback",
+    "standalone-application-bootstrap-site",
+    "standalone-application-bootstrap-TUF",
+    "standalone-application-bootstrap-recheck",
+    "standalone-application-bootstrap-observer",
+    "standalone-application-bootstrap-inventory",
+    "standalone-application-bootstrap-CAS",
+    "standalone-application-bootstrap-journal-readback",
+    "fixed-inert-source-and-Core",
+    "selected-independent-Check",
+    "neutral-request-control-and-CAS",
+  ],
+} as const;
+type CatalogRefusalLayer = keyof typeof catalogRefusalStages;
+export type CatalogCoordinatorRefusalStage<Layer extends CatalogRefusalLayer> =
+  (typeof catalogRefusalStages)[Layer][number];
+
+export const catalogRefusalFile = (layer: CatalogRefusalLayer) =>
+  `catalog-coordinator-${layer}-refusal.json`;
+
+export function requireCatalogRefusal(layer: CatalogRefusalLayer, raw: unknown) {
+  const stages: readonly string[] = catalogRefusalStages[layer];
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !== "authority,automatic_retry,schema_version,stage" ||
+    raw.schema_version !== 1 ||
+    raw.authority !== "none" ||
+    raw.automatic_retry !== false ||
+    typeof raw.stage !== "string" ||
+    !stages.includes(raw.stage)
+  )
+    throw new Error("catalog refusal is not a fixed public stage record");
+}
+
+export async function retainCatalogCoordinatorRefusal<Layer extends CatalogRefusalLayer>(
+  root: string,
+  layer: Layer,
+  stage: CatalogCoordinatorRefusalStage<Layer>,
+) {
+  if (!path.isAbsolute(root)) throw new Error("owned catalog refusal root required");
+  const record = { schema_version: 1, stage, authority: "none", automatic_retry: false };
+  requireCatalogRefusal(layer, record);
+  await writeFile(path.join(root, catalogRefusalFile(layer)), JSON.stringify(record), {
+    flag: "wx",
+    mode: 0o600,
+  });
+}
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 function controlBridgeOriginalJob(

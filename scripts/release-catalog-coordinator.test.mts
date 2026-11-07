@@ -96,7 +96,7 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
  './release-semantic-disposition-reader.mts':'export const readIndependentCatalogSemanticCheckInventoryWithSdk=async(_options,producer)=>{globalThis.__catalog.inspectProducer(producer);return {records:[],assertUnchanged:async()=>{}};};export const inspectCatalogSemanticRequestCheckMatches=()=>globalThis.__catalog.matches();export const discoverIndependentCatalogSemanticDispositionWithSdk=async()=>globalThis.__catalog.negativeObserved;',
  './release-catalog-review-disposition.mts': 'export {inspectCatalogReviewDisposition,advanceCatalogReviewRecovery} from '+JSON.stringify(${JSON.stringify(negativeModule)})+';export const receiveActualCatalogReviewDisposition=(...a)=>globalThis.__catalog.receiveNegative(...a);export const requireActualCatalogReviewDisposition=async()=>globalThis.__catalog.negative;export const prepareActualCatalogReviewRetirement=(...a)=>globalThis.__catalog.prepareNegative(...a);',
  './release-control-handshake.mts':'export const prepareControlReadiness=()=>({fixture:true});export const waitForControlArtifact=async()=>({fixture:true});',
- './release-control-step-bridge.mts':'export const retainControlStepLocator=async()=>{};',
+ './release-control-step-bridge.mts':'export const retainControlStepLocator=async()=>{};export const retainCatalogCoordinatorRefusal=async()=>{};',
  './release-path-safety.mts':'export const assertOwnedUnlinkedPath=async()=>{};'
  };
  registerHooks({resolve(spec,context,next){if(context.parentURL===entry&&code[spec])return {url:data(code[spec]),shortCircuit:true};return next(spec,context);}});

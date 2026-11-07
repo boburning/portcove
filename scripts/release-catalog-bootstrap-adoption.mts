@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { mkdtemp } from "node:fs/promises";
+import path from "node:path";
 import { readApplicationPriorPublication } from "./application-release-feed.mts";
 import { immutableApplicationBootstrap } from "./application-release-run.mts";
 import { readActualApplicationPagesState } from "./application-release-site.mts";
@@ -7,6 +9,7 @@ import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import type { CatalogCoordinatorRefusalStage } from "./release-control-step-bridge.mts";
 import {
   inspectTufPublicationFacts,
   standaloneBootstrapAdoption,
@@ -41,6 +44,7 @@ export async function authenticateStandaloneBootstrapAdoption(
   directory: string,
   tools: object,
   deadline: number,
+  stage: (value: CatalogCoordinatorRefusalStage<"operation">) => void = () => {},
 ) {
   const selected = standaloneBootstrapAdoption;
   const original = immutableApplicationBootstrap;
@@ -68,6 +72,7 @@ export async function authenticateStandaloneBootstrapAdoption(
   assert.ok(typeof facts.repository_sha256 === "string");
   assert.equal(prior.receipt.site.generation, selected.generation);
 
+  stage("standalone-application-bootstrap-site");
   const site = await materializePublishedApplicationComponent(
     {
       site_generation_sha256: selected.generation,
@@ -77,7 +82,10 @@ export async function authenticateStandaloneBootstrapAdoption(
     directory,
     deadline,
   );
+  stage("standalone-application-bootstrap-TUF");
   const { rust } = await verifiedControllerToolPaths(tools);
+  // Keep the authenticated public input separate from mutable renewal work.
+  const renewalParent = await mkdtemp(path.join(directory, "bootstrap-renewal-"));
   const verification = await prepareAuthenticatedMetadataRenewal({
     initial_root_profile: "single-owner-one-of-one-v1",
     verifier: rust,
@@ -89,7 +97,7 @@ export async function authenticateStandaloneBootstrapAdoption(
     previous_repository: site.directory,
     prior_repository_sha256: facts.repository_sha256,
     generated_at: new Date().toISOString().replace(/\.\d{3}Z$/u, "Z"),
-    output_parent: directory,
+    output_parent: renewalParent,
     deadline,
   });
   const { descriptor } = await inspectPreparedMetadataRenewal(verification);
@@ -107,6 +115,7 @@ export async function authenticateStandaloneBootstrapAdoption(
       Object.values(facts.expires).every((expiration) => Date.parse(expiration) > Date.now()),
     );
   };
+  stage("standalone-application-bootstrap-recheck");
   await assertCurrent();
   return {
     assertCurrent,

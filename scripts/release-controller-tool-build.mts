@@ -36,6 +36,7 @@ import {
   controllerCompilerSourceAsset,
   controllerNativeDriverVersion,
   controllerToolSourceAssetMaximumBytes,
+  controllerToolExpandedMaximumBytes,
   controllerToolPlatformProfile,
   controllerToolFileMaximumBytes,
   type ControllerToolPlatform,
@@ -584,7 +585,7 @@ export async function buildControllerTools(
       console.log(
         `::notice title=Controller inventory bytes::${JSON.stringify({
           platform,
-          maximum: 320 * 1024 ** 2,
+          maximum: controllerToolExpandedMaximumBytes,
           total: files.reduce((total, file) => total + file.bytes, 0),
           files: files.map(({ path, bytes }) => ({ path, bytes })),
         })}`,

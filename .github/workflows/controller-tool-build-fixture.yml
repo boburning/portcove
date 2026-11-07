@@ -57,6 +57,8 @@ on:
     paths:
       - .github/workflows/controller-tool-build-fixture.yml
       - scripts/release-controller-tool*.mts
+      - scripts/release-controller-job-bootstrap.mts
+      - scripts/release-controller-diagnostics.mts
       - scripts/release-controller-wake.mts
       - scripts/application-release-private.mts
       - scripts/application-release-budget*.mts

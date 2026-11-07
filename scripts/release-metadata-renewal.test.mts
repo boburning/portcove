@@ -55,6 +55,19 @@ async function fixture(t: test.TestContext) {
   };
   return { root, prior, output, request };
 }
+void test("renewal refuses an ancestor of its public input and keeps sibling work separate", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal({ ...f.request, output_parent: f.root }),
+    /renewal work overlaps public source/u,
+  );
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal(f.request),
+    /qualified renewal verifier changed/u,
+  );
+  assert.deepEqual(await readdir(f.output), []);
+});
+
 void test("imported JSON cannot stand in for an actual private renewal preparation", async () => {
   await assert.rejects(
     inspectPreparedMetadataRenewal({
