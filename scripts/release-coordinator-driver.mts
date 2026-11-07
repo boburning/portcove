@@ -2,6 +2,8 @@ import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readWindowsApplicationQualification } from "./application-release-qualification.mts";
 import { readApplicationSourceCommitObjects } from "./application-release-source-git.mts";
 import { createWakeProvider } from "./release-wake-provider.mts";
+import { inspectQualifiedApplicationReview } from "./release-application-review-selection.mts";
+import type { QualifiedApplicationReview } from "./release-application-review-selection.mts";
 import {
   fixedReleaseReaderToken,
   readOnlyReleaseChildEnvironment,
@@ -3814,10 +3816,17 @@ async function requestTrustedSemanticReviewAt(
         authority: "none",
       };
     }
-    const sourceObject = inspectRemoteCommitObject(await readSource(`commits/${source}`), source);
     const applicationCommitObjects = qualified
       ? await readApplicationSourceCommitObjects(base, source, sourceOptions.deadline)
       : undefined;
+    const sourceBytes = applicationCommitObjects?.get(source);
+    if (qualified && !sourceBytes)
+      throw new Error("qualified application Git commit is unavailable");
+    const sourceObject = inspectRemoteCommitObject(
+      await readSource(`commits/${source}`),
+      source,
+      sourceBytes,
+    );
     const changes = await collectReleaseSourceChangesWithSdk(
       {
         ...sourceOptions,
@@ -4126,30 +4135,6 @@ async function continueTrustedSemanticReview(
       },
     );
   }
-}
-
-type QualifiedApplicationReview = {
-  source_commit: string;
-  run_id: number;
-  run_attempt: number;
-};
-
-export function inspectQualifiedApplicationReview(raw: unknown): QualifiedApplicationReview {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !== "run_attempt,run_id,source_commit" ||
-    typeof raw.source_commit !== "string" ||
-    !/^[a-f0-9]{40}$/u.test(raw.source_commit) ||
-    typeof raw.run_id !== "number" ||
-    !Number.isSafeInteger(raw.run_id) ||
-    raw.run_id < 1 ||
-    typeof raw.run_attempt !== "number" ||
-    !Number.isSafeInteger(raw.run_attempt) ||
-    raw.run_attempt < 1 ||
-    raw.run_attempt > 3
-  )
-    throw new Error("exact qualified application request fields differ");
-  return { source_commit: raw.source_commit, run_id: raw.run_id, run_attempt: raw.run_attempt };
 }
 
 /** Fixed same-bundle caller. Private coordinator sessions never cross a JSON or

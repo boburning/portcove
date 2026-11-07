@@ -12,13 +12,13 @@ import {
   coordinatorContinuationDeadline,
   coordinatorOriginalJobDeadline,
   requestTrustedSemanticReview,
-  inspectQualifiedApplicationReview,
   selectCoordinatorPendingPagesRecovery,
   selectCoordinatorCandidateSigningRecovery,
   materializeCoordinatorPublishedSite,
   selectCoordinatorMetadataBootstrap,
   requireActualCoordinatorBootstrapPreparation,
 } from "./release-coordinator-driver.mts";
+import { inspectQualifiedApplicationReview } from "./release-application-review-selection.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { performance } from "node:perf_hooks";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";

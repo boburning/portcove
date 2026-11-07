@@ -326,6 +326,38 @@ void test("closed fixed DAG serialization cannot substitute arbitrary tool, cont
     "portcove-production",
   );
   assert.equal("identity" in coordinator, false);
+  const nomination = { source_commit: "a".repeat(40), run_id: 42407004590, run_attempt: 1 };
+  const nominatedInput = {
+    ...input,
+    operation: "coordinator",
+    admission_configuration: {
+      ...input.admission_configuration,
+      release_profile: "initial-beta-windows-x86_64-v1",
+      public_build_inputs: {},
+      qualified_application: nomination,
+    },
+  };
+  assert.deepEqual(prepareFixedControllerConfiguration(nominatedInput), {
+    ...coordinator,
+    qualified_application: nomination,
+  });
+  for (const changed of [
+    { ...nominatedInput, operation: "building" },
+    { ...nominatedInput, publication_purpose: "catalog-publication" },
+    { ...nominatedInput, operation: "tuf-snapshot" },
+    {
+      ...nominatedInput,
+      admission_configuration: { ...nominatedInput.admission_configuration, schema_version: 2 },
+    },
+    {
+      ...nominatedInput,
+      admission_configuration: {
+        ...nominatedInput.admission_configuration,
+        qualified_application: { ...nomination, source_commit: "main" },
+      },
+    },
+  ])
+    assert.throws(() => prepareFixedControllerConfiguration(changed), /qualified/u);
   const { projectFixedControllerJobOutputs } = await import("./release-controller-job-output.mts");
   const oldContext = { ...context, run_id: "12344" };
   const retainedRoles = roles.map((role, index) => ({

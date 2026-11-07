@@ -18,6 +18,7 @@ import {
 import { inspectCatalogRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
 import { inspectTufRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
 import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
+import { inspectQualifiedApplicationReview } from "./release-application-review-selection.mts";
 
 type Fixed = {
   controller_revision: string;
@@ -201,6 +202,25 @@ export function prepareFixedControllerConfiguration(input: {
     !(typeof operation === "string" && operation.startsWith("catalog-"))
   )
     throw new Error("catalog cannot select application operation");
+  if (Object.hasOwn(admission, "qualified_application")) {
+    if (
+      purpose !== "application" ||
+      operation !== "coordinator" ||
+      admission.schema_version !== 3 ||
+      admission.release_profile !== "initial-beta-windows-x86_64-v1" ||
+      !isRecord(admission.public_build_inputs) ||
+      Object.keys(admission).sort().join(",") !==
+        "namespace,public_build_inputs,qualified_application,release_profile,schema_version"
+    )
+      throw new Error(
+        "qualified neutral selection requires the fixed Windows application coordinator",
+      );
+    return {
+      remote_configuration: { schema_version: 1, namespace: admission.namespace },
+      tools,
+      qualified_application: inspectQualifiedApplicationReview(admission.qualified_application),
+    };
+  }
   if (operation === "coordinator")
     return { remote_configuration: { schema_version: 1, namespace: admission.namespace }, tools };
   if (purpose === "catalog-publication") {

@@ -460,6 +460,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-preparation-source.mts",
   "scripts/release-coordinator-driver.mts",
   "scripts/application-release-source-git.mts",
+  "scripts/release-application-review-selection.mts",
   "scripts/release-review-request.mts",
   "scripts/release-candidate-dispatch.mts",
   "scripts/release-candidate-progress.mts",
