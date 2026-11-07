@@ -11,7 +11,7 @@ members = [
 default-members = ["crates/portcove-core", "crates/portcove-cli"]
 
 [workspace.package]
-version = "0.1.0-alpha.2"
+version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/boburning/portcove"
