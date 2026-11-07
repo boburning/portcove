@@ -161,10 +161,36 @@ export async function readComposedCatalogSite(
   return { files, generation };
 }
 
-/** Filesystem composition only. Inputs here are NOT authenticated by a
- * self-consistent marker. The protected caller supplies the independently
- * authenticated previous generation and separately verified application tree.
- * Never use this low-level operation as admission or deployment authority. */
+type InitialRehearsal = { directory: string; inventory_sha256: string };
+
+async function readInitialRehearsal(
+  rehearsal: InitialRehearsal,
+  previous: string | null,
+  expectedPreviousGeneration: string | null,
+  outputParent: string,
+  deadline?: number,
+) {
+  if (
+    previous !== null ||
+    expectedPreviousGeneration !== null ||
+    !path.isAbsolute(rehearsal.directory) ||
+    !digest(rehearsal.inventory_sha256) ||
+    releasePathContains(rehearsal.directory, outputParent)
+  )
+    throw new Error("exact initial retained rehearsal preimage required");
+  const files = await tree(rehearsal.directory, deadline);
+  if (
+    (files.get(".nojekyll")?.length ?? 0) !== 0 ||
+    [...files.keys()].some(
+      (name) => name !== ".nojekyll" && !isRetainedApplicationRehearsalPath(name),
+    ) ||
+    capacityDigest(identities(files)) !== rehearsal.inventory_sha256
+  )
+    throw new Error("initial retained rehearsal differs from independently expected preimage");
+  return files;
+}
+
+/** Filesystem composition only. The protected caller authenticates every input. */
 export async function composeSiteFiles(request: {
   previous: string | null;
   expected_previous_generation: string | null;
@@ -172,17 +198,9 @@ export async function composeSiteFiles(request: {
   application_root_sha256: string;
   output_parent: string;
   deadline?: number;
-  initial_rehearsal?: { directory: string; inventory_sha256: string };
+  initial_rehearsal?: InitialRehearsal;
 }) {
   remaining(request.deadline);
-  if (
-    request.initial_rehearsal &&
-    (request.previous !== null ||
-      request.expected_previous_generation !== null ||
-      !path.isAbsolute(request.initial_rehearsal.directory) ||
-      !digest(request.initial_rehearsal.inventory_sha256))
-  )
-    throw new Error("exact initial retained rehearsal preimage required");
   if (
     !digest(request.application_root_sha256) ||
     ![
@@ -196,31 +214,22 @@ export async function composeSiteFiles(request: {
   )
     throw new Error("exact site composition identities unavailable");
   if (
-    [
-      request.application,
-      ...(request.previous ? [request.previous] : []),
-      ...(request.initial_rehearsal ? [request.initial_rehearsal.directory] : []),
-    ].some((input) => releasePathContains(input, request.output_parent))
+    [request.application, ...(request.previous ? [request.previous] : [])].some((input) =>
+      releasePathContains(input, request.output_parent),
+    )
   )
     throw new Error("site output would mutate its input tree");
-  const old = request.previous
-    ? await tree(request.previous, request.deadline)
-    : request.initial_rehearsal
-      ? await tree(request.initial_rehearsal.directory, request.deadline)
+  const old = request.initial_rehearsal
+    ? await readInitialRehearsal(
+        request.initial_rehearsal,
+        request.previous,
+        request.expected_previous_generation,
+        request.output_parent,
+        request.deadline,
+      )
+    : request.previous
+      ? await tree(request.previous, request.deadline)
       : new Map<string, Buffer>();
-  if (request.initial_rehearsal) {
-    if (
-      request.previous !== null ||
-      request.expected_previous_generation !== null ||
-      !path.isAbsolute(request.initial_rehearsal.directory) ||
-      !digest(request.initial_rehearsal.inventory_sha256) ||
-      [...old.keys()].some(
-        (name) => name !== ".nojekyll" && !isRetainedApplicationRehearsalPath(name),
-      ) ||
-      capacityDigest(identities(old)) !== request.initial_rehearsal.inventory_sha256
-    )
-      throw new Error("initial retained rehearsal differs from independently expected preimage");
-  }
   for (const name of old.keys())
     if (
       name !== "publication.json" &&
@@ -331,6 +340,7 @@ export async function composeCatalogSiteFiles(request: {
   catalog_root_sha256: string;
   output_parent: string;
   deadline?: number;
+  initial_rehearsal?: InitialRehearsal;
 }) {
   remaining(request.deadline);
   if (
@@ -348,9 +358,17 @@ export async function composeCatalogSiteFiles(request: {
     )
   )
     throw new Error("exact independent catalog site identities unavailable");
-  const old = request.previous
-    ? await tree(request.previous, request.deadline)
-    : new Map<string, Buffer>();
+  const old = request.initial_rehearsal
+    ? await readInitialRehearsal(
+        request.initial_rehearsal,
+        request.previous,
+        request.expected_previous_generation,
+        request.output_parent,
+        request.deadline,
+      )
+    : request.previous
+      ? await tree(request.previous, request.deadline)
+      : new Map<string, Buffer>();
   for (const name of old.keys())
     if (
       name !== "publication.json" &&
