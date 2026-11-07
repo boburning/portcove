@@ -605,3 +605,11 @@
     flex: 1 0 min(100%, 8.5rem);
   }
 }
+
+@layer utilities {
+  @container app-window (width <= 47.5rem) {
+    .sidebar-navigation {
+      gap: 7px;
+    }
+  }
+}
