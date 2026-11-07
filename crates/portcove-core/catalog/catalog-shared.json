@@ -12329,8 +12329,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp-bios-source",
@@ -12357,8 +12356,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-game-source",
@@ -12385,8 +12383,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-bios-source",
@@ -12413,8 +12410,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-game-source",
@@ -12441,8 +12437,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-bios-source",
@@ -12469,8 +12464,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-tony-hawk-s-pro-skater-recomp-game-source",
@@ -12497,8 +12491,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-tony-hawk-s-pro-skater-recomp-bios-source",
@@ -12525,8 +12518,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-oddworld-abe-s-oddysee-recomp-game-source",
@@ -12553,8 +12545,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-oddworld-abe-s-oddysee-recomp-bios-source",
@@ -12581,8 +12572,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-syphon-filter-3-recomp-game-source",
@@ -12609,8 +12599,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-syphon-filter-3-recomp-bios-source",
@@ -12637,8 +12626,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-tenchu-stealth-assassins-recomp-game-source",
@@ -12665,8 +12653,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "alexbeav-tenchu-stealth-assassins-recomp-bios-source",
@@ -12693,8 +12680,7 @@
           }
         ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       }
     ],
     "validators": [

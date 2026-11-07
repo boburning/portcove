@@ -2145,6 +2145,7 @@ impl ManagedPsxArchiveExpectation {
         port: &crate::PortDefinition,
         version: &str,
         artifact_sha256: &str,
+        observed_release: bool,
     ) {
         let id = &port.id;
         let source_catalog = catalog.source_catalog().unwrap();
@@ -2229,14 +2230,11 @@ impl ManagedPsxArchiveExpectation {
                 crate::CatalogAdmissionMode::Enforced,
                 "{id}: {role:?}"
             );
+            assert_eq!(contract.release_policy, None, "{id}: {role:?}");
             assert_eq!(
-                contract.release_policy,
-                Some(crate::SourceReleasePolicy::IntegrationContractV1),
-                "{id}: {role:?}"
-            );
-            assert!(
                 contract.applies_to_release(version, artifact_sha256),
-                "{id}: {role:?} for {version}"
+                observed_release,
+                "{id}: exact source evidence for {role:?} on {version}"
             );
         }
     }
@@ -2329,7 +2327,13 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
                 "{id}"
             );
             if let Some(contract) = &case.managed_psx {
-                contract.assert_contract(&catalog, port, &selected.version, &selected.asset.sha256);
+                contract.assert_contract(
+                    &catalog,
+                    port,
+                    &selected.version,
+                    &selected.asset.sha256,
+                    index == 0,
+                );
             }
             server.join().unwrap();
             assert_eq!(requests.try_iter().count(), 2, "{id}");
