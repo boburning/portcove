@@ -520,7 +520,7 @@ export async function materializeInitialApplicationRehearsal(
   let requests = 0;
   const get = async (suffix: string) => {
     if (
-      ++requests > (admission ? 11 : 7) + (options.recoverInitialBootstrap ? 2 : 0) ||
+      ++requests > (admission ? 11 : 7) + (options.recoverInitialBootstrap ? 4 : 0) ||
       performance.now() >= deadline
     )
       throw new Error("initial rehearsal provider observation bound exhausted");

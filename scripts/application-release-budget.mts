@@ -13,6 +13,7 @@ import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-enviro
 import {
   emptyApplicationBootstrap,
   immutableApplicationBootstrap,
+  failedBootstrapRecovery,
   isEmptyApplicationBootstrapCustody,
   readApplicationBudgetOwnerAsync,
 } from "./application-release-run.mts";
@@ -145,6 +146,7 @@ export function inspectApplicationJobBudget(
     feed_executions: executed
       .filter((entry) => entry.value.name === "feed")
       .map((entry) => ({
+        job_id: entry.value.id,
         attempt: entry.attempt,
         started_at: entry.value.started_at,
         completed_at: entry.value.completed_at,
@@ -168,7 +170,7 @@ interface ApplicationOpportunityProvider {
 async function createApplicationBudgetProvider() {
   const scope = readOnlyReleaseChildEnvironment();
   const { GH_TOKEN: token = "" } = scope ?? process.env;
-  // One owner and workflow read, up to 90 seconds of inventory, and up to six attempt/job reads.
+  // The complete workflow inventory and bounded attempt/job reads share this deadline.
   const deadline = Math.min(performance.now() + 300000, coordinatorCommandDeadline() ?? Infinity);
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
@@ -488,13 +490,17 @@ export function permitsBudgetedEmptyBootstrap(
   const custody = owner.custody.runs;
   if (executionPath === "bootstrap-recovery") {
     const original = immutableApplicationBootstrap.assembly;
-    const predecessor = custody.at(-2);
-    if (
-      predecessor?.id !== original.run_id ||
-      predecessor.control_commit !== original.control_commit ||
-      predecessor.control_ref !== original.control_ref
-    )
-      return false;
+    const matches = (
+      run: (typeof custody)[number] | undefined,
+      identity: typeof original | typeof failedBootstrapRecovery,
+    ) =>
+      run?.id === identity.run_id &&
+      run.control_commit === identity.control_commit &&
+      run.control_ref === identity.control_ref;
+    if (execution.ref === failedBootstrapRecovery.next_control_ref) {
+      if (!matches(custody.at(-3), original) || !matches(custody.at(-2), failedBootstrapRecovery))
+        return false;
+    } else if (!matches(custody.at(-2), original)) return false;
   }
   const first = retainedBootstrapRuns[0]!;
   if (
@@ -546,6 +552,28 @@ export function permitsBudgetedEmptyBootstrap(
         (row.conclusion === "success" && isContextOnlyBootstrap(row)))
     );
   });
+}
+
+/** Bootstrap recovery has many fixed one-attempt predecessors. Bound reads to
+ * four at once and drain each batch before admitting any further requests. */
+export async function readBootstrapRecoveryObservations(
+  provider: Pick<Awaited<ReturnType<typeof createApplicationBudgetProvider>>, "attempt" | "jobs">,
+  runIds: readonly number[],
+) {
+  const observations = new Map<number, { context: unknown; jobs: unknown }>();
+  for (let index = 0; index < runIds.length; index += 2) {
+    const ids = runIds.slice(index, index + 2);
+    const batch = await Promise.allSettled(
+      ids.flatMap((id) => [provider.attempt(id, 1), provider.jobs(id, 1)]),
+    );
+    const values = batch.map((result) => {
+      if (result.status === "rejected") throw result.reason;
+      return result.value;
+    });
+    for (const [offset, id] of ids.entries())
+      observations.set(id, { context: values[offset * 2], jobs: values[offset * 2 + 1] });
+  }
+  return observations;
 }
 
 export async function readApplicationJobBudget(
@@ -626,6 +654,14 @@ export async function readApplicationJobBudget(
   );
   const retainedDiagnostics =
     executionPath === "bootstrap-recovery" ? bootstrapDiagnosticCharges : [];
+  const currentId = Number(execution.run_id);
+  const recoveryObservations =
+    executionPath === "bootstrap-recovery"
+      ? await readBootstrapRecoveryObservations(provider, [
+          ...runs.filter((run) => run.id !== currentId).map((run) => Number(run.id)),
+          currentId,
+        ])
+      : undefined;
   let actual = retainedDiagnostics.reduce((sum, charge) => sum + charge.milliseconds, 0),
     remaining = 0,
     attempts = 0;
@@ -635,7 +671,7 @@ export async function readApplicationJobBudget(
       !["queued", "waiting", "requested", "pending"].includes(String(run.status)),
       "pending related release execution has unknown remaining work; no cost waiver",
     );
-    const current = run.id === Number(execution.run_id);
+    const current = run.id === currentId;
     if (current) {
       assert.equal(run.head_sha, execution.source, "current budget source changed");
       assert.equal(run.run_attempt, execution.run_attempt, "current budget attempt changed");
@@ -656,12 +692,14 @@ export async function readApplicationJobBudget(
       budgetedBootstrap || attempts <= (continuation ? 4 : 3),
       "release opportunity exhausted its bounded attempts across runs",
     );
-    const observations = [];
-    for (let attempt = 1; attempt <= Number(run.run_attempt); attempt++)
-      observations.push({
-        context: await provider.attempt(Number(run.id), attempt),
-        jobs: await provider.jobs(Number(run.id), attempt),
-      });
+    const observed = recoveryObservations?.get(Number(run.id));
+    const observations = observed ? [observed] : [];
+    if (!observed)
+      for (let attempt = 1; attempt <= Number(run.run_attempt); attempt++)
+        observations.push({
+          context: await provider.attempt(Number(run.id), attempt),
+          jobs: await provider.jobs(Number(run.id), attempt),
+        });
     const result = inspectApplicationJobBudget(
       observations,
       String(run.head_sha),
@@ -718,6 +756,27 @@ export async function readApplicationJobBudget(
         "bootstrap timeout duration changed",
       );
     }
+    if (
+      executionPath === "bootstrap-recovery" &&
+      String(run.id) === failedBootstrapRecovery.run_id
+    ) {
+      assert.equal(result.actual_milliseconds, failedBootstrapRecovery.actual_milliseconds);
+      const evidence = observations[0]?.jobs;
+      assert.ok(isRecord(evidence) && Array.isArray(evidence.jobs));
+      const executed = evidence.jobs
+        .flatMap((job: unknown) => {
+          assert.ok(isRecord(job));
+          return job.conclusion === "skipped" ? [] : [[job.id, job.name, job.conclusion]];
+        })
+        .sort((left, right) => Number(left[0]) - Number(right[0]));
+      assert.deepEqual(executed, [
+        [128481328405, "source", "success"],
+        [128481502591, "tools", "success"],
+        [128482013329, "feed_prepare", "success"],
+        [128482331065, "protection_feed / execute", "success"],
+        [failedBootstrapRecovery.feed_job_id, "feed", "failure"],
+      ]);
+    }
     actual += result.actual_milliseconds;
     remaining += result.remaining_declared_minutes;
     evidence.push({ run_id: String(run.id), ...result });
@@ -726,6 +785,22 @@ export async function readApplicationJobBudget(
     actual + remaining * 60000 <= 140 * 60000,
     "all actual opportunity executions plus remaining tail exceed application140",
   );
+  if (recoveryObservations) {
+    const identity = (rows: readonly Record<string, unknown>[]) =>
+      rows.map(({ id, head_sha, head_branch, run_attempt, status, conclusion }) => ({
+        id,
+        head_sha,
+        head_branch,
+        run_attempt,
+        status,
+        conclusion,
+      }));
+    assert.deepEqual(
+      identity(await readApplicationOpportunityRuns(provider, opportunities)),
+      identity(runs),
+      "bootstrap execution inventory changed during budget observation",
+    );
+  }
   return {
     actual_milliseconds: actual,
     remaining_declared_minutes: remaining,

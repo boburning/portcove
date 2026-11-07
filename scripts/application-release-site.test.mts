@@ -5,6 +5,10 @@ import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import {
+  failedBootstrapRecovery,
+  immutableApplicationBootstrap,
+} from "./application-release-run.mts";
+import {
   executeBootstrapPages,
   createApplicationFeedReader,
   readApplicationPagesStateAsync,
@@ -652,13 +656,61 @@ void test("feed selects the serving actor only behind its exact active Actions a
     (overrides: Record<string, unknown> = {}) =>
     async (endpoint: string) => {
       const route = endpoint.replace("repos/boburning/portcove/", "");
-      assert.ok(Object.hasOwn(responses, route), route);
-      return { status: 200, headers: new Map(), body: { ...responses, ...overrides }[route] };
+      const available: Record<string, unknown> = { ...responses, ...overrides };
+      assert.ok(Object.hasOwn(available, route), route);
+      return { status: 200, headers: new Map(), body: available[route] };
     };
   const serving = { ...current, selection: "serving" as const };
   const active = { ...current, selection: "current" as const, deployment_id: own.id };
   assert.equal((await readApplicationPagesStateAsync(read(), serving)).deployment_id, old.id);
   assert.equal((await readApplicationPagesStateAsync(read(), active)).deployment_id, own.id);
+  const original = immutableApplicationBootstrap;
+  const failed = [failedBootstrapRecovery, { ...original, ...original.assembly }];
+  const failedDeployments = failed.map((execution) => ({
+    id: execution.admission_id,
+    sha: execution.control_commit,
+    ref: execution.control_ref.slice("refs/tags/".length),
+    environment: "github-pages",
+  }));
+  const failedStatuses = Object.fromEntries(
+    failed.map((execution) => [
+      `deployments/${execution.admission_id}/statuses?per_page=1`,
+      [
+        {
+          id: execution.failed_admission_status_id,
+          state: "failure",
+          log_url: `https://github.com/boburning/portcove/actions/runs/${execution.run_id}/job/${execution.feed_job_id}`,
+        },
+      ],
+    ]),
+  );
+  const recoveryResponses = {
+    ...failedStatuses,
+    "deployments?environment=github-pages&per_page=3": [...failedDeployments, old],
+    "deployments?environment=github-pages&per_page=4": [own, ...failedDeployments, old],
+  };
+  assert.equal(
+    (await readApplicationPagesStateAsync(read(recoveryResponses), undefined, true)).deployment_id,
+    old.id,
+  );
+  assert.equal(
+    (await readApplicationPagesStateAsync(read(recoveryResponses), serving, true)).deployment_id,
+    old.id,
+  );
+  await assert.rejects(
+    readApplicationPagesStateAsync(
+      read({
+        ...recoveryResponses,
+        "deployments?environment=github-pages&per_page=4": [
+          own,
+          ...failedDeployments.toReversed(),
+          old,
+        ],
+      }),
+      serving,
+      true,
+    ),
+  );
   const catalog = { ...serving, role: "site-publication" as const, job_id: job.id };
   const catalogJob = { ...job, name: "Publish authenticated application site" };
   assert.equal(

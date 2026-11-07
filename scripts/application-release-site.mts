@@ -8,7 +8,10 @@ import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mt
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectSiteGeneration } from "./release-site-generation.mts";
-import { immutableApplicationBootstrap } from "./application-release-run.mts";
+import {
+  failedBootstrapRecovery,
+  immutableApplicationBootstrap,
+} from "./application-release-run.mts";
 import type {
   createPagesProviderTransport,
   PagesDeploymentIdentity,
@@ -25,6 +28,7 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
         "?environment=github-pages&per_page=1",
         "?environment=github-pages&per_page=2",
         "?environment=github-pages&per_page=3",
+        "?environment=github-pages&per_page=4",
       ].includes(url.search);
     if (/^deployments\/[1-9][0-9]*\/statuses$/u.test(suffix)) return url.search === "?per_page=1";
     return (
@@ -143,7 +147,7 @@ function* applicationPagesState(admission?: FeedAdmission, recoverInitialBootstr
   );
   const verifyRecoveryPreimage = recoverInitialBootstrap && admission?.selection !== "current";
   const servingIndex = admission?.selection === "serving" ? 1 : 0;
-  const limit = servingIndex + 1 + Number(verifyRecoveryPreimage);
+  const limit = servingIndex + 1 + (verifyRecoveryPreimage ? 2 : 0);
   const deployments = yield* get(`deployments?environment=github-pages&per_page=${limit}`);
   assert.ok(Array.isArray(deployments) && deployments.length === limit);
   function* actor(raw: unknown) {
@@ -223,18 +227,22 @@ function* applicationPagesState(admission?: FeedAdmission, recoverInitialBootstr
   }
   if (verifyRecoveryPreimage) {
     const original = immutableApplicationBootstrap;
-    const prior = servingIndex ? yield* actor(deployments[servingIndex]) : current;
-    assert.equal(prior.deployment.id, original.admission_id);
-    assert.equal(prior.deployment.sha, original.assembly.control_commit);
-    assert.equal(prior.deployment.ref, original.assembly.control_ref.slice("refs/tags/".length));
-    assert.equal(prior.status.id, original.failed_admission_status_id);
-    assert.equal(prior.status.state, "failure");
-    assert.equal(
-      prior.status.log_url,
-      `https://github.com/boburning/portcove/actions/runs/${original.assembly.run_id}/job/${original.feed_job_id}`,
-    );
+    const failed = [failedBootstrapRecovery, { ...original, ...original.assembly }];
+    for (const [index, execution] of failed.entries()) {
+      const offset = servingIndex + index;
+      const prior: typeof current = offset ? yield* actor(deployments[offset]) : current;
+      assert.equal(prior.deployment.id, execution.admission_id);
+      assert.equal(prior.deployment.sha, execution.control_commit);
+      assert.equal(prior.deployment.ref, execution.control_ref.slice("refs/tags/".length));
+      assert.equal(prior.status.id, execution.failed_admission_status_id);
+      assert.equal(prior.status.state, "failure");
+      assert.equal(
+        prior.status.log_url,
+        `https://github.com/boburning/portcove/actions/runs/${execution.run_id}/job/${execution.feed_job_id}`,
+      );
+    }
     if (!admission) selected = yield* actor(deployments[limit - 1]);
-    assert.notEqual(selected.deployment.id, prior.deployment.id);
+    assert.ok(failed.every((execution) => selected.deployment.id !== execution.admission_id));
   }
   const { deployment, status } = selected;
   if (admission?.selection !== "current") assert.equal(status.state, "success");

@@ -193,7 +193,9 @@ void test("initial immutable bootstrap recovery reserves only its longer feed an
     workflow.getIn(["jobs", "feed", "timeout-minutes"]),
     "${{ inputs.mode == 'recover-bootstrap' && 16 || 2 }}",
   );
-  assert.ok(5_015 + Object.values(tail).reduce((sum, minutes) => sum + minutes * 60, 0) < 140 * 60);
+  assert.ok(
+    5_015 + 356 + Object.values(tail).reduce((sum, minutes) => sum + minutes * 60, 0) < 140 * 60,
+  );
   assert.throws(() => applicationReleaseRemainingMinutes("metadata-renewal", "bootstrap-recovery"));
 });
 
