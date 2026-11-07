@@ -566,6 +566,13 @@ export async function advanceCatalogObservations(
   const freshnessExpired = (progress: SourceProgress) =>
     progress.freshness_observed_at === null ||
     now() - Date.parse(progress.freshness_observed_at) >= template.stale_after_hours * 3600000;
+  const scopeDue = (source: ObservableSource, progress: SourceProgress | undefined) =>
+    !progress ||
+    progress.completed_scope_sha256 !== scopeBinding(source) ||
+    !progress.completed_at ||
+    !progress.next_due_at ||
+    Date.parse(progress.next_due_at) <= now() ||
+    (isScheduledPriority(source) && freshnessExpired(progress));
   const earlyTurn = (source: ObservableSource) =>
     options.prioritizeConfigured === true &&
     (isScheduledPriority(source) ||
@@ -575,13 +582,8 @@ export async function advanceCatalogObservations(
       if (options.excludedSources?.has(source.key)) return false;
       const progress = state.sources[source.key];
       return (
-        !progress ||
-        ((progress.completed_scope_sha256 !== scopeBinding(source) ||
-          source.repository === template.repository ||
-          (isScheduledPriority(source) && freshnessExpired(progress)) ||
-          !progress.next_due_at ||
-          Date.parse(progress.next_due_at) <= now()) &&
-          (!progress.retry_at || Date.parse(progress.retry_at) <= now()))
+        (scopeDue(source, progress) || source.repository === template.repository) &&
+        (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
       );
     })
     // Prefer the selected scopes once per hosted opportunity. The durable
@@ -594,6 +596,7 @@ export async function advanceCatalogObservations(
         a.key.localeCompare(b.key),
     );
   const earlyTurns = new Set(pending.filter(earlyTurn).map((source) => source.key));
+  const earlyTurnCount = earlyTurns.size;
   const capacity = () =>
     state.provider_retry_at && Date.parse(state.provider_retry_at) > now()
       ? 0
@@ -725,6 +728,7 @@ export async function advanceCatalogObservations(
     state.sources[source.key] = progress;
     await options.commit(structuredClone(state));
     attempted.push(source.key);
+    const earlyCollection = earlyTurns.delete(source.key);
     if (source.provider === "gitlab" || source.provider === "direct-manifest") {
       const before = `${progress.provider_progress?.reads.length ?? 0}:${progress.provider_progress?.validation_cursor ?? 0}`;
       try {
@@ -1053,10 +1057,10 @@ export async function advanceCatalogObservations(
       const fairShare = Math.floor(available / (pending.length - index));
       // Split the early collection allowance among the selected turns so
       // other sources retain at least half of the estimated capacity.
-      const collectionShare = earlyTurns.has(source.key)
+      const collectionShare = earlyCollection
         ? Math.min(
             template.budget.pages_per_collection,
-            Math.floor(available / (2 * earlyTurns.size)),
+            Math.floor(available / (2 * earlyTurnCount)),
           )
         : 0;
       const quantum = Math.max(
@@ -1345,13 +1349,7 @@ export async function advanceCatalogObservations(
       attempted_source_keys: attempted,
       completed_source_keys: completed,
       pending_source_keys: sources
-        .filter(
-          (source) =>
-            state.sources[source.key]?.completed_scope_sha256 !== scopeBinding(source) ||
-            !state.sources[source.key]?.completed_at ||
-            !state.sources[source.key]?.next_due_at ||
-            Date.parse(state.sources[source.key]!.next_due_at!) <= now(),
-        )
+        .filter((source) => scopeDue(source, state.sources[source.key]))
         .map((source) => source.key),
       held,
       failures,
