@@ -50,15 +50,21 @@ filter = 'package(portcove-core) & test(/^installed_contract::tests::partitioned
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
-# CI41889778486/a1 Windows2 retained a 90.276s cutoff after continuous
-# install/prepare/backup/stage/apply progress (activation committed at83.320s).
-# This single test executes three complete title lifecycles plus opaque restore.
-# Give only this Windows matrix finite15-minute completion. Keep all assertions,
-# product deadlines, two workers, cleanup and zero retries; no speedup is claimed.
+# CI42359493552/1 Windows7 reached the 900s aggregate cutoff after
+# completing earlier title lifecycles and continuing through restore. Run each
+# independent lifecycle with its own bounded 600s Windows allowance.
 [[profile.default.overrides]]
-platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^service::native_portable::tests::compatible_archive_consumers_progress_with_populated_data_and_frozen_definitions$/)'
-slow-timeout = { period = "5s", terminate-after = 180, grace-period = "0s" }
+platform = "x86_64-pc-windows-msvc"
+filter = "package(portcove-core) & test(/^service::native_portable::tests::compatible_archive_progression_(mega_man_x2|sonic|super_metroid|winback)$/)"
+slow-timeout = { period = "5s", terminate-after = 120, grace-period = "0s" }
+success-output = "immediate"
+
+# The same partition reached its default 30s limit after a 29.408s status
+# projection. Bound only this Windows lifecycle while keeping its assertions.
+[[profile.default.overrides]]
+platform = "x86_64-pc-windows-msvc"
+filter = "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_status_withdrawal_holds_acquisition_and_permits_retained_launch$/)"
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
 # CI42056822258/1 Windows1 reached the 30s outer limit in two complete
