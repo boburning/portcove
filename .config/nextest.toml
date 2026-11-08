@@ -8,6 +8,40 @@ status-level = "pass"
 final-status-level = "slow"
 
 
+# Exact observed outer harness allowances. Keep all assertions, product
+# deadlines, cleanup, two workers and zero retries.
+# CI 42459489642/1 Windows 2 hit 30.207s in copying move recovery.
+# The unchanged fixture passed 21.228s on attempt 2.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^library_move::tests::copying_move_recovers_without_two_writable_libraries$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# CI 42459489642/2 Windows 2 reached removal at 81.085s before
+# the 90.313s outer limit in this complete lifecycle fixture.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_dune_ii_dune_dynasty$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
+# The same job reached cache refusal at 58.041s before the 60.079s limit.
+# Only the observed withdrawal variant receives the longer budget.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
+# CI 42459489642/1 fast rust-quality reached launch at 83.538s before
+# the 90.026s limit. The unchanged fixture passed on attempt 2.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 41934461132/a1 Windows partition5 retained this exact 30.059s cutoff
 # after admission, two installs, transition/startup and preservation at29.042s.
 # Give only this Windows fixture finite90s completion. Keep every assertion,
@@ -1550,4 +1584,13 @@ slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^game_file_query::tests::empty_requirements_select_zero_source_profiles_and_zero_hashing$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Qualification 42446922339/1 added real Apple tool preflight before
+# the child-ready marker. Keep the two-second post-acknowledgement
+# cancellation assertion and allow only these Mac fixtures time to start.
+[[profile.default.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = 'package(portcove-core) & (test(=psx::tests::managed_builder_generation_observes_active_cancellation) | test(=psx::tests::managed_builder_rebuild_observes_active_cancellation))'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 success-output = "immediate"

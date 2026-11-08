@@ -527,9 +527,13 @@ fn download_client(
         .map_err(|error| PortcoveError::network(error.to_string()))
 }
 
+pub(crate) fn default_download_client() -> Result<reqwest::Client> {
+    download_client(DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT)
+}
+
 impl Installer {
     pub fn new(library: Library) -> Result<Self> {
-        let client = download_client(DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT)?;
+        let client = default_download_client()?;
         Ok(Self {
             library,
             client,

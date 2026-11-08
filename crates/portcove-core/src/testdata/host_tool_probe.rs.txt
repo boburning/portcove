@@ -29,7 +29,8 @@ fn main() {
             fs::write("owned-builder-ready", std::process::id().to_string()).unwrap();
             match mode.as_str() {
                 "generation" | "rebuild" => {
-                    thread::sleep(Duration::from_secs(3));
+                    // Give a loaded native runner time to acknowledge the cancellation.
+                    thread::sleep(Duration::from_secs(8));
                     fs::write("owned-builder-completed", b"unexpected completion").unwrap();
                 }
                 "success" => println!("owned builder success"),
@@ -57,16 +58,39 @@ fn main() {
                     let expected = format!("--cmake-extra=-DCMAKE_{launcher}_COMPILER_LAUNCHER:STRING=");
                     assert_eq!(args.iter().filter(|argument| **argument == expected).count(), 1);
                 }
-                assert_eq!(args.iter().filter(|argument| argument.starts_with("--cmake-extra")).count(), 2);
+                let count = if cfg!(target_os = "macos") { 3 } else { 2 };
+                assert_eq!(args.iter().filter(|argument| argument.starts_with("--cmake-extra")).count(), count);
+                #[cfg(target_os = "macos")]
+                {
+                    let arch = if cfg!(target_arch = "aarch64") { "arm64" } else { "x86_64" };
+                    assert!(args.contains(&format!("--cmake-extra=-DCMAKE_OSX_ARCHITECTURES:STRING={arch}")));
+                    fs::write("apple-builder-probe.cpp", b"#include <iostream>\nint main() { std::cout << 1; }\n").unwrap();
+                    assert!(Command::new("clang++")
+                        .args(["-arch", arch, "apple-builder-probe.cpp", "-o", "apple-builder-probe"])
+                        .status().unwrap().success());
+                }
                 assert!(args.iter().any(|argument| argument == "--no-pgo"));
                 assert!(args.windows(2).any(|pair| pair == ["--target", "psx-runtime"]));
                 assert!(args.windows(2).any(|pair| pair == ["--prune-after", "build-intermediates"]));
             }
             let root = env::current_dir().unwrap();
             let private = root.join(".portcove-builder-environment");
-            let python = env::current_exe().unwrap();
-            assert_eq!(env::split_paths(&env::var_os("PATH").unwrap()).collect::<Vec<_>>(),
-                vec![root.join("bin"), python.parent().unwrap().to_path_buf()]);
+            let path = env::split_paths(&env::var_os("PATH").unwrap()).collect::<Vec<_>>();
+            #[cfg(target_os = "macos")]
+            {
+                let compiler = std::path::PathBuf::from(env::var_os("CXX").unwrap());
+                let bin = compiler.parent().unwrap();
+                assert_eq!(compiler, bin.join("clang++"));
+                assert_eq!(std::path::PathBuf::from(env::var_os("CC").unwrap()), bin.join("clang"));
+                assert_eq!(path, vec![bin.to_path_buf(), "/usr/bin".into(), root.join("bin")]);
+                assert!(std::path::PathBuf::from(env::var_os("SDKROOT").unwrap()).is_dir());
+                assert_eq!(env::var("PYTHONDONTWRITEBYTECODE").unwrap(), "1");
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let python = env::current_exe().unwrap();
+                assert_eq!(path, vec![root.join("bin"), python.parent().unwrap().to_path_buf()]);
+            }
             for name in ["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CACHE_HOME",
                          "XDG_DATA_HOME", "XDG_CONFIG_HOME", "RETCOMM_TOOLCHAIN_CACHE",
                          "RETCOMM_DATA_HOME", "TEMP", "TMP", "TMPDIR"] {

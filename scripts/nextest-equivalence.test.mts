@@ -437,6 +437,30 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     {
       platform: "x86_64-pc-windows-msvc",
       filter:
+        "package(portcove-core) & test(/^library_move::tests::copying_move_recovers_without_two_writable_libraries$/)",
+      periods: 12,
+    },
+    {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
+        "package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_dune_ii_dune_dynasty$/)",
+      periods: 24,
+    },
+    {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
+        "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)",
+      periods: 24,
+    },
+    {
+      platform: "x86_64-unknown-linux-gnu",
+      filter:
+        "package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)",
+      periods: 24,
+    },
+    {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
         "package(portcove-core) & test(/^game_file_query::tests::empty_requirements_select_zero_source_profiles_and_zero_hashing$/)",
       periods: 12,
     },
@@ -864,6 +888,9 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const macPsxCancellationFilter =
+    "package(portcove-core) & (test(=psx::tests::managed_builder_generation_observes_active_cancellation) | test(=psx::tests::managed_builder_rebuild_observes_active_cancellation))";
+  const macPsxCancellationPlatform = 'cfg(target_os = "macos")';
   assert.deepEqual(
     outputOverrides.map(outputIdentity).sort(),
     [
@@ -893,6 +920,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         filter,
       })),
       ...publicationFilters,
+      { platform: macPsxCancellationPlatform, filter: macPsxCancellationFilter },
       { filter: preparedPlayerAdoptionFilter },
       { filter: sourcePreparationFilter },
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),
@@ -1128,6 +1156,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     for (const field of ["retries", "threads-required", "priority"])
       assert.equal(override[field], undefined);
   }
+  assert.deepEqual(overrideFor(macPsxCancellationFilter, macPsxCancellationPlatform), {
+    platform: macPsxCancellationPlatform,
+    filter: macPsxCancellationFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 9, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   for (const value of [profile, ...overrides]) {
     assert.ok(value.retries === undefined || value.retries === 0);
     assert.equal(value["on-timeout"], undefined);

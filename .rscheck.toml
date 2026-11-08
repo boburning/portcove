@@ -62,8 +62,6 @@ allow_regex = [
   '^/usr/bin/rpm$',
   '^/usr/sbin:/usr/bin:/sbin:/bin$',
   '^/usr/bin/portcove-desktop$',
-  '^D:\\ROMs\\Example \(Disc [12]\)\.chd$',
-  '^D:\\ROMs\\Game\.chd$',
 ]
 
 [rules."testing.external_test_modules"]
@@ -282,6 +280,14 @@ allow_regex = [
   "^/packages/generic/$",
   "^/projects/other%2Fproject/packages/generic/game/1\\.0\\.0/game-windows-x64\\.zip$",
 ]
+
+# Managed PS1 preparation uses this fixed macOS host-tool directory. Apple
+# developer tool queries cannot inherit an arbitrary executable search path.
+[[scope]]
+include = ["**/crates/portcove-core/src/psx.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ['^/usr/bin$', '^D:\\ROMs\\Example \(Disc [12]\)\.chd$', '^D:\\ROMs\\Game\.chd$']
 
 # The Unix-only failure fixture runs this exact non-mutating system command.
 [[scope]]
