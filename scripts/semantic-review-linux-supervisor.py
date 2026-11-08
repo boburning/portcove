@@ -54,6 +54,10 @@ RUNTIME = (
     "semantic-review-model-catalog.json",
 )
 INPUT_SMALL = ("manifest.json", "instructions.txt", "result-schema.json", "reader-launch.json")
+# Same exact retained blob as release-semantic-source-limits.mts.
+RETAINED_EVIDENCE_OID = "449f7e6a4361fadea0d092f3e42fb12128b0d17b"
+RETAINED_EVIDENCE_BYTES = 21_245_243
+RETAINED_EVIDENCE_SHA256 = "5faccbdea27aea41f6dbbac2a86ebeb1e57a7e3b97cc4002a8b5d3ba2248e3b7"
 SHA = re.compile(r"[a-f0-9]{64}\Z")
 
 
@@ -252,6 +256,26 @@ def inspect_model_catalog(data):
     return data
 
 
+def read_frozen_input(file, relative):
+    if relative == f"objects/{RETAINED_EVIDENCE_OID}.data":
+        data = read_regular(file, RETAINED_EVIDENCE_BYTES)
+        git_identity = hashlib.sha1(f"blob {len(data)}\0".encode("ascii"), usedforsecurity=False)
+        git_identity.update(data)
+        require(
+            len(data) == RETAINED_EVIDENCE_BYTES
+            and git_identity.hexdigest() == RETAINED_EVIDENCE_OID
+            and hashlib.sha256(data).hexdigest() == RETAINED_EVIDENCE_SHA256,
+            "retained qualification blob identity differs",
+        )
+        return data
+    limit = 288 * MIB if relative == "reader-index.json" else 16 * MIB
+    if relative in ("instructions.txt", "result-schema.json"):
+        limit = 64 * 1024
+    if relative == "reader-launch.json":
+        limit = 4096
+    return read_regular(file, limit)
+
+
 def inspect_files(request):
     root = private_directory(request["run_root"])
     require(read_regular(root / ".portcove-semantic-review-owned", 128).strip(), "owned marker missing")
@@ -284,12 +308,7 @@ def inspect_files(request):
             file = Path(directory) / name
             relative = file.relative_to(root / "inputs").as_posix()
             require(relative in request["inputs_sha256"], "unmanifested input refused")
-            limit = 288 * MIB if relative == "reader-index.json" else 16 * MIB
-            if relative in ("instructions.txt", "result-schema.json"):
-                limit = 64 * 1024
-            if relative == "reader-launch.json":
-                limit = 4096
-            data = read_regular(file, limit)
+            data = read_frozen_input(file, relative)
             total += len(data)
             if relative.startswith("objects/"):
                 raw_total += len(data)

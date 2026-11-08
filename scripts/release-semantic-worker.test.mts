@@ -26,6 +26,7 @@ import {
   verifyLinuxSealedCheckSdkBundle,
 } from "./release-sealed-check-sdk.mts";
 import {
+  assertRetainedApplicationPrelaunchLocation,
   claimSemanticTechnicalAttempt,
   inspectSemanticTechnicalRecovery,
 } from "./release-semantic-worker-recovery.mts";
@@ -93,6 +94,52 @@ void test("persistent technical exclusion resumes pre-launch failure twice, reta
   );
   await writeFile(path.join(first, "expected-check.json"), "original");
   await assert.rejects(claimSemanticTechnicalAttempt(another, "a".repeat(64)), /GET-only/);
+});
+
+void test("retained application prelaunch refuses an alternate canonical path or an invocation sibling", () => {
+  const request = "request-b59b5c190f4933ff6f26ef05b0f5fd137b9da2e0e5114d2499a678f2a918b7be";
+  const root = `/home/boburning/portcove-semantic/private/production-semantic-output/${request}/technical-0`;
+  const copied = `/copied/${request}/technical-0`;
+  assert.doesNotThrow(() =>
+    assertRetainedApplicationPrelaunchLocation(root, root, ["source.git", "r-eqdehy"]),
+  );
+  assert.throws(
+    () => assertRetainedApplicationPrelaunchLocation(copied, copied, ["r-eqdehy"]),
+    /path differs/,
+  );
+  assert.throws(
+    () => assertRetainedApplicationPrelaunchLocation(root, copied, ["r-eqdehy"]),
+    /path differs/,
+  );
+  assert.throws(
+    () => assertRetainedApplicationPrelaunchLocation(root, root, ["r-eqdehy", "r-unexpected"]),
+    /invocation sibling/,
+  );
+});
+
+void test("retained application prelaunch exception cannot consume substituted custody or a possible Check", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "semantic-prelaunch-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const request = path.join(
+    parent,
+    "request-b59b5c190f4933ff6f26ef05b0f5fd137b9da2e0e5114d2499a678f2a918b7be",
+  );
+  await mkdir(request, { mode: 0o700 });
+  const attempt = await claimSemanticTechnicalAttempt(request, "a".repeat(64));
+  const invocation = path.join(attempt, "r-eqdehy");
+  const capture = path.join(invocation, "capture");
+  await mkdir(capture, { recursive: true, mode: 0o700 });
+  await mkdir(path.join(invocation, "inputs"), { mode: 0o700 });
+  await mkdir(path.join(invocation, "runtime"), { mode: 0o700 });
+  await writeFile(path.join(invocation, ".portcove-semantic-review-owned"), "substituted", {
+    mode: 0o600,
+  });
+  await writeFile(path.join(capture, "invocation.json"), "{}", { mode: 0o600 });
+  await writeFile(path.join(capture, "linux-request.json"), "{}", { mode: 0o600 });
+  await assert.rejects(claimSemanticTechnicalAttempt(request, "a".repeat(64)), /path differs/);
+  await writeFile(path.join(attempt, "expected-check.json"), "possible POST", { mode: 0o600 });
+  await assert.rejects(claimSemanticTechnicalAttempt(request, "a".repeat(64)), /GET-only/);
+  assert.equal(await readFile(`${request}.attempts.jsonl`, "utf8"), "technical-0\n");
 });
 
 function configuration() {

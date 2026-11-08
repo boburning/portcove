@@ -14,7 +14,7 @@ import {
   coordinatorCommandTimeout,
 } from "./release-coordinator-deadline.mts";
 import { execFileSync } from "node:child_process";
-import { lstat, mkdir, open, readFile, readdir } from "node:fs/promises";
+import { lstat, mkdir, open, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { capacityDigest } from "./release-capacity.mts";
@@ -60,6 +60,126 @@ async function json(root: string, name: string) {
   return JSON.parse(
     (await readBoundedPublicBuildInputFile(root, name, 128 * 1024)).toString("utf8"),
   ) as unknown;
+}
+
+const retainedApplicationRequest =
+  "request-b59b5c190f4933ff6f26ef05b0f5fd137b9da2e0e5114d2499a678f2a918b7be";
+
+const retainedApplicationAttempt = `/home/boburning/portcove-semantic/private/production-semantic-output/${retainedApplicationRequest}/technical-0`;
+const retainedApplicationInvocation = "r-eqdehy";
+
+export function assertRetainedApplicationPrelaunchLocation(
+  root: string,
+  canonicalRoot: string,
+  entries: readonly string[],
+) {
+  if (root !== retainedApplicationAttempt || canonicalRoot !== root)
+    throw new Error("exact retained application prelaunch path differs");
+  if (entries.some((name) => name.startsWith("r-") && name !== retainedApplicationInvocation))
+    throw new Error("unexpected retained application invocation sibling");
+}
+
+function isRetainedApplicationPrelaunch(root: string) {
+  return (
+    path.basename(root) === "technical-0" &&
+    path.basename(path.dirname(root)) === retainedApplicationRequest
+  );
+}
+
+/** Read-only verification for the exact historical technical-0 refusal.
+ * Its old supervisor inspected inputs before taking the persistent lock or
+ * writing the exclusive intent that precedes any isolated process/network start.
+ * The original worker's owner-held systemd exit was verified before reseal.
+ * No launched invocation can use this historical exception. */
+export async function verifyRetainedApplicationPrelaunch(root: string) {
+  if (root !== retainedApplicationAttempt)
+    throw new Error("exact retained application prelaunch path differs");
+  assertRetainedApplicationPrelaunchLocation(root, await realpath(root), await readdir(root));
+  const invocation = path.join(root, retainedApplicationInvocation);
+  if (
+    !(await absent(path.join(root, "expected-check.json"))) ||
+    // The retained worker and the supervisor child must both have exited.
+    !(await absent("/proc/169129")) ||
+    !(await absent("/proc/177438")) ||
+    JSON.stringify((await readdir(invocation)).sort()) !==
+      JSON.stringify([".portcove-semantic-review-owned", "capture", "inputs", "runtime"]) ||
+    JSON.stringify((await readdir(path.join(invocation, "capture"))).sort()) !==
+      JSON.stringify(["invocation.json", "linux-request.json"])
+  )
+    throw new Error("exact retained application prelaunch boundary differs");
+
+  const owner = process.getuid?.();
+  for (const directory of [
+    path.dirname(root),
+    root,
+    invocation,
+    path.join(invocation, "capture"),
+  ]) {
+    const metadata = await lstat(directory);
+    if (!metadata.isDirectory() || metadata.uid !== owner || (metadata.mode & 0o077) !== 0)
+      throw new Error("exact retained application prelaunch directory custody differs");
+  }
+  const evidence = [
+    [
+      "technical-start.json",
+      128,
+      "6657689c761ac9d7658ba6f9b2eefd65e67f5ac6de7d0ac75dbd5bb900a3c13d",
+    ],
+    [
+      "technical-stop.json",
+      4096,
+      "7663e747d4c1b39a4014fb4ae818a26738481a6cf97d2f5830000a25b2c0cd9d",
+    ],
+    [
+      "worker-attempt.jsonl",
+      4096,
+      "00410341b25be1c40cac7006402ec0c34575a045c3640c408e3b46c0e087de87",
+    ],
+    [
+      "r-eqdehy/.portcove-semantic-review-owned",
+      128,
+      "763c0b01db544ca1de2a401d3b5ffae18028b204c957bc4c42759b2b00350ad7",
+    ],
+    [
+      "r-eqdehy/capture/invocation.json",
+      4096,
+      "8df5d3e1fd35ca928bf1ebb67dd1b17f0dcc95fdfeba434c758485e3b3f42e5a",
+    ],
+    [
+      "r-eqdehy/capture/linux-request.json",
+      638410,
+      "f63591278e037f2572842280dba73f9ca93a7dff20b35ca9dbf7988d9d147423",
+    ],
+  ] as const;
+  for (const [filename, maximum, expected] of evidence) {
+    const metadata = await lstat(path.join(root, filename));
+    if (
+      !metadata.isFile() ||
+      metadata.nlink !== 1 ||
+      metadata.uid !== owner ||
+      (metadata.mode & 0o077) !== 0
+    )
+      throw new Error("exact retained application prelaunch file custody differs");
+    const bytes = await readBoundedPublicBuildInputFile(root, filename, maximum);
+    if (createHash("sha256").update(bytes).digest("hex") !== expected)
+      throw new Error("exact retained application prelaunch evidence changed");
+    if (filename === "technical-stop.json") {
+      const stop: unknown = JSON.parse(bytes.toString("utf8"));
+      if (
+        !isRecord(stop) ||
+        !Array.isArray(stop.invocations) ||
+        stop.invocations.length !== 1 ||
+        !isRecord(stop.invocations[0]) ||
+        stop.invocations[0].root !== invocation
+      )
+        throw new Error("exact retained application stop locator differs");
+    }
+    if (filename.endsWith("/linux-request.json")) {
+      const request: unknown = JSON.parse(bytes.toString("utf8"));
+      if (!isRecord(request) || request.run_root !== invocation)
+        throw new Error("exact retained application request locator differs");
+    }
+  }
 }
 
 /** Fixed GET-only OS readback. It never starts, stops, kills or resets a unit. */
@@ -161,6 +281,10 @@ export async function claimSemanticTechnicalAttempt(
     const root = path.join(requestDirectory, name);
     if (!(await absent(path.join(root, "expected-check.json"))))
       throw new Error("retained original Check request requires GET-only reconciliation");
+    if (isRetainedApplicationPrelaunch(root)) {
+      await verifyRetainedApplicationPrelaunch(root);
+      continue;
+    }
     const stopped = await json(root, "technical-stop.json");
     if (
       !isRecord(stopped) ||
