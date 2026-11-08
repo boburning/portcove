@@ -1598,20 +1598,6 @@ void test("post-feed Windows proof uses the read-only ordinary account path only
   );
 });
 
-function publicationTimeout(job: Record<string, unknown>, mode: string) {
-  const expression = job["timeout-minutes"];
-  assert.ok(
-    typeof expression === "string" && expression.startsWith("${{") && expression.endsWith("}}"),
-  );
-  const value: unknown = runInNewContext(
-    expression.slice(3, -2),
-    { inputs: { mode } },
-    { timeout: 100 },
-  );
-  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
-  return value;
-}
-
 void test("ordinary publication prepares actual inputs before a separate fresh observer and keeps signing credentials out of byte preparation", async () => {
   const raw: unknown = parse(await readFile(".github/workflows/application-release.yml", "utf8"));
   assert.ok(isRecord(raw) && isRecord(raw.jobs));
@@ -1653,8 +1639,7 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
       publish.needs.includes("publication_prepare") &&
       publish.needs.includes("protection_publication"),
   );
-  assert.equal(publicationTimeout(publish, "prepare"), 2);
-  assert.equal(publicationTimeout(publish, "bootstrap"), 2);
+  assert.equal(publish["timeout-minutes"], 2);
   assert.ok(Array.isArray(prep.steps));
   const steps = prep.steps.filter(isRecord);
   assert.ok(
@@ -1825,8 +1810,7 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
     "protection_timestamp",
     "timestamp",
     "assemble",
-    "protection_publication",
-    "publication",
+    "publication_prepare",
     "feed_prepare",
     "protection_feed",
     "feed",
@@ -1838,13 +1822,7 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
       name,
     );
   }
-  for (const name of [
-    "package",
-    "native",
-    "protection_payload",
-    "payload",
-    "publication_prepare",
-  ]) {
+  for (const name of ["package", "native", "protection_payload", "payload"]) {
     const job: unknown = workflow.jobs[name];
     assert.ok(
       isRecord(job) && typeof job.if === "string" && !job.if.includes("inputs.mode == 'renew'"),
@@ -1866,8 +1844,7 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
       Array.isArray(publisher.needs) &&
       publisher.needs.includes("protection_publication"),
   );
-  assert.equal(publicationTimeout(publisher, "renew"), 5);
-  assert.equal(publicationTimeout(publisher, "renew-unserved"), 5);
+  assert.equal(publisher["timeout-minutes"], 2);
   assert.ok(
     Array.isArray(publisher.steps) &&
       publisher.steps
@@ -1966,8 +1943,7 @@ void test("expired-unserved renewal uses existing metadata roles and source admi
     "snapshot",
     "timestamp",
     "assemble",
-    "protection_publication",
-    "publication",
+    "publication_prepare",
     "feed_prepare",
     "protection_feed",
     "feed",
@@ -1981,7 +1957,7 @@ void test("expired-unserved renewal uses existing metadata roles and source admi
       name,
     );
   }
-  for (const name of ["package", "native", "payload", "publication_prepare"]) {
+  for (const name of ["package", "native", "payload"]) {
     const job: unknown = workflow.jobs[name];
     assert.ok(
       isRecord(job) &&

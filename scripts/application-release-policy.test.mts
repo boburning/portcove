@@ -38,7 +38,7 @@ function controlFixture(): NodeJS.ProcessEnv {
   };
 }
 
-void test("bootstrap prepares before fresh protection and stages Pages only in the read-only feed owner", async () => {
+void test("metadata preparation precedes fresh protection and Pages staging stays read-only", async () => {
   const document = parseDocument(
     await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),
   );
@@ -69,17 +69,35 @@ void test("bootstrap prepares before fresh protection and stages Pages only in t
       assert.ok(typeof condition === "string");
       return Boolean(runInNewContext(condition.slice(3, -2), context, { timeout: 100 }));
     })();
-  assert.equal(enabled("publication_prepare"), true);
-  assert.equal(enabled("protection_publication"), false);
-  assert.equal(enabled("publication"), false);
-  needs.publication_prepare!.result = "success";
-  assert.equal(enabled("protection_publication"), true);
-  assert.equal(enabled("publication"), false);
-  needs.protection_publication!.result = "success";
-  assert.equal(enabled("publication"), true);
-  needs.publication_prepare!.result = "failure";
-  assert.equal(enabled("protection_publication"), false);
-  assert.equal(enabled("publication"), false);
+  for (const mode of ["bootstrap", "renew", "renew-unserved"]) {
+    context.inputs.mode = mode;
+    needs.publication_prepare!.result = "skipped";
+    needs.protection_publication!.result = "skipped";
+    if (mode !== "bootstrap") {
+      assert.equal(enabled("publication_prepare"), false);
+      needs.draft_recovery!.result = "success";
+      needs.draft_recovery!.outputs = { needed: "false" };
+      assert.equal(enabled("protection_draft_recovery"), false);
+      assert.equal(enabled("publication_prepare"), true);
+      needs.draft_recovery!.outputs = { needed: "true" };
+      assert.equal(enabled("protection_draft_recovery"), true);
+      assert.equal(enabled("publication_prepare"), false);
+      needs.protection_draft_recovery!.result = "success";
+    }
+    assert.equal(enabled("publication_prepare"), true);
+    assert.equal(enabled("protection_publication"), false);
+    assert.equal(enabled("publication"), false);
+    needs.publication_prepare!.result = "success";
+    assert.equal(enabled("protection_publication"), true);
+    assert.equal(enabled("publication"), false);
+    needs.protection_publication!.result = "success";
+    assert.equal(enabled("publication"), true);
+    needs.publication_prepare!.result = "failure";
+    assert.equal(enabled("protection_publication"), false);
+    assert.equal(enabled("publication"), false);
+    needs.draft_recovery!.result = "skipped";
+    needs.protection_draft_recovery!.result = "skipped";
+  }
   const feed = job("feed_prepare"),
     publication = job("publication");
   assert.ok(
@@ -375,6 +393,12 @@ void test("declared first-pass job ceilings fit the existing application resourc
   }
   const application = applicationReleaseBudgetMinutes("application-release");
   const bootstrap = applicationReleaseBudgetMinutes("metadata-bootstrap");
+  const renewal = applicationReleaseBudgetMinutes("metadata-renewal");
+  assert.equal(
+    renewal.publication_prepare! + renewal.publication!,
+    applicationReleaseJobMinutes.publication,
+  );
+  assert.equal(renewal["protection_draft_recovery / execute"], 1);
   assert.ok(
     typeof application.publication_prepare === "number" &&
       typeof application.publication === "number",

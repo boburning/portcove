@@ -869,7 +869,7 @@ jobs:
           PORTCOVE_DRAFT_BACKUP_REPLACEMENT_CONTEXT_SHA256: ${{ steps.stage.outputs.replacement_context_sha256 }}
         run: node scripts/application-release-private.bundle.mjs draft-recovery-retain
   protection_draft_recovery:
-    if: ${{ inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.draft_recovery.outputs.needed == 'true' }}
+    if: ${{ (inputs.mode == 'prepare' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.draft_recovery.outputs.needed == 'true' }}
     needs: [source, tools, draft_recovery]
     permissions:
       contents: read
@@ -889,7 +889,7 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   publication_prepare:
-    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && (inputs.mode == 'bootstrap' || (inputs.mode == 'prepare' && needs.draft_recovery.result == 'success' && needs.context.result == 'success' && needs.package.result == 'success' && needs.native.result == 'success' && needs.payload.result == 'success' && (needs.draft_recovery.outputs.needed != 'true' || needs.protection_draft_recovery.result == 'success'))) }}
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && (inputs.mode == 'bootstrap' || ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && needs.draft_recovery.result == 'success' && (needs.draft_recovery.outputs.needed != 'true' || needs.protection_draft_recovery.result == 'success')) || (inputs.mode == 'prepare' && needs.draft_recovery.result == 'success' && needs.context.result == 'success' && needs.package.result == 'success' && needs.native.result == 'success' && needs.payload.result == 'success' && (needs.draft_recovery.outputs.needed != 'true' || needs.protection_draft_recovery.result == 'success'))) }}
     needs:
       [
         source,
@@ -987,7 +987,7 @@ jobs:
           retention-days: 7
           overwrite: false
   protection_publication:
-    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && ((inputs.mode == 'bootstrap' && needs.publication_prepare.result == 'success') || ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && needs.draft_recovery.result == 'success') || (inputs.mode == 'prepare' && needs.publication_prepare.result == 'success')) }}
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && needs.publication_prepare.result == 'success' }}
     needs: [source, tools, assemble, draft_recovery, publication_prepare]
     permissions:
       contents: read
@@ -1007,10 +1007,10 @@ jobs:
       tools_attempt: ${{ needs.tools.outputs.attempt }}
       known_runs: ${{ needs.source.outputs.known_runs }}
   publication:
-    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && needs.protection_publication.result == 'success' && (inputs.mode == 'bootstrap' || needs.draft_recovery.result == 'success') && ((inputs.mode == 'bootstrap' && needs.publication_prepare.result == 'success') || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'prepare' && needs.publication_prepare.result == 'success')) }}
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && needs.protection_publication.result == 'success' && (inputs.mode == 'bootstrap' || needs.draft_recovery.result == 'success') && needs.publication_prepare.result == 'success' }}
     needs: [source, tools, assemble, draft_recovery, publication_prepare, protection_publication]
     runs-on: ubuntu-22.04
-    timeout-minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap') && 2 || 5 }}
+    timeout-minutes: 2
     environment: production-release-publication
     permissions:
       contents: write
