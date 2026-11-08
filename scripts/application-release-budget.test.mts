@@ -724,7 +724,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   );
 });
 
-void test("only the exact retained renewal can admit a fourth execution and carry its version floor", () => {
+void test("only the exact retained renewal can admit a fifth execution and carry its version floor", () => {
   const selected = retainedServedRenewal;
   const { opportunity, predecessors, release_id } = selected;
   const current: Parameters<typeof permitsRetainedServedRenewalContinuation>[1] = {
@@ -761,8 +761,8 @@ void test("only the exact retained renewal can admit a fourth execution and carr
     root_sha256: "a".repeat(64),
     offline_targets_sha256: "b".repeat(64),
     prior_repository_sha256: "c".repeat(64),
-    context_sha256: selected.context_sha256,
-    context_inventory_sha256: selected.context_inventory_sha256,
+    context_sha256: selected.contexts[0].context_sha256,
+    context_inventory_sha256: selected.contexts[0].context_inventory_sha256,
     records_sha256: "d".repeat(64),
     versions: {
       targets: "1",
@@ -773,13 +773,13 @@ void test("only the exact retained renewal can admit a fourth execution and carr
       stable: "2",
     },
   };
-  const next = {
+  const second = {
     ...original,
-    run_id: run,
-    control_commit: source,
-    control_ref: current.ref,
-    generated_at: "2026-11-08T04:00:00Z",
-    context_sha256: "f".repeat(64),
+    run_id: predecessors[3].id,
+    control_commit: predecessors[3].control_commit,
+    control_ref: predecessors[3].control_ref,
+    generated_at: "2026-11-08T04:23:00Z",
+    ...selected.contexts[1],
     versions: {
       targets: "1",
       snapshot: "3",
@@ -787,6 +787,22 @@ void test("only the exact retained renewal can admit a fourth execution and carr
       releases: "3",
       preview: "3",
       stable: "3",
+    },
+  };
+  const next = {
+    ...original,
+    run_id: run,
+    control_commit: source,
+    control_ref: current.ref,
+    generated_at: "2026-11-08T05:00:00Z",
+    context_sha256: "f".repeat(64),
+    versions: {
+      targets: "1",
+      snapshot: "4",
+      timestamp: "4",
+      releases: "4",
+      preview: "4",
+      stable: "4",
     },
   };
   const custody = inspectApplicationRunCustody({
@@ -802,7 +818,7 @@ void test("only the exact retained renewal can admit a fourth execution and carr
         .map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref })),
       { id: run, control_commit: source, control_ref: current.ref },
     ],
-    metadata_contexts: [original],
+    metadata_contexts: [original, second],
   });
   const permit = (rows = inventory, actor = current, retained = custody) =>
     permitsRetainedServedRenewalContinuation(
@@ -814,11 +830,16 @@ void test("only the exact retained renewal can admit a fourth execution and carr
       { release_id, custody: retained },
     );
   assert.equal(permit(), true);
+  assert.throws(() => inspectApplicationRunCustody({ ...custody, opportunity: "f".repeat(64) }));
+  assert.throws(() =>
+    inspectApplicationRunCustody({ ...custody, runs: custody.runs.slice().reverse() }),
+  );
+  assert.equal(permit(inventory, current, { ...custody, metadata_contexts: [original] }), false);
   assert.equal(
     permit(
       inventory,
       current,
-      inspectApplicationRunCustody({ ...custody, metadata_contexts: [original, next] }),
+      inspectApplicationRunCustody({ ...custody, metadata_contexts: [original, second, next] }),
     ),
     true,
   );
@@ -826,7 +847,7 @@ void test("only the exact retained renewal can admit a fourth execution and carr
   assert.equal(
     permit([...inventory, { ...active, id: Number(run) + 1 }]),
     false,
-    "no fifth execution",
+    "no sixth execution",
   );
   assert.equal(permit(inventory, { ...current, run_attempt: 2 }), false);
   assert.equal(permit(inventory, { ...current, ref: predecessors[2].control_ref }), false);
@@ -841,7 +862,7 @@ void test("only the exact retained renewal can admit a fourth execution and carr
   assert.equal(
     permit(inventory, current, {
       ...custody,
-      metadata_contexts: [{ ...original, context_sha256: next.context_sha256 }],
+      metadata_contexts: [original, { ...second, context_sha256: next.context_sha256 }],
     }),
     false,
   );

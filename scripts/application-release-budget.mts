@@ -429,7 +429,7 @@ export function permitsRetainedServedRenewalContinuation(
     custody.source_tree !== expected.source_tree ||
     custody.preparation !== null ||
     custody.budget !== undefined ||
-    runs.length !== 4
+    runs.length !== expected.predecessors.length + 1
   )
     return false;
 
@@ -453,7 +453,22 @@ export function permitsRetainedServedRenewalContinuation(
       (status === "in_progress" || row.conclusion === "failure")
     );
   };
-  const [burned, next, extra] = custody.metadata_contexts ?? [];
+  const contexts = custody.metadata_contexts ?? [];
+  const next = contexts[expected.contexts.length];
+  const contextProducers = prior.slice(-expected.contexts.length);
+  const burned = expected.contexts.every((identity, index) => {
+    const actor = contextProducers[index]!;
+    const context = contexts[index];
+    return (
+      context?.opportunity === opportunity &&
+      context.run_id === actor.id &&
+      context.run_attempt === 1 &&
+      context.control_commit === actor.control_commit &&
+      context.control_ref === actor.control_ref &&
+      context.context_sha256 === identity.context_sha256 &&
+      context.context_inventory_sha256 === identity.context_inventory_sha256
+    );
+  });
   return (
     observed.size === runs.length &&
     isRun(current, "in_progress") &&
@@ -464,14 +479,8 @@ export function permitsRetainedServedRenewalContinuation(
         .map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref })),
       current,
     ]) &&
-    burned?.opportunity === opportunity &&
-    burned.run_id === prior[2].id &&
-    burned.run_attempt === 1 &&
-    burned.control_commit === prior[2].control_commit &&
-    burned.control_ref === prior[2].control_ref &&
-    burned.context_sha256 === expected.context_sha256 &&
-    burned.context_inventory_sha256 === expected.context_inventory_sha256 &&
-    extra === undefined &&
+    burned &&
+    contexts.length <= expected.contexts.length + 1 &&
     (next === undefined ||
       (next.opportunity === opportunity &&
         next.run_id === current.id &&
@@ -698,11 +707,21 @@ export async function readApplicationJobBudget(
     executionPath,
     owner,
   );
+  const servedRenewalContinuation = permitsRetainedServedRenewalContinuation(
+    runs,
+    execution,
+    opportunity,
+    purpose,
+    executionPath,
+    owner,
+  );
   if (executionPath === "bootstrap-recovery")
     assert.ok(budgetedBootstrap, "bootstrap recovery requires its single appointed continuation");
   assert.ok(
     Array.isArray(known) &&
-      (known.length <= 3 || budgetedBootstrap) &&
+      (known.length <= 3 ||
+        budgetedBootstrap ||
+        (servedRenewalContinuation && known.length === 4)) &&
       new Set(known).size === known.length,
   );
   if (registeredRunIds === undefined)
@@ -728,14 +747,11 @@ export async function readApplicationJobBudget(
     executionPath,
     owner,
   );
-  const servedRenewalContinuation = permitsRetainedServedRenewalContinuation(
-    runs,
-    execution,
-    opportunity,
-    purpose,
-    executionPath,
-    owner,
-  );
+  const maximumAttempts = servedRenewalContinuation
+    ? retainedServedRenewal.predecessors.length + 1
+    : continuation
+      ? 4
+      : 3;
   const retainedDiagnostics =
     executionPath === "bootstrap-recovery" ? bootstrapDiagnosticCharges : [];
   const currentId = Number(execution.run_id);
@@ -773,7 +789,7 @@ export async function readApplicationJobBudget(
     );
     attempts += Number(run.run_attempt);
     assert.ok(
-      budgetedBootstrap || attempts <= (continuation || servedRenewalContinuation ? 4 : 3),
+      budgetedBootstrap || attempts <= maximumAttempts,
       "release opportunity exhausted its bounded attempts across runs",
     );
     const observed = recoveryObservations?.get(Number(run.id));
