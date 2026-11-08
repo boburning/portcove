@@ -40,7 +40,7 @@
         },
         {
           "title": "Linux generator compatibility",
-          "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26. The managed setup launches the player it builds."
+          "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26."
         }
       ]
     },
@@ -130,7 +130,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Use your own European or Australian Spyro the Dragon disc (SCES-01438) with its single data track intact. Select the complete CHD and your retail SCPH-5552 BIOS in Portcove. On Linux use native C/C++ tools, CMake, Ninja and Python 3.10 or newer. Portcove builds and launches the generated player."
+      "manual_preparation": "Use your own European or Australian Spyro the Dragon disc (SCES-01438) with its single data track intact. Select the complete CHD and your retail SCPH-5552 BIOS in Portcove. On Linux use native C/C++ tools, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player."
     },
     "bios_source_profile": "psx-scph-5552-bios"
   }

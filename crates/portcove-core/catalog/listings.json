@@ -7189,7 +7189,7 @@
           },
           {
             "title": "Linux generator compatibility",
-            "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26. The managed setup launches the player it builds."
+            "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26."
           }
         ]
       },
@@ -7327,7 +7327,7 @@
           },
           {
             "title": "Linux generator compatibility",
-            "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26. The managed setup launches the player it builds."
+            "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26."
           }
         ]
       },
@@ -8895,7 +8895,7 @@
           },
           {
             "title": "Linux generator compatibility",
-            "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26. The managed setup launches the player it builds."
+            "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26."
           }
         ]
       },
