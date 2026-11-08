@@ -32,11 +32,7 @@
         },
         {
           "title": "Add a prepared Windows installation to Portcove",
-          "instruction": "Select Yakumo.exe in its complete creating Windows folder, keeping its matching overlay libraries, FFmpeg DLLs, fonts and resources. Use that folder as working directory and no extra arguments for a normal already-prepared copy. Retain supported literal --data-dir or existing game-directory arguments only if that working copy already uses them; do not silently change the creating data or save roots."
-        },
-        {
-          "title": "Review launch details, then choose Play",
-          "instruction": "Review the selected program, start folder and launch options, then add the game and choose Play. Use Yakumo for setup, restart and save management. Before replacing the game, close it and keep its working files and data. Removing the Portcove registration leaves those files in place."
+          "instruction": "Select Yakumo.exe in its complete creating Windows folder, keeping its matching overlay libraries, FFmpeg DLLs, fonts and resources. Use that folder as working directory and no extra arguments for a normal already-prepared copy. Retain supported literal --data-dir or existing game-directory arguments only if that working copy already uses them; do not silently change the creating data or save roots. Review the program, start folder and launch options, then add the game and choose Play."
         },
         {
           "title": "Set up Yakumo on Linux or Steam Deck",
@@ -61,10 +57,6 @@
         {
           "title": "Preserve the actual portable or installed profile",
           "instruction": "The Windows installed profile normally uses %APPDATA%/Yakumo/MHP3rd. The portable package uses data/ beside the executable. Existing portable.txt, a data/ folder, --portable, --data-dir and MHP3RD_DATA_DIR/MHP3RD_PORTABLE choices affect selection; retain the actual established mode and do not add/remove markers or trigger profile-copy prompts as registration work. A non-writable portable directory fails instead of silently falling back. Keep settings.ini, prepared EBOOT.ELF, copied disc.iso or its external in-place original, ms0/PSP/SAVEDATA (including ULJM05800, ULJM05800QST and ULJM05800DAT), mods, texture packs, pipeline caches/keys, logs, controller mappings, translations/fonts, save-backups, temporary files and all custom roots. A source-build game directory may retain its own ms0 and older saves; do not migrate it automatically."
-        },
-        {
-          "title": "Keep upstream restart and replacement separate",
-          "instruction": "The native process runs the game in-process. Upstream Set Up Game Data Again and Restart Now after save import can end it and start a successor. Perform those actions outside the attached session; Core does not automatically adopt the successor or offer upstream save import/export, texture installation, backup or network configuration. Retain the old working runtime and all data before replacement."
         },
         {
           "title": "Check the original-file identity",
