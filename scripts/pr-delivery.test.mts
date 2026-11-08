@@ -1781,6 +1781,15 @@ void test("inspection verifies hashed finite references without converting decla
     inspect(retry, { ...finished, workflowAfter: { run_attempt: 3 } }),
     /workflow changed during inspection/,
   );
+  let timeReads = 0;
+  await assert.rejects(
+    inspectDelivery((await inspectionClient({ checks: [] })).client, {
+      ...inspectOptions,
+      references: parseInspectionReferences(JSON.stringify(declaration), 7),
+      now: () => Date.parse(declaration.watcher.deadline) - (timeReads++ === 0 ? 1 : 0),
+    }),
+    /watcher deadline expired during inspection/,
+  );
   for (const [options, now] of [
     [{ checks: [], workflow: { run_attempt: 2 } }, Date.parse("2026-10-18T00:00:00Z")],
     [{ checks: [] }, Date.parse(declaration.watcher.deadline)],

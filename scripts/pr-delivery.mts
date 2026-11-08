@@ -1467,6 +1467,8 @@ export async function inspectDelivery(
       (await client.branch(ref)).commit.sha !== target
     )
       throw new Error("source, target or pull request state changed during inspection");
+    if (watcher.state === "referenced" && binding && now() >= Date.parse(binding.deadline))
+      throw new Error("watcher deadline expired during inspection");
     const next_action = pull.merged
       ? "Reconcile the owning issue and Project against confirmed merge readback."
       : pull.state === "closed"
