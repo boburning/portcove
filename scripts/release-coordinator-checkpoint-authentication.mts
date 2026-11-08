@@ -32,6 +32,35 @@ import { inspectFixedJobJournalAuthorities } from "./release-authority-configura
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { assessBoundedCapacity } from "./release-capacity.mts";
 
+// The original immutable r45 child survives its interrupted publication. A
+// fixed catalog recovery and the same-source application handoff own it.
+export const retainedCatalogBootstrapClaim = {
+  previous: "bf507a891f66cc28cca8ebcab81828f3c029dce0",
+  child: "565eb5b3ccf58d6f0654e99b8d3e0214987cd003",
+  tree: "73cb00ea80fc6823e982c3047ff0a538bba2ab1e",
+  clock: "2026-11-08T08:17:49.067Z",
+  original_source: "befb9b41ced06c478a201e24fcea6a0aa950b859",
+  original_ref: "portcove-production-controller-catalog-20261108r45",
+  original_run: "42461860356",
+  original_job: 128673642719,
+  successor_ref: "refs/tags/portcove-production-controller-catalog-20261108r47",
+  application_ref: "refs/tags/portcove-production-controller-windows-20261105r46",
+} as const;
+
+export function matchesRetainedCatalogBootstrapHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { revision: string; execution_ref: string },
+) {
+  return (
+    checkpoint.checkpoint === retainedCatalogBootstrapClaim.child &&
+    checkpoint.previous === retainedCatalogBootstrapClaim.previous &&
+    producer.controller_revision === source.revision &&
+    producer.controller_ref === retainedCatalogBootstrapClaim.successor_ref &&
+    source.execution_ref === retainedCatalogBootstrapClaim.application_ref
+  );
+}
+
 /** Authenticate one independently selected current head, not an ancestry walk.
  * Selected setup pins authorize only the exact empty seed. Every later head
  * must carry the existing signature plus actual fixed historical job binding.
@@ -97,10 +126,12 @@ export async function authenticateFixedJobCoordinatorHistory(
   );
   const subject: unknown = JSON.parse(evidence.subject.toString("utf8"));
   const producer = isRecord(subject) && isRecord(subject.producer) ? subject.producer : null;
+  const retainedHandoff =
+    producer !== null && matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source);
   if (
     !producer ||
     producer.controller_revision !== source.revision ||
-    producer.controller_ref !== source.execution_ref ||
+    (producer.controller_ref !== source.execution_ref && !retainedHandoff) ||
     producer.workflow_sha256 !== source.workflow_sha256 ||
     producer.actor_id !== source.actor_id ||
     producer.configuration_sha256 !== releaseCanonicalDigest(authorities) ||
@@ -126,7 +157,11 @@ export async function authenticateFixedJobCoordinatorHistory(
       ...capacityExecutorRolesForPurpose("catalog-publication"),
     ]),
   ].filter((role) => isRecord(job) && job.name === capacityExecutorJobProfile(role).job);
-  if (response.status !== 200 || roles.length !== 1)
+  if (
+    response.status !== 200 ||
+    roles.length !== 1 ||
+    (retainedHandoff && roles[0] !== "coordinator")
+  )
     throw new Error("retained checkpoint has no unique allowed historical job role");
   // The lookup selects a closed role, never accepts it. The existing verifier
   // independently reads the exact original attempt/job/check and signature.

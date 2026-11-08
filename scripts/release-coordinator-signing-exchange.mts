@@ -48,6 +48,7 @@ export async function signAndPublishCoordinatorCheckpoint(
     api: CoordinatorSigningApi;
     refresh: (stage: Stage) => Promise<void>;
     nativeCustody?: object;
+    resumeClaim?: boolean;
   },
 ) {
   const producer = structuredClone(expectedProducer),
@@ -66,6 +67,8 @@ export async function signAndPublishCoordinatorCheckpoint(
     throw new Error("signing exchange requires the original bounded deadline");
   const native =
     custody === undefined ? null : await requirePreparedHostedNativeCustody(custody, deadline);
+  if (native && options.resumeClaim)
+    throw new Error("native signing does not resume an adoption claim");
   if (native) deadline = Math.min(deadline, native.deadline);
   const result = await publishCoordinatorSigningExchange(
     localRepository,
@@ -74,6 +77,7 @@ export async function signAndPublishCoordinatorCheckpoint(
     deadline,
     {
       api,
+      ...(options.resumeClaim ? { resumeClaim: true } : {}),
       async refresh(stage) {
         native?.assertCurrent();
         await refresh(stage);
@@ -125,6 +129,7 @@ export async function publishCoordinatorSigningExchange(
   options: {
     api: CoordinatorSigningApi;
     refresh: (stage: Stage) => Promise<void>;
+    resumeClaim?: boolean;
     produce: (
       checkpoint: Checkpoint,
       configuration: unknown,
@@ -165,7 +170,8 @@ export async function publishCoordinatorSigningExchange(
   let requests = 0,
     nodeId = "",
     phase = "preimage",
-    attempted = false;
+    attempted = false,
+    attemptedCommit = false;
   const objects: {
     kind: string;
     expected: string;
@@ -272,7 +278,7 @@ export async function publishCoordinatorSigningExchange(
       throw new Error("signing exchange CAS acknowledgment differs or is ambiguous");
   };
   try {
-    await requireSnapshot(preimage, true);
+    await requireSnapshot(options.resumeClaim ? owned : preimage, true);
     for (const required of checkpoint.required_commits) {
       const value = await rest("GET", `repos/${repository}/git/commits/${required.oid}`);
       if (
@@ -288,36 +294,38 @@ export async function publishCoordinatorSigningExchange(
       )
         throw new Error("signing exchange source/prepared commit differs");
     }
-    phase = "checkpoint-objects";
-    await refresh("claim");
-    active();
-    await upload(
-      "blobs",
-      { content: Buffer.from(checkpoint.blob.contents).toString("base64"), encoding: "base64" },
-      checkpoint.blob.oid,
-    );
-    await upload("trees", { tree: checkpoint.tree.entries }, checkpoint.tree.oid);
-    const { oid: _oid, ...commit } = checkpoint.commit;
-    await upload("commits", commit, checkpoint.commit.oid);
-    phase = "claim";
-    await refresh("claim");
-    active();
-    attempted = true;
-    // One slot per independently ratified predecessor, shared by competing
-    // proposed checkpoints. The authoritative state head is NOT advanced.
-    try {
-      await cas([{ ...updates[0]!, afterOid: checkpoint.previous! }, claim]);
-    } catch (error) {
-      let observed: string[] | null = null;
-      try {
-        observed = await snapshot(false, true);
-      } catch {
-        /* original ambiguity retained */
-      }
-      throw new CoordinatorRemoteError(
-        "signing intent claim acknowledgment ambiguous; do not sign or retry",
-        { checkpoint: expected, names, observed, error: sanitizeOperationError(error) },
+    if (!options.resumeClaim) {
+      phase = "checkpoint-objects";
+      await refresh("claim");
+      active();
+      await upload(
+        "blobs",
+        { content: Buffer.from(checkpoint.blob.contents).toString("base64"), encoding: "base64" },
+        checkpoint.blob.oid,
       );
+      await upload("trees", { tree: checkpoint.tree.entries }, checkpoint.tree.oid);
+      const { oid: _oid, ...commit } = checkpoint.commit;
+      await upload("commits", commit, checkpoint.commit.oid);
+      phase = "claim";
+      await refresh("claim");
+      active();
+      attempted = true;
+      // One slot per independently ratified predecessor, shared by competing
+      // proposed checkpoints. The authoritative state head is NOT advanced.
+      try {
+        await cas([{ ...updates[0]!, afterOid: checkpoint.previous! }, claim]);
+      } catch (error) {
+        let observed: string[] | null = null;
+        try {
+          observed = await snapshot(false, true);
+        } catch {
+          /* original ambiguity retained */
+        }
+        throw new CoordinatorRemoteError(
+          "signing intent claim acknowledgment ambiguous; do not sign or retry",
+          { checkpoint: expected, names, observed, error: sanitizeOperationError(error) },
+        );
+      }
     }
     let nextPost = 0,
       busy = false,
@@ -386,6 +394,7 @@ export async function publishCoordinatorSigningExchange(
     proof();
     let mutationError: ReturnType<typeof sanitizeOperationError> | null = null;
     try {
+      attemptedCommit = true;
       await cas([...updates, evidence.update, { ...claim, beforeOid: expected }]);
     } catch (error) {
       mutationError = sanitizeOperationError(error);
@@ -413,6 +422,7 @@ export async function publishCoordinatorSigningExchange(
         checkpoint: expected,
         phase,
         attempted_claim: attempted,
+        attempted_commit: attemptedCommit,
         names,
         objects,
         requests,

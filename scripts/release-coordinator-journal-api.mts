@@ -233,6 +233,7 @@ export function createCheckpointJobTokenApi(
   configuration: unknown,
   deadline: number,
   storageWriter?: { app_id: number; installation_id: number },
+  resumeClaim = false,
 ) {
   const started = performance.now();
   if (!Number.isFinite(deadline) || deadline <= started || deadline - started > 120000)
@@ -366,7 +367,7 @@ export function createCheckpointJobTokenApi(
             ]
           : null;
       if (
-        (!isDeepStrictEqual(input.refUpdates, claimUpdates) &&
+        ((resumeClaim || !isDeepStrictEqual(input.refUpdates, claimUpdates)) &&
           !isDeepStrictEqual(input.refUpdates, finalUpdates)) ||
         input.clientMutationId !==
           createHash("sha256")
@@ -456,11 +457,26 @@ export function createCheckpointHistoryReader(
   } satisfies CoordinatorCheckpointApi;
   return {
     api,
-    async assertCurrentUnclaimedHead() {
+    async assertCurrentHead(claimedChild?: string) {
+      if (
+        claimedChild !== undefined &&
+        (!/^[a-f0-9]{40}$/u.test(claimedChild) || claimedChild === expected)
+      )
+        throw new Error("history reader requires exact different claimed child");
+
       const result = await api.graphql(headQuery, names);
       const repository =
         isRecord(result.data) && isRecord(result.data.repository) ? result.data.repository : null;
       const state = repository && isRecord(repository.state) ? repository.state : null;
+      const intent = repository && isRecord(repository.intent) ? repository.intent : null;
+      const expectedIntent =
+        claimedChild === undefined
+          ? repository?.intent === null
+          : intent !== null &&
+            `${String(intent.prefix)}${String(intent.name)}` === names.intent &&
+            isRecord(intent.target) &&
+            intent.target.__typename === "Commit" &&
+            intent.target.oid === claimedChild;
       if (
         !repository ||
         repository.databaseId !== 1354613114 ||
@@ -470,7 +486,7 @@ export function createCheckpointHistoryReader(
         !isRecord(state.target) ||
         state.target.__typename !== "Commit" ||
         state.target.oid !== expected ||
-        repository.intent !== null
+        !expectedIntent
       )
         throw new Error(
           "current journal head or pending intent changed; explicit readback/recovery required",

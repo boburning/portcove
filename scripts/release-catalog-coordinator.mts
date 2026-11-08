@@ -1,5 +1,6 @@
 import {
   authenticateCapacityExecutor,
+  authenticateOwnedCheckpointJournalHistory,
   ensureOwnedCheckpointJournalHistory,
   publishOwnedSignedCoordinatorCheckpoint,
 } from "./release-capacity-executor.mts";
@@ -48,6 +49,7 @@ import {
   receiveControllerTools,
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import {
   materializeCatalogPublicationSource,
@@ -83,6 +85,8 @@ import {
   inspectCoordinatorRemoteNamespace,
   publishCoordinatorCheckpoint,
 } from "./release-coordinator-remote.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import { retainedCatalogBootstrapClaim } from "./release-coordinator-checkpoint-authentication.mts";
 import { checkpointReleaseOpportunity } from "./release-coordinator-state.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import { collectReleaseSourceChangesWithSdk } from "./release-source-changes.mts";
@@ -97,6 +101,7 @@ import { prepareControlReadiness, waitForControlArtifact } from "./release-contr
 import {
   retainControlStepLocator,
   retainCatalogCoordinatorRefusal,
+  inspectCatalogCheckpointRefusal,
   type CatalogCoordinatorRefusalStage,
 } from "./release-control-step-bridge.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -332,6 +337,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
       const publishCheckpoint = async (
         next: Record<string, unknown>,
         checkpointControls: () => Promise<void>,
+        claimedChild?: string,
       ) => {
         const executor = await authenticateCapacityExecutor(
           "coordinator",
@@ -350,12 +356,21 @@ export async function runFixedCatalogCoordinatorConfiguration(
           directory,
           deadline,
         );
-        const signedJournal = await ensureOwnedCheckpointJournalHistory(
-          executor,
-          recovered.repository,
-          recovered.checkpoint,
-          checkpointControls,
-        );
+        if (claimedChild !== undefined)
+          await authenticateOwnedCheckpointJournalHistory(
+            executor,
+            recovered.repository,
+            recovered.checkpoint,
+            claimedChild,
+          );
+        const signedJournal =
+          claimedChild !== undefined ||
+          (await ensureOwnedCheckpointJournalHistory(
+            executor,
+            recovered.repository,
+            recovered.checkpoint,
+            checkpointControls,
+          ));
         const publishLegacy = async (checkpoint: string) => {
           const journal = createCoordinatorJournalApi(directory, deadline),
             guarded = {
@@ -386,6 +401,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
           recovered.checkpoint,
           next,
         );
+        if (claimedChild !== undefined && persisted.checkpoint !== claimedChild)
+          throw new Error("reconstructed adoption differs from the retained claimed child");
         if (signedJournal)
           await publishOwnedSignedCoordinatorCheckpoint(
             executor,
@@ -413,6 +430,59 @@ export async function runFixedCatalogCoordinatorConfiguration(
         input.active_candidate === null &&
         !unresolved(input)
       ) {
+        const resumeClaim =
+          reader.admitted.execution_ref === retainedCatalogBootstrapClaim.successor_ref;
+        if (resumeClaim) {
+          if (
+            reader.admitted.run_attempt !== 1 ||
+            recovered.checkpoint !== retainedCatalogBootstrapClaim.previous
+          )
+            throw new Error(
+              "claimed bootstrap recovery requires its original predecessor and one successor attempt",
+            );
+          const provider = await createReleaseCustodyProvider({
+            token: readerToken,
+            deadline,
+            maxBytes: 2 * 1024 ** 2,
+            beforeDispatch: checkDirectSource,
+          });
+          const [run, job, child] = await Promise.all([
+            provider.attempt(retainedCatalogBootstrapClaim.original_run, 1),
+            provider.job(retainedCatalogBootstrapClaim.original_job),
+            provider.commit(retainedCatalogBootstrapClaim.child),
+          ]);
+          if (
+            !isRecord(run) ||
+            run.id !== Number(retainedCatalogBootstrapClaim.original_run) ||
+            run.run_attempt !== 1 ||
+            run.event !== "workflow_dispatch" ||
+            run.path !== ".github/workflows/application-update-production.yml" ||
+            run.head_sha !== retainedCatalogBootstrapClaim.original_source ||
+            run.head_branch !== retainedCatalogBootstrapClaim.original_ref ||
+            run.status !== "completed" ||
+            run.conclusion !== "failure" ||
+            !isRecord(run.actor) ||
+            run.actor.id !== 41898282 ||
+            !isRecord(run.triggering_actor) ||
+            run.triggering_actor.id !== 41898282 ||
+            !isRecord(job) ||
+            job.id !== retainedCatalogBootstrapClaim.original_job ||
+            job.run_id !== Number(retainedCatalogBootstrapClaim.original_run) ||
+            job.run_attempt !== 1 ||
+            job.name !== "Coordinate application release" ||
+            job.head_sha !== retainedCatalogBootstrapClaim.original_source ||
+            job.status !== "completed" ||
+            job.conclusion !== "failure"
+          )
+            throw new Error("retained claimed bootstrap producer identity differs");
+          const exact = inspectRemoteCommitObject(child, retainedCatalogBootstrapClaim.child);
+          if (
+            exact.tree !== retainedCatalogBootstrapClaim.tree ||
+            exact.parents.length !== 1 ||
+            exact.parents[0] !== retainedCatalogBootstrapClaim.previous
+          )
+            throw new Error("retained claimed bootstrap child or parent differs");
+        }
         stage = "standalone-application-bootstrap-readback";
         const { metadata, assertCurrent } = await authenticateStandaloneBootstrapAdoption(
           directory,
@@ -458,7 +528,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           await assertCurrent();
           check();
         };
-        const now = new Date().toISOString();
+        const now = resumeClaim ? retainedCatalogBootstrapClaim.clock : new Date().toISOString();
         const next = {
           ...input,
           now,
@@ -471,7 +541,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
           published_metadata: metadata,
         };
         stage = "standalone-application-bootstrap-CAS";
-        const readback = await publishCheckpoint(next, checkpointControls);
+        const readback = await publishCheckpoint(
+          next,
+          checkpointControls,
+          resumeClaim ? retainedCatalogBootstrapClaim.child : undefined,
+        );
         if (capacityDigest(readback.input.published_metadata) !== capacityDigest(metadata))
           throw new Error("standalone bootstrap journal adoption readback differs");
         return held(
@@ -480,6 +554,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
           "exact standalone application bootstrap adopted; next wake can review catalog",
         );
       }
+      if (reader.admitted.execution_ref === retainedCatalogBootstrapClaim.successor_ref)
+        throw new Error("claimed bootstrap recovery ref has no further operation authority");
       const pending = inspectCatalogReviewRequest(input.catalog_review_request),
         history = inspectCatalogReviewDisposition(input.catalog_review_disposition),
         replacement = !pending && history !== null;
@@ -863,10 +939,44 @@ export async function runFixedCatalogCoordinatorConfiguration(
         automatic_retry: false,
       };
     } catch (error) {
+      let exchange;
+      if (
+        stage === "standalone-application-bootstrap-CAS" &&
+        error instanceof CoordinatorRemoteError &&
+        isRecord(error.evidence)
+      ) {
+        exchange = inspectCatalogCheckpointRefusal(error.evidence);
+        const child = error.evidence.checkpoint;
+        if (exchange && typeof child === "string" && /^[a-f0-9]{40}$/u.test(child)) {
+          try {
+            const bytes = await readControllerToolFile(
+              path.join(directory, `checkpoint-signing-${child}`, "signing-failure.json"),
+              1024,
+            );
+            const failure: unknown = JSON.parse(bytes.toString("utf8"));
+            if (
+              isRecord(failure) &&
+              failure.schema_version === 1 &&
+              failure.completed === false &&
+              failure.automatic_retry === false &&
+              failure.recovery_required === true &&
+              failure.provider_error_text_retained === false
+            ) {
+              if (failure.phase === "identity" && failure.remote_effect === "not-attempted")
+                exchange.signer = "identity-not-attempted";
+              if (failure.phase === "signing" && failure.remote_effect === "unknown")
+                exchange.signer = "signing-effect-unknown";
+            }
+          } catch {
+            // The exchange phase remains available when signer custody was never created.
+          }
+        }
+      }
       await retainCatalogCoordinatorRefusal(
         process.env.RUNNER_TEMP ?? "",
         "operation",
         stage,
+        exchange,
       ).catch(() => {});
       await writeFile(
         path.join(directory, "refusal.json"),

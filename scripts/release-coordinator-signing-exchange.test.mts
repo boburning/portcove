@@ -35,6 +35,7 @@ async function signingExchangeFixture(
   fault = "",
   now?: string,
   jobToken = false,
+  resumeClaim = false,
 ) {
   const f = await remoteFixture(t, now),
     proof = checkpointProofFixture(f.checkpoint, f.config);
@@ -94,6 +95,8 @@ async function signingExchangeFixture(
     },
   );
   const intent = `refs/tags/portcove-fixture-checkpoint-intent/${f.initial.checkpoint}`;
+  if (resumeClaim)
+    f.refs.set(intent, fault === "foreign-claim" ? "e".repeat(40) : f.saved.checkpoint);
   if (fault === "object-after") f.faults.object = "evidence-commits";
   let calls = 0,
     mutations = 0,
@@ -134,7 +137,7 @@ async function signingExchangeFixture(
           throw new Error("atomic fixture preimage conflict");
         assert.notEqual(update.afterOid, zero);
       }
-      if (mutations === 1) {
+      if (mutations === 1 && !resumeClaim) {
         assert.equal(updates.length, 2);
         assert.deepEqual(
           updates.map((u: unknown) => (isRecord(u) ? [u.name, u.afterOid] : null)),
@@ -146,7 +149,7 @@ async function signingExchangeFixture(
         assert.equal(f.counts().posts, 3);
         if (fault === "claim-before") throw new Error("claim response lost before effect");
       } else {
-        assert.equal(f.counts().posts, 7);
+        assert.equal(f.counts().posts, resumeClaim ? 4 : 7);
         assert.equal(events.filter((event) => event.startsWith("post:")).length, 2);
         assert.equal(events.at(-1), "refresh:commit");
       }
@@ -157,7 +160,7 @@ async function signingExchangeFixture(
       }
       if (
         (mutations === 1 && fault === "claim-after") ||
-        (mutations === 2 && ["final-after", "partial-final"].includes(fault))
+        (mutations === (resumeClaim ? 1 : 2) && ["final-after", "partial-final"].includes(fault))
       )
         throw new Error("response lost after effects");
       if (mutations === 1 && fault === "claim-ack")
@@ -167,13 +170,21 @@ async function signingExchangeFixture(
   };
   const deadline = performance.now() + 60000;
   const transport = jobToken
-    ? createCheckpointJobTokenApi(directory, f.checkpoint, f.config, deadline)
+    ? createCheckpointJobTokenApi(
+        directory,
+        f.checkpoint,
+        f.config,
+        deadline,
+        undefined,
+        resumeClaim,
+      )
     : api;
   let retainedGate: ((stage: "fulcio" | "rekor") => Promise<void>) | undefined;
   const run = () =>
     withReadOnlyReleaseChildren(directory, () =>
       publishCoordinatorSigningExchange(f.bare, f.saved.checkpoint, f.config, deadline, {
         api: transport,
+        ...(resumeClaim ? { resumeClaim: true } : {}),
         async refresh(stage) {
           events.push(`refresh:${stage}`);
           await hooks.refresh(stage);
@@ -250,6 +261,24 @@ for (const fault of ["", "claim-after", "final-after", "partial-final"]) {
       assert.equal(result.recovered, fault === "final-after");
     }
     assert.equal(f.refs.get(f.intent), f.saved.checkpoint);
+  });
+}
+
+for (const fault of ["", "final-after", "foreign-claim", "partial-final"]) {
+  void test(`retained claim recovery ${fault || "complete"} performs only exact final CAS`, async (t) => {
+    const f = await signingExchangeFixture(t, fault, undefined, true, true);
+    if (fault === "foreign-claim" || fault === "partial-final") {
+      await assert.rejects(f.run(), CoordinatorRemoteError);
+      assert.equal(f.stats().mutations, fault === "foreign-claim" ? 0 : 1);
+      assert.equal(f.stats().produces, fault === "foreign-claim" ? 0 : 1);
+    } else {
+      const result = await f.run();
+      assert.equal(result.recovered, fault === "final-after");
+      assert.equal(f.stats().mutations, 1);
+      assert.equal(f.stats().produces, 1);
+      assert.equal(f.refs.get(f.stateRef), f.saved.checkpoint);
+      assert.equal(f.refs.get(f.intent), f.saved.checkpoint);
+    }
   });
 }
 
