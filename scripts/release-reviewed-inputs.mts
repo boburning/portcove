@@ -541,22 +541,25 @@ async function runOperation(
           guard: requireObserver,
         });
       }
+      const observationOptions: Parameters<typeof observeReleaseInputProtections>[1] = {
+        journalNamespace: observerRoles?.storage_journal?.namespace,
+        onRefusal: (evidence) =>
+          console.error(
+            JSON.stringify({
+              operation: catalogPurpose
+                ? "catalog-protection-observation"
+                : "application-protection-observation",
+              phase,
+              ...evidence,
+              authority: "none",
+            }),
+          ),
+      };
       result = catalogPurpose
-        ? await observeCatalogMaintenanceProtections(readProtection, {
-            journalNamespace: observerRoles?.storage_journal?.namespace,
-            onRefusal: (evidence) =>
-              console.error(
-                JSON.stringify({
-                  operation: "catalog-protection-observation",
-                  phase,
-                  ...evidence,
-                  authority: "none",
-                }),
-              ),
-          })
+        ? await observeCatalogMaintenanceProtections(readProtection, observationOptions)
         : await observeReleaseInputProtections(readProtection, {
+            ...observationOptions,
             releasePublication: phase === "release-publication",
-            journalNamespace: observerRoles?.storage_journal?.namespace,
           });
       requireObserver();
       if (productionObservation)

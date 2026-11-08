@@ -13,7 +13,10 @@ import type {
   HistoricalJobProvider,
   HostedNativeSourceProvider,
 } from "./release-custody-provider.mts";
-import { verifyControllerArtifactVerification } from "./github-controller-attestation.mts";
+import {
+  parseControllerWitnessedTime,
+  verifyControllerArtifactVerification,
+} from "./github-controller-attestation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   verifyHistoricalHostedNativeJob,
@@ -295,9 +298,7 @@ async function collectHostedNativeProof(
       verified.verifiedTimestamps.length > 8
     )
       throw new Error("hosted native verified statement or timestamp bound differs");
-    const times = verified.verifiedTimestamps.map((value: unknown) =>
-      instant(isRecord(value) ? value.timestamp : null),
-    );
+    const times = verified.verifiedTimestamps.map(parseControllerWitnessedTime);
     const observeJob = () =>
       (purpose !== "historical" ? verifyHostedNativePhaseJob : verifyHistoricalHostedNativeJob)(
         prepared.report.platform_label,

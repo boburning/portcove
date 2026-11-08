@@ -16,7 +16,10 @@ import {
 import type { CoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
 import type { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
-import { verifyControllerArtifactVerification } from "./github-controller-attestation.mts";
+import {
+  parseControllerWitnessedTime,
+  verifyControllerArtifactVerification,
+} from "./github-controller-attestation.mts";
 import { verifyHistoricalCheckpointJob } from "./release-checkpoint-job-identity.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
@@ -33,7 +36,7 @@ import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { assessBoundedCapacity } from "./release-capacity.mts";
 
 // The original immutable r45 child survives its interrupted publication. A
-// fixed catalog recovery and the same-source application handoff own it.
+// fixed catalog recovery and its exact application handoff own it.
 export const retainedCatalogBootstrapClaim = {
   previous: "bf507a891f66cc28cca8ebcab81828f3c029dce0",
   child: "565eb5b3ccf58d6f0654e99b8d3e0214987cd003",
@@ -44,6 +47,8 @@ export const retainedCatalogBootstrapClaim = {
   original_run: "42461860356",
   original_job: 128673642719,
   successor_ref: "refs/tags/portcove-production-controller-catalog-20261108r51",
+  successor_revision: "525a89cb56a5001cc544fb1a25d1c36101d7d815",
+  successor_workflow_sha256: "e8233a09bbd838f2ea551dabbe85592bfcd9776db1bd301fb6be2d502d4bcba0",
   application_ref: "refs/tags/portcove-production-controller-windows-20261105r46",
 } as const;
 
@@ -55,8 +60,9 @@ export function matchesRetainedCatalogBootstrapHandoff(
   return (
     checkpoint.checkpoint === retainedCatalogBootstrapClaim.child &&
     checkpoint.previous === retainedCatalogBootstrapClaim.previous &&
-    producer.controller_revision === source.revision &&
+    producer.controller_revision === retainedCatalogBootstrapClaim.successor_revision &&
     producer.controller_ref === retainedCatalogBootstrapClaim.successor_ref &&
+    producer.workflow_sha256 === retainedCatalogBootstrapClaim.successor_workflow_sha256 &&
     source.execution_ref === retainedCatalogBootstrapClaim.application_ref
   );
 }
@@ -130,9 +136,10 @@ export async function authenticateFixedJobCoordinatorHistory(
     producer !== null && matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source);
   if (
     !producer ||
-    producer.controller_revision !== source.revision ||
-    (producer.controller_ref !== source.execution_ref && !retainedHandoff) ||
-    producer.workflow_sha256 !== source.workflow_sha256 ||
+    (!retainedHandoff &&
+      (producer.controller_revision !== source.revision ||
+        producer.controller_ref !== source.execution_ref ||
+        producer.workflow_sha256 !== source.workflow_sha256)) ||
     producer.actor_id !== source.actor_id ||
     producer.configuration_sha256 !== releaseCanonicalDigest(authorities) ||
     producer.setup_sha256 !== authorities.setup_plan_sha256 ||
@@ -344,16 +351,7 @@ export async function authenticateCoordinatorCheckpointEvidence(
       throw new Error("checkpoint verifier returned a different statement");
     if (verified.verifiedTimestamps.length > 8)
       throw new Error("checkpoint witnessed timestamp bound exceeded");
-    const times = verified.verifiedTimestamps.map((entry: unknown) => {
-      if (
-        !isRecord(entry) ||
-        typeof entry.timestamp !== "string" ||
-        !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?Z$/u.test(entry.timestamp) ||
-        !Number.isFinite(Date.parse(entry.timestamp))
-      )
-        throw new Error("checkpoint verifier supplied no supported witnessed time");
-      return Date.parse(entry.timestamp);
-    });
+    const times = verified.verifiedTimestamps.map(parseControllerWitnessedTime);
     phase = "historical-job";
     const producer = expected.producer;
     const job = await verifyHistoricalCheckpointJob(

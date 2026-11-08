@@ -61,7 +61,7 @@ function fixture(
   provider.job.conclusion = "success";
   provider.job.started_at = "2026-10-20T11:59:00Z";
   provider.job.completed_at = "2026-10-20T12:01:00Z";
-  provider.verification.verifiedTimestamps[0]!.timestamp = "2026-10-20T12:00:30Z";
+  provider.verification.verifiedTimestamps[0]!.timestamp = "2026-10-20T07:00:30-05:00";
   const prepared = inspectHostedNativeProofFiles(f.files, f.authorities, f.producer);
   const verification = { ...provider.verification, statement: prepared.statement };
   const expected = {
@@ -400,9 +400,9 @@ for (const fault of [
     if (fault === "statement") f.verification.statement.subject[0]!.digest.sha256 = "e".repeat(64);
     if (fault === "timestamp") f.verification.verifiedTimestamps[0]!.timestamp = "invalid";
     if (fault === "late-timestamp")
-      f.verification.verifiedTimestamps[0]!.timestamp = "2026-10-20T12:02:00Z";
+      f.verification.verifiedTimestamps[0]!.timestamp = "2026-10-20T17:32:00+05:30";
     if (fault === "before-teardown")
-      f.verification.verifiedTimestamps[0]!.timestamp = "2026-10-20T12:00:01Z";
+      f.verification.verifiedTimestamps[0]!.timestamp = "2026-10-20T07:00:01-05:00";
     if (fault === "failed-job") f.provider.job.conclusion = "failure";
     if (fault === "wrong-job") f.provider.job.name = "Coordinate application release";
     if (fault === "changed-job" || fault === "changed-attempt") f.provider.faults.value = fault;

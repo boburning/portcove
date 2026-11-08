@@ -268,8 +268,8 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
   }
 });
 
-void test("application publication reads both protection inventories while isolating Contents ref credentials", async (t) => {
-  const rules = Array.from({ length: 34 }, (_, index) => ({
+void test("application neutral and publication read complete live-size protection inventories while isolating Contents ref credentials", async (t) => {
+  const rules = Array.from({ length: 63 }, (_, index) => ({
     id: index + 1,
     source_type: "Repository",
     source: "boburning/portcove",
@@ -313,6 +313,11 @@ void test("application publication reads both protection inventories while isola
       detailReads--;
       return Response.json(rules[Number(rule) - 1]);
     }
+    if (endpoint.endsWith("/git/ref/heads/portcove-production-coordinator-state"))
+      return Response.json({
+        ref: "refs/heads/portcove-production-coordinator-state",
+        object: { type: "commit", sha: "b".repeat(40) },
+      });
     if (endpoint.includes("/rules/branches/")) return Response.json([]);
     assert.ok(endpoint.endsWith("/immutable-releases"));
     return Response.json({ enabled: true, enforced_by_owner: false });
@@ -324,11 +329,20 @@ void test("application publication reads both protection inventories while isola
     maxBytes: 4 * 1024 ** 2,
     guard() {},
   });
-  const result = await observeReleaseInputProtections(read, { releasePublication: true });
-  assert.deepEqual(result.inventory.rulesets, rules);
-  assert.equal(maximumDetailReads, 4);
-  assert.equal(detailReads, 0);
-  assert.deepEqual(counts, { ref: 4, protection: 77 });
+  for (const releasePublication of [false, true]) {
+    counts.ref = counts.protection = maximumDetailReads = 0;
+    const result = await observeReleaseInputProtections(read, {
+      releasePublication,
+      journalNamespace: "portcove-production",
+    });
+    assert.deepEqual(result.inventory.rulesets, rules);
+    assert.equal(result.inventory.branches.length, 3);
+    assert.equal(maximumDetailReads, 4);
+    assert.equal(detailReads, 0);
+    assert.equal(Object.hasOwn(result.inventory, "immutable_releases"), releasePublication);
+    assert.deepEqual(counts, { ref: 4, protection: releasePublication ? 139 : 137 });
+    assert.equal(result.api_requests, releasePublication ? 143 : 141);
+  }
 });
 
 void test("application rule-detail batches drain on refusal and reject duplicate list identities", async () => {

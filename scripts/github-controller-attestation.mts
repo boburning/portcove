@@ -11,6 +11,29 @@ import { productionControllerWorkflow } from "./production-controller-admission.
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 const repository = "boburning/portcove";
+/** GitHub CLI may render the same verified instant in the local offset. */
+export function parseControllerWitnessedTime(entry: unknown) {
+  const timestamp = isRecord(entry) ? entry.timestamp : null;
+  const zoned =
+    typeof timestamp === "string"
+      ? /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/u.exec(
+          timestamp,
+        )
+      : null;
+  const civil = zoned?.[1];
+  if (typeof timestamp !== "string" || !civil)
+    throw new Error("controller verifier supplied no supported witnessed time");
+  const instant = Date.parse(timestamp);
+  const local = new Date(`${civil}Z`);
+  if (
+    !Number.isFinite(instant) ||
+    !Number.isFinite(local.getTime()) ||
+    local.toISOString().slice(0, 19) !== civil
+  )
+    throw new Error("controller verifier supplied no supported witnessed time");
+  return instant;
+}
+
 export function verifyControllerArtifactVerification(
   directory: string,
   filename: string,
