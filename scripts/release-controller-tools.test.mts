@@ -1849,7 +1849,7 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   assert.equal(binding[0].env.GH_TOKEN, "${{ github.token }}");
   assert.equal(
     document.getIn(["jobs", "tool_bootstrap", "timeout-minutes"]),
-    "${{ inputs.publication_purpose == 'application' && 12 || 4 }}",
+    "${{ inputs.publication_purpose == 'application' && 12 || 5 }}",
   );
   const workflowSha = createHash("sha256").update(text).digest("hex");
   assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
@@ -2161,7 +2161,10 @@ void test("held Windows producer joins the exact platform artifact to an isolate
       `${purpose}/${windows}/${linux}/${admission}/${paused}`,
     );
   }
-  assert.equal(attester["timeout-minutes"], 2);
+  assert.equal(
+    attester["timeout-minutes"],
+    "${{ inputs.publication_purpose == 'application' && 2 || 1 }}",
+  );
   assert.deepEqual(attester.permissions, {
     contents: "read",
     "id-token": "write",

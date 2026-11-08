@@ -36,14 +36,14 @@ import {
 // ceilings/estimates, never remaining storage, a reservation or a billing quote.
 export const slice4CapacityResources = Object.freeze({
   contract: "slice4-no-spend-v1",
-  aggregate_workflow_sha256: "d434cbcfe9c890af03d4ca4f1353d29968cc283a57a580a764fc812a91ed5c12",
-  input_workflow_sha256: "d434cbcfe9c890af03d4ca4f1353d29968cc283a57a580a764fc812a91ed5c12",
+  aggregate_workflow_sha256: "adafa68400ef77dbfac1d67c6452b2d0716b248d25ab111b3a76faf8799f3c59",
+  input_workflow_sha256: "adafa68400ef77dbfac1d67c6452b2d0716b248d25ab111b3a76faf8799f3c59",
   aggregate_job_minutes: Object.freeze([1, 12, 2, 22, 3, 9, 2, 10, 2, 2, 2, 2, 2, 6, 5, 35]),
   input_job_minutes: Object.freeze([2, 2, 3, 10, 5]),
   wake_workflow_sha256: "521f090761f9f8d89d367c9f7b6307c053c1b6507057ab5d757b2f3f31f07fec",
   wake_job_minutes: Object.freeze([1]),
   declared_job_minutes: 140,
-  catalog_job_minutes: Object.freeze([1, 4, 2, 3, 2, 2, 2, 2, 5]),
+  catalog_job_minutes: Object.freeze([1, 5, 1, 3, 2, 2, 2, 2, 5]),
   catalog_observer_job_minutes: Object.freeze([3, 8, 5]),
   catalog_declared_job_minutes: 40,
   purpose_accounting: "mutually-exclusive-max-application140-catalog40",

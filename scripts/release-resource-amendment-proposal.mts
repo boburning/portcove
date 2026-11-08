@@ -12,7 +12,11 @@ import {
   slice4CapacityResourceDigest,
   capacityDigest,
 } from "./release-capacity.mts";
-import { observeReleaseResources } from "./release-resource-observation.mts";
+import {
+  catalogObservers,
+  catalogReaders,
+  observeReleaseResources,
+} from "./release-resource-observation.mts";
 import { inspectReleaseProfile } from "./release-package-policy.mts";
 
 export function prepareReleaseResourceAmendmentProposal(
@@ -161,6 +165,16 @@ export function prepareReleaseResourceAmendmentProposal(
     return value;
   };
   const digest = createHash("sha256").update(proposedWorkflow).digest("hex");
+  const catalogMinutes = (name: string) => {
+    const row = observation.jobs.find(
+      (job) => job.key === name && job.purposes.includes("catalog"),
+    );
+    assert.ok(row, `missing catalog proposal job ${name}`);
+    const value =
+      row.purpose_maximum_job_minutes?.["catalog-publication"] ?? row.maximum_job_minutes;
+    assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+    return value;
+  };
   const proposedResources = {
     ...slice4CapacityResources,
     aggregate_workflow_sha256: digest,
@@ -168,6 +182,8 @@ export function prepareReleaseResourceAmendmentProposal(
     wake_workflow_sha256: createHash("sha256").update(wake).digest("hex"),
     aggregate_job_minutes: app.filter((row) => !inputs(row.key)).map(minutes),
     input_job_minutes: app.filter((row) => inputs(row.key)).map(minutes),
+    catalog_job_minutes: catalogReaders.map(catalogMinutes),
+    catalog_observer_job_minutes: catalogObservers.map(catalogMinutes),
     declared_job_minutes: proposedMinutes,
     purpose_accounting: `mutually-exclusive-max-application${proposedMinutes}-catalog40`,
     total_job_minutes: proposedMinutes,
