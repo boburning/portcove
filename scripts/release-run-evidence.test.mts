@@ -972,7 +972,8 @@ void test(
       path.join(os.tmpdir(), "portcove-release-fifo-"),
     );
     const fifo = path.join(directory, "request.fifo");
-    const created = spawnSync("mkfifo", [fifo], { timeout: 3000, encoding: "utf8" });
+    const created = spawnSync("mkfifo", [fifo], { timeout: 15000, encoding: "utf8" });
+    assert.equal(created.error, undefined);
     assert.equal(created.status, 0, created.stderr);
     const moduleUrl = new URL("./release-run-evidence.mts", import.meta.url).href;
     const code = `import assert from "node:assert/strict";

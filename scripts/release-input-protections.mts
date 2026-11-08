@@ -20,6 +20,12 @@ type ProtectionReader = (
 type ProtectionObservationOptions = {
   releasePublication?: boolean;
   journalNamespace?: string | undefined;
+  onRefusal?: (evidence: {
+    snapshot: number;
+    stage: string;
+    api_requests: number;
+    elapsed_ms: number;
+  }) => void;
 };
 
 /** Transport only, emitted after the fixed production-observer verifier.
@@ -189,18 +195,17 @@ async function observeProtections(
     ...(journalBranch === undefined ? [] : [journalBranch]),
   ];
   let requests = 0;
-  // Both publication readers retain complete immutable-controller inventories.
-  // Catalog adds two reads per environment in each stability observation.
-  const requestLimit =
-    purpose === "catalog-publication"
-      ? 128 + 4 * catalogProtectionEnvironments.length
-      : releasePublication
-        ? 128
-        : 80;
-  const deadline = performance.now() + 120_000;
+  let snapshot = 0;
+  let stage = "repository-identity";
+  const started = performance.now();
+  // Catalog reads the complete retained ruleset inventory twice, along with
+  // the protected refs and each environment's complete selector inventory.
+  const requestLimit = purpose === "catalog-publication" ? 224 : releasePublication ? 128 : 80;
+  const deadline = started + 120_000;
   const get = async (suffix: string) => {
-    if (++requests > requestLimit || performance.now() >= deadline)
+    if (requests >= requestLimit || performance.now() >= deadline)
       throw new Error("protection observation bound exhausted");
+    requests++;
     const result = await request(`${prefix}${suffix}`, deadline);
     if (
       result.status !== 200 ||
@@ -210,19 +215,13 @@ async function observeProtections(
       throw new Error("protection response unavailable, oversized or late");
     return structuredClone(result.body);
   };
-  const identity = await get("");
-  if (
-    !isRecord(identity) ||
-    identity.id !== 1354613114 ||
-    identity.full_name !== "boburning/portcove"
-  )
-    throw new Error("protection repository identity differs");
   const read = async () => {
     const rulesets: Record<string, unknown>[] = [];
     const seen = new Set<number>();
-    const detailBatch = purpose === "application" && releasePublication ? 4 : 1;
+    const detailBatch = purpose === "catalog-publication" || releasePublication ? 4 : 1;
     let complete = false;
     for (let page = 1; page <= 8; page++) {
+      stage = "ruleset-inventory";
       const values = await get(`/rulesets?includes_parents=true&per_page=100&page=${page}`);
       if (!Array.isArray(values) || values.length > 100)
         throw new Error("protection inventory is incomplete");
@@ -238,6 +237,7 @@ async function observeProtections(
         seen.add(value.id);
         return { id: value.id, source_type: value.source_type, source: value.source };
       });
+      stage = "ruleset-details";
       for (let start = 0; start < inventory.length; start += detailBatch) {
         const batch = await Promise.allSettled(
           inventory.slice(start, start + detailBatch).map(async (value) => {
@@ -275,6 +275,7 @@ async function observeProtections(
       }
     }
     if (!complete) throw new Error("protection inventory pages incomplete or duplicated");
+    stage = "protected-branches";
     const branches = [];
     for (const branch of selectedBranches) {
       const ref = await get(`/git/ref/heads/${branch}`);
@@ -313,6 +314,7 @@ async function observeProtections(
         }[]
       | undefined;
     if (purpose === "catalog-publication") {
+      stage = "catalog-environments";
       environments = [];
       for (const name of catalogProtectionEnvironments) {
         const environment = await get(`/environments/${encodeURIComponent(name)}`);
@@ -371,6 +373,7 @@ async function observeProtections(
     ) {
       throw new Error("catalog environment identities duplicated");
     }
+    stage = "release-immutability";
     const immutable = releasePublication ? await get("/immutable-releases") : undefined;
     if (
       releasePublication &&
@@ -387,27 +390,47 @@ async function observeProtections(
       ...(releasePublication ? { immutable_releases: immutable } : {}),
     };
   };
-  const before = await read();
-  const after = await read();
-  if (canonical(before) !== canonical(after))
-    throw new Error("protection or input refs changed during observation");
-  return {
-    schema_version: 1,
-    repository_id: 1354613114,
-    observed_at: new Date().toISOString(),
-    api_requests: requests,
-    inventory_sha256: createHash("sha256").update(canonical(after)).digest("hex"),
-    inventory: after,
-    coverage:
-      purpose === "catalog-publication"
-        ? "current-repository-catalog-maintenance-only"
-        : releasePublication
-          ? "current-repository-input-branches-and-release-immutability"
-          : "current-repository-input-branches-only",
-    enforcement: "uninterpreted",
-    admission: "hold",
-    authority: "none",
-  };
+  try {
+    const identity = await get("");
+    if (
+      !isRecord(identity) ||
+      identity.id !== 1354613114 ||
+      identity.full_name !== "boburning/portcove"
+    )
+      throw new Error("protection repository identity differs");
+    snapshot = 1;
+    const before = await read();
+    snapshot = 2;
+    const after = await read();
+    stage = "snapshot-comparison";
+    if (canonical(before) !== canonical(after))
+      throw new Error("protection or input refs changed during observation");
+    return {
+      schema_version: 1,
+      repository_id: 1354613114,
+      observed_at: new Date().toISOString(),
+      api_requests: requests,
+      inventory_sha256: createHash("sha256").update(canonical(after)).digest("hex"),
+      inventory: after,
+      coverage:
+        purpose === "catalog-publication"
+          ? "current-repository-catalog-maintenance-only"
+          : releasePublication
+            ? "current-repository-input-branches-and-release-immutability"
+            : "current-repository-input-branches-only",
+      enforcement: "uninterpreted",
+      admission: "hold",
+      authority: "none",
+    };
+  } catch (error) {
+    options.onRefusal?.({
+      snapshot,
+      stage,
+      api_requests: requests,
+      elapsed_ms: Math.floor(performance.now() - started),
+    });
+    throw error;
+  }
 }
 export const inputProtectionFreshnessMilliseconds = 60_000;
 

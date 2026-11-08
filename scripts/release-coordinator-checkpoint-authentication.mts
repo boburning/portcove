@@ -43,7 +43,7 @@ export const retainedCatalogBootstrapClaim = {
   original_ref: "portcove-production-controller-catalog-20261108r45",
   original_run: "42461860356",
   original_job: 128673642719,
-  successor_ref: "refs/tags/portcove-production-controller-catalog-20261108r50",
+  successor_ref: "refs/tags/portcove-production-controller-catalog-20261108r51",
   application_ref: "refs/tags/portcove-production-controller-windows-20261105r46",
 } as const;
 
