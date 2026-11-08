@@ -52,6 +52,41 @@ export const retainedCatalogBootstrapClaim = {
   application_ref: "refs/tags/portcove-production-controller-windows-20261108r52",
 } as const;
 
+/** The r52 application claim already exists, so r53 may only settle these bytes. */
+export const retainedApplicationReviewClaim = {
+  previous: "565eb5b3ccf58d6f0654e99b8d3e0214987cd003",
+  child: "6d35ca0be7c768bfafefd39a1579510a46c6758e",
+  tree: "ac64c5f11fb4cbd2991a6db752f8df6af2e09cc9",
+  state_sha256: "b8f514eff99d94e6e03a46e387985d65b3b18007e244196abe3c52eb71ace6cc",
+  request_id: "b59b5c190f4933ff6f26ef05b0f5fd137b9da2e0e5114d2499a678f2a918b7be",
+  clock: "2026-11-08T19:30:08.487Z",
+  source: "fd4b1a1c5bf3a4253ee06a357df04bb1f203cb2f",
+  source_tree: "4abba6dd2da333c86254415f48290ff1cba7bbad",
+  baseline: "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+  delta: "881c28c309a2c5cade49adfee87202fffc4e858b31d529733d088622d32c8b46",
+  qualification_run: 42407004590,
+  original_source: "e2354d745264054a961773aaff0fe20d203e842c",
+  original_ref: "refs/tags/portcove-production-controller-windows-20261108r52",
+  original_run: "42514436313",
+  original_job: 128836705670,
+  successor_ref: "refs/tags/portcove-production-controller-windows-20261108r53",
+} as const;
+
+export function isRetainedApplicationReviewClaimScope(
+  previous: string,
+  child: string,
+  executionRef: string,
+  runAttempt: number,
+) {
+  const expected = retainedApplicationReviewClaim;
+  return (
+    previous === expected.previous &&
+    child === expected.child &&
+    executionRef === expected.successor_ref &&
+    runAttempt === 1
+  );
+}
+
 export function matchesRetainedCatalogBootstrapHandoff(
   checkpoint: { checkpoint: string; previous: string | null },
   producer: Record<string, unknown>,
@@ -63,7 +98,8 @@ export function matchesRetainedCatalogBootstrapHandoff(
     producer.controller_revision === retainedCatalogBootstrapClaim.successor_revision &&
     producer.controller_ref === retainedCatalogBootstrapClaim.successor_ref &&
     producer.workflow_sha256 === retainedCatalogBootstrapClaim.successor_workflow_sha256 &&
-    source.execution_ref === retainedCatalogBootstrapClaim.application_ref
+    (source.execution_ref === retainedCatalogBootstrapClaim.application_ref ||
+      source.execution_ref === retainedApplicationReviewClaim.successor_ref)
   );
 }
 

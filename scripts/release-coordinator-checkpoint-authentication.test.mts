@@ -26,6 +26,8 @@ import {
   authenticateFixedJobCoordinatorHistory,
   matchesRetainedCatalogBootstrapHandoff,
   retainedCatalogBootstrapClaim,
+  retainedApplicationReviewClaim,
+  isRetainedApplicationReviewClaimScope,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
@@ -935,6 +937,14 @@ void test("the exact historical r51 adoption can hand off to only the r52 applic
   assert.equal(
     matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, {
       ...source,
+      execution_ref: retainedApplicationReviewClaim.successor_ref,
+    }),
+    true,
+  );
+
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, {
+      ...source,
       execution_ref: "refs/tags/portcove-production-controller-windows-20261105r46",
     }),
     false,
@@ -984,6 +994,30 @@ void test("the exact historical r51 adoption can hand off to only the r52 applic
       ...source,
       execution_ref: "refs/tags/another",
     }),
+    false,
+  );
+});
+
+void test("retained application claim admits only its exact successor and original child", () => {
+  const claim = retainedApplicationReviewClaim;
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.previous, claim.child, claim.successor_ref, 1),
+    true,
+  );
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.previous, claim.child, claim.original_ref, 1),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.previous, claim.child, claim.successor_ref, 2),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.previous, claim.previous, claim.successor_ref, 1),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.child, claim.child, claim.successor_ref, 1),
     false,
   );
 });

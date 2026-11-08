@@ -236,6 +236,26 @@ export function readRetainedCoordinatorCheckpoint(repository: string, checkpoint
   };
 }
 
+/** Advance only the owned local ref to previously hydrated claim bytes. The
+ * caller must bind the remote claim before any protected journal effect. */
+export async function stageRetainedCoordinatorClaim(
+  repository: string,
+  previous: string,
+  child: string,
+) {
+  identity(previous);
+  identity(child);
+  const git = gitRepository(repository);
+  const before = readCheckpoint(git, previous);
+  const checked = readCheckpoint(git, child);
+  if (checked.previous !== previous)
+    throw new Error("retained claim does not extend the owned local checkpoint");
+  transition(before, checked.input, previous);
+  const { verifies } = inspectCheckpoint(git, child);
+  await git.transaction([`update ${coordinatorStateRef} ${child} ${previous}`, ...verifies]);
+  return { checkpoint: child, input: checked.input };
+}
+
 /** Resolve public raw receipts referenced by a compact summary in this same
  * immutable journal. No ref mutation, ancestry walk, candidate execution or
  * lazy fetch occurs; sparse callers must explicitly hydrate this exact object.
