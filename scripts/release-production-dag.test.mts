@@ -751,9 +751,9 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     if (name === "tool_bootstrap") {
       assert.equal(
         job["timeout-minutes"],
-        "${{ inputs.publication_purpose == 'application' && 12 || 5 }}",
+        "${{ inputs.publication_purpose == 'application' && 12 || 8 }}",
       );
-      return purpose === "application" ? 12 : 5;
+      return purpose === "application" ? 12 : 8;
     }
     if (name === "tool_attest") {
       assert.equal(

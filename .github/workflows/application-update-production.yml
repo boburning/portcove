@@ -147,7 +147,7 @@ jobs:
     needs: admission
     name: Prepare trusted application controller tools
     runs-on: ubuntu-22.04
-    timeout-minutes: ${{ inputs.publication_purpose == 'application' && 12 || 5 }}
+    timeout-minutes: ${{ inputs.publication_purpose == 'application' && 12 || 8 }}
     permissions:
       contents: read
       actions: read
