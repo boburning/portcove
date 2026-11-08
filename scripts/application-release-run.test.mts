@@ -18,12 +18,41 @@ import {
   claimApplicationDraftAssetRemoval,
   retainApplicationMetadataContext,
   assertApplicationCustodyMetadataExtension,
+  applicationReleaseNotesPreimage,
   type ApplicationMetadataContextReservation,
 } from "./application-release-run.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { isRecord } from "./runtime-values.mts";
 import { applicationSourcePacketMaximumBytes } from "./application-release-policy.mts";
 
+const draftPresentationUrl = "https://github.com/boburning/portcove/releases/tag/untagged-";
+
+void test("notes readback accepts a regenerated untagged mutable draft presentation URL", () => {
+  const before = {
+    id: 437990696,
+    draft: true,
+    immutable: false,
+    html_url: draftPresentationUrl + "931ae6804dd953088791",
+  };
+  const after = { ...before, html_url: draftPresentationUrl + "e3923584a69fc5de56c5" };
+  assert.deepEqual(applicationReleaseNotesPreimage(before), applicationReleaseNotesPreimage(after));
+  for (const changed of [
+    { ...after, id: 437990697 },
+    { ...after, html_url: after.html_url.replace("/boburning/", "/another-owner/") },
+    { ...after, html_url: after.html_url.replace("untagged-", "v") },
+    { ...after, html_url: after.html_url + "?changed=1" },
+    { ...after, html_url: null },
+  ])
+    assert.notDeepEqual(
+      applicationReleaseNotesPreimage(before),
+      applicationReleaseNotesPreimage(changed),
+    );
+  for (const state of [{ draft: false }, { immutable: true }])
+    assert.notDeepEqual(
+      applicationReleaseNotesPreimage({ ...before, ...state }),
+      applicationReleaseNotesPreimage({ ...after, ...state }),
+    );
+});
 const source = "a".repeat(40),
   tree = "b".repeat(40);
 const execution = {
@@ -57,7 +86,12 @@ function fixture(mode = "valid") {
         assert.equal(endpoint, `${root}/releases`);
         assert.ok(isRecord(body));
         mutations.push({ method, body: structuredClone(body) });
-        const value = { ...body, id: 10 + releases.length, immutable: false };
+        const value = {
+          ...body,
+          id: 10 + releases.length,
+          immutable: false,
+          ...(mode === "patch-clock" ? { html_url: draftPresentationUrl + "0".repeat(20) } : {}),
+        };
         if (mode !== "lost-before-create") releases.push(value);
         if (mode.startsWith("lost-")) throw new Error("ambiguous POST response");
         return { status: 201, headers: new Map(), body: structuredClone(value) };
@@ -77,8 +111,10 @@ function fixture(mode = "valid") {
         }
         mutations.push({ method, body: structuredClone(body) });
         if (mode !== "patch-refused") value.body = body.body;
-        if (mode === "patch-clock")
+        if (mode === "patch-clock") {
           value.updated_at = new Date(mutations.length * 1000).toISOString();
+          value.html_url = draftPresentationUrl + mutations.length.toString(16).padStart(20, "0");
+        }
         if (mode === "patch-lost") throw new Error("ambiguous PATCH response");
         return {
           status: mode === "patch-refused" ? 403 : 200,
@@ -1099,6 +1135,7 @@ void test("related metadata contexts retain the original owner history and every
   };
   const beforeAssembly = f.mutations.length;
   const previousEdit = f.releases[0]!.updated_at;
+  const previousUrl = f.releases[0]!.html_url;
   const stored = await retainApplicationDraftAssembly(
     f.registration,
     member,
@@ -1107,6 +1144,7 @@ void test("related metadata contexts retain the original owner history and every
     async () => assert.equal(f.mutations.length, beforeAssembly),
   );
   assert.notEqual(f.releases[0]!.updated_at, previousEdit);
+  assert.notEqual(f.releases[0]!.html_url, previousUrl);
   assert.deepEqual(stored.custody.draft_assemblies, [assembly]);
   assert.deepEqual(
     (await readApplicationBudgetOwnerAsync(f.readRelease, member)).custody,

@@ -1551,6 +1551,17 @@ export async function claimApplicationDraftAssetRemoval(
 /** A notes PATCH may advance the provider's edit clock. Other fields remain exact. */
 export function applicationReleaseNotesPreimage(release: Record<string, unknown>) {
   const { body: _body, updated_at: _updatedAt, ...preimage } = release;
+  // GitHub regenerates the presentation URL when it edits an untagged draft.
+  // The numeric release ID, intended Git tag and target remain exact.
+  if (
+    release.draft === true &&
+    release.immutable === false &&
+    typeof preimage.html_url === "string"
+  )
+    preimage.html_url = preimage.html_url.replace(
+      /^(https:\/\/github\.com\/boburning\/portcove\/releases\/tag\/untagged-)[a-f0-9]{20}$/u,
+      (_, prefix: string) => prefix + "0".repeat(20),
+    );
   return preimage;
 }
 
