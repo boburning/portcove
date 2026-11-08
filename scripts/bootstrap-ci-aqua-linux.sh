@@ -22,7 +22,7 @@ archive="$scratch/aqua.tar.gz"
 # location separately without authentication or further redirects.
 api_token="${GH_TOKEN:?GitHub read token required}"
 unset GH_TOKEN
-[[ "$api_token" =~ ^[A-Za-z0-9_]+$ ]]
+[[ "$api_token" =~ ^[A-Za-z0-9._-]{20,4096}$ ]]
 response="$(printf 'Authorization: Bearer %s\n' "$api_token" | curl --disable \
   --silent --show-error --proto '=https' --connect-timeout 10 --max-time 25 \
   --max-filesize "$bytes" --header @- --header 'Accept: application/octet-stream' \
