@@ -799,7 +799,7 @@ async function renewPublishedMetadata() {
             notes_sha256: retainedServedRenewal.notes_sha256,
           },
           beforeWrite,
-          retainedServedRenewal.context_sha256,
+          retainedServedRenewal.contexts.map(({ context_sha256 }) => context_sha256),
         )
       : await registerApplicationReleaseRun(
           provider,

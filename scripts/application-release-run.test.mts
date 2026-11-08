@@ -948,14 +948,9 @@ void test("retained renewal draft continues with the exact prior reservation as 
     resumeApplicationMetadataDraft(f.registration, next, opportunity, appointment, f.guard),
   );
   await assert.rejects(
-    resumeApplicationMetadataDraft(
-      f.registration,
-      next,
-      opportunity,
-      appointment,
-      f.guard,
+    resumeApplicationMetadataDraft(f.registration, next, opportunity, appointment, f.guard, [
       "f".repeat(64),
-    ),
+    ]),
   );
   assert.equal(f.mutations.length, before);
   const resumed = await resumeApplicationMetadataDraft(
@@ -964,7 +959,7 @@ void test("retained renewal draft continues with the exact prior reservation as 
     opportunity,
     appointment,
     f.guard,
-    burned.context_sha256,
+    [burned.context_sha256],
   );
   assert.equal(resumed.custody.source, source);
   assert.deepEqual(resumed.custody.metadata_contexts, [burned]);

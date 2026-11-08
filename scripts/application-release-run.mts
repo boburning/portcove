@@ -359,10 +359,18 @@ export const retainedServedRenewal = {
   release_id: 437990696,
   source: "7d986e2df28bcf6046ba38d4ff4f481d9202b3fb",
   source_tree: "e27ece01583d501aed3b0892d594d6c34c6c1469",
-  notes_sha256: "3f83943af06da7ef0475b957f91239cbb4218f2c5a62c6424ff1110fbea393a3",
-  context_sha256: "84451a164bfc5fa2c8e61256b72666422cd22a6f9e9a538455a819b3c1ebdf92",
-  context_inventory_sha256: "cdeefd1f2cd9f2390d5c47bf1dd339db09465a6ebbb2129f76ec7a3e8c58b756",
-  next_ref: "refs/tags/portcove-production-controller-windows-20261105r41",
+  notes_sha256: "c0c9364c16d3dc91837edca62250c76f3cd6a4b9106b1637da67830e5dc11982",
+  contexts: [
+    {
+      context_sha256: "84451a164bfc5fa2c8e61256b72666422cd22a6f9e9a538455a819b3c1ebdf92",
+      context_inventory_sha256: "cdeefd1f2cd9f2390d5c47bf1dd339db09465a6ebbb2129f76ec7a3e8c58b756",
+    },
+    {
+      context_sha256: "d6d59d4c9d6b3c509d6f9446f5b5dd102cc045d75eeee06065f53f02ab1573f6",
+      context_inventory_sha256: "b88a9d6e062fa16c76b7d094eef1ad4698b794a9d3f7288e33c22b2ec950e234",
+    },
+  ],
+  next_ref: "refs/tags/portcove-production-controller-windows-20261105r42",
   predecessors: [
     {
       id: "42438091009",
@@ -381,6 +389,12 @@ export const retainedServedRenewal = {
       control_commit: "daaeb85ad46cf57b103a7f4d96cf90bc038d70cf",
       control_ref: "refs/tags/portcove-production-controller-windows-20261105r40",
       milliseconds: 248_000,
+    },
+    {
+      id: "42446345110",
+      control_commit: "71aff9668a5301a8cc79e3d566aa173b47d9ca79",
+      control_ref: "refs/tags/portcove-production-controller-windows-20261105r41",
+      milliseconds: 253_000,
     },
   ],
 } as const;
@@ -496,7 +510,14 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
   assert.ok(
     Array.isArray(raw.runs) &&
       raw.runs.length >= 1 &&
-      (raw.runs.length <= 3 || isEmptyApplicationBootstrapCustody(raw)),
+      (raw.runs.length <= 3 ||
+        isEmptyApplicationBootstrapCustody(raw) ||
+        (raw.runs.length === 4 &&
+          raw.opportunity === retainedServedRenewal.opportunity &&
+          raw.source === retainedServedRenewal.source &&
+          raw.source_tree === retainedServedRenewal.source_tree &&
+          raw.preparation === null &&
+          !Object.hasOwn(raw, "budget"))),
   );
   const seen = new Set<string>();
   const runs = raw.runs.map((value: unknown): Run => {
@@ -516,6 +537,18 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
     );
     return { id: value.id, control_commit: value.control_commit, control_ref: value.control_ref };
   });
+  if (runs.length === 4 && raw.opportunity === retainedServedRenewal.opportunity) {
+    const { predecessors, next_ref } = retainedServedRenewal;
+    assert.deepEqual(
+      runs.slice(0, -1),
+      predecessors.slice(1).map(({ id, control_commit, control_ref }) => ({
+        id,
+        control_commit,
+        control_ref,
+      })),
+    );
+    assert.equal(runs.at(-1)?.control_ref, next_ref);
+  }
   let budget: ApplicationRunBudget | undefined;
   if (Object.hasOwn(raw, "budget")) {
     const value = raw.budget;
@@ -767,7 +800,7 @@ export async function resumeApplicationMetadataDraft(
   opportunity: string,
   raw: unknown,
   beforeWrite: Parameters<typeof registerApplicationReleaseRun>[5],
-  retainedContextSha256?: string,
+  retainedContextSha256?: readonly string[],
 ) {
   const expected = inspectBootstrapDraftRecovery(raw);
   const response = await provider.release(expected.release_id);
@@ -789,7 +822,7 @@ export async function resumeApplicationMetadataDraft(
   } else {
     assert.deepEqual(
       parsed.custody.metadata_contexts?.map((context) => context.context_sha256),
-      [retainedContextSha256],
+      retainedContextSha256,
     );
     assert.equal(parsed.custody.draft_assemblies, undefined);
     assert.equal(parsed.custody.draft_recoveries, undefined);
