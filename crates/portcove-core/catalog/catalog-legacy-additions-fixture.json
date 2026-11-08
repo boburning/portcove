@@ -61,7 +61,9 @@
     "alexbeav-nightmare-creatures-recomp-usa-psx",
     "alexbeav-bloody-roar-ii-recomp-usa-psx",
     "alexbeav-destruction-derby-2-recomp-usa-psx",
-    "alexbeav-destruction-derby-raw-recomp-usa-psx"
+    "alexbeav-destruction-derby-raw-recomp-usa-psx",
+    "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-usa-psx",
+    "xena-warrior-princess-xena-recomp-usa-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -307,6 +309,8 @@
     "alexbeav-nightmare-creatures-recomp",
     "alexbeav-bloody-roar-ii-recomp",
     "alexbeav-destruction-derby-2-recomp",
-    "alexbeav-destruction-derby-raw-recomp"
+    "alexbeav-destruction-derby-raw-recomp",
+    "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
+    "xena-warrior-princess-xena-recomp"
   ]
 }

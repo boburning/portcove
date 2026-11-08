@@ -499,6 +499,43 @@
         "openbios": true,
         "crash_diagnostic": true
       }
+    },
+    "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp": {
+      "inventory": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
+      "selected_assets": [
+        "Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-windows-x64.zip",
+        "Ace-Combat-3-Electrosphere-USA-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-linux-x64.zip",
+        "Ace-Combat-3-Electrosphere-USA-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00972",
+        "track_count": 1,
+        "track_sha1": "9b690c02cdb7754f2fa478c4974ec69600f2f269",
+        "generated_executable": "Ace_Combat_3__Electrosphere__USA__Recompiled.exe",
+        "crash_diagnostic": true,
+        "openbios": true
+      }
+    },
+    "xena-warrior-princess-xena-recomp": {
+      "inventory": "xena-warrior-princess-xena-recomp",
+      "selected_assets": [
+        "xena-warrior-princess-recomp-0.1.2-windows-x64.zip",
+        "xena-warrior-princess-recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "xena-warrior-princess-recomp-0.1.2-linux-x64.zip",
+        "xena-warrior-princess-recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00977",
+        "track_count": 1,
+        "track_sha1": "2f7ee5625aaa02c536938fb66fcf06d4d8f6b422",
+        "generated_executable": "Xena__Warrior_Princess_Recompiled.exe",
+        "crash_diagnostic": true
+      }
     }
   },
   "inventories": {
@@ -3238,6 +3275,130 @@
           }
         ]
       }
+    ],
+    "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp": [
+      {
+        "id": 382785890,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:25Z",
+        "assets": [
+          {
+            "id": 544443632,
+            "name": "Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-linux-x64.zip",
+            "size": 28046384,
+            "digest": "sha256:138598c144a4a597cf4c3019d4d5de9f7b79ddc5e47abd82b0e69ef36734ae57",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544443699,
+            "name": "Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25790231,
+            "digest": "sha256:1c7fdda8bd8999fcb60e936e59c396a4f25b7a5198075a2c88c41d50bee91de9",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544443780,
+            "name": "Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-macos-x64.zip",
+            "size": 26135727,
+            "digest": "sha256:4edcbfff4b66f67bc10da95dc6f1262c75c653c318ecb48046bae1fdb9994d6e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544443848,
+            "name": "Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152505,
+            "digest": "sha256:20c01def373d6c39993a24aa285cb106cd422600d0446e4c01e1d1ef65bee773",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999951328,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999952656,
+            "name": "Ace-Combat-3-Electrosphere-USA-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Ace-Combat-3-Electrosphere-USA-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952657,
+            "name": "Ace-Combat-3-Electrosphere-USA-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Ace-Combat-3-Electrosphere-USA-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "xena-warrior-princess-xena-recomp": [
+      {
+        "id": 382788696,
+        "tag_name": "v0.1.2",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:49:21Z",
+        "assets": [
+          {
+            "id": 544449436,
+            "name": "xena-warrior-princess-recomp-0.1.2-linux-x64.zip",
+            "size": 27795876,
+            "digest": "sha256:967bae1054bcebf3439373fcbc49e0ec8698e7a1567bfb8a7aa82115b97ae138",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/releases/download/v0.1.2/xena-warrior-princess-recomp-0.1.2-linux-x64.zip"
+          },
+          {
+            "id": 544449547,
+            "name": "xena-warrior-princess-recomp-0.1.2-macos-arm64.zip",
+            "size": 25539669,
+            "digest": "sha256:ab7719318e7ffbe907ba0100a6aaa5ea40b9588afb5b9edb689f3e3df104fc26",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/releases/download/v0.1.2/xena-warrior-princess-recomp-0.1.2-macos-arm64.zip"
+          },
+          {
+            "id": 544449635,
+            "name": "xena-warrior-princess-recomp-0.1.2-macos-x64.zip",
+            "size": 25888449,
+            "digest": "sha256:43699a85302cd80c927c4fceec2530cf85e9e8cbf015e19119623782652b2cd8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/releases/download/v0.1.2/xena-warrior-princess-recomp-0.1.2-macos-x64.zip"
+          },
+          {
+            "id": 544449870,
+            "name": "xena-warrior-princess-recomp-0.1.2-windows-x64.zip",
+            "size": 29900170,
+            "digest": "sha256:309479d31eed99a0146e9131f0c1a07328e356e48ca025a9dee63e07053f035e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/releases/download/v0.1.2/xena-warrior-princess-recomp-0.1.2-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999951329,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999952658,
+            "name": "xena-warrior-princess-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/xena-warrior-princess-recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952659,
+            "name": "xena-warrior-princess-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/xena-warrior-princess-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -3730,6 +3891,26 @@
       "inventory": "alexbeav-alundra-recomp",
       "release_index": 0,
       "asset": "Alundra-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
+      "release_index": 0,
+      "asset": "Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
+      "release_index": 0,
+      "asset": "Ace-Combat-3-Electrosphere-USA-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "xena-warrior-princess-xena-recomp",
+      "release_index": 0,
+      "asset": "xena-warrior-princess-recomp-0.1.2-macos-arm64.zip"
+    },
+    {
+      "inventory": "xena-warrior-princess-xena-recomp",
+      "release_index": 0,
+      "asset": "xena-warrior-princess-recomp-0.1.2-macos-x64.zip"
     }
   ]
 }

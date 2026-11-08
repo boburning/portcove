@@ -1361,6 +1361,26 @@
         "claim": "Official v0.3.6 Linux x64 asset Alundra-Recomp-0.3.6-linux-x64.zip (28046637 bytes, SHA-256 b19969bed66098367129fec451990248ae833e07771b42d33256337260fc75e1) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLES-01135, track count 1, and first data-track SHA-1 de2bbc3185fa4ce01ad50bcda94899ccec7b7451. The managed builder targets Alundra_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/blob/afb9151fd48ae90ca5979dcd4ad53ee1c0f16329/game.toml",
         "live_url": null
+      },
+      {
+        "id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-managed-psx-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp",
+        "authority_ref": "6969f481fb52dd581c01efa331a434f0a902a685",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows/Linux ZIP assets 544443848 (30152505 bytes, sha256:20c01def373d6c39993a24aa285cb106cd422600d0446e4c01e1d1ef65bee773); 544443632 (28046384 bytes, sha256:138598c144a4a597cf4c3019d4d5de9f7b79ddc5e47abd82b0e69ef36734ae57). Publisher bytes matched and safe-entry/CRC checks passed. The packaged game, build and host configs match tagged source after line-ending normalization. Source declares USA SLUS-00972, one track and first data-track SHA-1 9b690c02cdb7754f2fa478c4974ec69600f2f269. The kit targets Ace_Combat_3__Electrosphere__USA__Recompiled and uses the kit’s bundled OpenBIOS. Linux SDK runtime/UI source matches an already reviewed same-framework kit. This is static package and data-scope evidence; no native title execution, gameplay or saves were observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/blob/6969f481fb52dd581c01efa331a434f0a902a685/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "xena-warrior-princess-xena-recomp-managed-psx-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/xena-warrior-princess-recomp",
+        "authority_ref": "acb27a20e1c940a243447a1e4b27bccaafdd82eb",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.2 Windows/Linux ZIP assets 544449870 (29900170 bytes, sha256:309479d31eed99a0146e9131f0c1a07328e356e48ca025a9dee63e07053f035e); 544449436 (27795876 bytes, sha256:967bae1054bcebf3439373fcbc49e0ec8698e7a1567bfb8a7aa82115b97ae138). Publisher bytes matched and safe-entry/CRC checks passed. The packaged game, build and host configs match tagged source after line-ending normalization. Source declares USA SLUS-00977, one track and first data-track SHA-1 2f7ee5625aaa02c536938fb66fcf06d4d8f6b422. The kit targets Xena__Warrior_Princess_Recompiled and uses your own retail SCPH-1001 BIOS. Linux SDK runtime/UI source matches an already reviewed same-framework kit. This is static package and data-scope evidence; no native title execution, gameplay or saves were observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/acb27a20e1c940a243447a1e4b27bccaafdd82eb/game.toml",
+        "live_url": null
       }
     ],
     "identities": [
@@ -9527,6 +9547,96 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-usa-psx",
+        "label": "Ace Combat 3: Electrosphere (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Ace Combat 3: Electrosphere (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00972"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "9b690c02cdb7754f2fa478c4974ec69600f2f269",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-managed-psx-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-managed-psx-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "xena-warrior-princess-xena-recomp-usa-psx",
+        "label": "Xena: Warrior Princess (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Xena: Warrior Princess (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00977"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "2f7ee5625aaa02c536938fb66fcf06d4d8f6b422",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "xena-warrior-princess-xena-recomp-managed-psx-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "xena-warrior-princess-xena-recomp-managed-psx-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -13530,6 +13640,99 @@
           {
             "upstream_ref": "v0.1.0",
             "artifact_sha256": "d6b968fe9f116cc49e98f4d1077449a94c17439c3a4175e75a98cc38fb7ade25"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-game-source",
+        "port_id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
+        "role": "game",
+        "profile_id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-managed-psx-static-contract"
+        ],
+        "authority_ref": "6969f481fb52dd581c01efa331a434f0a902a685",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/blob/6969f481fb52dd581c01efa331a434f0a902a685/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "20c01def373d6c39993a24aa285cb106cd422600d0446e4c01e1d1ef65bee773"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "138598c144a4a597cf4c3019d4d5de9f7b79ddc5e47abd82b0e69ef36734ae57"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "xena-warrior-princess-xena-recomp-game-source",
+        "port_id": "xena-warrior-princess-xena-recomp",
+        "role": "game",
+        "profile_id": "xena-warrior-princess-xena-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "xena-warrior-princess-xena-recomp-managed-psx-static-contract"
+        ],
+        "authority_ref": "acb27a20e1c940a243447a1e4b27bccaafdd82eb",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/acb27a20e1c940a243447a1e4b27bccaafdd82eb/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "309479d31eed99a0146e9131f0c1a07328e356e48ca025a9dee63e07053f035e"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "967bae1054bcebf3439373fcbc49e0ec8698e7a1567bfb8a7aa82115b97ae138"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "xena-warrior-princess-xena-recomp-bios-source",
+        "port_id": "xena-warrior-princess-xena-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "xena-warrior-princess-xena-recomp-managed-psx-static-contract"
+        ],
+        "authority_ref": "acb27a20e1c940a243447a1e4b27bccaafdd82eb",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/acb27a20e1c940a243447a1e4b27bccaafdd82eb/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "309479d31eed99a0146e9131f0c1a07328e356e48ca025a9dee63e07053f035e"
+          },
+          {
+            "upstream_ref": "v0.1.2",
+            "artifact_sha256": "967bae1054bcebf3439373fcbc49e0ec8698e7a1567bfb8a7aa82115b97ae138"
           }
         ],
         "aliases": [],
