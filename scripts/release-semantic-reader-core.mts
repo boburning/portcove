@@ -11,6 +11,8 @@ import { isRecord } from "./runtime-values.mts";
 export const semanticReaderServer = "portcove_frozen_bundle";
 const semanticReaderTools = ["list", "read", "read_text", "net_diff", "search"] as const;
 const pageBytes = 16 * 1024;
+export const semanticReaderTextPageBytes = 8192;
+const searchLifetimeBytes = 256 * 1024 * 1024;
 
 /** A child may read only the payload pinned by its trusted parent's fixed argv.
  * This loader establishes byte integrity, never a producer/builder brand. */
@@ -114,7 +116,8 @@ export function createSemanticSnapshotReader(raw: FrozenSemanticSnapshot) {
   const files = new Map(bundle.files.map((file) => [file.name, file.bytes]));
   let calls = 0,
     outputBytes = 0,
-    searchedBytes = 0;
+    searchedBytes = 0,
+    applicationSearchExhausted = false;
   const integer = (value: unknown, ceiling: number) => {
     if (!Number.isSafeInteger(value) || Number(value) < 0 || Number(value) > ceiling)
       throw new Error("reader integer outside fixed bound");
@@ -260,9 +263,16 @@ export function createSemanticSnapshotReader(raw: FrozenSemanticSnapshot) {
       let truncated = false;
       for (const entry of entries(request.snapshot)) {
         const bytes = files.get(`objects/${entry.oid}.data`)!;
+        if (applicationSearchExhausted || searchedBytes + bytes.length > searchLifetimeBytes) {
+          if (bundle.manifest.qualified_application_comparison !== true)
+            throw new Error("reader lifetime search byte bound exceeded");
+          // A partial search supplies no coverage. Stop scanning at the same
+          // hard ceiling while keeping exact path reads available.
+          applicationSearchExhausted = true;
+          truncated = true;
+          break;
+        }
         searchedBytes += bytes.length;
-        if (searchedBytes > 256 * 1024 * 1024)
-          throw new Error("reader lifetime search byte bound exceeded");
         let cursor = 0;
         for (;;) {
           const offset = bytes.indexOf(needle, cursor);
@@ -276,7 +286,11 @@ export function createSemanticSnapshotReader(raw: FrozenSemanticSnapshot) {
         }
         if (truncated) break;
       }
-      result = { matches, truncated };
+      result = {
+        matches,
+        truncated,
+        ...(applicationSearchExhausted ? { budget_exhausted: true } : {}),
+      };
     }
     const size = Buffer.byteLength(JSON.stringify(result));
     outputBytes += size;
@@ -327,7 +341,7 @@ export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
           : semanticSourceBlobLimit) &&
       nonnegative(args.length) &&
       Number(args.length) > 0 &&
-      Number(args.length) <= (tool === "read_text" ? 8192 : pageBytes)
+      Number(args.length) <= (tool === "read_text" ? semanticReaderTextPageBytes : pageBytes)
     );
   return (
     tool === "search" &&
@@ -408,7 +422,8 @@ export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
                                 length: {
                                   type: "integer",
                                   minimum: 1,
-                                  maximum: name === "read_text" ? 8192 : pageBytes,
+                                  maximum:
+                                    name === "read_text" ? semanticReaderTextPageBytes : pageBytes,
                                 },
                               }
                             : {}),

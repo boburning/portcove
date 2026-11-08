@@ -200,7 +200,13 @@ async function settleRetainedInvocation(
     ) !== invocation.id
   )
     throw new Error("original semantic invocation identity changed");
-  const request = await json(root, "capture/linux-request.json");
+  // Match the fixed supervisor's request envelope. A qualified input
+  // manifest can exceed the smaller bound for ordinary custody records.
+  const request: unknown = JSON.parse(
+    (
+      await readBoundedPublicBuildInputFile(root, "capture/linux-request.json", 1024 * 1024)
+    ).toString("utf8"),
+  );
   const isolation = await json(root, "capture/isolation.json");
   const intent = await json(root, "capture/linux-intent.json");
   if (
