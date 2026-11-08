@@ -423,8 +423,29 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsMmx2PopulatedTransitionFilter =
+    "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)";
+  const windowsPreparedRevocationFilter =
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_revocation_preserves_evidence$/)";
+  for (const [filter, periods] of [
+    [windowsMmx2PopulatedTransitionFilter, 84],
+    [windowsPreparedRevocationFilter, 12],
+  ] as const) {
+    assert.deepEqual(overrideFor(filter, "x86_64-pc-windows-msvc"), {
+      platform: "x86_64-pc-windows-msvc",
+      filter,
+      "slow-timeout": { period: "5s", "terminate-after": periods, "grace-period": "0s" },
+      "success-output": "immediate",
+    });
+  }
   const windowsReviewedArchiveTransitionFilter =
     "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_/)";
+  assert.ok(
+    overrides.indexOf(overrideFor(windowsMmx2PopulatedTransitionFilter, "x86_64-pc-windows-msvc")) <
+      overrides.indexOf(
+        overrideFor(windowsReviewedArchiveTransitionFilter, "x86_64-pc-windows-msvc"),
+      ),
+  );
   assert.deepEqual(overrideFor(windowsReviewedArchiveTransitionFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsReviewedArchiveTransitionFilter,
@@ -940,6 +961,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsWholeMatrixFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsReviewedArchiveTransitionFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsMmx2PopulatedTransitionFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsPreparedRevocationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },

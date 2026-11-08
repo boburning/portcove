@@ -117,6 +117,24 @@ filter = 'package(portcove-core) & test(/^definition_repository::tests::publishe
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# CI 42512432572/1 Windows 1 hit 300.808s after earlier MMX2 passes
+# at 275.064s, 278.687s and 287.831s. Allow only this populated transition
+# 420s. Retain the existing family allowance for its other consumers.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)'
+slow-timeout = { period = "5s", terminate-after = 84, grace-period = "0s" }
+success-output = "immediate"
+
+# Windows 5 on 42512432572/1 reached 30.036s in this prepared revocation
+# fixture after the same case timed out on 42484319837/1 and passed its retry.
+# Match the Intel Mac fixture allowance. Assertions, retries and cleanup stay fixed.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_revocation_preserves_evidence$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The complete compatible-runtime fixture in41893774776/a1 Windows2 took
 # 183.584s for MMX2 and122.389s/113.682s for the other two consumers.
 # These explicit predecessor-transition cases include the same populated
