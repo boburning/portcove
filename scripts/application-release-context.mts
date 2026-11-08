@@ -44,6 +44,8 @@ import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
   inspectApplicationReleaseReference,
   inspectApplicationRunCustody,
+  retainedServedRenewal,
+  retainedServedRenewalFeed,
 } from "./application-release-run.mts";
 import type {
   ApplicationBudgetContext,
@@ -93,8 +95,15 @@ export function inspectApplicationBootstrapSource(
 export function inspectApplicationRenewalSource(raw: unknown) {
   assert.ok(isRecord(raw) && raw.purpose === "metadata-renewal");
   assert.ok(
-    raw.execution_path === "metadata-maintenance" || raw.execution_path === "metadata-recovery",
+    raw.execution_path === "metadata-maintenance" ||
+      raw.execution_path === "metadata-recovery" ||
+      raw.execution_path === "metadata-draft-recovery",
   );
+  if (raw.execution_path === "metadata-draft-recovery") {
+    assert.equal(raw.control_ref, retainedServedRenewalFeed.next_ref);
+    assert.equal(raw.opportunity, retainedServedRenewal.opportunity);
+    assert.equal(raw.renewal_parent, undefined);
+  }
   assert.ok(isRecord(raw.renewal_basis));
   const basis = raw.renewal_basis;
   assert.equal(

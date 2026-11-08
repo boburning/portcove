@@ -284,13 +284,12 @@ export function inspectPublishedMetadata(raw: unknown) {
   text(raw.publication.remote_identity);
   if (
     standalone &&
-    (raw.standalone_bootstrap_run !== standaloneBootstrapAdoption.run_id ||
-      raw.operation_id !== null)
+    (!isStandaloneBootstrapRun(raw.standalone_bootstrap_run) || raw.operation_id !== null)
   )
     throw new Error(
       "standalone bootstrap requires its exact external run and no journal operation",
     );
-  return {
+  const facts = {
     schema_version: 1 as const,
     root_sha256: raw.root_sha256,
     offline_targets_sha256: raw.offline_targets_sha256,
@@ -300,13 +299,20 @@ export function inspectPublishedMetadata(raw: unknown) {
     records_sha256: raw.records_sha256,
     versions: versions(raw.versions),
     expires: expires(raw.expires),
+  };
+  const publication = {
+    remote_identity: raw.publication.remote_identity,
+    evidence_sha256: raw.publication.evidence_sha256,
+    site_generation_sha256: raw.publication.site_generation_sha256,
+  };
+  const run = standalone ? standaloneBootstrapRun(raw.standalone_bootstrap_run) : null;
+  if (run && !matchesStandaloneBootstrapPublication(facts, publication, run))
+    throw new Error("standalone bootstrap adoption differs from exact publication");
+  return {
+    ...facts,
     operation_id: raw.operation_id,
-    ...(standalone ? { standalone_bootstrap_run: standaloneBootstrapAdoption.run_id } : {}),
-    publication: {
-      remote_identity: raw.publication.remote_identity,
-      evidence_sha256: raw.publication.evidence_sha256,
-      site_generation_sha256: raw.publication.site_generation_sha256,
-    },
+    ...(run ? { standalone_bootstrap_run: run } : {}),
+    publication,
   };
 }
 
@@ -323,6 +329,44 @@ export const standaloneBootstrapAdoption = {
   publication_sha256: "b18311564f29396acd06ec44dd44de06d0a2e43a4cc3c4014ed1b203898dda03",
   abandoned_descriptor_sha256: "603fae90b93dbaeef08d6030cbec243add36f82ceb748aa592423cedc8f17157",
 } as const;
+
+export const standaloneBootstrapRenewalAdoption = {
+  feed_ref: "refs/tags/portcove-production-controller-windows-20261105r44",
+  generation: "07999ab91c4aeef3f2d04d4f7341729b35422d06f8c939535e5e34a4a35dbd74",
+  publication_sha256: "c3b7ee8ace1531e52a4be5bb9b0fac45f4d0f208cabd5d55195f1d351b7e8cb2",
+} as const;
+
+function isStandaloneBootstrapRun(raw: unknown): raw is string {
+  return (
+    typeof raw === "string" && /^[1-9][0-9]{0,15}$/u.test(raw) && Number.isSafeInteger(Number(raw))
+  );
+}
+
+function standaloneBootstrapRun(raw: unknown) {
+  if (!isStandaloneBootstrapRun(raw)) throw new Error("standalone bootstrap run is invalid");
+  return raw;
+}
+
+function matchesStandaloneBootstrapPublication(
+  facts: ReturnType<typeof inspectTufPublicationFacts>,
+  publication: { remote_identity: string; site_generation_sha256: string },
+  run: string,
+) {
+  const base = `https://github.com/boburning/portcove/actions/runs/${run}/job/`;
+  if (!publication.remote_identity.startsWith(base)) return false;
+  const job = publication.remote_identity.slice(base.length);
+  if (run === standaloneBootstrapAdoption.run_id)
+    return (
+      job === String(standaloneBootstrapAdoption.feed_job_id) &&
+      publication.site_generation_sha256 === standaloneBootstrapAdoption.generation &&
+      digest(facts) === standaloneBootstrapAdoption.publication_sha256
+    );
+  return (
+    isStandaloneBootstrapRun(job) &&
+    publication.site_generation_sha256 === standaloneBootstrapRenewalAdoption.generation &&
+    digest(facts) === standaloneBootstrapRenewalAdoption.publication_sha256
+  );
+}
 export function assertMetadataRenewalBinding(
   descriptor: ReturnType<typeof inspectMetadataRenewalDescriptor>,
   published: ReturnType<typeof inspectPublishedMetadata>,
@@ -368,7 +412,7 @@ export function validatePublishedMetadataTransition(
   if (digest(previous.active_candidate) !== digest(next.active_candidate))
     throw new Error("published metadata readback cannot change active reservation");
   if (after.standalone_bootstrap_run) {
-    const { operation_id, standalone_bootstrap_run, publication, ...facts } = after;
+    const { operation_id, expires } = after;
     const selected = standaloneBootstrapAdoption;
     if (
       before ||
@@ -385,11 +429,7 @@ export function validatePublishedMetadataTransition(
       previous.review_disposition != null ||
       previous.metadata_renewal != null ||
       digest(previous.metadata_bootstrap) !== selected.abandoned_descriptor_sha256 ||
-      digest(next.metadata_bootstrap) !== selected.abandoned_descriptor_sha256 ||
-      digest(facts) !== selected.publication_sha256 ||
-      publication.site_generation_sha256 !== selected.generation ||
-      publication.remote_identity !==
-        `https://github.com/boburning/portcove/actions/runs/${standalone_bootstrap_run}/job/${selected.feed_job_id}`
+      digest(next.metadata_bootstrap) !== selected.abandoned_descriptor_sha256
     )
       throw new Error(
         "standalone bootstrap adoption differs from exact empty journal and publication",
@@ -398,7 +438,7 @@ export function validatePublishedMetadataTransition(
     if (!Number.isFinite(now) || new Date(now).toISOString() !== next.now)
       throw new Error("standalone bootstrap requires canonical coordinator observation time");
     for (const role of roles)
-      if (metadataInstant(facts.expires[role]) <= BigInt(now) * 1_000_000n)
+      if (metadataInstant(expires[role]) <= BigInt(now) * 1_000_000n)
         throw new Error("expired standalone bootstrap cannot seed the journal");
     return;
   }

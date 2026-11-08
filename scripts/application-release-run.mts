@@ -414,6 +414,38 @@ export const retainedServedRenewal = {
   ],
 } as const;
 
+/** One feed-only continuation of the exact r43 signed renewal. */
+export const retainedServedRenewalFeed = {
+  next_ref: "refs/tags/portcove-production-controller-windows-20261105r44",
+  draft_notes_sha256: "025190c316c42421bf9feaf26517cafced70d7871e6589ee471a053d9ffd9b8b",
+  assembly_artifact: 13606761271,
+  assembly_artifact_sha256: "9ec89aafe0294f7ac7a07e70148096f7370f9e1ce40a3aadc70ad140456a6439",
+  generation: "07999ab91c4aeef3f2d04d4f7341729b35422d06f8c939535e5e34a4a35dbd74",
+  assembly: {
+    id: "42452784395",
+    control_commit: "8a3bbbba04c2f67f4f1654efef44d0a6186e8410",
+    control_ref: retainedServedRenewal.next_ref,
+    attempt: 1,
+    milliseconds: 669_000,
+    conclusion: "failure",
+  },
+  context: {
+    context_sha256: "fdd0c0dc4b956383a56f21994a8fc4815b091c16ffc480c1291e3553e479bb15",
+    context_inventory_sha256: "68420e0f0b3e8cdee36fb2a861c1e5cdd047262c7634ef0d576c42d39ed2b136",
+  },
+  assets: {
+    "application-site.zip": {
+      id: 723074720,
+      bytes: 20_109,
+      sha256: "5d7861c34626e422a0b8e613cf5da603bfc1fd439946857dfba436d127b0aef3",
+    },
+    "application-metadata.json": {
+      bytes: 6_554,
+      sha256: "f5a7c25de4a4f3d3799c566e0b1c6af71ae1af674e4c51a67aa17e2f39999039",
+    },
+  },
+} as const;
+
 /** Native success for r29 is separate from its failed Actions admission and
  * job. These fixed identities cannot admit another failed execution. */
 export const recoveredApplicationBootstrap = {
@@ -533,7 +565,7 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
       raw.runs.length >= 1 &&
       (raw.runs.length <= 3 ||
         isEmptyApplicationBootstrapCustody(raw) ||
-        (retainedRenewal && raw.runs.length <= retainedServedRenewal.predecessors.length)),
+        (retainedRenewal && raw.runs.length <= retainedServedRenewal.predecessors.length + 1)),
   );
   const seen = new Set<string>();
   const runs = raw.runs.map((value: unknown): Run => {
@@ -555,17 +587,24 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
   });
   const renewalContinuation =
     retainedRenewal && runs.length === retainedServedRenewal.predecessors.length;
+  const feedContinuation =
+    retainedRenewal && runs.length === retainedServedRenewal.predecessors.length + 1;
   if (retainedRenewal && runs.length > 3) {
     const { predecessors, next_ref } = retainedServedRenewal;
+    const prior = feedContinuation
+      ? [...predecessors, retainedServedRenewalFeed.assembly]
+      : predecessors;
     assert.deepEqual(
-      renewalContinuation ? runs.slice(0, -1) : runs,
-      predecessors.slice(1).map(({ id, control_commit, control_ref }) => ({
+      renewalContinuation || feedContinuation ? runs.slice(0, -1) : runs,
+      prior.slice(1).map(({ id, control_commit, control_ref }) => ({
         id,
         control_commit,
         control_ref,
       })),
     );
     if (renewalContinuation) assert.equal(runs.at(-1)?.control_ref, next_ref);
+    if (feedContinuation)
+      assert.equal(runs.at(-1)?.control_ref, retainedServedRenewalFeed.next_ref);
   }
   let budget: ApplicationRunBudget | undefined;
   if (Object.hasOwn(raw, "budget")) {
@@ -630,14 +669,14 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
       ? inspectMetadataContextReservations(
           raw.metadata_contexts,
           { opportunity: raw.opportunity, runs, ...(budget ? { budget } : {}) },
-          renewalContinuation ? retainedServedRenewal.contexts.length + 1 : 3,
+          renewalContinuation || feedContinuation ? retainedServedRenewal.contexts.length + 1 : 3,
         )
       : undefined;
   if (metadata && metadata.length > 3) {
     const latest = metadata.at(-1)!;
     // The reservation parser already binds the commit and ref to this run ID.
     assert.ok(
-      latest.run_id === runs.at(-1)?.id && latest.run_attempt === 1,
+      latest.run_id === runs.at(feedContinuation ? -2 : -1)?.id && latest.run_attempt === 1,
       "additional reservation requires the appointed renewal producer",
     );
   }

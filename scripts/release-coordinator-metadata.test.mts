@@ -7,10 +7,15 @@ import {
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
   standaloneBootstrapAdoption,
+  standaloneBootstrapRenewalAdoption,
   validatePublishedMetadataTransition,
 } from "./release-metadata-contract.mts";
 import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
-import { assertStandaloneBootstrapAdoptionCapacity } from "./release-catalog-bootstrap-adoption.mts";
+import {
+  assertRetainedBootstrapRenewal,
+  assertStandaloneBootstrapAdoptionCapacity,
+} from "./release-catalog-bootstrap-adoption.mts";
+import { retainedServedRenewal } from "./application-release-run.mts";
 import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -170,6 +175,157 @@ void test("one settled standalone bootstrap can seed the app-only cursor without
   tampered.published_metadata.publication.site_generation_sha256 = generation;
   tampered.published_metadata.snapshot_sha256 = "a".repeat(64);
   assert.throws(() => validatePublishedMetadataTransition(before, tampered, null));
+  const renewalRun = "42400000001";
+  const renewal = {
+    ...after,
+    now: "2026-11-08T07:00:00.000Z",
+    published_metadata: {
+      ...after.published_metadata,
+      standalone_bootstrap_run: renewalRun,
+      repository_sha256: "2f09956c9673b69a37fff2556e611af654adf4141f80ffc24a2d207d7873354e",
+      timestamp_sha256: "5eea7d893c9481a9a5fb27e582abe2b7b96c9a8b456dfc0c23aa9f1e808ae9c8",
+      snapshot_sha256: "688832524d9e95286975bc9f24c00b7a3961357e94c5a37ee2dbdaa41af71e01",
+      versions: {
+        targets: "1",
+        releases: "5",
+        preview: "5",
+        stable: "5",
+        snapshot: "5",
+        timestamp: "5",
+      },
+      expires: {
+        targets: offlineExpiry,
+        releases: "2027-02-06T06:01:34.664Z",
+        preview: "2026-11-15T06:01:34.664Z",
+        stable: "2026-11-15T06:01:34.664Z",
+        snapshot: "2026-11-15T06:01:34.664Z",
+        timestamp: "2026-11-10T06:01:34.664Z",
+      },
+      publication: {
+        ...after.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${renewalRun}/job/128600000001`,
+        site_generation_sha256: standaloneBootstrapRenewalAdoption.generation,
+      },
+    },
+  };
+  validatePublishedMetadataTransition(before, renewal, null);
+  const {
+    publication: _publication,
+    operation_id: _operation,
+    standalone_bootstrap_run: _run,
+    ...facts
+  } = renewal.published_metadata;
+  const run = {
+    id: renewalRun,
+    control_commit: "e".repeat(40),
+    control_ref: standaloneBootstrapRenewalAdoption.feed_ref,
+  };
+  const selection = {
+    discovered: {
+      release_id: retainedServedRenewal.release_id,
+      custody: {
+        opportunity: retainedServedRenewal.opportunity,
+        source: retainedServedRenewal.source,
+        preparation: null,
+        runs: [run],
+      },
+      execution: { run, attempt: 1, conclusion: "success", job_id: 128600000001 },
+      state: { log_url: renewal.published_metadata.publication.remote_identity },
+    },
+    prior: {
+      receipt: {
+        producer: {
+          id: "42452784395",
+          control_commit: "8a3bbbba04c2f67f4f1654efef44d0a6186e8410",
+          control_ref: retainedServedRenewal.next_ref,
+        },
+        producer_attempt: 1,
+        site: {
+          previous_generation: generation,
+          generation: standaloneBootstrapRenewalAdoption.generation,
+        },
+        publication: facts,
+      },
+      metadata: {
+        purpose: "metadata-renewal",
+        prior_generation: generation,
+        prior_repository_sha256: after.published_metadata.repository_sha256,
+        context_sha256: "fdd0c0dc4b956383a56f21994a8fc4815b091c16ffc480c1291e3553e479bb15",
+      },
+      assets: [
+        {
+          id: 723074720,
+          name: "application-site.zip",
+          sha256: "5d7861c34626e422a0b8e613cf5da603bfc1fd439946857dfba436d127b0aef3",
+        },
+        {
+          id: 723074721,
+          name: "application-metadata.json",
+          sha256: "f5a7c25de4a4f3d3799c566e0b1c6af71ae1af674e4c51a67aa17e2f39999039",
+        },
+      ],
+    },
+  } as unknown as Parameters<typeof assertRetainedBootstrapRenewal>[0];
+  assertRetainedBootstrapRenewal(selection);
+  const unappointed = structuredClone(selection);
+  unappointed.discovered.execution.run.control_ref = standaloneBootstrapAdoption.ref;
+  assert.throws(() => assertRetainedBootstrapRenewal(unappointed));
+  const failed = structuredClone(selection);
+  failed.discovered.execution.conclusion = "failure";
+  assert.throws(() => assertRetainedBootstrapRenewal(failed));
+  const replayed = structuredClone(selection);
+  replayed.discovered.custody.runs.push({ ...run, id: "42400000002" });
+  assert.throws(() => assertRetainedBootstrapRenewal(replayed));
+  const unrelated = structuredClone(selection);
+  assert.ok(isRecord(unrelated.prior.metadata));
+  unrelated.prior.metadata.prior_repository_sha256 = "b".repeat(64);
+  assert.throws(() => assertRetainedBootstrapRenewal(unrelated));
+  assert.equal(
+    currentPublishedSite(renewal)?.generation_sha256,
+    standaloneBootstrapRenewalAdoption.generation,
+  );
+  assert.throws(
+    () => validatePublishedMetadataTransition(after, renewal, null),
+    /exact empty journal/u,
+  );
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        before,
+        { ...renewal, now: "2026-11-10T06:01:34.664Z" },
+        null,
+      ),
+    /expired standalone/u,
+  );
+  for (const mutation of [
+    { standalone_bootstrap_run: run_id },
+    { timestamp_sha256: "b".repeat(64) },
+    {
+      publication: {
+        ...renewal.published_metadata.publication,
+        remote_identity: "https://example.com/forged",
+      },
+    },
+    {
+      publication: {
+        ...renewal.published_metadata.publication,
+        site_generation_sha256: generation,
+      },
+    },
+  ]) {
+    assert.throws(
+      () =>
+        validatePublishedMetadataTransition(
+          before,
+          {
+            ...renewal,
+            published_metadata: { ...renewal.published_metadata, ...mutation },
+          },
+          null,
+        ),
+      /exact publication/u,
+    );
+  }
   const repository = await mkdtemp(path.join(os.tmpdir(), "catalog-standalone-seed-"));
   t.after(() => rm(repository, { recursive: true, force: true }));
   execFileSync("git", ["init", "--bare", "--quiet", repository], { windowsHide: true });
