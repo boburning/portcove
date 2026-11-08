@@ -108,6 +108,10 @@ function fixture(mode = "valid") {
           assert.equal(body.target_commitish, value.target_commitish);
         } else {
           assert.deepEqual(Object.keys(body), ["body"]);
+          if (mode === "patch-lost" && value.draft === true) {
+            value.tag_name = "untagged-" + "0".repeat(20);
+            value.target_commitish = "main";
+          }
         }
         mutations.push({ method, body: structuredClone(body) });
         if (mode !== "patch-refused") value.body = body.body;
@@ -451,6 +455,31 @@ void test("recovery appends a bounded native run after immutable publication wit
   );
 });
 
+void test("ordinary draft re-registration survives an ambiguous notes PATCH without changing tag or target", async () => {
+  const f = fixture("patch-lost");
+  await registerApplicationReleaseRun(f.registration, execution, source, tree, source, f.guard);
+  const prior = structuredClone(f.releases[0]!);
+  const next = await registerApplicationReleaseRun(
+    f.registration,
+    { ...execution, run_id: "124" },
+    source,
+    tree,
+    source,
+    f.guard,
+  );
+  assert.deepEqual(next.known_run_ids, ["123", "124"]);
+  assert.deepEqual({ ...f.releases[0], body: prior.body }, prior);
+  assert.deepEqual(
+    f.mutations.map(({ method }) => method),
+    ["POST", "PATCH"],
+  );
+  assert.deepEqual(f.mutations[1]!.body, {
+    body: f.releases[0]!.body,
+    tag_name: prior.tag_name,
+    target_commitish: prior.target_commitish,
+  });
+});
+
 void test("ambiguous POST is reconciled once; absent, duplicate, damaged or refused custody never resets", async () => {
   for (const mode of ["lost-after-create", "lost-before-create"]) {
     const f = fixture(mode);
@@ -546,6 +575,11 @@ void test("one mechanical preparation is retained exactly and cannot be silently
   );
   assert.deepEqual(retained.preparation, preparation);
   assert.deepEqual(readApplicationRunNotes(f.releases[0]!.body)?.custody, retained);
+  assert.deepEqual(f.mutations[1]!.body, {
+    body: f.releases[0]!.body,
+    tag_name: `portcove-production-candidate-${source}`,
+    target_commitish: source,
+  });
   const writes = f.mutations.length;
   assert.deepEqual(
     await retainApplicationPreparation(f.registration, 10, retained, preparation, f.guard),

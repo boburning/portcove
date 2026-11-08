@@ -1061,16 +1061,11 @@ export async function registerApplicationReleaseRun(
           `release ${key} changed before native run registration`,
         );
     } else assert.equal(await find(), undefined, "release appeared before native draft creation");
+    const draftIdentity = existing ? applicationDraftNotesIdentity(existing) : undefined;
     try {
       const response = await request(() =>
         existing
-          ? provider.appendNotes(
-              Number(existing.id),
-              body,
-              emptyBootstrapDraft
-                ? { tag_name: candidateTag, target_commitish: source }
-                : undefined,
-            )
+          ? provider.appendNotes(Number(existing.id), body, draftIdentity)
           : provider.createDraft({
               tag_name: candidateTag,
               target_commitish: source,
@@ -1189,8 +1184,9 @@ export async function retainApplicationPreparation(
     );
     assert.equal(before.body.immutable, false);
     const body = notes(next, parsed.before, parsed.after);
+    const draftIdentity = applicationDraftNotesIdentity(before.body);
     try {
-      await provider.appendNotes(releaseId, body);
+      await provider.appendNotes(releaseId, body, draftIdentity);
     } catch {
       /* Readback decides; no repeated mutation. */
     }
@@ -1709,6 +1705,15 @@ export function applicationReleaseNotesPreimage(release: Record<string, unknown>
   return preimage;
 }
 
+/** GitHub can change an untagged draft's intended tag during a body-only edit. */
+function applicationDraftNotesIdentity(release: Record<string, unknown>) {
+  if (release.draft !== true) return undefined;
+  assert.equal(release.immutable, false);
+  assert.ok(typeof release.tag_name === "string" && release.tag_name.length > 0);
+  assert.ok(typeof release.target_commitish === "string" && release.target_commitish.length > 0);
+  return { tag_name: release.tag_name, target_commitish: release.target_commitish };
+}
+
 async function writeApplicationMetadataNotes(
   provider: ApplicationReleaseNotesProvider,
   owner: { release_id: number; custody: ApplicationRunCustody },
@@ -1731,13 +1736,7 @@ async function writeApplicationMetadataNotes(
   await beforeWrite();
   assert.deepEqual(await get(), before, "metadata owner changed during admission");
   if (body !== before.body) {
-    let draftIdentity: Parameters<ApplicationReleaseNotesProvider["appendNotes"]>[2];
-    if (before.draft === true) {
-      assert.equal(before.immutable, false);
-      assert.ok(typeof before.tag_name === "string" && before.tag_name.length > 0);
-      assert.ok(typeof before.target_commitish === "string" && before.target_commitish.length > 0);
-      draftIdentity = { tag_name: before.tag_name, target_commitish: before.target_commitish };
-    }
+    const draftIdentity = applicationDraftNotesIdentity(before);
     try {
       const result = await provider.appendNotes(owner.release_id, body, draftIdentity);
       assert.equal(result.status, 200);
