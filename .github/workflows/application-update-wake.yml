@@ -6,6 +6,7 @@ on:
       - main
   schedule:
     - cron: 17 */6 * * *
+  workflow_dispatch:
 permissions:
   contents: read
   actions: read
@@ -15,7 +16,18 @@ concurrency:
 jobs:
   wake:
     if: >-
-      ${{ (vars.PORTCOVE_CONTROLLER_WAKE != '' || vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '') &&
+      ${{ ((github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' &&
+      github.ref == 'refs/heads/main' && github.ref_protected && github.run_attempt == '1' &&
+      ((vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' && vars.PORTCOVE_CONTROLLER_WAKE != '' &&
+      fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).manual_actor_id == '43177418' &&
+      github.run_number == fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).manual_run_number) ||
+      (vars.PORTCOVE_CONTROLLER_WAKE == '' && vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '' &&
+      fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).manual_actor_id == '43177418' &&
+      github.run_number == fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).manual_run_number))) ||
+      (github.event_name != 'workflow_dispatch' &&
+      (vars.PORTCOVE_CONTROLLER_WAKE == '' || !fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).manual_actor_id) &&
+      (vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' || !fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).manual_actor_id))) &&
+      (vars.PORTCOVE_CONTROLLER_WAKE != '' || vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '') &&
       (vars.PORTCOVE_CONTROLLER_WAKE == '' || (fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).schema_version == 4 || fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).schema_version == 5)) &&
       (vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' || fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).schema_version == 4) }}
     name: Wake fixed application controller

@@ -373,10 +373,42 @@ void test("held automatic wake uses one fixed job token without a dispatch App c
     assert.equal(
       runInNewContext(job.if.slice(3, -2), {
         vars: { PORTCOVE_CONTROLLER_WAKE: application, PORTCOVE_CATALOG_CONTROLLER_WAKE: catalog },
+        github: { event_name: "push" },
         fromJSON: JSON.parse,
       }),
       allowed,
       "legacy tuples must hold before checkout or job-token dispatch",
+    );
+  const owner = {
+    event_name: "workflow_dispatch",
+    actor_id: "43177418",
+    ref: "refs/heads/main",
+    ref_protected: true,
+    run_attempt: "1",
+    run_number: "42",
+  };
+  const appointed = { schema_version: 4, manual_actor_id: owner.actor_id, manual_run_number: 42 };
+  for (const [github, config, allowed] of [
+    [owner, appointed, true],
+    [owner, { schema_version: 4 }, false],
+    [{ ...owner, actor_id: "999" }, appointed, false],
+    [{ ...owner, ref: "refs/heads/topic" }, appointed, false],
+    [{ ...owner, ref_protected: false }, appointed, false],
+    [{ ...owner, run_attempt: "2" }, appointed, false],
+    [{ ...owner, run_number: "43" }, appointed, false],
+    [{ ...owner, event_name: "push" }, appointed, false],
+    [{ ...owner, event_name: "schedule" }, appointed, false],
+  ] as const)
+    assert.equal(
+      runInNewContext(job.if.slice(3, -2), {
+        vars: {
+          PORTCOVE_CONTROLLER_WAKE: JSON.stringify(config),
+          PORTCOVE_CATALOG_CONTROLLER_WAKE: "",
+        },
+        github,
+        fromJSON: JSON.parse,
+      }),
+      allowed,
     );
   assert.equal(job["timeout-minutes"], slice4CapacityResources.wake_job_minutes[0]);
   assert.equal(wake.concurrency.group, slice4CapacityResources.wake_concurrency);

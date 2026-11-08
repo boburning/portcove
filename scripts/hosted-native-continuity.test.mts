@@ -26,7 +26,7 @@ void test("hosted Linux readiness preserves original-generation recovery and ref
 
 const script = fileURLToPath(new URL("./rehearse-updater-artifacts.ps1", import.meta.url));
 function describe(workflow: string, caller: string) {
-  return spawnSync(
+  const result = spawnSync(
     "pwsh",
     [
       "-NoProfile",
@@ -39,8 +39,10 @@ function describe(workflow: string, caller: string) {
       workflow,
       "-DescribeWorkflow",
     ],
-    { encoding: "utf8", timeout: 30000, env: { ...process.env, GITHUB_WORKFLOW_REF: caller } },
+    { encoding: "utf8", timeout: 60000, env: { ...process.env, GITHUB_WORKFLOW_REF: caller } },
   );
+  assert.ifError(result.error);
+  return result;
 }
 void test("rehearsal receipts bind only the actual allowlisted workflow before native effects", () => {
   for (const name of ["updater-artifact-rehearsal", "hosted-native-continuity"]) {

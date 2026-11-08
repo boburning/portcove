@@ -519,6 +519,28 @@ function fixture(jobToken = false, bytes = Buffer.from("fixed inert controller w
     api,
     record,
     actualRun,
+    manual(triggerActor = 43177418) {
+      Object.assign(config, {
+        manual_actor_id: "43177418",
+        manual_run_number: 42,
+        manual_expires_at: new Date(Date.parse(created) + 5 * 60_000)
+          .toISOString()
+          .replace(/\.\d{3}Z$/u, "Z"),
+      });
+      Object.assign(env, {
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_ACTOR_ID: "43177418",
+        GITHUB_ACTOR: "boburning",
+        GITHUB_TRIGGERING_ACTOR: "boburning",
+      });
+      Object.assign(ownRun, {
+        event: "workflow_dispatch",
+        actor: { id: 43177418, login: "boburning" },
+        triggering_actor: { id: triggerActor, login: "boburning" },
+        repository: { id: 1354613114, full_name: "boburning/portcove" },
+        head_repository: { id: 1354613114 },
+      });
+    },
     async prepare() {
       const result = await wakeRatifiedController(config, env, api, record, { mode: "prepare" });
       assert.equal(result.decision, "intent-prepared-only");
@@ -968,6 +990,128 @@ void test("immutable identity failures, unavailable responses and deadline exhau
   );
   assert.equal(reads, 2);
 });
+void test("exact opt-in manual owner uses the same single job-token receiver and replay check", async () => {
+  const positive = fixture(true);
+  positive.manual();
+  await positive.prepare();
+  assert.ok(positive.calls.some(({ endpoint }) => endpoint.endsWith("/actions/runs/42")));
+  assert.equal(positive.calls.filter(({ method }) => method === "POST").length, 0);
+  assert.equal((await positive.dispatch()).decision, "dispatch-acknowledged-only");
+  const writes = positive.calls.filter(({ method }) => method === "POST");
+  assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0]!.body, {
+    ref: "portcove-production-controller-fixture",
+    inputs: { wake_run_id: "42", publication_purpose: "application" },
+    return_run_details: true,
+  });
+
+  const replay = fixture(true);
+  replay.manual();
+  await replay.prepare();
+  replay.priorFailure();
+  await assert.rejects(replay.dispatch(), /prior wake/u);
+  assert.equal(replay.calls.filter(({ method }) => method === "POST").length, 0);
+
+  const skippedManual = fixture(true);
+  await skippedManual.prepare();
+  const originalRuns = skippedManual.api.runs;
+  skippedManual.api.runs = async (...args) => {
+    const response = await originalRuns(...args);
+    assert.ok(isRecord(response) && Array.isArray(response.workflow_runs));
+    if (args[0] !== "application-update-wake.yml") return response;
+    const rows: unknown[] = response.workflow_runs;
+    assert.equal(rows.length, 1);
+    const current = rows[0];
+    assert.ok(isRecord(current));
+    return {
+      total_count: 2,
+      workflow_runs: [
+        current,
+        {
+          ...current,
+          id: 41,
+          run_number: 41,
+          event: "workflow_dispatch",
+          status: "completed",
+          conclusion: "skipped",
+        },
+      ],
+    };
+  };
+  const originalJobs = skippedManual.api.jobs;
+  skippedManual.api.jobs = async (id, attempt) =>
+    id === "41"
+      ? {
+          total_count: 1,
+          jobs: [
+            {
+              name: "Wake fixed application controller",
+              run_id: 41,
+              run_attempt: 1,
+              head_sha: skippedManual.env.GITHUB_SHA,
+              status: "completed",
+              conclusion: "skipped",
+              steps: [],
+            },
+          ],
+        }
+      : originalJobs(id, attempt);
+  assert.equal((await skippedManual.dispatch()).decision, "dispatch-acknowledged-only");
+
+  const used = fixture(true);
+  used.manual();
+  await used.prepare();
+  used.recovered();
+  await assert.rejects(used.dispatch(), /receiver inventory is not empty/u);
+  assert.equal(used.calls.filter(({ method }) => method === "POST").length, 0);
+
+  const previousManual = fixture(true);
+  previousManual.manual();
+  await previousManual.prepare();
+  previousManual.priorSuccess();
+  await assert.rejects(previousManual.dispatch(), /single-attempt manual appointment/u);
+  assert.equal(previousManual.calls.filter(({ method }) => method === "POST").length, 0);
+
+  const automatic = fixture(true);
+  automatic.manual();
+  automatic.env.GITHUB_EVENT_NAME = "schedule";
+  await assert.rejects(automatic.prepare(), /fixed default-branch boundary/u);
+  assert.equal(automatic.calls.length, 0);
+
+  const expired = fixture(true);
+  expired.manual();
+  Object.assign(expired.config, {
+    activation_started_at: new Date(Date.now() - 120_000).toISOString().replace(/\.\d{3}Z$/u, "Z"),
+    manual_expires_at: new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/u, "Z"),
+  });
+  await assert.rejects(expired.prepare(), /fixed default-branch boundary/u);
+  assert.equal(expired.calls.length, 0);
+
+  const wrongRun = fixture(true);
+  wrongRun.manual();
+  Object.assign(wrongRun.config, { manual_run_number: 43 });
+  await assert.rejects(wrongRun.prepare(), /actual provider initiator differs/u);
+  assert.equal(wrongRun.calls.filter(({ method }) => method === "POST").length, 0);
+
+  const wrongActor = fixture(true);
+  wrongActor.manual(999);
+  await assert.rejects(wrongActor.prepare(), /actual provider initiator differs/u);
+  assert.equal(wrongActor.calls.filter(({ method }) => method === "POST").length, 0);
+  assert.throws(
+    () => inspectControllerWakeConfiguration({ ...fixture().config, manual_actor_id: "43177418" }),
+    /separately appointed initiator/u,
+  );
+  assert.throws(
+    () => inspectControllerWakeConfiguration({ ...fixture(true).config, manual_actor_id: "999" }),
+    /separately appointed initiator/u,
+  );
+  const source = await readFile(
+    new URL("../.github/workflows/application-update-wake.yml", import.meta.url),
+    "utf8",
+  );
+  assert.ok(source.includes("\n  workflow_dispatch:\npermissions:"));
+});
+
 void test("manual, rerun, foreign, injected policy and unprotected wake refuse before reads or effects", async () => {
   for (const change of [
     { GITHUB_EVENT_NAME: "workflow_dispatch" },
