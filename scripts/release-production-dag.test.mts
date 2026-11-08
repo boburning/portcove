@@ -762,6 +762,13 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       );
       return purpose === "application" ? 2 : 1;
     }
+    if (name === "coordinator" || name === "coordinator_protection_observation") {
+      assert.equal(
+        job["timeout-minutes"],
+        "${{ inputs.publication_purpose == 'application' && 3 || 5 }}",
+      );
+      return purpose === "catalog-publication" ? 5 : 3;
+    }
     const value = job["timeout-minutes"];
     assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0, name);
     return value;

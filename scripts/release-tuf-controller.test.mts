@@ -21,6 +21,7 @@ import {
   payloadOriginalJobDeadline,
   classificationOriginalJobDeadline,
   buildingOriginalJobDeadline,
+  catalogCoordinatorProtectionOriginalJobDeadline,
 } from "./release-signing-job-budget.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 const ref = "refs/tags/portcove-production-controller-test",
@@ -33,6 +34,35 @@ const ref = "refs/tags/portcove-production-controller-test",
     run_id: "12345",
     run_attempt: 1,
   };
+void test("catalog coordinator observer retains the original five-minute job origin", () => {
+  const start = Date.parse("2026-11-08T12:05:20Z");
+  const revision = "a".repeat(40);
+  const inventory = {
+    total_count: 1,
+    jobs: [
+      {
+        id: 2,
+        run_id: 1,
+        run_attempt: 1,
+        head_sha: revision,
+        status: "in_progress",
+        name: "Observe application coordinator protections",
+        started_at: new Date(start).toISOString(),
+      },
+    ],
+  };
+  const expected = { run_id: "1", controller_revision: revision };
+  assert.equal(
+    catalogCoordinatorProtectionOriginalJobDeadline(inventory, expected, start + 175000, 1000),
+    116000,
+  );
+  assert.throws(
+    () =>
+      catalogCoordinatorProtectionOriginalJobDeadline(inventory, expected, start + 290000, 1000),
+    /original TUF job budget exhausted/u,
+  );
+});
+
 void test("fixed role job budget includes setup time and refuses partial, stale, duplicate or cross-role provider jobs", () => {
   const started = Date.parse("2026-10-20T00:00:00Z");
   for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"] as const) {

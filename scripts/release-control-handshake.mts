@@ -153,6 +153,13 @@ export async function waitForControlArtifact(
     /** Caller may only tighten the existing finite wait, never extend it. */
     deadline?: number;
     phaseDeadline?: number;
+    purpose?: "application" | "catalog-publication";
+    onRefusal?: (receipt: {
+      stage: string;
+      polls: number;
+      api_requests: number;
+      elapsed_ms: number;
+    }) => void;
   } = {},
 ) {
   options = { ...options };
@@ -266,7 +273,10 @@ export async function waitForControlArtifact(
       )
     ).artifacts;
   const name = controlHandshakeArtifactName(role, input);
+  const providerTimeout =
+    options.purpose === "catalog-publication" && input.phase === "coordinator" ? 15000 : 5000;
   let polls = 0;
+  let stage = "provider-setup";
   try {
     const token = !read || !options.download ? fixedReleaseReaderToken() : "";
     if (!read) {
@@ -274,7 +284,7 @@ export async function waitForControlArtifact(
       const client = await createGitHubClient({
         credential: { kind: "explicit", token },
         deadline,
-        requestTimeoutMs: 5000,
+        requestTimeoutMs: providerTimeout,
         maxBytes: 512 * 1024,
         fetch,
         reserve,
@@ -296,8 +306,10 @@ export async function waitForControlArtifact(
       };
     }
     while (++polls <= 81) {
+      stage = "artifact-inventory";
       const matches = (await inventory()).filter((a) => a.name === name);
       if (matches.length > 1) throw new Error("control artifact name ambiguous");
+      stage = "producer-inventory";
       const allJobs = await jobs();
       const names =
         role === "ready" ? [phaseProfile.reader_name] : protectionObserverJobNames(input.phase);
@@ -321,6 +333,7 @@ export async function waitForControlArtifact(
       )
         throw new Error("control producer job failed, ended or differs");
       if (artifact) {
+        stage = "artifact-identity";
         if (
           !job ||
           !isRecord(artifact.workflow_run) ||
@@ -336,7 +349,8 @@ export async function waitForControlArtifact(
           !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
         )
           throw new Error("control artifact provider identity differs");
-        const transferDeadline = Math.min(deadline, performance.now() + remaining(5000));
+        stage = "artifact-transfer";
+        const transferDeadline = Math.min(deadline, performance.now() + remaining(providerTimeout));
         const item = { id: Number(artifact.id), bytes: Number(artifact.size_in_bytes) };
         const zip = options.download
           ? await options.download(item, transferDeadline)
@@ -349,6 +363,7 @@ export async function waitForControlArtifact(
               fetch,
               lookup: { reserve },
             });
+        stage = "artifact-validation";
         remaining();
         await writeFile(path.join(privateRoot, `control-${role}.zip`), zip, {
           flag: "wx",
@@ -418,9 +433,11 @@ export async function waitForControlArtifact(
             !/^[a-f0-9]{64}$/u.test(body.facts_sha256))
         )
           throw new Error("reader prepared facts identity unavailable");
+        stage = "artifact-post-read";
         const after = (await inventory()).filter((a) => a.name === name);
         if (after.length !== 1 || JSON.stringify(after[0]) !== JSON.stringify(artifact))
           throw new Error("control artifact changed during collection");
+        stage = "producer-post-read";
         const finalJob = await get(`actions/jobs/${String(job.id)}`);
         if (
           !isRecord(finalJob) ||
@@ -458,20 +475,21 @@ export async function waitForControlArtifact(
         remaining();
         return proof;
       }
+      stage = "poll-wait";
       const wait = remaining(3000);
       if (options.sleep) await options.sleep(wait);
       else await delay(wait, undefined, { signal: AbortSignal.timeout(remaining()) });
     }
     throw new Error("control handshake poll count exhausted");
   } catch {
+    const receipt = { stage, polls, api_requests: requests, elapsed_ms: Math.floor(elapsed()) };
+    options.onRefusal?.(receipt);
     await writeFile(
       path.join(privateRoot, `control-${role}-refusal.json`),
       JSON.stringify({
         role,
         attempt: input,
-        polls,
-        api_requests: requests,
-        elapsed_ms: Math.floor(elapsed()),
+        ...receipt,
         authority: "none",
         automatic_retry: false,
       }),

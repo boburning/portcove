@@ -118,6 +118,32 @@ async function fixture(
   };
 }
 
+void test("catalog coordinator artifact transfer has scoped headroom and retains a safe refusal", async (t) => {
+  const f = await fixture(t, "ready", "coordinator");
+  const phases: unknown[] = [];
+  let budget = 0;
+  await assert.rejects(
+    waitForControlArtifact(f.root, "ready", f.input, {
+      ...f.options,
+      purpose: "catalog-publication",
+      download: async (_, deadline) => {
+        budget = deadline - performance.now();
+        throw new Error("private provider response");
+      },
+      onRefusal: (receipt) => phases.push(receipt),
+    }),
+    /handoff refused/u,
+  );
+  assert.ok(budget > 5000 && budget <= 15000);
+  assert.deepEqual(phases, [
+    { stage: "artifact-transfer", polls: 1, api_requests: 2, elapsed_ms: 0 },
+  ]);
+  assert.doesNotMatch(
+    await readFile(path.join(f.root, "control-ready-refusal.json"), "utf8"),
+    /private provider response/u,
+  );
+});
+
 void test("legacy phase inventory keeps its own producer when the admission/shared name also exists", async (t) => {
   const f = await fixture(t, "observation", "payload");
   const request = f.options.read;

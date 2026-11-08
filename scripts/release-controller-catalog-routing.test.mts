@@ -678,7 +678,7 @@ void test("installed two-purpose workflow remains mutually exclusive under the e
     slice4CapacityResources.catalog_job_minutes.reduce((a, b) => a + b, 0) +
       slice4CapacityResources.catalog_observer_job_minutes.reduce((a, b) => a + b, 0) +
       slice4CapacityResources.wake_job_minutes.reduce((a, b) => a + b, 0),
-    44,
+    48,
   );
   assert.equal(slice4CapacityResources.report_repair_maximum_job_minutes_per_candidate, 4);
 });

@@ -1,3 +1,4 @@
+import { catalogCoordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readWindowsApplicationQualification } from "./application-release-qualification.mts";
 import { readApplicationSourceCommitObjects } from "./application-release-source-git.mts";
@@ -823,7 +824,10 @@ export function coordinatorOriginalJobDeadline(
   expected: { run_id: string; controller_revision: string },
   now = Date.now(),
   monotonic = performance.now(),
+  purpose: "application" | "catalog-publication" = "application",
 ) {
+  const budget =
+    purpose === "catalog-publication" ? catalogCoordinatorJobBudgetMilliseconds : 170000;
   if (
     !isRecord(raw) ||
     !Array.isArray(raw.jobs) ||
@@ -859,18 +863,22 @@ export function coordinatorOriginalJobDeadline(
     typeof job.started_at !== "string"
   )
     throw new Error("actual coordinator original job start unavailable");
-  const remaining = Date.parse(job.started_at) + 170000 - now;
+  const remaining = Date.parse(job.started_at) + budget - now;
   if (
     !Number.isFinite(remaining) ||
     remaining <= 0 ||
-    remaining > 170000 ||
+    remaining > budget ||
     !Number.isFinite(monotonic)
   )
     throw new Error("original coordinator job budget exhausted or future dated");
   return monotonic + remaining;
 }
 /** Read the fixed original job with the caller's existing lookup limits. */
-export async function readOriginalCoordinatorJobDeadline(lookupDeadline: number, maxBytes: number) {
+export async function readOriginalCoordinatorJobDeadline(
+  lookupDeadline: number,
+  maxBytes: number,
+  purpose: "application" | "catalog-publication" = "application",
+) {
   const run = process.env.GITHUB_RUN_ID;
   const revision = process.env.GITHUB_SHA;
   if (
@@ -905,10 +913,16 @@ export async function readOriginalCoordinatorJobDeadline(lookupDeadline: number,
     throw new Error("actual coordinator original job budget unavailable");
   if (performance.now() >= lookupDeadline)
     throw new Error("coordinator inherited deadline exhausted");
-  return coordinatorOriginalJobDeadline(response.data, {
-    run_id: run,
-    controller_revision: revision,
-  });
+  return coordinatorOriginalJobDeadline(
+    response.data,
+    {
+      run_id: run,
+      controller_revision: revision,
+    },
+    Date.now(),
+    performance.now(),
+    purpose,
+  );
 }
 async function coordinatorDeadline(phaseDeadline?: number) {
   const monotonicStart = performance.now();
