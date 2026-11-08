@@ -49,7 +49,7 @@ export const retainedCatalogBootstrapClaim = {
   successor_ref: "refs/tags/portcove-production-controller-catalog-20261108r51",
   successor_revision: "525a89cb56a5001cc544fb1a25d1c36101d7d815",
   successor_workflow_sha256: "e8233a09bbd838f2ea551dabbe85592bfcd9776db1bd301fb6be2d502d4bcba0",
-  application_ref: "refs/tags/portcove-production-controller-windows-20261105r46",
+  application_ref: "refs/tags/portcove-production-controller-windows-20261108r52",
 } as const;
 
 export function matchesRetainedCatalogBootstrapHandoff(

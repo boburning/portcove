@@ -922,7 +922,7 @@ for (const fault of [
   });
 }
 
-void test("the exact historical r51 adoption can hand off to only the r46 application source", () => {
+void test("the exact historical r51 adoption can hand off to only the r52 application source", () => {
   const retained = retainedCatalogBootstrapClaim;
   const checkpoint = { checkpoint: retained.child, previous: retained.previous };
   const source = { revision: "a".repeat(40), execution_ref: retained.application_ref };
@@ -932,6 +932,13 @@ void test("the exact historical r51 adoption can hand off to only the r46 applic
     workflow_sha256: retained.successor_workflow_sha256,
   };
   assert.equal(matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source), true);
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, {
+      ...source,
+      execution_ref: "refs/tags/portcove-production-controller-windows-20261105r46",
+    }),
+    false,
+  );
   assert.equal(
     matchesRetainedCatalogBootstrapHandoff(
       checkpoint,

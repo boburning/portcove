@@ -15,6 +15,10 @@ import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
+  applicationCoordinatorRefusal,
+  applicationCoordinatorRefusalFile,
+} from "./release-coordinator-errors.mts";
+import {
   retainControllerAttestation,
   retainControllerJobSettlement,
 } from "./release-controller-transport.mts";
@@ -223,7 +227,17 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
           deadline?: number,
         ): Promise<unknown>;
       };
-      result = await worker.runFixedCoordinatorConfiguration(configuration, work, phaseDeadline);
+      try {
+        result = await worker.runFixedCoordinatorConfiguration(configuration, work, phaseDeadline);
+      } catch (error) {
+        // Preserve the original refusal even when diagnostics cannot be written.
+        await writeFile(
+          path.join(privateRoot, applicationCoordinatorRefusalFile),
+          JSON.stringify(applicationCoordinatorRefusal(error)),
+          { flag: "wx", mode: 0o600 },
+        ).catch(() => undefined);
+        throw error;
+      }
     }
   }
 

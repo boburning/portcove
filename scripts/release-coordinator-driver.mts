@@ -3794,6 +3794,7 @@ async function requestTrustedSemanticReviewAt(
         throw new Error("exact Windows application qualification changed");
       return proof;
     };
+    if (qualified) phase = "exact-windows-qualification";
     const qualification = await readQualification();
     phase = "complete-publication-baseline-and-source";
     const inventory = await createPublicationInventoryWithSdk({

@@ -764,6 +764,52 @@ void test("catalog diagnostics retain only fixed refusal stages and no exception
   );
 });
 
+void test("application coordinator diagnostics retain a closed refusal without exception data", async (t) => {
+  const {
+    CoordinatorRemoteError,
+    applicationCoordinatorRefusal,
+    applicationCoordinatorRefusalFile,
+  } = await import("./release-coordinator-errors.mts");
+  const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "application-controller-diagnostics-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const known = applicationCoordinatorRefusal(
+    new CoordinatorRemoteError("fixture-private-exception", {
+      phase: "exact-windows-qualification",
+      retained_error: { secret: "fixture-private-value" },
+    }),
+  );
+  assert.deepEqual(known, {
+    schema_version: 1,
+    stage: "exact-windows-qualification",
+    error_type: "coordinator-remote",
+    authority: "none",
+    automatic_retry: false,
+  });
+  assert.equal(applicationCoordinatorRefusal(new Error("private")).stage, "fixed-entry");
+  assert.equal(
+    applicationCoordinatorRefusal(new CoordinatorRemoteError("private", { phase: "unknown" }))
+      .stage,
+    "fixed-entry",
+  );
+  const encoded = JSON.stringify(known);
+  await writeFile(
+    path.join(root, applicationCoordinatorRefusalFile),
+    `{"stage":"fixture-private-discarded-value",${encoded.slice(1)}`,
+  );
+  const output = await retainControllerDiagnostics(root, "coordinator");
+  const retained = await readFile(path.join(output, applicationCoordinatorRefusalFile), "utf8");
+  assert.equal(retained.includes("fixture-private-discarded-value"), false);
+  assert.deepEqual(JSON.parse(retained), known);
+  await rm(output, { recursive: true });
+  await writeFile(
+    path.join(root, applicationCoordinatorRefusalFile),
+    JSON.stringify({ ...known, message: "fixture-private-exception" }),
+  );
+  const invalid = await retainControllerDiagnostics(root, "coordinator");
+  assert.equal((await readdir(invalid)).includes(applicationCoordinatorRefusalFile), false);
+});
+
 void test("always-retained diagnostics select bounded public markers and preserve original failure state", async (t) => {
   const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-diagnostics-"));
