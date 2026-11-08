@@ -836,3 +836,37 @@ fn dude_doom_3_selectors_require_the_engine_and_reject_the_quake_4_addon() -> Re
     }
     Ok(())
 }
+
+#[test]
+fn dk64_windows_selector_covers_both_release_name_forms() -> Result<()> {
+    let catalog = crate::Catalog::embedded()?;
+    let port = catalog.port("donkey-kong-64-recompiled")?;
+    for expected in [
+        "DK64Recompiled-Windows-Release-1-0-3.zip",
+        "DK64-Recompiled-Windows-Release-1-0-1.zip",
+    ] {
+        let assets: Vec<_> = [
+            "DK64Recompiled-Windows-DevTools-x64.zip",
+            "DK64Recompiled-Windows-Release-ARM64.zip",
+            "DK64Recompiled-Flatpak-X64-Release-1-0-3.zip",
+            "DK64Recompiled-Linux-ARM64-Release-1-0-3.zip",
+            "DK64Recompiled-Linux-X64-Release-1-0-3.zip",
+            "DK64Recompiled-macOS-ARM64-Release-1-0-3.zip",
+            expected,
+        ]
+        .into_iter()
+        .map(|name| GithubAsset {
+            id: None,
+            name: name.into(),
+            browser_download_url: format!("https://example.test/{name}"),
+            size: 1,
+            digest: None,
+        })
+        .collect();
+        assert_eq!(
+            choose_asset(port, Platform::WindowsX86_64, &assets)?.name,
+            expected
+        );
+    }
+    Ok(())
+}
