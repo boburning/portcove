@@ -168,6 +168,8 @@ import {
   inspectBootstrapDraftRecovery,
   readRegisteredApplicationRuns,
   immutableApplicationBootstrap,
+  retainedServedRenewal,
+  retainedServedRenewalFeed,
   failedBootstrapRecovery,
   isEmptyApplicationBootstrapCustody,
   createApplicationRunRegistrationProvider,
@@ -658,20 +660,31 @@ async function stageBootstrapSite() {
 
 async function receiveApplicationAssembly(
   directory = path.resolve("work/application-publication-input"),
+  retainedDraft = false,
 ) {
   const current = execution();
-  const attempt = Number(process.env.PORTCOVE_PUBLICATION_INPUT_ATTEMPT);
+  const retained = retainedDraft ? retainedServedRenewalFeed : undefined;
+  const actor = retained?.assembly;
+  const source = actor?.control_commit ?? current.source;
+  const ref = actor?.control_ref ?? current.ref;
+  const run = actor?.id ?? current.run_id;
+  const attempt = actor?.attempt ?? Number(process.env.PORTCOVE_PUBLICATION_INPUT_ATTEMPT);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
-  await receiveApplicationData(directory, {
-    id: Number(process.env.PORTCOVE_PUBLICATION_INPUT_ARTIFACT),
-    name: `application-publication-input-${current.run_id}-${attempt}`,
-    source: current.source,
-    run_id: current.run_id,
+  const archive = await receiveApplicationData(directory, {
+    id: retained?.assembly_artifact ?? Number(process.env.PORTCOVE_PUBLICATION_INPUT_ARTIFACT),
+    name: `application-publication-input-${run}-${attempt}`,
+    source,
+    run_id: run,
     files: bootstrapAssetNames,
   });
+  if (retained) assert.equal(archive.sha256, retained.assembly_artifact_sha256);
   const subjects = await Promise.all(
     bootstrapAssetNames.map(async (name) => {
       const file = await applicationFileIdentity(path.join(directory, name));
+      if (retained) {
+        assert.equal(file.bytes, retained.assets[name].bytes);
+        assert.equal(file.sha256, retained.assets[name].sha256);
+      }
       return { filename: name, sha256: file.sha256 };
     }),
   );
@@ -679,9 +692,9 @@ async function receiveApplicationAssembly(
     directory,
     bootstrapAssetNames[1],
     {
-      source_commit: current.source,
-      ref: current.ref,
-      run_id: current.run_id,
+      source_commit: source,
+      ref,
+      run_id: run,
       run_attempt: attempt,
       subjects,
     },
@@ -1297,8 +1310,15 @@ async function publishMetadataRelease(
       },
     });
   assert.ok(source.purpose === "metadata-bootstrap" || source.purpose === "metadata-renewal");
+  const retainedDraft = source.execution_path === "metadata-draft-recovery";
   if (source.purpose === "metadata-renewal")
-    assert.equal(source.execution_path, "metadata-maintenance");
+    assert.ok(source.execution_path === "metadata-maintenance" || retainedDraft);
+  if (retainedDraft) {
+    assert.equal(source.purpose, "metadata-renewal");
+    assert.equal(execution().ref, retainedServedRenewalFeed.next_ref);
+    assert.equal(source.opportunity, retainedServedRenewal.opportunity);
+    assert.equal(source.renewal_parent, undefined);
+  }
   // The split publisher only reads until its final full guard. Repeating the
   // custody and budget inventory before those reads spends the fresh window.
   if (stage !== "publish") await guardSource(false);
@@ -1306,16 +1326,25 @@ async function publishMetadataRelease(
   publicationStage = stage === "publish" ? "prepared-input" : "assembly-input";
   const preparedInput =
     stage === "publish" ? await receiveMetadataDraftPreparation(source.purpose) : undefined;
-  const input = preparedInput ?? (await receiveApplicationAssembly());
+  const input = preparedInput ?? (await receiveApplicationAssembly(undefined, retainedDraft));
   const { directory, attempt } = input;
   assert.ok(isRecord(source.run_custody));
   const token = process.env.GH_TOKEN;
   assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
   const recovery = bootstrapDraftRecovery(source);
+  const binding = publicationBinding(source, attempt);
+  const actor = retainedServedRenewalFeed.assembly;
   const expected = {
     release_id: Number(source.run_custody.release_id),
     custody: inspectApplicationRunCustody(source.run_custody.custody),
-    binding: publicationBinding(source, attempt),
+    binding: retainedDraft
+      ? {
+          ...binding,
+          control_commit: actor.control_commit,
+          control_ref: actor.control_ref,
+          run_id: actor.id,
+        }
+      : binding,
     ...(preparedInput ? { prepared_assets: preparedInput.prepared.assets } : {}),
     ...(recovery ? { original_site: recovery.site_archive } : {}),
   };
@@ -1338,6 +1367,18 @@ async function publishMetadataRelease(
       expected.binding,
       expected.custody,
     );
+    if (retainedDraft) {
+      const retained = retainedServedRenewalFeed;
+      assert.equal(expected.release_id, retainedServedRenewal.release_id);
+      assert.equal(receipt.site.generation, retained.generation);
+      assert.equal(raw.context_sha256, retained.context.context_sha256);
+      const proof = applicationDraftAssembly(expected.release_id, raw, receipt.publication, files);
+      assert.deepEqual(expected.custody.draft_assemblies, [proof]);
+      for (const name of bootstrapAssetNames) {
+        assert.equal(files.get(name)!.length, retained.assets[name].bytes);
+        assert.equal(sha256(files.get(name)!), retained.assets[name].sha256);
+      }
+    }
     let priorSite: ReturnType<typeof inspectSiteGeneration>;
     let priorState: Awaited<ReturnType<typeof readActualApplicationPagesState>>;
     let lineage:
@@ -1400,29 +1441,30 @@ async function publishMetadataRelease(
         provider: priorState,
         ...(lineage === undefined ? {} : { lineage }),
       };
-      await finishDraftRecovery(
-        {
-          ...expected,
-          producer: {
-            control_commit: current.source,
-            control_ref: current.ref,
-            run_id: current.run_id,
-            attempt,
+      if (!retainedDraft)
+        await finishDraftRecovery(
+          {
+            ...expected,
+            producer: {
+              control_commit: current.source,
+              control_ref: current.ref,
+              run_id: current.run_id,
+              attempt,
+            },
           },
-        },
-        raw,
-        receipt.publication,
-        files,
-        async () => {
-          await readPublicApplicationSiteMarker(priorSite);
-          assert.deepEqual(await discoverActualPublishedApplicationCohort(lineage), discovered);
-          await guardSource();
-          return async () => {
-            assert.deepEqual(await readActualApplicationPagesState(), priorState);
-            assertProtectionWriteWindow();
-          };
-        },
-      );
+          raw,
+          receipt.publication,
+          files,
+          async () => {
+            await readPublicApplicationSiteMarker(priorSite);
+            assert.deepEqual(await discoverActualPublishedApplicationCohort(lineage), discovered);
+            await guardSource();
+            return async () => {
+              assert.deepEqual(await readActualApplicationPagesState(), priorState);
+              assertProtectionWriteWindow();
+            };
+          },
+        );
     }
     verifyPreimage = async () => {
       await readPublicApplicationSiteMarker(priorSite, deadline);
@@ -1495,21 +1537,48 @@ async function publishMetadataRelease(
     throw new Error("draft preparation cannot publish");
   };
   publicationStage = "metadata-transport";
+  const provider = await createApplicationMetadataPublicationProvider(
+    token,
+    expected.release_id,
+    expected.custody.opportunity,
+    stage === "prepare"
+      ? denyPreparationPublish
+      : () => {
+          assertProtectionWriteWindow();
+          publicationStage = "release-publication";
+        },
+    deadline,
+  );
   const result = await publishApplicationMetadataRelease(
     {
-      ...(await createApplicationMetadataPublicationProvider(
-        token,
-        expected.release_id,
-        expected.custody.opportunity,
-        stage === "prepare"
-          ? denyPreparationPublish
-          : () => {
-              assertProtectionWriteWindow();
-              publicationStage = "release-publication";
-            },
-        deadline,
-      )),
-      ...(stage === "prepare"
+      async readMetadata(endpoint) {
+        const result = await provider.readMetadata(endpoint);
+        if (retainedDraft && endpoint.endsWith("/assets?per_page=100&page=1")) {
+          assert.ok(Array.isArray(result.body));
+          const expectedAsset = retainedServedRenewalFeed.assets["application-site.zip"];
+          const assets: unknown[] = result.body;
+          const original = assets.find(
+            (row: unknown) => isRecord(row) && row.name === "application-site.zip",
+          );
+          assert.ok(isRecord(original));
+          assert.equal(original.id, expectedAsset.id);
+          assert.equal(original.size, expectedAsset.bytes);
+          assert.equal(original.digest, `sha256:${expectedAsset.sha256}`);
+        }
+        return result;
+      },
+      async publish(body) {
+        return provider.publish(
+          retainedDraft
+            ? {
+                ...body,
+                tag_name: `portcove-production-candidate-${expected.custody.opportunity}`,
+                target_commitish: expected.custody.source,
+              }
+            : body,
+        );
+      },
+      ...(stage === "prepare" && !retainedDraft
         ? {
             async retainAssembly(assembly: ReturnType<typeof applicationDraftAssembly>) {
               return retainApplicationDraftAssembly(

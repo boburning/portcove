@@ -116,6 +116,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
         with:
           package_json_file: package.json
@@ -131,7 +132,7 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/controller-fixture-pnpm"
       - name: Qualify actual fixed tools at the checked-out fixture commit and tree
         env:
-          FIXTURE_SOURCE_SHA: ${{ github.sha }}
+          FIXTURE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/qualify-controller-tool-build.mts
       - name: Exercise actual job-local disposable role channel and native runtime contracts on Linux
         run: node --experimental-test-module-mocks --test --test-timeout=45000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-role-key-channel.test.mts scripts/release-hosted-native-runner.test.mts scripts/release-hosted-native-linux-capture.test.mts scripts/release-hosted-native-installation.test.mts

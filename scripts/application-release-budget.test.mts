@@ -964,6 +964,7 @@ void test("only the exact retained renewal can admit a sixth execution and carry
       { release_id, custody: selected },
     );
   assert.ok(permitFeed());
+  assert.ok(permitFeed(feedInventory, feedCustody, "metadata-draft-recovery"));
   assert.equal(permitFeed(feedInventory, feedCustody, "metadata-maintenance"), false);
   assert.equal(permitFeed(feedInventory.slice(1)), false);
   assert.equal(permitFeed([...feedInventory, { ...active, id: Number(run) + 1 }]), false);

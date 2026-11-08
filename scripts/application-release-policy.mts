@@ -93,6 +93,7 @@ export function applicationReleaseRemainingMinutes(
     executionPath === "ordinary" ||
       executionPath === "immutable-recovery" ||
       executionPath === "metadata-recovery" ||
+      executionPath === "metadata-draft-recovery" ||
       executionPath === "bootstrap-recovery" ||
       executionPath === "metadata-maintenance",
   );
@@ -113,7 +114,7 @@ export function applicationReleaseRemainingMinutes(
   }
   assert.equal(
     purpose,
-    executionPath === "metadata-recovery"
+    executionPath === "metadata-recovery" || executionPath === "metadata-draft-recovery"
       ? "metadata-renewal"
       : executionPath === "bootstrap-recovery"
         ? "metadata-bootstrap"
@@ -129,6 +130,11 @@ export function applicationReleaseRemainingMinutes(
     "public_installed",
     "public_installed_readback",
   ]);
+  if (executionPath === "metadata-draft-recovery") {
+    names.add("publication_prepare");
+    names.add("protection_publication / execute");
+    names.add("publication");
+  }
   return Object.freeze(
     Object.fromEntries(
       Object.entries(ordinary)

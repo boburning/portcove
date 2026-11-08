@@ -417,6 +417,9 @@ export const retainedServedRenewal = {
 /** One feed-only continuation of the exact r43 signed renewal. */
 export const retainedServedRenewalFeed = {
   next_ref: "refs/tags/portcove-production-controller-windows-20261105r44",
+  draft_notes_sha256: "025190c316c42421bf9feaf26517cafced70d7871e6589ee471a053d9ffd9b8b",
+  assembly_artifact: 13606761271,
+  assembly_artifact_sha256: "9ec89aafe0294f7ac7a07e70148096f7370f9e1ce40a3aadc70ad140456a6439",
   generation: "07999ab91c4aeef3f2d04d4f7341729b35422d06f8c939535e5e34a4a35dbd74",
   assembly: {
     id: "42452784395",

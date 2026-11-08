@@ -418,7 +418,7 @@ export function permitsRetainedServedRenewalContinuation(
 ) {
   const expected = retainedServedRenewal;
   const custody = owner?.custody;
-  const feed = executionPath === "metadata-recovery";
+  const feed = executionPath === "metadata-recovery" || executionPath === "metadata-draft-recovery";
   const prior = feed
     ? [...expected.predecessors, retainedServedRenewalFeed.assembly]
     : expected.predecessors;
@@ -723,11 +723,16 @@ export async function readApplicationJobBudget(
     executionPath,
     owner,
   );
-  const exactServedRenewalFeed = servedRenewalContinuation && executionPath === "metadata-recovery";
+  const exactServedRenewalFeed =
+    servedRenewalContinuation &&
+    (executionPath === "metadata-recovery" || executionPath === "metadata-draft-recovery");
   const servedRenewalPredecessors = exactServedRenewalFeed
     ? [...retainedServedRenewal.predecessors, retainedServedRenewalFeed.assembly]
     : retainedServedRenewal.predecessors;
-  if (execution.ref === retainedServedRenewalFeed.next_ref)
+  if (
+    execution.ref === retainedServedRenewalFeed.next_ref ||
+    executionPath === "metadata-draft-recovery"
+  )
     assert.ok(
       exactServedRenewalFeed,
       "appointed feed-only renewal requires exact predecessor custody",

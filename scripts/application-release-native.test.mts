@@ -1893,8 +1893,6 @@ void test("immutable metadata recovery reaches only current feed staging and gua
     "snapshot",
     "timestamp",
     "assemble",
-    "publication_prepare",
-    "publication",
   ]) {
     const job: unknown = workflow.jobs[name];
     assert.ok(
