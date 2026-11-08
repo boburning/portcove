@@ -3,41 +3,131 @@
   "listing": {
     "id": "alexbeav-spyro-the-dragon-recomp",
     "name": "Spyro the Dragon / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "summary": "Play Spyro the Dragon with a player built from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp",
     "issue_number": 479,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp#readme",
     "manual_setup": {
       "steps": [
         {
-          "title": "Download and unpack the setup kit",
-          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+          "title": "Supply your matching disc and BIOS",
+          "instruction": "Use your own European or Australian Spyro the Dragon disc (SCES-01438) with its single data track intact. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
         },
         {
-          "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+          "title": "Prepare the managed Windows or Linux player",
+          "instruction": "In Portcove, select your matching disc as a CHD and your SCPH-5552 BIOS. On Linux, use a native C/C++ compiler, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player."
         },
         {
-          "title": "Build the game and add it to Portcove",
-          "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+          "title": "Prepare a separate Mac player",
+          "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+        },
+        {
+          "title": "Build and add the player on Mac",
+          "instruction": "Run Spyro_the_Dragon_Recompiled from the unpacked folder and follow Generate & Build. In Portcove, select build-release/Spyro_the_Dragon_Recompiled as the program and build-release as its start folder."
         }
       ],
-      "warnings": ["Portcove has not confirmed setup or gameplay for this package."],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp#readme",
+      "warnings": [
+        "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
+        "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/tag/v0.1.4",
       "references": [
         {
           "title": "Updates and backups",
-          "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+          "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
         }
       ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["spyro-the-dragon-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["spyro-the-dragon-recomp-", "-linux-x64.zip"]
+      "linux-x86-64": ["spyro-the-dragon-recomp-", "-linux-x64.zip"],
+      "macos-aarch64": ["spyro-the-dragon-recomp-", "-macos-arm64.zip"],
+      "macos-x86-64": ["spyro-the-dragon-recomp-", "-macos-x64.zip"],
+      "windows-x86-64": ["spyro-the-dragon-recomp-", "-windows-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game_title": "Spyro the Dragon"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/spyro-the-dragon-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["spyro-the-dragon-recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["spyro-the-dragon-recomp-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-spyro-the-dragon-recomp-europe-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Spyro_the_Dragon_Recompiled.exe"],
+      "linux-x86-64": ["Spyro_the_Dragon_Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-spyro-the-dragon-recomp-europe-psx",
+          "label": "Spyro the Dragon (Europe) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-5552-bios",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Use your own European or Australian Spyro the Dragon disc (SCES-01438) with its single data track intact. Select the complete CHD and your retail SCPH-5552 BIOS in Portcove. On Linux use native C/C++ tools, CMake, Ninja and Python 3.10 or newer. Portcove builds and launches the generated player."
+    },
+    "bios_source_profile": "psx-scph-5552-bios"
   }
 }
