@@ -829,6 +829,26 @@
         "bios_profile": "psx-scph-5552-bios",
         "crash_diagnostic": true
       }
+    },
+    "alexbeav-wipeout-recomp": {
+      "inventory": "alexbeav-wipeout-recomp",
+      "selected_assets": [
+        "wipeout-recomp-0.1.4-windows-x64.zip",
+        "wipeout-recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "wipeout-recomp-0.1.4-linux-x64.zip",
+        "wipeout-recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCES-00010",
+        "track_count": 12,
+        "track_sha1": "93a70ff5be6d8a4b25bf40ba453e6ded864ad645",
+        "track_sha256": null,
+        "generated_executable": "WipEout_Recompiled.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      }
     }
   },
   "inventories": {
@@ -4692,6 +4712,82 @@
           }
         ]
       }
+    ],
+    "alexbeav-wipeout-recomp": [
+      {
+        "id": 401951017,
+        "tag_name": "v0.1.4",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-02T15:48:33Z",
+        "assets": [
+          {
+            "id": 605934327,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 3155,
+            "digest": "sha256:b7c04c1b857c8b48f8f1fed07fdd0fac1134cf1ce092b6c8916df12ccd96ea86",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/releases/download/v0.1.4/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 605934345,
+            "name": "SHA256SUMS.txt",
+            "size": 408,
+            "digest": "sha256:102819f07dee8193a344f1d28a5e60195f9b01a9e89125310146fd3cb0f94633",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/releases/download/v0.1.4/SHA256SUMS.txt"
+          },
+          {
+            "id": 605934334,
+            "name": "wipeout-recomp-0.1.4-linux-x64.zip",
+            "size": 27793013,
+            "digest": "sha256:fa83b3be67076b4c70136392469564cf14a2989a750ff091aa40478ccbf22438",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/releases/download/v0.1.4/wipeout-recomp-0.1.4-linux-x64.zip"
+          },
+          {
+            "id": 605934336,
+            "name": "wipeout-recomp-0.1.4-macos-arm64.zip",
+            "size": 25534930,
+            "digest": "sha256:6f8722421fc59cd5c992ce348e987113acd6eff256929e8a7b703bc99db3e529",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/releases/download/v0.1.4/wipeout-recomp-0.1.4-macos-arm64.zip"
+          },
+          {
+            "id": 605934330,
+            "name": "wipeout-recomp-0.1.4-macos-x64.zip",
+            "size": 25882622,
+            "digest": "sha256:899361bf6176825ea194cac512df39d06806186bf9a13daf62c985c4f855306a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/releases/download/v0.1.4/wipeout-recomp-0.1.4-macos-x64.zip"
+          },
+          {
+            "id": 605934335,
+            "name": "wipeout-recomp-0.1.4-windows-x64.zip",
+            "size": 29898707,
+            "digest": "sha256:973d4082112014777fd116b9c38720b8e62fd9e2f4d38f69ffe27db12e0e0d9f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/releases/download/v0.1.4/wipeout-recomp-0.1.4-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954496,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999950992,
+            "name": "wipeout-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeout-recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999950993,
+            "name": "wipeout-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeout-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -5354,6 +5450,16 @@
       "inventory": "alexbeav-spyro-the-dragon-recomp",
       "release_index": 0,
       "asset": "spyro-the-dragon-recomp-0.1.4-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-wipeout-recomp",
+      "release_index": 0,
+      "asset": "wipeout-recomp-0.1.4-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-wipeout-recomp",
+      "release_index": 0,
+      "asset": "wipeout-recomp-0.1.4-macos-x64.zip"
     }
   ]
 }

@@ -1511,6 +1511,26 @@
         "claim": "Exact v0.1.4 Windows and Linux kits (assets 605933050 and 605933046) match provider SHA-256 and tagged source. The kit identifies SCES-01438, 1 disc tracks, data Track 1 SHA-1 52bba2f6a7eec6ac7dc4d08de13a01b0bbce30b6, and the required retail SCPH-5552 BIOS. Static runtime and CLI match the admitted Alien Resurrection v0.1.4 family. Managed preparation selects the generated player, and the first track plus count does not authenticate additional tracks or the complete TOC. Native operation and gameplay were not observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/62118ec415d2d3be51a8961556534fa66e7dd619/game.toml",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-wipeout-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/wipeout-recomp",
+        "authority_ref": "021c82ec5a884d258c8aabd9b02b8cbd6f0a6d50",
+        "reviewed_at": "2026-11-08",
+        "claim": "Exact v0.1.4 Windows and Linux kits match provider SHA-256 and tagged source. The original European SCES-00010 alternate in game.toml agrees with the packaged catalog identity for a 12-track disc. Use the retail SCPH-5552 BIOS and generated WipEout_Recompiled player. The older unmatched digest is excluded. Known BIOS-stage audio and FMV placement defects remain scoped. Native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/blob/021c82ec5a884d258c8aabd9b02b8cbd6f0a6d50/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-wipeout-recomp-redump-352",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/352; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-08",
+        "claim": "Redump Wipeout (Europe), SCES-00010, disc 352, has 12 tracks and data Track 1 size 64988112, SHA-1 93a70ff5be6d8a4b25bf40ba453e6ded864ad645, MD5 23c2abd60259c0ddb84a2c4e72278729 and CRC32 7f6c5a6a. Those fields match the v0.1.4 package and tagged alternate. Redump entry 984 is Rev 1 and does not match. The Core route binds the first track and count; later tracks and the full TOC are not independently authenticated.",
+        "immutable_url": "https://redump.info/disc/352",
+        "live_url": null
       }
     ],
     "identities": [
@@ -10352,6 +10372,53 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-wipeout-recomp-europe-psx",
+        "label": "WipEout (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "WipEout (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SCES-00010"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  12
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "93a70ff5be6d8a4b25bf40ba453e6ded864ad645",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-wipeout-recomp-v014-static-contract",
+                  "alexbeav-wipeout-recomp-redump-352"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-wipeout-recomp-v014-static-contract",
+              "alexbeav-wipeout-recomp-redump-352"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -14944,6 +15011,69 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "e8b54a666b66ae3657013ee55a4c40cf3779e103901a67da7385b903d50aa61b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-wipeout-recomp-game-source",
+        "port_id": "alexbeav-wipeout-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-wipeout-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-wipeout-recomp-v014-static-contract",
+          "alexbeav-wipeout-recomp-redump-352"
+        ],
+        "authority_ref": "021c82ec5a884d258c8aabd9b02b8cbd6f0a6d50",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/blob/021c82ec5a884d258c8aabd9b02b8cbd6f0a6d50/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "973d4082112014777fd116b9c38720b8e62fd9e2f4d38f69ffe27db12e0e0d9f"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "fa83b3be67076b4c70136392469564cf14a2989a750ff091aa40478ccbf22438"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-wipeout-recomp-bios-source",
+        "port_id": "alexbeav-wipeout-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-wipeout-recomp-v014-static-contract"
+        ],
+        "authority_ref": "021c82ec5a884d258c8aabd9b02b8cbd6f0a6d50",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/blob/021c82ec5a884d258c8aabd9b02b8cbd6f0a6d50/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "973d4082112014777fd116b9c38720b8e62fd9e2f4d38f69ffe27db12e0e0d9f"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "fa83b3be67076b4c70136392469564cf14a2989a750ff091aa40478ccbf22438"
           }
         ],
         "aliases": [],
