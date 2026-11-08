@@ -63,7 +63,17 @@
     "alexbeav-destruction-derby-2-recomp-usa-psx",
     "alexbeav-destruction-derby-raw-recomp-usa-psx",
     "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-usa-psx",
-    "xena-warrior-princess-xena-recomp-usa-psx"
+    "xena-warrior-princess-xena-recomp-usa-psx",
+    "alexbeav-colin-mcrae-rally-2-0-recomp-usa-psx",
+    "alexbeav-die-hard-trilogy-recomp-usa-rev-1-psx",
+    "alexbeav-kings-field-recomp-japan-psx",
+    "alexbeav-kula-world-recomp-europe-psx",
+    "alexbeav-mega-man-legends-recomp-europe-psx",
+    "alexbeav-men-in-black-the-game-recomp-europe-psx",
+    "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-usa-psx",
+    "alexbeav-the-mummy-recomp-usa-psx",
+    "alexbeav-vampire-hunter-d-recomp-usa-psx",
+    "alexbeav-vigilante-8-recomp-europe-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -311,6 +321,16 @@
     "alexbeav-destruction-derby-2-recomp",
     "alexbeav-destruction-derby-raw-recomp",
     "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
-    "xena-warrior-princess-xena-recomp"
+    "xena-warrior-princess-xena-recomp",
+    "alexbeav-colin-mcrae-rally-2-0-recomp",
+    "alexbeav-die-hard-trilogy-recomp",
+    "alexbeav-kings-field-recomp",
+    "alexbeav-kula-world-recomp",
+    "alexbeav-mega-man-legends-recomp",
+    "alexbeav-men-in-black-the-game-recomp",
+    "alexbeav-the-lost-world-jurassic-park-special-edition-recomp",
+    "alexbeav-the-mummy-recomp",
+    "alexbeav-vampire-hunter-d-recomp",
+    "alexbeav-vigilante-8-recomp"
   ]
 }

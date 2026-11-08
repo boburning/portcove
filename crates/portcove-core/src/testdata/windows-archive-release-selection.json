@@ -536,6 +536,199 @@
         "generated_executable": "Xena__Warrior_Princess_Recompiled.exe",
         "crash_diagnostic": true
       }
+    },
+    "alexbeav-colin-mcrae-rally-2-0-recomp": {
+      "inventory": "alexbeav-colin-mcrae-rally-2-0-recomp",
+      "selected_assets": [
+        "Colin-McRae-Rally-2-0-Recomp-0.3.6-windows-x64.zip",
+        "Colin-McRae-Rally-2-0-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Colin-McRae-Rally-2-0-Recomp-0.3.6-linux-x64.zip",
+        "Colin-McRae-Rally-2-0-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01222",
+        "track_count": 2,
+        "track_sha1": "4d595880ebb6c6f7a2b63d9503b733f44b1ef230",
+        "generated_executable": "Colin_McRae_Rally_2_0_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-die-hard-trilogy-recomp": {
+      "inventory": "alexbeav-die-hard-trilogy-recomp",
+      "selected_assets": [
+        "Die-Hard-Trilogy-Recomp-0.3.6-windows-x64.zip",
+        "Die-Hard-Trilogy-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Die-Hard-Trilogy-Recomp-0.3.6-linux-x64.zip",
+        "Die-Hard-Trilogy-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00119",
+        "track_count": 21,
+        "track_sha1": "2d24572e92415e09c37b68c83ba8b8947aee1ce4",
+        "generated_executable": "Die_Hard_Trilogy_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true,
+        "revision": "Rev 1"
+      }
+    },
+    "alexbeav-kings-field-recomp": {
+      "inventory": "alexbeav-kings-field-recomp",
+      "selected_assets": [
+        "King-s-Field-Recomp-0.3.6-windows-x64.zip",
+        "King-s-Field-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "King-s-Field-Recomp-0.3.6-linux-x64.zip",
+        "King-s-Field-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLPS-00017",
+        "track_count": 1,
+        "track_sha1": "00bfd94ce99bf214b03bdaa07de99b9ca1466550",
+        "generated_executable": "King_s_Field_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-kula-world-recomp": {
+      "inventory": "alexbeav-kula-world-recomp",
+      "selected_assets": [
+        "Kula-World-Recomp-0.3.6-windows-x64.zip",
+        "Kula-World-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Kula-World-Recomp-0.3.6-linux-x64.zip",
+        "Kula-World-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCES-01000",
+        "track_count": 1,
+        "track_sha1": "0bf9fb06b73a9b5353cdcc371e188934369068da",
+        "generated_executable": "Kula_World_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-mega-man-legends-recomp": {
+      "inventory": "alexbeav-mega-man-legends-recomp",
+      "selected_assets": [
+        "Mega-Man-Legends-Recomp-0.3.6-windows-x64.zip",
+        "Mega-Man-Legends-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Mega-Man-Legends-Recomp-0.3.6-linux-x64.zip",
+        "Mega-Man-Legends-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-01485",
+        "track_count": 2,
+        "track_sha1": "cf24c99ad6586b1bcba7d67f5dc684864b5e1688",
+        "generated_executable": "Mega_Man_Legends_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true,
+        "track_sha256": "91fc12e8ce4485285ab22fbe39a8c3b5a66cab7d129c69a5c22084adbf361391"
+      }
+    },
+    "alexbeav-men-in-black-the-game-recomp": {
+      "inventory": "alexbeav-men-in-black-the-game-recomp",
+      "selected_assets": [
+        "Men-in-Black-The-Game-Recomp-0.3.6-windows-x64.zip",
+        "Men-in-Black-The-Game-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Men-in-Black-The-Game-Recomp-0.3.6-linux-x64.zip",
+        "Men-in-Black-The-Game-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-01047",
+        "track_count": 1,
+        "track_sha1": "060496048fae53cf79706ab3ce611c07701d4814",
+        "generated_executable": "Men_in_Black__The_Game_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-the-lost-world-jurassic-park-special-edition-recomp": {
+      "inventory": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp",
+      "selected_assets": [
+        "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-windows-x64.zip",
+        "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-linux-x64.zip",
+        "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00515",
+        "track_count": 3,
+        "track_sha1": "1fac6ab6b0d7d3d8f5e70b40bb9fae1d2a2287bc",
+        "generated_executable": "The_Lost_World__Jurassic_Park_Special_Edition_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-the-mummy-recomp": {
+      "inventory": "alexbeav-the-mummy-recomp",
+      "selected_assets": [
+        "The-Mummy-Recomp-0.3.6-windows-x64.zip",
+        "The-Mummy-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "The-Mummy-Recomp-0.3.6-linux-x64.zip",
+        "The-Mummy-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01187",
+        "track_count": 1,
+        "track_sha1": "ef266fcac356f05950a81aaa350fbf211defcdd8",
+        "generated_executable": "The_Mummy_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-vampire-hunter-d-recomp": {
+      "inventory": "alexbeav-vampire-hunter-d-recomp",
+      "selected_assets": [
+        "Vampire-Hunter-D-Recomp-0.3.6-windows-x64.zip",
+        "Vampire-Hunter-D-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Vampire-Hunter-D-Recomp-0.3.6-linux-x64.zip",
+        "Vampire-Hunter-D-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01138",
+        "track_count": 1,
+        "track_sha1": "a4b43839e2abd4ac626434c801fbea0a09ab3f88",
+        "generated_executable": "Vampire_Hunter_D_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-vigilante-8-recomp": {
+      "inventory": "alexbeav-vigilante-8-recomp",
+      "selected_assets": [
+        "Vigilante-8-Recomp-0.3.6-windows-x64.zip",
+        "Vigilante-8-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Vigilante-8-Recomp-0.3.6-linux-x64.zip",
+        "Vigilante-8-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-01212",
+        "track_count": 13,
+        "track_sha1": "0a39394280555203bf29e33e95e561e4ff50edb1",
+        "generated_executable": "Vigilante_8_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true,
+        "track_sha256": "0a303a0d19d2728f1e364afa4fb7ad8e6e5a04800236573e93417a5503fb201e"
+      }
     }
   },
   "inventories": {
@@ -3399,6 +3592,626 @@
           }
         ]
       }
+    ],
+    "alexbeav-colin-mcrae-rally-2-0-recomp": [
+      {
+        "id": 382786324,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:34Z",
+        "assets": [
+          {
+            "id": 544444537,
+            "name": "Colin-McRae-Rally-2-0-Recomp-0.3.6-linux-x64.zip",
+            "size": 28046842,
+            "digest": "sha256:a684bcf16dde458f194f053f8b66268ac668a959229475446f43e7e9bc06664c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/releases/download/v0.3.6/Colin-McRae-Rally-2-0-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544444662,
+            "name": "Colin-McRae-Rally-2-0-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25790671,
+            "digest": "sha256:6901a96a1171f594adf65f28cdf98bdf10086aa754bf5c6adf22f71bf612bc2e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/releases/download/v0.3.6/Colin-McRae-Rally-2-0-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544444771,
+            "name": "Colin-McRae-Rally-2-0-Recomp-0.3.6-macos-x64.zip",
+            "size": 26136171,
+            "digest": "sha256:9d390adce850c4027792940511755251eac59c80ed6ce9aaa4df51c17d35b42b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/releases/download/v0.3.6/Colin-McRae-Rally-2-0-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544444876,
+            "name": "Colin-McRae-Rally-2-0-Recomp-0.3.6-windows-x64.zip",
+            "size": 30153114,
+            "digest": "sha256:97914ce4540579c4317192ef6fc5cb7a2ecadc5c683b3cbe9981f60d35101d53",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/releases/download/v0.3.6/Colin-McRae-Rally-2-0-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954433,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953866,
+            "name": "Colin-McRae-Rally-2-0-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Colin-McRae-Rally-2-0-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953867,
+            "name": "Colin-McRae-Rally-2-0-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Colin-McRae-Rally-2-0-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-die-hard-trilogy-recomp": [
+      {
+        "id": 382786554,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:39Z",
+        "assets": [
+          {
+            "id": 544445007,
+            "name": "Die-Hard-Trilogy-Recomp-0.3.6-linux-x64.zip",
+            "size": 28047222,
+            "digest": "sha256:0e153ba72a82c4d7cfc281bdf7fb7021c3e088f40907bec98f975c1cfad08957",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/releases/download/v0.3.6/Die-Hard-Trilogy-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544445106,
+            "name": "Die-Hard-Trilogy-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25792455,
+            "digest": "sha256:e9d43576c0fc21be61a6570076df75b43b05ac2bac7b8891711a1eb94548e2d0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/releases/download/v0.3.6/Die-Hard-Trilogy-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544445203,
+            "name": "Die-Hard-Trilogy-Recomp-0.3.6-macos-x64.zip",
+            "size": 26136563,
+            "digest": "sha256:1e3f5c3923f98aa4e86cf11cb7b00a40f84ecac197330136864e25a0a760b819",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/releases/download/v0.3.6/Die-Hard-Trilogy-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544445336,
+            "name": "Die-Hard-Trilogy-Recomp-0.3.6-windows-x64.zip",
+            "size": 30153062,
+            "digest": "sha256:0ecc47770964cdfacca7391394d7b54905c85b26cf2a34ff53a448a278c46725",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/releases/download/v0.3.6/Die-Hard-Trilogy-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954440,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953880,
+            "name": "Die-Hard-Trilogy-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Die-Hard-Trilogy-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953881,
+            "name": "Die-Hard-Trilogy-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Die-Hard-Trilogy-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-kings-field-recomp": [
+      {
+        "id": 382787060,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:48Z",
+        "assets": [
+          {
+            "id": 544446077,
+            "name": "King-s-Field-Recomp-0.3.6-linux-x64.zip",
+            "size": 28051549,
+            "digest": "sha256:96c843bd6237fbd5e4f0e4bceb7fb843b6fe47ebd683b30fcd77b097c83b5e6a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/releases/download/v0.3.6/King-s-Field-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544446221,
+            "name": "King-s-Field-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25795391,
+            "digest": "sha256:ed540b879fce8291d237b649143c5b156b05bad359926204d10fb15bbf5004ea",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/releases/download/v0.3.6/King-s-Field-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544446296,
+            "name": "King-s-Field-Recomp-0.3.6-macos-x64.zip",
+            "size": 26140771,
+            "digest": "sha256:e2bcb2c17cc872bbd0414ba0ccd660ff23dc0f65054bd286118c48fc8c68312b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/releases/download/v0.3.6/King-s-Field-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544446434,
+            "name": "King-s-Field-Recomp-0.3.6-windows-x64.zip",
+            "size": 30157846,
+            "digest": "sha256:179116f3f1d89a88b9323f77c7ee3c8297c462efdaba561f8a2c7796a090a16d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/releases/download/v0.3.6/King-s-Field-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954454,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953908,
+            "name": "King-s-Field-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/King-s-Field-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953909,
+            "name": "King-s-Field-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/King-s-Field-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-kula-world-recomp": [
+      {
+        "id": 382787269,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:53Z",
+        "assets": [
+          {
+            "id": 544446485,
+            "name": "Kula-World-Recomp-0.3.6-linux-x64.zip",
+            "size": 28047394,
+            "digest": "sha256:64035663a1650fce256a53b4e140ec89dbfb50eba6d1ab537e6552d82e3bcc44",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/releases/download/v0.3.6/Kula-World-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544446570,
+            "name": "Kula-World-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25792746,
+            "digest": "sha256:f671f2e65e1c6b1de49a87b1572c6c38250045f8cb85041d27e0bdfd80a31cf4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/releases/download/v0.3.6/Kula-World-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544446650,
+            "name": "Kula-World-Recomp-0.3.6-macos-x64.zip",
+            "size": 26137696,
+            "digest": "sha256:e739970c5bab102274ee5dd24eef1723476af1797adb0f4817541d9059054dc4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/releases/download/v0.3.6/Kula-World-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544446720,
+            "name": "Kula-World-Recomp-0.3.6-windows-x64.zip",
+            "size": 30153631,
+            "digest": "sha256:3274a62cc8f3d6e1141d6f3138f869746d021efc9e794921e5b8cfb04f2ef551",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/releases/download/v0.3.6/Kula-World-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954455,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953910,
+            "name": "Kula-World-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Kula-World-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953911,
+            "name": "Kula-World-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Kula-World-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-mega-man-legends-recomp": [
+      {
+        "id": 382787498,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:58Z",
+        "assets": [
+          {
+            "id": 544446914,
+            "name": "Mega-Man-Legends-Recomp-0.3.6-linux-x64.zip",
+            "size": 28046373,
+            "digest": "sha256:a26b4fc42fb335ceec87ee1c66eb897c88790ca99a0be17b28e5113073823c82",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/releases/download/v0.3.6/Mega-Man-Legends-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544446984,
+            "name": "Mega-Man-Legends-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25791606,
+            "digest": "sha256:73f37f29f05254e81c4c7b5969a33e0d9c6faa11fad20220d484b9c9ee8cc9c0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/releases/download/v0.3.6/Mega-Man-Legends-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544447073,
+            "name": "Mega-Man-Legends-Recomp-0.3.6-macos-x64.zip",
+            "size": 26135723,
+            "digest": "sha256:7ce7099fb2fbb65d4e80c97d25c8b1cb30b16a73bb306b946eaceefb7fe733e7",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/releases/download/v0.3.6/Mega-Man-Legends-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544447194,
+            "name": "Mega-Man-Legends-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152253,
+            "digest": "sha256:6a65ae3e7c9930003f7453cf3ed9d6df0abc9528c273cf8fdf8f190c875ca33e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/releases/download/v0.3.6/Mega-Man-Legends-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954462,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953924,
+            "name": "Mega-Man-Legends-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Mega-Man-Legends-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953925,
+            "name": "Mega-Man-Legends-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Mega-Man-Legends-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-men-in-black-the-game-recomp": [
+      {
+        "id": 382787527,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:58Z",
+        "assets": [
+          {
+            "id": 544446941,
+            "name": "Men-in-Black-The-Game-Recomp-0.3.6-linux-x64.zip",
+            "size": 28049697,
+            "digest": "sha256:288f6ac737594a49362c893e16b7d4b1cbe9c4c35787526b780df4d8f39b395f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/releases/download/v0.3.6/Men-in-Black-The-Game-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544447014,
+            "name": "Men-in-Black-The-Game-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25793572,
+            "digest": "sha256:536a33509357729780032c9bb5ddcc34cb72f883b01f26184a64525af2525303",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/releases/download/v0.3.6/Men-in-Black-The-Game-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544447116,
+            "name": "Men-in-Black-The-Game-Recomp-0.3.6-macos-x64.zip",
+            "size": 26138928,
+            "digest": "sha256:191c0f0311c8afa8565895a2eed383fa2d233c82f1a1e17f5011f942d817769c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/releases/download/v0.3.6/Men-in-Black-The-Game-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544447242,
+            "name": "Men-in-Black-The-Game-Recomp-0.3.6-windows-x64.zip",
+            "size": 30155988,
+            "digest": "sha256:1960f5e6812cf72f06ee521bcfcca2f3cab6974935f4f1d77cd99154b1ae1c33",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/releases/download/v0.3.6/Men-in-Black-The-Game-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954463,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953926,
+            "name": "Men-in-Black-The-Game-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Men-in-Black-The-Game-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953927,
+            "name": "Men-in-Black-The-Game-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Men-in-Black-The-Game-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-the-lost-world-jurassic-park-special-edition-recomp": [
+      {
+        "id": 382788212,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:49:12Z",
+        "assets": [
+          {
+            "id": 544448528,
+            "name": "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-linux-x64.zip",
+            "size": 28046937,
+            "digest": "sha256:2d58d502ad433dd901abec847e3fa11c7a73f9b5fdf68415629bdc4c91d9d21d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/releases/download/v0.3.6/The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544448664,
+            "name": "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25790945,
+            "digest": "sha256:1ef286518e8741524b1e6fbfe06b0babc2923513aaf3729991f6baa5cc4f94d0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/releases/download/v0.3.6/The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544448756,
+            "name": "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-macos-x64.zip",
+            "size": 26136215,
+            "digest": "sha256:e7365fb19d95e4c524ecfbc8c12e472e74eef0e10b529ae2716164d58bec086b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/releases/download/v0.3.6/The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544448828,
+            "name": "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-windows-x64.zip",
+            "size": 30153097,
+            "digest": "sha256:bb72726eb72eebc13068b3bab13996e46b644ad77997c463c39076f05fe72b76",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/releases/download/v0.3.6/The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954483,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953966,
+            "name": "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/The-Lost-World-Jurassic-Park-Special-Edition-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953967,
+            "name": "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/The-Lost-World-Jurassic-Park-Special-Edition-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-the-mummy-recomp": [
+      {
+        "id": 382788211,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:49:12Z",
+        "assets": [
+          {
+            "id": 544448526,
+            "name": "The-Mummy-Recomp-0.3.6-linux-x64.zip",
+            "size": 28049952,
+            "digest": "sha256:2e249510c7d96ecb4abd5363f57c4648560dc56751baad5581f168ab1fd28028",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/releases/download/v0.3.6/The-Mummy-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544448677,
+            "name": "The-Mummy-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25795364,
+            "digest": "sha256:e6859019aaa71dbd33bc34f965267aa4804fa68a33e1e808c8367ceb73a81bdc",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/releases/download/v0.3.6/The-Mummy-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544448774,
+            "name": "The-Mummy-Recomp-0.3.6-macos-x64.zip",
+            "size": 26140292,
+            "digest": "sha256:d1606c9574e16699883e6870aa2a0e48e9783bc26992b1794b284f89b85bf971",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/releases/download/v0.3.6/The-Mummy-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544448841,
+            "name": "The-Mummy-Recomp-0.3.6-windows-x64.zip",
+            "size": 30156066,
+            "digest": "sha256:d74950dc3b03675071446cbdb8dbbcc551291659c49c730fb6ab19107d298a8a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/releases/download/v0.3.6/The-Mummy-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954485,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953970,
+            "name": "The-Mummy-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/The-Mummy-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953971,
+            "name": "The-Mummy-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/The-Mummy-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-vampire-hunter-d-recomp": [
+      {
+        "id": 382788493,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:49:17Z",
+        "assets": [
+          {
+            "id": 544449074,
+            "name": "Vampire-Hunter-D-Recomp-0.3.6-linux-x64.zip",
+            "size": 28049005,
+            "digest": "sha256:a629a0ef77959c5af91f770fc21b9c4a2aca9e7038c31ce4eb0b447971a0eda2",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/releases/download/v0.3.6/Vampire-Hunter-D-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544449162,
+            "name": "Vampire-Hunter-D-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25794238,
+            "digest": "sha256:9b5ca16ec640a2afbb5ce4f68bfdac6fe608381ac680680c0db7b2b5c46d3a86",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/releases/download/v0.3.6/Vampire-Hunter-D-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544449262,
+            "name": "Vampire-Hunter-D-Recomp-0.3.6-macos-x64.zip",
+            "size": 26138346,
+            "digest": "sha256:eabefbed089a6e9dd0efd07a0b8d9699b84ef30b4806152de33303f1ffbb9b24",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/releases/download/v0.3.6/Vampire-Hunter-D-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544449337,
+            "name": "Vampire-Hunter-D-Recomp-0.3.6-windows-x64.zip",
+            "size": 30154881,
+            "digest": "sha256:59c5e5eb03fbd3dafdbd1385a6e7da2fedb944387f9359709c84b425dfd99efa",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/releases/download/v0.3.6/Vampire-Hunter-D-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954494,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953988,
+            "name": "Vampire-Hunter-D-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Vampire-Hunter-D-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953989,
+            "name": "Vampire-Hunter-D-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Vampire-Hunter-D-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-vigilante-8-recomp": [
+      {
+        "id": 382788683,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:49:21Z",
+        "assets": [
+          {
+            "id": 544449424,
+            "name": "Vigilante-8-Recomp-0.3.6-linux-x64.zip",
+            "size": 28047756,
+            "digest": "sha256:ffdc46640a048fdb80a6ac98ddcb6ad241a2a0b42b297eeef86a9539e89a41af",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/releases/download/v0.3.6/Vigilante-8-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544449527,
+            "name": "Vigilante-8-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25793067,
+            "digest": "sha256:4b8684feef6b15c1b355b3f125bc73690eb3ea1b6f244d6ab9783d7339e25622",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/releases/download/v0.3.6/Vigilante-8-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544449619,
+            "name": "Vigilante-8-Recomp-0.3.6-macos-x64.zip",
+            "size": 26138102,
+            "digest": "sha256:3074ab52d4902b33b29341d75246ffeb98bcca7e6bec308eea43332b2e94c6ac",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/releases/download/v0.3.6/Vigilante-8-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544449858,
+            "name": "Vigilante-8-Recomp-0.3.6-windows-x64.zip",
+            "size": 30153991,
+            "digest": "sha256:e908e5d75af07f384d5e3238caa32e7db490aef0b1e3254e49cc0ae098b436c3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/releases/download/v0.3.6/Vigilante-8-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954498,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999953996,
+            "name": "Vigilante-8-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Vigilante-8-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999953997,
+            "name": "Vigilante-8-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Vigilante-8-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -3911,6 +4724,106 @@
       "inventory": "xena-warrior-princess-xena-recomp",
       "release_index": 0,
       "asset": "xena-warrior-princess-recomp-0.1.2-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-colin-mcrae-rally-2-0-recomp",
+      "release_index": 0,
+      "asset": "Colin-McRae-Rally-2-0-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-colin-mcrae-rally-2-0-recomp",
+      "release_index": 0,
+      "asset": "Colin-McRae-Rally-2-0-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-die-hard-trilogy-recomp",
+      "release_index": 0,
+      "asset": "Die-Hard-Trilogy-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-die-hard-trilogy-recomp",
+      "release_index": 0,
+      "asset": "Die-Hard-Trilogy-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-kings-field-recomp",
+      "release_index": 0,
+      "asset": "King-s-Field-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-kings-field-recomp",
+      "release_index": 0,
+      "asset": "King-s-Field-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-kula-world-recomp",
+      "release_index": 0,
+      "asset": "Kula-World-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-kula-world-recomp",
+      "release_index": 0,
+      "asset": "Kula-World-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-mega-man-legends-recomp",
+      "release_index": 0,
+      "asset": "Mega-Man-Legends-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-mega-man-legends-recomp",
+      "release_index": 0,
+      "asset": "Mega-Man-Legends-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-men-in-black-the-game-recomp",
+      "release_index": 0,
+      "asset": "Men-in-Black-The-Game-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-men-in-black-the-game-recomp",
+      "release_index": 0,
+      "asset": "Men-in-Black-The-Game-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp",
+      "release_index": 0,
+      "asset": "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp",
+      "release_index": 0,
+      "asset": "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-the-mummy-recomp",
+      "release_index": 0,
+      "asset": "The-Mummy-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-the-mummy-recomp",
+      "release_index": 0,
+      "asset": "The-Mummy-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-vampire-hunter-d-recomp",
+      "release_index": 0,
+      "asset": "Vampire-Hunter-D-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-vampire-hunter-d-recomp",
+      "release_index": 0,
+      "asset": "Vampire-Hunter-D-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-vigilante-8-recomp",
+      "release_index": 0,
+      "asset": "Vigilante-8-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-vigilante-8-recomp",
+      "release_index": 0,
+      "asset": "Vigilante-8-Recomp-0.3.6-macos-x64.zip"
     }
   ]
 }

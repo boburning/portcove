@@ -162,7 +162,7 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
     projections.push({
       field: "psx_managed_windows_v1",
       scope: "Managed Windows PSXRecomp generated-player launch and reviewed local data layout.",
-      next: "Check the exact kit and generated executable, owned disc and retail SCPH-1001 BIOS, and the same writer layout as the seven PSX routes in PR #4676. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
+      next: "Check the exact kit and generated executable, owned disc, explicit bundled OpenBIOS or required retail SCPH-1001 BIOS, and the reviewed shared writer layout. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
     });
   }
   return {

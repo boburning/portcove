@@ -60,7 +60,9 @@ const explicitFields = new Set([
 ]);
 
 export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
-  if (record.psx_managed_windows_v1 === undefined) return record;
+  const layout = record.psx_managed_windows_v1;
+  if (layout === undefined) return record;
+  const bundledOpenBios = layout === "bundled-openbios";
   const integration = record.integration;
   const executable = isRecord(integration?.executable_hints)
     ? integration.executable_hints["windows-x86-64"]
@@ -71,7 +73,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const assetHints = isRecord(integration?.release) ? integration.release.asset_hints : undefined;
   const linuxAssets = isRecord(assetHints) ? assetHints["linux-x86-64"] : undefined;
   if (
-    record.psx_managed_windows_v1 !== true ||
+    (layout !== true && !bundledOpenBios) ||
     !integration ||
     integration.adapter !== "psx-recomp-managed" ||
     !Array.isArray(integration.platforms) ||
@@ -85,7 +87,9 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     ) ||
     typeof integration.source_profile !== "string" ||
     !integration.source_profile ||
-    integration.bios_source_profile !== "psx-scph-1001-bios" ||
+    (bundledOpenBios
+      ? Object.hasOwn(integration, "bios_source_profile")
+      : integration.bios_source_profile !== "psx-scph-1001-bios") ||
     !Array.isArray(executable) ||
     executable.length !== 1 ||
     typeof executable[0] !== "string" ||
@@ -101,7 +105,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     record.settings_observation_v1 !== undefined
   )
     throw new Error(
-      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and retail SCPH-1001 BIOS. An optional Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
+      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS or explicit bundled OpenBIOS without a retail profile. An optional Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
     );
 
   for (const field of Object.keys(runtimeLayout))
@@ -122,8 +126,11 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     integration: {
       ...operation,
       ...structuredClone(runtimeLayout),
+      ...(bundledOpenBios
+        ? { launch_arguments: ["--no-launcher", "--bios", "bios/openbios.bin"] }
+        : {}),
       ...(presentation === undefined ? {} : { presentation }),
-      bios_source_profile,
+      ...(bios_source_profile === undefined ? {} : { bios_source_profile }),
     },
   };
 }

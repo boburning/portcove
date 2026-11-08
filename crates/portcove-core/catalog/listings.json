@@ -4964,7 +4964,9 @@
       "issue_number": 426,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp#readme",
@@ -4980,19 +4982,20 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux use your native C/C++ compiler, CMake, Ninja and Python 3. On Intel or Apple Silicon Mac, choose the matching archive and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Use both supported European discs and your own supported Europe SCPH BIOS. The included OpenBIOS supports setup only. Upstream documents independent disc startup; natural gameplay disc switching is not established by this handoff."
+            "title": "Supply the matching originals in order",
+            "instruction": "Use your own European two-disc set SLES-02801 then SLES-12801. Keep each disc image and every referenced track together. Use your supported European retail SCPH-5552 BIOS for the player. The included OpenBIOS is a setup fallback. Follow the bundled setup guide for the image formats and BIOS selection."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Build and add the completed player",
+            "instruction": "Run the Alone_in_the_Dark__The_New_Nightmare setup host (with .exe on Windows), then use its Generate & rebuild wizard. Add the completed player from build-release with that folder as its start folder. Keep the whole creating folder and its runtime companions."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The guide covers upstream-owned setup and replacement. Preserve all discs, saves, settings and overlay captures. Disc changes during gameplay remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp#readme",
         "references": [
@@ -5004,13 +5007,21 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
+          "-windows-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -5383,12 +5394,14 @@
     {
       "id": "alexbeav-colin-mcrae-rally-2-0-recomp",
       "name": "Colin McRae Rally 2.0 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play Colin McRae Rally 2.0 with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp",
       "issue_number": 433,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp#readme",
@@ -5403,41 +5416,51 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own USA Colin McRae Rally 2.0 disc, SLUS-01222, with all 2 tracks present."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Colin_McRae_Rally_2_0_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Colin_McRae_Rally_2_0_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Colin-McRae-Rally-2-0-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Colin-McRae-Rally-2-0-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Colin-McRae-Rally-2-0-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "Colin-McRae-Rally-2-0-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "Colin-McRae-Rally-2-0-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "Colin McRae Rally 2.0"
     },
     {
       "id": "alexbeav-colony-wars-recomp",
@@ -5818,12 +5841,14 @@
     {
       "id": "alexbeav-die-hard-trilogy-recomp",
       "name": "Die Hard Trilogy / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play Die Hard Trilogy with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp",
       "issue_number": 440,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp#readme",
@@ -5838,41 +5863,51 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own USA, Rev 1 Die Hard Trilogy disc, SLUS-00119, with all 21 tracks present."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Die_Hard_Trilogy_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Die_Hard_Trilogy_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Die-Hard-Trilogy-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Die-Hard-Trilogy-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Die-Hard-Trilogy-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "Die-Hard-Trilogy-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "Die-Hard-Trilogy-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "Die Hard Trilogy"
     },
     {
       "id": "alexbeav-digimon-world-2-recomp",
@@ -6590,7 +6625,9 @@
       "issue_number": 458,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp#readme",
@@ -6606,19 +6643,20 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux use your native C/C++ compiler, CMake, Ninja and Python 3. On Intel or Apple Silicon Mac, choose the matching archive and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Supply the matching originals in order",
+            "instruction": "Use your own USA two-disc set SLUS-01294 then SLUS-01314. Keep each disc image and every referenced track together. Use the kit’s supported BIOS instructions. Follow the bundled setup guide for the image formats and BIOS selection."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Build and add the completed player",
+            "instruction": "Run the In_Cold_Blood_Recompiled setup host (with .exe on Windows), then use its Generate & rebuild wizard. Add the completed player from build-release with that folder as its start folder. Keep the whole creating folder and its runtime companions."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The guide covers upstream-owned setup and replacement. Preserve all discs, saves, settings and overlay captures. Disc changes during gameplay remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp#readme",
         "references": [
@@ -6630,13 +6668,21 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "In-Cold-Blood-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "In-Cold-Blood-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "In-Cold-Blood-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "In-Cold-Blood-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "In-Cold-Blood-Recomp-",
+          "-windows-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6880,12 +6926,14 @@
     {
       "id": "alexbeav-kings-field-recomp",
       "name": "King's Field / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play King's Field with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp",
       "issue_number": 454,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp#readme",
@@ -6900,41 +6948,52 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own Japan King's Field disc, SLPS-00017, with its single data track intact."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Follow the selected version’s completed-player instructions if upstream setup cannot relaunch it. The retained v0.3.6 guide describes earlier executable-name/generated-target problems and a later candidate correction; those dated reports do not establish that every current package is fixed or broken. Do not choose a compiler or unrelated helper as the player."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream King_s_Field_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/King_s_Field_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved.",
+          "Older kits had relaunch or generated-target issues. Use the reviewed player name and keep the completed output with its creating kit."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "King-s-Field-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "King-s-Field-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "King-s-Field-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "King-s-Field-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "King-s-Field-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "King's Field"
     },
     {
       "id": "alexbeav-koudelka-recomp",
@@ -6944,7 +7003,9 @@
       "issue_number": 453,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp#readme",
@@ -6960,19 +7021,20 @@
         "steps": [
           {
             "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux use your native C/C++ compiler, CMake, Ninja and Python 3. On Intel or Apple Silicon Mac, choose the matching archive and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Supply the matching originals in order",
+            "instruction": "Use your own European four-disc set SLES-02897, SLES-12897, SLES-22897 and SLES-32897 in that order. Keep each disc image and every referenced track together. Use the kit’s supported BIOS instructions. Follow the bundled setup guide for the image formats and BIOS selection."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Build and add the completed player",
+            "instruction": "Run the Koudelka_Recompiled setup host (with .exe on Windows), then use its Generate & rebuild wizard. Add the completed player from build-release with that folder as its start folder. Keep the whole creating folder and its runtime companions."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The guide covers upstream-owned setup and replacement. Preserve all discs, saves, settings and overlay captures. Disc changes during gameplay remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp#readme",
         "references": [
@@ -6984,13 +7046,21 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Koudelka-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Koudelka-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Koudelka-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "Koudelka-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "Koudelka-Recomp-",
+          "-windows-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6998,12 +7068,14 @@
     {
       "id": "alexbeav-kula-world-recomp",
       "name": "Kula World / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play Kula World with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp",
       "issue_number": 455,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp#readme",
@@ -7018,41 +7090,51 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own Europe Kula World disc, SCES-01000, with its single data track intact."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Kula_World_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Kula_World_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Kula-World-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Kula-World-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Kula-World-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "Kula-World-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "Kula-World-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "Kula World"
     },
     {
       "id": "alexbeav-legacy-of-kain-soul-reaver-recomp",
@@ -7384,12 +7466,14 @@
     {
       "id": "alexbeav-mega-man-legends-recomp",
       "name": "Mega Man Legends / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play Mega Man Legends with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp",
       "issue_number": 462,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp#readme",
@@ -7404,92 +7488,114 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own Europe Mega Man Legends disc, SLES-01485, with all 2 tracks present."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Mega_Man_Legends_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Mega_Man_Legends_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Mega-Man-Legends-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Mega-Man-Legends-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Mega-Man-Legends-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "Mega-Man-Legends-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "Mega-Man-Legends-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "Mega Man Legends"
     },
     {
       "id": "alexbeav-men-in-black-the-game-recomp",
       "name": "Men in Black: The Game / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play Men in Black: The Game with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp",
       "issue_number": 463,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp#readme",
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own Europe Men in Black: The Game disc, SLES-01047, with its single data track intact."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Men_in_Black__The_Game_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Men_in_Black__The_Game_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Men-in-Black-The-Game-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Men-in-Black-The-Game-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Men-in-Black-The-Game-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "Men-in-Black-The-Game-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "Men-in-Black-The-Game-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "Men in Black: The Game"
     },
     {
       "id": "alexbeav-metal-gear-solid-recomp",
@@ -9252,63 +9358,77 @@
     {
       "id": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp",
       "name": "The Lost World: Jurassic Park Special Edition / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play The Lost World: Jurassic Park Special Edition with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp",
       "issue_number": 483,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp#readme",
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own USA The Lost World: Jurassic Park Special Edition disc, SLUS-00515, with all 3 tracks present."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream The_Lost_World__Jurassic_Park_Special_Edition_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/The_Lost_World__Jurassic_Park_Special_Edition_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "The Lost World: Jurassic Park Special Edition"
     },
     {
       "id": "alexbeav-the-mummy-recomp",
       "name": "The Mummy / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play The Mummy with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp",
       "issue_number": 485,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp#readme",
@@ -9323,41 +9443,51 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own USA The Mummy disc, SLUS-01187, with its single data track intact."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream The_Mummy_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/The_Mummy_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "The-Mummy-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "The-Mummy-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "The-Mummy-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "The-Mummy-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "The-Mummy-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "The Mummy"
     },
     {
       "id": "alexbeav-threads-of-fate-recomp",
@@ -9817,12 +9947,14 @@
     {
       "id": "alexbeav-vampire-hunter-d-recomp",
       "name": "Vampire Hunter D / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play Vampire Hunter D with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp",
       "issue_number": 494,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp#readme",
@@ -9837,41 +9969,51 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own USA Vampire Hunter D disc, SLUS-01138, with its single data track intact."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Vampire_Hunter_D_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Vampire_Hunter_D_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Vampire-Hunter-D-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Vampire-Hunter-D-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Vampire-Hunter-D-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "Vampire-Hunter-D-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "Vampire-Hunter-D-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "Vampire Hunter D"
     },
     {
       "id": "alexbeav-vib-ribbon-recomp",
@@ -9945,12 +10087,14 @@
     {
       "id": "alexbeav-vigilante-8-recomp",
       "name": "Vigilante 8 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Play Vigilante 8 with a native player built from your matching original disc.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp",
       "issue_number": 498,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp#readme",
@@ -9965,41 +10109,51 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own Europe Vigilante 8 disc, SLES-01212, with all 13 tracks present."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Prepare the managed Windows or Linux player",
+            "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare the Mac or a separate upstream-owned copy",
+            "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Vigilante_8_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Vigilante_8_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the data and runtime you actually use",
+            "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Vigilante-8-Recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "Vigilante-8-Recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Vigilante-8-Recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "Vigilante-8-Recomp-",
+          "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "Vigilante-8-Recomp-",
+          "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "Vigilante 8"
     },
     {
       "id": "alexbeav-wild-arms-recomp",
