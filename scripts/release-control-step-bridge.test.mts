@@ -6,6 +6,7 @@ import os from "node:os";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { prepareControlReadiness } from "./release-control-handshake.mts";
 import {
   controlBridgeOriginalDeadline,
   readControlBridgeOriginalJob,
@@ -20,21 +21,22 @@ const expected = {
   revision: "a".repeat(40),
   ref: "refs/tags/portcove-production-controller-fixture",
 };
-const ready = () => ({
-  schema_version: 1,
-  phase: expected.phase,
-  facts_sha256: "b".repeat(64),
-  producer: {
-    workflow: ".github/workflows/application-update-production.yml",
-    controller_revision: expected.revision,
-    controller_ref: expected.ref,
-    run_id: 123,
-    run_attempt: 1,
-    job_id: 456,
-    check_run_id: 789,
-  },
-  round: { index: 3, nonce: "c".repeat(64) },
-});
+const ready = () =>
+  prepareControlReadiness(
+    {
+      kind: "oidc-job-identity-only",
+      workflow: ".github/workflows/application-update-production.yml",
+      workflow_revision: expected.revision,
+      execution_ref: expected.ref,
+      run_id: expected.run_id,
+      run_attempt: 1,
+      job_id: 456,
+      check_run_id: "789",
+    },
+    "b".repeat(64),
+    expected.phase,
+    { index: 3, nonce: "c".repeat(64) },
+  );
 void test("fixed ready routing binds own source/run/phase/round without granting a control proof", () => {
   assert.equal(inspectControlStepReadiness(ready(), expected).authority, "none");
   for (const change of [
@@ -48,6 +50,11 @@ void test("fixed ready routing binds own source/run/phase/round without granting
   const changed = ready();
   changed.producer.run_attempt = 2;
   assert.throws(() => inspectControlStepReadiness(changed, expected));
+  for (const invalid of [789, "0789", "789\n", "0"]) {
+    const changed = ready();
+    changed.producer.check_run_id = invalid;
+    assert.throws(() => inspectControlStepReadiness(changed, expected));
+  }
 });
 void test("trusted ready file crosses the fixed upload bridge; mutation and repeated locator refuse, settled producer skips unused rounds", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "control-step-fixture-"));

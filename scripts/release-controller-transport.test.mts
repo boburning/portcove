@@ -377,7 +377,7 @@ void test(
           run_id: "123",
           run_attempt: 1,
           job_id: 4,
-          check_run_id: 5,
+          check_run_id: "5",
         },
       }),
     );
@@ -423,7 +423,7 @@ void test("actual local routing interleaves control and pending upload before th
         run_id: "123",
         run_attempt: 1,
         job_id: 4,
-        check_run_id: 5,
+        check_run_id: "5",
       };
     const bytes = Buffer.from(
       JSON.stringify({
