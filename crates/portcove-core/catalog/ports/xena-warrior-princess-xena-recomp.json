@@ -3,10 +3,10 @@
   "listing": {
     "id": "xena-warrior-princess-xena-recomp",
     "name": "Xena: Warrior Princess / Xena Recomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "summary": "Play Xena: Warrior Princess using your own matching USA PlayStation disc and retail BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp",
     "issue_number": 329,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp#readme",
     "artwork": {
@@ -25,7 +25,11 @@
         },
         {
           "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+          "instruction": "For upstream setup use your own USA SLUS-00977 disc in the upstream kit’s supported image format. For CUE/BIN, keep the complete CUE and every referenced track. Use your own retail SCPH-1001 BIOS. Keep the complete original separately from generated files."
+        },
+        {
+          "title": "Prepare an independent Mac copy",
+          "instruction": "Choose the Intel or Apple Silicon setup ZIP for your Mac. Follow the upstream toolchain instructions for Python 3, CMake, Ninja and the selected Apple Clang and SDK. Finish the Generate & rebuild wizard outside Portcove with your own USA SLUS-00977 disc and your own retail SCPH-1001 BIOS. Keep the completed build-release/Xena__Warrior_Princess_Recompiled with its matching config and data. Mac runtime replacement remains upstream-owned."
         },
         {
           "title": "Build the game and add it to Portcove",
@@ -51,8 +55,53 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/releases",
     "download_asset_hints": {
       "windows-x86-64": ["xena-warrior-princess-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["xena-warrior-princess-recomp-", "-linux-x64.zip"]
+      "linux-x86-64": ["xena-warrior-princess-recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["xena-warrior-princess-recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["xena-warrior-princess-recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game_title": "Xena: Warrior Princess"
+  },
+  "psx_managed_windows_v1": true,
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/xena-warrior-princess-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["xena-warrior-princess-recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["xena-warrior-princess-recomp-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "xena-warrior-princess-xena-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Xena__Warrior_Princess_Recompiled.exe"],
+      "linux-x86-64": ["Xena__Warrior_Princess_Recompiled"]
+    },
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "xena-warrior-princess-xena-recomp-usa-psx",
+          "label": "Xena: Warrior Princess (USA) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00977) and retail SCPH-1001 BIOS. Portcove checks the track count and the first data-track SHA-1, then prepares the private runtime with your own retail SCPH-1001 BIOS. Play starts the generated player. Keep your original files separately. Native gameplay and save compatibility remain unverified."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }
