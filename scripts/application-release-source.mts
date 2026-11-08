@@ -36,6 +36,7 @@ import {
   inspectApplicationQualificationIdentity,
   readApplicationRunNotes,
   retainedServedRenewal,
+  retainedServedRenewalFeed,
   immutableApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
   registerApplicationBudgetRun,
@@ -963,6 +964,38 @@ async function recoverImmutableMetadataFeed() {
   const expected = { release_id: Number(release.id), custody: notes.custody };
   const prior = await readApplicationImmutableMetadata(expected, scratch);
   assert.ok(isRecord(prior.metadata) && prior.metadata.purpose === "metadata-renewal");
+  if (execution.ref === retainedServedRenewalFeed.next_ref) {
+    const appointed = retainedServedRenewalFeed;
+    assert.equal(expected.release_id, retainedServedRenewal.release_id);
+    assert.equal(opportunity, retainedServedRenewal.opportunity);
+    assert.equal(execution.run_attempt, 1);
+    const { id, control_commit, control_ref, attempt } = appointed.assembly;
+    assert.deepEqual(prior.receipt.producer, { id, control_commit, control_ref });
+    assert.equal(prior.receipt.producer_attempt, attempt);
+    assert.equal(prior.receipt.site.generation, appointed.generation);
+    assert.equal(prior.metadata.context_sha256, appointed.context.context_sha256);
+    const assemblies = notes.custody.draft_assemblies;
+    assert.ok(assemblies?.length === 1);
+    const [assembly] = assemblies;
+    assert.equal(assembly!.release_id, expected.release_id);
+    assert.equal(assembly!.producer_attempt, attempt);
+    assert.equal(assembly!.context_sha256, appointed.context.context_sha256);
+    assert.deepEqual(assembly!.publication, prior.receipt.publication);
+    assert.deepEqual(
+      assembly!.subjects,
+      Object.entries(appointed.assets).map(([name, { bytes, sha256 }]) => ({
+        name,
+        bytes,
+        sha256,
+      })),
+    );
+    assert.equal(prior.assets.length, Object.keys(appointed.assets).length);
+    for (const [name, wanted] of Object.entries(appointed.assets)) {
+      const asset = prior.assets.find((row) => row.name === name);
+      assert.ok(asset && asset.bytes === wanted.bytes && asset.sha256 === wanted.sha256);
+      if ("id" in wanted) assert.equal(asset.id, wanted.id);
+    }
+  }
   const forward =
     prior.metadata.schema_version === 2
       ? {
@@ -1065,6 +1098,12 @@ async function prepareCompiler() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const command = process.argv[2];
+  if (process.env.GITHUB_REF === retainedServedRenewalFeed.next_ref)
+    assert.equal(
+      command,
+      "recover-metadata",
+      "the appointed continuation can only publish the retained feed",
+    );
   if (command === "select") await selectForQualification();
   else if (command === "wake-qualification")
     console.log(JSON.stringify(await readCurrentApplicationWakeQualification()));
