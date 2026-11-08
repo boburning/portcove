@@ -898,6 +898,16 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::manag
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
+# CI 42535335622/1 Windows 3: the refused artwork-only commit recovery case
+# published its retry at 26.104s and was cut off at the 30.052s default before
+# it finished. Give this exact Windows case a finite 60s harness budget. Its
+# phase diagnostics, assertions, cleanup and zero retries stay unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 42533044761/1 Windows 8: RustMania's generated complete lifecycle reached
 # the 90.324s outer limit after install began, and Body Harvest passed at
 # 89.233s in the same shard. Give these two exact Windows cases the same finite
