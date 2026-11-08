@@ -164,6 +164,29 @@ void test("retired reviewed-input read command refuses before credential scratch
   assert.deepEqual(await readdir(root), []);
 });
 
+function assertApplicationProtectionRefusal(stderr: string, phase: "coordinator" | "admission") {
+  assert.doesNotMatch(stderr, /token|bearer/iu);
+  const lines = stderr.trim().split("\n");
+  assert.equal(lines.length, 2);
+  assert.equal(lines[1], "reviewed input operation refused");
+  const receipt: unknown = JSON.parse(lines[0]!);
+  assert.ok(isRecord(receipt));
+  assert.ok(
+    Number.isSafeInteger(receipt.elapsed_ms) &&
+      Number(receipt.elapsed_ms) >= 0 &&
+      Number(receipt.elapsed_ms) < 120000,
+  );
+  assert.deepEqual(receipt, {
+    operation: "application-protection-observation",
+    phase,
+    snapshot: 0,
+    stage: "repository-identity",
+    api_requests: 1,
+    elapsed_ms: receipt.elapsed_ms,
+    authority: "none",
+  });
+}
+
 void test("production protection observer entry uses separate captured job and protection App credentials through the SDK", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-protection-observer-entry-"));
   try {
@@ -194,31 +217,47 @@ void test("production protection observer entry uses separate captured job and p
         runAttempt: 1,
       });
       const dispatches = [];
+      const authorizationStages = [];
       globalThis.fetch = async (input, init) => {
         const request = new Request(input, init);
         const url = new URL(request.url);
         if (url.origin === "https://fixture.actions.githubusercontent.com") {
+          authorizationStages.push("oidc");
           assert.equal(request.headers.get("authorization"), "Bearer inert-oidc-bearer");
           process.env.GH_TOKEN = "different-late-job-token";
           return Response.json({ value: provider.token });
         }
         if (url.origin === "https://token.actions.githubusercontent.com") {
+          authorizationStages.push("keys");
           assert.equal(request.headers.get("authorization"), null);
           return Response.json({ keys: [jwk] });
         }
         const authorization = request.headers.get("authorization");
         dispatches.push([request.method, url.href, authorization]);
+        if (dispatches.length === 1) {
+          assert.equal(authorization, "token original-job-token");
+          assert.equal(url.href, "https://api.github.com/repos/boburning/portcove/actions/runs/9988/attempts/1/jobs?page=1&per_page=100");
+          authorizationStages.push("original-clock");
+          return Response.json({ total_count: 1, jobs: [{
+            id: 501, name: ${JSON.stringify(profile.observer_name)}, run_id: 9988, run_attempt: 1,
+            head_sha: ${JSON.stringify(runtime.policy.revision)}, status: "in_progress",
+            started_at: new Date(Date.now() - 1000).toISOString(),
+          }] });
+        }
         if (authorization === "token original-job-token")
           return Response.json(provider.metadata(url.pathname + url.search));
+        assert.deepEqual(authorizationStages, ["original-clock", "oidc", "keys"]);
+        authorizationStages.push("protection-app");
         assert.equal(authorization, "token different-protection-app-token");
         assert.equal(url.href, "https://api.github.com/repos/boburning/portcove");
         return Response.json({}, { status: 503 });
       };
       process.on("beforeExit", () => {
         assert.deepEqual(dispatches.map(row => row[2]), [
-          ...Array(5).fill("token original-job-token"),
+          ...Array(6).fill("token original-job-token"),
           "token different-protection-app-token",
         ]);
+        assert.deepEqual(authorizationStages, ["original-clock", "oidc", "keys", "protection-app"]);
         assert.ok(dispatches.every(row => row[0] === "GET"));
       });
       process.argv = [process.execPath, fileURLToPath(${JSON.stringify(command.href)}), "observe-production-coordinator"];
@@ -258,7 +297,7 @@ void test("production protection observer entry uses separate captured job and p
     );
     assert.ifError(result.error);
     assert.equal(result.status, 1);
-    assert.equal(result.stderr.trim(), "reviewed input operation refused");
+    assertApplicationProtectionRefusal(result.stderr, "coordinator");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -389,7 +428,8 @@ for (const role of ["observer", "writer"] as const) {
       );
       assert.ifError(result.error);
       assert.equal(result.status, 1);
-      assert.equal(result.stderr.trim(), "reviewed input operation refused");
+      if (writer) assert.equal(result.stderr.trim(), "reviewed input operation refused");
+      else assertApplicationProtectionRefusal(result.stderr, "admission");
     } finally {
       await rm(root, { recursive: true, force: true });
     }
