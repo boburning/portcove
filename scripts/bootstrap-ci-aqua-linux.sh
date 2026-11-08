@@ -18,10 +18,32 @@ IFS=$'\t' read -r asset_id bytes sha256 <<< "$asset"
 scratch="$(mktemp -d "${RUNNER_TEMP:?}/portcove-ci-aqua.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
 archive="$scratch/aqua.tar.gz"
-curl --disable --fail --silent --show-error --location --max-redirs 2 \
-  --proto '=https' --proto-redir '=https' --connect-timeout 10 --max-time 60 \
-  --max-filesize "$bytes" --header 'Accept: application/octet-stream' \
-  --output "$archive" "https://api.github.com/repos/aquaproj/aqua/releases/assets/$asset_id"
+# Keep the read token in the API request only. Fetch any signed download
+# location separately without authentication or further redirects.
+api_token="${GH_TOKEN:?GitHub read token required}"
+unset GH_TOKEN
+[[ "$api_token" =~ ^[A-Za-z0-9_]+$ ]]
+response="$(printf 'Authorization: Bearer %s\n' "$api_token" | curl --disable \
+  --silent --show-error --proto '=https' --connect-timeout 10 --max-time 25 \
+  --max-filesize "$bytes" --header @- --header 'Accept: application/octet-stream' \
+  --output "$archive" --write-out '%{http_code} %{redirect_url}' \
+  "https://api.github.com/repos/aquaproj/aqua/releases/assets/$asset_id")"
+unset api_token
+case "$response" in
+  '200 ') ;;
+  '302 '*)
+    location="${response#302 }"
+    [[ "$location" == https://release-assets.githubusercontent.com/* ]]
+    [[ "$location" != *'"'* && "$location" != *'\'* && "$location" != *[[:space:][:cntrl:]]* ]]
+    printf 'url = "%s"\n' "$location" | curl --disable --config - --globoff \
+      --fail --silent --show-error --proto '=https' --connect-timeout 10 --max-time 35 \
+      --max-filesize "$bytes" --output "$archive"
+    ;;
+  *)
+    printf 'Official Aqua asset API refused download (HTTP %.3s).\n' "$response" >&2
+    exit 1
+    ;;
+esac
 [[ "$(stat -c '%s' "$archive")" == "$bytes" ]]
 printf '%s  %s\n' "${sha256,,}" "$archive" | sha256sum --check --status
 entry="$(tar --list --verbose --gzip --file "$archive" -- aqua)"

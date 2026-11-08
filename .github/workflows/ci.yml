@@ -530,6 +530,8 @@ jobs:
       - name: Read pinned script tool manager
         if: needs.classify.outputs.script_tools == 'true'
         id: aqua-version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: bash scripts/bootstrap-ci-aqua-linux.sh
       - uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         if: needs.classify.outputs.script_tools == 'true'

@@ -68,6 +68,7 @@ void test("fast Linux script quality uses the pinned Aqua API bootstrap without 
   const lint = workflowStep("fast_rust_quality", "Lint affected repository inputs");
   assert.equal(bootstrap.if, "needs.classify.outputs.script_tools == 'true'");
   assert.equal(bootstrap.run, "bash scripts/bootstrap-ci-aqua-linux.sh");
+  assert.deepEqual(bootstrap.env, { GH_TOKEN: "${{ github.token }}" });
   assert.match(fastRustQuality, /skip_install_aqua: "true"/u);
   assert.match(fastRustQuality, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/u);
   assert.equal(lint.run, "node scripts/ci-baseline.mts lint");
