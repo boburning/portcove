@@ -244,7 +244,9 @@ clock, and retained checkpoints keep their existing configuration identities.
 The scheduled hosted opportunity gives Chameleon JP (#246) and OpenTyrian
 (#315) early turns using their exact configured source keys. These turns share
 the existing collection allowance with the configured Shipwright source and
-preserve the regular rotation and checkpoint handling. Manual dispatch uses
+preserve the regular rotation and checkpoint handling. A due appointed GitHub source takes its bounded provider refresh even if a Core
+binding change also permits offline reprojection of earlier facts. An incomplete
+refresh retains the prior observation and freshness clock. Manual dispatch uses
 the ordinary rotation.
 
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
