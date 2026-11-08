@@ -519,6 +519,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   let mode = "valid",
     recordWrites = 0;
   let ownerState = owner;
+  let allowMemberDraft = true;
   const ownerRelease = () => ({
     id: 10,
     target_commitish: source,
@@ -555,13 +556,14 @@ void test("forward metadata maintenance counts original executions, refuses miss
     const suffix = (url.pathname + url.search).replace(/^\/repos\/boburning\/portcove\//u, "");
     let body: unknown;
     if (suffix === "releases/10") body = ownerRelease();
-    else if (suffix === "releases/11")
+    else if (suffix === "releases/11") {
+      if (!allowMemberDraft) return Response.json({}, { status: 403 });
       body = {
         id: 11,
         target_commitish: source,
         body: `<!-- portcove-application-runs-v1\n${JSON.stringify(member)}\n-->`,
       };
-    else if (suffix === "actions/workflows/application-release.yml")
+    } else if (suffix === "actions/workflows/application-release.yml")
       body = { id: 7, path: ".github/workflows/application-release.yml" };
     else if (
       suffix ===
@@ -649,10 +651,13 @@ void test("forward metadata maintenance counts original executions, refuses miss
     run_custody: { release_id: 11, custody: member },
   };
   const roleGuard = () =>
-    guardApplicationReleaseSource(roleSource, false, { useRegisteredBootstrapSource: true });
+    guardApplicationReleaseSource(roleSource, false, { useVerifiedSourceCustody: true });
+  allowMemberDraft = false;
   const guarded = await roleGuard();
   assert.equal(guarded.budget.actual_milliseconds, 1800000);
   assert.equal(guarded.budget.attempts, 2);
+  await assert.rejects(() => guardApplicationReleaseSource(roleSource, false), { status: 403 });
+  allowMemberDraft = true;
   const recovered = await guardApplicationReleaseSource(
     { ...roleSource, execution_path: "metadata-recovery" },
     false,

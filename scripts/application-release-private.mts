@@ -57,6 +57,7 @@ import {
   inspectApplicationContextBeforeKey,
   prepareInitialApplicationContext,
   packApplicationContext,
+  assertApplicationContextReservationHandoff,
   prepareApplicationReleaseContext,
   applicationContextPriorRepositorySha256,
   applicationMetadataContextIdentity,
@@ -67,6 +68,7 @@ import {
   assertApplicationRenewalContext,
   prepareApplicationMetadataRenewalContext,
 } from "./application-release-context.mts";
+import type { ApplicationContextReservationHandoff } from "./application-release-context.mts";
 import { decodeTufRoleKey } from "./release-tuf-signing.mts";
 import {
   materializeInitialApplicationRehearsal,
@@ -165,7 +167,6 @@ import {
   inspectApplicationRunCustody,
   inspectBootstrapDraftRecovery,
   readRegisteredApplicationRuns,
-  emptyApplicationBootstrap,
   immutableApplicationBootstrap,
   failedBootstrapRecovery,
   isEmptyApplicationBootstrapCustody,
@@ -312,10 +313,10 @@ async function guard(
         | "protection-policy"
         | "protection-digest",
     ) => void;
-    useRegisteredBootstrapSource?: boolean;
+    useVerifiedSourceCustody?: boolean;
   } = {},
 ) {
-  const { markStage, useRegisteredBootstrapSource } = options;
+  const { markStage, useVerifiedSourceCustody } = options;
   const current = execution();
   await verifyApplicationReleaseTrust();
   assert.equal(
@@ -416,25 +417,21 @@ async function guard(
   }
   markStage?.("custody-read");
   const releaseId = Number(source.run_custody.release_id);
+  assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
   if (source.execution_path === "bootstrap-recovery") {
     assert.equal(source.purpose, "metadata-bootstrap");
     assert.equal(releaseId, immutableApplicationBootstrap.release_id);
     assert.ok(isEmptyApplicationBootstrapCustody(expected));
   }
-  // The fixed source producer registered this custody and read it back before
-  // upload. The key-free context and publication jobs still read the live draft.
-  const useSource =
-    useRegisteredBootstrapSource &&
-    source.purpose === "metadata-bootstrap" &&
-    releaseId === emptyApplicationBootstrap.release_id &&
-    isEmptyApplicationBootstrapCustody(expected);
-  if (useSource)
+  // Read-only fixed jobs consume the source producer's positively read-back
+  // draft registration. Context and publication writes re-read the live draft.
+  if (useVerifiedSourceCustody)
     assert.deepEqual(expected.runs.at(-1), {
       id: current.run_id,
       control_commit: current.source,
       control_ref: current.ref,
     });
-  const registered = useSource
+  const registered = useVerifiedSourceCustody
     ? expected
     : await readRegisteredApplicationRuns(
         await createApplicationRunRegistrationProvider(),
@@ -535,7 +532,7 @@ async function stageBootstrapSite() {
   // This is the same key-free assembly job, after standard artifact upload.
   const source = await readApplicationJson(path.join(sourceDirectory, "source.json"));
   assert.ok(isRecord(source));
-  await guard(source, false, { useRegisteredBootstrapSource: true });
+  await guard(source, false, { useVerifiedSourceCustody: true });
   const current = execution();
   const assembly = await readApplicationJson("work/application-assembly/assembly.json");
   const site = await readApplicationJson("work/application-assembly/site.json");
@@ -1087,8 +1084,9 @@ async function prepareOrdinaryPublication(
   assert.equal(metadata.control_commit, current.source);
   assert.equal(metadata.control_ref, current.ref);
   assert.equal(metadata.producer_attempt, assembly.attempt);
-  const context = await receiveApplicationContext();
-  await assertReservedApplicationContext(source, context);
+  const receivedContext = await receiveApplicationContext();
+  const context = receivedContext.directory;
+  await assertReservedApplicationContext(source, receivedContext, "live");
   assert.equal(metadata.context_sha256, sha256(await readFile(path.join(context, "context.json"))));
   const scratch = path.join(process.env.RUNNER_TEMP ?? "", "application-draft-preparation");
   assert.ok(path.isAbsolute(scratch));
@@ -2806,9 +2804,10 @@ async function observe() {
   try {
     const current = execution();
     const source = await readNativeApplicationSource();
+    const phase = process.env.PORTCOVE_PROTECTION_PHASE ?? "";
     stage = "release-guard";
     await guard(source, false, {
-      useRegisteredBootstrapSource: true,
+      useVerifiedSourceCustody: phase !== "feed",
       markStage(next) {
         stage = next;
       },
@@ -2817,7 +2816,6 @@ async function observe() {
     // This process alone has the existing Administration-write App token. The
     // collector issues GETs only; no signing or publication key is present here.
     assert.equal(process.env.PORTCOVE_OBSERVER_INSTALLATION_ID, "177226788");
-    const phase = process.env.PORTCOVE_PROTECTION_PHASE ?? "";
     assert.ok(
       [
         "payload",
@@ -2916,7 +2914,7 @@ async function attestNative() {
   const source = await readNativeApplicationSource();
   const received = await receiveNativePackages(source);
   await readNativePayloadAcceptance(source, received, "raw");
-  await guard(source, false);
+  await guard(source, false, { useVerifiedSourceCustody: true });
   const output = path.resolve("work/application-native-attested");
   await mkdir(output);
   for (const filename of applicationNativeFiles)
@@ -2942,7 +2940,7 @@ async function payload() {
     source,
     received,
   );
-  const controls = await guard(source);
+  const controls = await guard(source, true, { useVerifiedSourceCustody: true });
   const output = path.resolve("work/application-signature");
   const secretDirectory = path.join(process.env.RUNNER_TEMP ?? "", "application-payload-key");
   assert.ok(path.isAbsolute(secretDirectory));
@@ -3551,12 +3549,13 @@ async function prepareContext() {
         inspected.records > 0 &&
         inspected.records_unchanged === false,
     );
+  let handoff: ApplicationContextReservationHandoff | undefined;
   if (source.purpose !== "metadata-bootstrap") {
     assert.ok(isRecord(source.run_custody));
     const identity = applicationMetadataContextIdentity(
       await readBoundedReleaseContextFiles(context),
     );
-    await retainApplicationMetadataContext(
+    const retained = await retainApplicationMetadataContext(
       await createApplicationRunRegistrationProvider(),
       {
         release_id: Number(source.run_custody.release_id),
@@ -3575,44 +3574,54 @@ async function prepareContext() {
         await guard(source, false);
       },
     );
+    const reservation = retained.custody.metadata_contexts?.at(-1);
+    assert.ok(reservation);
+    handoff = { owner_release_id: retained.release_id, reservation };
     await guard(source, false);
   }
-  await packApplicationContext(context, "work/application-context-output/context-bundle.json");
+  await packApplicationContext(
+    context,
+    "work/application-context-output/context-bundle.json",
+    handoff,
+  );
   await applicationOutput("attempt", current.run_attempt);
 }
 
 async function assertReservedApplicationContext(
   source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
-  context: string,
+  context: Awaited<ReturnType<typeof receiveApplicationContext>>,
+  custody: "live" | "verified-context",
 ) {
-  if (source.purpose === "metadata-bootstrap") return;
+  if (source.purpose === "metadata-bootstrap") {
+    assert.equal(context.custody, undefined);
+    return;
+  }
   const current = execution(),
     attempt = Number(process.env.PORTCOVE_CONTEXT_ATTEMPT);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= current.run_attempt);
   assert.ok(isRecord(source.run_custody));
+  const owner = {
+    release_id: Number(source.run_custody.release_id),
+    custody: inspectApplicationRunCustody(source.run_custody.custody),
+  };
+  const producer = { ...current, run_attempt: attempt };
+  const reservation = assertApplicationContextReservationHandoff(
+    context.custody,
+    await readBoundedReleaseContextFiles(context.directory),
+    owner,
+    producer,
+  );
+  if (custody === "verified-context" && owner.custody.budget?.kind !== "member") return;
   const plan = await readApplicationMetadataContextPlan(
     await createApplicationRunRegistrationProvider(),
-    {
-      release_id: Number(source.run_custody.release_id),
-      custody: inspectApplicationRunCustody(source.run_custody.custody),
-    },
-    { ...current, run_attempt: attempt },
+    owner,
+    producer,
   );
   assert.ok(plan.existing, "context producer has no retained native metadata reservation");
-  const identity = applicationMetadataContextIdentity(
-    await readBoundedReleaseContextFiles(context),
-  );
   assert.deepEqual(
-    {
-      ...identity,
-      opportunity: String(source.opportunity),
-      run_id: current.run_id,
-      run_attempt: attempt,
-      control_commit: current.source,
-      control_ref: current.ref,
-    },
+    reservation,
     plan.existing,
-    "context differs from the original native producer reservation",
+    "context differs from the live producer reservation",
   );
 }
 
@@ -3621,8 +3630,9 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
   const source = await readNativeApplicationSource();
   if (source.purpose === "metadata-renewal")
     assert.equal(source.execution_path, "metadata-maintenance");
-  const context = await receiveApplicationContext();
-  await assertReservedApplicationContext(source, context);
+  const receivedContext = await receiveApplicationContext();
+  const context = receivedContext.directory;
+  await assertReservedApplicationContext(source, receivedContext, "verified-context");
   const configuration = await readApplicationJson(path.join(context, "context.json"), 65536);
   assert.ok(isRecord(configuration));
   const onlineTargets = configuration.top_level_targets_profile === "online-unchanged-authority-v1";
@@ -3658,8 +3668,8 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
     );
     if (source.purpose === "metadata-bootstrap") assert.equal(inspected.records, 0);
   }
-  await guard(source, true, { useRegisteredBootstrapSource: true });
-  await assertReservedApplicationContext(source, context);
+  await guard(source, true, { useVerifiedSourceCustody: true });
+  await assertReservedApplicationContext(source, receivedContext, "verified-context");
   assertProtectionWriteWindow();
   const output = path.resolve(`work/application-role-${role}`);
   await mkdir(output);
@@ -3701,9 +3711,10 @@ async function assembleMetadata() {
   if (source.purpose === "metadata-renewal")
     assert.equal(source.execution_path, "metadata-maintenance");
   assemblyStage = "context";
-  const context = await receiveApplicationContext();
+  const receivedContext = await receiveApplicationContext();
+  const context = receivedContext.directory;
   assemblyStage = "reservation";
-  await assertReservedApplicationContext(source, context);
+  await assertReservedApplicationContext(source, receivedContext, "verified-context");
   const configuration = await readApplicationJson(path.join(context, "context.json"), 65536);
   assert.ok(isRecord(configuration));
   if (source.purpose === "metadata-renewal")
@@ -3721,7 +3732,7 @@ async function assembleMetadata() {
   ]);
   assemblyStage = "release-guard";
   await guard(source, false, {
-    useRegisteredBootstrapSource: true,
+    useVerifiedSourceCustody: true,
     markStage(next) {
       assemblyStage = next;
     },
@@ -3847,7 +3858,7 @@ async function assembleMetadata() {
       discovered,
       "prior cohort changed during actual site assembly",
     );
-    await guard(source, false, { useRegisteredBootstrapSource: true });
+    await guard(source, false, { useVerifiedSourceCustody: true });
     await writeApplicationJson("work/application-assembly/site.json", {
       schema_version: 1,
       authority: "none",
