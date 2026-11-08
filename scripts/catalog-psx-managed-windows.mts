@@ -1,7 +1,7 @@
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 
-// The reviewed PSXRecomp Windows kit builds the game under build-portcove.
+// The reviewed PSXRecomp kits build the game under build-portcove.
 // The packaged setup host and the generated player may have the same basename.
 const runtimeLayout = {
   persistent_paths: [
@@ -26,6 +26,7 @@ const runtimeLayout = {
     "psx_last_run_report.json",
     "psx_cps_exit_trace.json",
     "netplay_lan_lobby.txt",
+    "psx_crash.txt",
   ],
   runtime_mutable_file_patterns: [
     {
@@ -64,13 +65,19 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const executable = isRecord(integration?.executable_hints)
     ? integration.executable_hints["windows-x86-64"]
     : undefined;
+  const linuxExecutable = isRecord(integration?.executable_hints)
+    ? integration.executable_hints["linux-x86-64"]
+    : undefined;
+  const assetHints = isRecord(integration?.release) ? integration.release.asset_hints : undefined;
+  const linuxAssets = isRecord(assetHints) ? assetHints["linux-x86-64"] : undefined;
   if (
     record.psx_managed_windows_v1 !== true ||
     !integration ||
     integration.adapter !== "psx-recomp-managed" ||
     !Array.isArray(integration.platforms) ||
-    integration.platforms.length !== 1 ||
     integration.platforms[0] !== "windows-x86-64" ||
+    (integration.platforms.length !== 1 &&
+      (integration.platforms.length !== 2 || integration.platforms[1] !== "linux-x86-64")) ||
     !isRecord(integration.release) ||
     integration.release.provider !== "github" ||
     Object.keys(integration.release).some(
@@ -83,11 +90,18 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     executable.length !== 1 ||
     typeof executable[0] !== "string" ||
     !/^[^/\\:]+\.exe$/iu.test(executable[0]) ||
+    (integration.platforms.length === 2 &&
+      (!Array.isArray(linuxExecutable) ||
+        linuxExecutable.length !== 1 ||
+        linuxExecutable[0] !== executable[0].slice(0, -4) ||
+        !Array.isArray(linuxAssets) ||
+        linuxAssets.length === 0 ||
+        !linuxAssets.every((hint) => typeof hint === "string" && hint.trim()))) ||
     record.settings_qualification_v1 !== undefined ||
     record.settings_observation_v1 !== undefined
   )
     throw new Error(
-      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and retail SCPH-1001 BIOS.",
+      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and retail SCPH-1001 BIOS. An optional Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
     );
 
   for (const field of Object.keys(runtimeLayout))

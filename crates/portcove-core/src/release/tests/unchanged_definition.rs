@@ -2139,6 +2139,8 @@ struct ManagedPsxArchiveExpectation {
     generated_executable: String,
     #[serde(default)]
     openbios: bool,
+    #[serde(default)]
+    crash_diagnostic: bool,
 }
 
 impl ManagedPsxArchiveExpectation {
@@ -2190,6 +2192,21 @@ impl ManagedPsxArchiveExpectation {
             assert!(
                 !port.runtime_mutable_paths.iter().any(|path| path == owned),
                 "{id}: {owned}"
+            );
+        }
+        if self.crash_diagnostic {
+            assert!(
+                port.runtime_mutable_paths
+                    .iter()
+                    .any(|path| path == "psx_crash.txt"),
+                "{id}: crash diagnostic"
+            );
+            assert!(
+                !port
+                    .persistent_paths
+                    .iter()
+                    .any(|path| path == "psx_crash.txt"),
+                "{id}: crash diagnostic must not enter backups"
             );
         }
         let profile_id = port.source_profile.as_deref().unwrap();

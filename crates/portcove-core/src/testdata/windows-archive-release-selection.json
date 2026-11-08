@@ -115,8 +115,13 @@
         "track_sha1": "f5cb80a7d55aaced7fcc9c5a82a6c28b89dc489a",
         "track_sha256": "7a69101183b76eadf02336963c6a89822b76aca2b3fa6537288d9f13bf6d16ed",
         "generated_executable": "Tony_Hawks_Pro_Skater_2_Recompiled.exe",
-        "track_count": 1
-      }
+        "track_count": 1,
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "tony-hawk-s-pro-skater-2-recomp-0.1.3-linux-x64.zip",
+        "tony-hawk-s-pro-skater-2-recomp-999.123.456-linux-x64.zip"
+      ]
     },
     "alexbeav-tony-hawk-s-pro-skater-3-recomp": {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
@@ -129,8 +134,13 @@
         "track_sha1": "757cc517b2d25f6d0112d0d4efa9efdfa2553967",
         "track_sha256": "674ac2073877922e9a12dbf1117b80109d5a8c8e262075da60f21f4e861fc485",
         "generated_executable": "Tony_Hawks_Pro_Skater_3_Recompiled.exe",
-        "track_count": 1
-      }
+        "track_count": 1,
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "tony-hawk-s-pro-skater-3-recomp-0.1.3-linux-x64.zip",
+        "tony-hawk-s-pro-skater-3-recomp-999.123.456-linux-x64.zip"
+      ]
     },
     "alexbeav-tony-hawk-s-pro-skater-4-recomp": {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
@@ -143,8 +153,13 @@
         "track_sha1": "4857b347c6aec4180311b8f1beafc281d34a254a",
         "track_sha256": "c632a348d7013336c2c182f33ea86ac14a7bae0eba3892a7b5f14b9848ddab09",
         "generated_executable": "Tony_Hawks_Pro_Skater_4_Recompiled.exe",
-        "track_count": 1
-      }
+        "track_count": 1,
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "tony-hawk-s-pro-skater-4-recomp-0.1.3-linux-x64.zip",
+        "tony-hawk-s-pro-skater-4-recomp-999.123.456-linux-x64.zip"
+      ]
     },
     "alexbeav-tony-hawk-s-pro-skater-recomp": {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-recomp",
@@ -157,8 +172,13 @@
         "track_sha1": "84fb50ddf68ced4ad8549b51a6dbfdb96650f266",
         "track_sha256": "f1398cd15138a947fb3d49e1d31c7fe2aae9436ec09e32df917c658ccac30da9",
         "generated_executable": "Tony_Hawks_Pro_Skater_Recompiled.exe",
-        "track_count": 1
-      }
+        "track_count": 1,
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "tony-hawk-s-pro-skater-recomp-0.1.3-linux-x64.zip",
+        "tony-hawk-s-pro-skater-recomp-999.123.456-linux-x64.zip"
+      ]
     },
     "alexbeav-oddworld-abe-s-oddysee-recomp": {
       "inventory": "alexbeav-oddworld-abe-s-oddysee-recomp",
@@ -172,8 +192,13 @@
         "track_sha256": "1c69fd850763dd784d1bd581ee72b0bda212ba8227b827c3b2d58bf9f82eee45",
         "generated_executable": "Oddworld__Abe_s_Oddysee_Recompiled.exe",
         "revision": "Rev 2",
-        "track_count": 1
-      }
+        "track_count": 1,
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "oddworld-abe-s-oddysee-recomp-0.1.3-linux-x64.zip",
+        "oddworld-abe-s-oddysee-recomp-999.123.456-linux-x64.zip"
+      ]
     },
     "alexbeav-syphon-filter-3-recomp": {
       "inventory": "alexbeav-syphon-filter-3-recomp",
@@ -186,8 +211,13 @@
         "track_sha1": "4abe30077c2b449ea68239083df7932d47ae0b69",
         "track_sha256": "2c36429649e50036fd5c9187bdc3ff23e04039499e7cdf1aba5cfd5a3badcb38",
         "generated_executable": "Syphon_Filter_3_Recompiled.exe",
-        "track_count": 1
-      }
+        "track_count": 1,
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "syphon-filter-3-recomp-0.1.3-linux-x64.zip",
+        "syphon-filter-3-recomp-999.123.456-linux-x64.zip"
+      ]
     },
     "alexbeav-tenchu-stealth-assassins-recomp": {
       "inventory": "alexbeav-tenchu-stealth-assassins-recomp",
@@ -201,8 +231,13 @@
         "track_sha256": "6834c77860ec3d16bc7ed4ba2fd409573e1584adb92c63c0a1e55669963c768a",
         "generated_executable": "Tenchu_Stealth_Assassins_Recompiled.exe",
         "revision": "Rev 1",
-        "track_count": 1
-      }
+        "track_count": 1,
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "tenchu-stealth-assassins-recomp-0.1.3-linux-x64.zip",
+        "tenchu-stealth-assassins-recomp-999.123.456-linux-x64.zip"
+      ]
     },
     "alexbeav-monster-rancher-2-recomp": {
       "inventory": "alexbeav-monster-rancher-2-recomp",
@@ -214,8 +249,13 @@
         "serial": "SLUS-00917",
         "track_count": 1,
         "track_sha1": "e7418d1491e1809490b2e5fe20d738cb730e5e22",
-        "generated_executable": "Monster_Rancher_2_Recompiled.exe"
-      }
+        "generated_executable": "Monster_Rancher_2_Recompiled.exe",
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "monster-rancher-2-recomp-0.1.3-linux-x64.zip",
+        "monster-rancher-2-recomp-999.123.456-linux-x64.zip"
+      ]
     },
     "alexbeav-nightmare-creatures-recomp": {
       "inventory": "alexbeav-nightmare-creatures-recomp",
@@ -227,8 +267,13 @@
         "serial": "SLUS-00582",
         "track_count": 26,
         "track_sha1": "67d9fb2ab81a54c1129a5a42ec0991c756a2f125",
-        "generated_executable": "Nightmare_Creatures_Recompiled.exe"
-      }
+        "generated_executable": "Nightmare_Creatures_Recompiled.exe",
+        "crash_diagnostic": true
+      },
+      "linux_selected_assets": [
+        "nightmare-creatures-recomp-0.1.3-linux-x64.zip",
+        "nightmare-creatures-recomp-999.123.456-linux-x64.zip"
+      ]
     },
     "alexbeav-bloody-roar-ii-recomp": {
       "inventory": "alexbeav-bloody-roar-ii-recomp",
@@ -280,6 +325,179 @@
         "track_count": 13,
         "track_sha1": "131463c47379b9a38888f548a44f43dcc6e7f959",
         "generated_executable": "Destruction_Derby_Raw.exe"
+      }
+    },
+    "alexbeav-armored-core-recomp": {
+      "inventory": "alexbeav-armored-core-recomp",
+      "selected_assets": [
+        "Armored-Core-Recomp-0.3.6-windows-x64.zip",
+        "Armored-Core-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Armored-Core-Recomp-0.3.6-linux-x64.zip",
+        "Armored-Core-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCES-00842",
+        "track_count": 1,
+        "track_sha1": "20ad05be52317bce58b251be103f9add03c92609",
+        "generated_executable": "Armored_Core_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-blood-omen-legacy-of-kain-recomp": {
+      "inventory": "alexbeav-blood-omen-legacy-of-kain-recomp",
+      "selected_assets": [
+        "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+        "Blood-Omen-Legacy-of-Kain-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+        "Blood-Omen-Legacy-of-Kain-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00027",
+        "track_count": 1,
+        "track_sha1": "774ff732cecd0937d052ffcdfb225a7d71d163aa",
+        "generated_executable": "Blood_Omen__Legacy_of_Kain_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-digimon-world-2003-recomp": {
+      "inventory": "alexbeav-digimon-world-2003-recomp",
+      "selected_assets": [
+        "Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+        "Digimon-World-2003-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Digimon-World-2003-Recomp-0.3.6-linux-x64.zip",
+        "Digimon-World-2003-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-03936",
+        "track_count": 1,
+        "track_sha1": "457cb233349ba841e03b33d8060f8fbcadd45cb3",
+        "generated_executable": "Digimon_World_2003_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-driver-recomp": {
+      "inventory": "alexbeav-driver-recomp",
+      "selected_assets": [
+        "Driver-Recomp-0.3.6-windows-x64.zip",
+        "Driver-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Driver-Recomp-0.3.6-linux-x64.zip",
+        "Driver-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00842",
+        "track_count": 1,
+        "track_sha1": "3df45bb77b9189258dc513d8b161b73bc0b06d6e",
+        "generated_executable": "Driver_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-duke-nukem-land-of-the-babes-recomp": {
+      "inventory": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+      "selected_assets": [
+        "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+        "Duke-Nukem-Land-of-the-Babes-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-linux-x64.zip",
+        "Duke-Nukem-Land-of-the-Babes-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01002",
+        "track_count": 1,
+        "track_sha1": "f57c49eac288225fe3602e279bc1379f72f7eea6",
+        "generated_executable": "Duke_Nukem__Land_of_the_Babes_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-duke-nukem-time-to-kill-recomp": {
+      "inventory": "alexbeav-duke-nukem-time-to-kill-recomp",
+      "selected_assets": [
+        "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+        "Duke-Nukem-Time-to-Kill-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-linux-x64.zip",
+        "Duke-Nukem-Time-to-Kill-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00583",
+        "track_count": 1,
+        "track_sha1": "a782825520939da0560ef031daa78db8ef720957",
+        "generated_executable": "Duke_Nukem__Time_to_Kill_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-fade-to-black-recomp": {
+      "inventory": "alexbeav-fade-to-black-recomp",
+      "selected_assets": [
+        "Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+        "Fade-to-Black-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Fade-to-Black-Recomp-0.3.6-linux-x64.zip",
+        "Fade-to-Black-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00236",
+        "track_count": 1,
+        "track_sha1": "cdd0ddbe768bcd89a04132b08d050164b3f13794",
+        "generated_executable": "Fade_to_Black_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-ape-escape-recomp": {
+      "inventory": "alexbeav-ape-escape-recomp",
+      "selected_assets": [
+        "Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+        "Ape-Escape-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Ape-Escape-Recomp-0.3.6-linux-x64.zip",
+        "Ape-Escape-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCUS-94423",
+        "track_count": 1,
+        "track_sha1": "466cce4bcd6992f57227abd270323bcdad2fb7fc",
+        "generated_executable": "Ape_Escape_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true,
+        "revision": "Rev 0",
+        "track_sha256": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
+      }
+    },
+    "alexbeav-alundra-recomp": {
+      "inventory": "alexbeav-alundra-recomp",
+      "selected_assets": [
+        "Alundra-Recomp-0.3.6-windows-x64.zip",
+        "Alundra-Recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "Alundra-Recomp-0.3.6-linux-x64.zip",
+        "Alundra-Recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-01135",
+        "track_count": 1,
+        "track_sha1": "de2bbc3185fa4ce01ad50bcda94899ccec7b7451",
+        "generated_executable": "Alundra_Recompiled.exe",
+        "openbios": true,
+        "crash_diagnostic": true
       }
     }
   },
@@ -1644,6 +1862,13 @@
             "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-2-recomp-999.123.456-windows-x64.zip",
             "size": 29700000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952012,
+            "name": "tony-hawk-s-pro-skater-2-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-2-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -1713,6 +1938,13 @@
             "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-3-recomp-999.123.456-windows-x64.zip",
             "size": 29700000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952013,
+            "name": "tony-hawk-s-pro-skater-3-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-3-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -1782,6 +2014,13 @@
             "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-4-recomp-999.123.456-windows-x64.zip",
             "size": 29700000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952014,
+            "name": "tony-hawk-s-pro-skater-4-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-4-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -1851,6 +2090,13 @@
             "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-recomp-999.123.456-windows-x64.zip",
             "size": 29700000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952015,
+            "name": "tony-hawk-s-pro-skater-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tony-hawk-s-pro-skater-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -1920,6 +2166,13 @@
             "browser_download_url": "https://downloads.example.invalid/oddworld-abe-s-oddysee-recomp-999.123.456-windows-x64.zip",
             "size": 29700000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952009,
+            "name": "oddworld-abe-s-oddysee-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/oddworld-abe-s-oddysee-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -1989,6 +2242,13 @@
             "browser_download_url": "https://downloads.example.invalid/syphon-filter-3-recomp-999.123.456-windows-x64.zip",
             "size": 29700000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952010,
+            "name": "syphon-filter-3-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/syphon-filter-3-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -2058,6 +2318,13 @@
             "browser_download_url": "https://downloads.example.invalid/tenchu-stealth-assassins-recomp-999.123.456-windows-x64.zip",
             "size": 29700000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952011,
+            "name": "tenchu-stealth-assassins-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tenchu-stealth-assassins-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -2127,6 +2394,13 @@
             "browser_download_url": "https://downloads.example.invalid/monster-rancher-2-recomp-999.123.456-windows-x64.zip",
             "size": 29700000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952007,
+            "name": "monster-rancher-2-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/monster-rancher-2-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -2196,6 +2470,13 @@
             "browser_download_url": "https://downloads.example.invalid/nightmare-creatures-recomp-999.123.456-windows-x64.zip",
             "size": 29700000,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999952008,
+            "name": "nightmare-creatures-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/nightmare-creatures-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
         ]
       }
@@ -2394,6 +2675,564 @@
             "id": 999930003,
             "name": "destructionderbyraw-999.123.456-linux-x64.zip",
             "browser_download_url": "https://downloads.example.invalid/destructionderbyraw-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-armored-core-recomp": [
+      {
+        "id": 382786096,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:29Z",
+        "assets": [
+          {
+            "id": 544444024,
+            "name": "Armored-Core-Recomp-0.3.6-linux-x64.zip",
+            "size": 28046282,
+            "digest": "sha256:a8bb86eb739f10653c39f8cb3c83b59d4d8a7b3b837ea7b580667868c6698e6a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544444106,
+            "name": "Armored-Core-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25791499,
+            "digest": "sha256:83f4f37a9d35119d00eb8f015f29fb25f2d628977835e4ab04545a8271b45740",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544444221,
+            "name": "Armored-Core-Recomp-0.3.6-macos-x64.zip",
+            "size": 26135526,
+            "digest": "sha256:99fe56d964b52d3d5c7fbd17cb8a5c655f76fef30fd4214d87ee212517fb5963",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544444321,
+            "name": "Armored-Core-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152526,
+            "digest": "sha256:43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999950000,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999951000,
+            "name": "Armored-Core-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Armored-Core-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999952000,
+            "name": "Armored-Core-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Armored-Core-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-blood-omen-legacy-of-kain-recomp": [
+      {
+        "id": 382786113,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:30Z",
+        "assets": [
+          {
+            "id": 544444045,
+            "name": "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+            "size": 28049902,
+            "digest": "sha256:7cbef94c5fc72a1dd1ecaad2afe48a40faf2381e3bb579b2f7bbdfb3a74f80fc",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544444163,
+            "name": "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25793743,
+            "digest": "sha256:2554274350a93468cc7e120cfafb64553bc266d661aca56118989310898b369a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544444256,
+            "name": "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip",
+            "size": 26139194,
+            "digest": "sha256:e126de5019ba1937a166912bde5f577be256429d8cabb219910f87e6d5c1887c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544444399,
+            "name": "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+            "size": 30156064,
+            "digest": "sha256:8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999950001,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999951001,
+            "name": "Blood-Omen-Legacy-of-Kain-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Blood-Omen-Legacy-of-Kain-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999952001,
+            "name": "Blood-Omen-Legacy-of-Kain-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Blood-Omen-Legacy-of-Kain-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-digimon-world-2003-recomp": [
+      {
+        "id": 382786572,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:39Z",
+        "assets": [
+          {
+            "id": 544445063,
+            "name": "Digimon-World-2003-Recomp-0.3.6-linux-x64.zip",
+            "size": 28046744,
+            "digest": "sha256:0538611d06da652482d035a5b97f356bc4bbae18728a34d27712772bb557bae8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544445200,
+            "name": "Digimon-World-2003-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25790678,
+            "digest": "sha256:d8c7adc1ae1737e76c625b46df1d3eab68de2f5cc33a94aff081c45ac1a97bb2",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544445334,
+            "name": "Digimon-World-2003-Recomp-0.3.6-macos-x64.zip",
+            "size": 26136022,
+            "digest": "sha256:364cb136d8e435016b559feae8ecf0b895406897269263b8644b45954d13cfc3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544445450,
+            "name": "Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152631,
+            "digest": "sha256:71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999950002,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999951002,
+            "name": "Digimon-World-2003-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Digimon-World-2003-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999952002,
+            "name": "Digimon-World-2003-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Digimon-World-2003-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-driver-recomp": [
+      {
+        "id": 382786594,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:39Z",
+        "assets": [
+          {
+            "id": 544445102,
+            "name": "Driver-Recomp-0.3.6-linux-x64.zip",
+            "size": 28047869,
+            "digest": "sha256:35bb94181910a9fed63e48ef0e0bcc1e569befc9e19925c0bf29f12b0fabc7cd",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544445190,
+            "name": "Driver-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25793364,
+            "digest": "sha256:b89e64216bc74505762eb9bf79cffe21415080aeb086ec70126f8bb965b64180",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544445319,
+            "name": "Driver-Recomp-0.3.6-macos-x64.zip",
+            "size": 26138386,
+            "digest": "sha256:4ec37fa02646e44787ea0c4b2c8fe857fc0d0caa501615f0301b01f0d7b9b14b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544445443,
+            "name": "Driver-Recomp-0.3.6-windows-x64.zip",
+            "size": 30154093,
+            "digest": "sha256:57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999950003,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999951003,
+            "name": "Driver-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Driver-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999952003,
+            "name": "Driver-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Driver-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-duke-nukem-land-of-the-babes-recomp": [
+      {
+        "id": 382786775,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:44Z",
+        "assets": [
+          {
+            "id": 544445523,
+            "name": "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-linux-x64.zip",
+            "size": 28048314,
+            "digest": "sha256:46a9b69d869bb7ae868e1d8b9943ae6902b7ba81733f0afc957da8ae9692ebad",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544445636,
+            "name": "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25792070,
+            "digest": "sha256:89c1649003e66032bc44ff5ac60d1d6ae9b4bccaddf58b4156a16d71cbe4d8cb",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544445706,
+            "name": "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-x64.zip",
+            "size": 26137531,
+            "digest": "sha256:5fc535897799e593c45090431f2c49da4c54e6fa194c9b8001ed0d41e95266e2",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544445831,
+            "name": "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+            "size": 30154371,
+            "digest": "sha256:33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999950004,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999951004,
+            "name": "Duke-Nukem-Land-of-the-Babes-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Duke-Nukem-Land-of-the-Babes-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999952004,
+            "name": "Duke-Nukem-Land-of-the-Babes-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Duke-Nukem-Land-of-the-Babes-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-duke-nukem-time-to-kill-recomp": [
+      {
+        "id": 382786779,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:44Z",
+        "assets": [
+          {
+            "id": 544445527,
+            "name": "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-linux-x64.zip",
+            "size": 28051653,
+            "digest": "sha256:c2b421fe2214efecd6736d3f95636b44a6562f459965c7aee098b5cdebaeb1f3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544445640,
+            "name": "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25795533,
+            "digest": "sha256:71481804b16e433688c43625556222fe79561e956bc5ed905911cb23644ee1d5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544445718,
+            "name": "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-x64.zip",
+            "size": 26140959,
+            "digest": "sha256:e41aa8968e70c12c993561a671ccc08d64c2ff7d17fd6c1a0d3980389f86708f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544445845,
+            "name": "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+            "size": 30158026,
+            "digest": "sha256:6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999950005,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999951005,
+            "name": "Duke-Nukem-Time-to-Kill-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Duke-Nukem-Time-to-Kill-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999952005,
+            "name": "Duke-Nukem-Time-to-Kill-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Duke-Nukem-Time-to-Kill-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-fade-to-black-recomp": [
+      {
+        "id": 382786811,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:44Z",
+        "assets": [
+          {
+            "id": 544445625,
+            "name": "Fade-to-Black-Recomp-0.3.6-linux-x64.zip",
+            "size": 28045594,
+            "digest": "sha256:fadb05389a6db767d04046bb095ec3fc14aacf665a876dd52fa81e0125c4cd72",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544445697,
+            "name": "Fade-to-Black-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25789409,
+            "digest": "sha256:747ac3d435f4f57087e2206279b2b080810195907b3f7536995b221fc7ca42c7",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544445822,
+            "name": "Fade-to-Black-Recomp-0.3.6-macos-x64.zip",
+            "size": 26134861,
+            "digest": "sha256:3c15ec6e006fea6140b9aac99536acebb5ad6194bbf8a6d62202296321ba6788",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544445910,
+            "name": "Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+            "size": 30151839,
+            "digest": "sha256:5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999950006,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999951006,
+            "name": "Fade-to-Black-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Fade-to-Black-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999952006,
+            "name": "Fade-to-Black-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Fade-to-Black-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-ape-escape-recomp": [
+      {
+        "id": 382786091,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:29Z",
+        "assets": [
+          {
+            "id": 544444013,
+            "name": "Ape-Escape-Recomp-0.3.6-linux-x64.zip",
+            "size": 28049381,
+            "digest": "sha256:e905e65eb6358b5bd7c6a89d7143a1b718111f7196a8c951f7e5db03808bc070",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544444097,
+            "name": "Ape-Escape-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25794724,
+            "digest": "sha256:8114a519613c451385169d37c037cd6abc76f0682aa122fba70fec928acd5655",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544444204,
+            "name": "Ape-Escape-Recomp-0.3.6-macos-x64.zip",
+            "size": 26139678,
+            "digest": "sha256:c6e828bab0259f0e84e507b15021ca6c06f5654500ad563ed36d596dcee98a17",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544444303,
+            "name": "Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+            "size": 30155637,
+            "digest": "sha256:0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999950016,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999951016,
+            "name": "Ape-Escape-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Ape-Escape-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999952016,
+            "name": "Ape-Escape-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Ape-Escape-Recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-alundra-recomp": [
+      {
+        "id": 382786092,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-04T14:48:29Z",
+        "assets": [
+          {
+            "id": 544444004,
+            "name": "Alundra-Recomp-0.3.6-linux-x64.zip",
+            "size": 28046637,
+            "digest": "sha256:b19969bed66098367129fec451990248ae833e07771b42d33256337260fc75e1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-linux-x64.zip"
+          },
+          {
+            "id": 544444075,
+            "name": "Alundra-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25792100,
+            "digest": "sha256:6e11ef6636140c9476a2ba3a28ffd36a236ae3ed3180e69f0a304a6c5588d411",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-macos-arm64.zip"
+          },
+          {
+            "id": 544444193,
+            "name": "Alundra-Recomp-0.3.6-macos-x64.zip",
+            "size": 26137055,
+            "digest": "sha256:501bcce394445945a081aa76d175f47891d4de05dfa9fe580c2fc662452624c3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-macos-x64.zip"
+          },
+          {
+            "id": 544444294,
+            "name": "Alundra-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152761,
+            "digest": "sha256:bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999950017,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999951017,
+            "name": "Alundra-Recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Alundra-Recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "id": 999952017,
+            "name": "Alundra-Recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/Alundra-Recomp-999.123.456-linux-x64.zip",
             "size": 12345678,
             "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
           }
@@ -2685,22 +3524,12 @@
     {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
       "release_index": 0,
-      "asset": "tony-hawk-s-pro-skater-2-recomp-0.1.3-linux-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
-      "release_index": 0,
       "asset": "tony-hawk-s-pro-skater-2-recomp-0.1.3-macos-arm64.zip"
     },
     {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
       "release_index": 0,
       "asset": "tony-hawk-s-pro-skater-2-recomp-0.1.3-macos-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
-      "release_index": 0,
-      "asset": "tony-hawk-s-pro-skater-3-recomp-0.1.3-linux-x64.zip"
     },
     {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
@@ -2715,22 +3544,12 @@
     {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
       "release_index": 0,
-      "asset": "tony-hawk-s-pro-skater-4-recomp-0.1.3-linux-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
-      "release_index": 0,
       "asset": "tony-hawk-s-pro-skater-4-recomp-0.1.3-macos-arm64.zip"
     },
     {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
       "release_index": 0,
       "asset": "tony-hawk-s-pro-skater-4-recomp-0.1.3-macos-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-tony-hawk-s-pro-skater-recomp",
-      "release_index": 0,
-      "asset": "tony-hawk-s-pro-skater-recomp-0.1.3-linux-x64.zip"
     },
     {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-recomp",
@@ -2745,22 +3564,12 @@
     {
       "inventory": "alexbeav-oddworld-abe-s-oddysee-recomp",
       "release_index": 0,
-      "asset": "oddworld-abe-s-oddysee-recomp-0.1.3-linux-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-oddworld-abe-s-oddysee-recomp",
-      "release_index": 0,
       "asset": "oddworld-abe-s-oddysee-recomp-0.1.3-macos-arm64.zip"
     },
     {
       "inventory": "alexbeav-oddworld-abe-s-oddysee-recomp",
       "release_index": 0,
       "asset": "oddworld-abe-s-oddysee-recomp-0.1.3-macos-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-syphon-filter-3-recomp",
-      "release_index": 0,
-      "asset": "syphon-filter-3-recomp-0.1.3-linux-x64.zip"
     },
     {
       "inventory": "alexbeav-syphon-filter-3-recomp",
@@ -2775,11 +3584,6 @@
     {
       "inventory": "alexbeav-tenchu-stealth-assassins-recomp",
       "release_index": 0,
-      "asset": "tenchu-stealth-assassins-recomp-0.1.3-linux-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-tenchu-stealth-assassins-recomp",
-      "release_index": 0,
       "asset": "tenchu-stealth-assassins-recomp-0.1.3-macos-arm64.zip"
     },
     {
@@ -2790,22 +3594,12 @@
     {
       "inventory": "alexbeav-monster-rancher-2-recomp",
       "release_index": 0,
-      "asset": "monster-rancher-2-recomp-0.1.3-linux-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-monster-rancher-2-recomp",
-      "release_index": 0,
       "asset": "monster-rancher-2-recomp-0.1.3-macos-arm64.zip"
     },
     {
       "inventory": "alexbeav-monster-rancher-2-recomp",
       "release_index": 0,
       "asset": "monster-rancher-2-recomp-0.1.3-macos-x64.zip"
-    },
-    {
-      "inventory": "alexbeav-nightmare-creatures-recomp",
-      "release_index": 0,
-      "asset": "nightmare-creatures-recomp-0.1.3-linux-x64.zip"
     },
     {
       "inventory": "alexbeav-nightmare-creatures-recomp",
@@ -2846,6 +3640,96 @@
       "inventory": "alexbeav-destruction-derby-raw-recomp",
       "release_index": 0,
       "asset": "destructionderbyraw-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-armored-core-recomp",
+      "release_index": 0,
+      "asset": "Armored-Core-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-armored-core-recomp",
+      "release_index": 0,
+      "asset": "Armored-Core-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-blood-omen-legacy-of-kain-recomp",
+      "release_index": 0,
+      "asset": "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-blood-omen-legacy-of-kain-recomp",
+      "release_index": 0,
+      "asset": "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-digimon-world-2003-recomp",
+      "release_index": 0,
+      "asset": "Digimon-World-2003-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-digimon-world-2003-recomp",
+      "release_index": 0,
+      "asset": "Digimon-World-2003-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-driver-recomp",
+      "release_index": 0,
+      "asset": "Driver-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-driver-recomp",
+      "release_index": 0,
+      "asset": "Driver-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+      "release_index": 0,
+      "asset": "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+      "release_index": 0,
+      "asset": "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-duke-nukem-time-to-kill-recomp",
+      "release_index": 0,
+      "asset": "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-duke-nukem-time-to-kill-recomp",
+      "release_index": 0,
+      "asset": "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-fade-to-black-recomp",
+      "release_index": 0,
+      "asset": "Fade-to-Black-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-fade-to-black-recomp",
+      "release_index": 0,
+      "asset": "Fade-to-Black-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-ape-escape-recomp",
+      "release_index": 0,
+      "asset": "Ape-Escape-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-ape-escape-recomp",
+      "release_index": 0,
+      "asset": "Ape-Escape-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-alundra-recomp",
+      "release_index": 0,
+      "asset": "Alundra-Recomp-0.3.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-alundra-recomp",
+      "release_index": 0,
+      "asset": "Alundra-Recomp-0.3.6-macos-x64.zip"
     }
   ]
 }
