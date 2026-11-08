@@ -1342,8 +1342,8 @@ type PartitionEvidence = { bundle_sha256: string; receipt_sha256: string; deadli
 const applicationPartitionLimits = {
   page_bytes: semanticReaderTextPageBytes,
   lane_raw_bytes: 512 * 1024,
-  lane_response_bytes: 640 * 1024,
-  lane_calls: 96,
+  lane_response_bytes: 512 * 1024,
+  lane_calls: 64,
   lanes: 512,
 };
 
