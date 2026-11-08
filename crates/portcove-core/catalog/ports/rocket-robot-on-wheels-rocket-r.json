@@ -3,7 +3,7 @@
   "listing": {
     "id": "rocket-robot-on-wheels-rocket-r",
     "name": "Rocket: Robot on Wheels (Rocket-R)",
-    "summary": "Explore Rocket: Robot on Wheels (Rocket-R) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Rocket: Robot on Wheels with your own matching US game file.",
     "project_url": "https://github.com/ThatGuyMcd/Rocket-R",
     "issue_number": 1449,
     "availability": "packages",
@@ -28,18 +28,32 @@
           "instruction": "Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Rocket-R. Keep a separate backup of the actual profile before changing versions; older versions may not read newer saves. Its external profile is outside Portcove backup and runtime rollback; rollback does not rewind saves. Keep each release’s own bundled engine/mod resources together, and keep custom --config or developer paths backed up separately."
         },
         {
-          "title": "Linux uses its own upstream launcher",
-          "instruction": "Choose the Linux x86-64 AppImage, or extract the Linux Portable archive and deliberately run Launch-Rocket-R.sh when ordinary AppImage launch is unavailable. The tar.gz contains an AppImage and wrapper, not a bare native player. Steam Deck uses the separate x86-64 Steam Deck archive and START-ROCKET-R.sh; ARM64 packages are different choices. Follow the upstream Linux profile and update instructions and preserve the current copy. Portcove’s managed Windows route does not manage this wrapper."
+          "title": "Choose the Linux package for your system",
+          "instruction": "On x64 or ARM64 Linux, make the matching AppImage executable and open it. The packaged game needs glibc 2.35, GLIBCXX 3.4.30 and a working Vulkan driver. If you use a Portable archive, unpack the whole folder and run Launch-Rocket-R.sh. On Steam Deck, unpack the separate x64 Steam Deck archive and run START-ROCKET-R.sh from its folder. It launches the included AppDir directly."
         },
         {
-          "title": "Android keeps its own private copy",
-          "instruction": "Use the separate Android ARM64 APK on the Android device, open Rocket-R and select your own matching US ROM. The app keeps a private ROM copy; preserve its actual app saves and settings before updating, clearing storage or uninstalling. Its update and data handling stay with Android/upstream. Desktop archive inspection does not qualify Android execution or every device."
+          "title": "Open Rocket-R on Android",
+          "instruction": "Install the ARM64 APK on Android 7 or later on a device with the required Vulkan 1.2 features. Open Rocket-R and choose your matching US ROM. The app keeps a private ROM copy and its saves and settings. Back up what you can access before clearing app storage or uninstalling. The upstream Android build is experimental, and some devices may fail to start it."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/d64e42a1e364c867d9ff100637d90fd8e27e5ac8/README.md"
+      "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/d64e42a1e364c867d9ff100637d90fd8e27e5ac8/README.md",
+      "references": [
+        {
+          "title": "Check your original game file",
+          "instruction": "Rocket-R accepts your own US game with code NSUE, 12 MiB and canonical SHA-1 622d71a44da0b81ea68092cac9198c66154a4f4a. The desktop launcher accepts .z64, .n64 and .v64 files."
+        },
+        {
+          "title": "Find your Linux profile and launch logs",
+          "instruction": "By default the game uses $XDG_CONFIG_HOME/rocket-r or ~/.config/rocket-r for settings, saves and mod profiles. A custom --config path or the rocket-r-data fallback changes where you need to back up. The upstream launcher records logs in $XDG_STATE_HOME/rocket-r or ~/.local/state/rocket-r, with a temporary-directory fallback when needed."
+        }
+      ]
     },
-    "original_game_title": "Rocket: Robot on Wheels"
+    "original_game_title": "Rocket: Robot on Wheels",
+    "platforms": ["linux-x86-64"],
+    "download_asset_hints": {
+      "linux-x86-64": ["Rocket-R-", "-Linux-x86_64.AppImage"]
+    }
   },
   "integration": {
     "support_tier": "beta",
