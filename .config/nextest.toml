@@ -898,6 +898,17 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::manag
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
+# CI 42533044761/1 Windows 8: RustMania's generated complete lifecycle reached
+# the 90.324s outer limit after install began, and Body Harvest passed at
+# 89.233s in the same shard. Give these two exact Windows cases the same finite
+# 120s harness budget as the sibling generated lifecycle cases above. Their
+# assertions, product deadlines, cleanup and zero retries stay unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_(rustmania_racing_ray_m_w_muppet_racemania|body_harvest_recompiled)$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
 # CI41914595618/a1 Windows7 retained a90.327s harness cutoff in SDLPal's
 # complete lifecycle. This case additionally exercises consented restore and
 # safety backup over six declared data probes. Give only this exact Windows

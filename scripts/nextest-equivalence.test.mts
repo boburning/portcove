@@ -449,6 +449,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     {
       platform: "x86_64-pc-windows-msvc",
       filter:
+        "package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_(rustmania_racing_ray_m_w_muppet_racemania|body_harvest_recompiled)$/)",
+      periods: 24,
+    },
+    {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
         "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)",
       periods: 24,
     },
