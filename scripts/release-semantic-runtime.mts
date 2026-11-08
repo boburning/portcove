@@ -1308,7 +1308,7 @@ ${reports}`;
   }
   const { root, invocation, isolation } = await runSettledLinuxSemanticInvocation(operation, raw);
   let evidence: PartitionEvidence | undefined;
-  if (partition) {
+  if (partition && raw.application_partition) {
     const bytes = JSON.stringify(partition);
     await writeFile(path.join(root, "capture/partition-evidence.json"), bytes, {
       flag: "wx",
@@ -1317,6 +1317,7 @@ ${reports}`;
     evidence = {
       bundle_sha256: operation.bundle.bundle_sha256,
       receipt_sha256: sha(bytes),
+      deadline: raw.application_partition.deadline,
     };
   }
   return task.kind === "review"
@@ -1336,7 +1337,7 @@ ${reports}`;
       );
 }
 
-type PartitionEvidence = { bundle_sha256: string; receipt_sha256: string };
+type PartitionEvidence = { bundle_sha256: string; receipt_sha256: string; deadline: number };
 
 const applicationPartitionLimits = {
   page_bytes: semanticReaderTextPageBytes,
