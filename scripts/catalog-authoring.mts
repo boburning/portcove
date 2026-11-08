@@ -62,7 +62,7 @@ export interface AuthoredPort extends Record<string, unknown> {
   route_facts_v1?: RouteFactsV1;
   /** Reviewed common staged archive layout; expanded before Core validation. */
   gba_staged_archive_v1?: { game_code: string; versioned_mods: boolean };
-  psx_managed_windows_v1?: true;
+  psx_managed_windows_v1?: true | "bundled-openbios";
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;

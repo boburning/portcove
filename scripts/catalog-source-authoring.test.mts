@@ -775,6 +775,19 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
   for (const record of consumers) {
     const id = record.listing.id;
     assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    if (record.psx_managed_windows_v1 === "bundled-openbios") {
+      const projected = projectAuthoredPort(record);
+      assert.ok(projected);
+      assert.deepEqual(projected.launch_arguments, [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin",
+      ]);
+      assert.equal(Object.hasOwn(projected, "bios_source_profile"), false);
+      const conflictingBios = structuredClone(record);
+      conflictingBios.integration!.bios_source_profile = "psx-scph-1001-bios";
+      assert.throws(() => checkedAuthoredPort(conflictingBios), /without a retail profile/u);
+    }
     const duplicate = structuredClone(record);
     duplicate.integration!.runtime_subdirectory = "setup-host";
     assert.throws(() => checkedAuthoredPort(duplicate), /already owns runtime_subdirectory/u);

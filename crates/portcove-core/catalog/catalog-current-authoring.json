@@ -1381,6 +1381,106 @@
         "claim": "Official v0.1.2 Windows/Linux ZIP assets 544449870 (29900170 bytes, sha256:309479d31eed99a0146e9131f0c1a07328e356e48ca025a9dee63e07053f035e); 544449436 (27795876 bytes, sha256:967bae1054bcebf3439373fcbc49e0ec8698e7a1567bfb8a7aa82115b97ae138). Publisher bytes matched and safe-entry/CRC checks passed. The packaged game, build and host configs match tagged source after line-ending normalization. Source declares USA SLUS-00977, one track and first data-track SHA-1 2f7ee5625aaa02c536938fb66fcf06d4d8f6b422. The kit targets Xena__Warrior_Princess_Recompiled and uses your own retail SCPH-1001 BIOS. Linux SDK runtime/UI source matches an already reviewed same-framework kit. This is static package and data-scope evidence; no native title execution, gameplay or saves were observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/acb27a20e1c940a243447a1e4b27bccaafdd82eb/game.toml",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-colin-mcrae-rally-2-0-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp",
+        "authority_ref": "3aba2be4a6c6f54abfc8818a93891ed3131237d0",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544444876 and 544444537 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies USA SLUS-01222, 2 tracks and first data-track SHA-1 4d595880ebb6c6f7a2b63d9503b733f44b1ef230. The shared runtime and setup CLI match a reviewed kit. The generated player is Colin_McRae_Rally_2_0_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/blob/3aba2be4a6c6f54abfc8818a93891ed3131237d0/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-die-hard-trilogy-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/die-hard-trilogy-recomp",
+        "authority_ref": "23f6a990928927c02064267924a99859d81f7135",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544445336 and 544445007 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies USA, Rev 1 SLUS-00119, 21 tracks and first data-track SHA-1 2d24572e92415e09c37b68c83ba8b8947aee1ce4. The shared runtime and setup CLI match a reviewed kit. The generated player is Die_Hard_Trilogy_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/blob/23f6a990928927c02064267924a99859d81f7135/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-kings-field-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/kings-field-recomp",
+        "authority_ref": "95d4b9ef47ba1e73be981e6f72f3bb16788b80c6",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544446434 and 544446077 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies Japan SLPS-00017, one track and first data-track SHA-1 00bfd94ce99bf214b03bdaa07de99b9ca1466550. The shared runtime and setup CLI match a reviewed kit. The generated player is King_s_Field_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/95d4b9ef47ba1e73be981e6f72f3bb16788b80c6/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-kula-world-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/kula-world-recomp",
+        "authority_ref": "0302c2011cd9908466977bc7d4c5be44c14e28c6",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544446720 and 544446485 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies Europe SCES-01000, one track and first data-track SHA-1 0bf9fb06b73a9b5353cdcc371e188934369068da. The shared runtime and setup CLI match a reviewed kit. The generated player is Kula_World_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/blob/0302c2011cd9908466977bc7d4c5be44c14e28c6/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-mega-man-legends-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/mega-man-legends-recomp",
+        "authority_ref": "9e7cc71d5b2704c1152a6c73582ddd9a59d0cab4",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544447194 and 544446914 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies Europe SLES-01485, 2 tracks and first data-track SHA-1 cf24c99ad6586b1bcba7d67f5dc684864b5e1688. The shared runtime and setup CLI match a reviewed kit. The generated player is Mega_Man_Legends_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/blob/9e7cc71d5b2704c1152a6c73582ddd9a59d0cab4/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-men-in-black-the-game-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/men-in-black-the-game-recomp",
+        "authority_ref": "dbc330f3616e68a16cb17c5a2493ba0b309e142b",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544447242 and 544446941 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies Europe SLES-01047, one track and first data-track SHA-1 060496048fae53cf79706ab3ce611c07701d4814. The shared runtime and setup CLI match a reviewed kit. The generated player is Men_in_Black__The_Game_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/blob/dbc330f3616e68a16cb17c5a2493ba0b309e142b/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp",
+        "authority_ref": "30a3d23f1436bc26a534477135e3736cdd21bb7f",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544448828 and 544448528 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies USA SLUS-00515, 3 tracks and first data-track SHA-1 1fac6ab6b0d7d3d8f5e70b40bb9fae1d2a2287bc. The shared runtime and setup CLI match a reviewed kit. The generated player is The_Lost_World__Jurassic_Park_Special_Edition_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/blob/30a3d23f1436bc26a534477135e3736cdd21bb7f/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-the-mummy-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/the-mummy-recomp",
+        "authority_ref": "3c99709c46c4d32e3afc63b5a4b52b9e96daf12d",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544448841 and 544448526 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies USA SLUS-01187, one track and first data-track SHA-1 ef266fcac356f05950a81aaa350fbf211defcdd8. The shared runtime and setup CLI match a reviewed kit. The generated player is The_Mummy_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/blob/3c99709c46c4d32e3afc63b5a4b52b9e96daf12d/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-vampire-hunter-d-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/vampire-hunter-d-recomp",
+        "authority_ref": "27791526474a76b056b3536238ac21d8052776b0",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544449337 and 544449074 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies USA SLUS-01138, one track and first data-track SHA-1 a4b43839e2abd4ac626434c801fbea0a09ab3f88. The shared runtime and setup CLI match a reviewed kit. The generated player is Vampire_Hunter_D_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/blob/27791526474a76b056b3536238ac21d8052776b0/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-vigilante-8-recomp-v036-managed-psx",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/vigilante-8-recomp",
+        "authority_ref": "d57716e4d3b0f7ec401e92180cf4d0a24e98f149",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Windows and Linux assets 544449858 and 544449424 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies Europe SLES-01212, 13 tracks and first data-track SHA-1 0a39394280555203bf29e33e95e561e4ff50edb1. The shared runtime and setup CLI match a reviewed kit. The generated player is Vigilante_8_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/blob/d57716e4d3b0f7ec401e92180cf4d0a24e98f149/game.toml",
+        "live_url": null
       }
     ],
     "identities": [
@@ -9637,6 +9737,456 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-colin-mcrae-rally-2-0-recomp-usa-psx",
+        "label": "Colin McRae Rally 2.0 (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Colin McRae Rally 2.0 (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01222"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "4d595880ebb6c6f7a2b63d9503b733f44b1ef230",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-colin-mcrae-rally-2-0-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-colin-mcrae-rally-2-0-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-die-hard-trilogy-recomp-usa-rev-1-psx",
+        "label": "Die Hard Trilogy (USA, Rev 1) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa-rev-1",
+            "title": "Die Hard Trilogy (USA, Rev 1) disc",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [
+              "SLUS-00119"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  21
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "2d24572e92415e09c37b68c83ba8b8947aee1ce4",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-die-hard-trilogy-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-die-hard-trilogy-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-kings-field-recomp-japan-psx",
+        "label": "King's Field (Japan) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "japan",
+            "title": "King's Field (Japan) disc",
+            "region": "Japan",
+            "revision": null,
+            "product_codes": [
+              "SLPS-00017"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "00bfd94ce99bf214b03bdaa07de99b9ca1466550",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-kings-field-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-kings-field-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-kula-world-recomp-europe-psx",
+        "label": "Kula World (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Kula World (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SCES-01000"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "0bf9fb06b73a9b5353cdcc371e188934369068da",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-kula-world-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-kula-world-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-mega-man-legends-recomp-europe-psx",
+        "label": "Mega Man Legends (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Mega Man Legends (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-01485"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "cf24c99ad6586b1bcba7d67f5dc684864b5e1688",
+                    "sha256": "91fc12e8ce4485285ab22fbe39a8c3b5a66cab7d129c69a5c22084adbf361391",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-mega-man-legends-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-mega-man-legends-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-men-in-black-the-game-recomp-europe-psx",
+        "label": "Men in Black: The Game (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Men in Black: The Game (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-01047"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "060496048fae53cf79706ab3ce611c07701d4814",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-men-in-black-the-game-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-men-in-black-the-game-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-usa-psx",
+        "label": "The Lost World: Jurassic Park Special Edition (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "The Lost World: Jurassic Park Special Edition (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00515"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  3
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "1fac6ab6b0d7d3d8f5e70b40bb9fae1d2a2287bc",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-the-mummy-recomp-usa-psx",
+        "label": "The Mummy (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "The Mummy (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01187"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "ef266fcac356f05950a81aaa350fbf211defcdd8",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-the-mummy-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-the-mummy-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-vampire-hunter-d-recomp-usa-psx",
+        "label": "Vampire Hunter D (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Vampire Hunter D (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01138"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "a4b43839e2abd4ac626434c801fbea0a09ab3f88",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-vampire-hunter-d-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-vampire-hunter-d-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-vigilante-8-recomp-europe-psx",
+        "label": "Vigilante 8 (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Vigilante 8 (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-01212"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  13
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "0a39394280555203bf29e33e95e561e4ff50edb1",
+                    "sha256": "0a303a0d19d2728f1e364afa4fb7ad8e6e5a04800236573e93417a5503fb201e",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-vigilante-8-recomp-v036-managed-psx"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-vigilante-8-recomp-v036-managed-psx"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -13733,6 +14283,316 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "967bae1054bcebf3439373fcbc49e0ec8698e7a1567bfb8a7aa82115b97ae138"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-colin-mcrae-rally-2-0-recomp-game-source",
+        "port_id": "alexbeav-colin-mcrae-rally-2-0-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-colin-mcrae-rally-2-0-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-colin-mcrae-rally-2-0-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "3aba2be4a6c6f54abfc8818a93891ed3131237d0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/blob/3aba2be4a6c6f54abfc8818a93891ed3131237d0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "97914ce4540579c4317192ef6fc5cb7a2ecadc5c683b3cbe9981f60d35101d53"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "a684bcf16dde458f194f053f8b66268ac668a959229475446f43e7e9bc06664c"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-die-hard-trilogy-recomp-game-source",
+        "port_id": "alexbeav-die-hard-trilogy-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-die-hard-trilogy-recomp-usa-rev-1-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev-1"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-die-hard-trilogy-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "23f6a990928927c02064267924a99859d81f7135",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/blob/23f6a990928927c02064267924a99859d81f7135/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "0ecc47770964cdfacca7391394d7b54905c85b26cf2a34ff53a448a278c46725"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "0e153ba72a82c4d7cfc281bdf7fb7021c3e088f40907bec98f975c1cfad08957"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-kings-field-recomp-game-source",
+        "port_id": "alexbeav-kings-field-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-kings-field-recomp-japan-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "japan"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-kings-field-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "95d4b9ef47ba1e73be981e6f72f3bb16788b80c6",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/95d4b9ef47ba1e73be981e6f72f3bb16788b80c6/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "179116f3f1d89a88b9323f77c7ee3c8297c462efdaba561f8a2c7796a090a16d"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "96c843bd6237fbd5e4f0e4bceb7fb843b6fe47ebd683b30fcd77b097c83b5e6a"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-kula-world-recomp-game-source",
+        "port_id": "alexbeav-kula-world-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-kula-world-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-kula-world-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "0302c2011cd9908466977bc7d4c5be44c14e28c6",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/blob/0302c2011cd9908466977bc7d4c5be44c14e28c6/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "3274a62cc8f3d6e1141d6f3138f869746d021efc9e794921e5b8cfb04f2ef551"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "64035663a1650fce256a53b4e140ec89dbfb50eba6d1ab537e6552d82e3bcc44"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-mega-man-legends-recomp-game-source",
+        "port_id": "alexbeav-mega-man-legends-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-mega-man-legends-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-mega-man-legends-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "9e7cc71d5b2704c1152a6c73582ddd9a59d0cab4",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/blob/9e7cc71d5b2704c1152a6c73582ddd9a59d0cab4/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "6a65ae3e7c9930003f7453cf3ed9d6df0abc9528c273cf8fdf8f190c875ca33e"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "a26b4fc42fb335ceec87ee1c66eb897c88790ca99a0be17b28e5113073823c82"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-men-in-black-the-game-recomp-game-source",
+        "port_id": "alexbeav-men-in-black-the-game-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-men-in-black-the-game-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-men-in-black-the-game-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "dbc330f3616e68a16cb17c5a2493ba0b309e142b",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/blob/dbc330f3616e68a16cb17c5a2493ba0b309e142b/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "1960f5e6812cf72f06ee521bcfcca2f3cab6974935f4f1d77cd99154b1ae1c33"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "288f6ac737594a49362c893e16b7d4b1cbe9c4c35787526b780df4d8f39b395f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-game-source",
+        "port_id": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "30a3d23f1436bc26a534477135e3736cdd21bb7f",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/blob/30a3d23f1436bc26a534477135e3736cdd21bb7f/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "bb72726eb72eebc13068b3bab13996e46b644ad77997c463c39076f05fe72b76"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "2d58d502ad433dd901abec847e3fa11c7a73f9b5fdf68415629bdc4c91d9d21d"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-the-mummy-recomp-game-source",
+        "port_id": "alexbeav-the-mummy-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-the-mummy-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-the-mummy-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "3c99709c46c4d32e3afc63b5a4b52b9e96daf12d",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/blob/3c99709c46c4d32e3afc63b5a4b52b9e96daf12d/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "d74950dc3b03675071446cbdb8dbbcc551291659c49c730fb6ab19107d298a8a"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "2e249510c7d96ecb4abd5363f57c4648560dc56751baad5581f168ab1fd28028"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-vampire-hunter-d-recomp-game-source",
+        "port_id": "alexbeav-vampire-hunter-d-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-vampire-hunter-d-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-vampire-hunter-d-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "27791526474a76b056b3536238ac21d8052776b0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/blob/27791526474a76b056b3536238ac21d8052776b0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "59c5e5eb03fbd3dafdbd1385a6e7da2fedb944387f9359709c84b425dfd99efa"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "a629a0ef77959c5af91f770fc21b9c4a2aca9e7038c31ce4eb0b447971a0eda2"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-vigilante-8-recomp-game-source",
+        "port_id": "alexbeav-vigilante-8-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-vigilante-8-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-vigilante-8-recomp-v036-managed-psx"
+        ],
+        "authority_ref": "d57716e4d3b0f7ec401e92180cf4d0a24e98f149",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/blob/d57716e4d3b0f7ec401e92180cf4d0a24e98f149/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "e908e5d75af07f384d5e3238caa32e7db490aef0b1e3254e49cc0ae098b436c3"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "ffdc46640a048fdb80a6ac98ddcb6ad241a2a0b42b297eeef86a9539e89a41af"
           }
         ],
         "aliases": [],
@@ -26620,6 +27480,138 @@
       "bios_source_profile": "psx-scph-1001-bios"
     },
     {
+      "id": "alexbeav-colin-mcrae-rally-2-0-recomp",
+      "name": "Colin McRae Rally 2.0 / Alexbeav PSXRecomp",
+      "summary": "Play Colin McRae Rally 2.0 with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Colin-McRae-Rally-2-0-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Colin-McRae-Rally-2-0-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-colin-mcrae-rally-2-0-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Colin_McRae_Rally_2_0_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Colin_McRae_Rally_2_0_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-colin-mcrae-rally-2-0-recomp-usa-psx",
+            "label": "Colin McRae Rally 2.0 (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own USA Colin McRae Rally 2.0 CHD (SLUS-01222) containing all 2 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "Colin McRae Rally 2.0",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own USA Colin McRae Rally 2.0 disc, SLUS-01222, with all 2 tracks present."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Colin_McRae_Rally_2_0_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Colin_McRae_Rally_2_0_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 642,
+          "cover_id": 351921,
+          "image_id": "co7jjl",
+          "image_sha256": "f0017034b228e12a2d22522dc6510f8e546824db874cb70a968d8e283e0e312c",
+          "game_slug": "colin-mcrae-rally-2-0",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "alexbeav-destruction-derby-2-recomp",
       "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
       "summary": "Build and play Destruction Derby 2 on Windows or Linux with your own matching USA disc. Portcove uses the kit’s bundled OpenBIOS. The upstream setup kit remains a separate route.",
@@ -26885,6 +27877,403 @@
       "bios_source_profile": "psx-scph-1001-bios"
     },
     {
+      "id": "alexbeav-die-hard-trilogy-recomp",
+      "name": "Die Hard Trilogy / Alexbeav PSXRecomp",
+      "summary": "Play Die Hard Trilogy with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/die-hard-trilogy-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Die-Hard-Trilogy-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Die-Hard-Trilogy-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-die-hard-trilogy-recomp-usa-rev-1-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Die_Hard_Trilogy_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Die_Hard_Trilogy_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-die-hard-trilogy-recomp-usa-rev-1-psx",
+            "label": "Die Hard Trilogy (USA, Rev 1) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own USA, Rev 1 Die Hard Trilogy CHD (SLUS-00119) containing all 21 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "Die Hard Trilogy",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own USA, Rev 1 Die Hard Trilogy disc, SLUS-00119, with all 21 tracks present."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Die_Hard_Trilogy_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Die_Hard_Trilogy_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 8234,
+          "cover_id": 133614,
+          "image_id": "co2v3i",
+          "image_sha256": "02a4599930c063a7b299791af4d31cc0f70bb331ff3e8dea42d3e7ee552559e6",
+          "game_slug": "die-hard-trilogy",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-kings-field-recomp",
+      "name": "King's Field / Alexbeav PSXRecomp",
+      "summary": "Play King's Field with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/kings-field-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "King-s-Field-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "King-s-Field-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-kings-field-recomp-japan-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "King_s_Field_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "King_s_Field_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-kings-field-recomp-japan-psx",
+            "label": "King's Field (Japan) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own Japan King's Field CHD (SLPS-00017) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "King's Field",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own Japan King's Field disc, SLPS-00017, with its single data track intact."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream King_s_Field_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/King_s_Field_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved.",
+            "Older kits had relaunch or generated-target issues. Use the reviewed player name and keep the completed output with its creating kit."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 7422,
+          "cover_id": 224806,
+          "image_id": "co4tgm",
+          "image_sha256": "3b4c0a90fd89f6f0f494030333abe2835f80d813dae559bc395831684508dc6d",
+          "game_slug": "king-s-field",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-kula-world-recomp",
+      "name": "Kula World / Alexbeav PSXRecomp",
+      "summary": "Play Kula World with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/kula-world-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Kula-World-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Kula-World-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-kula-world-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Kula_World_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Kula_World_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-kula-world-recomp-europe-psx",
+            "label": "Kula World (Europe) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own Europe Kula World CHD (SCES-01000) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "Kula World",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own Europe Kula World disc, SCES-01000, with its single data track intact."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Kula_World_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Kula_World_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 9678,
+          "cover_id": 264068,
+          "image_id": "co5nr8",
+          "image_sha256": "37b675caecfaeb258c2a58c28807beaf61851483616769b5c79f27d2bc84b185",
+          "game_slug": "roll-away",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "alexbeav-medievil-ii-recomp",
       "name": "MediEvil II / Alexbeav PSXRecomp",
       "summary": "Explore MediEvil II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
@@ -26949,6 +28338,262 @@
           "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
           "game_slug": "medievil-ii--1",
           "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-mega-man-legends-recomp",
+      "name": "Mega Man Legends / Alexbeav PSXRecomp",
+      "summary": "Play Mega Man Legends with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/mega-man-legends-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Mega-Man-Legends-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Mega-Man-Legends-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-mega-man-legends-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Mega_Man_Legends_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Mega_Man_Legends_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-mega-man-legends-recomp-europe-psx",
+            "label": "Mega Man Legends (Europe) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own Europe Mega Man Legends CHD (SLES-01485) containing all 2 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "Mega Man Legends",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own Europe Mega Man Legends disc, SLES-01485, with all 2 tracks present."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Mega_Man_Legends_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Mega_Man_Legends_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 1752,
+          "cover_id": 515296,
+          "image_id": "cob1ls",
+          "image_sha256": "97e5c9d299d1547a95db9079571c26e2655b4695985fdca68631b411c9b17d47",
+          "game_slug": "mega-man-legends",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-men-in-black-the-game-recomp",
+      "name": "Men in Black: The Game / Alexbeav PSXRecomp",
+      "summary": "Play Men in Black: The Game with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/men-in-black-the-game-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Men-in-Black-The-Game-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Men-in-Black-The-Game-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-men-in-black-the-game-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Men_in_Black__The_Game_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Men_in_Black__The_Game_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-men-in-black-the-game-recomp-europe-psx",
+            "label": "Men in Black: The Game (Europe) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own Europe Men in Black: The Game CHD (SLES-01047) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "Men in Black: The Game",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own Europe Men in Black: The Game disc, SLES-01047, with its single data track intact."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Men_in_Black__The_Game_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Men_in_Black__The_Game_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
         }
       }
     },
@@ -27633,6 +29278,262 @@
       "bios_source_profile": "psx-scph-1001-bios"
     },
     {
+      "id": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp",
+      "name": "The Lost World: Jurassic Park Special Edition / Alexbeav PSXRecomp",
+      "summary": "Play The Lost World: Jurassic Park Special Edition with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "The_Lost_World__Jurassic_Park_Special_Edition_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "The_Lost_World__Jurassic_Park_Special_Edition_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-usa-psx",
+            "label": "The Lost World: Jurassic Park Special Edition (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own USA The Lost World: Jurassic Park Special Edition CHD (SLUS-00515) containing all 3 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "The Lost World: Jurassic Park Special Edition",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own USA The Lost World: Jurassic Park Special Edition disc, SLUS-00515, with all 3 tracks present."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream The_Lost_World__Jurassic_Park_Special_Edition_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/The_Lost_World__Jurassic_Park_Special_Edition_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "alexbeav-the-mummy-recomp",
+      "name": "The Mummy / Alexbeav PSXRecomp",
+      "summary": "Play The Mummy with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/the-mummy-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "The-Mummy-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "The-Mummy-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-the-mummy-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "The_Mummy_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "The_Mummy_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-the-mummy-recomp-usa-psx",
+            "label": "The Mummy (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own USA The Mummy CHD (SLUS-01187) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "The Mummy",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own USA The Mummy disc, SLUS-01187, with its single data track intact."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream The_Mummy_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/The_Mummy_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 80821,
+          "cover_id": 198917,
+          "image_id": "co49hh",
+          "image_sha256": "4972cc3b44dfef4051aca4dc7d6a4f2d2bfc6117a16362985157a4b9e1df0e17",
+          "game_slug": "the-mummy--1",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
       "name": "Tony Hawk's Pro Skater 2 / Alexbeav PSXRecomp",
       "summary": "Build and play Tony Hawk's Pro Skater 2 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
@@ -28175,6 +30076,270 @@
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-vampire-hunter-d-recomp",
+      "name": "Vampire Hunter D / Alexbeav PSXRecomp",
+      "summary": "Play Vampire Hunter D with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/vampire-hunter-d-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Vampire-Hunter-D-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Vampire-Hunter-D-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-vampire-hunter-d-recomp-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Vampire_Hunter_D_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Vampire_Hunter_D_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-vampire-hunter-d-recomp-usa-psx",
+            "label": "Vampire Hunter D (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own USA Vampire Hunter D CHD (SLUS-01138) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "Vampire Hunter D",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own USA Vampire Hunter D disc, SLUS-01138, with its single data track intact."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Vampire_Hunter_D_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Vampire_Hunter_D_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 126469,
+          "cover_id": 130299,
+          "image_id": "co2sjf",
+          "image_sha256": "4a541afc919025490761ab70d674313b47427f0b96220b2c05851c430c202da4",
+          "game_slug": "vampire-hunter-d",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-vigilante-8-recomp",
+      "name": "Vigilante 8 / Alexbeav PSXRecomp",
+      "summary": "Play Vigilante 8 with a native player built from your matching original disc.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/vigilante-8-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Vigilante-8-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Vigilante-8-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-vigilante-8-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Vigilante_8_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Vigilante_8_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-vigilante-8-recomp-europe-psx",
+            "label": "Vigilante 8 (Europe) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own Europe Vigilante 8 CHD (SLES-01212) containing all 13 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+        "original_game_title": "Vigilante 8",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the exact original disc",
+              "instruction": "Use your own Europe Vigilante 8 disc, SLES-01212, with all 13 tracks present."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+            },
+            {
+              "title": "Prepare the Mac or a separate upstream-owned copy",
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Vigilante_8_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Vigilante_8_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+            }
+          ],
+          "warnings": [
+            "Portcove has not confirmed setup or gameplay for this package.",
+            "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the data and runtime you actually use",
+              "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3332,
+          "cover_id": 154515,
+          "image_id": "co3b83",
+          "image_sha256": "551b7f4b5b448bf32085e869fe36b08d8725faaba9d023668676c273e7ad7fe3",
+          "game_slug": "vigilante-8",
+          "match_kind": "underlying-game"
+        }
+      }
     },
     {
       "id": "alistert-openjazz",
