@@ -4331,6 +4331,8 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn regaiden_retained_graphics_exports_survive_backup_and_rollback() {
+        let started = std::time::Instant::now();
+        let phase = |name| eprintln!("ReGaiden capture fixture {name} at {:?}", started.elapsed());
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let catalog = crate::Catalog::embedded().unwrap();
@@ -4393,6 +4395,7 @@ mod tests {
             "3fcc5e9ae90a5cf4d77da6dab5256f452e29ab6000618474e052400af912d9d7",
             34_467_548,
         );
+        phase("retained versions registered");
         let relative = "asset_dump/capture_0001/framebuffer.png";
         let capture = active.path.join(relative);
         fs::create_dir_all(capture.parent().unwrap()).unwrap();
@@ -4410,8 +4413,10 @@ mod tests {
         fs::write(&unexpected, b"not a capture").unwrap();
         assert!(!service.verify(id).unwrap().valid);
         fs::remove_file(&unexpected).unwrap();
+        phase("retained capture and executable refusal verified");
 
         let backup = service.create_backup(id).unwrap();
+        phase("backup created");
         let canonical = library.user_dir(id).join(relative);
         assert_eq!(fs::read(&canonical).unwrap(), b"synthetic capture");
         assert_eq!(
@@ -4431,9 +4436,11 @@ mod tests {
         let consent = service
             .authorize_backup_action(id, &backup.id, action, &preview.preview_sha256)
             .unwrap();
+        phase("restore authorized");
         let restore = service
             .restore_backup(id, &backup.id, &consent.token)
             .unwrap();
+        phase("restore completed");
         assert!(restore.safety_backup.is_some());
         assert!(
             !library
@@ -4445,6 +4452,7 @@ mod tests {
         assert_eq!(fs::read(&inactive_only).unwrap(), b"inactive capture");
 
         assert_eq!(service.rollback(id).unwrap().id, older.id);
+        phase("rollback completed");
         assert_eq!(
             fs::read(older.path.join(relative)).unwrap(),
             b"synthetic capture"

@@ -2238,21 +2238,15 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "release_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/releases/tag/1.1.1",
-      "download_asset_hints": {
-        "linux-x86-64": [
-          "nectar-linux.tar.gz"
-        ]
-      },
       "manual_setup": {
         "steps": [
           {
             "title": "Windows x64 separate upstream copy",
-            "instruction": "For a separate player-managed copy, extract the official 1.1.1 nectar-windows.zip and run nectar-launcher.exe. Choose Install under Pikmin and select your own supported USA Rev. 1 or Europe disc and a new writable folder outside the Portcove library. Keep verification enabled. Preserve that installation and its active config folder or LOCALAPPDATA/Open Nectar before upstream replacement."
+            "instruction": "If you already have a permitted Open Nectar 1.1.1 Windows x64 copy, run its nectar-launcher.exe from a separate folder outside the Portcove library. Choose Install under Pikmin, provide your own supported USA Rev. 1 or Europe disc and choose a separate writable destination. Keep verification enabled. Preserve the installation and its active config folder or LOCALAPPDATA/Open Nectar."
           },
           {
             "title": "Linux x64 upstream launcher",
-            "instruction": "Extract the official 1.1.1 nectar-linux.tar.gz and run nectar-launcher. The bundled README lists glibc 2.29, OpenGL 3.3 and zenity or kdialog for graphical file selection. The x64 AppImage is an alternative."
+            "instruction": "For an already permitted 1.1.1 Linux x64 copy, use its nectar-launcher or the x64 AppImage. The bundled README lists glibc 2.29, OpenGL 3.3 and zenity or kdialog for graphical file selection."
           },
           {
             "title": "Prepare your original on Linux",
@@ -2260,7 +2254,7 @@
           },
           {
             "title": "Android ARM64 upstream launcher",
-            "instruction": "On Android 11 or later, install the official 1.1.1 APK, allow All files access for its chosen data folder, then use Install under Pikmin with your own matching ISO or GCM. The default folder is OpenNectar in shared storage. Pikmin 2 uses its own disc and setup."
+            "instruction": "For an already permitted 1.1.1 Android ARM64 copy on Android 11 or later, allow All files access for its chosen data folder. Use Install under Pikmin with your own matching ISO or GCM. The default folder is OpenNectar in shared storage. Pikmin 2 uses its own disc and setup."
           },
           {
             "title": "Keep the creating installation and data",
@@ -2268,9 +2262,10 @@
           }
         ],
         "warnings": [
-          "Use a separate folder outside Portcove's managed installation. The upstream launcher owns setup and replacement for this copy. Back up your data before updating and leave a managed Windows copy on its reviewed route."
+          "Use only a copy and bundled components you are already permitted to use. The upstream CC0 notice excludes Nintendo and other third-party material, and the package includes a separate Pikmin 2 runtime. An attributable grant for that bundled game code or a separately qualified package is needed before fresh acquisition can be offered.",
+          "Keep the player-managed folder outside Portcove's managed installation. Preserve the creating installation and profile. The existing managed Windows acquisition hold remains in place."
         ],
-        "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/releases/tag/1.1.1"
+        "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/dc92d469517aaf899c4a6be849936e274a9c7303/README.md"
       },
       "availability": "unknown"
     },
