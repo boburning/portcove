@@ -43,11 +43,60 @@ export type CatalogCoordinatorRefusalStage<Layer extends CatalogRefusalLayer> =
 export const catalogRefusalFile = (layer: CatalogRefusalLayer) =>
   `catalog-coordinator-${layer}-refusal.json`;
 
+const checkpointExchangePhases = [
+  "preimage",
+  "checkpoint-objects",
+  "claim",
+  "signing",
+  "proof-objects",
+  "commit",
+] as const;
+type CatalogCheckpointRefusal = {
+  phase: (typeof checkpointExchangePhases)[number];
+  attempted_claim: boolean;
+  attempted_commit: boolean;
+  signer?: "identity-not-attempted" | "signing-effect-unknown";
+};
+export function inspectCatalogCheckpointRefusal(
+  raw: unknown,
+): CatalogCheckpointRefusal | undefined {
+  if (!isRecord(raw)) return;
+  const { phase, attempted_claim, attempted_commit, signer } = raw;
+  if (
+    typeof phase !== "string" ||
+    !(checkpointExchangePhases as readonly string[]).includes(phase) ||
+    typeof attempted_claim !== "boolean" ||
+    typeof attempted_commit !== "boolean" ||
+    (signer !== undefined &&
+      signer !== "identity-not-attempted" &&
+      signer !== "signing-effect-unknown")
+  )
+    return;
+  return {
+    phase: phase as CatalogCheckpointRefusal["phase"],
+    attempted_claim,
+    attempted_commit,
+    ...(signer === undefined ? {} : { signer }),
+  };
+}
+
 export function requireCatalogRefusal(layer: CatalogRefusalLayer, raw: unknown) {
   const stages: readonly string[] = catalogRefusalStages[layer];
   if (
     !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !== "authority,automatic_retry,schema_version,stage" ||
+    Object.keys(raw).sort().join(",") !==
+      (raw.checkpoint_exchange === undefined
+        ? "authority,automatic_retry,schema_version,stage"
+        : "authority,automatic_retry,checkpoint_exchange,schema_version,stage") ||
+    (raw.checkpoint_exchange !== undefined &&
+      (layer !== "operation" ||
+        raw.stage !== "standalone-application-bootstrap-CAS" ||
+        !inspectCatalogCheckpointRefusal(raw.checkpoint_exchange) ||
+        !isRecord(raw.checkpoint_exchange) ||
+        Object.keys(raw.checkpoint_exchange).sort().join(",") !==
+          (raw.checkpoint_exchange.signer === undefined
+            ? "attempted_claim,attempted_commit,phase"
+            : "attempted_claim,attempted_commit,phase,signer"))) ||
     raw.schema_version !== 1 ||
     raw.authority !== "none" ||
     raw.automatic_retry !== false ||
@@ -61,9 +110,16 @@ export async function retainCatalogCoordinatorRefusal<Layer extends CatalogRefus
   root: string,
   layer: Layer,
   stage: CatalogCoordinatorRefusalStage<Layer>,
+  checkpointExchange?: CatalogCheckpointRefusal,
 ) {
   if (!path.isAbsolute(root)) throw new Error("owned catalog refusal root required");
-  const record = { schema_version: 1, stage, authority: "none", automatic_retry: false };
+  const record = {
+    schema_version: 1,
+    stage,
+    authority: "none",
+    automatic_retry: false,
+    ...(checkpointExchange === undefined ? {} : { checkpoint_exchange: checkpointExchange }),
+  };
   requireCatalogRefusal(layer, record);
   await writeFile(path.join(root, catalogRefusalFile(layer)), JSON.stringify(record), {
     flag: "wx",

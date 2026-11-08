@@ -99,6 +99,7 @@ interface PrivateSession {
   requiresSignedJournal: boolean;
   journalBinding?: "binding" | "bound" | "stopped";
   journal?: {
+    claimedChild?: string;
     configuration: Awaited<
       ReturnType<
         typeof import("./release-authority-configuration.mts").requireControllerFixedJobJournalAuthorities
@@ -280,6 +281,7 @@ export async function createOwnedCheckpointSigningApi(
     frozenConfiguration,
     deadline,
     storage,
+    value.journal?.claimedChild !== undefined,
   );
 }
 
@@ -292,6 +294,7 @@ export async function authenticateOwnedCheckpointJournalHistory(
   session: ExecutorSession,
   repository: string,
   expected: string,
+  claimedChild?: string,
 ) {
   const value = sessions.get(session);
   if (!value || value.deadline === undefined)
@@ -307,7 +310,12 @@ export async function authenticateOwnedCheckpointJournalHistory(
   try {
     const result = await withCoordinatorDeadline(value.journalDeadline, () =>
       withReadOnlyReleaseChildren(value.directory, () =>
-        authenticateOwnedCheckpointJournalHistoryWithinScope(session, repository, expected),
+        authenticateOwnedCheckpointJournalHistoryWithinScope(
+          session,
+          repository,
+          expected,
+          claimedChild,
+        ),
       ),
     );
     value.journalBinding = "bound";
@@ -323,6 +331,7 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   session: ExecutorSession,
   repository: string,
   expected: string,
+  claimedChild?: string,
 ) {
   // Load the selected composition only when this admitted path is invoked.
   // Eager initialization would create a cycle through existing signing-context
@@ -338,6 +347,11 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   const identity = await refreshCapacityExecutor(session);
   const source = selected.source;
   if (
+    claimedChild !== undefined &&
+    (selected.purpose !== "catalog-publication" || value.role !== "coordinator")
+  )
+    throw new Error("only the selected catalog coordinator can resume its authenticated claim");
+  if (
     identity.controller_revision !== source.revision ||
     identity.execution_ref !== source.execution_ref ||
     identity.workflow !== source.workflow ||
@@ -349,7 +363,7 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   const configuration = { schema_version: 1, namespace: selected.configuration.namespace };
   const checkpoint = await exportCoordinatorCheckpoint(repository, expected);
   const reader = createCheckpointHistoryReader(value.directory, expected, configuration, deadline);
-  await reader.assertCurrentUnclaimedHead();
+  await reader.assertCurrentHead(claimedChild);
   const history = await authenticateFixedJobCoordinatorHistory(
     value.directory,
     checkpoint,
@@ -359,12 +373,18 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
     reader.api,
   );
   await exportCoordinatorCheckpoint(repository, expected);
-  await reader.assertCurrentUnclaimedHead();
+  await reader.assertCurrentHead(claimedChild);
   const current = await requireControllerFixedJobJournalAuthorities(value.role);
   capacityExecutorIdentity(session);
   if (capacityDigest(current) !== capacityDigest(selected))
     throw new Error("selected journal configuration/source changed during authentication");
-  value.journal = { configuration: selected, checkpoint: expected, busy: false, stopped: false };
+  value.journal = {
+    configuration: selected,
+    checkpoint: expected,
+    busy: false,
+    stopped: false,
+    ...(claimedChild === undefined ? {} : { claimedChild }),
+  };
   return {
     checkpoint: expected,
     history: history.kind,
@@ -568,6 +588,8 @@ async function publishOwnedSignedCoordinatorCheckpointWithinScope(
         return identity;
       };
       const identity = await refresh();
+      if (journal.claimedChild !== undefined && expected !== journal.claimedChild)
+        throw new Error("selected checkpoint differs from owned adoption claim");
       if (expected === journal.checkpoint) {
         if (native)
           throw new Error("prepared native phase requires its new exact child checkpoint");
@@ -577,7 +599,7 @@ async function publishOwnedSignedCoordinatorCheckpointWithinScope(
           configuration,
           value.journalDeadline!,
         );
-        await reader.assertCurrentUnclaimedHead();
+        await reader.assertCurrentHead();
         return { checkpoint: expected, changed: false, authority: "none" as const };
       }
       const checkpoint = await withCoordinatorDeadline(value.journalDeadline!, () =>
@@ -620,6 +642,7 @@ async function publishOwnedSignedCoordinatorCheckpointWithinScope(
         value.journalDeadline!,
         {
           api,
+          ...(journal.claimedChild === undefined ? {} : { resumeClaim: true }),
           ...(native ? { nativeCustody: native.custody } : {}),
           async refresh() {
             await refresh();
@@ -627,6 +650,7 @@ async function publishOwnedSignedCoordinatorCheckpointWithinScope(
         },
       );
       journal.checkpoint = result.checkpoint;
+      delete journal.claimedChild;
       if (native) delete value.nativeCheckpoint;
       return result;
     });

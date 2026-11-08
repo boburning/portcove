@@ -23,6 +23,8 @@ import {
   authenticateCoordinatorCheckpointEvidence,
   requireAuthenticatedCheckpointEvidence,
   authenticateFixedJobCoordinatorHistory,
+  matchesRetainedCatalogBootstrapHandoff,
+  retainedCatalogBootstrapClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
@@ -871,7 +873,7 @@ for (const fault of [
         f.configuration,
         deadline,
       );
-      await reader.assertCurrentUnclaimedHead();
+      await reader.assertCurrentHead();
       const run = () =>
         authenticateFixedJobCoordinatorHistory(
           directory,
@@ -895,10 +897,56 @@ for (const fault of [
           f.evidence,
         );
         assert.equal(verifies, 1);
-        await reader.assertCurrentUnclaimedHead();
+        await reader.assertCurrentHead();
         assert.equal(reads + snapshots, 9);
       }
       if (["source", "setup", "role", "changed-proof"].includes(fault)) assert.equal(verifies, 0);
     });
   });
 }
+
+void test("the exact same-revision r47 adoption can hand off to only the r46 application source", () => {
+  const retained = retainedCatalogBootstrapClaim;
+  const checkpoint = { checkpoint: retained.child, previous: retained.previous };
+  const source = { revision: "a".repeat(40), execution_ref: retained.application_ref };
+  const producer = { controller_revision: source.revision, controller_ref: retained.successor_ref };
+  assert.equal(matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source), true);
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(
+      { ...checkpoint, checkpoint: "b".repeat(40) },
+      producer,
+      source,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(
+      { ...checkpoint, previous: "b".repeat(40) },
+      producer,
+      source,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(
+      checkpoint,
+      { ...producer, controller_ref: retained.original_ref },
+      source,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, {
+      ...source,
+      revision: "b".repeat(40),
+    }),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, {
+      ...source,
+      execution_ref: "refs/tags/another",
+    }),
+    false,
+  );
+});
