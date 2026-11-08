@@ -3,10 +3,10 @@
   "listing": {
     "id": "monster-hunter-portable-3rd-hd-yakumo",
     "name": "Monster Hunter Portable 3rd HD Ver. Yakumo",
-    "summary": "Register a completed native Yakumo Windows player for your own supported Monster Hunter Portable 3rd HD original. Keep preparation, restart, replacement and player data upstream-owned.",
+    "summary": "Play your Monster Hunter Portable 3rd HD disc image with Yakumo. Use Yakumo to prepare the game and keep its saves.",
     "project_url": "https://github.com/TeamGDB/Yakumo",
     "issue_number": 1120,
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/TeamGDB/Yakumo",
     "artwork": {
@@ -19,22 +19,36 @@
     },
     "release_url": "https://github.com/TeamGDB/Yakumo/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["yakumo-", "windows-x86_64-portable.zip"]
+      "windows-x86-64": ["yakumo-", "windows-x86_64-portable.zip"],
+      "linux-x86-64": ["yakumo-", "-linux-x86_64.tar.gz"],
+      "macos-aarch64": ["yakumo-", "-macos-arm64.dmg"]
     },
     "manual_setup": {
       "help_url": "https://github.com/TeamGDB/Yakumo",
       "steps": [
         {
           "title": "Complete the exact owned-input preparation upstream",
-          "instruction": "Use your own Monster Hunter Portable 3rd HD Ver. NPJB-40001 original. The PS3 HD release contains the PSP UMD image that this player uses; do not substitute the ordinary PSP release or feed it a whole PS3-format disc image. Complete normal upstream setup before attachment. The selected source checks the disc ID and encrypted EBOOT.BIN SHA-256 79e25f3512d56e0f7bf5c48351d7d0d255269675ffc8811ac5599322bb66945e, then checks the prepared EBOOT.ELF SHA-256 55c0598436c0753b04331f8e95d406f832d9217806e3a896fed0e88b33637d8c. This does not authenticate every disc byte. Portcove obtains no original, key or preparation tool and does not run installation or generation."
+          "instruction": "Use the PSP UMD image from your own Monster Hunter Portable 3rd HD Ver. PS3 release (NPJB-40001). Choose the uncompressed ISO in Yakumo and let it prepare the game. The ordinary PSP edition, a whole PS3 disc image and compressed CSO files are different inputs."
         },
         {
-          "title": "Add the native game player",
+          "title": "Add a prepared Windows installation to Portcove",
           "instruction": "Select Yakumo.exe in its complete creating Windows folder, keeping its matching overlay libraries, FFmpeg DLLs, fonts and resources. Use that folder as working directory and no extra arguments for a normal already-prepared copy. Retain supported literal --data-dir or existing game-directory arguments only if that working copy already uses them; do not silently change the creating data or save roots."
         },
         {
           "title": "Review launch details, then choose Play",
-          "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
+          "instruction": "Review the selected program, start folder and launch options, then add the game and choose Play. Use Yakumo for setup, restart and save management. Before replacing the game, close it and keep its working files and data. Removing the Portcove registration leaves those files in place."
+        },
+        {
+          "title": "Set up Yakumo on Linux or Steam Deck",
+          "instruction": "Open the x64 Flatpak through your desktop or Steam. It uses the Freedesktop Platform 25.08 runtime. If you unpack the x64 tarball, start it with ./yakumo from the unpacked folder so the launcher sets the stack size. The tarball needs glibc 2.29 or later, a Vulkan driver and the Vulkan loader. Use Yakumo for setup and play."
+        },
+        {
+          "title": "Set up Yakumo on an Apple Silicon Mac",
+          "instruction": "Open the ARM64 disk image on macOS 13 or later and copy Yakumo.app to Applications. Keep the whole app. Open it directly and select your disc image in Yakumo. The publisher uses ad hoc signing. Follow its macOS guide for the first-open prompt."
+        },
+        {
+          "title": "Set up Yakumo on Android",
+          "instruction": "Install the ARM64 APK on Android 10 or later with Vulkan 1.1. Open Yakumo and choose your ISO in the Android file picker. The app copies it into its own storage, so allow about 1.3 GB for the image in addition to the app. Use Yakumo to back up your saves before replacing or removing the app."
         }
       ],
       "warnings": [
@@ -51,6 +65,14 @@
         {
           "title": "Keep upstream restart and replacement separate",
           "instruction": "The native process runs the game in-process. Upstream Set Up Game Data Again and Restart Now after save import can end it and start a successor. Perform those actions outside the attached session; Core does not automatically adopt the successor or offer upstream save import/export, texture installation, backup or network configuration. Retain the old working runtime and all data before replacement."
+        },
+        {
+          "title": "Check the original-file identity",
+          "instruction": "Yakumo checks NPJB-40001 and encrypted EBOOT.BIN SHA-256 79e25f3512d56e0f7bf5c48351d7d0d255269675ffc8811ac5599322bb66945e, then verifies prepared EBOOT.ELF SHA-256 55c0598436c0753b04331f8e95d406f832d9217806e3a896fed0e88b33637d8c. The check covers those files and the disc ID."
+        },
+        {
+          "title": "Find and back up the data you actually use",
+          "instruction": "The Flatpak keeps data in ~/.var/app/io.github.teamgdb.Yakumo/data/Yakumo/MHP3rd and can export saves to Downloads. The Linux tarball uses $XDG_DATA_HOME/Yakumo/MHP3rd or ~/.local/share/Yakumo/MHP3rd by default. The Mac app uses ~/Library/Application Support/Yakumo/MHP3rd. Keep your actual profile and any ISO used in place before replacing the app."
         }
       ]
     }
