@@ -2235,8 +2235,38 @@
       },
       "issue_number": 742,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Windows x64 separate upstream copy",
+            "instruction": "If you already have a permitted Open Nectar 1.1.1 Windows x64 copy, run its nectar-launcher.exe from a separate folder outside the Portcove library. Choose Install under Pikmin, provide your own supported USA Rev. 1 or Europe disc and choose a separate writable destination. Keep verification enabled. Preserve the installation and its active config folder or LOCALAPPDATA/Open Nectar."
+          },
+          {
+            "title": "Linux x64 upstream launcher",
+            "instruction": "For an already permitted 1.1.1 Linux x64 copy, use its nectar-launcher or the x64 AppImage. The bundled README lists glibc 2.29, OpenGL 3.3 and zenity or kdialog for graphical file selection."
+          },
+          {
+            "title": "Prepare your original on Linux",
+            "instruction": "Choose Install under Pikmin, provide your own Pikmin USA Rev. 1 or Europe ISO or GCM, and select a separate writable installation directory. Upstream can use Dolphin Tool for RVZ, WIA and GCZ. Keep disc verification enabled."
+          },
+          {
+            "title": "Android ARM64 upstream launcher",
+            "instruction": "For an already permitted 1.1.1 Android ARM64 copy on Android 11 or later, allow All files access for its chosen data folder. Use Install under Pikmin with your own matching ISO or GCM. The default folder is OpenNectar in shared storage. Pikmin 2 uses its own disc and setup."
+          },
+          {
+            "title": "Keep the creating installation and data",
+            "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and bundled components you are already permitted to use. The upstream CC0 notice excludes Nintendo and other third-party material, and the package includes a separate Pikmin 2 runtime. An attributable grant for that bundled game code or a separately qualified package is needed before fresh acquisition can be offered.",
+          "Keep the player-managed folder outside Portcove's managed installation. Preserve the creating installation and profile. The existing managed Windows acquisition hold remains in place."
+        ],
+        "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/dc92d469517aaf899c4a6be849936e274a9c7303/README.md"
+      },
       "availability": "unknown"
     },
     {
@@ -3642,6 +3672,23 @@
         "game_slug": "resident-evil-gaiden",
         "match_kind": "underlying-game"
       },
+      "release_url": "https://github.com/sergiomanzur/regaiden-recomp/releases/tag/v0.4.2",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Android ARM64 package",
+            "instruction": "On ARM64 Android 7 or later, open the official ReGaiden v0.4.2 release and use its standalone Android APK. Open ROM Setup, choose Locate ROM (.gbc), and select your own exact Resident Evil Gaiden (USA) original. The app verifies and copies it to private storage."
+          },
+          {
+            "title": "Keep the installed Android profile",
+            "instruction": "Keep the original separately. Use the upstream APK over the existing copy only if Android accepts its signature. If installation is refused, preserve the old app and data. The app's saves, states and settings are private. The visible snapshots and asset_dump folders are separate exports."
+          }
+        ],
+        "warnings": [
+          "Android installation and data belong to the player. Export what your device can back up before replacing the APK. Removing the app can erase its private files."
+        ],
+        "help_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/v0.4.2/README.md"
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -3719,6 +3766,14 @@
           {
             "title": "Prepare the cached original manually",
             "instruction": "Copy your checked original unchanged into that shared directory as baserom.nes. Refresh readiness before Play. Core never creates or seeds this shared directory."
+          },
+          {
+            "title": "Linux x64 upstream setup",
+            "instruction": "On x64 Linux with glibc 2.28 or later, extract Linux.zip from the official 1.1-stable release into a separate folder. Keep SMB1R.x86_64, SMB1R.pck and all three companion libraries together. Allow SMB1R.x86_64 to run, then use its file picker with your own uncompressed Super Mario Bros. (World) NES original."
+          },
+          {
+            "title": "Back up the Linux profile",
+            "instruction": "Close the game and preserve the SMB1R profile under XDG_DATA_HOME (normally ~/.local/share). If you already use the upstream portable.txt option, preserve the executable-local config folder as well. Keep the original, generated BaseAssets, settings and saves together. Setup and replacement on Linux are player-managed."
           }
         ],
         "warnings": [
@@ -3736,8 +3791,15 @@
         "match_kind": "port"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
+      "release_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/releases/tag/1.1-stable",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "Linux.zip"
+        ]
+      },
       "availability": "unknown"
     },
     {

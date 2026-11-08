@@ -774,6 +774,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const windowsObservedRecoveryBudgets = [
     {
       filter:
+        "package(portcove-core) & (test(/^service::native_portable::tests::native_engine_adoption_2565$/) | test(/^install::tests::regaiden_retained_graphics_exports_survive_backup_and_rollback$/))",
+      periods: 24,
+      beforeFilter: "package(portcove-core) & test(/^service::native_portable::tests::/)",
+    },
+    {
+      filter:
         "package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_toy_story_2_buzz_lightyear_to_the_rescue_n64_spaceranger$/)",
       periods: 24,
       beforeFilter: "package(portcove-core) & test(/^service::native_portable::tests::/)",

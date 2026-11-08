@@ -109,6 +109,7 @@ struct PersistenceContract {
     port: PortDefinition,
     writes_directly: bool,
     archive_sha256: Option<String>,
+    regaiden_graphics_exports: bool,
 }
 
 #[cfg(test)]
@@ -4433,6 +4434,15 @@ impl PortcoveService {
                     .filter(|install| install.port_id == port_id)
                     .collect(),
             );
+            for install in lifecycle.removal_installs.iter().flatten() {
+                if install.port_id == "resident-evil-gaiden-recomp"
+                    && install.path.try_exists()?
+                    && Installer::owns_regaiden_graphics_exports(install)?
+                {
+                    let root = self.managed_install_root(port_id, &install.path)?;
+                    copy_regaiden_graphics_exports(&root, &self.library.user_dir(port_id))?;
+                }
+            }
             let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
             removal.require_retained_outputs(self, &lifecycle)?;
             store.put(&mut lifecycle)?;
@@ -5976,10 +5986,17 @@ impl PortcoveService {
             psx_mod_data::require_admitted_receipt(install)?;
             port = admitted;
         }
+        let regaiden_graphics_exports = Installer::owns_regaiden_graphics_exports(install)?;
+        if regaiden_graphics_exports {
+            crate::managed_shared_preferences::require_graphics_export_directory(
+                &self.library.user_dir(&port.id),
+            )?;
+        }
         Ok(PersistenceContract {
             port,
             writes_directly,
             archive_sha256: Some(install.artifact.sha256.clone()),
+            regaiden_graphics_exports,
         })
     }
 
@@ -6014,6 +6031,7 @@ impl PortcoveService {
             port: fallback.clone(),
             writes_directly: writes_directly_to_user_root(fallback),
             archive_sha256: None,
+            regaiden_graphics_exports: false,
         })
     }
 
@@ -6231,6 +6249,11 @@ impl PortcoveService {
             None
         };
         let mut copied = Vec::new();
+        if contract.regaiden_graphics_exports
+            && let Some(path) = copy_regaiden_graphics_exports(&persistent_root, &user_root)?
+        {
+            copied.push(path);
+        }
         let entries = crate::archive_data::entries(
             port,
             contract.archive_sha256.as_deref(),
@@ -6310,6 +6333,9 @@ impl PortcoveService {
             crate::runtime_data_policy::refuse_sensitive_tree(&user_root)?;
         }
         if !contract.writes_directly {
+            if contract.regaiden_graphics_exports {
+                copy_regaiden_graphics_exports(&user_root, &persistent_root)?;
+            }
             let mut mods = if psx_mod_data::owns_mods(port)
                 && (user_root.join("mods").try_exists()? || previously_launched)
             {
@@ -6365,6 +6391,78 @@ impl PortcoveService {
         let executable = crate::install::resolve_declared_executable(install_root, &qualification)?;
         Ok(qualification.persistence_root(install_root, &executable))
     }
+}
+
+fn copy_regaiden_graphics_exports(source: &Path, destination: &Path) -> Result<Option<PathBuf>> {
+    use crate::managed_shared_preferences as preferences;
+
+    preferences::require_graphics_export_directory(source)?;
+    preferences::require_graphics_export_directory(destination)?;
+    let source = source.join(preferences::GRAPHICS_EXPORTS);
+    if !source.try_exists()? {
+        return Ok(None);
+    }
+    let plan = crate::library_transfer::reviewed_tree(&source)?;
+    let staging_parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("graphics export destination has no parent"))?;
+    fs::create_dir_all(destination)?;
+    let staging = tempfile::tempdir_in(staging_parent)?;
+    let destination = destination.join(preferences::GRAPHICS_EXPORTS);
+    // Captures are generated independently of Core. A retained copy can have
+    // captures that predate collection, so ordinary sync only adds files.
+    crate::transfer_copy::copy_reviewed_tree(&source, &destination, &plan, staging.path())?;
+    Ok(Some(destination))
+}
+
+fn require_copied_regaiden_graphics_exports(source: &Path, canonical: &Path) -> Result<()> {
+    use crate::managed_shared_preferences as preferences;
+
+    let inventory = |root: &Path| {
+        preferences::require_graphics_export_directory(root)?;
+        crate::library_transfer::reviewed_tree(&root.join(preferences::GRAPHICS_EXPORTS))
+    };
+    let source = inventory(source)?;
+    let canonical = inventory(canonical)?;
+    let directories = canonical
+        .directories
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    let files = canonical
+        .files
+        .iter()
+        .map(|file| (&file.relative_path, file))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    if source
+        .directories
+        .iter()
+        .any(|path| !directories.contains(path))
+        || source
+            .files
+            .iter()
+            .any(|file| files.get(&file.relative_path) != Some(&file))
+    {
+        return Err(PortcoveError::conflict(
+            "ReGaiden graphics exports changed during removal; preserve the runtime, quarantine and player data for review",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[test]
+fn regaiden_removal_holds_new_captures_missing_from_the_canonical_copy() {
+    let temporary = tempfile::tempdir().unwrap();
+    let runtime = temporary.path().join("runtime");
+    let canonical = temporary.path().join("canonical");
+    let capture = runtime.join("asset_dump/capture_0001/framebuffer.png");
+    fs::create_dir_all(capture.parent().unwrap()).unwrap();
+    fs::write(&capture, b"first capture").unwrap();
+    copy_regaiden_graphics_exports(&runtime, &canonical).unwrap();
+    require_copied_regaiden_graphics_exports(&runtime, &canonical).unwrap();
+    fs::write(&capture, b"changed capture").unwrap();
+    assert!(require_copied_regaiden_graphics_exports(&runtime, &canonical).is_err());
+    assert_eq!(fs::read(capture).unwrap(), b"changed capture");
 }
 
 fn port_action_blocker(blocker: LaunchBlocker) -> (PortActionAvailability, PortActionReason) {

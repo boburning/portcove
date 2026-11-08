@@ -875,6 +875,17 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::nativ
 slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
+# CI 42441929032/1 hit the Windows 90.261s cutoff after DUDE removal
+# started at 81.982s. The same run cut the two-version ReGaiden capture,
+# backup, restore and rollback fixture at the default 30.091s. Give only
+# these cases 120s with phase output. Keep all assertions, product and
+# child deadlines, cleanup, workers and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::native_portable::tests::native_engine_adoption_2565$/) | test(/^install::tests::regaiden_retained_graphics_exports_survive_backup_and_rollback$/))'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
 # The portable lifecycle fixtures perform several durable installs, activations
 # and recovery reopens. The retained local Windows run hit 30.042s and 30.085s
 # harness cutoffs while another full case completed at 28.979s. Keep every

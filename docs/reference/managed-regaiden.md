@@ -37,8 +37,24 @@ The game may rewrite the Windows-account roaming file resolved through the OS at
 copies. Portcove does not create, own, move, copy, back up, restore or delete that
 file. If it is unavailable, the game can use installation-local
 `runtime_prefs.ini`. That fallback, `config.ini`, `imgui.ini`, `saves`, `snapshots`
-and the private original copy are managed local data. Backups protect only those
-local files, not the account-wide preferences.
+and the private original copy are managed local data. Backups exclude the
+account-wide preferences.
+
+The official v0.4.2 Windows package adds **Dump Graphics to PNG** under **HD
+Pack & Mods**. Each capture writes a numbered directory under `asset_dump`
+beside `snapshots`. Core checks that the package leaves the export directory
+vacant. It recognizes that exact directory on compatible retained copies and
+collects captures into local player data. Ordinary synchronization adds missing
+files and holds on conflicting files so both copies can be preserved. A reviewed
+backup restore restores the canonical export copy. Captures in installed
+versions are preserved, and normal launch can copy missing files from the
+restored backup into the selected version. Captures may contain original game
+graphics, so keep them with your private player files.
+
+The retained definition and manifest still carry their original six-path
+contract. Older clients can read that contract and need the updated Core to
+collect graphics exports automatically. Retain the creating folder and existing
+exports before removing copies through an older client.
 
 The installation review shows both exact paths. Desktop asks for native explicit
 acceptance. The reviewed CLI requires `--acknowledge-shared-preferences` alongside
