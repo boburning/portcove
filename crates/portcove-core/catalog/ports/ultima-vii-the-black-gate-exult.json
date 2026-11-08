@@ -6,7 +6,7 @@
     "summary": "Set up Ultima VII: The Black Gate through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Ultima VII: The Black Gate",
     "project_url": "https://github.com/exult/exult",
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
     "artwork": {
       "game_id": 6165,
@@ -28,13 +28,26 @@
           "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
         },
         {
+          "title": "Set up the upstream Linux package",
+          "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/blackgate or configure the actual working path. Preserve the sandbox config, blackgate data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/blackgate."
+        },
+        {
+          "title": "Prepare the official Mac app",
+          "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Black Gate installation. The documented default original folder is /Library/Application Support/Exult/blackgate. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/blackgate, and every custom savegame, gamedat and mod location before replacing the app."
+        },
+        {
+          "title": "Import this edition in the Android launcher",
+          "instruction": "Install the official Exult Android APK. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Keep your original archive and an accessible backup of the game and save data before replacing the APK or clearing app data."
+        },
+        {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
         }
       ],
       "warnings": [
         "Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data.",
-        "Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+        "Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement.",
+        "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
       ],
       "help_url": "https://exult.info/docs.html",
       "references": [
@@ -43,7 +56,8 @@
           "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
         }
       ]
-    }
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

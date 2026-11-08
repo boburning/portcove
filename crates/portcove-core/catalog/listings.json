@@ -11318,7 +11318,7 @@
       "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate II (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "issue_number": 2629,
       "manual_setup": {
@@ -11336,13 +11336,22 @@
             "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game."
           },
           {
+            "title": "Choose the upstream Linux build",
+            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+          },
+          {
+            "title": "Choose the upstream Mac build",
+            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
           }
         ],
         "warnings": [
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots.",
-          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://gemrb.org/Install.html",
         "references": [
@@ -11353,7 +11362,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -11362,7 +11374,7 @@
       "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "issue_number": 2628,
       "manual_setup": {
@@ -11380,13 +11392,22 @@
             "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game."
           },
           {
+            "title": "Choose the upstream Linux build",
+            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+          },
+          {
+            "title": "Choose the upstream Mac build",
+            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
           }
         ],
         "warnings": [
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots.",
-          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://gemrb.org/Install.html",
         "references": [
@@ -11397,7 +11418,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -14060,12 +14084,17 @@
             "instruction": "The official Windows EXE is the upstream installer. Run setup deliberately, choose its data destination and complete the campaign/data layout, then register the installed OpenFodder.exe with its installation folder as working directory. Do not select the installer, bundled VC runtime setup or uninstaller as the player. The Campaigns data pack is required even when original retail data is present. Use the upstream campaign menu to select this game."
           },
           {
+            "title": "Prepare the Linux source build",
+            "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder 2 inputs. Use your own Cannon Fodder 2 AmigaDOS files and an appropriate ADF extraction tool. The first game’s DOS data and SOS Unpacker do not supply this sequel. The engine checks XDG_DATA_DIRS/OpenFodder, then ~/.local/share/OpenFodder, then the working directory. Keep the actual data, Campaigns, Saves and configuration roots together."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
           }
         ],
         "warnings": [
-          "Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement."
+          "Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md",
         "references": [
@@ -14106,12 +14135,17 @@
             "instruction": "The official Windows EXE is the upstream installer. Run setup deliberately, choose its data destination and complete the campaign/data layout, then register the installed OpenFodder.exe with its installation folder as working directory. Do not select the installer, bundled VC runtime setup or uninstaller as the player. The Campaigns data pack is required even when original retail data is present. Use the upstream campaign menu to select this game."
           },
           {
+            "title": "Prepare the Linux source build",
+            "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder inputs. For the DOS CD release put your own CF_ENG.DAT in Data/Dos_CD. Upstream also documents different Amiga and CD32 inputs. The engine checks XDG_DATA_DIRS/OpenFodder, then ~/.local/share/OpenFodder, then the working directory. Keep the actual data, Campaigns, Saves and configuration roots together."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
           }
         ],
         "warnings": [
-          "Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement."
+          "Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md",
         "references": [
@@ -15373,13 +15407,18 @@
             "instruction": "Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 4. Copy the contents of data/keen4 beside omnispeak.exe, along with your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 4, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately."
           },
           {
+            "title": "Use the official Linux v1.1 launcher",
+            "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 4 v1.4 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 and the matching episode support files into that working folder. Use /EPISODE 4 and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH."
+          },
+          {
             "title": "Keep upstream update ownership",
             "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
           }
         ],
         "warnings": [
           "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions.",
-          "Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
+          "Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
         "references": [
@@ -15396,7 +15435,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -15421,13 +15461,18 @@
             "instruction": "Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 5. Copy the contents of data/keen5 beside omnispeak.exe, along with your matching GAMEMAPS.CK5, EGAGRAPH.CK5 and AUDIO.CK5; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 5, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately."
           },
           {
+            "title": "Use the official Linux v1.1 launcher",
+            "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 5 v1.4 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK5, EGAGRAPH.CK5 and AUDIO.CK5 and the matching episode support files into that working folder. Use /EPISODE 5 and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH. The archive’s bundled Keen 4 shareware data does not supply this episode."
+          },
+          {
             "title": "Keep upstream update ownership",
             "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
           }
         ],
         "warnings": [
           "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions.",
-          "Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
+          "Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
         "references": [
@@ -15444,7 +15489,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -15477,6 +15523,10 @@
             "instruction": "Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 6. Copy the contents of data/keen6e14 for v1.4 EGA or data/keen6e15 for v1.5 EGA beside omnispeak.exe, along with your matching GAMEMAPS.CK6, EGAGRAPH.CK6 and AUDIO.CK6; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 6v14 for v1.4 EGA or 6v15 for v1.5 EGA, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately."
           },
           {
+            "title": "Use the official Linux v1.1 launcher",
+            "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 6 v1.4 or v1.5 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK6, EGAGRAPH.CK6 and AUDIO.CK6 and the matching episode support files into that working folder. Use /EPISODE 6v14 or /EPISODE 6v15, as appropriate and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH. The archive’s bundled Keen 4 shareware data does not supply this episode."
+          },
+          {
             "title": "Keep upstream update ownership",
             "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
           }
@@ -15484,7 +15534,8 @@
         "warnings": [
           "No supported new retail acquisition of Keen 6 is established. This route requires your already owned supported EGA edition; other editions may fail.",
           "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions.",
-          "Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
+          "Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
         "references": [
@@ -15501,7 +15552,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -27310,7 +27362,7 @@
       "summary": "Set up Icewind Dale II through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale II",
       "project_url": "https://github.com/gemrb/gemrb",
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
         "game_id": 876,
@@ -27336,13 +27388,22 @@
             "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game."
           },
           {
+            "title": "Choose the upstream Linux build",
+            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+          },
+          {
+            "title": "Choose the upstream Mac build",
+            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
           }
         ],
         "warnings": [
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots.",
-          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://gemrb.org/Install.html",
         "references": [
@@ -27353,7 +27414,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -27362,7 +27426,7 @@
       "summary": "Set up Icewind Dale (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
         "game_id": 753,
@@ -27388,13 +27452,22 @@
             "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game."
           },
           {
+            "title": "Choose the upstream Linux build",
+            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+          },
+          {
+            "title": "Choose the upstream Mac build",
+            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
           }
         ],
         "warnings": [
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots.",
-          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://gemrb.org/Install.html",
         "references": [
@@ -27405,7 +27478,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -39549,7 +39625,7 @@
       "summary": "Set up Planescape: Torment (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Planescape: Torment (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
         "game_id": 832,
@@ -39575,13 +39651,22 @@
             "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game."
           },
           {
+            "title": "Choose the upstream Linux build",
+            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+          },
+          {
+            "title": "Choose the upstream Mac build",
+            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
           }
         ],
         "warnings": [
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots.",
-          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://gemrb.org/Install.html",
         "references": [
@@ -39592,7 +39677,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -40729,13 +40817,22 @@
             "instruction": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed."
           },
           {
+            "title": "Prepare a separate upstream Linux build",
+            "instruction": "Use the tagged source and its submodules, with the documented Qt and SDL2 dependencies. Place the built eZeus player under your complete working eZeus/Bin folder and launch from that folder. Use the matching base preparation and text conversion from upstream. Keep both original games and the actual settings, Save and resource directories backed up before changing the engine."
+          },
+          {
+            "title": "Choose the matching upstream-linked Mac package",
+            "instruction": "Upstream links separate Intel and Apple Silicon 0.8.1-Beta.8 packages from MacThings, which documents macOS 14 or later. Use the matching 0.8.1 base preparation on a separate working copy. Copy the eZeus player and its bundled libs together into the prepared eZeus/Bin folder. Place Zeus_MM.xml and Zeus_Text.xml in the eZeus root above Bin, as described by upstream. Keep the complete original Zeus and Poseidon files, settings and Save directory together. This build has its own resources and profile. Keep the later Windows patch separate."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
           }
         ],
         "warnings": [
           "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified.",
-          "Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
+          "Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
         "references": [
@@ -40746,7 +40843,9 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -54271,7 +54370,7 @@
       "summary": "Set up Ultima VII Part Two: Serpent Isle through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII Part Two: Serpent Isle",
       "project_url": "https://github.com/exult/exult",
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
       "issue_number": 2622,
       "manual_setup": {
@@ -54285,13 +54384,26 @@
             "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
           },
           {
+            "title": "Set up the upstream Linux package",
+            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/serpentisle or configure the actual working path. Preserve the sandbox config, serpentisle data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/serpentisle."
+          },
+          {
+            "title": "Prepare the official Mac app",
+            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Serpent Isle installation. The documented default original folder is /Library/Application Support/Exult/serpentisle. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/serpentisle, and every custom savegame, gamedat and mod location before replacing the app."
+          },
+          {
+            "title": "Import this edition in the Android launcher",
+            "instruction": "Install the official Exult Android APK. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Keep your original archive and an accessible backup of the game and save data before replacing the APK or clearing app data."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
           }
         ],
         "warnings": [
           "Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data.",
-          "Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+          "Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://exult.info/docs.html",
         "references": [
@@ -54302,7 +54414,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -54311,7 +54426,7 @@
       "summary": "Set up Ultima VII: The Black Gate through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII: The Black Gate",
       "project_url": "https://github.com/exult/exult",
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
       "artwork": {
         "game_id": 6165,
@@ -54333,13 +54448,26 @@
             "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
           },
           {
+            "title": "Set up the upstream Linux package",
+            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/blackgate or configure the actual working path. Preserve the sandbox config, blackgate data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/blackgate."
+          },
+          {
+            "title": "Prepare the official Mac app",
+            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Black Gate installation. The documented default original folder is /Library/Application Support/Exult/blackgate. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/blackgate, and every custom savegame, gamedat and mod location before replacing the app."
+          },
+          {
+            "title": "Import this edition in the Android launcher",
+            "instruction": "Install the official Exult Android APK. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Keep your original archive and an accessible backup of the game and save data before replacing the APK or clearing app data."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
           }
         ],
         "warnings": [
           "Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data.",
-          "Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+          "Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://exult.info/docs.html",
         "references": [
@@ -54350,7 +54478,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -59236,13 +59367,22 @@
             "instruction": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed."
           },
           {
+            "title": "Prepare a separate upstream Linux build",
+            "instruction": "Use the tagged source and its submodules, with the documented Qt and SDL2 dependencies. Place the built eZeus player under your complete working eZeus/Bin folder and launch from that folder. Use the matching base preparation and text conversion from upstream. Keep both original games and the actual settings, Save and resource directories backed up before changing the engine."
+          },
+          {
+            "title": "Choose the matching upstream-linked Mac package",
+            "instruction": "Upstream links separate Intel and Apple Silicon 0.8.1-Beta.8 packages from MacThings, which documents macOS 14 or later. Use the matching 0.8.1 base preparation on a separate working copy. Copy the eZeus player and its bundled libs together into the prepared eZeus/Bin folder. Place Zeus_MM.xml and Zeus_Text.xml in the eZeus root above Bin, as described by upstream. Keep the complete original Zeus and Poseidon files, settings and Save directory together. This build has its own resources and profile. Keep the later Windows patch separate."
+          },
+          {
             "title": "Add the game and manage your files",
             "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
           }
         ],
         "warnings": [
           "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified.",
-          "Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
+          "Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred.",
+          "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
         ],
         "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
         "references": [
@@ -59253,7 +59393,9 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {

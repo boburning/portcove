@@ -6,7 +6,7 @@
     "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Baldur's Gate (original)",
     "project_url": "https://github.com/gemrb/gemrb",
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
     "issue_number": 2628,
     "manual_setup": {
@@ -24,13 +24,22 @@
           "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game."
         },
         {
+          "title": "Choose the upstream Linux build",
+          "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+        },
+        {
+          "title": "Choose the upstream Mac build",
+          "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+        },
+        {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
         }
       ],
       "warnings": [
         "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots.",
-        "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+        "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions.",
+        "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
       ],
       "help_url": "https://gemrb.org/Install.html",
       "references": [
@@ -39,7 +48,8 @@
           "instruction": "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
         }
       ]
-    }
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,
