@@ -1568,12 +1568,17 @@ async function runSettledLinuxSemanticInvocation(
       .filter(([name]) => name.startsWith("inputs/"))
       .map(([name, digest]) => [name.slice("inputs/".length), digest]),
   );
-  const timeout = configuration.application_partition
-    ? Math.min(
-        1200,
-        Math.floor((configuration.application_partition.deadline - performance.now()) / 1000),
-      )
-    : 1200;
+  const executionDeadline = configuration.application_partition?.deadline;
+  // Retain enough time for the native supervisor to settle even if admission
+  // consumes the entire remaining queue allowance.
+  const settlementMilliseconds = 60_000;
+  const timeout =
+    executionDeadline === undefined
+      ? 1200
+      : Math.min(
+          1200,
+          Math.floor((executionDeadline - performance.now() - 2 * settlementMilliseconds) / 1000),
+        );
   if (!Number.isSafeInteger(timeout) || timeout < 1)
     throw new Error("semantic partition opportunity window exhausted before native launch");
   await put(
@@ -1600,7 +1605,16 @@ async function runSettledLinuxSemanticInvocation(
     "analysis",
     tools.python,
     ["-I", "-S", "-B", supervisor, "--request", path.join(root, "capture/linux-request.json")],
-    { environment: semanticSupervisorEnvironment() },
+    {
+      environment: semanticSupervisorEnvironment(),
+      ...(executionDeadline === undefined
+        ? {}
+        : {
+            queueDeadline: executionDeadline - timeout * 1000 - settlementMilliseconds,
+            executionDeadline,
+            executionTimeoutMilliseconds: timeout * 1000 + settlementMilliseconds,
+          }),
+    },
   );
   const isolation: unknown = JSON.parse(
     await readFile(path.join(root, "capture/isolation.json"), "utf8"),

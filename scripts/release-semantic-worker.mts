@@ -785,10 +785,12 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     );
     await record.sync();
   };
-  const guard = async () => {
+  const requirePartitionWindow = () => {
     if (partitionDeadline !== undefined && performance.now() >= partitionDeadline)
       throw new Error("semantic partition opportunity window exhausted");
-
+  };
+  const guard = async () => {
+    requirePartitionWindow();
     requireFixedCheckout();
     const currentConfiguration = await readConfiguration();
     if (capacityDigest(currentConfiguration) !== capacityDigest(config))
@@ -800,6 +802,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       throw new Error(
         "frozen coordinator request changed during semantic attempt; retain capture without POST",
       );
+    requirePartitionWindow();
   };
   try {
     await retain("started-no-runtime-no-post", request);
