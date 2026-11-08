@@ -3,12 +3,11 @@
   "listing": {
     "id": "pilotwings-64-dgv-recomp",
     "name": "Pilotwings 64: Recompiled (Daniel Gomes Vieira)",
-    "summary": "Explore Pilotwings 64: Recompiled (Daniel Gomes Vieira) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Player-managed Pilotwings 64 setup on Windows and Linux using an original USA cartridge image.",
     "project_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp",
     "issue_number": 1275,
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp",
     "artwork": {
       "game_id": 3573,
       "cover_id": 257550,
@@ -16,6 +15,28 @@
       "image_sha256": "14f29e308d8b2d3c5541b1b098a0d19cf7a3e74fe871f7d0ef511437eb83f756",
       "game_slug": "pilotwings-64",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your original",
+          "instruction": "For an already permitted copy, keep the selected x64 package’s files together. Use your own 8 MiB Pilotwings 64 USA Rev 0 big-endian .z64 file in the upstream launcher. The direct input validator expects big-endian byte order."
+        },
+        {
+          "title": "Start the matching upstream player",
+          "instruction": "On Windows open Pilotwings64Recomp.exe. On Linux use Pilotwings64Recomp.sh from the extracted folder with system SDL2, GTK 3, FreeType and a working Vulkan driver. The inspected Linux executable requires glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
+        },
+        {
+          "title": "Preserve the actual profile",
+          "instruction": "Keep the selected profile and creating runtime. The default profile is LOCALAPPDATA/Pilotwings64Recomp on Windows and XDG_DATA_HOME/Pilotwings64Recomp on Linux, usually ~/.local/share/Pilotwings64Recomp. A portable.txt beside the executable keeps the profile alongside it."
+        }
+      ],
+      "warnings": [
+        "The official frontend has since published a GPLv3 grant for the same code. The selected packages still have separate translated title code and the component conditions in their notices. Use an independently permitted copy.",
+        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+      ],
+      "help_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
+    },
+    "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route."
   }
 }

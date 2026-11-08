@@ -1,0 +1,36 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-chocobo-dungeon-recomp",
+    "name": "Final Fantasy Fables: Chocobo’s Dungeon (darkuni Recomp)",
+    "summary": "Player-managed Wii disc preparation on Windows and a windowed upstream source build on Linux.",
+    "project_url": "https://github.com/darkuni/chocobo-dungeon-recomp",
+    "original_game_title": "Final Fantasy Fables: Chocobo’s Dungeon",
+    "issue_number": 4131,
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the Windows player",
+          "instruction": "For an already permitted Windows x64 copy, keep its DLLs beside chocobo.exe. Place your own NTSC-U R7FEGD ISO or CISO in that folder, or supply the matching extracted sys and files under extracted. Start chocobo.exe and allow the upstream extraction to finish."
+        },
+        {
+          "title": "Build the windowed Linux player from your original",
+          "instruction": "Follow the tagged upstream build instructions in a source tree you are permitted to use. Obtain sys/main.dol from your own matching extracted disc and run the documented Python recompilation into a clean gen directory. Build the windowed USE_SDL=ON target with CMake, Ninja, a C++17 compiler, SDL2 and OpenGL development libraries."
+        },
+        {
+          "title": "Keep each profile with its actual root",
+          "instruction": "Use the upstream player with the matching extracted sys and files. With the standard layout preserve extracted, nand and chocobo.ini beside the creating runtime. The Windows player also accepts an explicit extracted-folder path, where save placement can follow that external root. Preserve the actual data locations before switching layouts."
+        }
+      ],
+      "warnings": [
+        "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
+        "The Linux instructions cover the windowed source route. The upstream headless EGL test build is a separate target."
+      ],
+      "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
+    },
+    "download_block_reason": "Fresh Portcove downloads are held because the selected Final Fantasy Fables: Chocobo’s Dungeon executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+  }
+}

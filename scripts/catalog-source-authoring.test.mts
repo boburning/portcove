@@ -300,6 +300,26 @@ void test("download restrictions project through the versioned directory without
     () => checkedAuthoredPort({ ...record, integration: { adapter: "native-portable" } }),
     /download restriction cannot coexist with a managed integration/,
   );
+  const prepared = source.records.find(
+    (candidate) => candidate.listing.id === "wave-race-64-recomp",
+  );
+  assert.ok(prepared);
+  const preparedWithHold = checkedAuthoredPort({
+    ...prepared,
+    listing: { ...prepared.listing, download_block_reason: record.listing.download_block_reason },
+  });
+  const preparedWithoutHold = structuredClone(preparedWithHold);
+  delete preparedWithoutHold.listing.download_block_reason;
+  const heldPrepared = assembleCatalogRecords(shared, [preparedWithHold]);
+  const unheldPrepared = assembleCatalogRecords(shared, [preparedWithoutHold]);
+  assert.equal(
+    heldPrepared.directory.listings[0]?.download_block_reason,
+    record.listing.download_block_reason,
+  );
+  assert.deepEqual(heldPrepared.catalog.ports, unheldPrepared.catalog.ports);
+  assert.partialDeepStrictEqual(heldPrepared.catalog.ports[0], {
+    release: { provider: "user-prepared" },
+  });
   const legacy = structuredClone(record);
   delete legacy.listing.download_block_reason;
   assert.equal(assembleCatalogRecords(shared, [legacy]).directory.format_version, 1);

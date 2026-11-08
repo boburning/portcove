@@ -2279,7 +2279,7 @@
         "steps": [
           {
             "title": "Extract the port",
-            "instruction": "Extract the complete official v1.0.2 Windows ZIP into a writable folder outside your Portcove library."
+            "instruction": "Use an already permitted copy of the complete official v1.0.2 Windows ZIP. Extract it into a writable folder outside your Portcove library."
           },
           {
             "title": "Keep saves beside the game",
@@ -2292,6 +2292,20 @@
         ],
         "warnings": [
           "Keep portable.txt when updating this folder so the game continues to use its local saves and settings."
+        ],
+        "references": [
+          {
+            "title": "Prepare a separate upstream Linux copy",
+            "instruction": "For an already permitted Linux x64 package, keep the files together in a writable folder. Install the system SDL2, GTK 3, FreeType and Vulkan dependencies named in its README. Run WaveRace64Recomp.sh and select your own Wave Race 64 USA Rev A original. The inspected Linux executable requires glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
+          },
+          {
+            "title": "Preserve the Linux profile",
+            "instruction": "Keep the creating runtime, original and actual profile. Linux uses XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. A portable.txt beside the player instead keeps data there. This Linux setup stays under upstream and player ownership."
+          },
+          {
+            "title": "Keep upstream permission and registration separate",
+            "instruction": "The official frontend has since published a GPLv3 grant for the same code. The selected releases still have separate translated title code and component conditions. Use an independently permitted copy. Portcove’s Windows review accepts the existing player-owned folder."
+          }
         ]
       },
       "artwork": {
@@ -2304,8 +2318,10 @@
       },
       "issue_number": 553,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
+      "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route.",
       "availability": "unknown"
     },
     {
@@ -17278,6 +17294,305 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2949
+    },
+    {
+      "id": "darkuni-afterburner-climax-recomp",
+      "name": "After Burner Climax (darkuni Recomp)",
+      "summary": "Player-managed Windows setup for After Burner Climax using its own Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/afterburner-climax-recomp",
+      "original_game_title": "After Burner Climax",
+      "issue_number": 4134,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original in the upstream folder",
+            "instruction": "With an already permitted Windows x64 copy, keep its files together in a writable folder. Put your own Xbox 360 LIVE package for title 58410A06 beside after_burner_climax.exe. Keep both bundled executables and the matching original variant together."
+          },
+          {
+            "title": "Use the documented Windows prerequisites",
+            "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+          },
+          {
+            "title": "Complete first-run setup",
+            "instruction": "Start after_burner_climax.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+          },
+          {
+            "title": "Let the upstream entry point select the variant",
+            "instruction": "The tagged source describes separate World 0.0.1.2 and Original 1.0.0.0 default.xex variants. Start after_burner_climax.exe with either supported original. It can hand off to after_burner_climax_world.exe for the World variant. Close the actual game before changing the folder."
+          },
+          {
+            "title": "Preserve the creating folder",
+            "instruction": "Keep the generated assets, after_burner_climax.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        ],
+        "help_url": "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held because the selected After Burner Climax executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    },
+    {
+      "id": "darkuni-chocobo-dungeon-recomp",
+      "name": "Final Fantasy Fables: Chocobo’s Dungeon (darkuni Recomp)",
+      "summary": "Player-managed Wii disc preparation on Windows and a windowed upstream source build on Linux.",
+      "project_url": "https://github.com/darkuni/chocobo-dungeon-recomp",
+      "original_game_title": "Final Fantasy Fables: Chocobo’s Dungeon",
+      "issue_number": 4131,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "unknown",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the Windows player",
+            "instruction": "For an already permitted Windows x64 copy, keep its DLLs beside chocobo.exe. Place your own NTSC-U R7FEGD ISO or CISO in that folder, or supply the matching extracted sys and files under extracted. Start chocobo.exe and allow the upstream extraction to finish."
+          },
+          {
+            "title": "Build the windowed Linux player from your original",
+            "instruction": "Follow the tagged upstream build instructions in a source tree you are permitted to use. Obtain sys/main.dol from your own matching extracted disc and run the documented Python recompilation into a clean gen directory. Build the windowed USE_SDL=ON target with CMake, Ninja, a C++17 compiler, SDL2 and OpenGL development libraries."
+          },
+          {
+            "title": "Keep each profile with its actual root",
+            "instruction": "Use the upstream player with the matching extracted sys and files. With the standard layout preserve extracted, nand and chocobo.ini beside the creating runtime. The Windows player also accepts an explicit extracted-folder path, where save placement can follow that external root. Preserve the actual data locations before switching layouts."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
+          "The Linux instructions cover the windowed source route. The upstream headless EGL test build is a separate target."
+        ],
+        "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held because the selected Final Fantasy Fables: Chocobo’s Dungeon executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    },
+    {
+      "id": "darkuni-lode-runner-2009-xbla-rexglue",
+      "name": "Lode Runner (2009 XBLA, darkuni Recomp)",
+      "summary": "Player-managed Windows setup for Lode Runner (2009) using its own Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/lode-runner-recomp",
+      "original_game_title": "Lode Runner (2009)",
+      "issue_number": 4216,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original in the upstream folder",
+            "instruction": "With an already permitted Windows x64 copy, keep its files together in a writable folder. Put your own Xbox 360 LIVE package for title 5841085B beside lode_runner.exe. The tagged source identifies default.xex 0.0.1.2 and the 5841085B console export. The tagged player checks its 6,205,440-byte default.xex against the expected SHA-1."
+          },
+          {
+            "title": "Use the documented Windows prerequisites",
+            "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+          },
+          {
+            "title": "Complete first-run setup",
+            "instruction": "Start lode_runner.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+          },
+          {
+            "title": "Preserve the creating folder",
+            "instruction": "Keep the generated assets, lode_runner.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
+          "The reviewed package README lists OutRun Online Arcade’s title ID in its export example. Use Lode Runner’s 5841085B title folder."
+        ],
+        "help_url": "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held because the selected Lode Runner (2009) executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    },
+    {
+      "id": "darkuni-mylifedarklord-recomp",
+      "name": "Final Fantasy Crystal Chronicles: My Life as a Darklord (darkuni Recomp)",
+      "summary": "Player-managed My Life as a Darklord setup using its own WiiWare WAD.",
+      "project_url": "https://github.com/darkuni/mylifedarklord-recomp",
+      "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a Darklord",
+      "issue_number": 4121,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the WiiWare originals",
+            "instruction": "For an already permitted Windows x64 copy, keep the runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a Darklord base WAD (WF2E) there. Add the matching optional DLC WAD only if you have it."
+          },
+          {
+            "title": "Let the upstream player import the WADs",
+            "instruction": "Run mylifedarklord.exe from the upstream folder. The first launch populates game and, with matching DLC, game/dlc. Keep both original WADs separately from the generated files."
+          },
+          {
+            "title": "Preserve the upstream profile",
+            "instruction": "Keep nand, mylifedarklord.ini, the generated game folder and the creating runtime together."
+          },
+          {
+            "title": "Keep any optional King save import separate",
+            "instruction": "The upstream instructions describe reading a copied King save at nand/title/00010001/57464345/data/ARCH.SAV. Close both games, preserve the original King profile, and follow the upstream copy instructions only if you want the optional import."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        ],
+        "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held because the selected Final Fantasy Crystal Chronicles: My Life as a Darklord executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    },
+    {
+      "id": "darkuni-mylifeking-recomp",
+      "name": "Final Fantasy Crystal Chronicles: My Life as a King (darkuni Recomp)",
+      "summary": "Player-managed My Life as a King setup using its own WiiWare WAD.",
+      "project_url": "https://github.com/darkuni/mylifeking-recomp",
+      "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a King",
+      "issue_number": 4120,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the WiiWare originals",
+            "instruction": "For an already permitted Windows x64 copy, keep the runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a King base WAD (WFCE) there. Add the matching optional DLC WAD only if you have it."
+          },
+          {
+            "title": "Let the upstream player import the WADs",
+            "instruction": "Run mylifeking.exe from the upstream folder. The first launch populates game and, with matching DLC, game/dlc. Keep both original WADs separately from the generated files."
+          },
+          {
+            "title": "Preserve the upstream profile",
+            "instruction": "Keep nand, mylifeking.ini, the generated game folder and the creating runtime together."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        ],
+        "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held because the selected Final Fantasy Crystal Chronicles: My Life as a King executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    },
+    {
+      "id": "darkuni-outrun-arcade-recomp",
+      "name": "OutRun Online Arcade (darkuni Recomp)",
+      "summary": "Player-managed Windows setup for OutRun Online Arcade using its own Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/outrun-arcade-recomp",
+      "original_game_title": "OutRun Online Arcade",
+      "issue_number": 4133,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original in the upstream folder",
+            "instruction": "With an already permitted Windows x64 copy, keep its files together in a writable folder. Put your own Xbox 360 LIVE package for title 58410968 beside outrun_arcade.exe. The tagged source identifies default.xex 0.0.1.5. Keep the matching media files if using an already extracted assets folder."
+          },
+          {
+            "title": "Use the documented Windows prerequisites",
+            "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+          },
+          {
+            "title": "Complete first-run setup",
+            "instruction": "Start outrun_arcade.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+          },
+          {
+            "title": "Preserve the creating folder",
+            "instruction": "Keep the generated assets, outrun_arcade.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        ],
+        "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held because the selected OutRun Online Arcade executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    },
+    {
+      "id": "darkuni-poker-smash-recomp",
+      "name": "Poker Smash (darkuni Recomp)",
+      "summary": "Player-managed Windows setup for Poker Smash using its own Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/poker-smash-recomp",
+      "original_game_title": "Poker Smash",
+      "issue_number": 4122,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original in the upstream folder",
+            "instruction": "With an already permitted Windows x64 copy, keep its files together in a writable folder. Put your own Xbox 360 LIVE package for title 5841089C beside poker_smash.exe. The complete 5841089C/000D0000 console export also fits. The reviewed input uses TU 0.0.1.4."
+          },
+          {
+            "title": "Use the documented Windows prerequisites",
+            "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+          },
+          {
+            "title": "Complete first-run setup",
+            "instruction": "Start poker_smash.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+          },
+          {
+            "title": "Preserve the creating folder",
+            "instruction": "Keep the generated assets, poker_smash.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        ],
+        "help_url": "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held because the selected Poker Smash executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    },
+    {
+      "id": "darkuni-target-terror-wii-recomp",
+      "name": "TARGET: Terror (darkuni Recomp)",
+      "summary": "Player-managed Windows setup for the NTSC-U Wii disc.",
+      "project_url": "https://github.com/darkuni/target-terror-wii-recomp",
+      "original_game_title": "TARGET: Terror",
+      "issue_number": 4178,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your Wii disc image",
+            "instruction": "In an already permitted Windows x64 copy, keep the runtime DLLs beside targetterror.exe. Supply your own NTSC-U RGDEA4 ISO or CISO in that writable folder."
+          },
+          {
+            "title": "Allow space for the upstream import",
+            "instruction": "Run targetterror.exe and allow first-run extraction to populate game. Keep the original disc image separately, and leave enough free space for the generated files."
+          },
+          {
+            "title": "Preserve the creating profile",
+            "instruction": "Keep the generated game folder, targetterror.ini and nand, including high scores, with the creating runtime."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        ],
+        "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held because the selected TARGET: Terror executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
     },
     {
       "id": "daxter-recompiled-anthonyhfm-daxter",
@@ -32759,6 +33074,41 @@
       }
     },
     {
+      "id": "mgrayd-fable2pubgames-recomp",
+      "name": "Fable II Pub Games (MGRayd Recomp)",
+      "summary": "Player-managed Windows import for the Xbox 360 Pub Games, with an optional upstream save link.",
+      "project_url": "https://github.com/MGRayd/Fable2PubGames-Recomp",
+      "original_game_title": "Fable II Pub Games",
+      "issue_number": 3995,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Import your own Pub Games container",
+            "instruction": "With an already permitted Windows x64 copy, keep the launcher, game executable, DLLs and extraction tool together. Open Fable2PubGamesLauncher.exe, choose your own Xbox 360 Pub Games container, and use Install Game Files before Play Pub Games."
+          },
+          {
+            "title": "Preserve the upstream data",
+            "instruction": "The launcher creates data, saves, logs and cache in its folder. Keep the original container and preserve the creating runtime and actual save folder before replacement."
+          },
+          {
+            "title": "Review optional Fable II save sync separately",
+            "instruction": "The upstream Advanced Options can link the Fable II Recompiled saves folder and sync when Pub Games closes. This can update Fable2PubInfo.xml bridge records in the other game’s profile. Keep your own backups as well as the upstream pubgames-sync-backups, and close both games before any maintenance. Leave sync off for independent profiles."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
+          "The upstream launcher owns the import and game handoff. Selecting the launcher or its script does not establish managed installation or save synchronization in Portcove."
+        ],
+        "help_url": "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held because the selected Fable II Pub Games executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    },
+    {
       "id": "mhforever-mango77x-monster-hunter-freedom-unite",
       "name": "Monster Hunter Freedom Unite — MHForever (Mango77x)",
       "original_game_title": "Monster Hunter Freedom Unite",
@@ -39104,12 +39454,14 @@
     {
       "id": "pilotwings-64-dgv-recomp",
       "name": "Pilotwings 64: Recompiled (Daniel Gomes Vieira)",
-      "summary": "Explore Pilotwings 64: Recompiled (Daniel Gomes Vieira) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Player-managed Pilotwings 64 setup on Windows and Linux using an original USA cartridge image.",
       "project_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp",
       "issue_number": 1275,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp",
       "artwork": {
         "game_id": 3573,
         "cover_id": 257550,
@@ -39117,7 +39469,29 @@
         "image_sha256": "14f29e308d8b2d3c5541b1b098a0d19cf7a3e74fe871f7d0ef511437eb83f756",
         "game_slug": "pilotwings-64",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original",
+            "instruction": "For an already permitted copy, keep the selected x64 package’s files together. Use your own 8 MiB Pilotwings 64 USA Rev 0 big-endian .z64 file in the upstream launcher. The direct input validator expects big-endian byte order."
+          },
+          {
+            "title": "Start the matching upstream player",
+            "instruction": "On Windows open Pilotwings64Recomp.exe. On Linux use Pilotwings64Recomp.sh from the extracted folder with system SDL2, GTK 3, FreeType and a working Vulkan driver. The inspected Linux executable requires glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
+          },
+          {
+            "title": "Preserve the actual profile",
+            "instruction": "Keep the selected profile and creating runtime. The default profile is LOCALAPPDATA/Pilotwings64Recomp on Windows and XDG_DATA_HOME/Pilotwings64Recomp on Linux, usually ~/.local/share/Pilotwings64Recomp. A portable.txt beside the executable keeps the profile alongside it."
+          }
+        ],
+        "warnings": [
+          "The official frontend has since published a GPLv3 grant for the same code. The selected packages still have separate translated title code and the component conditions in their notices. Use an independently permitted copy.",
+          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        ],
+        "help_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
+      },
+      "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route."
     },
     {
       "id": "piratesatworldsendrecomp-elguslml-pirates-of-the-caribbean-at-world-s-end",
