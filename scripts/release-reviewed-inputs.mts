@@ -544,6 +544,15 @@ async function runOperation(
       result = catalogPurpose
         ? await observeCatalogMaintenanceProtections(readProtection, {
             journalNamespace: observerRoles?.storage_journal?.namespace,
+            onRefusal: (evidence) =>
+              console.error(
+                JSON.stringify({
+                  operation: "catalog-protection-observation",
+                  phase,
+                  ...evidence,
+                  authority: "none",
+                }),
+              ),
           })
         : await observeReleaseInputProtections(readProtection, {
             releasePublication: phase === "release-publication",

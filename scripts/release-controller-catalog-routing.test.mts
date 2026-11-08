@@ -337,12 +337,17 @@ void test("catalog maintenance authenticates pause and exact catalog environment
   assert.throws(() => requireReleaseInputWriterPolicy(observation, 202));
   // Retained immutable-controller rulesets must not crowd out the complete
   // catalog/environment stability observations.
-  const retained = Array.from({ length: 40 }, (_, index) => ({
+  const retained = Array.from({ length: 60 }, (_, index) => ({
     ...rule(index + 3, ["creation", "update", "deletion"], []),
     conditions: { ref_name: { include: [`refs/tags/controller-retained-${index}`], exclude: [] } },
   }));
   const dense = [...rules, ...retained];
   const densePaths: string[] = [];
+  let activeDetails = 0;
+  let peakDetails = 0;
+  let failFirstDetail = false;
+  const journalNamespace = "portcove-production";
+  const journalBranch = `${journalNamespace}-coordinator-state`;
   const denseRead = async (endpoint: string) => {
     densePaths.push(endpoint);
     if (endpoint.includes("/rulesets?")) return { status: 200, body: dense };
@@ -350,15 +355,36 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     if (detail) {
       const row = dense.find((value) => value.id === Number(detail[1]));
       assert.ok(row);
-      return { status: 200, body: row };
+      activeDetails++;
+      peakDetails = Math.max(peakDetails, activeDetails);
+      try {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        return { status: failFirstDetail && row.id === 1 ? 503 : 200, body: row };
+      } finally {
+        activeDetails--;
+      }
     }
+    if (endpoint.endsWith(`/git/ref/heads/${journalBranch}`))
+      return {
+        status: 200,
+        body: {
+          ref: `refs/heads/${journalBranch}`,
+          object: { type: "commit", sha: "b".repeat(40) },
+        },
+      };
     return read(endpoint);
   };
-  const complete = await observeCatalogMaintenanceProtections(denseRead);
-  requireCatalogMaintenancePolicy(complete, controllerRef);
+  const complete = await observeCatalogMaintenanceProtections(denseRead, { journalNamespace });
+  assert.equal(complete.inventory.branches.length, 2);
+  assert.equal(peakDetails, 4);
+  assert.equal(activeDetails, 0);
   assert.equal(complete.inventory.rulesets.length, dense.length);
   assert.equal(complete.api_requests, densePaths.length);
-  assert.ok(complete.api_requests > 80, "dense inventory exceeds the former catalog envelope");
+  assert.equal(
+    complete.api_requests,
+    163,
+    "current 62-rule inventory needs more than the former 156 requests",
+  );
   for (const name of catalogProtectionEnvironments) {
     assert.equal(densePaths.filter((entry) => entry.endsWith(`/environments/${name}`)).length, 2);
     assert.equal(
@@ -368,8 +394,17 @@ void test("catalog maintenance authenticates pause and exact catalog environment
       2,
     );
   }
+  failFirstDetail = true;
+  densePaths.length = 0;
+  await assert.rejects(
+    observeCatalogMaintenanceProtections(denseRead, { journalNamespace }),
+    /protection response unavailable/,
+  );
+  assert.equal(activeDetails, 0);
+  assert.equal(densePaths.filter((entry) => entry.includes("/rulesets/")).length, 4);
+  failFirstDetail = false;
   dense.push(
-    ...Array.from({ length: 30 }, (_, index) => ({
+    ...Array.from({ length: 36 }, (_, index) => ({
       ...rule(index + 100, ["creation", "update", "deletion"], []),
       conditions: {
         ref_name: { include: [`refs/tags/controller-overflow-${index}`], exclude: [] },
@@ -377,11 +412,25 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     })),
   );
   densePaths.length = 0;
+  const refusals: unknown[] = [];
   await assert.rejects(
-    observeCatalogMaintenanceProtections(denseRead),
+    observeCatalogMaintenanceProtections(denseRead, {
+      journalNamespace,
+      onRefusal: (evidence) => refusals.push(evidence),
+    }),
     /observation bound exhausted/,
   );
-  assert.equal(densePaths.length, 128 + 4 * catalogProtectionEnvironments.length);
+  assert.equal(densePaths.length, 224);
+  const refusal = refusals[0];
+  assert.ok(isRecord(refusal) && typeof refusal.elapsed_ms === "number" && refusal.elapsed_ms >= 0);
+  assert.deepEqual(refusals, [
+    {
+      snapshot: 2,
+      stage: "catalog-environments",
+      api_requests: 224,
+      elapsed_ms: refusal.elapsed_ms,
+    },
+  ]);
   assert.throws(() =>
     requireCatalogMaintenancePolicy(
       {
