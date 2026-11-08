@@ -1274,10 +1274,13 @@ appointment can opt into it with the exact `manual_actor_id`, the nominated prov
 selects one purpose and excludes automatic wakes until it is removed. The
 worker verifies the original GitHub run and triggering identity, refuses an
 earlier started wake or any receiver in the appointment window, and uses the
-same retained intent and single job-token dispatch. The reviewed wake workflow
-digest changes the source-bound resource policy even though the existing time
-and spending limits stay fixed. The exact new policy and selected authority
-require ratification before activation.
+same retained intent and single job-token dispatch. The wake job has a
+two-minute ceiling. Preparation and dispatch use the same original provider
+job start and refuse after 115 seconds, including setup. The remaining five
+seconds are reserved for hosted receipt handling. The shared controller
+budgets include the wake and total 141 application minutes or 41 catalog
+minutes. The $0 Stop policy and mutual exclusion continue to apply. The exact
+workflow digest and selected authority require ratification before activation.
 
 The source-admission bootstrap uses three **public identity**
 variables: `PORTCOVE_CONTROLLER_REVISION`, `PORTCOVE_CONTROLLER_REF`, and
@@ -1437,7 +1440,7 @@ operation grants availability for a subsequent effect. Source/configuration loss
 revocation or boundary drift refuses, and unrelated admission holds remain holds.
 
 The selected `initial-beta-windows-x86_64-v1` controller graph declares a
-140-minute application ceiling and a separate 40-minute catalog alternative;
+141-minute application ceiling and a separate 41-minute catalog alternative;
 these purposes are mutually exclusive. The workflow digest, complete allocation
 arrays and policy digest must match the exact appointed source. These ceilings
 are not measured runtime, free-provider headroom or a capacity reservation. The

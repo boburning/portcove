@@ -151,9 +151,12 @@ export function prepareReleaseResourceAmendmentProposal(
   }
   const proposedWorkflow = Buffer.from(stringify(raw, { lineWidth: 100 })),
     observation = observeReleaseResources(proposedWorkflow, wake, candidate);
-  const proposedMinutes = windowsOnly ? 140 : 165;
+  const wakeMinutes = observation.wake.find((job) => job.key === "wake")?.maximum_job_minutes;
+  assert.ok(wakeMinutes === 1 || wakeMinutes === 2);
+  const proposedMinutes = (windowsOnly ? 139 : 164) + wakeMinutes;
+  const proposedCatalogMinutes = 39 + wakeMinutes;
   assert.equal(observation.accounting.application, proposedMinutes);
-  assert.equal(observation.accounting.catalog_alternative, 40);
+  assert.equal(observation.accounting.catalog_alternative, proposedCatalogMinutes);
   assert.equal(observation.accounting.policy_envelope, slice4CapacityResources.total_job_minutes);
   assert.equal(observation.policy_matches_workflow, false);
   const inputs = (name: string) =>
@@ -184,8 +187,10 @@ export function prepareReleaseResourceAmendmentProposal(
     input_job_minutes: app.filter((row) => inputs(row.key)).map(minutes),
     catalog_job_minutes: catalogReaders.map(catalogMinutes),
     catalog_observer_job_minutes: catalogObservers.map(catalogMinutes),
+    wake_job_minutes: [wakeMinutes],
     declared_job_minutes: proposedMinutes,
-    purpose_accounting: `mutually-exclusive-max-application${proposedMinutes}-catalog40`,
+    catalog_declared_job_minutes: proposedCatalogMinutes,
+    purpose_accounting: `mutually-exclusive-max-application${proposedMinutes}-catalog${proposedCatalogMinutes}`,
     total_job_minutes: proposedMinutes,
   };
   return {
@@ -206,7 +211,7 @@ export function prepareReleaseResourceAmendmentProposal(
       owner_clock: windowsOnly
         ? "Windows retains the original570000ms clock;600000ms full signer wait cannot fit; late signer refuses; outer35minute cap does not extend it"
         : "Both native platforms retain the existing570000ms total original clock;600000ms full signer wait cannot fit; late signer refuses; outer25/35minute caps do not extend it",
-      application_only_bootstrap: `Fixed application12/catalog4 expression; catalog remains independent40 under actual imported effective${slice4CapacityResources.total_job_minutes}; this proposal cannot ratify policy`,
+      application_only_bootstrap: `Fixed application12/catalog4 expression; catalog remains independent${proposedCatalogMinutes} under actual imported effective${slice4CapacityResources.total_job_minutes}; this proposal cannot ratify policy`,
       activation:
         "Requires independently reviewed exact final workflow/source/resource/configuration and explicit policy ratification; no publication or production execution authority inferred",
     },

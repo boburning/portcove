@@ -107,7 +107,7 @@ void test("shared observer phases retain mode routing and the original ten-minut
     slice4CapacityResources.aggregate_job_minutes.reduce((a, b) => a + b, 0) +
     slice4CapacityResources.input_job_minutes.reduce((a, b) => a + b, 0) +
     slice4CapacityResources.wake_job_minutes.reduce((a, b) => a + b, 0);
-  assert.equal(completeAllocation, 140);
+  assert.equal(completeAllocation, 141);
   assert.equal(completeAllocation, slice4CapacityResources.declared_job_minutes);
   assert.equal(completeAllocation, slice4CapacityResources.total_job_minutes);
 });
@@ -743,6 +743,8 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     workflow["run-name"],
     "Portcove ${{ inputs.publication_purpose == 'catalog-publication' && 'catalog publication' || 'application release' }} wake ${{ inputs.wake_run_id }}",
   );
+  const [wakeMinutes] = slice4CapacityResources.wake_job_minutes;
+  assert.ok(wakeMinutes);
   const inputs = (name: string) =>
     name.includes("protection_observation") || name === "classification_writer";
   const minutes = (name: string, job: Job, purpose = "application") => {
@@ -792,7 +794,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.equal(
     Object.entries(jobs)
       .filter(([name]) => !name.startsWith("catalog_"))
-      .reduce((total, [name, job]) => total + minutes(name, job), 1),
+      .reduce((total, [name, job]) => total + minutes(name, job), wakeMinutes),
     slice4CapacityResources.declared_job_minutes,
   );
   const catalogReaders = [
@@ -822,7 +824,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.equal(
     [...catalogReaders, ...catalogObservers].reduce(
       (total, name) => total + minutes(name, requiredJob(name), "catalog-publication"),
-      1,
+      wakeMinutes,
     ),
     slice4CapacityResources.catalog_declared_job_minutes,
   );
@@ -831,9 +833,9 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       slice4CapacityResources.declared_job_minutes,
       slice4CapacityResources.catalog_declared_job_minutes,
     ),
-    140,
+    141,
   );
-  assert.equal(slice4CapacityResources.total_job_minutes, 140);
+  assert.equal(slice4CapacityResources.total_job_minutes, 141);
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
   assert.equal(requiredJob("protection_observation")["timeout-minutes"], 10);
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);

@@ -35,6 +35,8 @@ export const jobTokenDispatchActor = "41898282";
 const manualWakeActor = "43177418";
 const manualWakeLogin = "boburning";
 const maximumManualWakeWindow = 15 * 60_000;
+// Leave five seconds for the outer two-minute job to retain its receipts.
+const wakeJobDeadlineMilliseconds = 115_000;
 
 function fixedManualWakeRun(raw: Record<string, unknown>) {
   return (
@@ -123,7 +125,7 @@ export async function observeJobTokenDispatchRun(
 ) {
   expected = structuredClone(expected);
   inspectDispatchRunExpectation(expected);
-  if (!Number.isFinite(deadline) || deadline > performance.now() + 55000)
+  if (!Number.isFinite(deadline) || deadline > performance.now() + wakeJobDeadlineMilliseconds)
     throw new Error("original dispatch readback deadline required");
   const active = () => {
     if (performance.now() >= deadline)
@@ -956,7 +958,10 @@ export async function wakeRatifiedController(
   if (options.predecessor) options.predecessor = structuredClone(options.predecessor);
   if (options.approved_configurations)
     options.approved_configurations = structuredClone(options.approved_configurations);
-  let deadline = Math.min(performance.now() + 55000, options.deadline ?? Infinity);
+  let deadline = Math.min(
+    performance.now() + wakeJobDeadlineMilliseconds,
+    options.deadline ?? Infinity,
+  );
   const active = () => {
     if (!Number.isFinite(deadline) || performance.now() >= deadline)
       throw new Error("wake phase deadline exhausted; retain actual effects");
@@ -1024,10 +1029,13 @@ export async function wakeRatifiedController(
   let requests = 0;
   const started = performance.now();
   const get = async (operation: () => Promise<unknown>) => {
-    if (++requests > (config.schema_version === 5 ? 22 : 12) || performance.now() - started > 55000)
+    if (
+      ++requests > (config.schema_version === 5 ? 22 : 12) ||
+      performance.now() - started > wakeJobDeadlineMilliseconds
+    )
       throw new Error("wake-up collection bound exhausted");
     const result = await operation();
-    if (performance.now() - started > 55000)
+    if (performance.now() - started > wakeJobDeadlineMilliseconds)
       throw new Error("wake-up provider read unavailable or late");
     return result;
   };
@@ -1078,12 +1086,12 @@ export async function wakeRatifiedController(
       typeof job.started_at !== "string" ||
       !Number.isFinite(Date.parse(job.started_at)) ||
       Date.now() < Date.parse(job.started_at) ||
-      Date.now() >= Date.parse(job.started_at) + 55000
+      Date.now() >= Date.parse(job.started_at) + wakeJobDeadlineMilliseconds
     )
       throw new Error("job-token wake requires its exact live hosted job and original budget");
     deadline = Math.min(
       deadline,
-      performance.now() + Date.parse(job.started_at) + 55000 - Date.now(),
+      performance.now() + Date.parse(job.started_at) + wakeJobDeadlineMilliseconds - Date.now(),
     );
   }
   const readRefs = async () => {
@@ -1288,7 +1296,7 @@ export async function wakeRatifiedController(
   await readRefs();
   if (manual && Date.now() >= Date.parse(config.manual_expires_at!))
     throw new Error("manual wake appointment expired before dispatch; no POST");
-  if (performance.now() - started > 55000)
+  if (performance.now() - started > wakeJobDeadlineMilliseconds)
     throw new Error("wake-up deadline elapsed before dispatch; no POST");
   // No retry and no replacement destination after an ambiguous provider effect.
   let response: WakeResponse;
@@ -1544,7 +1552,7 @@ async function main() {
     0o600,
   );
   try {
-    const upperDeadline = performance.now() + 55000;
+    const upperDeadline = performance.now() + wakeJobDeadlineMilliseconds;
     let deadline = performance.now() + 10000;
     const token = process.env.GH_TOKEN ?? "";
     const api = await createWakeProvider({
@@ -1569,8 +1577,9 @@ async function main() {
       typeof jobs.jobs[0].started_at !== "string"
     )
       throw new Error("actual wake job start unavailable; no renewed budget");
-    const remaining = Date.parse(jobs.jobs[0].started_at) + 55000 - Date.now();
-    if (!Number.isFinite(remaining) || remaining <= 0 || remaining > 55000)
+    const remaining =
+      Date.parse(jobs.jobs[0].started_at) + wakeJobDeadlineMilliseconds - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0 || remaining > wakeJobDeadlineMilliseconds)
       throw new Error("actual wake job original budget exhausted or future-dated");
     deadline = Math.min(upperDeadline, performance.now() + remaining);
     const { choices, predecessor } = readControllerWakeSetupFromEnvironment();

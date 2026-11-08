@@ -32,7 +32,7 @@ jobs:
       (vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' || fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).schema_version == 4) }}
     name: Wake fixed application controller
     runs-on: ubuntu-22.04
-    timeout-minutes: 1
+    timeout-minutes: 2
     permissions:
       contents: read
       actions: write
