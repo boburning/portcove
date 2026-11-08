@@ -33,7 +33,7 @@
         },
         {
           "title": "Set up the upstream Linux AppImage",
-          "instruction": "Open the official x86-64 AppImage with the host’s AppImage support. Its launcher runs inside the mounted image, so put your matching DOS or Windows data in a separate writable folder. Select that folder in the settings window before starting the game. The Linux settings dialog uses the selected game folder as the save folder and the AppImage stores sdlpal.cfg under ~/.config. Use lowercase game filenames on case-sensitive filesystems. Keep the config, data and .rpg saves backed up."
+          "instruction": "Open the official x86-64 AppImage with the host’s AppImage support. The v3.0.2025.0616 player needs glibc 2.34 or later. Its launcher runs inside the mounted image, so put your matching DOS or Windows data in a separate writable folder. Select that folder in the settings window before starting the game. The Linux settings dialog uses the selected game folder as the save folder and the AppImage stores sdlpal.cfg under ~/.config. Use lowercase game filenames on case-sensitive filesystems. Keep the config, data and .rpg saves backed up."
         },
         {
           "title": "Prepare a writable folder for the Mac app",
