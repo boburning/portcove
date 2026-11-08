@@ -432,7 +432,7 @@ export interface CatalogObservationOptions extends Pick<
   deadline?: number;
   excludedSources?: ReadonlySet<string>;
   prioritizeConfigured?: boolean;
-  scheduledPrioritySource?: string;
+  scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
@@ -562,7 +562,7 @@ export async function advanceCatalogObservations(
     source.repository === template.repository &&
     source.ports.some((port) => port.id === template.port_id);
   const isScheduledPriority = (source: ObservableSource) =>
-    source.key === options.scheduledPrioritySource;
+    options.scheduledPrioritySources?.has(source.key) === true;
   const freshnessExpired = (progress: SourceProgress) =>
     progress.freshness_observed_at === null ||
     now() - Date.parse(progress.freshness_observed_at) >= template.stale_after_hours * 3600000;

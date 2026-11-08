@@ -1049,8 +1049,8 @@ void test("the configured first turn admits a page set while other sources retai
   assert.ok(result.report.requests <= 8);
 });
 
-void test("scheduled priority refreshes stale completed facts before their next due time", async () => {
-  const h = harness(32);
+void test("both scheduled priority scopes refresh early without excluding normal turns", async () => {
+  const h = harness(64);
   for (let index = 0; index < 32; index++) {
     const port = `extra-${index}`;
     h.input.ports.push({
@@ -1061,9 +1061,23 @@ void test("scheduled priority refreshes stale completed facts before their next 
   }
   const { sources } = catalogObservationSources(h.input);
   const selected = sources.find((source) => source.repository === "owner/other")!;
+  const companion = sources.find((source) => source.repository === "owner/extra-0")!;
   const configured = sources.find((source) => source.repository === "owner/shared")!;
-  const options = {
+  const options: CatalogObservationOptions = {
     ...h.options,
+    repositoryId: async (source, transport) => {
+      if (source.key !== companion.key) return h.options.repositoryId(source, transport);
+      transport.admitRequest();
+      return 9;
+    },
+    fetch: (url, init) =>
+      new URL(url).pathname === "/repos/owner/extra-0"
+        ? Promise.resolve(
+            new Response(JSON.stringify({ id: 9, full_name: "owner/extra-0", archived: false }), {
+              headers: { "content-type": "application/json" },
+            }),
+          )
+        : h.options.fetch!(url, init),
     config: validateObserverConfig({
       ...h.options.config,
       port_id: "stable-port",
@@ -1075,18 +1089,25 @@ void test("scheduled priority refreshes stale completed facts before their next 
     ...options,
     excludedSources: new Set(sources.filter((source) => source !== selected).map(({ key }) => key)),
   });
-  const progress = first.checkpoint.sources[selected.key]!;
+  const retained = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...options,
+    excludedSources: new Set(
+      sources.filter((source) => source !== companion).map(({ key }) => key),
+    ),
+  });
+  const progress = retained.checkpoint.sources[selected.key]!;
   const oldObserved = progress.freshness_observed_at;
   assert.ok(oldObserved);
   const retainedConfig = progress.current_config;
   h.advanceClock(13 * 3600000);
   // A resumed validation can finish many hours after its first verified read.
   progress.next_due_at = new Date(h.options.now!() + 3600000).toISOString();
+  retained.checkpoint.sources[companion.key]!.next_due_at = progress.next_due_at;
 
-  const result = await advanceCatalogObservations(h.input, first.checkpoint, {
+  const result = await advanceCatalogObservations(h.input, retained.checkpoint, {
     ...options,
     prioritizeConfigured: true,
-    scheduledPrioritySource: selected.key,
+    scheduledPrioritySources: new Set([selected.key, companion.key]),
   });
   const status = result.report.source_statuses.find(
     ({ source_key }) => source_key === selected.key,
@@ -1096,12 +1117,17 @@ void test("scheduled priority refreshes stale completed facts before their next 
   assert.equal(status.observed_at, new Date(h.options.now!()).toISOString());
   assert.notEqual(status.observed_at, oldObserved);
   assert.deepEqual(result.checkpoint.sources[selected.key]!.current_config, retainedConfig);
+  const companionStatus = result.report.source_statuses.find(
+    ({ source_key }) => source_key === companion.key,
+  )!;
+  assert.ok(companionStatus.current_scope_complete);
+  assert.equal(companionStatus.observed_at, status.observed_at);
   assert.deepEqual(
-    new Set(result.report.attempted_source_keys.slice(0, 2)),
-    new Set([configured.key, selected.key]),
+    new Set(result.report.attempted_source_keys.slice(0, 3)),
+    new Set([configured.key, selected.key, companion.key]),
   );
-  assert.ok(result.report.attempted_source_keys.length > 2);
-  assert.ok(result.report.requests <= 32);
+  assert.ok(result.report.attempted_source_keys.length > 3);
+  assert.ok(result.report.requests <= 64);
 });
 
 void test("partial refresh keeps a stale selected scope pending until a later batch completes", async () => {
@@ -1115,7 +1141,7 @@ void test("partial refresh keeps a stale selected scope pending until a later ba
   h.advanceClock((h.options.config.stale_after_hours + 1) * 3600000);
   const nextDue = new Date(h.options.now!() + 3600000).toISOString();
   progress.next_due_at = nextDue;
-  const options = { ...h.options, scheduledPrioritySource: selected.key };
+  const options = { ...h.options, scheduledPrioritySources: new Set([selected.key]) };
 
   h.setQuota(0);
   const partial = await advanceCatalogObservations(h.input, first.checkpoint, {

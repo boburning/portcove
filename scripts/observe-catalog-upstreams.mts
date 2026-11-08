@@ -160,7 +160,7 @@ export async function runCatalogUpstreams(
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
     prioritizeConfigured?: boolean;
-    scheduledPrioritySource?: string;
+    scheduledPrioritySources?: ReadonlySet<string>;
     handoff?: { directory: string; sizes: Map<string, number>; bytes: number };
   } = {},
 ) {
@@ -279,8 +279,8 @@ export async function runCatalogUpstreams(
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
       prioritizeConfigured: runtime.prioritizeConfigured === true,
-      ...(runtime.scheduledPrioritySource
-        ? { scheduledPrioritySource: runtime.scheduledPrioritySource }
+      ...(runtime.scheduledPrioritySources
+        ? { scheduledPrioritySources: runtime.scheduledPrioritySources }
         : {}),
       ...runtime.observer,
       githubScope,
@@ -758,12 +758,23 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         : undefined;
     if (scheduledPrioritySource !== undefined && !/^[a-f0-9]{64}$/u.test(scheduledPrioritySource))
       throw new Error("Scheduled observer priority requires an exact catalog source key");
+    const scheduledPrioritySources = new Set(
+      scheduledPrioritySource ? [scheduledPrioritySource] : [],
+    );
+    // Keep the existing Chameleon appointment and give the reviewed OpenTyrian
+    // repeat-acquisition scope the same bounded first-batch opportunity.
+    if (
+      scheduledPrioritySource === "df91a1c7d9af20e76a6ff5dda131dcd6d7d70c601361ebbfbee37a9a292618cd"
+    )
+      scheduledPrioritySources.add(
+        "b30c38d5129509990b6c041ff0113326a2eacb011c8a0aca4d98de9a462ae1d8",
+      );
     const result =
       deadline === undefined
         ? await runCatalogUpstreams(process.argv.slice(2))
         : await runCatalogOpportunity(process.argv.slice(2), {
             deadline: Date.parse(deadline),
-            ...(scheduledPrioritySource ? { scheduledPrioritySource } : {}),
+            scheduledPrioritySources,
           });
     if (process.env.GITHUB_OUTPUT && deadline === undefined) {
       if (/[\r\n]/u.test(result.handoff_directory)) throw new Error("Invalid artifact output path");

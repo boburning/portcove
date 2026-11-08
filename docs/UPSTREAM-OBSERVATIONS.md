@@ -241,6 +241,12 @@ rotation once its provider observation expires, even if its completion-based
 due time is later. Freshness still uses the original provider validation
 clock, and retained checkpoints keep their existing configuration identities.
 
+The scheduled hosted opportunity gives Chameleon JP (#246) and OpenTyrian
+(#315) early turns using their exact configured source keys. These turns share
+the existing collection allowance with the configured Shipwright source and
+preserve the regular rotation and checkpoint handling. Manual dispatch uses
+the ordinary rotation.
+
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
 one `report.json` and its existing consumer/configuration binding. Catalog reports
 use a separate, uniquely owned handoff directory for each invocation, exported as
