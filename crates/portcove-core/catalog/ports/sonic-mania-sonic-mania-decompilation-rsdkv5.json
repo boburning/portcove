@@ -25,7 +25,7 @@
         },
         {
           "title": "Pair the Linux x64 player and module",
-          "instruction": "Use mania-linux.zip with the same upstream version of RSDKv5-Decompilation’s v5-linux.zip. Unpack linux.tar.gz from the engine download. Pair RSDKv5 with v5/libGame.so, or RSDKv5U with v5U/libGame.so, by placing the selected libGame.so beside the matching engine. Keep your own supported Data.rsdk in that writable game folder. The reviewed engine uses glibc 2.38 and needs OpenGL, GLFW, GLEW, Ogg and Theora."
+          "instruction": "Use mania-linux.zip with the same upstream version of RSDKv5-Decompilation’s v5-linux.zip. Unpack linux.tar.gz from the engine download. Pair RSDKv5 with v5/libGame.so, or RSDKv5U with v5U/libGame.so, by placing the selected libGame.so beside the matching engine. Keep your own supported Data.rsdk in that writable game folder. The reviewed engine needs glibc 2.38, GLIBCXX 3.4.29, OpenGL, GLFW, GLEW 2.2, Ogg and Theora."
         },
         {
           "title": "Register the prepared player",

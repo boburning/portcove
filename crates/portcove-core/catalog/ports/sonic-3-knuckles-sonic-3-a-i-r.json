@@ -29,7 +29,7 @@
         },
         {
           "title": "Prepare the Linux x64 player",
-          "instruction": "Extract the official sonic3air_game.tar.gz into its complete sonic3air_game folder and follow its Manual.pdf. Open sonic3air_linux from that folder for upstream setup and original selection. The reviewed player needs glibc 2.34, GLIBCXX 3.4.29, OpenGL and curl. Use the same folder when adding the working player to Portcove. The optional setup_linux.sh only installs a desktop shortcut and sets executable permission."
+          "instruction": "Extract the official sonic3air_game.tar.gz into its complete sonic3air_game folder and follow its Manual.pdf. Open sonic3air_linux from that folder for upstream setup and original selection. The reviewed player needs glibc 2.34, GLIBCXX 3.4.29, OpenGL and curl. Use the same folder when adding the working player to Portcove. The optional setup_linux.sh only installs and marks its desktop shortcut executable."
         },
         {
           "title": "Prepare the macOS app",
@@ -37,7 +37,7 @@
         },
         {
           "title": "Prepare the Android app",
-          "instruction": "Install the official stable Android APK and select your own combined Steam ROM using the app’s file picker. Use Options > System > File Browser to access data in Android/data/org.eukaryot.sonic3air/files. Keep an independent copy of saves, settings and mods before updating, and leave the old app installed when applying a compatible in-place update."
+          "instruction": "Install the official stable Android APK and select your own combined Steam ROM using the app’s file picker. If the picker is unavailable, close the game and open the ROM with Sonic 3 A.I.R. from your file manager. Use Options > System > File Browser to access data in Android/data/org.eukaryot.sonic3air/files. Keep an independent copy of saves, settings and mods before updating, and leave the old app installed when applying a compatible in-place update."
         },
         {
           "title": "Register the existing player and use explicit Play",

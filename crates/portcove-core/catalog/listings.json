@@ -46287,7 +46287,7 @@
           },
           {
             "title": "Prepare the Linux x64 player",
-            "instruction": "Extract the official sonic3air_game.tar.gz into its complete sonic3air_game folder and follow its Manual.pdf. Open sonic3air_linux from that folder for upstream setup and original selection. The reviewed player needs glibc 2.34, GLIBCXX 3.4.29, OpenGL and curl. Use the same folder when adding the working player to Portcove. The optional setup_linux.sh only installs a desktop shortcut and sets executable permission."
+            "instruction": "Extract the official sonic3air_game.tar.gz into its complete sonic3air_game folder and follow its Manual.pdf. Open sonic3air_linux from that folder for upstream setup and original selection. The reviewed player needs glibc 2.34, GLIBCXX 3.4.29, OpenGL and curl. Use the same folder when adding the working player to Portcove. The optional setup_linux.sh only installs and marks its desktop shortcut executable."
           },
           {
             "title": "Prepare the macOS app",
@@ -46295,7 +46295,7 @@
           },
           {
             "title": "Prepare the Android app",
-            "instruction": "Install the official stable Android APK and select your own combined Steam ROM using the app’s file picker. Use Options > System > File Browser to access data in Android/data/org.eukaryot.sonic3air/files. Keep an independent copy of saves, settings and mods before updating, and leave the old app installed when applying a compatible in-place update."
+            "instruction": "Install the official stable Android APK and select your own combined Steam ROM using the app’s file picker. If the picker is unavailable, close the game and open the ROM with Sonic 3 A.I.R. from your file manager. Use Options > System > File Browser to access data in Android/data/org.eukaryot.sonic3air/files. Keep an independent copy of saves, settings and mods before updating, and leave the old app installed when applying a compatible in-place update."
           },
           {
             "title": "Register the existing player and use explicit Play",
@@ -46596,7 +46596,7 @@
           },
           {
             "title": "Pair the Linux x64 player and module",
-            "instruction": "Use mania-linux.zip with the same upstream version of RSDKv5-Decompilation’s v5-linux.zip. Unpack linux.tar.gz from the engine download. Pair RSDKv5 with v5/libGame.so, or RSDKv5U with v5U/libGame.so, by placing the selected libGame.so beside the matching engine. Keep your own supported Data.rsdk in that writable game folder. The reviewed engine uses glibc 2.38 and needs OpenGL, GLFW, GLEW, Ogg and Theora."
+            "instruction": "Use mania-linux.zip with the same upstream version of RSDKv5-Decompilation’s v5-linux.zip. Unpack linux.tar.gz from the engine download. Pair RSDKv5 with v5/libGame.so, or RSDKv5U with v5U/libGame.so, by placing the selected libGame.so beside the matching engine. Keep your own supported Data.rsdk in that writable game folder. The reviewed engine needs glibc 2.38, GLIBCXX 3.4.29, OpenGL, GLFW, GLEW 2.2, Ogg and Theora."
           },
           {
             "title": "Register the prepared player",
