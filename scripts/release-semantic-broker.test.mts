@@ -29,6 +29,9 @@ import {
 } from "./release-semantic-inputs.mts";
 import {
   inspectSemanticRuntimeEvents,
+  createSemanticPartitionObservationInspector,
+  planQualifiedApplicationSemanticPartitions,
+  semanticObservationRanges,
   inspectSemanticFixtureEvents,
   requireDirectSemanticCapture,
   requireLinuxSemanticSettlement,
@@ -62,6 +65,8 @@ import {
 } from "./release-semantic-reader.mts";
 import {
   inspectSemanticReaderIndex,
+  createMaterializedSemanticReaderRpc,
+  materializeSemanticReaderPartition,
   createSemanticSnapshotReader,
 } from "./release-semantic-reader-core.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -1488,6 +1493,197 @@ void test("frozen source collection binds actual Git blobs, publication and comp
       .source.change_set_sha256,
     qualified.change_set_sha256,
   );
+  const qualifiedProposal = prepareFrozenSemanticProposalInputs(api, root, qualified);
+  const input = { phase: "proposal" as const, bundle: qualifiedProposal };
+  const limits = {
+    page_bytes: 128,
+    lane_raw_bytes: 256,
+    lane_response_bytes: 2048,
+    lane_calls: 3,
+    lanes: 64,
+  };
+  const plan = planQualifiedApplicationSemanticPartitions(input, limits);
+  assert.deepEqual(planQualifiedApplicationSemanticPartitions(input, limits), plan);
+  const { plan_sha256, ...planIdentity } = plan;
+  assert.equal(plan_sha256, capacityDigest(planIdentity));
+  assert.equal(plan.authority, "none");
+  assert.equal(plan.bundle_sha256, qualifiedProposal.bundle_sha256);
+  assert.ok(plan.lanes.length > 1);
+  const projected = materializeSemanticReaderPartition(qualifiedProposal, plan.lanes[0]!.pages);
+  const partitionRpc = createMaterializedSemanticReaderRpc(projected.bytes, projected.sha256);
+  assert.throws(() => createMaterializedSemanticReaderRpc(projected.bytes, "a".repeat(64)));
+  partitionRpc({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: { protocolVersion: "2025-03-26" },
+  });
+  const direct = createSemanticSnapshotReader(qualifiedProposal);
+  const call = (page: { tool: string; arguments: Record<string, unknown> }) =>
+    partitionRpc({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: {
+        name: page.tool,
+        arguments: page.arguments,
+      },
+    });
+  for (const page of plan.lanes[0]!.pages) {
+    assert.deepEqual(call(page)?.result, {
+      isError: false,
+      content: [{ type: "text", text: JSON.stringify(direct(page.tool, page.arguments)) }],
+    });
+  }
+  assert.throws(() => call(plan.lanes[1]!.pages[0]!), /absent from frozen partition/);
+  const union = new Map<string, Set<number>>();
+  for (const lane of plan.lanes) {
+    assert.ok(lane.pages.length <= limits.lane_calls);
+    assert.ok(lane.raw_bytes <= limits.lane_raw_bytes);
+    assert.ok(lane.response_bytes <= limits.lane_response_bytes);
+    for (const {
+      arguments: { snapshot, path, offset, length },
+    } of lane.pages) {
+      const key = `${snapshot}:${path}`;
+      const offsets = union.get(key) ?? new Set<number>();
+      for (let byte = offset; byte < offset + length; byte++) {
+        assert.equal(offsets.has(byte), false, "partition page overlaps an earlier page");
+        offsets.add(byte);
+      }
+      union.set(key, offsets);
+    }
+  }
+  for (const { snapshot, path, start, end } of semanticObservationRanges(qualifiedProposal))
+    for (let byte = start; byte < end; byte++)
+      assert.equal(union.get(`${snapshot}:${path}`)?.delete(byte), true, "partition coverage gap");
+  assert.ok([...union.values()].every((offsets) => offsets.size === 0));
+  for (const invalid of [
+    { ...limits, lanes: 0 },
+    { ...limits, lanes: 1 },
+    { ...limits, lane_calls: 1025 },
+    { ...limits, lane_response_bytes: 1 },
+  ])
+    assert.throws(() => planQualifiedApplicationSemanticPartitions(input, invalid), /budget/);
+  assert.throws(
+    () => planQualifiedApplicationSemanticPartitions({ phase: "complete", bundle }, limits),
+    /qualified application/,
+  );
+  assert.throws(
+    () =>
+      planQualifiedApplicationSemanticPartitions(
+        { ...input, bundle: { ...qualifiedProposal } },
+        limits,
+      ),
+    /imported or changed/,
+  );
+  const inspector = createSemanticPartitionObservationInspector(input, limits);
+  const laneEvents = (
+    lane: number,
+    pages = plan.lanes[lane]!.pages,
+    report = { schema_version: 1, lane, plan_sha256, findings: "Inert fixture finding" },
+    replacement?: string,
+    sessionLane = lane,
+  ) => {
+    const reader = createSemanticSnapshotReader(qualifiedProposal);
+    return Buffer.from(
+      [
+        {
+          type: "thread.started",
+          thread_id: `00000000-0000-4000-8000-${sessionLane.toString(16).padStart(12, "0")}`,
+        },
+        { type: "turn.started" },
+        ...pages.flatMap(({ tool, arguments: args }, index) => {
+          const item = {
+            id: `lane-page-${index}`,
+            type: "mcp_tool_call",
+            server: "portcove_frozen_bundle",
+            tool,
+            arguments: args,
+          };
+          const text = replacement ?? JSON.stringify(reader(tool, args));
+          return [
+            { type: "item.started", item: { ...item, status: "in_progress" } },
+            {
+              type: "item.completed",
+              item: { ...item, status: "completed", result: { content: [{ type: "text", text }] } },
+            },
+          ];
+        }),
+        { type: "item.completed", item: { type: "agent_message", text: JSON.stringify(report) } },
+        { type: "turn.completed" },
+      ]
+        .map((event) => JSON.stringify(event))
+        .join("\n"),
+    );
+  };
+  const findings = plan.lanes.map((_, lane) => inspector.inspectLane(lane, laneEvents(lane)));
+  const unionReceipt = inspector.inspectUnion(findings);
+  assert.equal(unionReceipt.authority, "none");
+  assert.equal(unionReceipt.plan_sha256, plan_sha256);
+  assert.deepEqual(inspector.inspectUnion([...findings].reverse()), unionReceipt);
+  assert.throws(() => inspector.inspectUnion(findings.slice(1)), /omits planned/);
+  assert.throws(() => inspector.inspectUnion([findings[0]!, ...findings]), /reused/);
+  assert.throws(
+    () => inspector.inspectUnion([{ ...findings[0]! }, ...findings.slice(1)]),
+    /copied/,
+  );
+  assert.throws(
+    () =>
+      inspector.inspectUnion([
+        findings[0]!,
+        inspector.inspectLane(1, laneEvents(1, undefined, undefined, undefined, 0)),
+        ...findings.slice(2),
+      ]),
+    /session was reused/,
+  );
+  assert.throws(() => inspector.inspectLane(0, laneEvents(0, [])), /every exact page/);
+  assert.throws(() => inspector.inspectLane(1, laneEvents(0)), /does not bind the exact lane/);
+  assert.throws(
+    () =>
+      inspector.inspectLane(
+        0,
+        laneEvents(
+          0,
+          plan.lanes[0]!.pages.map(() => plan.lanes[0]!.pages[0]!),
+        ),
+      ),
+    /duplicate or foreign/,
+  );
+  assert.throws(
+    () => inspector.inspectLane(0, laneEvents(0, undefined, undefined, "{}")),
+    /observation differs/,
+  );
+  assert.throws(
+    () =>
+      inspector.inspectLane(
+        0,
+        laneEvents(0, undefined, {
+          schema_version: 1,
+          lane: 0,
+          plan_sha256,
+          findings: "x".repeat(2049),
+        }),
+      ),
+    /does not bind the exact lane/,
+  );
+  assert.throws(() => requireDirectSemanticCapture(unionReceipt as never), /imported/);
+  await assert.rejects(requireDirectSemanticProposalCapture(findings[0]), /imported/);
+  findings[0]!.findings = "modified";
+  assert.throws(() => inspector.inspectUnion(findings), /copied, changed/);
+
+  const complete = planQualifiedApplicationSemanticPartitions(
+    {
+      phase: "complete",
+      bundle: prepareFrozenSemanticInputs(api, root, opportunity, evidence, undefined, qualified),
+    },
+    limits,
+  );
+  assert.notEqual(complete.plan_sha256, plan.plan_sha256);
+  qualifiedProposal.manifest.evidence.compatibility = "modified";
+  assert.throws(
+    () => planQualifiedApplicationSemanticPartitions(input, limits),
+    /imported or changed/,
+  );
   assert.throws(
     () =>
       prepareFrozenSemanticInputs(
@@ -1752,6 +1948,44 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
     bundle_sha256: capacityDigest(manifest),
     files: [before.file, after.file],
   } as unknown as Parameters<typeof inspectSemanticRuntimeEvents>[1];
+
+  const appended = blob(before.file.bytes.toString("utf8") + "new_line();\n");
+  const normalized = blob("fn main() { published_behavior(); }\n");
+  const appendedManifest = {
+    ...manifest,
+    snapshots: {
+      ...manifest.snapshots,
+      source: [{ path: "app.rs", oid: appended.oid, mode: "100644" }],
+      published: [{ path: "app.rs", oid: normalized.oid, mode: "100644" }],
+    },
+  };
+  const appendedBundle = {
+    ...bundle,
+    manifest: appendedManifest,
+    bundle_sha256: capacityDigest(appendedManifest),
+    files: [before.file, appended.file, normalized.file],
+  } as unknown as typeof bundle;
+  const ranges = [...semanticObservationRanges(appendedBundle)];
+  assert.ok(
+    ranges.some(
+      ({ snapshot, path, start, end }) =>
+        snapshot === "baseline" &&
+        path === "app.rs" &&
+        start === before.file.bytes.length &&
+        end === start,
+    ),
+    "preserve the existing gate's fail-closed empty range",
+  );
+  assert.ok(
+    ranges.some(
+      ({ snapshot, path, start, end }) =>
+        snapshot === "published" &&
+        path === "app.rs" &&
+        start === 0 &&
+        end === normalized.file.bytes.length,
+    ),
+    "preserve the prior-published normalization range",
+  );
 
   const result = {
     schema_version: 1,

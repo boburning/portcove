@@ -277,6 +277,32 @@ void test("worker setup excludes supplied outcomes/backends and separates the fi
   assert.match(units.service, /Type=oneshot/u);
   assert.match(units.service, /Restart=no/u);
   assert.match(units.service, /KillMode=control-group/u);
+  assert.match(units.service, /TimeoutStartSec=2700/u);
+  const partition = { request_id: "e".repeat(64), max_lanes: 350, wall_seconds: 172800 };
+  const partitionSetup = { ...raw, application_partition: partition };
+  assert.deepEqual(
+    inspectSemanticWorkerConfiguration(partitionSetup).application_partition,
+    partition,
+  );
+  assert.match(
+    renderSemanticWorkerUnits(
+      partitionSetup,
+      "/owned/config.json",
+      "a".repeat(64),
+      "/owned/controller",
+    ).service,
+    /TimeoutStartSec=172800/u,
+  );
+  for (const invalid of [
+    null,
+    { ...partition, request_id: "latest" },
+    { ...partition, max_lanes: 513 },
+    { ...partition, wall_seconds: 259201 },
+    { ...partition, decision: "accepted" },
+  ])
+    assert.throws(() =>
+      inspectSemanticWorkerConfiguration({ ...raw, application_partition: invalid }),
+    );
   assert.match(units.timer, /OnUnitInactiveSec=5min/u);
   assert.equal(units.initial_state.setup_grant_sha256, raw.setup_grant_sha256);
   assert.throws(() =>

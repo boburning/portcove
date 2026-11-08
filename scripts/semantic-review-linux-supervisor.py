@@ -133,9 +133,10 @@ def private_directory(path):
 
 
 def inspect_request(value):
+    require(isinstance(value, dict), "fixed request fields required")
+    shared = {"shared_runtime"} if value.get("shared_runtime") is True else set()
     require(
-        isinstance(value, dict)
-        and set(value)
+        set(value)
         == {
             "schema_version",
             "mode",
@@ -145,7 +146,7 @@ def inspect_request(value):
             "inputs_sha256",
             "timeout_seconds",
             "auth_cache",
-        },
+        } | shared,
         "fixed request fields required",
     )
     require(
@@ -225,13 +226,16 @@ def create_file(path, data):
         os.close(fd)
 
 
-def read_runtime(path, name):
+def read_runtime(path, name, owner=None):
     require(name in RUNTIME, "unknown fixed runtime refused")
+    if owner is not None:
+        expected_mode = 0o500 if name in ("node", "codex") else 0o400
+        require(stat.S_IMODE(path.lstat().st_mode) == expected_mode, "shared runtime file mode differs")
     # The retained Codex 0.162.0 package contains a 294410952-byte binary.
     # This is a read-only executable bound, not reviewer-writable capacity.
     if name == "semantic-review-model-catalog.json":
-        return read_regular(path, 128 * 1024)
-    return read_regular(path, (320 if name == "codex" else 256) * MIB)
+        return read_regular(path, 128 * 1024, owner)
+    return read_regular(path, (320 if name == "codex" else 256) * MIB, owner)
 
 
 def inspect_model_catalog(data):
@@ -276,13 +280,36 @@ def read_frozen_input(file, relative):
     return read_regular(file, limit)
 
 
+def runtime_directory(request, root):
+    if not request.get("shared_runtime"):
+        return root / "runtime"
+    require(
+        re.fullmatch(r"r-[A-Za-z0-9_-]+", root.name)
+        and re.fullmatch(r"technical-[0-2]", root.parent.name)
+        and re.fullmatch(r"request-[a-f0-9]{64}", root.parent.parent.name)
+        and not os.path.lexists(root / "runtime"),
+        "shared runtime requires a fresh lane in the original review attempt",
+    )
+    shared = private_directory(root.parent / ".semantic-shared-runtime")
+    require(stat.S_IMODE(shared.lstat().st_mode) == 0o500, "shared runtime directory must be read-only")
+    return shared
+
+
 def inspect_files(request):
     root = private_directory(request["run_root"])
     require(read_regular(root / ".portcove-semantic-review-owned", 128).strip(), "owned marker missing")
-    for name in ("runtime", "inputs", "capture"):
+    for name in ("inputs", "capture"):
         private_directory(root / name)
-    require(set(os.listdir(root / "runtime")) == set(RUNTIME), "unmanifested runtime entry refused")
-    inspect_model_catalog(read_runtime(root / "runtime/semantic-review-model-catalog.json", "semantic-review-model-catalog.json"))
+    runtime = private_directory(runtime_directory(request, root))
+    owner = os.getuid() if request.get("shared_runtime") else None
+    if owner is not None:
+        manifest = decode_json(read_regular(root / "inputs/manifest.json", 16 * MIB, owner))
+        require(
+            isinstance(manifest, dict) and manifest.get("qualified_application_comparison") is True,
+            "shared runtime requires a qualified application comparison",
+        )
+    require(set(os.listdir(runtime)) == set(RUNTIME), "unmanifested runtime entry refused")
+    inspect_model_catalog(read_runtime(runtime / "semantic-review-model-catalog.json", "semantic-review-model-catalog.json", owner))
     require(
         not any(
             (root / "capture" / name).exists()
@@ -292,9 +319,9 @@ def inspect_files(request):
     )
     observed = {}
     for name, digest in request["runtime_sha256"].items():
-        if name in ("node", "codex"):
-            require((root / "runtime" / name).stat().st_mode & 0o100, "fixed runtime is not executable")
-        data = read_runtime(root / "runtime" / name, name)
+        if owner is None and name in ("node", "codex"):
+            require((runtime / name).stat().st_mode & 0o100, "fixed runtime is not executable")
+        data = read_runtime(runtime / name, name, owner)
         require(hashlib.sha256(data).hexdigest() == digest, "fixed runtime hash differs")
         observed["runtime/" + name] = digest
     count, total, raw_total = 0, 0, 0
@@ -437,7 +464,7 @@ def bwrap_command(request, root, supervisor):
         "--tmpfs",
         "/w",
         "--ro-bind",
-        str(root / "runtime"),
+        str(runtime_directory(request, root)),
         "/runtime",
         "--ro-bind",
         str(root / "inputs"),
@@ -1434,11 +1461,18 @@ def supervise(request):
         try:
             # Verify immutable custody again before accepting direct capture or
             # persisting a refresh. No imported event file can substitute.
+            runtime = runtime_directory(request, root)
+            owner = os.getuid() if request.get("shared_runtime") else None
+            if owner is not None:
+                require(set(os.listdir(runtime)) == set(RUNTIME), "unmanifested runtime entry refused")
             for name, digest in observed.items():
-                require(
-                    hashlib.sha256(read_regular(root / name, 288 * MIB)).hexdigest() == digest,
-                    "frozen runtime/input changed during attempt",
-                )
+                section, filename = name.split("/", 1)
+                observed_digest = hashlib.sha256(
+                    read_runtime(runtime / filename, filename, owner)
+                    if section == "runtime" and owner is not None
+                    else read_regular(root / name, 288 * MIB)
+                ).hexdigest()
+                require(observed_digest == digest, "frozen runtime/input changed during attempt")
             if request["mode"] == "codex" and result["failure"] is None:
                 require(
                     auth_refresh_allowed(result, auth_descriptors),
