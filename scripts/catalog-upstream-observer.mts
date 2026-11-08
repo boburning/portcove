@@ -682,7 +682,11 @@ export async function advanceCatalogObservations(
     if (options.signal?.aborted || now() >= deadline) break;
     // Completed provider reads may still admit offline Core continuation while the provider is unavailable.
     const previousProgress = state.sources[source.key];
+    const scheduledRefreshDue =
+      isScheduledPriority(source) &&
+      (!previousProgress?.next_due_at || Date.parse(previousProgress.next_due_at) <= now());
     const reprojectFreshFacts =
+      !scheduledRefreshDue &&
       previousProgress !== undefined &&
       previousProgress.completed_scope_sha256 !== scopeBinding(source) &&
       previousProgress.last_complete_facts_sha256 !== null;

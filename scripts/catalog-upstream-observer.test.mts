@@ -1736,6 +1736,48 @@ void test("a changed Core reprojects fresh complete facts without provider reads
   }
 });
 
+void test("an appointed scheduled source refreshes when due even after a Core binding change", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const selected = catalogObservationSources(h.input).sources.find(
+    (source) => source.repository === "owner/other",
+  )!;
+  const peer = catalogObservationSources(h.input).sources.find(
+    (source) => source.repository === "owner/shared",
+  )!;
+  const prior = first.checkpoint.sources[selected.key]!;
+  const due = Date.parse(prior.next_due_at!);
+  assert.ok(due > h.options.now!());
+  h.advanceClock(due - h.options.now!());
+  assert.ok(
+    due - Date.parse(prior.freshness_observed_at!) < h.options.config.stale_after_hours * 3600000,
+  );
+  h.bumpRelease();
+  const before = h.network.length;
+  const result = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    prioritizeConfigured: true,
+    scheduledPrioritySources: new Set([selected.key]),
+  });
+  assert.equal(result.report.attempted_source_keys[0], selected.key);
+  assert.ok(result.report.completed_source_keys.includes(selected.key));
+  assert.ok(h.network.length > before);
+  assert.ok(h.network.slice(before).every((url) => url.includes("owner/other")));
+  assert.notEqual(
+    result.checkpoint.sources[selected.key]!.last_complete_facts_sha256,
+    prior.last_complete_facts_sha256,
+  );
+  assert.equal(
+    result.checkpoint.sources[selected.key]!.freshness_observed_at,
+    new Date(due).toISOString(),
+  );
+  assert.equal(
+    result.checkpoint.sources[peer.key]!.freshness_observed_at,
+    first.checkpoint.sources[peer.key]!.freshness_observed_at,
+  );
+});
+
 void test("fresh fact reuse falls back to collection when current Core requires uncovered candidate assets", async () => {
   const h = harness();
   const first = await advanceCatalogObservations(h.input, null, h.options);
