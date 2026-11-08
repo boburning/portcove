@@ -33,13 +33,22 @@
           "instruction": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed."
         },
         {
+          "title": "Prepare a separate upstream Linux build",
+          "instruction": "Use the tagged source and its submodules, with the documented Qt and SDL2 dependencies. Place the built eZeus player under your complete working eZeus/Bin folder and launch from that folder. Use the matching base preparation and text conversion from upstream. Keep both original games and the actual settings, Save and resource directories backed up before changing the engine."
+        },
+        {
+          "title": "Choose the matching upstream-linked Mac package",
+          "instruction": "Upstream links separate Intel and Apple Silicon 0.8.1-Beta.8 packages from MacThings, which documents macOS 14 or later. Use the matching 0.8.1 base preparation on a separate working copy. Copy the eZeus player and its bundled libs together into the prepared eZeus/Bin folder. Place Zeus_MM.xml and Zeus_Text.xml in the eZeus root above Bin, as described by upstream. Keep the complete original Zeus and Poseidon files, settings and Save directory together. This build has its own resources and profile. Keep the later Windows patch separate."
+        },
+        {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
         }
       ],
       "warnings": [
         "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified.",
-        "Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
+        "Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred.",
+        "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
       ],
       "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
       "references": [
@@ -48,7 +57,8 @@
           "instruction": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
         }
       ]
-    }
+    },
+    "platforms": ["macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,
