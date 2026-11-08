@@ -12,6 +12,20 @@ import { isRecord } from "./runtime-values.mts";
 import { validateValidationPlan } from "./validation-plan.mts";
 
 const repository = "repos/boburning/portcove";
+// Exact retained initial-beta Windows package qualification. These three
+// recipes were reviewed at the qualified source, before controller-only drift.
+const historicalWindowsQualification = {
+  source: "fd4b1a1c5bf3a4253ee06a357df04bb1f203cb2f",
+  run: 42407004590,
+  attempt: 1,
+  recipes: {
+    "ci.yml": "93e2dccd4516e42e54bf0ae39df09873e6e4351868d52bca36e6adbbedc3aefe",
+    "application-release.yml": "bfafab0997b22d09d55544c58d5afa89e5780209cf92e9c90e918a1f95f31ee7",
+    "application-release-package.yml":
+      "77ab2083dad7e277923c543dc0685502e531941cded966f68c71a458d4f75a76",
+  } as Record<string, string>,
+};
+
 const sharedAndWindowsJobs = Object.freeze([
   "classify-ci-plan",
   "record-workflow-provenance",
@@ -222,6 +236,16 @@ export async function readWindowsApplicationQualification(
   assert.ok(isRecord(run) && Number.isSafeInteger(run.run_attempt) && Number(run.run_attempt) > 0);
   assert.equal(run.id, runId);
   const attempt = Number(run.run_attempt);
+  const historical = runId === historicalWindowsQualification.run;
+  if (historical) {
+    assert.ok(
+      source === historicalWindowsQualification.source &&
+        run.head_sha === source &&
+        attempt === historicalWindowsQualification.attempt &&
+        run.path === ".github/workflows/application-release.yml",
+      "historical Windows qualification source or attempt differs",
+    );
+  }
   for (const workflow of [
     "ci.yml",
     ...(run.path === ".github/workflows/application-release.yml"
@@ -237,12 +261,21 @@ export async function readWindowsApplicationQualification(
     );
     const bytes = Buffer.from(remote.content, "base64");
     assert.equal(remote.size, bytes.length);
-    const reviewed = await readFile(new URL(`../.github/workflows/${workflow}`, import.meta.url));
-    assert.deepEqual(
-      bytes,
-      reviewed,
-      "qualification recipe changed; qualify its new control source first",
-    );
+    if (historical) {
+      const expected = historicalWindowsQualification.recipes[workflow];
+      assert.ok(expected, "historical Windows qualification recipe was not reviewed");
+      assert.equal(
+        createHash("sha256").update(bytes).digest("hex"),
+        expected,
+        "historical Windows qualification recipe digest differs",
+      );
+    } else {
+      const reviewed = await readFile(new URL(`../.github/workflows/${workflow}`, import.meta.url));
+      assert.ok(
+        bytes.equals(reviewed),
+        "qualification recipe changed; qualify its new control source first",
+      );
+    }
   }
   const jobs = await get(() => reader.jobs(id, attempt));
   const artifacts = await get(() => reader.artifacts(id));
