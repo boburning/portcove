@@ -3190,6 +3190,70 @@ mod tests {
     }
 
     #[test]
+    fn native_engine_sibling_packages_require_the_reviewed_variant() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let assets = |names: &[&str]| {
+            names
+                .iter()
+                .map(|name| GithubAsset {
+                    id: None,
+                    name: (*name).into(),
+                    browser_download_url: "https://example.invalid/package.zip".into(),
+                    size: 1,
+                    digest: Some(format!("sha256:{}", "a".repeat(64))),
+                })
+                .collect::<Vec<_>>()
+        };
+        let dune = catalog.port("dune-ii-dune-dynasty").unwrap();
+        let dune_siblings = assets(&[
+            "dunedynasty-v1.6.4-linux-amd64-flatpak.zip",
+            "dunedynasty-v1.6.4-linux-arm64-flatpak.zip",
+            "dunedynasty-v1.6.4-linux-arm64.zip",
+            "dunedynasty-v1.6.4-macos-x86-64.zip",
+            "dunedynasty-v1.6.4-windows-x64.zip",
+        ]);
+        assert!(choose_asset(dune, Platform::LinuxX86_64, &dune_siblings).is_err());
+        for name in [
+            "dunedynasty-v1.6.4-linux-x86-64.zip",
+            "dunedynasty-v1.6.5-linux-x86-64.zip",
+        ] {
+            let mut release = dune_siblings.clone();
+            release.extend(assets(&[name]));
+            assert_eq!(
+                choose_asset(dune, Platform::LinuxX86_64, &release)
+                    .unwrap()
+                    .name,
+                name
+            );
+            release.extend(assets(&[name]));
+            assert!(choose_asset(dune, Platform::LinuxX86_64, &release).is_err());
+        }
+
+        let fheroes = catalog
+            .port("heroes-of-might-and-magic-ii-fheroes2")
+            .unwrap();
+        let fheroes_siblings = assets(&[
+            "fheroes2_android.zip",
+            "fheroes2_ubuntu_arm64_SDL2.zip",
+            "fheroes2_windows_x64_SDL2.zip",
+            "fheroes2_windows_x64_SDL2_installer.exe",
+        ]);
+        for (platform, name) in [
+            (Platform::LinuxX86_64, "fheroes2_ubuntu_x86-64_SDL2.zip"),
+            (Platform::MacosX86_64, "fheroes2_macos_x86-64_SDL2.zip"),
+        ] {
+            assert!(choose_asset(fheroes, platform, &fheroes_siblings).is_err());
+            let mut release = fheroes_siblings.clone();
+            release.extend(assets(&[name]));
+            assert_eq!(
+                choose_asset(fheroes, platform, &release).unwrap().name,
+                name
+            );
+            assert!(choose_asset(fheroes, Platform::MacosAarch64, &release).is_err());
+        }
+    }
+
+    #[test]
     fn catalog_linux_hints_select_native_packages_across_real_release_layouts() {
         let catalog = crate::Catalog::embedded().unwrap();
         let cases = [

@@ -30,12 +30,25 @@
         {
           "title": "Keep the player and save folder together",
           "instruction": "Finish setup with that sdlpal.exe and the same folder as its working directory. On first Play, keep SDLPAL’s game folder pointed at this copy. This keeps the initial save folder and later launches at the same location."
+        },
+        {
+          "title": "Set up the upstream Linux AppImage",
+          "instruction": "Open the official x86-64 AppImage with the host’s AppImage support. Its launcher runs inside the mounted image, so put your matching DOS or Windows data in a separate writable folder. Select that folder in the settings window before starting the game. The Linux settings dialog uses the selected game folder as the save folder and the AppImage stores sdlpal.cfg under ~/.config. Use lowercase game filenames on case-sensitive filesystems. Keep the config, data and .rpg saves backed up."
+        },
+        {
+          "title": "Prepare a writable folder for the Mac app",
+          "instruction": "Copy Pal.app out of the official DMG into a permanent writable folder with your matching game files. The v3.0.2025.0616 bundle supports Intel and Apple Silicon and requires macOS 11 or later. The Finder launch uses the app’s enclosing folder for default game data and saves. Keep sdlpal.cfg and the .rpg saves with that working copy. If you launch the player from a terminal, start it with that same working directory."
+        },
+        {
+          "title": "Choose the Android game folder",
+          "instruction": "Install the official SDLPAL APK and prepare a writable folder on the device or SD card containing your matching game data. Select that folder with Android’s document picker when SDLPAL requests access. Its settings use the selected game folder for both data and saves. Keep that folder, sdlpal.cfg and the .rpg saves recoverable when replacing the APK. Preserve your accessible backup before clearing data or changing to another package or signer."
         }
       ],
       "warnings": [
         "Keep saves matched to the DOS or Windows data edition. Portcove does not update or back up this externally owned copy.",
         "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates.",
-        "For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
+        "For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location.",
+        "The Linux, Mac and Android packages use upstream setup and replacement. Their files and saves are outside the managed Windows profile."
       ],
       "help_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md",
       "references": [
@@ -46,9 +59,12 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["sdlpal-win32-mingw.zip"]
+      "linux-x86-64": ["sdlpal-", "-x86_64.appimage"],
+      "macos-x86-64": ["sdlpal-macos.dmg"],
+      "macos-aarch64": ["sdlpal-macos.dmg"]
     },
-    "original_game_title": "The Legend of Sword and Fairy"
+    "original_game_title": "The Legend of Sword and Fairy",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "integration": {
     "support_tier": "beta",
