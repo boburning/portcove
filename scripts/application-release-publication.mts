@@ -2096,12 +2096,13 @@ export function readBootstrapSiteArchive(
 
 type Asset = { id: number; name: AssetName; size: number; digest: string };
 
-export function inspectBootstrapDraftPreparation(
+export function inspectMetadataDraftPreparation(
   raw: unknown,
   expected: Pick<
     ReleaseSourceAttestationExpectation,
     "source_commit" | "ref" | "run_id" | "run_attempt"
   >,
+  purpose: "metadata-bootstrap" | "metadata-renewal",
 ) {
   assert.ok(
     isRecord(raw) &&
@@ -2110,7 +2111,12 @@ export function inspectBootstrapDraftPreparation(
   );
   assert.equal(raw.schema_version, 1);
   assert.equal(raw.authority, "none");
-  assert.equal(raw.kind, "application-bootstrap-draft-preparation");
+  assert.equal(
+    raw.kind,
+    purpose === "metadata-bootstrap"
+      ? "application-bootstrap-draft-preparation"
+      : "application-renewal-draft-preparation",
+  );
   assert.equal(raw.control_commit, expected.source_commit);
   assert.equal(raw.control_ref, expected.ref);
   assert.equal(raw.run_id, expected.run_id);

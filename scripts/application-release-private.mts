@@ -152,7 +152,7 @@ import {
   readBootstrapSiteArchive,
   decodeBootstrapDraftSiteAsset,
   inspectApplicationMetadataPublicationReceipt,
-  inspectBootstrapDraftPreparation,
+  inspectMetadataDraftPreparation,
   assertApplicationPublicationRecord,
   inspectApplicationWindowsCandidate,
   isApplicationWindowsJourneyRecord,
@@ -1272,19 +1272,20 @@ async function publishOrdinaryMetadata(
   await applicationOutput("attempt", current.run_attempt);
 }
 
-async function receiveBootstrapPreparation() {
+async function receiveMetadataDraftPreparation(purpose: "metadata-bootstrap" | "metadata-renewal") {
   const { directory, attestation, authenticatePreparation } =
     await receiveApplicationDraftPreparation(true);
   await authenticatePreparation();
-  const prepared = inspectBootstrapDraftPreparation(
+  const prepared = inspectMetadataDraftPreparation(
     await readApplicationJson(path.join(directory, "prepared.json"), 128 * 1024),
     attestation,
+    purpose,
   );
   return { directory, prepared, attempt: prepared.assembly_attempt };
 }
 
-async function publishBootstrapMetadata(
-  stage: "combined" | "prepare" | "publish",
+async function publishMetadataRelease(
+  stage: "prepare" | "publish",
   source: Awaited<ReturnType<typeof readNativeApplicationSource>>,
 ) {
   publicationStage = "source";
@@ -1295,7 +1296,7 @@ async function publishBootstrapMetadata(
         publicationStage = next;
       },
     });
-  if (stage !== "combined") assert.equal(source.purpose, "metadata-bootstrap");
+  assert.ok(source.purpose === "metadata-bootstrap" || source.purpose === "metadata-renewal");
   if (source.purpose === "metadata-renewal")
     assert.equal(source.execution_path, "metadata-maintenance");
   // The split publisher only reads until its final full guard. Repeating the
@@ -1303,7 +1304,8 @@ async function publishBootstrapMetadata(
   if (stage !== "publish") await guardSource(false);
   const current = execution();
   publicationStage = stage === "publish" ? "prepared-input" : "assembly-input";
-  const preparedInput = stage === "publish" ? await receiveBootstrapPreparation() : undefined;
+  const preparedInput =
+    stage === "publish" ? await receiveMetadataDraftPreparation(source.purpose) : undefined;
   const input = preparedInput ?? (await receiveApplicationAssembly());
   const { directory, attempt } = input;
   assert.ok(isRecord(source.run_custody));
@@ -1325,7 +1327,7 @@ async function publishBootstrapMetadata(
     ),
   );
   let verifyPreimage: () => Promise<() => Promise<void>>;
-  let bootstrapPrior: Record<string, unknown> | undefined;
+  let preparedPrior: Record<string, unknown> | undefined;
   if (source.purpose === "metadata-renewal") {
     const raw: unknown = JSON.parse(
       new TextDecoder("utf-8", { fatal: true }).decode(files.get(bootstrapAssetNames[1])),
@@ -1336,61 +1338,100 @@ async function publishBootstrapMetadata(
       expected.binding,
       expected.custody,
     );
-    const scratch = await mkdtemp(
-      path.join(process.env.RUNNER_TEMP!, "application-renewal-recovery-"),
-    );
-    let publicPrior: Awaited<ReturnType<typeof readApplicationPriorPublication>> | undefined;
-    let lineage: Awaited<ReturnType<typeof readForwardRenewalPreimage>>["lineage"] | undefined;
-    const verifyRenewalPreimage = async () => {
-      if (!publicPrior) {
-        if (source.renewal_parent === undefined)
-          publicPrior = await readApplicationPriorPublication(
-            scratch,
-            undefined,
-            "renew-served-metadata",
+    let priorSite: ReturnType<typeof inspectSiteGeneration>;
+    let priorState: Awaited<ReturnType<typeof readActualApplicationPagesState>>;
+    let lineage:
+      | { release_id: number; custody: ReturnType<typeof inspectApplicationRunCustody> }[]
+      | undefined;
+    if (preparedInput) {
+      assert.equal(preparedInput.prepared.release_id, expected.release_id);
+      assert.equal(preparedInput.prepared.site_generation, receipt.site.generation);
+      const prior = await readApplicationJson(
+        path.join(directory, "prior-site.json"),
+        2 * 1024 ** 2,
+      );
+      assert.ok(isRecord(prior) && prior.schema_version === 1 && prior.authority === "none");
+      assert.ok(isRecord(prior.site) && typeof raw.prior_generation === "string");
+      priorSite = inspectSiteGeneration(prior.site, raw.prior_generation);
+      if (source.renewal_parent !== undefined) {
+        assert.ok(
+          Array.isArray(prior.lineage) && prior.lineage.length > 0 && prior.lineage.length <= 3,
+        );
+        lineage = prior.lineage.map((entry: unknown) => {
+          assert.ok(
+            isRecord(entry) &&
+              typeof entry.release_id === "number" &&
+              Number.isSafeInteger(entry.release_id) &&
+              entry.release_id > 0,
           );
-        else {
-          const forward = await readForwardRenewalPreimage(source, scratch);
-          lineage = forward.lineage;
-          publicPrior = forward;
-        }
-      }
-      const { prior, discovered } = publicPrior;
+          return {
+            release_id: entry.release_id,
+            custody: inspectApplicationRunCustody(entry.custody),
+          };
+        });
+        assert.deepEqual(
+          { release_id: lineage[0]!.release_id, opportunity: lineage[0]!.custody.opportunity },
+          inspectApplicationReleaseReference(source.renewal_parent),
+        );
+      } else assert.equal(prior.lineage, undefined);
+      const discovered = await discoverActualPublishedApplicationCohort(lineage);
+      assert.deepEqual(discovered.state, prior.provider);
+      priorState = discovered.state;
+    } else {
+      const scratch = await mkdtemp(
+        path.join(process.env.RUNNER_TEMP!, "application-renewal-recovery-"),
+      );
+      const forward =
+        source.renewal_parent === undefined
+          ? undefined
+          : await readForwardRenewalPreimage(source, scratch);
+      lineage = forward?.lineage.map(({ release_id, custody }) => ({ release_id, custody }));
+      const { discovered, prior } =
+        forward ??
+        (await readApplicationPriorPublication(scratch, undefined, "renew-served-metadata"));
       assert.equal(raw.prior_generation, prior.receipt.site.generation);
       assert.equal(raw.prior_repository_sha256, prior.receipt.publication.repository_sha256);
-      await readPublicApplicationSiteMarker(prior.receipt.site);
-      assert.deepEqual(await discoverActualPublishedApplicationCohort(lineage), discovered);
-      await guardSource();
-      return discovered.state;
-    };
+      priorSite = prior.receipt.site;
+      priorState = discovered.state;
+      preparedPrior = {
+        schema_version: 1,
+        authority: "none",
+        site: priorSite,
+        provider: priorState,
+        ...(lineage === undefined ? {} : { lineage }),
+      };
+      await finishDraftRecovery(
+        {
+          ...expected,
+          producer: {
+            control_commit: current.source,
+            control_ref: current.ref,
+            run_id: current.run_id,
+            attempt,
+          },
+        },
+        raw,
+        receipt.publication,
+        files,
+        async () => {
+          await readPublicApplicationSiteMarker(priorSite);
+          assert.deepEqual(await discoverActualPublishedApplicationCohort(lineage), discovered);
+          await guardSource();
+          return async () => {
+            assert.deepEqual(await readActualApplicationPagesState(), priorState);
+            assertProtectionWriteWindow();
+          };
+        },
+      );
+    }
     verifyPreimage = async () => {
-      const state = await verifyRenewalPreimage();
+      await readPublicApplicationSiteMarker(priorSite, deadline);
+      await guardSource(stage === "publish");
       return async () => {
-        assert.deepEqual(await readActualApplicationPagesState(deadline), state);
-        assertProtectionWriteWindow();
+        assert.deepEqual(await readActualApplicationPagesState(deadline), priorState);
+        if (stage === "publish") assertProtectionWriteWindow();
       };
     };
-    await finishDraftRecovery(
-      {
-        ...expected,
-        producer: {
-          control_commit: current.source,
-          control_ref: current.ref,
-          run_id: current.run_id,
-          attempt,
-        },
-      },
-      raw,
-      receipt.publication,
-      files,
-      async () => {
-        const state = await verifyRenewalPreimage();
-        return async () => {
-          assert.deepEqual(await readActualApplicationPagesState(), state);
-          assertProtectionWriteWindow();
-        };
-      },
-    );
   } else if (stage === "publish") {
     const prior = await readApplicationJson(path.join(directory, "prior-site.json"), 128 * 1024);
     assert.ok(
@@ -1433,7 +1474,7 @@ async function publishBootstrapMetadata(
         bootstrapAppointment().site_preimage_sha256,
         scratch,
       );
-      bootstrapPrior = {
+      preparedPrior = {
         schema_version: 1,
         authority: "none",
         provider: descriptor.provider,
@@ -1468,42 +1509,41 @@ async function publishBootstrapMetadata(
             },
         deadline,
       )),
-      async retainAssembly(assembly) {
-        return retainApplicationDraftAssembly(
-          await createApplicationRunRegistrationProvider(),
-          expected,
-          current,
-          assembly,
-          async () => {
-            await guardSource(false);
-          },
-        );
-      },
+      ...(stage === "prepare"
+        ? {
+            async retainAssembly(assembly: ReturnType<typeof applicationDraftAssembly>) {
+              return retainApplicationDraftAssembly(
+                await createApplicationRunRegistrationProvider(),
+                expected,
+                current,
+                assembly,
+                async () => {
+                  await guardSource(false);
+                },
+              );
+            },
+          }
+        : {}),
       async beforeWrite(phase) {
-        if (stage === "prepare") {
-          assert.equal(phase, "asset", "draft preparation cannot publish");
-          const prior = bootstrapPrior;
-          assert.ok(prior);
-          await guardSource(false);
-          return async () => {
-            assert.deepEqual(await readActualApplicationPagesState(deadline), prior.provider);
-          };
+        if (stage === "publish") {
+          assert.equal(phase, "publish", "final publication cannot change draft assets");
+          return verifyPreimage();
         }
-        if (phase === "publish") return verifyPreimage();
-        await guardSource();
-        return assertProtectionWriteWindow;
+        assert.equal(phase, "asset", "draft preparation cannot publish");
+        const prior = preparedPrior;
+        assert.ok(prior);
+        await guardSource(false);
+        return async () => {
+          assert.deepEqual(await readActualApplicationPagesState(deadline), prior.provider);
+        };
       },
       readAsset: createFixedApplicationReleaseAssetReader(undefined, deadline),
-      upload: await createApplicationAssetUploader(
-        token,
+      upload:
         stage === "prepare"
-          ? undefined
-          : () => {
-              assertProtectionWriteWindow();
-              publicationStage = "asset-upload";
+          ? await createApplicationAssetUploader(token, undefined, deadline)
+          : async () => {
+              throw new Error("final publication cannot upload draft assets");
             },
-        deadline,
-      ),
     },
     expected,
     files.get(bootstrapAssetNames[1])!,
@@ -1515,7 +1555,10 @@ async function publishBootstrapMetadata(
     await writeApplicationJson(path.join(output, "prepared.json"), {
       schema_version: 1,
       authority: "none",
-      kind: "application-bootstrap-draft-preparation",
+      kind:
+        source.purpose === "metadata-bootstrap"
+          ? "application-bootstrap-draft-preparation"
+          : "application-renewal-draft-preparation",
       control_commit: current.source,
       control_ref: current.ref,
       run_id: current.run_id,
@@ -1525,8 +1568,8 @@ async function publishBootstrapMetadata(
       site_generation: result.site_generation,
       assets: result.assets,
     });
-    assert.ok(bootstrapPrior);
-    await writeApplicationJson(path.join(output, "prior-site.json"), bootstrapPrior);
+    assert.ok(preparedPrior);
+    await writeApplicationJson(path.join(output, "prior-site.json"), preparedPrior);
     for (const name of bootstrapAssetNames)
       await writeFile(path.join(output, name), files.get(name)!, { flag: "wx", mode: 0o600 });
     await applicationOutput("attempt", current.run_attempt);
@@ -3892,15 +3935,12 @@ async function main() {
     else if (process.argv[2] === "draft-recovery-retain") await retainDraftRecoveryBackup();
     else if (process.argv[2] === "publication-prepare") {
       const source = await readNativeApplicationSource();
-      if (source.purpose === "metadata-bootstrap")
-        await publishBootstrapMetadata("prepare", source);
-      else await prepareOrdinaryPublication(source);
+      if (source.purpose === "application-release") await prepareOrdinaryPublication(source);
+      else await publishMetadataRelease("prepare", source);
     } else if (process.argv[2] === "publication") {
       const source = await readNativeApplicationSource();
-      if (source.purpose === "metadata-bootstrap")
-        await publishBootstrapMetadata("publish", source);
-      else if (source.purpose === "application-release") await publishOrdinaryMetadata(source);
-      else await publishBootstrapMetadata("combined", source);
+      if (source.purpose === "application-release") await publishOrdinaryMetadata(source);
+      else await publishMetadataRelease("publish", source);
     } else if (process.argv[2] === "prepare-feed") {
       const source = await readNativeApplicationSource();
       if (source.purpose === "application-release") await prepareOrdinaryFeed(source);

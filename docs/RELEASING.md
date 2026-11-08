@@ -90,6 +90,14 @@ signatures. The installed client also authenticates signed TUF metadata and
 enforces freshness, replay refusal and release channel policy. That metadata
 and the isolated signing roles remain part of the application trust boundary.
 
+The native application release workflow stages and verifies draft assets before
+requesting the final protection observation. The same preparation boundary
+applies to ordinary Preview, metadata bootstrap, and metadata renewal. Renewal
+retains the exact serving predecessor and any bounded pending lineage with the
+attested prepared assets. The final job rechecks the live cohort, draft asset
+identities, pause and protection before publishing the immutable Release.
+Draft asset removal still requires its own fresh protection observation.
+
 The first ordinary executable publication of a newly appointed controller uses
 the complete authenticated predecessor read from feed preparation. Under the
 shared publication concurrency group, the final guard checks the exact public
