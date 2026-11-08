@@ -1181,6 +1181,186 @@
         "claim": "Official v0.1.0 windows-x64 ZIP asset 564078040 (27059877 bytes, SHA-256 52397048849c696cdddadcba938a51e0253e06473df085c522a6a53e99c13993); linux-x64 ZIP asset 564078031 (24986708 bytes, SHA-256 d6b968fe9f116cc49e98f4d1077449a94c17439c3a4175e75a98cc38fb7ade25) matched provider metadata and passed CRC and safe-entry checks. Packaged game, identity, manifest, build files and CLI agree across Windows and Linux after line-ending normalization. Source declares SLUS-00912 with 13 tracks and first data-track SHA-1 131463c47379b9a38888f548a44f43dcc6e7f959. The managed kit generates Destruction_Derby_Raw with retail SCPH-1001 BIOS. No native generation, launch, gameplay, full-disc identity or saves were observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/33ab1fb744a1c4fdc48626e2e5dfde17b07667cd/game.toml",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-armored-core-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/armored-core-recomp",
+        "authority_ref": "80060c45a009ed8963e83fbb742eb3ef956cc9fc",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Linux x64 asset Armored-Core-Recomp-0.3.6-linux-x64.zip (28046282 bytes, SHA-256 a8bb86eb739f10653c39f8cb3c83b59d4d8a7b3b837ea7b580667868c6698e6a) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SCES-00842, track count 1, and first data-track SHA-1 20ad05be52317bce58b251be103f9add03c92609. The managed builder targets Armored_Core_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/80060c45a009ed8963e83fbb742eb3ef956cc9fc/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-blood-omen-legacy-of-kain-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+        "authority_ref": "b289b9c2d7163968aa679dcc0cb40b2ccf7bb053",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Linux x64 asset Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip (28049902 bytes, SHA-256 7cbef94c5fc72a1dd1ecaad2afe48a40faf2381e3bb579b2f7bbdfb3a74f80fc) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-00027, track count 1, and first data-track SHA-1 774ff732cecd0937d052ffcdfb225a7d71d163aa. The managed builder targets Blood_Omen__Legacy_of_Kain_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/b289b9c2d7163968aa679dcc0cb40b2ccf7bb053/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-digimon-world-2003-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/digimon-world-2003-recomp",
+        "authority_ref": "cebada963263459d292da7e3dee07b0fbc9f01e9",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Linux x64 asset Digimon-World-2003-Recomp-0.3.6-linux-x64.zip (28046744 bytes, SHA-256 0538611d06da652482d035a5b97f356bc4bbae18728a34d27712772bb557bae8) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLES-03936, track count 1, and first data-track SHA-1 457cb233349ba841e03b33d8060f8fbcadd45cb3. The managed builder targets Digimon_World_2003_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/blob/cebada963263459d292da7e3dee07b0fbc9f01e9/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-duke-nukem-land-of-the-babes-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+        "authority_ref": "bc7f7e4e15f024bf821d58b4216673b3dd47036b",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Linux x64 asset Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-linux-x64.zip (28048314 bytes, SHA-256 46a9b69d869bb7ae868e1d8b9943ae6902b7ba81733f0afc957da8ae9692ebad) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-01002, track count 1, and first data-track SHA-1 f57c49eac288225fe3602e279bc1379f72f7eea6. The managed builder targets Duke_Nukem__Land_of_the_Babes_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/blob/bc7f7e4e15f024bf821d58b4216673b3dd47036b/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-driver-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/driver-recomp",
+        "authority_ref": "8dd843a427386d8d44aeaab4aca783774df95cd8",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Linux x64 asset Driver-Recomp-0.3.6-linux-x64.zip (28047869 bytes, SHA-256 35bb94181910a9fed63e48ef0e0bcc1e569befc9e19925c0bf29f12b0fabc7cd) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-00842, track count 1, and first data-track SHA-1 3df45bb77b9189258dc513d8b161b73bc0b06d6e. The managed builder targets Driver_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/blob/8dd843a427386d8d44aeaab4aca783774df95cd8/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-duke-nukem-time-to-kill-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+        "authority_ref": "62f7313c39e96a1146967df3beecae06a81df18b",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Linux x64 asset Duke-Nukem-Time-to-Kill-Recomp-0.3.6-linux-x64.zip (28051653 bytes, SHA-256 c2b421fe2214efecd6736d3f95636b44a6562f459965c7aee098b5cdebaeb1f3) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-00583, track count 1, and first data-track SHA-1 a782825520939da0560ef031daa78db8ef720957. The managed builder targets Duke_Nukem__Time_to_Kill_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/62f7313c39e96a1146967df3beecae06a81df18b/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-fade-to-black-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/fade-to-black-recomp",
+        "authority_ref": "25df871d2185eb45ec0e9253b96a2667e2feca6b",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Linux x64 asset Fade-to-Black-Recomp-0.3.6-linux-x64.zip (28045594 bytes, SHA-256 fadb05389a6db767d04046bb095ec3fc14aacf665a876dd52fa81e0125c4cd72) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-00236, track count 1, and first data-track SHA-1 cdd0ddbe768bcd89a04132b08d050164b3f13794. The managed builder targets Fade_to_Black_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/blob/25df871d2185eb45ec0e9253b96a2667e2feca6b/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-monster-rancher-2-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/monster-rancher-2-recomp",
+        "authority_ref": "d5b13817a97f3daf0e9c71ec7022044242c8addb",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.3 Linux x64 asset monster-rancher-2-recomp-0.1.3-linux-x64.zip (27797934 bytes, SHA-256 f5c0046db7a19576524fce80d9379629abb7baaba94bf693f2142df843b9ed7f) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-00917, track count 1, and first data-track SHA-1 e7418d1491e1809490b2e5fe20d738cb730e5e22. The managed builder targets Monster_Rancher_2_Recompiled in build-portcove and uses your own retail SCPH-1001 BIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/blob/d5b13817a97f3daf0e9c71ec7022044242c8addb/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-nightmare-creatures-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/nightmare-creatures-recomp",
+        "authority_ref": "85b86b419e019647fa961ff41cdc992f7b2e6a72",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.3 Linux x64 asset nightmare-creatures-recomp-0.1.3-linux-x64.zip (27780496 bytes, SHA-256 b05e43cc8eb8a927a331d0307c30e36b78e4ea7c3413874215e2a9d42b471ec3) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-00582, track count 26, and first data-track SHA-1 67d9fb2ab81a54c1129a5a42ec0991c756a2f125. The managed builder targets Nightmare_Creatures_Recompiled in build-portcove and uses your own retail SCPH-1001 BIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/blob/85b86b419e019647fa961ff41cdc992f7b2e6a72/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-oddworld-abe-s-oddysee-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp",
+        "authority_ref": "d41305b83ab35ef23dbedb3a6fee00290e9b1101",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.3 Linux x64 asset oddworld-abe-s-oddysee-recomp-0.1.3-linux-x64.zip (27783406 bytes, SHA-256 177256f195ba86d4a011db99d6c59cf708fac43f03c655cc5685c470b436512b) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-00190, track count 1, and first data-track SHA-1 3507fb96d6c5d60f30b1d1b9e4b6dfc468f7cef0. The managed builder targets Oddworld__Abe_s_Oddysee_Recompiled in build-portcove and uses your own retail SCPH-1001 BIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/blob/d41305b83ab35ef23dbedb3a6fee00290e9b1101/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-syphon-filter-3-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/syphon-filter-3-recomp",
+        "authority_ref": "1059cfabe56727520f29fc5ed6a0e53226b7a4f0",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.3 Linux x64 asset syphon-filter-3-recomp-0.1.3-linux-x64.zip (27787635 bytes, SHA-256 82ec298edfa5b9cb95323523199ad7ee0df73b5a969687c039271509c0540a06) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SCUS-94640, track count 1, and first data-track SHA-1 4abe30077c2b449ea68239083df7932d47ae0b69. The managed builder targets Syphon_Filter_3_Recompiled in build-portcove and uses your own retail SCPH-1001 BIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/1059cfabe56727520f29fc5ed6a0e53226b7a4f0/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-tenchu-stealth-assassins-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
+        "authority_ref": "2d3ce1718f6e47e3be6d35d15a688f44e1034060",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.3 Linux x64 asset tenchu-stealth-assassins-recomp-0.1.3-linux-x64.zip (27781673 bytes, SHA-256 70bbc868a1542af53256c2e2f396905f8071fb657adb9dd75d4eb9617d35e205) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-00706, track count 1, and first data-track SHA-1 a33ca500872e3471b8d096b21eff3d30a310284c. The managed builder targets Tenchu_Stealth_Assassins_Recompiled in build-portcove and uses your own retail SCPH-1001 BIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/2d3ce1718f6e47e3be6d35d15a688f44e1034060/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp",
+        "authority_ref": "5edd843cdc4e92a7012609897e2e6c2c30991d4d",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.3 Linux x64 asset tony-hawk-s-pro-skater-2-recomp-0.1.3-linux-x64.zip (27786614 bytes, SHA-256 9952c8298ee8e84cd8a43a75c72291c106b178d77a59d0ae6647af284db9a005) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-01066, track count 1, and first data-track SHA-1 f5cb80a7d55aaced7fcc9c5a82a6c28b89dc489a. The managed builder targets Tony_Hawks_Pro_Skater_2_Recompiled in build-portcove and uses your own retail SCPH-1001 BIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/blob/5edd843cdc4e92a7012609897e2e6c2c30991d4d/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
+        "authority_ref": "65ee011a0a36ca07c51ab28dadfb3b7320617768",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.3 Linux x64 asset tony-hawk-s-pro-skater-4-recomp-0.1.3-linux-x64.zip (27786639 bytes, SHA-256 5731d1851c94144aa8c19d648afb2665a4526e28b850a26afb06e72717822234) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-01485, track count 1, and first data-track SHA-1 4857b347c6aec4180311b8f1beafc281d34a254a. The managed builder targets Tony_Hawks_Pro_Skater_4_Recompiled in build-portcove and uses your own retail SCPH-1001 BIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/blob/65ee011a0a36ca07c51ab28dadfb3b7320617768/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
+        "authority_ref": "820fcda34cacc39b946cb20b05df221a77667e4a",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.3 Linux x64 asset tony-hawk-s-pro-skater-recomp-0.1.3-linux-x64.zip (27785197 bytes, SHA-256 c9e97b03e77f7c2455a6a9fee2fd43712ed6ae13fa7c1023712ae53202a18643) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-00860, track count 1, and first data-track SHA-1 84fb50ddf68ced4ad8549b51a6dbfdb96650f266. The managed builder targets Tony_Hawks_Pro_Skater_Recompiled in build-portcove and uses your own retail SCPH-1001 BIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/blob/820fcda34cacc39b946cb20b05df221a77667e4a/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
+        "authority_ref": "0331e76300569de7133bc1a70730e9fb005f02b6",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.1.3 Linux x64 asset tony-hawk-s-pro-skater-3-recomp-0.1.3-linux-x64.zip (27786691 bytes, SHA-256 9670ddf158bb6e00966e69d45de8161fb53e0cc78d7cae40e979ea9e4bc7558c) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLUS-01419, track count 1, and first data-track SHA-1 757cc517b2d25f6d0112d0d4efa9efdfa2553967. The managed builder targets Tony_Hawks_Pro_Skater_3_Recompiled in build-portcove and uses your own retail SCPH-1001 BIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/0331e76300569de7133bc1a70730e9fb005f02b6/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-ape-escape-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/ape-escape-recomp",
+        "authority_ref": "53687196c5d93f3a77f89893e0a3f56b9d726a0e",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Linux x64 asset Ape-Escape-Recomp-0.3.6-linux-x64.zip (28049381 bytes, SHA-256 e905e65eb6358b5bd7c6a89d7143a1b718111f7196a8c951f7e5db03808bc070) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SCUS-94423, track count 1, and first data-track SHA-1 466cce4bcd6992f57227abd270323bcdad2fb7fc. The managed builder targets Ape_Escape_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/blob/53687196c5d93f3a77f89893e0a3f56b9d726a0e/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-alundra-recomp-linux-x64-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/alundra-recomp",
+        "authority_ref": "afb9151fd48ae90ca5979dcd4ad53ee1c0f16329",
+        "reviewed_at": "2026-11-08",
+        "claim": "Official v0.3.6 Linux x64 asset Alundra-Recomp-0.3.6-linux-x64.zip (28046637 bytes, SHA-256 b19969bed66098367129fec451990248ae833e07771b42d33256337260fc75e1) matched publisher metadata and passed archive entry and CRC checks. The Windows and Linux kits agree on game identity, title license, manifest, CMake and CLI. The source declares SLES-01135, track count 1, and first data-track SHA-1 de2bbc3185fa4ce01ad50bcda94899ccec7b7451. The managed builder targets Alundra_Recompiled in build-portcove and uses bundled OpenBIOS. Package inspection establishes the layout and first-track identity scope. Native build, gameplay, full-disc authentication and populated saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/blob/afb9151fd48ae90ca5979dcd4ad53ee1c0f16329/game.toml",
+        "live_url": null
       }
     ],
     "identities": [
@@ -11290,7 +11470,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-ape-escape-recomp-v0-3-6-source-contract"
+          "alexbeav-ape-escape-recomp-v0-3-6-source-contract",
+          "alexbeav-ape-escape-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "53687196c5d93f3a77f89893e0a3f56b9d726a0e",
         "reviewed_at": "2026-10-06",
@@ -11301,6 +11482,10 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "e905e65eb6358b5bd7c6a89d7143a1b718111f7196a8c951f7e5db03808bc070"
           }
         ],
         "aliases": [],
@@ -11317,7 +11502,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-alundra-recomp-v0-3-6-source-contract"
+          "alexbeav-alundra-recomp-v0-3-6-source-contract",
+          "alexbeav-alundra-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "afb9151fd48ae90ca5979dcd4ad53ee1c0f16329",
         "reviewed_at": "2026-10-06",
@@ -11328,6 +11514,10 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "b19969bed66098367129fec451990248ae833e07771b42d33256337260fc75e1"
           }
         ],
         "aliases": [],
@@ -11344,7 +11534,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-armored-core-recomp-v0-3-6-source-contract"
+          "alexbeav-armored-core-recomp-v0-3-6-source-contract",
+          "alexbeav-armored-core-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "80060c45a009ed8963e83fbb742eb3ef956cc9fc",
         "reviewed_at": "2026-10-09",
@@ -11355,6 +11546,10 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "a8bb86eb739f10653c39f8cb3c83b59d4d8a7b3b837ea7b580667868c6698e6a"
           }
         ],
         "aliases": [],
@@ -11371,7 +11566,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-blood-omen-legacy-of-kain-recomp-v0-3-6-source-contract"
+          "alexbeav-blood-omen-legacy-of-kain-recomp-v0-3-6-source-contract",
+          "alexbeav-blood-omen-legacy-of-kain-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "b289b9c2d7163968aa679dcc0cb40b2ccf7bb053",
         "reviewed_at": "2026-10-09",
@@ -11382,6 +11578,10 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "7cbef94c5fc72a1dd1ecaad2afe48a40faf2381e3bb579b2f7bbdfb3a74f80fc"
           }
         ],
         "aliases": [],
@@ -11398,7 +11598,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-digimon-world-2003-recomp-v0-3-6-source-contract"
+          "alexbeav-digimon-world-2003-recomp-v0-3-6-source-contract",
+          "alexbeav-digimon-world-2003-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "cebada963263459d292da7e3dee07b0fbc9f01e9",
         "reviewed_at": "2026-10-09",
@@ -11409,6 +11610,10 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "0538611d06da652482d035a5b97f356bc4bbae18728a34d27712772bb557bae8"
           }
         ],
         "aliases": [],
@@ -11425,7 +11630,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-duke-nukem-land-of-the-babes-recomp-v0-3-6-source-contract"
+          "alexbeav-duke-nukem-land-of-the-babes-recomp-v0-3-6-source-contract",
+          "alexbeav-duke-nukem-land-of-the-babes-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "bc7f7e4e15f024bf821d58b4216673b3dd47036b",
         "reviewed_at": "2026-10-09",
@@ -11436,6 +11642,10 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "46a9b69d869bb7ae868e1d8b9943ae6902b7ba81733f0afc957da8ae9692ebad"
           }
         ],
         "aliases": [],
@@ -11452,7 +11662,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-driver-recomp-v0-3-6-source-contract"
+          "alexbeav-driver-recomp-v0-3-6-source-contract",
+          "alexbeav-driver-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "8dd843a427386d8d44aeaab4aca783774df95cd8",
         "reviewed_at": "2026-10-09",
@@ -11463,6 +11674,10 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "35bb94181910a9fed63e48ef0e0bcc1e569befc9e19925c0bf29f12b0fabc7cd"
           }
         ],
         "aliases": [],
@@ -11479,7 +11694,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-duke-nukem-time-to-kill-recomp-v0-3-6-source-contract"
+          "alexbeav-duke-nukem-time-to-kill-recomp-v0-3-6-source-contract",
+          "alexbeav-duke-nukem-time-to-kill-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "62f7313c39e96a1146967df3beecae06a81df18b",
         "reviewed_at": "2026-10-09",
@@ -11490,6 +11706,10 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "c2b421fe2214efecd6736d3f95636b44a6562f459965c7aee098b5cdebaeb1f3"
           }
         ],
         "aliases": [],
@@ -11506,7 +11726,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-fade-to-black-recomp-v0-3-6-source-contract"
+          "alexbeav-fade-to-black-recomp-v0-3-6-source-contract",
+          "alexbeav-fade-to-black-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "25df871d2185eb45ec0e9253b96a2667e2feca6b",
         "reviewed_at": "2026-10-10",
@@ -11517,6 +11738,10 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3"
+          },
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "fadb05389a6db767d04046bb095ec3fc14aacf665a876dd52fa81e0125c4cd72"
           }
         ],
         "aliases": [],
@@ -12590,7 +12815,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract"
+          "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-2-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "5edd843cdc4e92a7012609897e2e6c2c30991d4d",
         "reviewed_at": "2026-11-07",
@@ -12601,6 +12827,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "3fc8d00777b5e9d13e8de32907f4b290d48a7a68ad0baa140a25de30d268a8f9"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "9952c8298ee8e84cd8a43a75c72291c106b178d77a59d0ae6647af284db9a005"
           }
         ],
         "aliases": [],
@@ -12617,7 +12847,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract"
+          "alexbeav-tony-hawk-s-pro-skater-2-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-2-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "5edd843cdc4e92a7012609897e2e6c2c30991d4d",
         "reviewed_at": "2026-11-07",
@@ -12628,6 +12859,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "3fc8d00777b5e9d13e8de32907f4b290d48a7a68ad0baa140a25de30d268a8f9"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "9952c8298ee8e84cd8a43a75c72291c106b178d77a59d0ae6647af284db9a005"
           }
         ],
         "aliases": [],
@@ -12644,7 +12879,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract"
+          "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-3-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "0331e76300569de7133bc1a70730e9fb005f02b6",
         "reviewed_at": "2026-11-07",
@@ -12655,6 +12891,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "ec59e95c4079662fa697b46cb84adebfff321e0fbee56b95d6da8741913ad581"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "9670ddf158bb6e00966e69d45de8161fb53e0cc78d7cae40e979ea9e4bc7558c"
           }
         ],
         "aliases": [],
@@ -12671,7 +12911,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract"
+          "alexbeav-tony-hawk-s-pro-skater-3-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-3-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "0331e76300569de7133bc1a70730e9fb005f02b6",
         "reviewed_at": "2026-11-07",
@@ -12682,6 +12923,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "ec59e95c4079662fa697b46cb84adebfff321e0fbee56b95d6da8741913ad581"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "9670ddf158bb6e00966e69d45de8161fb53e0cc78d7cae40e979ea9e4bc7558c"
           }
         ],
         "aliases": [],
@@ -12698,7 +12943,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract"
+          "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-4-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "65ee011a0a36ca07c51ab28dadfb3b7320617768",
         "reviewed_at": "2026-11-07",
@@ -12709,6 +12955,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "b227e220e6b1c5ecc3516572cb523cc7f8e1af353b10bbf4cf4ef216a0ed85a6"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "5731d1851c94144aa8c19d648afb2665a4526e28b850a26afb06e72717822234"
           }
         ],
         "aliases": [],
@@ -12725,7 +12975,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract"
+          "alexbeav-tony-hawk-s-pro-skater-4-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-4-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "65ee011a0a36ca07c51ab28dadfb3b7320617768",
         "reviewed_at": "2026-11-07",
@@ -12736,6 +12987,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "b227e220e6b1c5ecc3516572cb523cc7f8e1af353b10bbf4cf4ef216a0ed85a6"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "5731d1851c94144aa8c19d648afb2665a4526e28b850a26afb06e72717822234"
           }
         ],
         "aliases": [],
@@ -12752,7 +13007,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract"
+          "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "820fcda34cacc39b946cb20b05df221a77667e4a",
         "reviewed_at": "2026-11-07",
@@ -12763,6 +13019,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "e1c21f2507629cf16114dd91707e12a5246912dea7a46bde281782c1d3028233"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "c9e97b03e77f7c2455a6a9fee2fd43712ed6ae13fa7c1023712ae53202a18643"
           }
         ],
         "aliases": [],
@@ -12779,7 +13039,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract"
+          "alexbeav-tony-hawk-s-pro-skater-recomp-v0-1-3-static-contract",
+          "alexbeav-tony-hawk-s-pro-skater-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "820fcda34cacc39b946cb20b05df221a77667e4a",
         "reviewed_at": "2026-11-07",
@@ -12790,6 +13051,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "e1c21f2507629cf16114dd91707e12a5246912dea7a46bde281782c1d3028233"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "c9e97b03e77f7c2455a6a9fee2fd43712ed6ae13fa7c1023712ae53202a18643"
           }
         ],
         "aliases": [],
@@ -12806,7 +13071,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract"
+          "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract",
+          "alexbeav-oddworld-abe-s-oddysee-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "d41305b83ab35ef23dbedb3a6fee00290e9b1101",
         "reviewed_at": "2026-11-07",
@@ -12817,6 +13083,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "f9edfe427e913271937aacb8cd5bc46f33c85bc88d61e1dfe3e05fb7992fa6d4"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "177256f195ba86d4a011db99d6c59cf708fac43f03c655cc5685c470b436512b"
           }
         ],
         "aliases": [],
@@ -12833,7 +13103,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract"
+          "alexbeav-oddworld-abe-s-oddysee-recomp-v0-1-3-static-contract",
+          "alexbeav-oddworld-abe-s-oddysee-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "d41305b83ab35ef23dbedb3a6fee00290e9b1101",
         "reviewed_at": "2026-11-07",
@@ -12844,6 +13115,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "f9edfe427e913271937aacb8cd5bc46f33c85bc88d61e1dfe3e05fb7992fa6d4"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "177256f195ba86d4a011db99d6c59cf708fac43f03c655cc5685c470b436512b"
           }
         ],
         "aliases": [],
@@ -12860,7 +13135,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract"
+          "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract",
+          "alexbeav-syphon-filter-3-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "1059cfabe56727520f29fc5ed6a0e53226b7a4f0",
         "reviewed_at": "2026-11-07",
@@ -12871,6 +13147,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "48ca990e6390c810c3d802ffa7d1623d50474ad2f791f577e01b930b8b89a636"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "82ec298edfa5b9cb95323523199ad7ee0df73b5a969687c039271509c0540a06"
           }
         ],
         "aliases": [],
@@ -12887,7 +13167,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract"
+          "alexbeav-syphon-filter-3-recomp-v0-1-3-static-contract",
+          "alexbeav-syphon-filter-3-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "1059cfabe56727520f29fc5ed6a0e53226b7a4f0",
         "reviewed_at": "2026-11-07",
@@ -12898,6 +13179,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "48ca990e6390c810c3d802ffa7d1623d50474ad2f791f577e01b930b8b89a636"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "82ec298edfa5b9cb95323523199ad7ee0df73b5a969687c039271509c0540a06"
           }
         ],
         "aliases": [],
@@ -12914,7 +13199,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract"
+          "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract",
+          "alexbeav-tenchu-stealth-assassins-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "2d3ce1718f6e47e3be6d35d15a688f44e1034060",
         "reviewed_at": "2026-11-07",
@@ -12925,6 +13211,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "9615fe1e90610276d0cd9391d847d62311adde72ebc0e93df17b97508d386976"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "70bbc868a1542af53256c2e2f396905f8071fb657adb9dd75d4eb9617d35e205"
           }
         ],
         "aliases": [],
@@ -12941,7 +13231,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract"
+          "alexbeav-tenchu-stealth-assassins-recomp-v0-1-3-static-contract",
+          "alexbeav-tenchu-stealth-assassins-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "2d3ce1718f6e47e3be6d35d15a688f44e1034060",
         "reviewed_at": "2026-11-07",
@@ -12952,6 +13243,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "9615fe1e90610276d0cd9391d847d62311adde72ebc0e93df17b97508d386976"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "70bbc868a1542af53256c2e2f396905f8071fb657adb9dd75d4eb9617d35e205"
           }
         ],
         "aliases": [],
@@ -12968,7 +13263,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-monster-rancher-2-recomp-v0-1-3-static-contract"
+          "alexbeav-monster-rancher-2-recomp-v0-1-3-static-contract",
+          "alexbeav-monster-rancher-2-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "d5b13817a97f3daf0e9c71ec7022044242c8addb",
         "reviewed_at": "2026-11-07",
@@ -12979,6 +13275,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "227787825930e0fd93fbed5821e304bd23cbd5a46d9de469a561d0de76dda50f"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "f5c0046db7a19576524fce80d9379629abb7baaba94bf693f2142df843b9ed7f"
           }
         ],
         "aliases": [],
@@ -12995,7 +13295,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-monster-rancher-2-recomp-v0-1-3-static-contract"
+          "alexbeav-monster-rancher-2-recomp-v0-1-3-static-contract",
+          "alexbeav-monster-rancher-2-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "d5b13817a97f3daf0e9c71ec7022044242c8addb",
         "reviewed_at": "2026-11-07",
@@ -13006,6 +13307,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "227787825930e0fd93fbed5821e304bd23cbd5a46d9de469a561d0de76dda50f"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "f5c0046db7a19576524fce80d9379629abb7baaba94bf693f2142df843b9ed7f"
           }
         ],
         "aliases": [],
@@ -13022,7 +13327,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-nightmare-creatures-recomp-v0-1-3-static-contract"
+          "alexbeav-nightmare-creatures-recomp-v0-1-3-static-contract",
+          "alexbeav-nightmare-creatures-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "85b86b419e019647fa961ff41cdc992f7b2e6a72",
         "reviewed_at": "2026-11-07",
@@ -13033,6 +13339,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "d6381ace8b2d1bf6107a88ce71fbbd638e0847b59bc3ff8a766261c1e0f4bcd2"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "b05e43cc8eb8a927a331d0307c30e36b78e4ea7c3413874215e2a9d42b471ec3"
           }
         ],
         "aliases": [],
@@ -13049,7 +13359,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-nightmare-creatures-recomp-v0-1-3-static-contract"
+          "alexbeav-nightmare-creatures-recomp-v0-1-3-static-contract",
+          "alexbeav-nightmare-creatures-recomp-linux-x64-static-contract"
         ],
         "authority_ref": "85b86b419e019647fa961ff41cdc992f7b2e6a72",
         "reviewed_at": "2026-11-07",
@@ -13060,6 +13371,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "d6381ace8b2d1bf6107a88ce71fbbd638e0847b59bc3ff8a766261c1e0f4bcd2"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "b05e43cc8eb8a927a331d0307c30e36b78e4ea7c3413874215e2a9d42b471ec3"
           }
         ],
         "aliases": [],
@@ -21490,14 +21805,15 @@
     {
       "id": "alexbeav-ape-escape-recomp",
       "name": "Ape Escape / Alexbeav PSXRecomp",
-      "summary": "Native Ape Escape recompilation from Alexbeav’s PSXRecomp project.",
+      "summary": "Build and play Ape Escape on Windows or Linux with your own matching single-track USA PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/Alexbeav/ape-escape-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -21509,6 +21825,10 @@
           "windows-x86-64": [
             "Ape-Escape-Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Ape-Escape-Recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -21516,6 +21836,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Ape_Escape_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Ape_Escape_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -21535,7 +21858,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -21563,8 +21887,34 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
+        "manual_preparation": "Provide your own matching single-disc CHD. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
         "original_game_title": "Ape Escape",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track USA disc (SCUS-94423). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Ape_Escape_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Ape_Escape_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3762,
           "cover_id": 115320,
@@ -21578,14 +21928,15 @@
     {
       "id": "alexbeav-alundra-recomp",
       "name": "Alundra / Alexbeav PSXRecomp",
-      "summary": "Native Alundra recompilation from Alexbeav’s PSXRecomp project.",
+      "summary": "Build and play Alundra on Windows or Linux with your own matching single-track Europe PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/Alexbeav/alundra-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -21597,6 +21948,10 @@
           "windows-x86-64": [
             "Alundra-Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Alundra-Recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -21604,6 +21959,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Alundra_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Alundra_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -21623,7 +21981,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -21651,8 +22010,34 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
+        "manual_preparation": "Provide your own matching single-disc CHD. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
         "original_game_title": "Alundra",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track Europe disc (SLES-01135). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Alundra_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Alundra_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 1175,
           "cover_id": 178335,
@@ -21666,14 +22051,15 @@
     {
       "id": "alexbeav-armored-core-recomp",
       "name": "Armored Core / Alexbeav PSXRecomp",
-      "summary": "Native Armored Core recompilation from Alexbeav’s PSXRecomp project.",
+      "summary": "Build and play Armored Core on Windows or Linux with your own matching single-track Europe PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -21685,6 +22071,10 @@
           "windows-x86-64": [
             "Armored-Core-Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Armored-Core-Recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -21692,6 +22082,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Armored_Core_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Armored_Core_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -21711,7 +22104,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -21739,8 +22133,34 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Armored Core",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track Europe disc (SCES-00842). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Armored_Core_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Armored_Core_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 4144,
           "cover_id": 454572,
@@ -21754,14 +22174,15 @@
     {
       "id": "alexbeav-blood-omen-legacy-of-kain-recomp",
       "name": "Blood Omen: Legacy of Kain / Alexbeav PSXRecomp",
-      "summary": "Native Blood Omen: Legacy of Kain recompilation from Alexbeav’s PSXRecomp project.",
+      "summary": "Build and play Blood Omen: Legacy of Kain on Windows or Linux with your own matching single-track USA PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -21773,6 +22194,10 @@
           "windows-x86-64": [
             "Blood-Omen-Legacy-of-Kain-Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Blood-Omen-Legacy-of-Kain-Recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -21780,6 +22205,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Blood_Omen__Legacy_of_Kain_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Blood_Omen__Legacy_of_Kain_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -21799,7 +22227,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -21827,8 +22256,34 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Blood Omen: Legacy of Kain",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track USA disc (SLUS-00027). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Blood_Omen__Legacy_of_Kain_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Blood_Omen__Legacy_of_Kain_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 7894,
           "cover_id": 425045,
@@ -21842,14 +22297,15 @@
     {
       "id": "alexbeav-digimon-world-2003-recomp",
       "name": "Digimon World 2003 / Alexbeav PSXRecomp",
-      "summary": "Native Digimon World 2003 recompilation from Alexbeav’s PSXRecomp project.",
+      "summary": "Build and play Digimon World 2003 on Windows or Linux with your own matching single-track Europe PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -21861,6 +22317,10 @@
           "windows-x86-64": [
             "Digimon-World-2003-Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Digimon-World-2003-Recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -21868,6 +22328,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Digimon_World_2003_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Digimon_World_2003_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -21887,7 +22350,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -21915,8 +22379,34 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLES-03936. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "manual_preparation": "Provide your own matching single-track CHD for SLES-03936. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Digimon World 2003",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track Europe disc (SLES-03936). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Digimon_World_2003_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Digimon_World_2003_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 19678,
           "cover_id": 372792,
@@ -21930,14 +22420,15 @@
     {
       "id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
       "name": "Duke Nukem: Land of the Babes / Alexbeav PSXRecomp",
-      "summary": "Native Duke Nukem: Land of the Babes recompilation from Alexbeav’s PSXRecomp project.",
+      "summary": "Build and play Duke Nukem: Land of the Babes on Windows or Linux with your own matching single-track USA PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -21949,6 +22440,10 @@
           "windows-x86-64": [
             "Duke-Nukem-Land-of-the-Babes-Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Duke-Nukem-Land-of-the-Babes-Recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -21956,6 +22451,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Duke_Nukem__Land_of_the_Babes_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Duke_Nukem__Land_of_the_Babes_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -21975,7 +22473,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -22003,8 +22502,34 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-01002. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-01002. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Duke Nukem: Land of the Babes",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track USA disc (SLUS-01002). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Duke_Nukem__Land_of_the_Babes_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Duke_Nukem__Land_of_the_Babes_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 8504,
           "cover_id": 441104,
@@ -22018,14 +22543,15 @@
     {
       "id": "alexbeav-driver-recomp",
       "name": "Driver / Alexbeav PSXRecomp",
-      "summary": "Native Driver recompilation from Alexbeav’s PSXRecomp project.",
+      "summary": "Build and play Driver on Windows or Linux with your own matching single-track USA PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -22037,6 +22563,10 @@
           "windows-x86-64": [
             "Driver-Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Driver-Recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -22044,6 +22574,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Driver_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Driver_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -22063,7 +22596,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -22091,8 +22625,34 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00842. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Driver",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track USA disc (SLUS-00842). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Driver_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Driver_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 675,
           "cover_id": 566481,
@@ -22106,14 +22666,15 @@
     {
       "id": "alexbeav-duke-nukem-time-to-kill-recomp",
       "name": "Duke Nukem: Time to Kill / Alexbeav PSXRecomp",
-      "summary": "Native Duke Nukem: Time to Kill recompilation from Alexbeav’s PSXRecomp project.",
+      "summary": "Build and play Duke Nukem: Time to Kill on Windows or Linux with your own matching single-track USA PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -22125,6 +22686,10 @@
           "windows-x86-64": [
             "Duke-Nukem-Time-to-Kill-Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Duke-Nukem-Time-to-Kill-Recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -22132,6 +22697,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Duke_Nukem__Time_to_Kill_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Duke_Nukem__Time_to_Kill_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -22151,7 +22719,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -22179,8 +22748,34 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00583. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00583. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Duke Nukem: Time to Kill",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track USA disc (SLUS-00583). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Duke_Nukem__Time_to_Kill_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Duke_Nukem__Time_to_Kill_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 4130,
           "cover_id": 153570,
@@ -22194,14 +22789,15 @@
     {
       "id": "alexbeav-fade-to-black-recomp",
       "name": "Fade to Black / Alexbeav PSXRecomp",
-      "summary": "Native Fade to Black recompilation from Alexbeav’s PSXRecomp project.",
+      "summary": "Build and play Fade to Black on Windows or Linux with your own matching single-track USA PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -22213,6 +22809,10 @@
           "windows-x86-64": [
             "Fade-to-Black-Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Fade-to-Black-Recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -22220,6 +22820,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Fade_to_Black_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Fade_to_Black_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -22239,7 +22842,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -22267,8 +22871,34 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00236. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00236. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Fade to Black",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track USA disc (SLUS-00236). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Fade_to_Black_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Fade_to_Black_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 12427,
           "cover_id": 118221,
@@ -22370,6 +23000,32 @@
         "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain; the packaged setup host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
         "original_game_title": "Diablo",
         "variant_label": "PlayStation",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original single-track European SLES-01156 disc. This kit requires your own retail SCPH-5552 BIOS dump. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Diablo_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Diablo_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 125,
           "cover_id": 161304,
@@ -22471,6 +23127,32 @@
         "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-1001 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred.",
         "original_game_title": "Ace Combat 3: Electrosphere",
         "variant_label": "Japan · two discs",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original Japanese edition, Disc 1 SLPS-02020 then Disc 2 SLPS-02021. Keep the two disc images together and preserve their order. Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Ace_Combat_3__Electrosphere__Japan__Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Ace_Combat_3__Electrosphere__Japan__Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 14751,
           "cover_id": 391208,
@@ -22800,6 +23482,32 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching four-track CHD for Alien Resurrection SLES-02913 (Europe) and a legally obtained retail SCPH-5552 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
         "original_game_title": "Alien Resurrection",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original four-track European SLES-02913 disc, keeping its complete CUE and every referenced track together. This kit requires your own retail SCPH-5552 BIOS dump. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Alien_Resurrection_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Alien_Resurrection_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 44995,
           "cover_id": 504131,
@@ -22909,6 +23617,32 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching four-track CHD for Brave Fencer Musashi SLUS-00726 (USA) and a legally obtained retail SCPH-1001 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
         "original_game_title": "Brave Fencer Musashi",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your original four-track USA SLUS-00726 disc, keeping its complete CUE and every referenced track together. This kit requires your own retail SCPH-1001 BIOS dump. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "From the unpacked folder, run Brave_Fencer_Musashi_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Brave_Fencer_Musashi_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+            }
+          ],
+          "warnings": [
+            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 1810,
           "cover_id": 154795,
@@ -25567,14 +26301,15 @@
     {
       "id": "alexbeav-monster-rancher-2-recomp",
       "name": "Monster Rancher 2 / Alexbeav PSXRecomp",
-      "summary": "Build and play Monster Rancher 2 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Monster Rancher 2 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -25586,6 +26321,10 @@
           "windows-x86-64": [
             "monster-rancher-2-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "monster-rancher-2-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -25593,6 +26332,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Monster_Rancher_2_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Monster_Rancher_2_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -25616,7 +26358,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -25666,7 +26409,7 @@
             },
             {
               "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Monster_Rancher_2_Recompiled as the program and build-release as the start folder."
             }
           ],
           "warnings": [
@@ -25694,14 +26437,15 @@
     {
       "id": "alexbeav-nightmare-creatures-recomp",
       "name": "Nightmare Creatures / Alexbeav PSXRecomp",
-      "summary": "Build and play Nightmare Creatures on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Nightmare Creatures on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -25713,6 +26457,10 @@
           "windows-x86-64": [
             "nightmare-creatures-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "nightmare-creatures-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -25720,6 +26468,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Nightmare_Creatures_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Nightmare_Creatures_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -25743,7 +26494,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -25793,7 +26545,7 @@
             },
             {
               "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Nightmare_Creatures_Recompiled as the program and build-release as the start folder."
             }
           ],
           "warnings": [
@@ -25821,14 +26573,15 @@
     {
       "id": "alexbeav-oddworld-abe-s-oddysee-recomp",
       "name": "Oddworld: Abe's Oddysee / Alexbeav PSXRecomp",
-      "summary": "Build and play Oddworld: Abe's Oddysee on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Oddworld: Abe's Oddysee on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -25840,6 +26593,10 @@
           "windows-x86-64": [
             "oddworld-abe-s-oddysee-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "oddworld-abe-s-oddysee-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -25847,6 +26604,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Oddworld__Abe_s_Oddysee_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Oddworld__Abe_s_Oddysee_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -25870,7 +26630,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -25920,7 +26681,7 @@
             },
             {
               "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Oddworld__Abe_s_Oddysee_Recompiled as the program and build-release as the start folder."
             }
           ],
           "warnings": [
@@ -25948,14 +26709,15 @@
     {
       "id": "alexbeav-syphon-filter-3-recomp",
       "name": "Syphon Filter 3 / Alexbeav PSXRecomp",
-      "summary": "Build and play Syphon Filter 3 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Syphon Filter 3 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -25967,6 +26729,10 @@
           "windows-x86-64": [
             "syphon-filter-3-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "syphon-filter-3-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -25974,6 +26740,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Syphon_Filter_3_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Syphon_Filter_3_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -25997,7 +26766,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -26047,7 +26817,7 @@
             },
             {
               "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Syphon_Filter_3_Recompiled as the program and build-release as the start folder."
             }
           ],
           "warnings": [
@@ -26075,14 +26845,15 @@
     {
       "id": "alexbeav-tenchu-stealth-assassins-recomp",
       "name": "Tenchu: Stealth Assassins / Alexbeav PSXRecomp",
-      "summary": "Build and play Tenchu: Stealth Assassins on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Tenchu: Stealth Assassins on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -26094,6 +26865,10 @@
           "windows-x86-64": [
             "tenchu-stealth-assassins-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "tenchu-stealth-assassins-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -26101,6 +26876,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Tenchu_Stealth_Assassins_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Tenchu_Stealth_Assassins_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -26124,7 +26902,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -26174,7 +26953,7 @@
             },
             {
               "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Tenchu_Stealth_Assassins_Recompiled as the program and build-release as the start folder."
             }
           ],
           "warnings": [
@@ -26202,14 +26981,15 @@
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
       "name": "Tony Hawk's Pro Skater 2 / Alexbeav PSXRecomp",
-      "summary": "Build and play Tony Hawk's Pro Skater 2 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Tony Hawk's Pro Skater 2 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -26221,6 +27001,10 @@
           "windows-x86-64": [
             "tony-hawk-s-pro-skater-2-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "tony-hawk-s-pro-skater-2-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -26228,6 +27012,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Tony_Hawks_Pro_Skater_2_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Tony_Hawks_Pro_Skater_2_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -26251,7 +27038,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -26301,7 +27089,7 @@
             },
             {
               "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Tony_Hawks_Pro_Skater_2_Recompiled as the program and build-release as the start folder."
             }
           ],
           "warnings": [
@@ -26329,14 +27117,15 @@
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
       "name": "Tony Hawk's Pro Skater 3 / Alexbeav PSXRecomp",
-      "summary": "Build and play Tony Hawk's Pro Skater 3 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Tony Hawk's Pro Skater 3 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -26348,6 +27137,10 @@
           "windows-x86-64": [
             "tony-hawk-s-pro-skater-3-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "tony-hawk-s-pro-skater-3-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -26355,6 +27148,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Tony_Hawks_Pro_Skater_3_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Tony_Hawks_Pro_Skater_3_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -26378,7 +27174,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -26428,7 +27225,7 @@
             },
             {
               "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Tony_Hawks_Pro_Skater_3_Recompiled as the program and build-release as the start folder."
             }
           ],
           "warnings": [
@@ -26456,14 +27253,15 @@
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
       "name": "Tony Hawk's Pro Skater 4 / Alexbeav PSXRecomp",
-      "summary": "Build and play Tony Hawk's Pro Skater 4 on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Tony Hawk's Pro Skater 4 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -26475,6 +27273,10 @@
           "windows-x86-64": [
             "tony-hawk-s-pro-skater-4-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "tony-hawk-s-pro-skater-4-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -26482,6 +27284,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Tony_Hawks_Pro_Skater_4_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Tony_Hawks_Pro_Skater_4_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -26505,7 +27310,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -26555,7 +27361,7 @@
             },
             {
               "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Tony_Hawks_Pro_Skater_4_Recompiled as the program and build-release as the start folder."
             }
           ],
           "warnings": [
@@ -26583,14 +27389,15 @@
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-recomp",
       "name": "Tony Hawk's Pro Skater / Alexbeav PSXRecomp",
-      "summary": "Build and play Tony Hawk's Pro Skater on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+      "summary": "Build and play Tony Hawk's Pro Skater on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -26602,6 +27409,10 @@
           "windows-x86-64": [
             "tony-hawk-s-pro-skater-recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "tony-hawk-s-pro-skater-recomp-",
+            "-linux-x64.zip"
           ]
         }
       },
@@ -26609,6 +27420,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Tony_Hawks_Pro_Skater_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Tony_Hawks_Pro_Skater_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -26632,7 +27446,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -26682,7 +27497,7 @@
             },
             {
               "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Tony_Hawks_Pro_Skater_Recompiled as the program and build-release as the start folder."
             }
           ],
           "warnings": [

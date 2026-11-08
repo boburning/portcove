@@ -764,5 +764,17 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     const otherPlatform = structuredClone(record);
     otherPlatform.integration!.platforms = ["macos-arm64"];
     assert.throws(() => checkedAuthoredPort(otherPlatform), /reviewed Windows GitHub kit/u);
+    const otherPlayer = structuredClone(record);
+    otherPlayer.integration!.executable_hints = {
+      ...(otherPlayer.integration!.executable_hints as Record<string, string[]>),
+      "linux-x86-64": ["setup-host"],
+    };
+    assert.throws(() => checkedAuthoredPort(otherPlayer), /same generated player basename/u);
+    const missingSelector = structuredClone(record);
+    const release = missingSelector.integration!.release as {
+      asset_hints: Record<string, string[]>;
+    };
+    delete release.asset_hints["linux-x86-64"];
+    assert.throws(() => checkedAuthoredPort(missingSelector), /explicit asset selector/u);
   }
 });

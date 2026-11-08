@@ -2103,11 +2103,14 @@ can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-
 [explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
 
 Optional authoring-only `psx_managed_windows_v1: true` supplies the shared
-launch and data layout for the reviewed Windows GitHub PSXRecomp kit. Use the
+launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
+matching Linux x64 sibling when independently enrolled. Use the
 [Tony Hawk’s Pro Skater 3 record](../crates/portcove-core/catalog/ports/alexbeav-tony-hawk-s-pro-skater-3-recomp.json)
 as the example. Keep the release selector, generated executable basename,
 exact original-disc profile, retail SCPH-1001 BIOS profile, and both source
-contracts explicit. Preserve any separate upstream setup guide. The projection
+contracts explicit. A Linux sibling uses the same generated player basename
+without `.exe`, its own asset selector and artifact-bound source applicability.
+Preserve any separate upstream setup guide. The projection
 writes the `build-portcove` working coordinates, `--no-launcher`, overlay
 environment, owned save/settings/mod paths, and disposable diagnostic paths.
 It refuses duplicate fields. A different writer layout or setup contract

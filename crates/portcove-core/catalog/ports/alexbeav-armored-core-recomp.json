@@ -4,7 +4,7 @@
   "listing": {
     "id": "alexbeav-armored-core-recomp",
     "name": "Armored Core / Alexbeav PSXRecomp",
-    "summary": "Native Armored Core recompilation from Alexbeav’s PSXRecomp project.",
+    "summary": "Build and play Armored Core on Windows or Linux with your own matching single-track Europe PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp",
     "original_game_title": "Armored Core",
     "artwork": {
@@ -15,12 +15,49 @@
       "game_slug": "armored-core",
       "match_kind": "underlying-game"
     },
-    "issue_number": 431
+    "issue_number": 431,
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["Armored-Core-Recomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["Armored-Core-Recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["Armored-Core-Recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["Armored-Core-Recomp-", "-macos-arm64.zip"]
+    },
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp#readme",
+    "release_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases",
+    "availability": "packages",
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the Mac toolchain and setup kit",
+          "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+        },
+        {
+          "title": "Supply your original files",
+          "instruction": "Use your original single-track Europe disc (SCES-00842). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+        },
+        {
+          "title": "Build and add the prepared player",
+          "instruction": "From the unpacked folder, run Armored_Core_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Armored_Core_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+        }
+      ],
+      "warnings": [
+        "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp#readme",
+      "references": [
+        {
+          "title": "Updates and backups",
+          "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "adapter": "psx-recomp-managed",
@@ -28,12 +65,14 @@
       "provider": "github",
       "repository": "alexbeavs-ps1-ports/armored-core-recomp",
       "asset_hints": {
-        "windows-x86-64": ["Armored-Core-Recomp-", "-windows-x64.zip"]
+        "windows-x86-64": ["Armored-Core-Recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["Armored-Core-Recomp-", "-linux-x64.zip"]
       }
     },
     "source_profile": "armored-core-psx",
     "executable_hints": {
-      "windows-x86-64": ["Armored_Core_Recompiled.exe"]
+      "windows-x86-64": ["Armored_Core_Recompiled.exe"],
+      "linux-x86-64": ["Armored_Core_Recompiled"]
     },
     "persistent_paths": [
       "saves",
@@ -52,7 +91,8 @@
       "psx_freeze_heartbeat.json.tmp",
       "psx_last_run_report.json",
       "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt"
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
     ],
     "runtime_mutable_file_patterns": [
       {
@@ -76,7 +116,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+      "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
     }
   }
 }

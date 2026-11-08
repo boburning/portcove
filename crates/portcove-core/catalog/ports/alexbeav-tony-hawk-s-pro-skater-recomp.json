@@ -3,11 +3,11 @@
   "listing": {
     "id": "alexbeav-tony-hawk-s-pro-skater-recomp",
     "name": "Tony Hawk's Pro Skater / Alexbeav PSXRecomp",
-    "summary": "Build and play Tony Hawk's Pro Skater on Windows with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+    "summary": "Build and play Tony Hawk's Pro Skater on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Tony Hawk's Pro Skater",
     "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
     "issue_number": 492,
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp#readme",
     "artwork": {
@@ -30,7 +30,7 @@
         },
         {
           "title": "Build the game and add it to Portcove",
-          "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+          "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play. On Mac, select build-release/Tony_Hawks_Pro_Skater_Recompiled as the program and build-release as the start folder."
         }
       ],
       "warnings": ["Portcove has not confirmed setup or gameplay for this package."],
@@ -55,7 +55,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "adapter": "psx-recomp-managed",
@@ -63,12 +63,14 @@
       "provider": "github",
       "repository": "alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
       "asset_hints": {
-        "windows-x86-64": ["tony-hawk-s-pro-skater-recomp-", "-windows-x64.zip"]
+        "windows-x86-64": ["tony-hawk-s-pro-skater-recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["tony-hawk-s-pro-skater-recomp-", "-linux-x64.zip"]
       }
     },
     "source_profile": "alexbeav-tony-hawk-s-pro-skater-recomp-usa-psx",
     "executable_hints": {
-      "windows-x86-64": ["Tony_Hawks_Pro_Skater_Recompiled.exe"]
+      "windows-x86-64": ["Tony_Hawks_Pro_Skater_Recompiled.exe"],
+      "linux-x86-64": ["Tony_Hawks_Pro_Skater_Recompiled"]
     },
     "presentation": {
       "installation_method": "managed-recompilation",
