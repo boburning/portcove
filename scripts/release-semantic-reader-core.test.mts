@@ -7,7 +7,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  createSemanticSnapshotReader,
   createSemanticSnapshotRpc,
+  semanticReaderTextPageBytes,
   inspectSemanticReaderIndex,
 } from "./release-semantic-reader-core.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -139,4 +141,54 @@ await test("real fixed stdio reader accepts bounded tracing and refuses extra ca
     unlinkSync(file);
     rmdirSync(directory);
   }
+});
+
+await test("qualified application search exhausts its existing scan budget without closing exact reads", () => {
+  const bytes = Buffer.alloc(1024 * 1024, "x");
+  const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+  const rows = Array.from({ length: 129 }, (_, id) => ({ ...row, oid, path: `source-${id}.txt` }));
+  function reader(qualified: boolean) {
+    const stored = Buffer.from(
+      JSON.stringify({
+        manifest: {
+          ...(qualified ? { qualified_application_comparison: true } : {}),
+          snapshots: { source: rows, baseline: [] },
+        },
+        bundle_sha256: "0".repeat(64),
+        files: [
+          { name: `objects/${oid}.data`, sha256: sha(bytes), data: bytes.toString("base64") },
+        ],
+      }),
+    );
+    return createSemanticSnapshotReader(inspectSemanticReaderIndex(stored, sha(stored)));
+  }
+
+  const first = { snapshot: "source", literal: "release-preview-withdrawals" };
+  const second = { snapshot: "source", literal: "prerelease_identifier" };
+  const qualified = reader(true);
+  assert.deepEqual(qualified("search", first), { matches: [], truncated: false });
+  assert.deepEqual(qualified("search", second), {
+    matches: [],
+    truncated: true,
+    budget_exhausted: true,
+  });
+  assert.deepEqual(qualified("search", first), {
+    matches: [],
+    truncated: true,
+    budget_exhausted: true,
+  });
+  const page = {
+    snapshot: "source",
+    path: "source-0.txt",
+    offset: 0,
+    length: semanticReaderTextPageBytes,
+  };
+  assert.throws(() => qualified("read_text", { ...page, length: 20000 }), /unauthorized reader/);
+  const read = qualified("read_text", page);
+  assert.ok(isRecord(read));
+  assert.equal(read.data, "x".repeat(semanticReaderTextPageBytes));
+
+  const ordinary = reader(false);
+  assert.deepEqual(ordinary("search", first), { matches: [], truncated: false });
+  assert.throws(() => ordinary("search", second), /lifetime search byte bound/);
 });
