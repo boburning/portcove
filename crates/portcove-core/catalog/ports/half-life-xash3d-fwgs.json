@@ -6,7 +6,7 @@
     "summary": "Play Half-Life with the FWGS Xash3D engine and your own original valve data and matching game libraries. Official Windows and Linux continuous packages normally use 32-bit x86 for game-library compatibility; choose matching engine and library architectures. Other platforms and mods have separate requirements. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Half-Life",
     "project_url": "https://github.com/FWGS/xash3d-fwgs",
-    "platforms": [],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/FWGS/xash3d-fwgs",
     "issue_number": 2678,
@@ -28,12 +28,27 @@
         {
           "title": "Keep updates and removal under the existing owner",
           "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+        },
+        {
+          "title": "Prepare a matching Mac engine and game tree",
+          "instruction": "Choose the official Xash3D FWGS Apple amd64 or arm64 tarball for Intel or Apple Silicon. Unpack it into a writable folder and keep its packaged Half-Life client and game libraries. Merge your compatible original Half-Life valve game data into that tree, preserving the matching engine libraries. Run the supplied xash3d from that folder."
         }
       ],
       "warnings": [
         "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
         "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+      ],
+      "references": [
+        {
+          "title": "Keep the external Mac game tree",
+          "instruction": "Back up the complete working Xash3D folder and its actual save, config, mod and data roots before using an upstream replacement. Retain any separate read-only data root and the engine and game libraries that created the profile."
+        }
       ]
+    },
+    "release_url": "https://github.com/FWGS/xash3d-fwgs/releases/tag/continuous",
+    "download_asset_hints": {
+      "macos-x86-64": ["xash3d-fwgs-apple-amd64.tar.xz"],
+      "macos-aarch64": ["xash3d-fwgs-apple-arm64.tar.xz"]
     }
   },
   "upstream_lineage": {

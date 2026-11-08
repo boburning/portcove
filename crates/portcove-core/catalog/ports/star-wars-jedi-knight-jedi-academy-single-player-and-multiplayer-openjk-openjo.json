@@ -11,7 +11,10 @@
     "issue_number": 2612,
     "release_url": "https://github.com/JACoders/OpenJK/releases/tag/latest",
     "download_asset_hints": {
-      "windows-x86-64": ["OpenJK-windows-x86_64.zip"]
+      "windows-x86-64": ["OpenJK-windows-x86_64.zip"],
+      "linux-x86-64": ["OpenJK-linux-x86_64.tar.gz"],
+      "macos-x86-64": ["OpenJK-macos-x86_64.tar.gz"],
+      "macos-aarch64": ["OpenJK-macos-arm64.tar.gz"]
     },
     "manual_setup": {
       "steps": [
@@ -34,6 +37,14 @@
         {
           "title": "Choose one installation route",
           "instruction": "A library can have only one installation or registration for this title at a time. Choose managed single player or a separately prepared external player; do not register files inside a Portcove-managed installation or output folder. Preserve your originals, complete external profile and creating runtime before changing routes, then use the existing removal choice first. Registration-only removal preserves all external files. The external multiplayer route offers reviewed registration, separate Play and preserving registration removal, not managed installation, updates, backup, rollback, migration or deletion of that copy. Existing managed single-player installations and retained registrations keep their own contracts."
+        },
+        {
+          "title": "Prepare the upstream Linux player",
+          "instruction": "Unpack OpenJK-linux-x86_64.tar.gz into the matching Jedi Academy GameData working folder with its own base data. Keep the packaged OpenJK modules next to the launcher. The current build needs host SDL2, zlib and glibc 2.34 or newer. Run openjk_sp.x86_64 for the campaign. Run openjk.x86_64 for multiplayer. Use the project’s setup and replacement steps."
+        },
+        {
+          "title": "Prepare the upstream Mac player",
+          "instruction": "Unpack the official OpenJK Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Academy GameData layout. Open openjk_sp.arm64.app or openjk_sp.x86_64.app for the campaign. Use openjk.arm64.app or openjk.x86_64.app for multiplayer. Keep the supplied SDL2 framework with the app and follow the project’s data setup instructions."
         }
       ],
       "warnings": [
@@ -43,10 +54,11 @@
       "references": [
         {
           "title": "Keep multiplayer profiles and downloads",
-          "instruction": "Preserve the complete actual OpenJK profile, including base and each mod's directory, openjk.cfg, logs, screenshots, recorded demos and server-downloaded packages or unfinished downloads. The selected non-portable Windows build normally uses Documents/My Games/OpenJK; fs_homepath overrides, portable builds or an unavailable Documents folder can change the location. Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement."
+          "instruction": "Preserve the complete actual OpenJK profile, including base and each mod's directory, openjk.cfg, logs, screenshots, recorded demos and server-downloaded packages or unfinished downloads. The selected non-portable Windows build normally uses Documents/My Games/OpenJK; fs_homepath overrides, portable builds or an unavailable Documents folder can change the location. Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement. Preserve the actual Linux OpenJK profile at $XDG_DATA_HOME/openjk or ~/.local/share/openjk, or ~/Library/Application Support/OpenJK on Mac. Keep any explicit fs_homepath, original data, mods and the creating runtime. The upstream apps can share a profile location."
         }
       ]
-    }
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

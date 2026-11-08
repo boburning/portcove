@@ -30,6 +30,14 @@
         {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+        },
+        {
+          "title": "Choose an official nightly package",
+          "instruction": "In OpenXcom’s Nightly GitHub workflow, choose a successful upstream run. Download the Linux x64 or Mac artifact. On Linux unpack the ZIP and start the AppImage. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+        },
+        {
+          "title": "Prepare this title’s original data",
+          "instruction": "Copy the data subfolders from your X-COM: Terror from the Deep installation into TFTD inside the OpenXcom data or user folder. In the OpenXcom Mods menu, select the master game for this title."
         }
       ],
       "warnings": [
@@ -40,9 +48,15 @@
         {
           "title": "Keep your originals and game data",
           "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
+        },
+        {
+          "title": "Back up the actual OpenXcom profile",
+          "instruction": "On Linux keep ~/.local/share/openxcom and ~/.config/openxcom or their XDG overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
         }
       ]
-    }
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml"
   },
   "upstream_lineage": {
     "format_version": 1,

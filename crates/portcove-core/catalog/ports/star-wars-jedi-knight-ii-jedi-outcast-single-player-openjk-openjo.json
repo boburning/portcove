@@ -11,7 +11,10 @@
     "issue_number": 2611,
     "release_url": "https://github.com/JACoders/OpenJK/releases/tag/latest",
     "download_asset_hints": {
-      "windows-x86-64": ["OpenJO-windows-x86_64.zip"]
+      "windows-x86-64": ["OpenJO-windows-x86_64.zip"],
+      "linux-x86-64": ["OpenJO-linux-x86_64.tar.gz"],
+      "macos-x86-64": ["OpenJO-macos-x86_64.tar.gz"],
+      "macos-aarch64": ["OpenJO-macos-arm64.tar.gz"]
     },
     "manual_setup": {
       "steps": [
@@ -26,6 +29,14 @@
         {
           "title": "Keep an existing prepared copy",
           "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
+        },
+        {
+          "title": "Prepare the upstream Linux player",
+          "instruction": "Unpack OpenJO-linux-x86_64.tar.gz into the matching Jedi Outcast GameData working folder with its own base data. Keep the packaged OpenJK modules next to the launcher. The current build needs host SDL2, zlib and glibc 2.34 or newer. Run openjo_sp.x86_64 for the campaign. Use the project’s setup and replacement steps."
+        },
+        {
+          "title": "Prepare the upstream Mac player",
+          "instruction": "Unpack the official OpenJO Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Outcast GameData layout. Open openjo_sp.arm64.app or openjo_sp.x86_64.app for the campaign. Keep the supplied SDL2 framework with the app and follow the project’s data setup instructions."
         }
       ],
       "warnings": [
@@ -42,9 +53,14 @@
         {
           "title": "Preserve existing OpenJO registration ownership",
           "instruction": "Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
+        },
+        {
+          "title": "Keep Linux and Mac profiles",
+          "instruction": "Preserve the Linux OpenJO profile at $XDG_DATA_HOME/openjo or ~/.local/share/openjo, or ~/Library/Application Support/OpenJO on Mac. Keep any explicit fs_homepath, original data, mods and the creating runtime."
         }
       ]
-    }
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

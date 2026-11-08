@@ -29,6 +29,14 @@
         {
           "title": "Add the game and manage your files",
           "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action."
+        },
+        {
+          "title": "Prepare the Apple Silicon build",
+          "instruction": "Unpack the official v0.9.9 macos-debug.tar.gz using Mac archive tools and open OpenJKDF2_universal.app on Apple Silicon with macOS 12 or newer. Choose your own complete Jedi Knight: Dark Forces II installation in its setup flow. Keep the Resource and Episode folders from the same game edition."
+        },
+        {
+          "title": "Prepare the upstream Android build",
+          "instruction": "Install the official v0.9.9 ARM64 Android APK on an OpenGL ES 3 device. In Android Files, open the OpenJKDF2 files and put your own Jedi Knight: Dark Forces II game folders inside jk1/. Keep the Resource and Episode folders together. Preserve your jk1/ profile before app removal and use a same-signed upstream APK for in-place replacement."
         }
       ],
       "warnings": [
@@ -43,7 +51,7 @@
         },
         {
           "title": "Preserve imported Jedi Knight data and profiles",
-          "instruction": "Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+          "instruction": "Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup. Follow the upstream game folder import and keep the exact profile containing saves, settings and imported data. Retain the creating app before changing upstream versions."
         },
         {
           "title": "Keep external ownership and all player data",
@@ -52,11 +60,13 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["win64-debug.zip"]
+      "windows-x86-64": ["win64-debug.zip"],
+      "macos-aarch64": ["macos-debug.tar.gz"]
     },
     "original_game_title": "Star Wars Jedi Knight: Dark Forces II",
-    "release_url": "https://github.com/shinyquagsire23/OpenJKDF2/releases",
-    "recommended_download_channel": "beta"
+    "release_url": "https://github.com/shinyquagsire23/OpenJKDF2/releases/tag/v0.9.9",
+    "recommended_download_channel": "beta",
+    "platforms": ["macos-aarch64"]
   },
   "integration": {
     "support_tier": "beta",

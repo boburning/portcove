@@ -30958,6 +30958,14 @@
             {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            },
+            {
+              "title": "Choose the upstream Linux or Mac artifact",
+              "instruction": "From a successful upstream DXX-Rebirth CI run, choose DXX-Rebirth-Linux-AppImage-x86_64 or DXX-Rebirth-MacOS14-arm64. Unpack the artifact and use D1X-Rebirth.AppImage on Linux x64 or D1X-Rebirth.app on Apple Silicon with macOS 14 or newer."
+            },
+            {
+              "title": "Point this engine at its own data",
+              "instruction": "Put descent.hog and descent.pig from your compatible Descent copy in a separate directory. Start D1X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D1X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
             }
           ],
           "warnings": [
@@ -30968,6 +30976,10 @@
             {
               "title": "Keep the actual original and player data",
               "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+            },
+            {
+              "title": "Preserve this game’s profile",
+              "instruction": "On Linux preserve ~/.d1x-rebirth. On Mac preserve ~/Library/Preferences/D1X Rebirth. Keep any D1X_REBIRTH_HOME override, original files, saves, missions and settings with the creating engine."
             }
           ]
         }
@@ -31023,6 +31035,14 @@
             {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            },
+            {
+              "title": "Choose the upstream Linux or Mac artifact",
+              "instruction": "From a successful upstream DXX-Rebirth CI run, choose DXX-Rebirth-Linux-AppImage-x86_64 or DXX-Rebirth-MacOS14-arm64. Unpack the artifact and use D2X-Rebirth.AppImage on Linux x64 or D2X-Rebirth.app on Apple Silicon with macOS 14 or newer."
+            },
+            {
+              "title": "Point this engine at its own data",
+              "instruction": "Put the retail descent2.hog, descent2.ham, descent2.s22 and alien1.pig, alien2.pig, fire.pig, groupa.pig, ice.pig and water.pig from your Descent II copy in a separate directory. Start D2X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D2X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
             }
           ],
           "warnings": [
@@ -31033,6 +31053,10 @@
             {
               "title": "Keep the actual original and player data",
               "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+            },
+            {
+              "title": "Preserve this game’s profile",
+              "instruction": "On Linux preserve ~/.d2x-rebirth. On Mac preserve ~/Library/Preferences/D2X Rebirth. Keep any D2X_REBIRTH_HOME override, original files, saves, missions and settings with the creating engine."
             }
           ]
         }
@@ -34017,10 +34041,20 @@
             {
               "title": "Start the game",
               "instruction": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are."
+            },
+            {
+              "title": "Use the security-updated Intel Mac app",
+              "instruction": "Download the Mac ZIP from the Daggerfall Unity v1.1.1-cve-2025 release. Unpack DaggerfallUnity.app into a permanent folder separate from your DOS Daggerfall game. The current app executable is Intel x64. In the setup wizard choose the compatible game folder containing ARENA2."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md"
+          "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
+          "references": [
+            {
+              "title": "Keep the Mac profile and originals",
+              "instruction": "Back up the actual Daggerfall Unity profile, saves, settings, mod files and the original game folder before replacing the upstream app. Retain the app version that created your saves."
+            }
+          ]
         },
         "artwork": {
           "game_id": 53,
@@ -36485,6 +36519,14 @@
             {
               "title": "Add the game and manage your files",
               "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action."
+            },
+            {
+              "title": "Prepare the Apple Silicon build",
+              "instruction": "Unpack the official v0.9.9 macos-debug.tar.gz using Mac archive tools and open OpenJKDF2_universal.app on Apple Silicon with macOS 12 or newer. Choose your own complete Jedi Knight: Dark Forces II installation in its setup flow. Keep the Resource and Episode folders from the same game edition."
+            },
+            {
+              "title": "Prepare the upstream Android build",
+              "instruction": "Install the official v0.9.9 ARM64 Android APK on an OpenGL ES 3 device. In Android Files, open the OpenJKDF2 files and put your own Jedi Knight: Dark Forces II game folders inside jk1/. Keep the Resource and Episode folders together. Preserve your jk1/ profile before app removal and use a same-signed upstream APK for in-place replacement."
             }
           ],
           "warnings": [
@@ -36499,7 +36541,7 @@
             },
             {
               "title": "Preserve imported Jedi Knight data and profiles",
-              "instruction": "Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+              "instruction": "Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup. Follow the upstream game folder import and keep the exact profile containing saves, settings and imported data. Retain the creating app before changing upstream versions."
             },
             {
               "title": "Keep external ownership and all player data",
@@ -36760,12 +36802,26 @@
             {
               "title": "Start with the required game files",
               "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
+            },
+            {
+              "title": "Choose an upstream sibling package",
+              "instruction": "On Mac save the official universal ZIP. If downloading in Portcove, clear Extract the archive after downloading. Unpack it with Mac Archive Utility and open OpenTyrian.app on Intel or Apple Silicon. On Linux ARM64 choose the matching tarball and run opentyrian from the extracted folder. The current ARM64 build needs glibc 2.34 or newer. The upstream release also provides a native Windows ARM64 ZIP for an external setup."
+            },
+            {
+              "title": "Use this edition’s game data",
+              "instruction": "Keep the bundled Tyrian 2.1 data with the upstream player, or use the upstream --data option to point to your own compatible Tyrian 2.1 folder."
             }
           ],
           "warnings": [
             "On Windows, choose a short installation folder using basic Latin characters. The official runtime can fail to find its packaged data in folders with non-ASCII names. This Windows runtime-path requirement does not restrict Linux installation paths."
           ],
-          "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
+          "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md",
+          "references": [
+            {
+              "title": "Keep the OpenTyrian profile",
+              "instruction": "Back up $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian on Linux and Mac. For a portable copy keep the actual configuration, saves and game folder. Use the upstream package for replacement."
+            }
+          ]
         },
         "artwork": {
           "game_id": 3804,
@@ -38166,6 +38222,14 @@
             {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            },
+            {
+              "title": "Choose the official ioquake3 build",
+              "instruction": "From a successful upstream Build workflow run, download the Linux or macOS artifact. On Linux x64 unpack the archive and run ioquake3 from its folder. On macOS 11 or newer use the universal ioquake3.app in the upstream artifact."
+            },
+            {
+              "title": "Set up the correct game data",
+              "instruction": "Place your original Quake III Arena baseq3 PK3 files in the baseq3 directory in the ioquake3 data root. Start the base game in ioquake3."
             }
           ],
           "warnings": [
@@ -38177,6 +38241,10 @@
             {
               "title": "Keep your existing game data",
               "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
+            },
+            {
+              "title": "Back up the external Quake3 profile",
+              "instruction": "On Linux preserve the Quake3 directories under ~/.config, ~/.local/share and ~/.local/state or their XDG overrides. On Mac preserve ~/Library/Application Support/Quake3. Keep any explicit fs_homepath and the creating engine, saves, settings and original data before replacement."
             }
           ]
         },
@@ -38240,6 +38308,14 @@
             {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            },
+            {
+              "title": "Choose the official ioquake3 build",
+              "instruction": "From a successful upstream Build workflow run, download the Linux or macOS artifact. On Linux x64 unpack the archive and run ioquake3 from its folder. On macOS 11 or newer use the universal ioquake3.app in the upstream artifact."
+            },
+            {
+              "title": "Set up the correct game data",
+              "instruction": "Place your original Quake III Arena baseq3 PK3s and Team Arena missionpack PK3s in the corresponding baseq3 or missionpack directories in the ioquake3 data root. Start Team Arena with +set fs_game missionpack."
             }
           ],
           "warnings": [
@@ -38251,6 +38327,10 @@
             {
               "title": "Keep your existing game data",
               "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
+            },
+            {
+              "title": "Back up the external Quake3 profile",
+              "instruction": "On Linux preserve the Quake3 directories under ~/.config, ~/.local/share and ~/.local/state or their XDG overrides. On Mac preserve ~/Library/Application Support/Quake3. Keep any explicit fs_homepath and the creating engine, saves, settings and original data before replacement."
             }
           ]
         },
@@ -38324,7 +38404,11 @@
               "instruction": "Standalone copies may use their base/game folders; Windows store-selected copies can use actual Saved Games/Ironwail/original or Saved Games/Ironwail/rerelease. Keep the actual known-folder location, old Nightdive Studios/Quake tree, standalone/store/custom roots, ironwail.cfg and all saves/autosaves/screenshots/demos/mod/addon files and unknowns. Startup migration can rename episode directories and move recognized files, writing a new config and removing its old copy; it is not a read-only import. Finish any chosen upstream migration first and keep the full pre-migration tree recoverable. No cross-version mod/save/replay roundtrip is certified."
             },
             {
-              "title": "Select the prepared player",
+              "title": "Run the upstream Linux build",
+              "instruction": "Unpack the official Linux x64 tarball. Keep ironwail and ironwail.pak together. The current build needs glibc 2.29 or newer, OpenGL, SDL2, libcurl, libvorbisfile and libmpg123. Supply your matching classic Quake id1 data and use the upstream engine with the intended data folder and profile. Follow the project’s Linux setup and update instructions. Preserve the Quake id1 originals, settings, saves, mods and any configured profile or portable game folder. Keep the creating Ironwail version before replacement."
+            },
+            {
+              "title": "Select the prepared Windows player",
               "instruction": "Select ironwail.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],
@@ -39875,6 +39959,14 @@
             {
               "title": "Keep an existing prepared copy",
               "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
+            },
+            {
+              "title": "Prepare the upstream Linux player",
+              "instruction": "Unpack OpenJO-linux-x86_64.tar.gz into the matching Jedi Outcast GameData working folder with its own base data. Keep the packaged OpenJK modules next to the launcher. The current build needs host SDL2, zlib and glibc 2.34 or newer. Run openjo_sp.x86_64 for the campaign. Use the project’s setup and replacement steps."
+            },
+            {
+              "title": "Prepare the upstream Mac player",
+              "instruction": "Unpack the official OpenJO Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Outcast GameData layout. Open openjo_sp.arm64.app or openjo_sp.x86_64.app for the campaign. Keep the supplied SDL2 framework with the app and follow the project’s data setup instructions."
             }
           ],
           "warnings": [
@@ -39891,6 +39983,10 @@
             {
               "title": "Preserve existing OpenJO registration ownership",
               "instruction": "Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
+            },
+            {
+              "title": "Keep Linux and Mac profiles",
+              "instruction": "Preserve the Linux OpenJO profile at $XDG_DATA_HOME/openjo or ~/.local/share/openjo, or ~/Library/Application Support/OpenJO on Mac. Keep any explicit fs_homepath, original data, mods and the creating runtime."
             }
           ]
         }
@@ -39957,6 +40053,14 @@
             {
               "title": "Choose one installation route",
               "instruction": "A library can have only one installation or registration for this title at a time. Choose managed single player or a separately prepared external player; do not register files inside a Portcove-managed installation or output folder. Preserve your originals, complete external profile and creating runtime before changing routes, then use the existing removal choice first. Registration-only removal preserves all external files. The external multiplayer route offers reviewed registration, separate Play and preserving registration removal, not managed installation, updates, backup, rollback, migration or deletion of that copy. Existing managed single-player installations and retained registrations keep their own contracts."
+            },
+            {
+              "title": "Prepare the upstream Linux player",
+              "instruction": "Unpack OpenJK-linux-x86_64.tar.gz into the matching Jedi Academy GameData working folder with its own base data. Keep the packaged OpenJK modules next to the launcher. The current build needs host SDL2, zlib and glibc 2.34 or newer. Run openjk_sp.x86_64 for the campaign. Run openjk.x86_64 for multiplayer. Use the project’s setup and replacement steps."
+            },
+            {
+              "title": "Prepare the upstream Mac player",
+              "instruction": "Unpack the official OpenJK Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Academy GameData layout. Open openjk_sp.arm64.app or openjk_sp.x86_64.app for the campaign. Use openjk.arm64.app or openjk.x86_64.app for multiplayer. Keep the supplied SDL2 framework with the app and follow the project’s data setup instructions."
             }
           ],
           "warnings": [
@@ -39966,7 +40070,7 @@
           "references": [
             {
               "title": "Keep multiplayer profiles and downloads",
-              "instruction": "Preserve the complete actual OpenJK profile, including base and each mod's directory, openjk.cfg, logs, screenshots, recorded demos and server-downloaded packages or unfinished downloads. The selected non-portable Windows build normally uses Documents/My Games/OpenJK; fs_homepath overrides, portable builds or an unavailable Documents folder can change the location. Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement."
+              "instruction": "Preserve the complete actual OpenJK profile, including base and each mod's directory, openjk.cfg, logs, screenshots, recorded demos and server-downloaded packages or unfinished downloads. The selected non-portable Windows build normally uses Documents/My Games/OpenJK; fs_homepath overrides, portable builds or an unavailable Documents folder can change the location. Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement. Preserve the actual Linux OpenJK profile at $XDG_DATA_HOME/openjk or ~/.local/share/openjk, or ~/Library/Application Support/OpenJK on Mac. Keep any explicit fs_homepath, original data, mods and the creating runtime. The upstream apps can share a profile location."
             }
           ]
         }
@@ -42043,6 +42147,14 @@
             {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            },
+            {
+              "title": "Choose an official nightly package",
+              "instruction": "In OpenXcom’s Nightly GitHub workflow, choose a successful upstream run. Download the Linux x64 or Mac artifact. On Linux unpack the ZIP and start the AppImage. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+            },
+            {
+              "title": "Prepare this title’s original data",
+              "instruction": "Copy the data subfolders from your UFO: Enemy Unknown or X-COM: UFO Defense installation into UFO inside the OpenXcom data or user folder. In the OpenXcom Mods menu, select the master game for this title."
             }
           ],
           "warnings": [
@@ -42053,6 +42165,10 @@
             {
               "title": "Keep your originals and game data",
               "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
+            },
+            {
+              "title": "Back up the actual OpenXcom profile",
+              "instruction": "On Linux keep ~/.local/share/openxcom and ~/.config/openxcom or their XDG overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
             }
           ]
         }
@@ -42780,6 +42896,14 @@
             {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            },
+            {
+              "title": "Choose an official nightly package",
+              "instruction": "In OpenXcom’s Nightly GitHub workflow, choose a successful upstream run. Download the Linux x64 or Mac artifact. On Linux unpack the ZIP and start the AppImage. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+            },
+            {
+              "title": "Prepare this title’s original data",
+              "instruction": "Copy the data subfolders from your X-COM: Terror from the Deep installation into TFTD inside the OpenXcom data or user folder. In the OpenXcom Mods menu, select the master game for this title."
             }
           ],
           "warnings": [
@@ -42790,6 +42914,10 @@
             {
               "title": "Keep your originals and game data",
               "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
+            },
+            {
+              "title": "Back up the actual OpenXcom profile",
+              "instruction": "On Linux keep ~/.local/share/openxcom and ~/.config/openxcom or their XDG overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
             }
           ]
         },
