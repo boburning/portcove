@@ -724,7 +724,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   );
 });
 
-void test("only the exact retained renewal can admit a fifth execution and carry its version floor", () => {
+void test("only the exact retained renewal can admit a sixth execution and carry its version floor", () => {
   const selected = retainedServedRenewal;
   const { opportunity, predecessors, release_id } = selected;
   const current: Parameters<typeof permitsRetainedServedRenewalContinuation>[1] = {
@@ -747,7 +747,7 @@ void test("only the exact retained renewal can admit a fifth execution and carry
       head_branch: actor.control_ref.slice(10),
       run_attempt: 1,
       status: "completed",
-      conclusion: "failure",
+      conclusion: actor.conclusion,
     })),
     active,
   ];
@@ -789,13 +789,13 @@ void test("only the exact retained renewal can admit a fifth execution and carry
       stable: "3",
     },
   };
-  const next = {
+  const third = {
     ...original,
-    run_id: run,
-    control_commit: source,
-    control_ref: current.ref,
-    generated_at: "2026-11-08T05:00:00Z",
-    context_sha256: "f".repeat(64),
+    run_id: predecessors[4].id,
+    control_commit: predecessors[4].control_commit,
+    control_ref: predecessors[4].control_ref,
+    generated_at: "2026-11-08T05:20:24Z",
+    ...selected.contexts[2],
     versions: {
       targets: "1",
       snapshot: "4",
@@ -803,6 +803,22 @@ void test("only the exact retained renewal can admit a fifth execution and carry
       releases: "4",
       preview: "4",
       stable: "4",
+    },
+  };
+  const next = {
+    ...original,
+    run_id: run,
+    control_commit: source,
+    control_ref: current.ref,
+    generated_at: "2026-11-08T06:00:00Z",
+    context_sha256: "f".repeat(64),
+    versions: {
+      targets: "1",
+      snapshot: "5",
+      timestamp: "5",
+      releases: "5",
+      preview: "5",
+      stable: "5",
     },
   };
   const custody = inspectApplicationRunCustody({
@@ -818,7 +834,7 @@ void test("only the exact retained renewal can admit a fifth execution and carry
         .map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref })),
       { id: run, control_commit: source, control_ref: current.ref },
     ],
-    metadata_contexts: [original, second],
+    metadata_contexts: [original, second, third],
   });
   const permit = (rows = inventory, actor = current, retained = custody) =>
     permitsRetainedServedRenewalContinuation(
@@ -830,6 +846,45 @@ void test("only the exact retained renewal can admit a fifth execution and carry
       { release_id, custody: retained },
     );
   assert.equal(permit(), true);
+  assert.deepEqual(
+    inspectApplicationRunCustody({ ...custody, runs: custody.runs.slice(0, -1) }).metadata_contexts,
+    [original, second, third],
+  );
+  assert.throws(() =>
+    inspectApplicationRunCustody({
+      ...custody,
+      runs: custody.runs.slice(0, -1),
+      metadata_contexts: [original, second, third, next],
+    }),
+  );
+  assert.throws(
+    () =>
+      inspectApplicationRunCustody({
+        ...custody,
+        metadata_contexts: [
+          original,
+          second,
+          third,
+          {
+            ...third,
+            run_attempt: 2,
+            generated_at: next.generated_at,
+            context_sha256: next.context_sha256,
+            versions: next.versions,
+          },
+        ],
+      }),
+    /additional reservation requires the appointed renewal producer/u,
+  );
+  assert.equal(
+    permit(
+      inventory.map((row) =>
+        row.id === Number(predecessors[4].id) ? { ...row, conclusion: "failure" } : row,
+      ),
+    ),
+    false,
+  );
+
   assert.throws(() => inspectApplicationRunCustody({ ...custody, opportunity: "f".repeat(64) }));
   assert.throws(() =>
     inspectApplicationRunCustody({ ...custody, runs: custody.runs.slice().reverse() }),
@@ -839,7 +894,10 @@ void test("only the exact retained renewal can admit a fifth execution and carry
     permit(
       inventory,
       current,
-      inspectApplicationRunCustody({ ...custody, metadata_contexts: [original, second, next] }),
+      inspectApplicationRunCustody({
+        ...custody,
+        metadata_contexts: [original, second, third, next],
+      }),
     ),
     true,
   );
@@ -847,7 +905,7 @@ void test("only the exact retained renewal can admit a fifth execution and carry
   assert.equal(
     permit([...inventory, { ...active, id: Number(run) + 1 }]),
     false,
-    "no sixth execution",
+    "no seventh execution",
   );
   assert.equal(permit(inventory, { ...current, run_attempt: 2 }), false);
   assert.equal(permit(inventory, { ...current, ref: predecessors[2].control_ref }), false);
@@ -862,7 +920,7 @@ void test("only the exact retained renewal can admit a fifth execution and carry
   assert.equal(
     permit(inventory, current, {
       ...custody,
-      metadata_contexts: [original, { ...second, context_sha256: next.context_sha256 }],
+      metadata_contexts: [original, second, { ...third, context_sha256: next.context_sha256 }],
     }),
     false,
   );

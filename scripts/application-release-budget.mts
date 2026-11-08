@@ -443,6 +443,7 @@ export function permitsRetainedServedRenewalContinuation(
   const isRun = (
     actor: ApplicationBudgetContext["custody"]["runs"][number],
     status: "completed" | "in_progress",
+    conclusion?: "failure" | "cancelled",
   ) => {
     const row = observed.get(Number(actor.id));
     return (
@@ -450,7 +451,7 @@ export function permitsRetainedServedRenewalContinuation(
       row.head_branch === actor.control_ref.slice("refs/tags/".length) &&
       row.run_attempt === 1 &&
       row.status === status &&
-      (status === "in_progress" || row.conclusion === "failure")
+      (status === "in_progress" || row.conclusion === conclusion)
     );
   };
   const contexts = custody.metadata_contexts ?? [];
@@ -472,7 +473,7 @@ export function permitsRetainedServedRenewalContinuation(
   return (
     observed.size === runs.length &&
     isRun(current, "in_progress") &&
-    prior.every((actor) => isRun(actor, "completed")) &&
+    prior.every((actor) => isRun(actor, "completed", actor.conclusion)) &&
     isDeepStrictEqual(custody.runs, [
       ...prior
         .slice(1)
@@ -721,7 +722,7 @@ export async function readApplicationJobBudget(
     Array.isArray(known) &&
       (known.length <= 3 ||
         budgetedBootstrap ||
-        (servedRenewalContinuation && known.length === 4)) &&
+        (servedRenewalContinuation && known.length <= retainedServedRenewal.predecessors.length)) &&
       new Set(known).size === known.length,
   );
   if (registeredRunIds === undefined)

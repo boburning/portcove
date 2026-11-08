@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
@@ -9,6 +10,7 @@ import {
 } from "./release-control-phases.mts";
 import { requireFixedClassificationPrincipal } from "./release-classification-principal.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
 
 type StorageJournalPolicy = { namespace: string; writer_app_id: number };
 type ProtectionReader = (
@@ -103,7 +105,7 @@ export async function createProtectionObservationReader(options: {
 }): Promise<ProtectionReader> {
   const { token, maxBytes, requestTimeoutMs, guard } = options;
   const deadline = Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity);
-  let expected: string | undefined;
+  const expected = new AsyncLocalStorage<string>();
   const { createGitHubClient } = await import("./github-client.mts");
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
@@ -111,7 +113,7 @@ export async function createProtectionObservationReader(options: {
     maxBytes,
     ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
     allowRequest(method, url) {
-      if (method !== "GET" || url.href !== expected) return false;
+      if (method !== "GET" || url.href !== expected.getStore()) return false;
       guard();
       return true;
     },
@@ -119,12 +121,22 @@ export async function createProtectionObservationReader(options: {
   return async (endpoint, observationDeadline) => {
     if (!/^repos\/boburning\/portcove(?:\/|$)/u.test(endpoint))
       throw new Error("fixed protection reader refused an unscoped route");
-    expected = `https://api.github.com/${endpoint}`;
-    const response = await client.request(`GET /${endpoint}`, {
-      request: { portcove: { replay: "once", attempts: 0, deadline: observationDeadline } },
+    return expected.run(`https://api.github.com/${endpoint}`, async () => {
+      const policy: GitHubRequestPolicy = {
+        replay: "once",
+        attempts: 0,
+        deadline: observationDeadline,
+      };
+      try {
+        const response = await client.request(`GET /${endpoint}`, {
+          request: { portcove: policy },
+        });
+        guard();
+        return { status: response.status, body: response.data as unknown };
+      } finally {
+        await policy.admissionSettled;
+      }
     });
-    guard();
-    return { status: response.status, body: response.data as unknown };
   };
 }
 
@@ -207,47 +219,62 @@ async function observeProtections(
     throw new Error("protection repository identity differs");
   const read = async () => {
     const rulesets: Record<string, unknown>[] = [];
+    const seen = new Set<number>();
+    const detailBatch = purpose === "application" && releasePublication ? 4 : 1;
     let complete = false;
     for (let page = 1; page <= 8; page++) {
       const values = await get(`/rulesets?includes_parents=true&per_page=100&page=${page}`);
       if (!Array.isArray(values) || values.length > 100)
         throw new Error("protection inventory is incomplete");
-      for (const value of values) {
+      const inventory = values.map((value: unknown) => {
         if (!isRecord(value)) throw new Error("protection inventory item is malformed");
         id(value.id);
         // Organization/enterprise policies require their own authenticated detail
         // endpoint. Until that route is configured, never call coverage complete.
         if (value.source_type !== "Repository" || value.source !== "boburning/portcove")
           throw new Error("inherited protection detail requires separately scoped read access");
-        const detail = await get(`/rulesets/${value.id}?includes_parents=true`);
-        if (
-          !isRecord(detail) ||
-          detail.id !== value.id ||
-          detail.source_type !== value.source_type ||
-          detail.source !== value.source ||
-          !Array.isArray(detail.bypass_actors) ||
-          !Array.isArray(detail.rules) ||
-          !isRecord(detail.conditions) ||
-          !["active", "disabled", "evaluate"].includes(String(detail.enforcement))
-        )
-          throw new Error("protection detail or bypass coverage unavailable");
-        for (const actor of detail.bypass_actors) {
-          if (
-            !isRecord(actor) ||
-            typeof actor.actor_type !== "string" ||
-            !["always", "pull_request", "exempt"].includes(String(actor.bypass_mode))
-          )
-            throw new Error("protection bypass actor incomplete");
+        if (seen.has(value.id))
+          throw new Error("protection inventory pages incomplete or duplicated");
+        seen.add(value.id);
+        return { id: value.id, source_type: value.source_type, source: value.source };
+      });
+      for (let start = 0; start < inventory.length; start += detailBatch) {
+        const batch = await Promise.allSettled(
+          inventory.slice(start, start + detailBatch).map(async (value) => {
+            const detail = await get(`/rulesets/${value.id}?includes_parents=true`);
+            if (
+              !isRecord(detail) ||
+              detail.id !== value.id ||
+              detail.source_type !== value.source_type ||
+              detail.source !== value.source ||
+              !Array.isArray(detail.bypass_actors) ||
+              !Array.isArray(detail.rules) ||
+              !isRecord(detail.conditions) ||
+              !["active", "disabled", "evaluate"].includes(String(detail.enforcement))
+            )
+              throw new Error("protection detail or bypass coverage unavailable");
+            for (const actor of detail.bypass_actors) {
+              if (
+                !isRecord(actor) ||
+                typeof actor.actor_type !== "string" ||
+                !["always", "pull_request", "exempt"].includes(String(actor.bypass_mode))
+              )
+                throw new Error("protection bypass actor incomplete");
+            }
+            return detail;
+          }),
+        );
+        for (const result of batch) {
+          if (result.status === "rejected") throw result.reason;
+          rulesets.push(result.value);
         }
-        rulesets.push(detail);
       }
       if (values.length < 100) {
         complete = true;
         break;
       }
     }
-    if (!complete || new Set(rulesets.map((rule) => rule.id)).size !== rulesets.length)
-      throw new Error("protection inventory pages incomplete or duplicated");
+    if (!complete) throw new Error("protection inventory pages incomplete or duplicated");
     const branches = [];
     for (const branch of selectedBranches) {
       const ref = await get(`/git/ref/heads/${branch}`);

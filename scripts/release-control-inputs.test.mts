@@ -202,9 +202,11 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
     "release-ok",
     "release-disabled",
     "release-drift",
+    "release-rule-drift",
   ]) {
     let refReads = 0;
     let settingReads = 0;
+    let ruleReads = 0;
     const publication = fault.startsWith("release-");
     const read = async (endpoint: string) => {
       let body: unknown;
@@ -229,9 +231,15 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
           enforced_by_owner: false,
         };
       } else if (endpoint.includes("/rulesets?")) body = [rule];
-      else if (endpoint.includes("/rulesets/1?"))
-        body = fault === "bypass" ? { ...rule, bypass_actors: undefined } : rule;
-      else if (endpoint.includes("/git/ref/heads/")) {
+      else if (endpoint.includes("/rulesets/1?")) {
+        ruleReads++;
+        body =
+          fault === "bypass"
+            ? { ...rule, bypass_actors: undefined }
+            : fault === "release-rule-drift" && ruleReads === 2
+              ? { ...rule, enforcement: "evaluate" }
+              : rule;
+      } else if (endpoint.includes("/git/ref/heads/")) {
         refReads++;
         body = {
           ref: `refs/heads/${endpoint.split("/").at(-1)}`,
@@ -242,7 +250,7 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
       else throw new Error("unexpected observer route");
       return { status: 200, body };
     };
-    if ((fault && !publication) || fault === "release-drift")
+    if ((fault && !publication) || fault === "release-drift" || fault === "release-rule-drift")
       await assert.rejects(
         observeReleaseInputProtections(read, { releasePublication: publication }),
       );
@@ -271,6 +279,8 @@ void test("application publication reads both protection inventories while isola
     rules: [],
   }));
   const counts = { ref: 0, protection: 0 };
+  let detailReads = 0;
+  let maximumDetailReads = 0;
   t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
     assert.equal(init.method, "GET");
     assert.equal(typeof input, "string");
@@ -296,7 +306,13 @@ void test("application publication reads both protection inventories while isola
       return Response.json({ id: 1354613114, full_name: "boburning/portcove" });
     if (endpoint.endsWith("/rulesets")) return Response.json(rules);
     const rule = /\/rulesets\/(\d+)$/u.exec(endpoint)?.[1];
-    if (rule) return Response.json(rules[Number(rule) - 1]);
+    if (rule) {
+      assert.equal(url.search, "?includes_parents=true");
+      maximumDetailReads = Math.max(maximumDetailReads, ++detailReads);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      detailReads--;
+      return Response.json(rules[Number(rule) - 1]);
+    }
     if (endpoint.includes("/rules/branches/")) return Response.json([]);
     assert.ok(endpoint.endsWith("/immutable-releases"));
     return Response.json({ enabled: true, enforced_by_owner: false });
@@ -309,8 +325,61 @@ void test("application publication reads both protection inventories while isola
     guard() {},
   });
   const result = await observeReleaseInputProtections(read, { releasePublication: true });
-  assert.equal(result.inventory.rulesets.length, 34);
+  assert.deepEqual(result.inventory.rulesets, rules);
+  assert.equal(maximumDetailReads, 4);
+  assert.equal(detailReads, 0);
   assert.deepEqual(counts, { ref: 4, protection: 77 });
+});
+
+void test("application rule-detail batches drain on refusal and reject duplicate list identities", async () => {
+  const rules = Array.from({ length: 6 }, (_, index) => ({
+    id: index + 1,
+    source_type: "Repository",
+    source: "boburning/portcove",
+    enforcement: "active",
+    conditions: {},
+    bypass_actors: [],
+    rules: [],
+  }));
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const dispatches: number[] = [];
+  let duplicate = false;
+  let finished = 0;
+  const read = async (endpoint: string) => {
+    if (endpoint.endsWith("/portcove"))
+      return { status: 200, body: { id: 1354613114, full_name: "boburning/portcove" } };
+    if (endpoint.includes("/rulesets?"))
+      return { status: 200, body: duplicate ? [...rules, rules[0]] : rules };
+    const rule = /\/rulesets\/(\d+)\?includes_parents=true$/u.exec(endpoint)?.[1];
+    assert.ok(rule);
+    dispatches.push(Number(rule));
+    if (dispatches.length === 4) started.resolve();
+    if (rule === "1") return { status: 403, body: {} };
+    await release.promise;
+    finished++;
+    return { status: 200, body: rules[Number(rule) - 1] };
+  };
+  let settled = false;
+  const observation = observeReleaseInputProtections(read, { releasePublication: true }).finally(
+    () => {
+      settled = true;
+    },
+  );
+  await started.promise;
+  assert.deepEqual(dispatches, [1, 2, 3, 4]);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(settled, false);
+  release.resolve();
+  await assert.rejects(observation, /protection response unavailable/u);
+  assert.equal(finished, 3);
+  assert.deepEqual(dispatches, [1, 2, 3, 4]);
+  duplicate = true;
+  await assert.rejects(
+    observeReleaseInputProtections(read, { releasePublication: true }),
+    /inventory pages incomplete or duplicated/u,
+  );
+  assert.deepEqual(dispatches, [1, 2, 3, 4]);
 });
 
 void test("release immutability requires fresh complete isolated setting, not an imported enabled flag", () => {
