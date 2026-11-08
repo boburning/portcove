@@ -31,26 +31,26 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare the Mac toolchain and setup kit",
-          "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+          "title": "Prepare the Mac tools and setup kit",
+          "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
         },
         {
-          "title": "Supply your original files",
-          "instruction": "Use your original single-track European SLES-01156 disc. This kit requires your own retail SCPH-5552 BIOS dump. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+          "title": "Supply your matching disc and BIOS",
+          "instruction": "Use your own European Diablo disc (SLES-01156) with its single data track intact. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
         },
         {
-          "title": "Build and add the prepared player",
-          "instruction": "From the unpacked folder, run Diablo_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Diablo_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+          "title": "Build and add the player on Mac",
+          "instruction": "Run Diablo_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Diablo_Recompiled as the program and build-release as its start folder."
         }
       ],
       "warnings": [
-        "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+        "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
       ],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
+      "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/tag/v0.1.4",
       "references": [
         {
           "title": "Updates and backups",
-          "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+          "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
         }
       ]
     }
@@ -92,7 +92,8 @@
       "psx_freeze_heartbeat.json.tmp",
       "psx_last_run_report.json",
       "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt"
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
     ],
     "runtime_mutable_file_patterns": [
       {

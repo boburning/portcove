@@ -1481,6 +1481,36 @@
         "claim": "Official v0.3.6 Windows and Linux assets 544449858 and 544449424 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies Europe SLES-01212, 13 tracks and first data-track SHA-1 0a39394280555203bf29e33e95e561e4ff50edb1. The shared runtime and setup CLI match a reviewed kit. The generated player is Vigilante_8_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/blob/d57716e4d3b0f7ec401e92180cf4d0a24e98f149/game.toml",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp",
+        "authority_ref": "c6ea4e292a04716e3b57203a646e11bbbaeaebb0",
+        "reviewed_at": "2026-11-08",
+        "claim": "Exact v0.1.4 Windows and Linux kits (assets 605930492 and 605930488) match provider SHA-256 and tagged source. The kit identifies SLES-01301, 1 disc tracks, data Track 1 SHA-1 f1ec508b68d24608f0ce1a939faa3e2a7d80f329, and the required retail SCPH-5552 BIOS. Static runtime and CLI match the admitted Alien Resurrection v0.1.4 family. Managed preparation selects the generated player, and the first track plus count does not authenticate additional tracks or the complete TOC. Native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/c6ea4e292a04716e3b57203a646e11bbbaeaebb0/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-mdk-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/mdk-recomp",
+        "authority_ref": "450139b72a8ea290174b83fdcf60a34b3e71dde0",
+        "reviewed_at": "2026-11-08",
+        "claim": "Exact v0.1.4 Windows and Linux kits (assets 605931966 and 605931956) match provider SHA-256 and tagged source. The kit identifies SLES-00599, 30 disc tracks, data Track 1 SHA-1 c59f5cec719fd43df0ff763b7cc2e9584be4b4fe, and the required retail SCPH-5552 BIOS. Static runtime and CLI match the admitted Alien Resurrection v0.1.4 family. Managed preparation selects the generated player, and the first track plus count does not authenticate additional tracks or the complete TOC. Native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/450139b72a8ea290174b83fdcf60a34b3e71dde0/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-spyro-the-dragon-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/spyro-the-dragon-recomp",
+        "authority_ref": "62118ec415d2d3be51a8961556534fa66e7dd619",
+        "reviewed_at": "2026-11-08",
+        "claim": "Exact v0.1.4 Windows and Linux kits (assets 605933050 and 605933046) match provider SHA-256 and tagged source. The kit identifies SCES-01438, 1 disc tracks, data Track 1 SHA-1 52bba2f6a7eec6ac7dc4d08de13a01b0bbce30b6, and the required retail SCPH-5552 BIOS. Static runtime and CLI match the admitted Alien Resurrection v0.1.4 family. Managed preparation selects the generated player, and the first track plus count does not authenticate additional tracks or the complete TOC. Native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/62118ec415d2d3be51a8961556534fa66e7dd619/game.toml",
+        "live_url": null
       }
     ],
     "identities": [
@@ -10187,6 +10217,141 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-legacy-of-kain-soul-reaver-recomp-europe-psx",
+        "label": "Legacy of Kain: Soul Reaver (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Legacy of Kain: Soul Reaver (European release) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-01301"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "f1ec508b68d24608f0ce1a939faa3e2a7d80f329",
+                    "sha256": "9ac300d56b879699d15331aab395fa57a137752dfdc2aa5569874445a0b933df",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-mdk-recomp-europe-psx",
+        "label": "MDK (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "MDK (European release) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-00599"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  30
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "c59f5cec719fd43df0ff763b7cc2e9584be4b4fe",
+                    "sha256": "29c584e75668153d48874efa2759e404374d2b48fc694b8ce4240755cb67a253",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-mdk-recomp-v014-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-mdk-recomp-v014-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-spyro-the-dragon-recomp-europe-psx",
+        "label": "Spyro the Dragon (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Spyro the Dragon (European or Australian release) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SCES-01438"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "52bba2f6a7eec6ac7dc4d08de13a01b0bbce30b6",
+                    "sha256": "dfba8b1c19f21ac235347d39b17b1be5633d8d00d57f6b0173caf7b04a21ff8b",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -14593,6 +14758,192 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "ffdc46640a048fdb80a6ac98ddcb6ad241a2a0b42b297eeef86a9539e89a41af"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-legacy-of-kain-soul-reaver-recomp-game-source",
+        "port_id": "alexbeav-legacy-of-kain-soul-reaver-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-legacy-of-kain-soul-reaver-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+        ],
+        "authority_ref": "c6ea4e292a04716e3b57203a646e11bbbaeaebb0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/c6ea4e292a04716e3b57203a646e11bbbaeaebb0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "4b842932f7758491afd42cbe38b72076a4444a90d4df05cc48151b48313bf82e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "2f3b3a20f3b6cf25f7da3e1f03f78a084472c6d25192428466219c436e5b2a10"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-legacy-of-kain-soul-reaver-recomp-bios-source",
+        "port_id": "alexbeav-legacy-of-kain-soul-reaver-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+        ],
+        "authority_ref": "c6ea4e292a04716e3b57203a646e11bbbaeaebb0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/c6ea4e292a04716e3b57203a646e11bbbaeaebb0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "4b842932f7758491afd42cbe38b72076a4444a90d4df05cc48151b48313bf82e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "2f3b3a20f3b6cf25f7da3e1f03f78a084472c6d25192428466219c436e5b2a10"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-mdk-recomp-game-source",
+        "port_id": "alexbeav-mdk-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-mdk-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-mdk-recomp-v014-static-contract"
+        ],
+        "authority_ref": "450139b72a8ea290174b83fdcf60a34b3e71dde0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/450139b72a8ea290174b83fdcf60a34b3e71dde0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "f08040c743d1320371c2fbdf060f65216f1df62bd81d6065b0b8d3990d8e980e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "a77f827298449e32edc028bed8ce7cb36cd3d2dab855e02263e56f45a24084a0"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-mdk-recomp-bios-source",
+        "port_id": "alexbeav-mdk-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-mdk-recomp-v014-static-contract"
+        ],
+        "authority_ref": "450139b72a8ea290174b83fdcf60a34b3e71dde0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/450139b72a8ea290174b83fdcf60a34b3e71dde0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "f08040c743d1320371c2fbdf060f65216f1df62bd81d6065b0b8d3990d8e980e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "a77f827298449e32edc028bed8ce7cb36cd3d2dab855e02263e56f45a24084a0"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-spyro-the-dragon-recomp-game-source",
+        "port_id": "alexbeav-spyro-the-dragon-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-spyro-the-dragon-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+        ],
+        "authority_ref": "62118ec415d2d3be51a8961556534fa66e7dd619",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/62118ec415d2d3be51a8961556534fa66e7dd619/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "105b517057b44b390630df2eb7832bd528f9694946025912764e42e295d118e2"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "e8b54a666b66ae3657013ee55a4c40cf3779e103901a67da7385b903d50aa61b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-spyro-the-dragon-recomp-bios-source",
+        "port_id": "alexbeav-spyro-the-dragon-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+        ],
+        "authority_ref": "62118ec415d2d3be51a8961556534fa66e7dd619",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/62118ec415d2d3be51a8961556534fa66e7dd619/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "105b517057b44b390630df2eb7832bd528f9694946025912764e42e295d118e2"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "e8b54a666b66ae3657013ee55a4c40cf3779e103901a67da7385b903d50aa61b"
           }
         ],
         "aliases": [],
@@ -24323,7 +24674,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -24361,26 +24713,26 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Prepare the Mac toolchain and setup kit",
-              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+              "title": "Prepare the Mac tools and setup kit",
+              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
             },
             {
-              "title": "Supply your original files",
-              "instruction": "Use your original single-track European SLES-01156 disc. This kit requires your own retail SCPH-5552 BIOS dump. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+              "title": "Supply your matching disc and BIOS",
+              "instruction": "Use your own European Diablo disc (SLES-01156) with its single data track intact. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
             },
             {
-              "title": "Build and add the prepared player",
-              "instruction": "From the unpacked folder, run Diablo_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Diablo_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+              "title": "Build and add the player on Mac",
+              "instruction": "Run Diablo_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Diablo_Recompiled as the program and build-release as its start folder."
             }
           ],
           "warnings": [
-            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+            "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/tag/v0.1.4",
           "references": [
             {
               "title": "Updates and backups",
-              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+              "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
             }
           ]
         },
@@ -24802,7 +25154,8 @@
         "psx_freeze_heartbeat.json.tmp",
         "psx_last_run_report.json",
         "psx_cps_exit_trace.json",
-        "netplay_lan_lobby.txt"
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
       ],
       "runtime_mutable_file_patterns": [
         {
@@ -24843,26 +25196,26 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Prepare the Mac toolchain and setup kit",
-              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+              "title": "Prepare the Mac tools and setup kit",
+              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
             },
             {
-              "title": "Supply your original files",
-              "instruction": "Use your original four-track European SLES-02913 disc, keeping its complete CUE and every referenced track together. This kit requires your own retail SCPH-5552 BIOS dump. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+              "title": "Supply your matching disc and BIOS",
+              "instruction": "Use your own European Alien Resurrection disc (SLES-02913) with all 4 tracks present. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
             },
             {
-              "title": "Build and add the prepared player",
-              "instruction": "From the unpacked folder, run Alien_Resurrection_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Alien_Resurrection_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+              "title": "Build and add the player on Mac",
+              "instruction": "Run Alien_Resurrection_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Alien_Resurrection_Recompiled as the program and build-release as its start folder."
             }
           ],
           "warnings": [
-            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+            "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
           ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
+          "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/tag/v0.1.4",
           "references": [
             {
               "title": "Updates and backups",
-              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+              "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
             }
           ]
         },
@@ -28274,6 +28627,296 @@
       }
     },
     {
+      "id": "alexbeav-legacy-of-kain-soul-reaver-recomp",
+      "name": "Legacy of Kain: Soul Reaver / Alexbeav PSXRecomp",
+      "summary": "Play Legacy of Kain: Soul Reaver with a player built from your matching original PlayStation disc and BIOS.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "legacy-of-kain-soul-reaver-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "legacy-of-kain-soul-reaver-recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-legacy-of-kain-soul-reaver-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Legacy_of_Kain__Soul_Reaver_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Legacy_of_Kain__Soul_Reaver_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-legacy-of-kain-soul-reaver-recomp-europe-psx",
+            "label": "Legacy of Kain: Soul Reaver (Europe) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Use your own European Legacy of Kain: Soul Reaver disc (SLES-01301) with its single data track intact. Select the complete CHD and your retail SCPH-5552 BIOS in Portcove. On Linux use native C/C++ tools, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player.",
+        "original_game_title": "Legacy of Kain: Soul Reaver",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply your matching disc and BIOS",
+              "instruction": "Use your own European Legacy of Kain: Soul Reaver disc (SLES-01301) with its single data track intact. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "In Portcove, select your matching disc as a CHD and your SCPH-5552 BIOS. On Linux, use a native C/C++ compiler, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player."
+            },
+            {
+              "title": "Prepare a separate Mac player",
+              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+            },
+            {
+              "title": "Build and add the player on Mac",
+              "instruction": "Run Legacy_of_Kain__Soul_Reaver_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Legacy_of_Kain__Soul_Reaver_Recompiled as the program and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
+            "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases/tag/v0.1.4",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
+            },
+            {
+              "title": "Linux generator compatibility",
+              "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 4122,
+          "cover_id": 91101,
+          "image_id": "co1yal",
+          "image_sha256": "e604bb0235b9239088dacc44834b6729fd02a14b3e2b134baa354257ae35897f",
+          "game_slug": "legacy-of-kain-soul-reaver",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
+    },
+    {
+      "id": "alexbeav-mdk-recomp",
+      "name": "MDK / Alexbeav PSXRecomp",
+      "summary": "Play MDK with a player built from your matching original PlayStation disc and BIOS.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/mdk-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "mdk-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "mdk-recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-mdk-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "MDK_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "MDK_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-mdk-recomp-europe-psx",
+            "label": "MDK (Europe) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Use your own European MDK disc (SLES-00599) with all 30 tracks present. Select the complete CHD and your retail SCPH-5552 BIOS in Portcove. On Linux use native C/C++ tools, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player.",
+        "original_game_title": "MDK",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply your matching disc and BIOS",
+              "instruction": "Use your own European MDK disc (SLES-00599) with all 30 tracks present. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "In Portcove, select your matching disc as a CHD and your SCPH-5552 BIOS. On Linux, use a native C/C++ compiler, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player."
+            },
+            {
+              "title": "Prepare a separate Mac player",
+              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+            },
+            {
+              "title": "Build and add the player on Mac",
+              "instruction": "Run MDK_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/MDK_Recompiled as the program and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
+            "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases/tag/v0.1.4",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
+            },
+            {
+              "title": "Linux generator compatibility",
+              "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 219,
+          "cover_id": 100005,
+          "image_id": "co255x",
+          "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
+          "game_slug": "mdk",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
+    },
+    {
       "id": "alexbeav-medievil-ii-recomp",
       "name": "MediEvil II / Alexbeav PSXRecomp",
       "summary": "Explore MediEvil II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
@@ -29004,6 +29647,143 @@
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "alexbeav-spyro-the-dragon-recomp",
+      "name": "Spyro the Dragon / Alexbeav PSXRecomp",
+      "summary": "Play Spyro the Dragon with a player built from your matching original PlayStation disc and BIOS.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/spyro-the-dragon-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "spyro-the-dragon-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "spyro-the-dragon-recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-spyro-the-dragon-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Spyro_the_Dragon_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Spyro_the_Dragon_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-spyro-the-dragon-recomp-europe-psx",
+            "label": "Spyro the Dragon (Europe) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Use your own European or Australian Spyro the Dragon disc (SCES-01438) with its single data track intact. Select the complete CHD and your retail SCPH-5552 BIOS in Portcove. On Linux use native C/C++ tools, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player.",
+        "original_game_title": "Spyro the Dragon",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply your matching disc and BIOS",
+              "instruction": "Use your own European or Australian Spyro the Dragon disc (SCES-01438) with its single data track intact. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
+            },
+            {
+              "title": "Prepare the managed Windows or Linux player",
+              "instruction": "In Portcove, select your matching disc as a CHD and your SCPH-5552 BIOS. On Linux, use a native C/C++ compiler, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player."
+            },
+            {
+              "title": "Prepare a separate Mac player",
+              "instruction": "Choose the official v0.1.4 ZIP for your Intel or Apple silicon Mac and unpack it into a writable folder. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The bundled game and BIOS generators require macOS 15 or newer."
+            },
+            {
+              "title": "Build and add the player on Mac",
+              "instruction": "Run Spyro_the_Dragon_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Spyro_the_Dragon_Recompiled as the program and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
+            "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/tag/v0.1.4",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
+            },
+            {
+              "title": "Linux generator compatibility",
+              "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26."
+            }
+          ]
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
     },
     {
       "id": "alexbeav-syphon-filter-3-recomp",

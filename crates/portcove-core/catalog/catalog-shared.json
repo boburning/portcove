@@ -1481,6 +1481,36 @@
         "claim": "Official v0.3.6 Windows and Linux assets 544449858 and 544449424 matched provider digests and passed safe-entry and CRC inspection. Tagged game, CMake and setup files match the kits. The packaged original contract identifies Europe SLES-01212, 13 tracks and first data-track SHA-1 0a39394280555203bf29e33e95e561e4ff50edb1. The shared runtime and setup CLI match a reviewed kit. The generated player is Vigilante_8_Recompiled with the bundled OpenBIOS. Native title operation and save compatibility were not observed.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/blob/d57716e4d3b0f7ec401e92180cf4d0a24e98f149/game.toml",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp",
+        "authority_ref": "c6ea4e292a04716e3b57203a646e11bbbaeaebb0",
+        "reviewed_at": "2026-11-08",
+        "claim": "Exact v0.1.4 Windows and Linux kits (assets 605930492 and 605930488) match provider SHA-256 and tagged source. The kit identifies SLES-01301, 1 disc tracks, data Track 1 SHA-1 f1ec508b68d24608f0ce1a939faa3e2a7d80f329, and the required retail SCPH-5552 BIOS. Static runtime and CLI match the admitted Alien Resurrection v0.1.4 family. Managed preparation selects the generated player, and the first track plus count does not authenticate additional tracks or the complete TOC. Native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/c6ea4e292a04716e3b57203a646e11bbbaeaebb0/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-mdk-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/mdk-recomp",
+        "authority_ref": "450139b72a8ea290174b83fdcf60a34b3e71dde0",
+        "reviewed_at": "2026-11-08",
+        "claim": "Exact v0.1.4 Windows and Linux kits (assets 605931966 and 605931956) match provider SHA-256 and tagged source. The kit identifies SLES-00599, 30 disc tracks, data Track 1 SHA-1 c59f5cec719fd43df0ff763b7cc2e9584be4b4fe, and the required retail SCPH-5552 BIOS. Static runtime and CLI match the admitted Alien Resurrection v0.1.4 family. Managed preparation selects the generated player, and the first track plus count does not authenticate additional tracks or the complete TOC. Native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/450139b72a8ea290174b83fdcf60a34b3e71dde0/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-spyro-the-dragon-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/spyro-the-dragon-recomp",
+        "authority_ref": "62118ec415d2d3be51a8961556534fa66e7dd619",
+        "reviewed_at": "2026-11-08",
+        "claim": "Exact v0.1.4 Windows and Linux kits (assets 605933050 and 605933046) match provider SHA-256 and tagged source. The kit identifies SCES-01438, 1 disc tracks, data Track 1 SHA-1 52bba2f6a7eec6ac7dc4d08de13a01b0bbce30b6, and the required retail SCPH-5552 BIOS. Static runtime and CLI match the admitted Alien Resurrection v0.1.4 family. Managed preparation selects the generated player, and the first track plus count does not authenticate additional tracks or the complete TOC. Native operation and gameplay were not observed.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/62118ec415d2d3be51a8961556534fa66e7dd619/game.toml",
+        "live_url": null
       }
     ],
     "identities": [
@@ -10187,6 +10217,141 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-legacy-of-kain-soul-reaver-recomp-europe-psx",
+        "label": "Legacy of Kain: Soul Reaver (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Legacy of Kain: Soul Reaver (European release) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-01301"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "f1ec508b68d24608f0ce1a939faa3e2a7d80f329",
+                    "sha256": "9ac300d56b879699d15331aab395fa57a137752dfdc2aa5569874445a0b933df",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-mdk-recomp-europe-psx",
+        "label": "MDK (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "MDK (European release) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-00599"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  30
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "c59f5cec719fd43df0ff763b7cc2e9584be4b4fe",
+                    "sha256": "29c584e75668153d48874efa2759e404374d2b48fc694b8ce4240755cb67a253",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-mdk-recomp-v014-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-mdk-recomp-v014-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-spyro-the-dragon-recomp-europe-psx",
+        "label": "Spyro the Dragon (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Spyro the Dragon (European or Australian release) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SCES-01438"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "52bba2f6a7eec6ac7dc4d08de13a01b0bbce30b6",
+                    "sha256": "dfba8b1c19f21ac235347d39b17b1be5633d8d00d57f6b0173caf7b04a21ff8b",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -14593,6 +14758,192 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "ffdc46640a048fdb80a6ac98ddcb6ad241a2a0b42b297eeef86a9539e89a41af"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-legacy-of-kain-soul-reaver-recomp-game-source",
+        "port_id": "alexbeav-legacy-of-kain-soul-reaver-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-legacy-of-kain-soul-reaver-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+        ],
+        "authority_ref": "c6ea4e292a04716e3b57203a646e11bbbaeaebb0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/c6ea4e292a04716e3b57203a646e11bbbaeaebb0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "4b842932f7758491afd42cbe38b72076a4444a90d4df05cc48151b48313bf82e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "2f3b3a20f3b6cf25f7da3e1f03f78a084472c6d25192428466219c436e5b2a10"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-legacy-of-kain-soul-reaver-recomp-bios-source",
+        "port_id": "alexbeav-legacy-of-kain-soul-reaver-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-legacy-of-kain-soul-reaver-recomp-v014-static-contract"
+        ],
+        "authority_ref": "c6ea4e292a04716e3b57203a646e11bbbaeaebb0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/c6ea4e292a04716e3b57203a646e11bbbaeaebb0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "4b842932f7758491afd42cbe38b72076a4444a90d4df05cc48151b48313bf82e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "2f3b3a20f3b6cf25f7da3e1f03f78a084472c6d25192428466219c436e5b2a10"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-mdk-recomp-game-source",
+        "port_id": "alexbeav-mdk-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-mdk-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-mdk-recomp-v014-static-contract"
+        ],
+        "authority_ref": "450139b72a8ea290174b83fdcf60a34b3e71dde0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/450139b72a8ea290174b83fdcf60a34b3e71dde0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "f08040c743d1320371c2fbdf060f65216f1df62bd81d6065b0b8d3990d8e980e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "a77f827298449e32edc028bed8ce7cb36cd3d2dab855e02263e56f45a24084a0"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-mdk-recomp-bios-source",
+        "port_id": "alexbeav-mdk-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-mdk-recomp-v014-static-contract"
+        ],
+        "authority_ref": "450139b72a8ea290174b83fdcf60a34b3e71dde0",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/450139b72a8ea290174b83fdcf60a34b3e71dde0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "f08040c743d1320371c2fbdf060f65216f1df62bd81d6065b0b8d3990d8e980e"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "a77f827298449e32edc028bed8ce7cb36cd3d2dab855e02263e56f45a24084a0"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-spyro-the-dragon-recomp-game-source",
+        "port_id": "alexbeav-spyro-the-dragon-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-spyro-the-dragon-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+        ],
+        "authority_ref": "62118ec415d2d3be51a8961556534fa66e7dd619",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/62118ec415d2d3be51a8961556534fa66e7dd619/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "105b517057b44b390630df2eb7832bd528f9694946025912764e42e295d118e2"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "e8b54a666b66ae3657013ee55a4c40cf3779e103901a67da7385b903d50aa61b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-spyro-the-dragon-recomp-bios-source",
+        "port_id": "alexbeav-spyro-the-dragon-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-spyro-the-dragon-recomp-v014-static-contract"
+        ],
+        "authority_ref": "62118ec415d2d3be51a8961556534fa66e7dd619",
+        "reviewed_at": "2026-11-08",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/62118ec415d2d3be51a8961556534fa66e7dd619/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "105b517057b44b390630df2eb7832bd528f9694946025912764e42e295d118e2"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "e8b54a666b66ae3657013ee55a4c40cf3779e103901a67da7385b903d50aa61b"
           }
         ],
         "aliases": [],

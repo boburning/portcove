@@ -73,7 +73,10 @@
     "alexbeav-the-lost-world-jurassic-park-special-edition-recomp-usa-psx",
     "alexbeav-the-mummy-recomp-usa-psx",
     "alexbeav-vampire-hunter-d-recomp-usa-psx",
-    "alexbeav-vigilante-8-recomp-europe-psx"
+    "alexbeav-vigilante-8-recomp-europe-psx",
+    "alexbeav-legacy-of-kain-soul-reaver-recomp-europe-psx",
+    "alexbeav-mdk-recomp-europe-psx",
+    "alexbeav-spyro-the-dragon-recomp-europe-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -331,6 +334,9 @@
     "alexbeav-the-lost-world-jurassic-park-special-edition-recomp",
     "alexbeav-the-mummy-recomp",
     "alexbeav-vampire-hunter-d-recomp",
-    "alexbeav-vigilante-8-recomp"
+    "alexbeav-vigilante-8-recomp",
+    "alexbeav-legacy-of-kain-soul-reaver-recomp",
+    "alexbeav-mdk-recomp",
+    "alexbeav-spyro-the-dragon-recomp"
   ]
 }

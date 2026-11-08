@@ -2139,6 +2139,7 @@ struct ManagedPsxArchiveExpectation {
     generated_executable: String,
     #[serde(default)]
     openbios: bool,
+    bios_profile: Option<String>,
     #[serde(default)]
     crash_diagnostic: bool,
 }
@@ -2155,7 +2156,10 @@ impl ManagedPsxArchiveExpectation {
     ) {
         let id = &port.id;
         let source_catalog = catalog.source_catalog().unwrap();
-        let bios_id = (!self.openbios).then_some("psx-scph-1001-bios");
+        let bios_id = self
+            .bios_profile
+            .as_deref()
+            .or((!self.openbios).then_some("psx-scph-1001-bios"));
         assert_eq!(port.adapter, crate::AdapterKind::PsxRecompManaged, "{id}");
         assert_eq!(port.bios_source_profile.as_deref(), bios_id, "{id}");
         let executable = match platform {

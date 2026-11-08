@@ -729,6 +729,106 @@
         "crash_diagnostic": true,
         "track_sha256": "0a303a0d19d2728f1e364afa4fb7ad8e6e5a04800236573e93417a5503fb201e"
       }
+    },
+    "alexbeav-alien-resurrection-recomp": {
+      "inventory": "alexbeav-alien-resurrection-recomp",
+      "selected_assets": [
+        "alien-resurrection-recomp-0.1.4-windows-x64.zip",
+        "alien-resurrection-recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "alien-resurrection-recomp-0.1.4-linux-x64.zip",
+        "alien-resurrection-recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-02913",
+        "track_count": 4,
+        "track_sha1": "5642c4f4ba6f06323778ae29c59c6dc863d49f55",
+        "track_sha256": "af3da8902c6d3f55aaeff960adbeda61c7a630e820e34bc133ffe972cd100237",
+        "generated_executable": "Alien_Resurrection_Recompiled.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-diablo-recomp": {
+      "inventory": "alexbeav-diablo-recomp",
+      "selected_assets": [
+        "diablo-recomp-0.1.4-windows-x64.zip",
+        "diablo-recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "diablo-recomp-0.1.4-linux-x64.zip",
+        "diablo-recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-01156",
+        "track_count": 1,
+        "track_sha1": "3dcfffb32c962d7ee2b00ea532b044aaeaaeb8ad",
+        "track_sha256": null,
+        "generated_executable": "Diablo_Recompiled.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-legacy-of-kain-soul-reaver-recomp": {
+      "inventory": "alexbeav-legacy-of-kain-soul-reaver-recomp",
+      "selected_assets": [
+        "legacy-of-kain-soul-reaver-recomp-0.1.4-windows-x64.zip",
+        "legacy-of-kain-soul-reaver-recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "legacy-of-kain-soul-reaver-recomp-0.1.4-linux-x64.zip",
+        "legacy-of-kain-soul-reaver-recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-01301",
+        "track_count": 1,
+        "track_sha1": "f1ec508b68d24608f0ce1a939faa3e2a7d80f329",
+        "track_sha256": "9ac300d56b879699d15331aab395fa57a137752dfdc2aa5569874445a0b933df",
+        "generated_executable": "Legacy_of_Kain__Soul_Reaver_Recompiled.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-mdk-recomp": {
+      "inventory": "alexbeav-mdk-recomp",
+      "selected_assets": [
+        "mdk-recomp-0.1.4-windows-x64.zip",
+        "mdk-recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "mdk-recomp-0.1.4-linux-x64.zip",
+        "mdk-recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-00599",
+        "track_count": 30,
+        "track_sha1": "c59f5cec719fd43df0ff763b7cc2e9584be4b4fe",
+        "track_sha256": "29c584e75668153d48874efa2759e404374d2b48fc694b8ce4240755cb67a253",
+        "generated_executable": "MDK_Recompiled.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      }
+    },
+    "alexbeav-spyro-the-dragon-recomp": {
+      "inventory": "alexbeav-spyro-the-dragon-recomp",
+      "selected_assets": [
+        "spyro-the-dragon-recomp-0.1.4-windows-x64.zip",
+        "spyro-the-dragon-recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "spyro-the-dragon-recomp-0.1.4-linux-x64.zip",
+        "spyro-the-dragon-recomp-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCES-01438",
+        "track_count": 1,
+        "track_sha1": "52bba2f6a7eec6ac7dc4d08de13a01b0bbce30b6",
+        "track_sha256": "dfba8b1c19f21ac235347d39b17b1be5633d8d00d57f6b0173caf7b04a21ff8b",
+        "generated_executable": "Spyro_the_Dragon_Recompiled.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true
+      }
     }
   },
   "inventories": {
@@ -4212,6 +4312,386 @@
           }
         ]
       }
+    ],
+    "alexbeav-alien-resurrection-recomp": [
+      {
+        "id": 401948835,
+        "tag_name": "v0.1.4",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-02T15:45:25Z",
+        "assets": [
+          {
+            "id": 605929047,
+            "name": "alien-resurrection-recomp-0.1.4-linux-x64.zip",
+            "size": 27800828,
+            "digest": "sha256:f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-linux-x64.zip"
+          },
+          {
+            "id": 605929050,
+            "name": "alien-resurrection-recomp-0.1.4-macos-arm64.zip",
+            "size": 25544747,
+            "digest": "sha256:5116d60beeb07e155ec9e86162288c6a8ffe64e2c3e2ebc3c374433d0c7309c5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-macos-arm64.zip"
+          },
+          {
+            "id": 605929044,
+            "name": "alien-resurrection-recomp-0.1.4-macos-x64.zip",
+            "size": 25891706,
+            "digest": "sha256:3cd472e49ab0cb3706960d0dcc0c77215f41d1346900fae070855774ffaca989",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-macos-x64.zip"
+          },
+          {
+            "id": 605929045,
+            "name": "alien-resurrection-recomp-0.1.4-windows-x64.zip",
+            "size": 29907400,
+            "digest": "sha256:2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-windows-x64.zip"
+          },
+          {
+            "id": 605929049,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 3254,
+            "digest": "sha256:9713cd40f9e471a8b7767441afe3f376885a4f19dea7144a02c179dee50138bc",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 605929078,
+            "name": "SHA256SUMS.txt",
+            "size": 452,
+            "digest": "sha256:6b8ea3f45090c944763dd53adc04bcf2c82906b4cf24593b593dc45f1c6ac3eb",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999954428,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999950856,
+            "name": "alien-resurrection-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/alien-resurrection-recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999950857,
+            "name": "alien-resurrection-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/alien-resurrection-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-diablo-recomp": [
+      {
+        "id": 401948038,
+        "tag_name": "v0.1.4",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-02T15:44:22Z",
+        "assets": [
+          {
+            "id": 605927354,
+            "name": "diablo-recomp-0.1.4-linux-x64.zip",
+            "size": 27803391,
+            "digest": "sha256:0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-linux-x64.zip"
+          },
+          {
+            "id": 605927355,
+            "name": "diablo-recomp-0.1.4-macos-arm64.zip",
+            "size": 25545292,
+            "digest": "sha256:7371d63037a6d590d663585b462679c537ebe9e0f31c959b18ce0f7586209e7c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-macos-arm64.zip"
+          },
+          {
+            "id": 605927353,
+            "name": "diablo-recomp-0.1.4-macos-x64.zip",
+            "size": 25893044,
+            "digest": "sha256:1efe148a3e9c0c230b2ac1135c2e6a274723a2f9a60294b58007ac63efd243b1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-macos-x64.zip"
+          },
+          {
+            "id": 605927357,
+            "name": "diablo-recomp-0.1.4-windows-x64.zip",
+            "size": 29909581,
+            "digest": "sha256:962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-windows-x64.zip"
+          },
+          {
+            "id": 605927361,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 3146,
+            "digest": "sha256:af1d850f56503b44f0f68b9bbf075e23d5c2688efcdb1576253b9b2aab955f00",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 605927376,
+            "name": "SHA256SUMS.txt",
+            "size": 404,
+            "digest": "sha256:37c4bf3ffd2f24be3d0cc90099bb7617a13f2d041b5e89b10df4e2e625b460ec",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999954435,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999950870,
+            "name": "diablo-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/diablo-recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999950871,
+            "name": "diablo-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/diablo-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-legacy-of-kain-soul-reaver-recomp": [
+      {
+        "id": 401949397,
+        "tag_name": "v0.1.4",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-02T15:46:13Z",
+        "assets": [
+          {
+            "id": 605930488,
+            "name": "legacy-of-kain-soul-reaver-recomp-0.1.4-linux-x64.zip",
+            "size": 27794216,
+            "digest": "sha256:2f3b3a20f3b6cf25f7da3e1f03f78a084472c6d25192428466219c436e5b2a10",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases/download/v0.1.4/legacy-of-kain-soul-reaver-recomp-0.1.4-linux-x64.zip"
+          },
+          {
+            "id": 605930490,
+            "name": "legacy-of-kain-soul-reaver-recomp-0.1.4-macos-arm64.zip",
+            "size": 25539640,
+            "digest": "sha256:9d5edea45032f464eb00918d194d86844e80d59a7b9a11114098534dbb0613a1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases/download/v0.1.4/legacy-of-kain-soul-reaver-recomp-0.1.4-macos-arm64.zip"
+          },
+          {
+            "id": 605930491,
+            "name": "legacy-of-kain-soul-reaver-recomp-0.1.4-macos-x64.zip",
+            "size": 25885271,
+            "digest": "sha256:de8ac3b777a92ea88c9cc675ba97b834968c609a42a72cbea5219c315bdffa1f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases/download/v0.1.4/legacy-of-kain-soul-reaver-recomp-0.1.4-macos-x64.zip"
+          },
+          {
+            "id": 605930492,
+            "name": "legacy-of-kain-soul-reaver-recomp-0.1.4-windows-x64.zip",
+            "size": 29900788,
+            "digest": "sha256:4b842932f7758491afd42cbe38b72076a4444a90d4df05cc48151b48313bf82e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases/download/v0.1.4/legacy-of-kain-soul-reaver-recomp-0.1.4-windows-x64.zip"
+          },
+          {
+            "id": 605930493,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 3326,
+            "digest": "sha256:7462b2903b6a23f64ebfe3ca7c5d260b0b5949e4ef09dd28de34f5feaa6b00cc",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases/download/v0.1.4/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 605930512,
+            "name": "SHA256SUMS.txt",
+            "size": 484,
+            "digest": "sha256:35be75e824240953b453173d428f4ebd6a0bdcfc924ed6b5b95b5f338807b221",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases/download/v0.1.4/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999954456,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999950912,
+            "name": "legacy-of-kain-soul-reaver-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/legacy-of-kain-soul-reaver-recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999950913,
+            "name": "legacy-of-kain-soul-reaver-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/legacy-of-kain-soul-reaver-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-mdk-recomp": [
+      {
+        "id": 401949931,
+        "tag_name": "v0.1.4",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-02T15:47:01Z",
+        "assets": [
+          {
+            "id": 605931956,
+            "name": "mdk-recomp-0.1.4-linux-x64.zip",
+            "size": 27790572,
+            "digest": "sha256:a77f827298449e32edc028bed8ce7cb36cd3d2dab855e02263e56f45a24084a0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases/download/v0.1.4/mdk-recomp-0.1.4-linux-x64.zip"
+          },
+          {
+            "id": 605931963,
+            "name": "mdk-recomp-0.1.4-macos-arm64.zip",
+            "size": 25534807,
+            "digest": "sha256:a8ff8216dcb31077f199233b8fe6640f138f16652c16a27bd527f0e7587aedf3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases/download/v0.1.4/mdk-recomp-0.1.4-macos-arm64.zip"
+          },
+          {
+            "id": 605931960,
+            "name": "mdk-recomp-0.1.4-macos-x64.zip",
+            "size": 25882020,
+            "digest": "sha256:490c96e666ec9752e292b75a124b663c019b85b175940a67ae19f0ad705b0572",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases/download/v0.1.4/mdk-recomp-0.1.4-macos-x64.zip"
+          },
+          {
+            "id": 605931966,
+            "name": "mdk-recomp-0.1.4-windows-x64.zip",
+            "size": 29897081,
+            "digest": "sha256:f08040c743d1320371c2fbdf060f65216f1df62bd81d6065b0b8d3990d8e980e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases/download/v0.1.4/mdk-recomp-0.1.4-windows-x64.zip"
+          },
+          {
+            "id": 605931955,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 3119,
+            "digest": "sha256:dc3f28318510a7369d71fc80f2504dcc52f59e282b9c333b9d6dd415b97b0ed8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases/download/v0.1.4/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 605931980,
+            "name": "SHA256SUMS.txt",
+            "size": 392,
+            "digest": "sha256:399ed570fbf9fc384b9d666901cdb0e8e76cebc07871e34c3d3533045f718f74",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases/download/v0.1.4/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999954464,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999950928,
+            "name": "mdk-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/mdk-recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999950929,
+            "name": "mdk-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/mdk-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-spyro-the-dragon-recomp": [
+      {
+        "id": 401950473,
+        "tag_name": "v0.1.4",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-02T15:47:47Z",
+        "assets": [
+          {
+            "id": 605933047,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 3236,
+            "digest": "sha256:e6b9fd12e96fd00ec44a74a3f595fac10419559fa10dad3228255988ddd846b5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/download/v0.1.4/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 605933064,
+            "name": "SHA256SUMS.txt",
+            "size": 444,
+            "digest": "sha256:1a1e7e0d13e7c07653896e997fd0c10dc2813978c82924e32cab2533bb8637d0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/download/v0.1.4/SHA256SUMS.txt"
+          },
+          {
+            "id": 605933046,
+            "name": "spyro-the-dragon-recomp-0.1.4-linux-x64.zip",
+            "size": 27789975,
+            "digest": "sha256:e8b54a666b66ae3657013ee55a4c40cf3779e103901a67da7385b903d50aa61b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/download/v0.1.4/spyro-the-dragon-recomp-0.1.4-linux-x64.zip"
+          },
+          {
+            "id": 605933045,
+            "name": "spyro-the-dragon-recomp-0.1.4-macos-arm64.zip",
+            "size": 25533885,
+            "digest": "sha256:c64675ea081489adf1003ce7c99d6f94fbf1e1fdb1cdcb6e4bbb92655f4e410a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/download/v0.1.4/spyro-the-dragon-recomp-0.1.4-macos-arm64.zip"
+          },
+          {
+            "id": 605933052,
+            "name": "spyro-the-dragon-recomp-0.1.4-macos-x64.zip",
+            "size": 25880845,
+            "digest": "sha256:118b3215547ee60f4a3e7aa8010d0be816eed7003e6f83e909dedeb81611bd10",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/download/v0.1.4/spyro-the-dragon-recomp-0.1.4-macos-x64.zip"
+          },
+          {
+            "id": 605933050,
+            "name": "spyro-the-dragon-recomp-0.1.4-windows-x64.zip",
+            "size": 29896422,
+            "digest": "sha256:105b517057b44b390630df2eb7832bd528f9694946025912764e42e295d118e2",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases/download/v0.1.4/spyro-the-dragon-recomp-0.1.4-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999954479,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999950958,
+            "name": "spyro-the-dragon-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/spyro-the-dragon-recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999950959,
+            "name": "spyro-the-dragon-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/spyro-the-dragon-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -4824,6 +5304,56 @@
       "inventory": "alexbeav-vigilante-8-recomp",
       "release_index": 0,
       "asset": "Vigilante-8-Recomp-0.3.6-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-alien-resurrection-recomp",
+      "release_index": 0,
+      "asset": "alien-resurrection-recomp-0.1.4-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-alien-resurrection-recomp",
+      "release_index": 0,
+      "asset": "alien-resurrection-recomp-0.1.4-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-diablo-recomp",
+      "release_index": 0,
+      "asset": "diablo-recomp-0.1.4-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-diablo-recomp",
+      "release_index": 0,
+      "asset": "diablo-recomp-0.1.4-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-legacy-of-kain-soul-reaver-recomp",
+      "release_index": 0,
+      "asset": "legacy-of-kain-soul-reaver-recomp-0.1.4-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-legacy-of-kain-soul-reaver-recomp",
+      "release_index": 0,
+      "asset": "legacy-of-kain-soul-reaver-recomp-0.1.4-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-mdk-recomp",
+      "release_index": 0,
+      "asset": "mdk-recomp-0.1.4-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-mdk-recomp",
+      "release_index": 0,
+      "asset": "mdk-recomp-0.1.4-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-spyro-the-dragon-recomp",
+      "release_index": 0,
+      "asset": "spyro-the-dragon-recomp-0.1.4-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-spyro-the-dragon-recomp",
+      "release_index": 0,
+      "asset": "spyro-the-dragon-recomp-0.1.4-macos-x64.zip"
     }
   ]
 }
