@@ -39,7 +39,7 @@
         },
         {
           "title": "Build and add the player on Mac",
-          "instruction": "Run Alien_Resurrection_Recompiled from the unpacked folder and follow Generate & Build. In Portcove, select build-release/Alien_Resurrection_Recompiled as the program and build-release as its start folder."
+          "instruction": "Run Alien_Resurrection_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Alien_Resurrection_Recompiled as the program and build-release as its start folder."
         }
       ],
       "warnings": [

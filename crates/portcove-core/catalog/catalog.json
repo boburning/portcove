@@ -24722,7 +24722,7 @@
             },
             {
               "title": "Build and add the player on Mac",
-              "instruction": "Run Diablo_Recompiled from the unpacked folder and follow Generate & Build. In Portcove, select build-release/Diablo_Recompiled as the program and build-release as its start folder."
+              "instruction": "Run Diablo_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Diablo_Recompiled as the program and build-release as its start folder."
             }
           ],
           "warnings": [
@@ -25205,7 +25205,7 @@
             },
             {
               "title": "Build and add the player on Mac",
-              "instruction": "Run Alien_Resurrection_Recompiled from the unpacked folder and follow Generate & Build. In Portcove, select build-release/Alien_Resurrection_Recompiled as the program and build-release as its start folder."
+              "instruction": "Run Alien_Resurrection_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Alien_Resurrection_Recompiled as the program and build-release as its start folder."
             }
           ],
           "warnings": [
@@ -28741,7 +28741,7 @@
             },
             {
               "title": "Build and add the player on Mac",
-              "instruction": "Run Legacy_of_Kain__Soul_Reaver_Recompiled from the unpacked folder and follow Generate & Build. In Portcove, select build-release/Legacy_of_Kain__Soul_Reaver_Recompiled as the program and build-release as its start folder."
+              "instruction": "Run Legacy_of_Kain__Soul_Reaver_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Legacy_of_Kain__Soul_Reaver_Recompiled as the program and build-release as its start folder."
             }
           ],
           "warnings": [
@@ -28753,6 +28753,10 @@
             {
               "title": "Updates and backups",
               "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
+            },
+            {
+              "title": "Linux generator compatibility",
+              "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26. The managed setup launches the player it builds."
             }
           ]
         },
@@ -28882,7 +28886,7 @@
             },
             {
               "title": "Build and add the player on Mac",
-              "instruction": "Run MDK_Recompiled from the unpacked folder and follow Generate & Build. In Portcove, select build-release/MDK_Recompiled as the program and build-release as its start folder."
+              "instruction": "Run MDK_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/MDK_Recompiled as the program and build-release as its start folder."
             }
           ],
           "warnings": [
@@ -28894,6 +28898,10 @@
             {
               "title": "Updates and backups",
               "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
+            },
+            {
+              "title": "Linux generator compatibility",
+              "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26. The managed setup launches the player it builds."
             }
           ]
         },
@@ -29755,7 +29763,7 @@
             },
             {
               "title": "Build and add the player on Mac",
-              "instruction": "Run Spyro_the_Dragon_Recompiled from the unpacked folder and follow Generate & Build. In Portcove, select build-release/Spyro_the_Dragon_Recompiled as the program and build-release as its start folder."
+              "instruction": "Run Spyro_the_Dragon_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Spyro_the_Dragon_Recompiled as the program and build-release as its start folder."
             }
           ],
           "warnings": [
@@ -29767,6 +29775,10 @@
             {
               "title": "Updates and backups",
               "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
+            },
+            {
+              "title": "Linux generator compatibility",
+              "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26. The managed setup launches the player it builds."
             }
           ]
         }

@@ -33,7 +33,7 @@
         },
         {
           "title": "Build and add the player",
-          "instruction": "Run WipEout_Recompiled (with .exe on Windows) and follow Generate & Build. Select the completed player under build-release and use build-release as the start folder."
+          "instruction": "Run WipEout_Recompiled (with .exe on Windows) and follow Generate & rebuild. Select the completed player under build-release and use build-release as the start folder."
         }
       ],
       "warnings": [
@@ -45,6 +45,10 @@
         {
           "title": "Updates and backups",
           "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
+        },
+        {
+          "title": "Linux setup host compatibility",
+          "instruction": "The unpacked Linux setup host requires glibc 2.29 or newer and libstdc++ with GLIBCXX_3.4.26, plus OpenGL and zlib."
         }
       ]
     },
