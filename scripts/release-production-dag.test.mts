@@ -749,9 +749,16 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     if (name === "tool_bootstrap") {
       assert.equal(
         job["timeout-minutes"],
-        "${{ inputs.publication_purpose == 'application' && 12 || 4 }}",
+        "${{ inputs.publication_purpose == 'application' && 12 || 5 }}",
       );
-      return purpose === "application" ? 12 : 4;
+      return purpose === "application" ? 12 : 5;
+    }
+    if (name === "tool_attest") {
+      assert.equal(
+        job["timeout-minutes"],
+        "${{ inputs.publication_purpose == 'application' && 2 || 1 }}",
+      );
+      return purpose === "application" ? 2 : 1;
     }
     const value = job["timeout-minutes"];
     assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0, name);
@@ -774,6 +781,14 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     assert.ok(selected, `missing fixed job ${name}`);
     return selected;
   };
+  const toolAttest = requiredJob("tool_attest");
+  assert.deepEqual(toolAttest.needs, ["admission", "tool_bootstrap", "tool_bootstrap_windows"]);
+  assert.match(toolAttest.if!, /needs\.tool_bootstrap\.result == 'success'/u);
+  assert.equal(
+    toolAttest.steps.find((step) => step.id === "attest")?.with?.["subject-digest"],
+    "${{ format('sha256:{0}', needs.tool_bootstrap.outputs.manifest_sha256) }}",
+  );
+  assert.equal(toolAttest.steps.find((step) => step.id === "bundle")?.with?.overwrite, false);
   assert.equal(
     Object.entries(jobs)
       .filter(([name]) => !name.startsWith("catalog_"))

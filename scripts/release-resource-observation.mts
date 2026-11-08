@@ -8,7 +8,7 @@ import { parseDocument } from "yaml";
 import { slice4CapacityResources, slice4CapacityResourceDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 
-const catalogReaders = [
+export const catalogReaders = [
   "admission",
   "tool_bootstrap",
   "tool_attest",
@@ -18,12 +18,12 @@ const catalogReaders = [
   "catalog_snapshot",
   "catalog_timestamp",
   "site_publication",
-];
-const catalogObservers = [
+] as const;
+export const catalogObservers = [
   "coordinator_protection_observation",
   "catalog_metadata_protection_observation",
   "site_protection_observation",
-];
+] as const;
 function document(bytes: Buffer) {
   assert.ok(bytes.length > 0 && bytes.length <= 512 * 1024, "bounded workflow source required");
   const parsed = parseDocument(bytes.toString("utf8"), { uniqueKeys: true });
@@ -115,7 +115,7 @@ export function observeReleaseResources(production: Buffer, wake: Buffer, candid
   const application = productionRows
     .filter((row) => !row.key.startsWith("catalog_"))
     .map((row) => forPurpose(row, "application"));
-  const selected = (keys: string[]) =>
+  const selected = (keys: readonly string[]) =>
     keys.map((key) => {
       const row = productionRows.find((row) => row.key === key);
       assert.ok(row, `missing declared resource job ${key}`);
