@@ -29,7 +29,7 @@
         },
         {
           "title": "Supply the matching original files",
-          "instruction": "Use the four USA Rev 1 discs in order, SLUS-01266, SLUS-01275, SLUS-01276 and SLUS-01277. Start setup with Disc 1 and keep the later discs for when the game asks. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+          "instruction": "Use the four USA Rev 1 discs in order, SLUS-01266, SLUS-01275, SLUS-01276 and SLUS-01277. In the upstream launcher’s Disc Selection, use Browse For Disc to assign every image to its numbered slot before starting setup with Disc 1. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
         },
         {
           "title": "Build and add the player",

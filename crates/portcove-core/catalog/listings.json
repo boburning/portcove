@@ -5119,7 +5119,7 @@
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Use the two USA discs in order, SLUS-01030 and SLUS-01081. Start setup with Disc 1 and keep the later discs for when the game asks. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "instruction": "Use the two USA discs in order, SLUS-01030 and SLUS-01081. In the upstream launcher’s Disc Selection, use Browse For Disc to assign every image to its numbered slot before starting setup with Disc 1. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
           },
           {
             "title": "Build and add the player",
@@ -6206,7 +6206,7 @@
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Use the four USA Rev 1 discs in order, SLUS-01266, SLUS-01275, SLUS-01276 and SLUS-01277. Start setup with Disc 1 and keep the later discs for when the game asks. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "instruction": "Use the four USA Rev 1 discs in order, SLUS-01266, SLUS-01275, SLUS-01276 and SLUS-01277. In the upstream launcher’s Disc Selection, use Browse For Disc to assign every image to its numbered slot before starting setup with Disc 1. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
           },
           {
             "title": "Build and add the player",
@@ -6733,7 +6733,7 @@
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Use the three European discs in order, SLES-02328, SLES-12328 and SLES-22328. Start setup with Disc 1 and keep the later discs for when the game asks. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "instruction": "Use the three European discs in order, SLES-02328, SLES-12328 and SLES-22328. In the upstream launcher’s Disc Selection, use Browse For Disc to assign every image to its numbered slot before starting setup with Disc 1. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
           },
           {
             "title": "Build and add the player",
