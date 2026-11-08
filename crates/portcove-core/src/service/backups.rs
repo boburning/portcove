@@ -464,7 +464,11 @@ impl PortcoveService {
         if !contract.writes_directly {
             // Canonical-only pattern names are bound by canonical_data_review.
             // Normal collection can delete them without changing runtime facts.
-            for relative in crate::persistence::entries(port, &[&root])? {
+            let mut paths = crate::persistence::entries(port, &[&root])?;
+            if contract.regaiden_graphics_exports {
+                paths.push(crate::managed_shared_preferences::GRAPHICS_EXPORTS.into());
+            }
+            for relative in paths {
                 entries.insert(
                     relative.clone(),
                     review.entry(port, &root.join(relative), &user)?,
@@ -1059,6 +1063,16 @@ impl PortcoveService {
                     let contract = self.persistence_contract_for_install(active)?;
                     let port = contract.port;
                     let persistent_root = self.persistence_root(&port, &active.path)?;
+                    if contract.regaiden_graphics_exports {
+                        let relative = crate::managed_shared_preferences::GRAPHICS_EXPORTS;
+                        if scan.collectible_has_files(
+                            &persistent_root.join(relative),
+                            &user_root.join(relative),
+                            0,
+                        )? {
+                            return Ok(true);
+                        }
+                    }
                     let entries = crate::archive_data::entries(
                         &port,
                         contract.archive_sha256.as_deref(),
@@ -1131,9 +1145,16 @@ impl PortcoveService {
             self.require_completed_backup_deletion(port_id)?;
         }
         let backup = self.load_backup(port_id, backup_id)?;
-        let backup_plan = adoption_copy_plan(&backup.path.join("data"))?;
+        let backup_data = backup.path.join("data");
+        let backup_plan = adoption_copy_plan(&backup_data)?;
         if action == BackupAction::Restore {
-            self.retained_persistence_contracts(port_id)?;
+            let installs = self.retained_persistence_contracts(port_id)?;
+            if installs
+                .iter()
+                .any(|(_, contract)| contract.regaiden_graphics_exports)
+            {
+                crate::managed_shared_preferences::require_graphics_export_directory(&backup_data)?;
+            }
         }
         let user_root = self.library.user_dir(port_id);
         let current_user_data_exists = user_root.exists();

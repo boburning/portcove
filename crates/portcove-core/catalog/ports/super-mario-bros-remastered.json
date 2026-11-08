@@ -24,6 +24,14 @@
         {
           "title": "Prepare the cached original manually",
           "instruction": "Copy your checked original unchanged into that shared directory as baserom.nes. Refresh readiness before Play. Core never creates or seeds this shared directory."
+        },
+        {
+          "title": "Linux x64 upstream setup",
+          "instruction": "On x64 Linux with glibc 2.28 or later, extract Linux.zip from the official 1.1-stable release into a separate folder. Keep SMB1R.x86_64, SMB1R.pck and all three companion libraries together. Allow SMB1R.x86_64 to run, then use its file picker with your own uncompressed Super Mario Bros. (World) NES original."
+        },
+        {
+          "title": "Back up the Linux profile",
+          "instruction": "Close the game and preserve the SMB1R profile under XDG_DATA_HOME (normally ~/.local/share). If you already use the upstream portable.txt option, preserve the executable-local config folder as well. Keep the original, generated BaseAssets, settings and saves together. Setup and replacement on Linux are player-managed."
         }
       ],
       "warnings": [
@@ -39,6 +47,11 @@
       "image_sha256": "f7e805d41d3f4519d0d4728b18af4ef99794d71826e513d70a15f71ffe32e59f",
       "game_slug": "super-mario-bros-remastered",
       "match_kind": "port"
+    },
+    "platforms": ["linux-x86-64"],
+    "release_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/releases/tag/1.1-stable",
+    "download_asset_hints": {
+      "linux-x86-64": ["Linux.zip"]
     }
   },
   "integration": {

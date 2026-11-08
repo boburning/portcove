@@ -15,6 +15,23 @@
       "image_sha256": "0ef402ea9193d7e8f4a3883e661c8f396bdf57ef49e2f87088839551c0d1930b",
       "game_slug": "resident-evil-gaiden",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/sergiomanzur/regaiden-recomp/releases/tag/v0.4.2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Android ARM64 package",
+          "instruction": "On ARM64 Android 7 or later, open the official ReGaiden v0.4.2 release and use its standalone Android APK. Open ROM Setup, choose Locate ROM (.gbc), and select your own exact Resident Evil Gaiden (USA) original. The app verifies and copies it to private storage."
+        },
+        {
+          "title": "Keep the installed Android profile",
+          "instruction": "Keep the original separately. Use the upstream APK over the existing copy only if Android accepts its signature. If installation is refused, preserve the old app and data. The app's saves, states and settings are private. The visible snapshots and asset_dump folders are separate exports."
+        }
+      ],
+      "warnings": [
+        "Android installation and data belong to the player. Export what your device can back up before replacing the APK. Removing the app can erase its private files."
+      ],
+      "help_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/v0.4.2/README.md"
     }
   },
   "integration": {

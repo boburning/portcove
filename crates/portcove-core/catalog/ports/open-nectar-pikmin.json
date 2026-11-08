@@ -15,7 +15,40 @@
       "game_slug": "pikmin",
       "match_kind": "underlying-game"
     },
-    "issue_number": 742
+    "issue_number": 742,
+    "platforms": ["linux-x86-64"],
+    "release_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/releases/tag/1.1.1",
+    "download_asset_hints": {
+      "linux-x86-64": ["nectar-linux.tar.gz"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Windows x64 separate upstream copy",
+          "instruction": "For a separate player-managed copy, extract the official 1.1.1 nectar-windows.zip and run nectar-launcher.exe. Choose Install under Pikmin and select your own supported USA Rev. 1 or Europe disc and a new writable folder outside the Portcove library. Keep verification enabled. Preserve that installation and its active config folder or LOCALAPPDATA/Open Nectar before upstream replacement."
+        },
+        {
+          "title": "Linux x64 upstream launcher",
+          "instruction": "Extract the official 1.1.1 nectar-linux.tar.gz and run nectar-launcher. The bundled README lists glibc 2.29, OpenGL 3.3 and zenity or kdialog for graphical file selection. The x64 AppImage is an alternative."
+        },
+        {
+          "title": "Prepare your original on Linux",
+          "instruction": "Choose Install under Pikmin, provide your own Pikmin USA Rev. 1 or Europe ISO or GCM, and select a separate writable installation directory. Upstream can use Dolphin Tool for RVZ, WIA and GCZ. Keep disc verification enabled."
+        },
+        {
+          "title": "Android ARM64 upstream launcher",
+          "instruction": "On Android 11 or later, install the official 1.1.1 APK, allow All files access for its chosen data folder, then use Install under Pikmin with your own matching ISO or GCM. The default folder is OpenNectar in shared storage. Pikmin 2 uses its own disc and setup."
+        },
+        {
+          "title": "Keep the creating installation and data",
+          "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only."
+        }
+      ],
+      "warnings": [
+        "Use a separate folder outside Portcove's managed installation. The upstream launcher owns setup and replacement for this copy. Back up your data before updating and leave a managed Windows copy on its reviewed route."
+      ],
+      "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/releases/tag/1.1.1"
+    }
   },
   "integration": {
     "support_tier": "beta",

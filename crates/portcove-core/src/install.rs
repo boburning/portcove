@@ -1797,6 +1797,13 @@ impl Installer {
         Ok(true)
     }
 
+    pub(crate) fn owns_regaiden_graphics_exports(install: &InstallRecord) -> Result<bool> {
+        if install.port_id != "resident-evil-gaiden-recomp" {
+            return Ok(false);
+        }
+        regaiden_graphics_exports(install, &verified_manifest(install)?)
+    }
+
     pub(crate) fn require_mutability_file_shapes(
         &self,
         install: &InstallRecord,
@@ -1829,6 +1836,7 @@ impl Installer {
     ) -> Result<VerificationReport> {
         let manifest = verified_manifest(install)?;
         let strict_staged = full_immutable_integrity(&manifest, install, staged_fallback)?;
+        let graphics_exports = regaiden_graphics_exports(install, &manifest)?;
         let psx_metadata = manifest
             .retained_contract
             .as_ref()
@@ -1892,6 +1900,9 @@ impl Installer {
             if current_mutable_paths
                 .iter()
                 .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
+                || (graphics_exports
+                    && Path::new(&relative)
+                        .starts_with(crate::managed_shared_preferences::GRAPHICS_EXPORTS))
             {
                 let executable = install.path.join(&manifest.selected_executable);
                 let platform = manifest.platform.unwrap_or(Platform::current()?);
@@ -2620,6 +2631,32 @@ impl Installer {
             ..original.clone()
         })
     }
+}
+
+fn regaiden_graphics_exports(install: &InstallRecord, manifest: &InstallManifest) -> Result<bool> {
+    use crate::managed_shared_preferences as preferences;
+
+    if install.port_id != "resident-evil-gaiden-recomp"
+        || manifest.platform != Some(Platform::WindowsX86_64)
+    {
+        return Ok(false);
+    }
+    let Some(retained) = &manifest.retained_contract else {
+        return Ok(false);
+    };
+    let catalog = retained.catalog(&install.port_id)?;
+    if !preferences::owns_graphics_exports(catalog.port(&install.port_id)?)
+        || manifest.files.iter().any(|file| {
+            file.path
+                .split('/')
+                .next()
+                .is_some_and(|part| part.eq_ignore_ascii_case(preferences::GRAPHICS_EXPORTS))
+        })
+    {
+        return Ok(false);
+    }
+    preferences::require_graphics_export_directory(&install.path)?;
+    Ok(true)
 }
 
 /// Exact metadata from the already registered manifest. This does not confer
@@ -4289,6 +4326,138 @@ mod tests {
         assert!(!output.exists());
         assert!(library.all_installs().unwrap().is_empty());
         assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn regaiden_retained_graphics_exports_survive_backup_and_rollback() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "resident-evil-gaiden-recomp";
+        let port = catalog.port(id).unwrap();
+        let register = |version: &str, sequence, sha256: &str, size| {
+            let root = library.versions_dir().join(id).join(sha256);
+            fs::create_dir_all(&root).unwrap();
+            fs::write(
+                root.join("Resident_Evil_Gaiden__USA_.exe"),
+                b"synthetic fixture, never executed",
+            )
+            .unwrap();
+            let review = crate::managed_shared_preferences::review(port, &root)
+                .unwrap()
+                .unwrap();
+            let qualification =
+                InstallQualification::from_catalog(&catalog, id, Platform::WindowsX86_64)
+                    .unwrap()
+                    .with_shared_preferences(
+                        Some(crate::managed_shared_preferences::Acceptance::after_review(
+                            &review,
+                        )),
+                        &root,
+                    )
+                    .unwrap();
+            let artifact = ArtifactIdentity {
+                asset_name: format!("Resident_Evil_Gaiden_Recomp_{version}_Windows.zip"),
+                size,
+                sha256: sha256.into(),
+            };
+            let (manifest_sha256, selected_executable, runtime) =
+                write_manifest(version, id, version, &artifact, &qualification, &root).unwrap();
+            let install = InstallRecord {
+                id: version.into(),
+                port_id: id.into(),
+                version: version.into(),
+                path: root,
+                channel: crate::ReleaseChannel::Stable,
+                installed_at: sequence,
+                verified: true,
+                staged: false,
+                artifact,
+                manifest_sha256,
+                selected_executable,
+                runtime,
+            };
+            library.register_install(&install, true).unwrap();
+            install
+        };
+        let older = register(
+            "v0.4.1",
+            1,
+            crate::managed_shared_preferences::SHA,
+            33_085_815,
+        );
+        let active = register(
+            "v0.4.2",
+            2,
+            "3fcc5e9ae90a5cf4d77da6dab5256f452e29ab6000618474e052400af912d9d7",
+            34_467_548,
+        );
+        let relative = "asset_dump/capture_0001/framebuffer.png";
+        let capture = active.path.join(relative);
+        fs::create_dir_all(capture.parent().unwrap()).unwrap();
+        fs::write(&capture, b"synthetic capture").unwrap();
+        fs::write(active.path.join(".portcove-launched"), b"1").unwrap();
+        let manifest_path = active.path.join(".portcove-manifest.json");
+        let original_manifest = fs::read(&manifest_path).unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+
+        // A retained installation can already have exports and no canonical copy.
+        service.restore_user_data_to(port, &active.path).unwrap();
+        assert_eq!(fs::read(&capture).unwrap(), b"synthetic capture");
+        assert!(service.verify(id).unwrap().valid);
+        let unexpected = capture.with_file_name("unexpected.dll");
+        fs::write(&unexpected, b"not a capture").unwrap();
+        assert!(!service.verify(id).unwrap().valid);
+        fs::remove_file(&unexpected).unwrap();
+
+        let backup = service.create_backup(id).unwrap();
+        let canonical = library.user_dir(id).join(relative);
+        assert_eq!(fs::read(&canonical).unwrap(), b"synthetic capture");
+        assert_eq!(
+            fs::read(backup.path.join("data").join(relative)).unwrap(),
+            b"synthetic capture"
+        );
+        let inactive_only = older.path.join("asset_dump/capture_0003/framebuffer.png");
+        fs::create_dir_all(inactive_only.parent().unwrap()).unwrap();
+        fs::write(&inactive_only, b"inactive capture").unwrap();
+        let after_backup = active.path.join("asset_dump/capture_0002/framebuffer.png");
+        fs::create_dir_all(after_backup.parent().unwrap()).unwrap();
+        fs::write(&after_backup, b"new active capture").unwrap();
+        let action = crate::BackupAction::Restore;
+        let preview = service
+            .preview_backup_action(id, &backup.id, action)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(id, &backup.id, action, &preview.preview_sha256)
+            .unwrap();
+        let restore = service
+            .restore_backup(id, &backup.id, &consent.token)
+            .unwrap();
+        assert!(restore.safety_backup.is_some());
+        assert!(
+            !library
+                .user_dir(id)
+                .join("asset_dump/capture_0002/framebuffer.png")
+                .exists()
+        );
+        assert_eq!(fs::read(&after_backup).unwrap(), b"new active capture");
+        assert_eq!(fs::read(&inactive_only).unwrap(), b"inactive capture");
+
+        assert_eq!(service.rollback(id).unwrap().id, older.id);
+        assert_eq!(
+            fs::read(older.path.join(relative)).unwrap(),
+            b"synthetic capture"
+        );
+        assert_eq!(fs::read(&manifest_path).unwrap(), original_manifest);
+
+        fs::write(older.path.join(relative), b"different capture").unwrap();
+        assert!(service.collect_user_data(id).is_err());
+        assert_eq!(fs::read(&canonical).unwrap(), b"synthetic capture");
+        assert_eq!(
+            fs::read(older.path.join(relative)).unwrap(),
+            b"different capture"
+        );
     }
 
     #[cfg(windows)]

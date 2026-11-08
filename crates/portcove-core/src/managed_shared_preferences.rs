@@ -10,6 +10,7 @@ use std::{
 };
 
 pub(crate) const SHA: &str = "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6";
+pub(crate) const GRAPHICS_EXPORTS: &str = "asset_dump";
 const NAME: &str = "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip";
 const ORIGINAL: &str = "9a97678cbd8da02c8763e977674e17f460c06ea8b73bad35c52fe6817f506d44";
 
@@ -271,6 +272,9 @@ pub(crate) fn prepare_owned_saves(port: &PortDefinition, root: &Path) -> Result<
         return Ok(());
     }
     validate(port)?;
+    if owns_graphics_exports(port) {
+        crate::persistence::require_absent_path(root, GRAPHICS_EXPORTS)?;
+    }
     let saves = root.join("saves");
     crate::path::refuse_symlink_ancestors(&saves)?;
     match fs::create_dir(&saves) {
@@ -287,10 +291,48 @@ pub(crate) fn prepare_owned_saves(port: &PortDefinition, root: &Path) -> Result<
     Ok(())
 }
 
+pub(crate) fn owns_graphics_exports(port: &PortDefinition) -> bool {
+    // Reserve the export namespace for this compatible official route. An
+    // unchanged package rule alone does not prove that a build writes exports.
+    port.id == "resident-evil-gaiden-recomp"
+        && port.managed_shared_preferences
+            == Some(PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
+        && port.release.provider == crate::ReleaseSource::Github
+        && port
+            .release
+            .repository
+            .eq_ignore_ascii_case("sergiomanzur/regaiden-recomp")
+}
+
+pub(crate) fn require_graphics_export_directory(root: &Path) -> Result<()> {
+    crate::persistence::require_exact_path(root, GRAPHICS_EXPORTS)?;
+    let path = root.join(GRAPHICS_EXPORTS);
+    match fs::symlink_metadata(&path) {
+        Ok(metadata) if metadata.is_dir() => Ok(()),
+        Ok(_) => Err(PortcoveError::conflict(
+            "ReGaiden graphics exports must be an ordinary directory; preserve the conflicting entry",
+        )
+        .detail("path", path.display().to_string())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     const PORT: &str = "resident-evil-gaiden-recomp";
+
+    #[test]
+    fn regaiden_preparation_refuses_an_archive_export_directory() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port(PORT).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("ASSET_DUMP")).unwrap();
+        assert!(prepare_owned_saves(port, root.path()).is_err());
+        assert!(!root.path().join("saves").exists());
+        assert!(root.path().join("ASSET_DUMP").is_dir());
+    }
 
     #[test]
     fn managed_command_builder_refuses_forwarded_original_and_save_paths() {

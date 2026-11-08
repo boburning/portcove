@@ -178,6 +178,10 @@ impl RemovalOperation {
                 PortcoveError::verification("Removal cannot classify an installation without its retained contract; preserve all runtime and player data for review")
             })?;
             let port = catalog.port(&install.port_id)?;
+            if crate::Installer::owns_regaiden_graphics_exports(&located)? {
+                let canonical = service.library.user_dir(&install.port_id);
+                super::require_copied_regaiden_graphics_exports(&located.path, &canonical)?;
+            }
             if port.adapter == crate::AdapterKind::GeneratedCache {
                 let qualification =
                     crate::InstallQualification::from_port(port, crate::Platform::current()?)?;
