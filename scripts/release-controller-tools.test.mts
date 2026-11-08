@@ -2161,7 +2161,10 @@ void test("held Windows producer joins the exact platform artifact to an isolate
       `${purpose}/${windows}/${linux}/${admission}/${paused}`,
     );
   }
-  assert.equal(attester["timeout-minutes"], 2);
+  assert.equal(
+    attester["timeout-minutes"],
+    "${{ inputs.publication_purpose == 'application' && 2 || 1 }}",
+  );
   assert.deepEqual(attester.permissions, {
     contents: "read",
     "id-token": "write",
