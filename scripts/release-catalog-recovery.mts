@@ -388,8 +388,9 @@ export async function continueActualCatalogPublication(
           run_attempt: 1,
         },
         {
-          deadline: Date.now() + Math.floor(originalDeadline - performance.now()),
+          deadline: Date.now() + Math.min(240000, Math.floor(originalDeadline - performance.now())),
           phaseDeadline: originalDeadline,
+          purpose: "catalog-publication",
         },
       );
       let controls = await authenticateCatalogReleaseControlSource(process.env, workflow, {

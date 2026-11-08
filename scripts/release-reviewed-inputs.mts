@@ -49,6 +49,7 @@ import {
 } from "./release-coordinator-deadline.mts";
 import {
   currentClassificationJobDeadline,
+  currentCatalogCoordinatorProtectionJobDeadline,
   currentSharedProtectionJobDeadline,
 } from "./release-signing-job-budget.mts";
 import {
@@ -774,6 +775,27 @@ async function main() {
         : null;
   if (!role) {
     const environment = { ...process.env };
+    if (
+      environment.GITHUB_JOB === "coordinator_protection_observation" &&
+      environment.PORTCOVE_EXECUTION_PURPOSE === "catalog-publication" &&
+      mode === "observe-production-coordinator"
+    ) {
+      const source = admitProductionCatalogProtectionObserver(
+        environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
+        environment,
+        await readProductionControllerWorkflowBytes(),
+        "coordinator",
+      );
+      const deadline = await currentCatalogCoordinatorProtectionJobDeadline({
+        run_id: String(source.run_id),
+        run_attempt: 1,
+        controller_revision: source.revision,
+        controller_ref: source.execution_ref,
+      });
+      return withCoordinatorDeadline(deadline, () =>
+        runOperation(undefined, { environment, deadline, source }),
+      );
+    }
     if (
       environment.GITHUB_JOB === "protection_observation" &&
       mode?.startsWith("observe-production")

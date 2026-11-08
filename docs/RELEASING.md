@@ -1278,7 +1278,7 @@ same retained intent and single job-token dispatch. The wake job has a
 two-minute ceiling. Preparation and dispatch use the same original provider
 job start and refuse after 115 seconds, including setup. The remaining five
 seconds are reserved for hosted receipt handling. The shared controller
-budgets include the wake and total 141 application minutes or 44 catalog
+budgets include the wake and total 141 application minutes or 48 catalog
 minutes. The $0 Stop policy and mutual exclusion continue to apply. The exact
 workflow digest and selected authority require ratification before activation.
 
@@ -1440,7 +1440,7 @@ operation grants availability for a subsequent effect. Source/configuration loss
 revocation or boundary drift refuses, and unrelated admission holds remain holds.
 
 The selected `initial-beta-windows-x86_64-v1` controller graph declares a
-141-minute application ceiling and a separate 44-minute catalog alternative;
+141-minute application ceiling and a separate 48-minute catalog alternative;
 these purposes are mutually exclusive. The workflow digest, complete allocation
 arrays and policy digest must match the exact appointed source. These ceilings
 are not measured runtime, free-provider headroom or a capacity reservation. The

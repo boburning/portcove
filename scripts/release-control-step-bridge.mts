@@ -9,7 +9,10 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createHash } from "node:crypto";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { releasePathContains, assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import {
+  catalogCoordinatorJobBudgetMilliseconds,
+  inspectReleaseControlPhase,
+} from "./release-control-phases.mts";
 import { controlHandshakeArtifactName, inspectControlRound } from "./release-control-handshake.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -143,7 +146,9 @@ function controlBridgeOriginalJob(
       : phase === "admission"
         ? 535000
         : phase === "coordinator"
-          ? 170000
+          ? environment.PORTCOVE_EXECUTION_PURPOSE === "catalog-publication"
+            ? catalogCoordinatorJobBudgetMilliseconds
+            : 170000
           : phase === "release-publication"
             ? 350000
             : phase === "site-publication"
@@ -212,6 +217,7 @@ export async function readControlBridgeOriginalJob(
     GITHUB_RUN_ATTEMPT: environment.GITHUB_RUN_ATTEMPT,
     GITHUB_SHA: environment.GITHUB_SHA,
     GITHUB_REF: environment.GITHUB_REF,
+    PORTCOVE_EXECUTION_PURPOSE: environment.PORTCOVE_EXECUTION_PURPOSE,
   };
   const run = original.GITHUB_RUN_ID ?? "";
   if (

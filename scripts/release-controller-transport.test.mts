@@ -205,6 +205,36 @@ void test("transport clock preserves provider-start budget across subprocesses a
     () => controllerTransportClock(raw, "coordinator", identity, epoch, 600, 200000000000n),
     /exhausted/,
   );
+  const catalogClock = { ...clock, profile_ms: 290000, monotonic_deadline_ns: "300000000000" };
+  const catalog = { clock: catalogClock, sha256: sha(Buffer.from(JSON.stringify(catalogClock))) };
+  const catalogEnvironment = { ...identity, PORTCOVE_EXECUTION_PURPOSE: "catalog-publication" };
+  assert.equal(
+    controllerTransportClock(
+      catalog,
+      "coordinator",
+      catalogEnvironment,
+      epoch + 175000,
+      500,
+      175000000000n,
+    ),
+    115500,
+  );
+  assert.throws(
+    () => controllerTransportClock(catalog, "coordinator", identity, epoch, 500, 0n),
+    /identity/,
+  );
+  assert.throws(
+    () =>
+      controllerTransportClock(
+        catalog,
+        "coordinator",
+        catalogEnvironment,
+        epoch + 290000,
+        500,
+        289000000000n,
+      ),
+    /exhausted/,
+  );
   for (const changed of [
     { ...raw, clock: { ...clock, profile_ms: 570000 } },
     { ...raw, sha256: "0".repeat(64) },

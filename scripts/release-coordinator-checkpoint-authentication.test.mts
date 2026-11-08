@@ -905,7 +905,7 @@ for (const fault of [
   });
 }
 
-void test("the exact same-revision r49 adoption can hand off to only the r46 application source", () => {
+void test("the exact same-revision r50 adoption can hand off to only the r46 application source", () => {
   const retained = retainedCatalogBootstrapClaim;
   const checkpoint = { checkpoint: retained.child, previous: retained.previous };
   const source = { revision: "a".repeat(40), execution_ref: retained.application_ref };
