@@ -55,13 +55,13 @@ void test("Windows-only protected source proposal preserves shared controls and 
   assert.equal(result.proposal.authority, "none");
   assert.equal(result.proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
   assert.equal(result.proposal.effective_policy_digest, slice4CapacityResourceDigest);
-  assert.equal(result.proposal.observation.accounting.application, 140);
-  assert.equal(result.proposal.observation.accounting.catalog_alternative, 40);
-  assert.equal(result.proposal.observation.accounting.policy_envelope, 140);
+  assert.equal(result.proposal.observation.accounting.application, 141);
+  assert.equal(result.proposal.observation.accounting.catalog_alternative, 41);
+  assert.equal(result.proposal.observation.accounting.policy_envelope, 141);
   assert.equal(result.proposal.observation.policy_matches_workflow, false);
   assert.equal(
     prepare(production!, wake!, candidate!).proposal.observation.accounting.application,
-    165,
+    166,
   );
   assert.throws(() => prepare(production!, wake!, candidate!, "windows"));
 });
@@ -74,9 +74,9 @@ void test("resource observations reconcile current purposes and keep provider, b
   );
   assert.ok(production && wake && candidate);
   const result = observeReleaseResources(production, wake, candidate);
-  assert.equal(result.accounting.application, 140);
-  assert.equal(result.accounting.catalog_alternative, 40);
-  assert.equal(result.accounting.policy_envelope, 140);
+  assert.equal(result.accounting.application, 141);
+  assert.equal(result.accounting.catalog_alternative, 41);
+  assert.equal(result.accounting.policy_envelope, 141);
   assert.equal(result.policy_matches_workflow, true);
   assert.equal(result.ratification_required_for_policy_change, true);
   const appointedWake = await readFile(
@@ -125,7 +125,7 @@ void test("resource observations reconcile current purposes and keep provider, b
     "timeout-minutes": 12,
   };
   const next = observeReleaseResources(Buffer.from(stringify(changed)), wake, candidate);
-  assert.equal(next.accounting.application, 117);
+  assert.equal(next.accounting.application, 118);
   assert.equal(next.policy_matches_workflow, false);
   assert.equal(next.ratification_required_for_policy_change, true);
   assert.equal(next.accounting.provider_availability, "Unknown");
@@ -238,7 +238,7 @@ void test("historical measured resource amendment retains its recorded source an
   );
   assert.ok(isRecord(historicalPolicy));
   assert.equal(historicalPolicy.total_job_minutes, 100);
-  assert.equal(slice4CapacityResources.total_job_minutes, 140);
+  assert.equal(slice4CapacityResources.total_job_minutes, 141);
   assert.equal(proposal.proposed_policy.application_minutes, 165);
   assert.equal(proposal.proposed_policy.hard_cap_minutes, 165);
   assert.equal(proposal.proposed_policy.catalog_alternative_minutes, 40);
@@ -305,7 +305,7 @@ void test("historical measured resource amendment retains its recorded source an
   );
 });
 
-void test("complete source amendment projects application165/catalog40 without activating policy or native execution", async () => {
+void test("complete source amendment projects application166/catalog41 without activating policy or native execution", async () => {
   const { prepareReleaseResourceAmendmentProposal: prepare } =
       await import("./release-resource-amendment-proposal.mts"),
     { protectedWindowsNativeRuntimePreparationExecutionAuthorized } =
@@ -329,11 +329,11 @@ void test("complete source amendment projects application165/catalog40 without a
   assert.ok(production.equals(original));
   assert.equal(result.proposal.authority, "none");
   assert.equal(result.proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
-  assert.equal(result.proposal.observation.accounting.application, 165);
-  assert.equal(result.proposal.observation.accounting.catalog_alternative, 40);
-  assert.equal(result.proposal.observation.accounting.policy_envelope, 140);
-  assert.equal(slice4CapacityResources.total_job_minutes, 140);
-  assert.equal(result.proposal.proposed_resources.total_job_minutes, 165);
+  assert.equal(result.proposal.observation.accounting.application, 166);
+  assert.equal(result.proposal.observation.accounting.catalog_alternative, 41);
+  assert.equal(result.proposal.observation.accounting.policy_envelope, 141);
+  assert.equal(slice4CapacityResources.total_job_minutes, 141);
+  assert.equal(result.proposal.proposed_resources.total_job_minutes, 166);
   assert.equal(
     result.proposal.proposed_resource_digest,
     capacityDigest(result.proposal.proposed_resources),
@@ -415,6 +415,11 @@ void test("complete source amendment projects application165/catalog40 without a
     capacityDigest({
       ...result.proposal.proposed_resources,
       wake_workflow_sha256: historicalPolicy.wake_workflow_sha256,
+      wake_job_minutes: [1],
+      declared_job_minutes: 165,
+      catalog_declared_job_minutes: 40,
+      purpose_accounting: "mutually-exclusive-max-application165-catalog40",
+      total_job_minutes: 165,
     }),
   );
   for (const row of receipt.jobs) {

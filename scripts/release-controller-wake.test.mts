@@ -892,7 +892,7 @@ void test("a production-wrapped GET crossing expiry retains its returned body be
     original = f.api.run;
   f.api.run = async (id, retain) => {
     const response = await original(id, retain);
-    if (id === "900") monotonic = 60000;
+    if (id === "900") monotonic = 120000;
     return response;
   };
   await f.prepare();
@@ -1401,6 +1401,25 @@ void test("invalid and expired wake deadline refuses before collection", async (
   }
   const f = fixture();
   assert.ok(isRecord(f.config));
+});
+
+void test("wake charges setup and dispatch against the same 115-second hosted job", async () => {
+  const f = fixture(true);
+  const jobs = f.api.jobs;
+  let jobAge = 60_000;
+  f.api.jobs = async (id, attempt) => {
+    const response = await jobs(id, attempt);
+    assert.ok(isRecord(response) && Array.isArray(response.jobs));
+    if (id === "42") {
+      assert.ok(isRecord(response.jobs[0]));
+      response.jobs[0].started_at = new Date(Date.now() - jobAge).toISOString();
+    }
+    return response;
+  };
+  await f.prepare();
+  jobAge = 116_000;
+  await assert.rejects(f.dispatch(), /original budget/u);
+  assert.ok(!f.calls.some(({ method }) => method === "POST"));
 });
 
 function nativeFixture(jobToken: boolean, native: boolean) {
