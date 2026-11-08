@@ -1171,8 +1171,17 @@ void test("REST merge checks the reviewed composition before and after mutation"
   const tree = "e".repeat(40);
   const moved = "f".repeat(40);
   const baseRef = { sha: base, ref: "main" };
-  for (const scenario of ["success", "preview", "branch", "parent", "tree", "retargeted"]) {
+  for (const scenario of [
+    "success",
+    "preview",
+    "first-branch",
+    "branch",
+    "parent",
+    "tree",
+    "retargeted",
+  ]) {
     let mutations = 0;
+    let branchReads = 0;
     let lastEndpoint = "";
     const client = await deliveryFixture(({ endpoint }) => {
       const previousEndpoint = lastEndpoint;
@@ -1200,8 +1209,14 @@ void test("REST merge checks the reviewed composition before and after mutation"
           tree: { sha: scenario === "preview" ? moved : tree },
           parents: [{ sha: base }, { sha: head }],
         });
-      if (endpoint === "repos/boburning/portcove/branches/main")
-        return Response.json({ commit: { sha: scenario === "branch" ? moved : base } });
+      if (endpoint === "repos/boburning/portcove/branches/main") {
+        branchReads++;
+        const drifted =
+          scenario === "first-branch"
+            ? branchReads === 1
+            : scenario === "branch" && branchReads === 2;
+        return Response.json({ commit: { sha: drifted ? moved : base } });
+      }
       if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
         assert.equal(previousEndpoint, "repos/boburning/portcove/branches/main");
         mutations++;
@@ -1225,8 +1240,9 @@ void test("REST merge checks the reviewed composition before and after mutation"
       const result = await operation;
       assert.equal(result.result.sha, merge);
       assert.deepEqual(result.expected_composition, expected);
-    } else if (scenario === "preview" || scenario === "branch") {
-      await assert.rejects(operation, /composition differs|target advanced/u);
+    } else if (["preview", "first-branch", "branch"].includes(scenario)) {
+      await assert.rejects(operation, /composition differs|target advanced|target differs/u);
+      assert.equal(branchReads, scenario === "branch" ? 2 : 1);
       assert.equal(mutations, 0);
       continue;
     } else {

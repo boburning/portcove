@@ -650,6 +650,12 @@ export class PullRequestDeliveryClient {
     await verifyWorkflow();
     const state = await this.requiredCheckState(number, head, requiredContexts, binding);
     validateMergeReadiness(number, head, state.pull, state.contexts);
+    const targetRef = state.pull.base.ref;
+    if (expected) {
+      if (!targetRef) throw new Error("Merge target branch is unavailable");
+      if ((await this.branch(targetRef)).commit.sha !== expected.target)
+        throw new Error("Merge target differs from the reviewed composition");
+    }
     const message = validateMergeMessage(mergeMessage);
     const closing = await readClosingRelationships(this.sdk, repository, number);
     const commits = await this.pullCommits(number);
@@ -674,7 +680,7 @@ export class PullRequestDeliveryClient {
       validateMergeReadiness(number, head, fresh, state.contexts);
       const ref = fresh.base.ref;
       const previewSha = fresh.merge_commit_sha;
-      if (!ref || ref !== state.pull.base.ref || !previewSha)
+      if (!ref || ref !== targetRef || !previewSha)
         throw new Error("Merge target branch or preview is unavailable or changed");
       if (fresh.body !== state.pull.body)
         throw new Error("PR body changed before merge; refresh delivery review");
@@ -773,7 +779,7 @@ export class PullRequestDeliveryClient {
       if (after.fingerprint !== closing.fingerprint)
         throw new Error("PR body or closing relationships changed across merge");
       if (expected) {
-        if (readback.base.ref !== state.pull.base.ref)
+        if (readback.base.ref !== targetRef)
           throw new Error("Merge landed on a different target branch");
         validateCommitComposition(actual, expected, readback.merge_commit_sha, true);
       }
