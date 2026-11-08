@@ -29,7 +29,7 @@
       "steps": [
         {
           "title": "Keep the matching original",
-          "instruction": "Use your own unchanged US Super Mario 64 game in big-endian .z64 format. Select it in the game and keep your original separately. The game can copy it to your profile as baserom.us.z64. If a copy already exists there, the game keeps it when you select another file."
+          "instruction": "Use your own unchanged US Super Mario 64 game in big-endian .z64 format. Drag the .z64 file into the game window or place a copy beside the game program before opening it. Keep your original separately. The game can copy it to your profile as baserom.us.z64. If a copy already exists there, the game keeps it when you select another file."
         },
         {
           "title": "Prepare the Windows game",
@@ -41,11 +41,11 @@
         },
         {
           "title": "Open the Linux or Steam Deck game",
-          "instruction": "Unpack the complete x64 Linux ZIP and run sm64coopdx from that folder so it can find its bundled libraries. To add an already working Linux copy to Portcove, select sm64coopdx with the unpacked folder as its start folder. The game needs glibc 2.34, GLIBCXX 3.4.29, OpenGL, SDL2, zlib and curl. The separate SteamOS archive in v1.5.1 has the same requirements and different default settings. The publisher directs Steam Deck players to the Linux package from v1.6 onward."
+          "instruction": "Unpack the complete x64 Linux ZIP and run sm64coopdx from that folder so it can find its bundled libraries. If Portcove offers Use an existing installation, select the working Linux sm64coopdx program and set the unpacked folder as its start folder. The game needs glibc 2.34, GLIBCXX 3.4.29, OpenGL, SDL2, zlib and curl. The separate SteamOS archive in v1.5.1 has the same requirements and different default settings. The publisher directs Steam Deck players to the Linux package from v1.6 onward."
         },
         {
           "title": "Open the macOS app",
-          "instruction": "Choose the Intel or Apple Silicon ZIP that matches your Mac and keep the complete sm64coopdx.app. Start it directly and select your original game file. The v1.5.1 game requires macOS 11 or later. Its bundled updater requires macOS 12 or later."
+          "instruction": "Choose the Intel or Apple Silicon ZIP that matches your Mac and keep the complete sm64coopdx.app. Start it directly and drag your original .z64 file into the game window. The v1.5.1 game requires macOS 11 or later. Its bundled updater requires macOS 12 or later."
         }
       ],
       "warnings": [

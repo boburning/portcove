@@ -29,7 +29,7 @@
         },
         {
           "title": "Choose the Linux package for your system",
-          "instruction": "On x64 or ARM64 Linux, make the matching AppImage executable and open it. The packaged game needs glibc 2.35 and GLIBCXX 3.4.30. If you use a Portable archive, unpack the whole folder and run Launch-Rocket-R.sh. On Steam Deck, unpack the separate x64 Steam Deck archive and run START-ROCKET-R.sh from its folder. It launches the included AppDir directly."
+          "instruction": "On x64 or ARM64 Linux, make the matching AppImage executable and open it. The packaged game needs glibc 2.35, GLIBCXX 3.4.30 and a working Vulkan driver. If you use a Portable archive, unpack the whole folder and run Launch-Rocket-R.sh. On Steam Deck, unpack the separate x64 Steam Deck archive and run START-ROCKET-R.sh from its folder. It launches the included AppDir directly."
         },
         {
           "title": "Open Rocket-R on Android",
