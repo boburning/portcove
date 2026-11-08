@@ -359,7 +359,7 @@ export const retainedServedRenewal = {
   release_id: 437990696,
   source: "7d986e2df28bcf6046ba38d4ff4f481d9202b3fb",
   source_tree: "e27ece01583d501aed3b0892d594d6c34c6c1469",
-  notes_sha256: "c0c9364c16d3dc91837edca62250c76f3cd6a4b9106b1637da67830e5dc11982",
+  notes_sha256: "1d241743a836d76a62cb947a1cf191c90e7abee338090f715265fafcedbcb0e4",
   contexts: [
     {
       context_sha256: "84451a164bfc5fa2c8e61256b72666422cd22a6f9e9a538455a819b3c1ebdf92",
@@ -369,32 +369,47 @@ export const retainedServedRenewal = {
       context_sha256: "d6d59d4c9d6b3c509d6f9446f5b5dd102cc045d75eeee06065f53f02ab1573f6",
       context_inventory_sha256: "b88a9d6e062fa16c76b7d094eef1ad4698b794a9d3f7288e33c22b2ec950e234",
     },
+    {
+      context_sha256: "8d4eda13c9f2a075a1e05c52493075bbe7d6e7bcc9d18e447482903656d55538",
+      context_inventory_sha256: "beb3797f139d1df50b917368ef26b0bb4f722e2e0809e110308223701a189ffe",
+    },
   ],
-  next_ref: "refs/tags/portcove-production-controller-windows-20261105r42",
+  next_ref: "refs/tags/portcove-production-controller-windows-20261105r43",
   predecessors: [
     {
       id: "42438091009",
       control_commit: "b514fec72ec9039182df3da86b77c0c9ba3f06fd",
       control_ref: "refs/tags/portcove-production-controller-windows-20261105r30",
       milliseconds: 37_000,
+      conclusion: "failure",
     },
     {
       id: "42439583851",
       control_commit: "7d986e2df28bcf6046ba38d4ff4f481d9202b3fb",
       control_ref: "refs/tags/portcove-production-controller-windows-20261105r39",
       milliseconds: 212_000,
+      conclusion: "failure",
     },
     {
       id: "42442826236",
       control_commit: "daaeb85ad46cf57b103a7f4d96cf90bc038d70cf",
       control_ref: "refs/tags/portcove-production-controller-windows-20261105r40",
       milliseconds: 248_000,
+      conclusion: "failure",
     },
     {
       id: "42446345110",
       control_commit: "71aff9668a5301a8cc79e3d566aa173b47d9ca79",
       control_ref: "refs/tags/portcove-production-controller-windows-20261105r41",
       milliseconds: 253_000,
+      conclusion: "failure",
+    },
+    {
+      id: "42450090250",
+      control_commit: "142e27b8bcdd503b050a5e28de854da9234af5b7",
+      control_ref: "refs/tags/portcove-production-controller-windows-20261105r42",
+      milliseconds: 554_000,
+      conclusion: "cancelled",
     },
   ],
 } as const;
@@ -507,17 +522,18 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
       ...(qualification ? { qualification } : {}),
     };
   }
+  const retainedRenewal =
+    raw.opportunity === retainedServedRenewal.opportunity &&
+    raw.source === retainedServedRenewal.source &&
+    raw.source_tree === retainedServedRenewal.source_tree &&
+    raw.preparation === null &&
+    !Object.hasOwn(raw, "budget");
   assert.ok(
     Array.isArray(raw.runs) &&
       raw.runs.length >= 1 &&
       (raw.runs.length <= 3 ||
         isEmptyApplicationBootstrapCustody(raw) ||
-        (raw.runs.length === 4 &&
-          raw.opportunity === retainedServedRenewal.opportunity &&
-          raw.source === retainedServedRenewal.source &&
-          raw.source_tree === retainedServedRenewal.source_tree &&
-          raw.preparation === null &&
-          !Object.hasOwn(raw, "budget"))),
+        (retainedRenewal && raw.runs.length <= retainedServedRenewal.predecessors.length)),
   );
   const seen = new Set<string>();
   const runs = raw.runs.map((value: unknown): Run => {
@@ -537,17 +553,19 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
     );
     return { id: value.id, control_commit: value.control_commit, control_ref: value.control_ref };
   });
-  if (runs.length === 4 && raw.opportunity === retainedServedRenewal.opportunity) {
+  const renewalContinuation =
+    retainedRenewal && runs.length === retainedServedRenewal.predecessors.length;
+  if (retainedRenewal && runs.length > 3) {
     const { predecessors, next_ref } = retainedServedRenewal;
     assert.deepEqual(
-      runs.slice(0, -1),
+      renewalContinuation ? runs.slice(0, -1) : runs,
       predecessors.slice(1).map(({ id, control_commit, control_ref }) => ({
         id,
         control_commit,
         control_ref,
       })),
     );
-    assert.equal(runs.at(-1)?.control_ref, next_ref);
+    if (renewalContinuation) assert.equal(runs.at(-1)?.control_ref, next_ref);
   }
   let budget: ApplicationRunBudget | undefined;
   if (Object.hasOwn(raw, "budget")) {
@@ -609,12 +627,20 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
   }
   const metadata =
     raw.schema_version === 3
-      ? inspectMetadataContextReservations(raw.metadata_contexts, {
-          opportunity: raw.opportunity,
-          runs,
-          ...(budget ? { budget } : {}),
-        })
+      ? inspectMetadataContextReservations(
+          raw.metadata_contexts,
+          { opportunity: raw.opportunity, runs, ...(budget ? { budget } : {}) },
+          renewalContinuation ? retainedServedRenewal.contexts.length + 1 : 3,
+        )
       : undefined;
+  if (metadata && metadata.length > 3) {
+    const latest = metadata.at(-1)!;
+    // The reservation parser already binds the commit and ref to this run ID.
+    assert.ok(
+      latest.run_id === runs.at(-1)?.id && latest.run_attempt === 1,
+      "additional reservation requires the appointed renewal producer",
+    );
+  }
   const assemblies =
     metadata && Object.hasOwn(raw, "draft_assemblies")
       ? inspectDraftAssemblies(raw.draft_assemblies, metadata)
@@ -1283,12 +1309,13 @@ export async function registerApplicationBudgetRun(
 function inspectMetadataContextReservations(
   raw: unknown,
   owner: Pick<ApplicationRunCustody, "opportunity" | "runs" | "budget">,
+  maximum: number,
 ): ApplicationMetadataContextReservation[] {
   assert.ok(
     owner.budget?.kind !== "member",
     "metadata reservations belong only to the original cost owner",
   );
-  assert.ok(Array.isArray(raw) && raw.length >= 1 && raw.length <= 3);
+  assert.ok(Array.isArray(raw) && raw.length >= 1 && raw.length <= maximum);
   const seen = new Set<string>();
   let previous: ApplicationMetadataContextReservation | undefined;
   return raw.map((value: unknown) => {
