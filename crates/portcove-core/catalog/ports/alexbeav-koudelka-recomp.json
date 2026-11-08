@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Download and unpack the setup kit",
-          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux use your native C/C++ compiler, CMake, Ninja and Python 3. On Intel or Apple Silicon Mac, choose the matching archive and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH."
+          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux use your native C/C++ compiler, CMake, Ninja and Python 3. The packaged setup host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon archive and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH."
         },
         {
           "title": "Supply the matching originals in order",

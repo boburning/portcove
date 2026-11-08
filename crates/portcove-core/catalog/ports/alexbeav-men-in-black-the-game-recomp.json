@@ -17,11 +17,11 @@
         },
         {
           "title": "Prepare the managed Windows or Linux player",
-          "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+          "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
         },
         {
           "title": "Prepare the Mac or a separate upstream-owned copy",
-          "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Men_in_Black__The_Game_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Men_in_Black__The_Game_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+          "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Men_in_Black__The_Game_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Men_in_Black__The_Game_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
         }
       ],
       "warnings": [
@@ -78,7 +78,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own Europe Men in Black: The Game CHD (SLES-01047) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3."
+      "manual_preparation": "Provide your own Europe Men in Black: The Game CHD (SLES-01047) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters."
     }
   }
 }

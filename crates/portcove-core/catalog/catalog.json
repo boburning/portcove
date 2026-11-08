@@ -27572,7 +27572,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own USA Colin McRae Rally 2.0 CHD (SLUS-01222) containing all 2 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own USA Colin McRae Rally 2.0 CHD (SLUS-01222) containing all 2 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "Colin McRae Rally 2.0",
         "manual_setup": {
           "steps": [
@@ -27582,11 +27582,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Colin_McRae_Rally_2_0_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Colin_McRae_Rally_2_0_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Colin_McRae_Rally_2_0_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Colin_McRae_Rally_2_0_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
@@ -27969,7 +27969,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own USA, Rev 1 Die Hard Trilogy CHD (SLUS-00119) containing all 21 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own USA, Rev 1 Die Hard Trilogy CHD (SLUS-00119) containing all 21 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "Die Hard Trilogy",
         "manual_setup": {
           "steps": [
@@ -27979,11 +27979,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Die_Hard_Trilogy_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Die_Hard_Trilogy_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Die_Hard_Trilogy_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Die_Hard_Trilogy_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
@@ -28101,7 +28101,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own Japan King's Field CHD (SLPS-00017) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own Japan King's Field CHD (SLPS-00017) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "King's Field",
         "manual_setup": {
           "steps": [
@@ -28111,11 +28111,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream King_s_Field_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/King_s_Field_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream King_s_Field_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/King_s_Field_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
@@ -28234,7 +28234,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own Europe Kula World CHD (SCES-01000) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own Europe Kula World CHD (SCES-01000) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "Kula World",
         "manual_setup": {
           "steps": [
@@ -28244,11 +28244,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Kula_World_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Kula_World_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Kula_World_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Kula_World_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
@@ -28434,7 +28434,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own Europe Mega Man Legends CHD (SLES-01485) containing all 2 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own Europe Mega Man Legends CHD (SLES-01485) containing all 2 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "Mega Man Legends",
         "manual_setup": {
           "steps": [
@@ -28444,11 +28444,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Mega_Man_Legends_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Mega_Man_Legends_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Mega_Man_Legends_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Mega_Man_Legends_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
@@ -28566,7 +28566,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own Europe Men in Black: The Game CHD (SLES-01047) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own Europe Men in Black: The Game CHD (SLES-01047) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "Men in Black: The Game",
         "manual_setup": {
           "steps": [
@@ -28576,11 +28576,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Men_in_Black__The_Game_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Men_in_Black__The_Game_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Men_in_Black__The_Game_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Men_in_Black__The_Game_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
@@ -29370,7 +29370,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own USA The Lost World: Jurassic Park Special Edition CHD (SLUS-00515) containing all 3 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own USA The Lost World: Jurassic Park Special Edition CHD (SLUS-00515) containing all 3 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "The Lost World: Jurassic Park Special Edition",
         "manual_setup": {
           "steps": [
@@ -29380,11 +29380,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream The_Lost_World__Jurassic_Park_Special_Edition_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/The_Lost_World__Jurassic_Park_Special_Edition_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream The_Lost_World__Jurassic_Park_Special_Edition_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/The_Lost_World__Jurassic_Park_Special_Edition_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
@@ -29494,7 +29494,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own USA The Mummy CHD (SLUS-01187) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own USA The Mummy CHD (SLUS-01187) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "The Mummy",
         "manual_setup": {
           "steps": [
@@ -29504,11 +29504,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream The_Mummy_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/The_Mummy_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream The_Mummy_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/The_Mummy_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
@@ -30170,7 +30170,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own USA Vampire Hunter D CHD (SLUS-01138) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own USA Vampire Hunter D CHD (SLUS-01138) containing its single data track. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "Vampire Hunter D",
         "manual_setup": {
           "steps": [
@@ -30180,11 +30180,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Vampire_Hunter_D_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Vampire_Hunter_D_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Vampire_Hunter_D_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Vampire_Hunter_D_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
@@ -30302,7 +30302,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own Europe Vigilante 8 CHD (SLES-01212) containing all 13 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3.",
+        "manual_preparation": "Provide your own Europe Vigilante 8 CHD (SLES-01212) containing all 13 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
         "original_game_title": "Vigilante 8",
         "manual_setup": {
           "steps": [
@@ -30312,11 +30312,11 @@
             },
             {
               "title": "Prepare the managed Windows or Linux player",
-              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. Choose Play after preparation."
+              "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
             },
             {
               "title": "Prepare the Mac or a separate upstream-owned copy",
-              "instruction": "On Mac, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Vigilante_8_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Vigilante_8_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
+              "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Vigilante_8_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Vigilante_8_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
             }
           ],
           "warnings": [
