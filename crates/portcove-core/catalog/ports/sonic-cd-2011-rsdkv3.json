@@ -22,12 +22,33 @@
         {
           "title": "Prepare your original game",
           "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic CD 2011 release beside RSDKv3.exe. Follow upstream for mobile/Origins asset preparation. Optional FMV files are supported only from the original Steam release; mobile/Origins videos do not work. Keep your original installation. No separate compiler or installer is needed for the published x64 player."
+        },
+        {
+          "title": "Prepare the Linux x64 player",
+          "instruction": "Unpack v3-linux.zip and then its linux.tar.gz. Keep the RSDKv3 executable in a separate writable folder with your own matching Sonic CD 2011 Data.rsdk. The reviewed player needs glibc 2.38, GLIBCXX 3.4.32, SDL2, OpenGL, GLEW 2.2, Ogg, Theora and Vorbis. Add the working RSDKv3 with that folder as its working directory."
+        },
+        {
+          "title": "Prepare the macOS app",
+          "instruction": "Unpack v3-mac.zip and its RSDKv3.zip, keeping the complete RSDKv3.app with its bundled frameworks. The reviewed build requires macOS 10.15 on Intel or 11 on Apple Silicon. Place your original Data.rsdk beside the app in a writable folder to use that folder for data. The app otherwise uses ~/Library/Application Support/RSDKv3 when there is no Data.rsdk, Data folder or settings.ini beside it. Use the upstream app directly after setup."
+        },
+        {
+          "title": "Use Android only where legacy shared storage works",
+          "instruction": "The official v3-android.zip contains an ARM debug APK. On compatible Android devices, place your own Sonic CD 2011 Data.rsdk in shared storage under RSDK/v3 and run the app directly. Preserve that folder with its settings, saves and mods before replacing it."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Preserve the actual settings, SData.bin, SGame.bin, UData.bin and mods or redirected save paths for the player you use. UseSteamDir is Windows-only. Optional FMVs come from the original Steam release; use the upstream instructions for the Videos folder.",
+        "Linux registration leaves replacement and backups with you. If Android prevents legacy storage access, the inspected APK has no verified alternate import path. Follow the upstream noncommercial-use and attribution terms."
+      ],
       "help_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md"
     },
-    "original_game_title": "Sonic CD"
+    "original_game_title": "Sonic CD",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "linux-x86-64": ["v3-linux.zip"],
+      "macos-x86-64": ["v3-mac.zip"],
+      "macos-aarch64": ["v3-mac.zip"]
+    }
   },
   "integration": {
     "support_tier": "beta",

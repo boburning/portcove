@@ -28,6 +28,18 @@
           "instruction": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
         },
         {
+          "title": "Prepare the Linux x64 player",
+          "instruction": "Extract the official sonic3air_game.tar.gz into its complete sonic3air_game folder and follow its Manual.pdf. Open sonic3air_linux from that folder for upstream setup and original selection. The reviewed player needs glibc 2.34, GLIBCXX 3.4.29, OpenGL and curl. Use the same folder when adding the working player to Portcove. The optional setup_linux.sh only installs and marks its desktop shortcut executable."
+        },
+        {
+          "title": "Prepare the macOS app",
+          "instruction": "Open the official stable Mac disk image and use the complete Sonic 3 AIR.app. The bonus Oxygen app is a development tool. The reviewed build requires macOS 10.15 on Intel or 11 on Apple Silicon. Finish original selection in the upstream app and follow its Manual.pdf for the data folder."
+        },
+        {
+          "title": "Prepare the Android app",
+          "instruction": "Install the official stable Android APK and select your own combined Steam ROM using the app’s file picker. If the picker is unavailable, close the game and open the ROM with Sonic 3 A.I.R. from your file manager. Use Options > System > File Browser to access data in Android/data/org.eukaryot.sonic3air/files. Keep an independent copy of saves, settings and mods before updating, and leave the old app installed when applying a compatible in-place update."
+        },
+        {
           "title": "Register the existing player and use explicit Play",
           "instruction": "You manage this external game and all its original files and saved data. Portcove saves the executable, working folder and launch arguments you select; it does not authenticate the complete package or original game files. Choose Play explicitly when you are ready. Removing the registration leaves external files in place. Portcove does not offer updates, backups, rollback, data migration or external-file deletion for this copy. Finish setup with the project’s tools and add only a working game. These instructions do not confirm successful setup, gameplay or save-state compatibility."
         }
@@ -43,10 +55,20 @@
         {
           "title": "Keep the game version and data you use",
           "instruction": "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime. The upstream Windows default is %APPDATA%/Sonic3AIR, shared across separate player folders; a savedata folder beside Sonic3AIR.exe selects portable data instead. Preserve whichever is actually in use, including settings, progress and mods. A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility. Optional soundtrack download and mods remain upstream/user choices."
+        },
+        {
+          "title": "Find the data folder on Linux or macOS",
+          "instruction": "Linux normally uses $XDG_DATA_HOME/Sonic3AIR or ~/.local/share/Sonic3AIR. A savedata folder beside sonic3air_linux selects portable storage. The upstream macOS app uses ~/Library/Application Support/sonic3air/Sonic3AIR. Use the app’s data or mods folder command to confirm the actual location before replacing the player."
         }
       ]
     },
-    "original_game_title": "Sonic 3 & Knuckles"
+    "original_game_title": "Sonic 3 & Knuckles",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "linux-x86-64": ["sonic3air_game.tar.gz"],
+      "macos-x86-64": ["sonic3air_mac_", ".dmg"],
+      "macos-aarch64": ["sonic3air_mac_", ".dmg"]
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -39946,6 +39946,18 @@
               "instruction": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
             },
             {
+              "title": "Prepare the Linux x64 player",
+              "instruction": "Extract the official sonic3air_game.tar.gz into its complete sonic3air_game folder and follow its Manual.pdf. Open sonic3air_linux from that folder for upstream setup and original selection. The reviewed player needs glibc 2.34, GLIBCXX 3.4.29, OpenGL and curl. Use the same folder when adding the working player to Portcove. The optional setup_linux.sh only installs and marks its desktop shortcut executable."
+            },
+            {
+              "title": "Prepare the macOS app",
+              "instruction": "Open the official stable Mac disk image and use the complete Sonic 3 AIR.app. The bonus Oxygen app is a development tool. The reviewed build requires macOS 10.15 on Intel or 11 on Apple Silicon. Finish original selection in the upstream app and follow its Manual.pdf for the data folder."
+            },
+            {
+              "title": "Prepare the Android app",
+              "instruction": "Install the official stable Android APK and select your own combined Steam ROM using the app’s file picker. If the picker is unavailable, close the game and open the ROM with Sonic 3 A.I.R. from your file manager. Use Options > System > File Browser to access data in Android/data/org.eukaryot.sonic3air/files. Keep an independent copy of saves, settings and mods before updating, and leave the old app installed when applying a compatible in-place update."
+            },
+            {
               "title": "Register the existing player and use explicit Play",
               "instruction": "You manage this external game and all its original files and saved data. Portcove saves the executable, working folder and launch arguments you select; it does not authenticate the complete package or original game files. Choose Play explicitly when you are ready. Removing the registration leaves external files in place. Portcove does not offer updates, backups, rollback, data migration or external-file deletion for this copy. Finish setup with the project’s tools and add only a working game. These instructions do not confirm successful setup, gameplay or save-state compatibility."
             }
@@ -39961,6 +39973,10 @@
             {
               "title": "Keep the game version and data you use",
               "instruction": "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime. The upstream Windows default is %APPDATA%/Sonic3AIR, shared across separate player folders; a savedata folder beside Sonic3AIR.exe selects portable data instead. Preserve whichever is actually in use, including settings, progress and mods. A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility. Optional soundtrack download and mods remain upstream/user choices."
+            },
+            {
+              "title": "Find the data folder on Linux or macOS",
+              "instruction": "Linux normally uses $XDG_DATA_HOME/Sonic3AIR or ~/.local/share/Sonic3AIR. A savedata folder beside sonic3air_linux selects portable storage. The upstream macOS app uses ~/Library/Application Support/sonic3air/Sonic3AIR. Use the app’s data or mods folder command to confirm the actual location before replacing the player."
             }
           ]
         },
@@ -40023,9 +40039,24 @@
             {
               "title": "Prepare your original game",
               "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic CD 2011 release beside RSDKv3.exe. Follow upstream for mobile/Origins asset preparation. Optional FMV files are supported only from the original Steam release; mobile/Origins videos do not work. Keep your original installation. No separate compiler or installer is needed for the published x64 player."
+            },
+            {
+              "title": "Prepare the Linux x64 player",
+              "instruction": "Unpack v3-linux.zip and then its linux.tar.gz. Keep the RSDKv3 executable in a separate writable folder with your own matching Sonic CD 2011 Data.rsdk. The reviewed player needs glibc 2.38, GLIBCXX 3.4.32, SDL2, OpenGL, GLEW 2.2, Ogg, Theora and Vorbis. Add the working RSDKv3 with that folder as its working directory."
+            },
+            {
+              "title": "Prepare the macOS app",
+              "instruction": "Unpack v3-mac.zip and its RSDKv3.zip, keeping the complete RSDKv3.app with its bundled frameworks. The reviewed build requires macOS 10.15 on Intel or 11 on Apple Silicon. Place your original Data.rsdk beside the app in a writable folder to use that folder for data. The app otherwise uses ~/Library/Application Support/RSDKv3 when there is no Data.rsdk, Data folder or settings.ini beside it. Use the upstream app directly after setup."
+            },
+            {
+              "title": "Use Android only where legacy shared storage works",
+              "instruction": "The official v3-android.zip contains an ARM debug APK. On compatible Android devices, place your own Sonic CD 2011 Data.rsdk in shared storage under RSDK/v3 and run the app directly. Preserve that folder with its settings, saves and mods before replacing it."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "Preserve the actual settings, SData.bin, SGame.bin, UData.bin and mods or redirected save paths for the player you use. UseSteamDir is Windows-only. Optional FMVs come from the original Steam release; use the upstream instructions for the Videos folder.",
+            "Linux registration leaves replacement and backups with you. If Android prevents legacy storage access, the inspected APK has no verified alternate import path. Follow the upstream noncommercial-use and attribution terms."
+          ],
           "help_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md"
         },
         "artwork": {
@@ -40087,9 +40118,20 @@
             {
               "title": "Supply this game’s original assets",
               "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog 2 (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player."
+            },
+            {
+              "title": "Prepare the Linux x64 player",
+              "instruction": "From the official RSDKv4 downloads, unpack v4-linux.zip, then unpack its linux.tar.gz into a separate writable folder for Sonic the Hedgehog 2 (2013). Put the matching original Data.rsdk beside RSDKv4. The reviewed executable needs glibc 2.38, GLIBCXX 3.4.32, SDL2, OpenGL, GLEW 2.2 and Vorbis. Add the working RSDKv4 executable to Portcove with that folder as its working directory."
+            },
+            {
+              "title": "Use Android only where legacy shared storage works",
+              "instruction": "The upstream v4-android.zip contains an ARM debug APK that reads Data.rsdk from the shared RSDK/v4 folder on compatible Android devices. Both Sonic games use the same app and folder. Use the Data.rsdk from your own Sonic the Hedgehog 2 (2013) copy. Back up the entire active v4 folder, including settings, saves and mods, before switching titles. Use the app directly on Android."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "The Linux player uses its own folder for settings, saves and mods. Preserve the actual folder or any redirected save location before replacing the player. Portcove registration leaves runtime replacement and backups with you.",
+            "The Android APK relies on legacy storage permission. If Android prevents access to the shared RSDK/v4 folder, this package has no verified alternate import path. Keep each game’s data and saves separately and use upstream’s noncommercial-use and attribution terms."
+          ],
           "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
         },
         "artwork": {
@@ -40151,9 +40193,20 @@
             {
               "title": "Supply this game’s original assets",
               "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player."
+            },
+            {
+              "title": "Prepare the Linux x64 player",
+              "instruction": "From the official RSDKv4 downloads, unpack v4-linux.zip, then unpack its linux.tar.gz into a separate writable folder for Sonic the Hedgehog (2013). Put the matching original Data.rsdk beside RSDKv4. The reviewed executable needs glibc 2.38, GLIBCXX 3.4.32, SDL2, OpenGL, GLEW 2.2 and Vorbis. Add the working RSDKv4 executable to Portcove with that folder as its working directory."
+            },
+            {
+              "title": "Use Android only where legacy shared storage works",
+              "instruction": "The upstream v4-android.zip contains an ARM debug APK that reads Data.rsdk from the shared RSDK/v4 folder on compatible Android devices. Both Sonic games use the same app and folder. Use the Data.rsdk from your own Sonic the Hedgehog (2013) copy. Back up the entire active v4 folder, including settings, saves and mods, before switching titles. Use the app directly on Android."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "The Linux player uses its own folder for settings, saves and mods. Preserve the actual folder or any redirected save location before replacing the player. Portcove registration leaves runtime replacement and backups with you.",
+            "The Android APK relies on legacy storage permission. If Android prevents access to the shared RSDK/v4 folder, this package has no verified alternate import path. Keep each game’s data and saves separately and use upstream’s noncommercial-use and attribution terms."
+          ],
           "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
         },
         "artwork": {
