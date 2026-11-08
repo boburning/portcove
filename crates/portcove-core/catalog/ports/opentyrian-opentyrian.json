@@ -16,20 +16,39 @@
       "game_slug": "tyrian",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/opentyrian/opentyrian/releases/tag/v2.1.20260913",
+    "release_url": "https://github.com/opentyrian/opentyrian/releases",
     "manual_setup": {
       "steps": [
         {
           "title": "Start with the required game files",
           "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
+        },
+        {
+          "title": "Choose an upstream sibling package",
+          "instruction": "On Mac save the official universal ZIP. If downloading in Portcove, clear Extract the archive after downloading. Unpack it with Mac Archive Utility and open OpenTyrian.app on Intel or Apple Silicon. On Linux ARM64 choose the matching tarball and run opentyrian from the extracted folder. The current ARM64 build needs glibc 2.34 or newer. The upstream release also provides a native Windows ARM64 ZIP for an external setup."
+        },
+        {
+          "title": "Use this edition’s game data",
+          "instruction": "Keep the bundled Tyrian 2.1 data with the upstream player, or use the upstream --data option to point to your own compatible Tyrian 2.1 folder."
         }
       ],
       "warnings": [
         "On Windows, choose a short installation folder using basic Latin characters. The official runtime can fail to find its packaged data in folders with non-ASCII names. This Windows runtime-path requirement does not restrict Linux installation paths."
       ],
-      "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
+      "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md",
+      "references": [
+        {
+          "title": "Keep the OpenTyrian profile",
+          "instruction": "Back up $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian on Linux and Mac. For a portable copy keep the actual configuration, saves and game folder. Use the upstream package for replacement."
+        }
+      ]
     },
-    "original_game_title": "Tyrian"
+    "original_game_title": "Tyrian",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "macos-x86-64": ["-macos-universal.zip"],
+      "macos-aarch64": ["-macos-universal.zip"]
+    }
   },
   "integration": {
     "support_tier": "beta",

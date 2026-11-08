@@ -17,7 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2701,
-    "release_url": "https://ioquake3.org/get-it/",
+    "release_url": "https://github.com/ioquake/ioq3/actions/workflows/build.yml",
     "manual_setup": {
       "steps": [
         {
@@ -31,6 +31,14 @@
         {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+        },
+        {
+          "title": "Choose the official ioquake3 build",
+          "instruction": "From a successful upstream Build workflow run, download the Linux or macOS artifact. On Linux x64 unpack the archive and run ioquake3 from its folder. On macOS 11 or newer use the universal ioquake3.app in the upstream artifact."
+        },
+        {
+          "title": "Set up the correct game data",
+          "instruction": "Place your original Quake III Arena baseq3 PK3 files in the baseq3 directory in the ioquake3 data root. Start the base game in ioquake3."
         }
       ],
       "warnings": [
@@ -42,9 +50,14 @@
         {
           "title": "Keep your existing game data",
           "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
+        },
+        {
+          "title": "Back up the external Quake3 profile",
+          "instruction": "On Linux preserve the Quake3 directories under ~/.config, ~/.local/share and ~/.local/state or their XDG overrides. On Mac preserve ~/Library/Application Support/Quake3. Keep any explicit fs_homepath and the creating engine, saves, settings and original data before replacement."
         }
       ]
-    }
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

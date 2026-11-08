@@ -6,7 +6,7 @@
     "summary": "Play OpenTyrian2000 using the upstream Windows package and its included data folder.",
     "project_url": "https://github.com/andyvand/opentyrian2000",
     "issue_number": 1861,
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/andyvand/opentyrian2000#readme",
     "artwork": {
@@ -17,7 +17,7 @@
       "game_slug": "tyrian-2000",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/andyvand/opentyrian2000/releases",
+    "release_url": "https://github.com/andyvand/opentyrian2000/releases/tag/3.0.0-SDL3",
     "manual_setup": {
       "steps": [
         {
@@ -27,6 +27,22 @@
         {
           "title": "Use the included player",
           "instruction": "Finish setup with opentyrian2000.exe and its folder, then choose Play. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
+        },
+        {
+          "title": "Install the upstream Linux package",
+          "instruction": "On Debian-compatible Linux choose the official amd64 or arm64 DEB for your machine. Install it using your package manager and start opentyrian2000. Use the same package manager to replace it."
+        },
+        {
+          "title": "Open the upstream Mac app",
+          "instruction": "If downloading in Portcove, clear Extract the archive after downloading. Unpack opentyrian2000-macOS.zip with Mac Archive Utility to retain its framework links. Open opentyrian2000.app from its permanent folder on Intel or Apple Silicon."
+        },
+        {
+          "title": "Keep the Tyrian 2000 data",
+          "instruction": "Use the Tyrian 2000 files included with the official package. Keep the Tyrian 2000 profile and game data together with the version you use."
+        },
+        {
+          "title": "Use the upstream Android package",
+          "instruction": "On Android 11 or newer, unpack opentyrian2000-android.zip and install its signed APK with the included Tyrian 2000 data. Review and grant the app’s All files access permission to use its shared profile under Internal storage > Android > tyriandata. Back up that folder before replacing the app."
         }
       ],
       "warnings": [
@@ -37,11 +53,18 @@
         {
           "title": "Keep your current copy when updating",
           "instruction": "Apply upstream updates separately and keep your existing data, configuration and progress backed up. This downloaded copy remains upstream/player-owned."
+        },
+        {
+          "title": "Preserve the Tyrian 2000 profile",
+          "instruction": "On Linux and Mac back up $XDG_CONFIG_HOME/opentyrian2000 or ~/.config/opentyrian2000. Keep its saves and settings separate from the OpenTyrian 2.1 profile."
         }
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["opentyrian2000-MinGW-X86_64.zip"]
+      "windows-x86-64": ["opentyrian2000-MinGW-X86_64.zip"],
+      "linux-x86-64": ["opentyrian2000-", "-amd64.deb"],
+      "macos-x86-64": ["opentyrian2000-macOS.zip"],
+      "macos-aarch64": ["opentyrian2000-macOS.zip"]
     }
   }
 }
