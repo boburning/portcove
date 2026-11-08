@@ -6,7 +6,7 @@
     "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp",
     "issue_number": 1610,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp#readme",
     "artwork": {
@@ -20,31 +20,43 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Download and unpack the setup kit",
-          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+          "title": "Unpack the setup kit",
+          "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+        },
+        {
+          "title": "Install the build tools",
+          "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
         },
         {
           "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+          "instruction": "Use your own European Team Buddies disc (SCES-02986) with its single data track intact. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
         },
         {
-          "title": "Build the game and add it to Portcove",
-          "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+          "title": "Build and add the player",
+          "instruction": "From the kit folder, run Team_Buddies (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Team_Buddies (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
         }
       ],
-      "warnings": ["Portcove has not confirmed setup or gameplay for this package."],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp#readme",
+      "warnings": [
+        "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/tag/v0.1.0",
       "references": [
         {
+          "title": "Linux and Mac compatibility",
+          "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
+        },
+        {
           "title": "Updates and backups",
-          "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+          "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
         }
       ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["teambuddies-", "-windows-x64.zip"],
-      "linux-x86-64": ["teambuddies-", "-linux-x64.zip"]
+      "linux-x86-64": ["teambuddies-", "-linux-x64.zip"],
+      "macos-aarch64": ["teambuddies-", "-macos-arm64.zip"],
+      "macos-x86-64": ["teambuddies-", "-macos-x64.zip"],
+      "windows-x86-64": ["teambuddies-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable"
   }
