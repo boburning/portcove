@@ -1666,7 +1666,7 @@ void test("frozen source collection binds actual Git blobs, publication and comp
       ),
     /does not bind the exact lane/,
   );
-  assert.throws(() => requireDirectSemanticCapture(unionReceipt), /imported/);
+  assert.throws(() => requireDirectSemanticCapture(unionReceipt as never), /imported/);
   await assert.rejects(requireDirectSemanticProposalCapture(findings[0]), /imported/);
   findings[0]!.findings = "modified";
   assert.throws(() => inspector.inspectUnion(findings), /copied, changed/);
