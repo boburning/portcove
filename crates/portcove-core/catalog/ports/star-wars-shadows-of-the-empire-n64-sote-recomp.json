@@ -27,7 +27,7 @@
         },
         {
           "title": "Check the experimental Linux requirements",
-          "instruction": "Put your matching USA Rev 2 ROM in the permitted Linux kit as sote.us.v1.2.z64. The upstream Play.sh launcher uses glibc 2.43 or newer, libstdc++ with GLIBCXX_3.4.32, and Vulkan. Keep its own library folder beside the launcher. The publisher’s Linux run reached early gameplay and later showed solid-blue output. Preserve the working folder while those issues are investigated."
+          "instruction": "Keep the permitted Linux x64 kit on a Linux filesystem. Put your matching USA Rev 2 ROM in that folder as sote.us.v1.2.z64, then run ./Play.sh from the folder. Keep its bundled libraries beside the launcher. The game needs glibc 2.43 or newer, libstdc++ with GLIBCXX_3.4.32, and Vulkan. The publisher’s Linux run reached early gameplay and later showed solid-blue output."
         }
       ],
       "references": [

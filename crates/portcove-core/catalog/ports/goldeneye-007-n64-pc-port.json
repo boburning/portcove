@@ -36,7 +36,7 @@
         },
         {
           "title": "Use the matching native player",
-          "instruction": "Choose ge007.x86_64.exe on Windows or ge007.x86_64 on Linux, and use its containing folder as the start folder. The Linux x64 kit uses glibc 2.29 or newer, zlib, and its adjacent SDL2 library. Save your details in Portcove, then choose Play."
+          "instruction": "Choose ge007.x86_64.exe on Windows or ge007.x86_64 on Linux, and use its containing folder as the start folder. The Linux x64 kit uses glibc 2.29 or newer, system zlib and OpenGL, and its adjacent SDL2 library. Save your details in Portcove, then choose Play."
         }
       ],
       "references": [
