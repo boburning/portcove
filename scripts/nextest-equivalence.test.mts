@@ -427,9 +427,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)";
   const windowsPreparedRevocationFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_revocation_preserves_evidence$/)";
+  const windowsPublishedRevocationFilter =
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_revocation_preserves_payload$/)";
   for (const [filter, periods] of [
     [windowsMmx2PopulatedTransitionFilter, 84],
     [windowsPreparedRevocationFilter, 12],
+    [windowsPublishedRevocationFilter, 12],
   ] as const) {
     assert.deepEqual(overrideFor(filter, "x86_64-pc-windows-msvc"), {
       platform: "x86_64-pc-windows-msvc",
@@ -963,6 +966,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsReviewedArchiveTransitionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsMmx2PopulatedTransitionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparedRevocationFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedRevocationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
