@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import socket
 import stat
 import tempfile
@@ -37,6 +38,35 @@ def request():
 
 
 class SupervisorContract(unittest.TestCase):
+    def test_only_exact_retained_evidence_can_exceed_the_ordinary_input_bound(self):
+        retained = Path(__file__).resolve().parent.parent / (
+            "docs/qualification/non-switch-ecosystem-reconciliation-2026-10-25.json"
+        )
+        expected = f"objects/{supervisor.RETAINED_EVIDENCE_OID}.data"
+        wrong_path = f"objects/{'c' * 40}.data"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "objects").mkdir()
+            target = root / expected
+            shutil.copyfile(retained, target)
+            self.assertEqual(len(supervisor.read_frozen_input(target, expected)), supervisor.RETAINED_EVIDENCE_BYTES)
+
+            other = root / wrong_path
+            target.rename(other)
+            with self.assertRaisesRegex(supervisor.Refusal, "bounded single-link"):
+                supervisor.read_frozen_input(other, wrong_path)
+            other.rename(target)
+            with target.open("r+b") as stream:
+                first = stream.read(1)
+                stream.seek(0)
+                stream.write(bytes([first[0] ^ 1]))
+            with self.assertRaisesRegex(supervisor.Refusal, "blob identity differs"):
+                supervisor.read_frozen_input(target, expected)
+            with target.open("r+b") as stream:
+                stream.truncate(supervisor.RETAINED_EVIDENCE_BYTES + 1)
+            with self.assertRaisesRegex(supervisor.Refusal, "bounded single-link"):
+                supervisor.read_frozen_input(target, expected)
+
     def test_transport_sockets_bind_under_long_request_custody(self):
         for name, kind in (("provider.sock", socket.SOCK_STREAM), ("control.sock", socket.SOCK_SEQPACKET)):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
