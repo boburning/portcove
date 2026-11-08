@@ -3,6 +3,12 @@
   "aqua": {
     "release_base": "https://github.com/aquaproj/aqua/releases/download",
     "artifacts": {
+      "linux-x64": {
+        "archive": "aqua_linux_amd64.tar.gz",
+        "asset_id": 711375023,
+        "bytes": 9792457,
+        "sha256": "1CD648C1835DCDFC60D935A169993F55551CFB948A0F5A442AF5B51F2A28A8D1"
+      },
       "win32-x64": {
         "archive": "aqua_windows_amd64.zip",
         "sha256": "01CC31AAC9245F9B90000FC82332497162A2182515A4C616A67D5DEF594CA8E0"
