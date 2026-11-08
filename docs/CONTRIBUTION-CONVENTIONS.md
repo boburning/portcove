@@ -177,8 +177,14 @@ checkpoint. The watcher neither dispatches nor retries a run, and success does
 not supply review, native, installed-app or merge authority. Once
 the pull request is ready, conflict-free, reviewed under its applicable contract, authorized,
 and all exact-head contexts are successful, use
-`just pr-merge-rest --pr <number-or-url> --head <reviewed-head> --closure-intent-file <intent.json> --merge-message-file <message.json>` for the routine
-immediate squash merge. After a selective retry, also supply the successful
+`just pr-merge-rest --pr <number-or-url> --head <reviewed-head> --target <reviewed-target> --tree <reviewed-tree> --closure-intent-file <intent.json> --merge-message-file <message.json>` for the routine
+immediate squash merge. Supply the independently reviewed target and composed
+tree together. The helper checks the current GitHub preview and target tip
+before submission, then verifies the actual squash parent and tree. If the
+target advances during the request, GitHub's source SHA precondition can still
+allow the squash. The helper retains the actual commit and expected composition
+for reconciliation in that case. Existing invocations may omit both options.
+After a selective retry, also supply the successful
 workflow's `--run <id> --attempt <number>`. This joins complete check and job
 inventories across attempts and checks that the identified workflow remains
 successfully completed before the merge request. It freezes and rechecks the source SHA and required

@@ -1166,6 +1166,111 @@ void test("bound merge refuses stale, pending, failed and invalid workflow ident
   }
 });
 
+void test("REST merge checks the reviewed composition before and after mutation", async () => {
+  const preview = "d".repeat(40);
+  const tree = "e".repeat(40);
+  const moved = "f".repeat(40);
+  const baseRef = { sha: base, ref: "main" };
+  for (const scenario of [
+    "success",
+    "preview",
+    "first-branch",
+    "branch",
+    "parent",
+    "tree",
+    "retargeted",
+  ]) {
+    let mutations = 0;
+    let branchReads = 0;
+    let lastEndpoint = "";
+    const client = await deliveryFixture(({ endpoint }) => {
+      const previousEndpoint = lastEndpoint;
+      lastEndpoint = endpoint;
+      if (endpoint === "graphql") return Response.json(closingPage());
+      if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
+        return Response.json([{ sha: head, commit: { message: squashMessage.title } }]);
+      if (endpoint === "repos/boburning/portcove/pulls/7")
+        return Response.json(
+          mutations
+            ? pull({
+                merged: true,
+                state: "closed",
+                merge_commit_sha: merge,
+                base: scenario === "retargeted" ? { ...baseRef, ref: "other" } : baseRef,
+              })
+            : pull({ merge_commit_sha: preview, base: baseRef }),
+        );
+      if (endpoint.includes("check-runs"))
+        return Response.json({ total_count: required.length, check_runs: successfulRuns() });
+      if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
+      if (endpoint === `repos/boburning/portcove/git/commits/${preview}`)
+        return Response.json({
+          sha: preview,
+          tree: { sha: scenario === "preview" ? moved : tree },
+          parents: [{ sha: base }, { sha: head }],
+        });
+      if (endpoint === "repos/boburning/portcove/branches/main") {
+        branchReads++;
+        const drifted =
+          scenario === "first-branch"
+            ? branchReads === 1
+            : scenario === "branch" && branchReads === 2;
+        return Response.json({ commit: { sha: drifted ? moved : base } });
+      }
+      if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
+        assert.equal(previousEndpoint, "repos/boburning/portcove/branches/main");
+        mutations++;
+        return Response.json({ merged: true, sha: merge });
+      }
+      if (endpoint === `repos/boburning/portcove/git/commits/${merge}`)
+        return Response.json({
+          sha: merge,
+          message: `${squashMessage.title}\n\n${squashMessage.body}`,
+          tree: { sha: scenario === "tree" ? moved : tree },
+          parents: [{ sha: scenario === "parent" ? moved : base }],
+        });
+      throw new Error(`unexpected endpoint ${endpoint}`);
+    });
+    const expected = { head, target: base, tree };
+    const operation = client.merge(7, head, required, emptyIntent, squashMessage, undefined, {
+      target: base,
+      tree,
+    });
+    if (scenario === "success") {
+      const result = await operation;
+      assert.equal(result.result.sha, merge);
+      assert.deepEqual(result.expected_composition, expected);
+    } else if (["preview", "first-branch", "branch"].includes(scenario)) {
+      await assert.rejects(operation, /composition differs|target advanced|target differs/u);
+      assert.equal(branchReads, scenario === "branch" ? 2 : 1);
+      assert.equal(mutations, 0);
+      continue;
+    } else {
+      await assert.rejects(operation, (error) => {
+        assert.equal(deliveryError(error).operationStatus, "unknown");
+        assert.equal(evidence(error).merge_commit_sha, merge);
+        assert.deepEqual(evidence(error).expected_composition, expected);
+        const actual = record(record(evidence(error).closure_readback).actual_commit);
+        assert.equal(actual.sha, merge);
+        assert.deepEqual(actual.parents, [{ sha: scenario === "parent" ? moved : base }]);
+        assert.deepEqual(actual.tree, { sha: scenario === "tree" ? moved : tree });
+        return true;
+      });
+    }
+    assert.equal(mutations, 1);
+  }
+});
+
+void test("REST merge CLI takes target and tree together", () => {
+  const tree = "e".repeat(40);
+  assert.deepEqual(parseArguments(["merge", "--target", base, "--tree", tree]).options, {
+    "--target": base,
+    "--tree": tree,
+  });
+  assert.throws(() => parseArguments(["merge", "--target", base]), /supplied together/u);
+  assert.throws(() => parseArguments(["merge", "--tree", tree]), /supplied together/u);
+});
+
 void test("bound merge refuses an attempt change after check and closure collection", async () => {
   const client = await deliveryFixture();
   let reads = 0;

@@ -526,9 +526,9 @@ function bracketed(
   return { pull: after, closing: last };
 }
 
-function composition(
+export function validateCommitComposition(
   value: unknown,
-  expected: MergeSnapshotExpectation,
+  expected: Pick<MergeSnapshotExpectation, "head" | "target" | "tree">,
   commitSha: string,
   merged: boolean,
 ) {
@@ -703,7 +703,7 @@ export function prepareMergeSnapshot(
       collectionBudgetMs - ((expected.now ?? Date.now)() - interval.started),
     );
   } else {
-    composition(snapshot.preview, expected, observed.pull.merge_commit_sha, false);
+    validateCommitComposition(snapshot.preview, expected, observed.pull.merge_commit_sha, false);
     verifiedComposition = {
       method: "provider-preview",
       preview_target: expected.target,
@@ -839,7 +839,7 @@ export function verifyMergeSnapshotReadback(value: unknown, expected: MergeSnaps
     prepared.closing_fingerprint !== fingerprint(observed.closing)
   )
     throw new Error("Merge occurred; prepared identity or closure readback differs; do not retry");
-  composition(snapshot.actual_commit, expected, merged, true);
+  validateCommitComposition(snapshot.actual_commit, expected, merged, true);
   const message = validateMergeMessage(expected.mergeMessage);
   if (
     !Array.isArray(prepared.closure_targets) ||

@@ -23,6 +23,7 @@ import {
   validateMergeMessage,
   validateMergeReadiness,
   validateMergedCommit,
+  validateCommitComposition,
   prepareMergeSnapshot,
   verifyMergeSnapshotReadback,
   readDeliverySnapshot,
@@ -619,7 +620,14 @@ export class PullRequestDeliveryClient {
     closureIntent?: unknown,
     mergeMessage?: unknown,
     binding?: { run: number; attempt: number },
+    composition?: { target: string; tree: string },
   ) {
+    if (
+      composition &&
+      ![composition.target, composition.tree].every((sha) => /^[0-9a-f]{40}$/u.test(sha))
+    )
+      throw new Error("Merge --target and --tree must be 40-character SHAs");
+    const expected = composition && { head, ...composition };
     const verifyWorkflow = async () => {
       if (!binding) return;
       if (
@@ -642,6 +650,12 @@ export class PullRequestDeliveryClient {
     await verifyWorkflow();
     const state = await this.requiredCheckState(number, head, requiredContexts, binding);
     validateMergeReadiness(number, head, state.pull, state.contexts);
+    const targetRef = state.pull.base.ref;
+    if (expected) {
+      if (!targetRef) throw new Error("Merge target branch is unavailable");
+      if ((await this.branch(targetRef)).commit.sha !== expected.target)
+        throw new Error("Merge target differs from the reviewed composition");
+    }
     const message = validateMergeMessage(mergeMessage);
     const closing = await readClosingRelationships(this.sdk, repository, number);
     const commits = await this.pullCommits(number);
@@ -661,6 +675,20 @@ export class PullRequestDeliveryClient {
         "PR body or closing relationships changed before merge; refresh delivery review",
       );
     await verifyWorkflow();
+    if (expected) {
+      const fresh = await this.pull(number);
+      validateMergeReadiness(number, head, fresh, state.contexts);
+      const ref = fresh.base.ref;
+      const previewSha = fresh.merge_commit_sha;
+      if (!ref || ref !== targetRef || !previewSha)
+        throw new Error("Merge target branch or preview is unavailable or changed");
+      if (fresh.body !== state.pull.body)
+        throw new Error("PR body changed before merge; refresh delivery review");
+      const preview = await this.request("GET", `repos/${repository}/git/commits/${previewSha}`);
+      validateCommitComposition(preview.data, expected, previewSha, false);
+      if ((await this.branch(ref)).commit.sha !== expected.target)
+        throw new Error("Merge target advanced before mutation; refresh the reviewed composition");
+    }
     let result: unknown = null;
     let requestError: unknown = null;
     try {
@@ -683,7 +711,7 @@ export class PullRequestDeliveryClient {
         "unknown",
         `merge outcome is unknown after ${requestError ? errorMessage(requestError) : "an unexpected response"}; ` +
           `remote readback failed: ${errorMessage(error)}`,
-        { pull_request: number, head },
+        { pull_request: number, head, ...(expected ? { expected_composition: expected } : {}) },
         error,
       );
     }
@@ -717,6 +745,7 @@ export class PullRequestDeliveryClient {
         {
           pull_request: number,
           head,
+          ...(expected ? { expected_composition: expected } : {}),
           remote: {
             merged: readback.merged,
             state: readback.state,
@@ -749,15 +778,21 @@ export class PullRequestDeliveryClient {
       closureReadback.closing = after;
       if (after.fingerprint !== closing.fingerprint)
         throw new Error("PR body or closing relationships changed across merge");
+      if (expected) {
+        if (readback.base.ref !== targetRef)
+          throw new Error("Merge landed on a different target branch");
+        validateCommitComposition(actual, expected, readback.merge_commit_sha, true);
+      }
     } catch (error) {
       throw deliveryOutcomeError(
         "unknown",
-        `Merge occurred; closure readback needs reconciliation: ${errorMessage(error)}`,
+        `Merge occurred; ${expected ? "composition or closure" : "closure"} readback needs reconciliation: ${errorMessage(error)}`,
         {
           pull_request: number,
           head,
           merge_commit_sha: readback.merge_commit_sha,
           closing,
+          ...(expected ? { expected_composition: expected } : {}),
           closure_readback: closureReadback,
         },
         error,
@@ -768,6 +803,7 @@ export class PullRequestDeliveryClient {
       readback,
       contexts: state.contexts,
       closing,
+      ...(expected ? { expected_composition: expected } : {}),
       closure_readback: closureReadback,
     };
   }
@@ -1562,6 +1598,8 @@ const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
   merge: [
     "--pr",
     "--head",
+    "--target",
+    "--tree",
     "--run",
     "--attempt",
     "--closure-intent-file",
@@ -1695,6 +1733,8 @@ export function parseArguments(argv: string[]) {
     options[name] = value;
     index += 1;
   }
+  if (command === "merge" && Boolean(options["--target"]) !== Boolean(options["--tree"]))
+    throw new Error("Merge --target and --tree must be supplied together");
   return { command, options };
 }
 
@@ -2014,6 +2054,9 @@ async function main(argv: string[]) {
       options["--run"]
         ? { run: Number(options["--run"]), attempt: Number(options["--attempt"]) }
         : undefined,
+      options["--target"]
+        ? { target: optionText(options, "--target"), tree: optionText(options, "--tree") }
+        : undefined,
     );
     const directory = path.join(projectRoot, "work/pr-delivery");
     const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });
@@ -2036,6 +2079,9 @@ async function main(argv: string[]) {
                 conclusion,
               })),
               remote_readback: true,
+              ...(merged.expected_composition
+                ? { expected_composition: merged.expected_composition }
+                : {}),
               closure_receipt: closureReceipt,
             },
           }),
