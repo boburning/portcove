@@ -353,6 +353,38 @@ export const failedBootstrapRecovery = {
   actual_milliseconds: 356_000,
 } as const;
 
+/** One exact continuation of the already charged served-metadata renewal. */
+export const retainedServedRenewal = {
+  opportunity: "c4cb09d9e84f80cc4a4c1bb8468ae074a80eeefb46e9cb72fb202b625cb826f3",
+  release_id: 437990696,
+  source: "7d986e2df28bcf6046ba38d4ff4f481d9202b3fb",
+  source_tree: "e27ece01583d501aed3b0892d594d6c34c6c1469",
+  notes_sha256: "3f83943af06da7ef0475b957f91239cbb4218f2c5a62c6424ff1110fbea393a3",
+  context_sha256: "84451a164bfc5fa2c8e61256b72666422cd22a6f9e9a538455a819b3c1ebdf92",
+  context_inventory_sha256: "cdeefd1f2cd9f2390d5c47bf1dd339db09465a6ebbb2129f76ec7a3e8c58b756",
+  next_ref: "refs/tags/portcove-production-controller-windows-20261105r41",
+  predecessors: [
+    {
+      id: "42438091009",
+      control_commit: "b514fec72ec9039182df3da86b77c0c9ba3f06fd",
+      control_ref: "refs/tags/portcove-production-controller-windows-20261105r30",
+      milliseconds: 37_000,
+    },
+    {
+      id: "42439583851",
+      control_commit: "7d986e2df28bcf6046ba38d4ff4f481d9202b3fb",
+      control_ref: "refs/tags/portcove-production-controller-windows-20261105r39",
+      milliseconds: 212_000,
+    },
+    {
+      id: "42442826236",
+      control_commit: "daaeb85ad46cf57b103a7f4d96cf90bc038d70cf",
+      control_ref: "refs/tags/portcove-production-controller-windows-20261105r40",
+      milliseconds: 248_000,
+    },
+  ],
+} as const;
+
 /** Native success for r29 is separate from its failed Actions admission and
  * job. These fixed identities cannot admit another failed execution. */
 export const recoveredApplicationBootstrap = {
@@ -735,6 +767,7 @@ export async function resumeApplicationMetadataDraft(
   opportunity: string,
   raw: unknown,
   beforeWrite: Parameters<typeof registerApplicationReleaseRun>[5],
+  retainedContextSha256?: string,
 ) {
   const expected = inspectBootstrapDraftRecovery(raw);
   const response = await provider.release(expected.release_id);
@@ -744,12 +777,24 @@ export async function resumeApplicationMetadataDraft(
   assert.ok(isRecord(draft));
   const parsed = readApplicationRunNotes(draft.body);
   assert.ok(
-    parsed &&
-      parsed.custody.preparation === null &&
-      parsed.custody.budget === undefined &&
-      parsed.custody.metadata_contexts === undefined,
+    parsed && parsed.custody.preparation === null && parsed.custody.budget === undefined,
     "metadata draft already has later custody",
   );
+  if (retainedContextSha256 === undefined) {
+    assert.equal(
+      parsed.custody.metadata_contexts,
+      undefined,
+      "metadata draft already has later custody",
+    );
+  } else {
+    assert.deepEqual(
+      parsed.custody.metadata_contexts?.map((context) => context.context_sha256),
+      [retainedContextSha256],
+    );
+    assert.equal(parsed.custody.draft_assemblies, undefined);
+    assert.equal(parsed.custody.draft_recoveries, undefined);
+    assert.equal(parsed.custody.draft_removal_claims, undefined);
+  }
   assert.equal(parsed.custody.opportunity, opportunity);
   assert.equal(draft.tag_name, `portcove-production-candidate-${opportunity}`);
   assert.equal(draft.target_commitish, parsed.custody.source);
