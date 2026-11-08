@@ -92,8 +92,11 @@ fn generic_projection() -> Value {
 }
 
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
+    entry_with_reference(document, &target(contract), port_index)
+}
+
+fn entry_with_reference(document: &Value, reference: &str, port_index: usize) -> Value {
     let port = &document["catalog"]["ports"][port_index];
-    let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
     let version = if crate::preparation::source::native(&typed) {
@@ -392,9 +395,10 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
     let document = projection();
     println!("full catalog projection loaded: {:?}", clock.elapsed());
     let contract = serde_json::to_vec_pretty(&document).unwrap();
+    let reference = target(&contract);
     let entries: Vec<_> = (0..document["catalog"]["ports"].as_array().unwrap().len())
         .map(|port_index| {
-            let value = entry(&document, &contract, port_index);
+            let value = entry_with_reference(&document, &reference, port_index);
             let bytes = serde_json::to_vec_pretty(&value).unwrap();
             (value, bytes)
         })
@@ -416,7 +420,7 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
             .inspect_entry("official", value["stable_id"].as_str().unwrap(), bytes)
             .unwrap();
         assert_eq!(inspected.bytes(), *bytes);
-        assert_eq!(inspected.execution_contract(), target(&contract));
+        assert_eq!(inspected.execution_contract(), reference.as_str());
         assert_eq!(
             serde_json::to_value(inspected.port()).unwrap(),
             value["port"]
@@ -449,7 +453,7 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
         .unwrap();
     assert_eq!(result.entry().bytes(), *bytes);
     assert_eq!(result.contract_bytes(), contract);
-    assert_eq!(result.contract_target(), target(&contract));
+    assert_eq!(result.contract_target(), reference.as_str());
     assert_eq!(
         serde_json::to_value(result.catalog().authoritative_document()).unwrap(),
         document["catalog"]

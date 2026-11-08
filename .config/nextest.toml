@@ -135,6 +135,16 @@ filter = 'package(portcove-core) & test(/^definition_repository::tests::publishe
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Windows cut this exact published revocation fixture at 30.043s and
+# 30.046s on CI 42532721334 attempts 1 and 2. The same fixture passed
+# at 18.129s on 42523678706 attempt 2. Match its existing Intel budget
+# while keeping assertions, cleanup, product deadlines and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_revocation_preserves_payload$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The complete compatible-runtime fixture in41893774776/a1 Windows2 took
 # 183.584s for MMX2 and122.389s/113.682s for the other two consumers.
 # These explicit predecessor-transition cases include the same populated
