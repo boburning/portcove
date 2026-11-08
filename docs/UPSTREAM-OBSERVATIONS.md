@@ -213,8 +213,12 @@ without repeating completed Core calls. Provider and Core clocks are never
 manufactured by a later resume.
 
 Request admission uses received provider capacity with a five-percent reserve,
-observed request cost and remaining runtime. Eligible sources without a recorded
-turn go first, then the least recently attempted sources. Unknown quota uses
+observed request cost and remaining runtime. Sources serving at least one managed
+port go before listing-only sources, because their releases can change what
+players install. Within each group, eligible sources without a recorded turn go
+first, then the least recently attempted sources. A completed managed source
+leaves the pending set until it is due again, so listing-only sources still
+receive turns. Unknown quota uses
 the existing finite request envelope; it is not assumed available. Quantum/runtime
 exhaustion has no provider retry clock. Actual depletion and provider retry
 responses defer the shared provider until its reset. A budget-limited source with

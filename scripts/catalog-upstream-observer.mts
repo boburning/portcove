@@ -577,6 +577,8 @@ export async function advanceCatalogObservations(
     options.prioritizeConfigured === true &&
     (isScheduledPriority(source) ||
       (isConfigured(source) && state.sources[source.key]?.attempted_sequence !== state.sequence));
+  const servesManagedPort = (source: ObservableSource) =>
+    source.ports.some((port) => port.kind !== "listing");
   const pending = sources
     .filter((source) => {
       if (options.excludedSources?.has(source.key)) return false;
@@ -586,11 +588,15 @@ export async function advanceCatalogObservations(
         (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
       );
     })
-    // Prefer the selected scopes once per hosted opportunity. The durable
-    // rotation still orders each group.
+    // Prefer the selected scopes once per hosted opportunity, then sources
+    // that serve a managed port: their releases can change what players
+    // install, while listing-only sources are descriptive. A completed
+    // managed source leaves `pending` until it is due again, so listing-only
+    // sources still receive turns. The durable rotation orders each group.
     .sort(
       (a, b) =>
         Number(earlyTurn(b)) - Number(earlyTurn(a)) ||
+        Number(servesManagedPort(b)) - Number(servesManagedPort(a)) ||
         (state.sources[a.key]?.attempted_sequence ?? -1) -
           (state.sources[b.key]?.attempted_sequence ?? -1) ||
         a.key.localeCompare(b.key),
