@@ -1440,7 +1440,7 @@ operation grants availability for a subsequent effect. Source/configuration loss
 revocation or boundary drift refuses, and unrelated admission holds remain holds.
 
 The selected `initial-beta-windows-x86_64-v1` controller graph declares a
-140-minute application ceiling and a separate 40-minute catalog alternative;
+141-minute application ceiling and a separate 41-minute catalog alternative;
 these purposes are mutually exclusive. The workflow digest, complete allocation
 arrays and policy digest must match the exact appointed source. These ceilings
 are not measured runtime, free-provider headroom or a capacity reservation. The
