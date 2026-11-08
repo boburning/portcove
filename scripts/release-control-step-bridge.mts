@@ -218,9 +218,11 @@ export function inspectControlStepReadiness(
     raw.producer.controller_ref !== expected.ref ||
     String(raw.producer.run_id) !== expected.run_id ||
     raw.producer.run_attempt !== 1 ||
-    ![raw.producer.job_id, raw.producer.check_run_id].every(
-      (x) => typeof x === "number" && Number.isSafeInteger(x) && x > 0,
-    ) ||
+    typeof raw.producer.job_id !== "number" ||
+    !Number.isSafeInteger(raw.producer.job_id) ||
+    raw.producer.job_id < 1 ||
+    typeof raw.producer.check_run_id !== "string" ||
+    !/^[1-9][0-9]{0,15}$/u.test(raw.producer.check_run_id) ||
     typeof raw.facts_sha256 !== "string" ||
     !/^[a-f0-9]{64}$/u.test(raw.facts_sha256)
   )

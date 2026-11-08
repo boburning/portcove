@@ -59,6 +59,7 @@ on:
       - scripts/release-controller-tool*.mts
       - scripts/release-controller-job-bootstrap.mts
       - scripts/release-controller-diagnostics.mts
+      - scripts/release-control-step-bridge.mts
       - scripts/release-controller-wake.mts
       - scripts/application-release-private.mts
       - scripts/application-release-budget*.mts
