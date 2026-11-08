@@ -21691,6 +21691,16 @@
           ],
           "warnings": [
             "Keep portable.txt when updating this folder so the game continues to use its local saves and settings."
+          ],
+          "references": [
+            {
+              "title": "Prepare a separate upstream Linux copy",
+              "instruction": "For an already permitted Linux x64 package, keep the files together in a writable folder. Install the system SDL2, GTK 3, FreeType and Vulkan dependencies named in its README. Run WaveRace64Recomp.sh and select your own Wave Race 64 USA Rev A original."
+            },
+            {
+              "title": "Preserve the Linux profile",
+              "instruction": "Keep the creating runtime, original and actual profile. Linux uses XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. A portable.txt beside the player instead keeps data there. This Linux setup stays under upstream and player ownership."
+            }
           ]
         },
         "artwork": {
