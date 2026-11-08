@@ -44352,7 +44352,7 @@
     {
       "id": "rocket-robot-on-wheels-rocket-r",
       "name": "Rocket: Robot on Wheels (Rocket-R)",
-      "summary": "Explore Rocket: Robot on Wheels (Rocket-R) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Rocket: Robot on Wheels with your own matching US game file.",
       "project_url": "https://github.com/ThatGuyMcd/Rocket-R",
       "issue_number": 1449,
       "availability": "packages",
@@ -44377,21 +44377,38 @@
             "instruction": "Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Rocket-R. Keep a separate backup of the actual profile before changing versions; older versions may not read newer saves. Its external profile is outside Portcove backup and runtime rollback; rollback does not rewind saves. Keep each release’s own bundled engine/mod resources together, and keep custom --config or developer paths backed up separately."
           },
           {
-            "title": "Linux uses its own upstream launcher",
-            "instruction": "Choose the Linux x86-64 AppImage, or extract the Linux Portable archive and deliberately run Launch-Rocket-R.sh when ordinary AppImage launch is unavailable. The tar.gz contains an AppImage and wrapper, not a bare native player. Steam Deck uses the separate x86-64 Steam Deck archive and START-ROCKET-R.sh; ARM64 packages are different choices. Follow the upstream Linux profile and update instructions and preserve the current copy. Portcove’s managed Windows route does not manage this wrapper."
+            "title": "Choose the Linux package for your system",
+            "instruction": "On x64 or ARM64 Linux, make the matching AppImage executable and open it. The packaged game needs glibc 2.35 and GLIBCXX 3.4.30. If you use a Portable archive, unpack the whole folder and run Launch-Rocket-R.sh. On Steam Deck, unpack the separate x64 Steam Deck archive and run START-ROCKET-R.sh from its folder. It launches the included AppDir directly."
           },
           {
-            "title": "Android keeps its own private copy",
-            "instruction": "Use the separate Android ARM64 APK on the Android device, open Rocket-R and select your own matching US ROM. The app keeps a private ROM copy; preserve its actual app saves and settings before updating, clearing storage or uninstalling. Its update and data handling stay with Android/upstream. Desktop archive inspection does not qualify Android execution or every device."
+            "title": "Open Rocket-R on Android",
+            "instruction": "Install the ARM64 APK on Android 7 or later on a device with the required Vulkan 1.2 features. Open Rocket-R and choose your matching US ROM. The app keeps a private ROM copy and its saves and settings. Back up what you can access before clearing app storage or uninstalling. The upstream Android build is experimental, and some devices may fail to start it."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/d64e42a1e364c867d9ff100637d90fd8e27e5ac8/README.md"
+        "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/d64e42a1e364c867d9ff100637d90fd8e27e5ac8/README.md",
+        "references": [
+          {
+            "title": "Check your original game file",
+            "instruction": "Rocket-R accepts your own US game with code NSUE, 12 MiB and canonical SHA-1 622d71a44da0b81ea68092cac9198c66154a4f4a. The desktop launcher accepts .z64, .n64 and .v64 files."
+          },
+          {
+            "title": "Find your Linux profile and launch logs",
+            "instruction": "By default the game uses $XDG_CONFIG_HOME/rocket-r or ~/.config/rocket-r for settings, saves and mod profiles. A custom --config path or the rocket-r-data fallback changes where you need to back up. The upstream launcher records logs in $XDG_STATE_HOME/rocket-r or ~/.local/state/rocket-r, with a temporary-directory fallback when needed."
+          }
+        ]
       },
       "original_game_title": "Rocket: Robot on Wheels",
       "platforms": [
-        "windows-x86-64"
-      ]
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "Rocket-R-",
+          "-Linux-x86_64.AppImage"
+        ]
+      }
     },
     {
       "id": "rogue-trip-vacation-2012-recompiled",
@@ -49225,35 +49242,62 @@
         "steps": [
           {
             "title": "Keep the matching original",
-            "instruction": "Use your own unchanged US Super Mario 64 big-endian .z64 original. The selected v1.5.1 runtime accepts MD5 20b854b239203baf6c961b850a4a51a2; its other regional table entries are disabled. Upstream scans the player/user folders or accepts a deliberate ROM drop, and may copy the accepted original to its user profile as baserom.us.z64. Preserve the original independently; byte-swapped, modified and other-region files are different inputs. An already existing cached baserom.us.z64 is not overwritten by a newly selected ROM; preserve and check the actual upstream copy rather than assuming selection replaced it."
+            "instruction": "Use your own unchanged US Super Mario 64 game in big-endian .z64 format. Select it in the game and keep your original separately. The game can copy it to your profile as baserom.us.z64. If a copy already exists there, the game keeps it when you select another file."
           },
           {
-            "title": "Finish upstream setup and select the real player",
-            "instruction": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+            "title": "Prepare the Windows game",
+            "instruction": "Unpack the complete Windows ZIP into a writable folder and finish the original-file setup. Keep the game program, lang, dynos, mods and libraries together. Add the working sm64coopdx.exe to Portcove with its containing folder as the start folder and retain your existing launch options."
           },
           {
-            "title": "Register the existing player and use explicit Play",
-            "instruction": "You manage this external game and all its original files and saved data. Portcove saves the executable, working folder and launch arguments you select; it does not authenticate the complete package or original game files. Choose Play explicitly when you are ready. Removing the registration leaves external files in place. Portcove does not offer updates, backups, rollback, data migration or external-file deletion for this copy. Finish setup with the project’s tools and add only a working game. These instructions do not confirm successful setup, gameplay or save-state compatibility."
+            "title": "Play or replace your working game",
+            "instruction": "After adding your Windows or Linux game, choose Play. Use upstream tools to replace the game or manage its saves. Removing the Portcove registration leaves the game and data in place. Close the game and its updater before replacing files."
+          },
+          {
+            "title": "Open the Linux or Steam Deck game",
+            "instruction": "Unpack the complete x64 Linux ZIP and run sm64coopdx from that folder so it can find its bundled libraries. To add an already working Linux copy to Portcove, select sm64coopdx with the unpacked folder as its start folder. The game needs glibc 2.34, GLIBCXX 3.4.29, OpenGL, SDL2, zlib and curl. The separate SteamOS archive in v1.5.1 has the same requirements and different default settings. The publisher directs Steam Deck players to the Linux package from v1.6 onward."
+          },
+          {
+            "title": "Open the macOS app",
+            "instruction": "Choose the Intel or Apple Silicon ZIP that matches your Mac and keep the complete sm64coopdx.app. Start it directly and select your original game file. The v1.5.1 game requires macOS 11 or later. Its bundled updater requires macOS 12 or later."
           }
         ],
         "warnings": [
-          "Add your prepared game to Portcove, then choose Play separately. These instructions do not establish Portcove-managed installation, the authenticity of original game files, gameplay or save-state compatibility.",
-          "A managed route must first settle upstream updater/replacement ownership, legacy profile fallback and original copying without adopting populated data. Preserve the non-owning already prepared player; no new generic N64/source planner is requested.",
-          "Before explicit Play, preserve the actual existing user profile and creating runtime.",
-          "Preserve both relevant roots and the actual selected path, copied ROM, saves, configuration, mods and caches. A new executable folder does not isolate these profiles. Do not change the path, adopt populated legacy data, add mods or migrate profiles through this guide. Upstream can start its own updater and successor process; close all game/updater windows and confirm they stopped before copying or replacing files."
+          "To move to v1.5.1 on Linux or Mac, replace the game using the complete upstream archive after backing up your actual profile. Upstream requires a manual update to replace the earlier updater."
         ],
         "help_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1",
         "references": [
           {
             "title": "Keep the game version and data you use",
             "instruction": "Before explicit Play, preserve the actual existing user profile and creating runtime. On Windows the upstream default checks %APPDATA%/sm64coopdx and can instead reuse a populated %APPDATA%/sm64ex-coop folder; an existing --savepath override changes that selection. Preserve both relevant roots and the actual selected path, copied ROM, saves, configuration, mods and caches. A new executable folder does not isolate these profiles. Do not change the path, adopt populated legacy data, add mods or migrate profiles through this guide. Upstream can start its own updater and successor process; close all game/updater windows and confirm they stopped before copying or replacing files."
+          },
+          {
+            "title": "Find your Linux or Mac profile",
+            "instruction": "The game uses SDL’s per-user data folder. On Linux look in $XDG_DATA_HOME or ~/.local/share. On Mac look in ~/Library/Application Support. The game can reuse a populated sm64ex-coop folder when sm64coopdx is empty. Preserve the actual folder with your original copy, saves, mods and settings. If you use --savepath, preserve that selected folder."
+          },
+          {
+            "title": "Check the original game file",
+            "instruction": "The v1.5.1 game accepts the big-endian US original with MD5 20b854b239203baf6c961b850a4a51a2. Other regions, byte-swapped images and modified files are different inputs."
           }
         ]
       },
       "original_game_title": "Super Mario 64",
       "platforms": [
-        "windows-x86-64"
-      ]
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "sm64coopdx_Linux.zip"
+        ],
+        "macos-x86-64": [
+          "sm64coopdx_macOS_Intel.zip"
+        ],
+        "macos-aarch64": [
+          "sm64coopdx_macOS_ARM.zip"
+        ]
+      }
     },
     {
       "id": "super-mario-all-stars-smas-launcher",
