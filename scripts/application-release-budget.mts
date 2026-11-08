@@ -14,6 +14,7 @@ import {
   emptyApplicationBootstrap,
   immutableApplicationBootstrap,
   failedBootstrapRecovery,
+  retainedServedRenewal,
   isEmptyApplicationBootstrapCustody,
   readApplicationBudgetOwnerAsync,
 } from "./application-release-run.mts";
@@ -405,6 +406,81 @@ export function permitsEmptyBootstrapContinuation(
   );
 }
 
+/** Permit a single repaired producer on the original renewal cost scope. */
+export function permitsRetainedServedRenewalContinuation(
+  runs: readonly Record<string, unknown>[],
+  execution: ReturnType<typeof inspectApplicationReleaseExecution>,
+  opportunity: string,
+  purpose: unknown,
+  executionPath: unknown,
+  owner: ApplicationBudgetContext | undefined,
+) {
+  const expected = retainedServedRenewal;
+  const custody = owner?.custody;
+  if (
+    opportunity !== expected.opportunity ||
+    purpose !== "metadata-renewal" ||
+    executionPath !== "metadata-maintenance" ||
+    execution.ref !== expected.next_ref ||
+    execution.run_attempt !== 1 ||
+    owner?.release_id !== expected.release_id ||
+    custody?.opportunity !== opportunity ||
+    custody.source !== expected.source ||
+    custody.source_tree !== expected.source_tree ||
+    custody.preparation !== null ||
+    custody.budget !== undefined ||
+    runs.length !== 4
+  )
+    return false;
+
+  const prior = expected.predecessors;
+  const current = {
+    id: execution.run_id,
+    control_commit: execution.source,
+    control_ref: execution.ref,
+  };
+  const observed = new Map(runs.map((run) => [run.id, run]));
+  const isRun = (
+    actor: ApplicationBudgetContext["custody"]["runs"][number],
+    status: "completed" | "in_progress",
+  ) => {
+    const row = observed.get(Number(actor.id));
+    return (
+      row?.head_sha === actor.control_commit &&
+      row.head_branch === actor.control_ref.slice("refs/tags/".length) &&
+      row.run_attempt === 1 &&
+      row.status === status &&
+      (status === "in_progress" || row.conclusion === "failure")
+    );
+  };
+  const [burned, next, extra] = custody.metadata_contexts ?? [];
+  return (
+    observed.size === runs.length &&
+    isRun(current, "in_progress") &&
+    prior.every((actor) => isRun(actor, "completed")) &&
+    isDeepStrictEqual(custody.runs, [
+      ...prior
+        .slice(1)
+        .map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref })),
+      current,
+    ]) &&
+    burned?.opportunity === opportunity &&
+    burned.run_id === prior[2].id &&
+    burned.run_attempt === 1 &&
+    burned.control_commit === prior[2].control_commit &&
+    burned.control_ref === prior[2].control_ref &&
+    burned.context_sha256 === expected.context_sha256 &&
+    burned.context_inventory_sha256 === expected.context_inventory_sha256 &&
+    extra === undefined &&
+    (next === undefined ||
+      (next.opportunity === opportunity &&
+        next.run_id === current.id &&
+        next.run_attempt === 1 &&
+        next.control_commit === current.control_commit &&
+        next.control_ref === current.control_ref))
+  );
+}
+
 const retainedBootstrapRuns = [
   ...emptyBootstrapContinuation.predecessors,
   {
@@ -652,6 +728,14 @@ export async function readApplicationJobBudget(
     executionPath,
     owner,
   );
+  const servedRenewalContinuation = permitsRetainedServedRenewalContinuation(
+    runs,
+    execution,
+    opportunity,
+    purpose,
+    executionPath,
+    owner,
+  );
   const retainedDiagnostics =
     executionPath === "bootstrap-recovery" ? bootstrapDiagnosticCharges : [];
   const currentId = Number(execution.run_id);
@@ -689,7 +773,7 @@ export async function readApplicationJobBudget(
     );
     attempts += Number(run.run_attempt);
     assert.ok(
-      budgetedBootstrap || attempts <= (continuation ? 4 : 3),
+      budgetedBootstrap || attempts <= (continuation || servedRenewalContinuation ? 4 : 3),
       "release opportunity exhausted its bounded attempts across runs",
     );
     const observed = recoveryObservations?.get(Number(run.id));
@@ -716,6 +800,14 @@ export async function readApplicationJobBudget(
           prior.milliseconds,
           "bootstrap predecessor cost changed",
         );
+    }
+    if (servedRenewalContinuation && !current) {
+      const prior = retainedServedRenewal.predecessors.find(({ id }) => id === String(run.id));
+      assert.equal(
+        result.actual_milliseconds,
+        prior?.milliseconds,
+        "served renewal predecessor cost changed",
+      );
     }
     if (budgetedBootstrap && !current && isContextOnlyBootstrap(run)) {
       const evidence = observations[0]?.jobs;

@@ -6,6 +6,7 @@ import {
   applicationNativeJobMinutes,
   readApplicationJobBudget,
   permitsEmptyBootstrapContinuation,
+  permitsRetainedServedRenewalContinuation,
   permitsBudgetedEmptyBootstrap,
   readBootstrapRecoveryObservations,
 } from "./application-release-budget.mts";
@@ -16,6 +17,7 @@ import {
   createApplicationRunRegistrationProvider,
   immutableApplicationBootstrap,
   failedBootstrapRecovery,
+  retainedServedRenewal,
 } from "./application-release-run.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
@@ -714,6 +716,129 @@ void test("forward metadata maintenance counts original executions, refuses miss
         (scope) => scope.opportunity === child && scope.run_ids.includes("124"),
       ),
     "refused maintenance run stays in the original cost record",
+  );
+});
+
+void test("only the exact retained renewal can admit a fourth execution and carry its version floor", () => {
+  const selected = retainedServedRenewal;
+  const { opportunity, predecessors, release_id } = selected;
+  const current: Parameters<typeof permitsRetainedServedRenewalContinuation>[1] = {
+    source,
+    ref: selected.next_ref,
+    run_id: run,
+    run_attempt: 1,
+  };
+  const active = {
+    id: Number(run),
+    head_sha: source,
+    head_branch: current.ref.slice(10),
+    run_attempt: 1,
+    status: "in_progress",
+  };
+  const inventory = [
+    ...predecessors.map((actor) => ({
+      id: Number(actor.id),
+      head_sha: actor.control_commit,
+      head_branch: actor.control_ref.slice(10),
+      run_attempt: 1,
+      status: "completed",
+      conclusion: "failure",
+    })),
+    active,
+  ];
+  const original = {
+    opportunity,
+    run_id: predecessors[2].id,
+    run_attempt: 1,
+    control_commit: predecessors[2].control_commit,
+    control_ref: predecessors[2].control_ref,
+    generated_at: "2026-11-08T03:32:00.089Z",
+    root_sha256: "a".repeat(64),
+    offline_targets_sha256: "b".repeat(64),
+    prior_repository_sha256: "c".repeat(64),
+    context_sha256: selected.context_sha256,
+    context_inventory_sha256: selected.context_inventory_sha256,
+    records_sha256: "d".repeat(64),
+    versions: {
+      targets: "1",
+      snapshot: "2",
+      timestamp: "2",
+      releases: "2",
+      preview: "2",
+      stable: "2",
+    },
+  };
+  const next = {
+    ...original,
+    run_id: run,
+    control_commit: source,
+    control_ref: current.ref,
+    generated_at: "2026-11-08T04:00:00Z",
+    context_sha256: "f".repeat(64),
+    versions: {
+      targets: "1",
+      snapshot: "3",
+      timestamp: "3",
+      releases: "3",
+      preview: "3",
+      stable: "3",
+    },
+  };
+  const custody = inspectApplicationRunCustody({
+    schema_version: 3,
+    kind: "application-release-run-custody",
+    source: selected.source,
+    source_tree: selected.source_tree,
+    opportunity,
+    preparation: null,
+    runs: [
+      ...predecessors
+        .slice(1)
+        .map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref })),
+      { id: run, control_commit: source, control_ref: current.ref },
+    ],
+    metadata_contexts: [original],
+  });
+  const permit = (rows = inventory, actor = current, retained = custody) =>
+    permitsRetainedServedRenewalContinuation(
+      rows,
+      actor,
+      opportunity,
+      "metadata-renewal",
+      "metadata-maintenance",
+      { release_id, custody: retained },
+    );
+  assert.equal(permit(), true);
+  assert.equal(
+    permit(
+      inventory,
+      current,
+      inspectApplicationRunCustody({ ...custody, metadata_contexts: [original, next] }),
+    ),
+    true,
+  );
+  assert.equal(permit(inventory.slice(1)), false, "unregistered r30 must still be charged");
+  assert.equal(
+    permit([...inventory, { ...active, id: Number(run) + 1 }]),
+    false,
+    "no fifth execution",
+  );
+  assert.equal(permit(inventory, { ...current, run_attempt: 2 }), false);
+  assert.equal(permit(inventory, { ...current, ref: predecessors[2].control_ref }), false);
+  assert.equal(
+    permit(
+      inventory.map((row) =>
+        row.id === Number(predecessors[2].id) ? { ...row, conclusion: "success" } : row,
+      ),
+    ),
+    false,
+  );
+  assert.equal(
+    permit(inventory, current, {
+      ...custody,
+      metadata_contexts: [{ ...original, context_sha256: next.context_sha256 }],
+    }),
+    false,
   );
 });
 

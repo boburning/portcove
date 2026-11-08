@@ -35,6 +35,7 @@ import {
   retainApplicationPreparation,
   inspectApplicationQualificationIdentity,
   readApplicationRunNotes,
+  retainedServedRenewal,
   immutableApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
   registerApplicationBudgetRun,
@@ -739,12 +740,6 @@ async function recoverImmutableBootstrapFeed() {
   await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
 }
 
-const servedRenewalDraft = {
-  opportunity: "c4cb09d9e84f80cc4a4c1bb8468ae074a80eeefb46e9cb72fb202b625cb826f3",
-  release_id: 437990696,
-  notes_sha256: "501cbbb52ae94348075a300a3d1b720de9aeb197d13f2586758931c9c3c192a0",
-} as const;
-
 async function renewPublishedMetadata() {
   const execution = inspectApplicationReleaseExecution(process.env);
   await verifyApplicationReleaseTrust();
@@ -794,16 +789,17 @@ async function renewPublishedMetadata() {
     await beforeSourceWrite(known, context);
   };
   const registration =
-    opportunity === servedRenewalDraft.opportunity
+    opportunity === retainedServedRenewal.opportunity
       ? await resumeApplicationMetadataDraft(
           provider,
           execution,
           opportunity,
           {
-            release_id: servedRenewalDraft.release_id,
-            notes_sha256: servedRenewalDraft.notes_sha256,
+            release_id: retainedServedRenewal.release_id,
+            notes_sha256: retainedServedRenewal.notes_sha256,
           },
           beforeWrite,
+          retainedServedRenewal.context_sha256,
         )
       : await registerApplicationReleaseRun(
           provider,

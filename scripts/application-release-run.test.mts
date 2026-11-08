@@ -917,6 +917,64 @@ function metadataReservation(
   };
 }
 
+void test("retained renewal draft continues with the exact prior reservation as its version floor", async () => {
+  const f = fixture();
+  const opportunity = "d".repeat(64);
+  const initial = await registerApplicationReleaseRun(
+    f.registration,
+    execution,
+    source,
+    tree,
+    opportunity,
+    f.guard,
+  );
+  const firstPlan = await readApplicationMetadataContextPlan(f.registration, initial, execution);
+  const burned = metadataReservation(opportunity, firstPlan.generated_at, "2");
+  f.releases[0]!.assets = [];
+  await retainApplicationMetadataContext(
+    f.registration,
+    initial,
+    execution,
+    burned,
+    async () => {},
+  );
+  const appointment = {
+    release_id: initial.release_id,
+    notes_sha256: createHash("sha256").update(String(f.releases[0]!.body)).digest("hex"),
+  };
+  const next = { ...execution, source: "e".repeat(40), run_id: "124" };
+  const before = f.mutations.length;
+  await assert.rejects(
+    resumeApplicationMetadataDraft(f.registration, next, opportunity, appointment, f.guard),
+  );
+  await assert.rejects(
+    resumeApplicationMetadataDraft(
+      f.registration,
+      next,
+      opportunity,
+      appointment,
+      f.guard,
+      "f".repeat(64),
+    ),
+  );
+  assert.equal(f.mutations.length, before);
+  const resumed = await resumeApplicationMetadataDraft(
+    f.registration,
+    next,
+    opportunity,
+    appointment,
+    f.guard,
+    burned.context_sha256,
+  );
+  assert.equal(resumed.custody.source, source);
+  assert.deepEqual(resumed.custody.metadata_contexts, [burned]);
+  assert.deepEqual(resumed.known_run_ids, [execution.run_id, next.run_id]);
+  const newPlan = await readApplicationMetadataContextPlan(f.registration, resumed, next);
+  assert.equal(newPlan.existing, undefined);
+  assert.deepEqual(newPlan.previous_reserved_versions, burned.versions);
+  assert.equal(f.mutations.length, before + 1);
+});
+
 void test("native context reservations freeze full bytes and burn versions under the original cost owner", async () => {
   const f = fixture(),
     opportunity = "d".repeat(64);
