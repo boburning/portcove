@@ -729,7 +729,7 @@ export function requireBootstrapDraft(raw: unknown, expected: BootstrapDraftReco
   assert.equal(createHash("sha256").update(raw.body).digest("hex"), expected.notes_sha256);
 }
 
-export async function resumeApplicationBootstrapDraft(
+export async function resumeApplicationMetadataDraft(
   provider: ApplicationRunRegistrationProvider,
   execution: Execution,
   opportunity: string,
@@ -748,7 +748,7 @@ export async function resumeApplicationBootstrapDraft(
       parsed.custody.preparation === null &&
       parsed.custody.budget === undefined &&
       parsed.custody.metadata_contexts === undefined,
-    "bootstrap draft already has later custody",
+    "metadata draft already has later custody",
   );
   assert.equal(parsed.custody.opportunity, opportunity);
   assert.equal(draft.tag_name, `portcove-production-candidate-${opportunity}`);
@@ -1576,8 +1576,15 @@ async function writeApplicationMetadataNotes(
   await beforeWrite();
   assert.deepEqual(await get(), before, "metadata owner changed during admission");
   if (body !== before.body) {
+    let draftIdentity: Parameters<ApplicationReleaseNotesProvider["appendNotes"]>[2];
+    if (before.draft === true) {
+      assert.equal(before.immutable, false);
+      assert.ok(typeof before.tag_name === "string" && before.tag_name.length > 0);
+      assert.ok(typeof before.target_commitish === "string" && before.target_commitish.length > 0);
+      draftIdentity = { tag_name: before.tag_name, target_commitish: before.target_commitish };
+    }
     try {
-      const result = await provider.appendNotes(owner.release_id, body);
+      const result = await provider.appendNotes(owner.release_id, body, draftIdentity);
       assert.equal(result.status, 200);
     } catch {
       /* Exact readback resolves an ambiguous write; no repeated PATCH. */

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readFile, rm, access } from "node:fs/promises";
+import { mkdtemp, readFile, rm, access, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -15,6 +15,7 @@ import {
   inspectApplicationRenewalSource,
   assertApplicationRenewalContext,
   prepareApplicationMetadataRenewalContext,
+  inspectApplicationContextBeforeKey,
 } from "./application-release-context.mts";
 import { applicationReleaseTrust } from "./application-release-policy.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -27,6 +28,30 @@ import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { receiveApplicationData, sha256 } from "./application-release-io.mts";
 import { isRecord } from "./runtime-values.mts";
+
+void test(
+  "pre-key context inspection creates the isolated verifier temporary directory",
+  { skip: process.platform === "win32" },
+  async (t) => {
+    const scratch = await mkdtemp(path.join(os.tmpdir(), "application-prekey-"));
+    t.after(() => rm(scratch, { recursive: true, force: true }));
+    const tool = path.join(scratch, "verifier");
+    const output = JSON.stringify({
+      schema_version: 1,
+      authority: "none",
+      root_sha256: applicationReleaseTrust.root.sha256,
+      payload_key_registry_sha256: applicationReleaseTrust.payload.sha256,
+    });
+    await writeFile(
+      tool,
+      `#!/bin/sh\nset -eu\n[ "$1" = inspect-tuf-context ]\n[ "$TMPDIR" = "${scratch}/temp" ]\n: > "$TMPDIR/verifier-created"\nprintf '%s' '${output}'\n`,
+      { mode: 0o700 },
+    );
+    assert.equal(inspectApplicationContextBeforeKey(scratch, tool, scratch).authority, "none");
+    await access(path.join(scratch, "temp", "verifier-created"));
+    assert.throws(() => inspectApplicationContextBeforeKey(scratch, tool, scratch), /EEXIST/u);
+  },
+);
 
 void test("metadata renewal binds one stable public basis and its exact authenticated-context input", async (t) => {
   // These declared bytes exercise the join, not TUF signature verification.
