@@ -856,6 +856,32 @@ export function createWatchProgress(write: (text: string) => void) {
   };
 }
 
+function watchedOutcome(
+  context: WatchContext,
+  jobs: readonly DeliveryJob[] | undefined,
+  workflow: { run: number; attempt: number; status: string },
+) {
+  if (
+    context.outcome === "failure" &&
+    context.source === "check-run" &&
+    context.check_run_id !== undefined &&
+    workflow.status !== "completed" &&
+    jobs?.some(
+      (job) =>
+        job.name === context.context &&
+        job.run_id === workflow.run &&
+        job.status === "completed" &&
+        job.conclusion === context.conclusion &&
+        job.run_attempt > 0 &&
+        job.run_attempt < workflow.attempt &&
+        job.check_run_url ===
+          `https://api.github.com/repos/${repository}/check-runs/${context.check_run_id}`,
+    )
+  )
+    return "pending";
+  return context.outcome;
+}
+
 export async function watchRequiredChecks(
   client: WatchClient,
   {
@@ -952,7 +978,11 @@ export async function watchRequiredChecks(
         "watch run creation time or deadline is invalid",
         evidence(),
       );
-    const failures = state.contexts.filter((context) => context.outcome === "failure");
+    const workflow = { run, attempt, status: observed.status };
+    const { jobs } = state;
+    const failures = state.contexts.filter(
+      (context) => watchedOutcome(context, jobs, workflow) === "failure",
+    );
     if (failures.length)
       throw deliveryOutcomeError(
         "failed",
@@ -1303,7 +1333,13 @@ function assertInspectionPull(pull: DeliveryPull) {
 export async function inspectDelivery(
   client: Pick<
     PullRequestDeliveryClient,
-    "pull" | "branch" | "checkRuns" | "commitStatuses" | "workflowRun" | "beginObservation"
+    | "pull"
+    | "branch"
+    | "checkRuns"
+    | "commitStatuses"
+    | "workflowRun"
+    | "requiredCheckState"
+    | "beginObservation"
   >,
   {
     number,
@@ -1325,11 +1361,6 @@ export async function inspectDelivery(
     assertInspectionPull(pull);
     const ref = pull.base.ref!;
     const target = (await client.branch(ref)).commit.sha;
-    const checks = requiredCheckContexts(
-      await client.checkRuns(pull.head.sha),
-      await client.commitStatuses(pull.head.sha),
-      contexts,
-    ).map(({ context, outcome }) => ({ context, outcome }));
     const observeReference = async (
       kind: "review" | "acceptance" | "watcher",
     ): Promise<InspectionEvidence> => {
@@ -1387,6 +1418,31 @@ export async function inspectDelivery(
     const review = await observeReference("review");
     const acceptance = await observeReference("acceptance");
     const watcher = await observeReference("watcher");
+    const binding = references?.watcher;
+    let checks;
+    if (watcher.state === "referenced" && binding && watcher.status) {
+      const { run, attempt } = binding;
+      const state = await client.requiredCheckState(number, head, contexts, { run, attempt });
+      const refreshed = await client.workflowRun(run);
+      if (
+        refreshed.head_sha !== head ||
+        refreshed.run_attempt !== attempt ||
+        refreshed.status !== watcher.status ||
+        refreshed.conclusion !== watcher.conclusion
+      )
+        throw new Error("workflow changed during inspection");
+      const workflow = { run, attempt, status: refreshed.status };
+      checks = state.contexts.map((context) => ({
+        context: context.context,
+        outcome: watchedOutcome(context, state.jobs, workflow),
+      }));
+    } else {
+      checks = requiredCheckContexts(
+        await client.checkRuns(pull.head.sha),
+        await client.commitStatuses(pull.head.sha),
+        contexts,
+      ).map(({ context, outcome }) => ({ context, outcome }));
+    }
     const after = await client.pull(number);
     assertInspectionPull(after);
     if (
@@ -1411,6 +1467,8 @@ export async function inspectDelivery(
       (await client.branch(ref)).commit.sha !== target
     )
       throw new Error("source, target or pull request state changed during inspection");
+    if (watcher.state === "referenced" && binding && now() >= Date.parse(binding.deadline))
+      throw new Error("watcher deadline expired during inspection");
     const next_action = pull.merged
       ? "Reconcile the owning issue and Project against confirmed merge readback."
       : pull.state === "closed"
@@ -1423,10 +1481,12 @@ export async function inspectDelivery(
               ? "Resolve conflicts or unknown mergeability with the current owner."
               : checks.some((check) => check.outcome === "failure")
                 ? "Inspect failed exact-head jobs and retained evidence before any repair or retry."
-                : checks.some((check) => check.outcome !== "success")
+                : checks.some((check) => check.outcome !== "success") ||
+                    (watcher.state === "referenced" &&
+                      (watcher.status !== "completed" || watcher.conclusion !== "success"))
                   ? watcher.state === "referenced"
                     ? watcher.status === "completed"
-                      ? "Inspect the identified terminal workflow and missing or pending gates; its watcher cannot resume or renew the deadline."
+                      ? "Inspect the identified terminal workflow and its gates; its watcher cannot resume or renew the deadline."
                       : "Continue the existing source-bound watcher with its original run, attempt and deadline."
                     : "Inspect the retained source-head run and reconcile its watcher binding; do not resume a stale wait or renew its deadline."
                   : review.state !== "referenced" || review.result !== "clear"

@@ -168,6 +168,10 @@ current delivery observation. Optional hashed review/acceptance/watcher referenc
 are described in [contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
 Missing or stale references stay unknown; the inspector performs no remote writes
 and establishes no new gate or approval authority.
+A current watcher reference lets inspection resolve checks against the same
+complete job lineage as the watcher. While a selective retry is active, an
+older failed check can wait for its replacement within the existing deadline.
+Current-attempt failures and failures on a terminal run remain actionable.
 
 Use one `just pr-watch` per source/run/attempt/deadline binding. Opt into
 `--progress` for change-only workflow/check observations on stderr while final
