@@ -6,7 +6,7 @@ import {
   readApplicationRunNotes,
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
-  resumeApplicationBootstrapDraft,
+  resumeApplicationMetadataDraft,
   inspectBootstrapDraftRecovery,
   retainApplicationPreparation,
   readRegisteredApplicationRuns,
@@ -160,7 +160,7 @@ void test("immutable metadata recovery appends only its existing cohort and neve
   assert.equal(f.mutations.length, 2);
 });
 
-void test("bootstrap successor retains the appointed empty draft and its original source", async () => {
+void test("metadata successor retains the appointed empty draft and its original source", async () => {
   const opportunity = "d".repeat(64);
   const next = { ...execution, source: "e".repeat(40), run_id: "124" };
   for (const fault of [
@@ -214,7 +214,7 @@ void test("bootstrap successor retains the appointed empty draft and its origina
         return structuredClone(f.releases);
       };
     }
-    const recovery = resumeApplicationBootstrapDraft(
+    const recovery = resumeApplicationMetadataDraft(
       f.registration,
       next,
       opportunity,
@@ -277,7 +277,7 @@ void test("bootstrap partial recovery preserves the appointed site asset and ref
       ...(fault === "unappointed" ? {} : { site_archive: asset }),
     };
     if (fault === "identity") (draft.assets as { id: number }[])[0]!.id++;
-    const result = resumeApplicationBootstrapDraft(
+    const result = resumeApplicationMetadataDraft(
       f.registration,
       { ...execution, run_id: "124" },
       source,
@@ -904,6 +904,14 @@ void test("native context reservations freeze full bytes and burn versions under
       assert.equal(f.mutations.length, 1, "reservation must precede any context consumer");
     },
   );
+  assert.deepEqual(f.mutations[1], {
+    method: "PATCH",
+    body: {
+      body: retained.notes,
+      tag_name: `portcove-production-candidate-${opportunity}`,
+      target_commitish: source,
+    },
+  });
   assert.equal(retained.custody.schema_version, 3);
   assert.deepEqual(retained.custody.metadata_contexts, [first]);
   assert.deepEqual(
@@ -978,6 +986,29 @@ void test("native context reservations freeze full bytes and burn versions under
     /reused an online version/,
   );
   assert.equal(readApplicationRunNotes(f.releases[0]!.body)!.custody.metadata_contexts?.length, 2);
+});
+
+void test("immutable metadata reservation sends only notes", async () => {
+  const f = fixture();
+  const owner = await registerApplicationReleaseRun(
+    f.registration,
+    execution,
+    source,
+    tree,
+    source,
+    async () => {},
+  );
+  Object.assign(f.releases[0]!, { draft: false, immutable: true });
+  const plan = await readApplicationMetadataContextPlan(f.registration, owner, execution);
+  const reservation = metadataReservation(source, plan.generated_at, "2");
+  const retained = await retainApplicationMetadataContext(
+    f.registration,
+    owner,
+    execution,
+    reservation,
+    async () => {},
+  );
+  assert.deepEqual(f.mutations[1], { method: "PATCH", body: { body: retained.notes } });
 });
 
 void test("related metadata contexts retain the original owner history and every registered run", async () => {

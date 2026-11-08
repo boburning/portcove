@@ -2,6 +2,7 @@
  * its contents; this envelope supplies no signing or publication authority. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
@@ -334,6 +335,7 @@ export function inspectApplicationContextBeforeKey(
   tool: string,
   scratch: string,
 ) {
+  mkdirSync(path.join(scratch, "temp"), { mode: 0o700 });
   const bytes = execFileSync(tool, ["inspect-tuf-context", path.join(directory, "context.json")], {
     env: payloadSigningEnvironment(scratch),
     timeout: 90000,

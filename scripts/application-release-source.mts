@@ -30,7 +30,7 @@ import {
 import {
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
-  resumeApplicationBootstrapDraft,
+  resumeApplicationMetadataDraft,
   inspectBootstrapDraftRecovery,
   retainApplicationPreparation,
   inspectApplicationQualificationIdentity,
@@ -631,7 +631,7 @@ async function bootstrap() {
     });
   }
   const registration = recoveryAppointment
-    ? await resumeApplicationBootstrapDraft(
+    ? await resumeApplicationMetadataDraft(
         provider,
         execution,
         expected.descriptor_sha256,
@@ -739,6 +739,12 @@ async function recoverImmutableBootstrapFeed() {
   await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
 }
 
+const servedRenewalDraft = {
+  opportunity: "c4cb09d9e84f80cc4a4c1bb8468ae074a80eeefb46e9cb72fb202b625cb826f3",
+  release_id: 437990696,
+  notes_sha256: "501cbbb52ae94348075a300a3d1b720de9aeb197d13f2586758931c9c3c192a0",
+} as const;
+
 async function renewPublishedMetadata() {
   const execution = inspectApplicationReleaseExecution(process.env);
   await verifyApplicationReleaseTrust();
@@ -775,21 +781,38 @@ async function renewPublishedMetadata() {
       isRecord(commit.tree) &&
       typeof commit.tree.sha === "string",
   );
-  const registration = await registerApplicationReleaseRun(
-    await createApplicationRunRegistrationProvider(),
-    execution,
-    execution.source,
-    commit.tree.sha,
-    opportunity,
-    async (known, context) => {
-      assert.deepEqual(
-        await discoverActualPublishedApplicationCohort(),
-        discovered,
-        "published renewal basis changed before source registration",
-      );
-      await beforeSourceWrite(known, context);
-    },
-  );
+  const provider = await createApplicationRunRegistrationProvider();
+  const beforeWrite: Parameters<typeof registerApplicationReleaseRun>[5] = async (
+    known,
+    context,
+  ) => {
+    assert.deepEqual(
+      await discoverActualPublishedApplicationCohort(),
+      discovered,
+      "published renewal basis changed before source registration",
+    );
+    await beforeSourceWrite(known, context);
+  };
+  const registration =
+    opportunity === servedRenewalDraft.opportunity
+      ? await resumeApplicationMetadataDraft(
+          provider,
+          execution,
+          opportunity,
+          {
+            release_id: servedRenewalDraft.release_id,
+            notes_sha256: servedRenewalDraft.notes_sha256,
+          },
+          beforeWrite,
+        )
+      : await registerApplicationReleaseRun(
+          provider,
+          execution,
+          execution.source,
+          commit.tree.sha,
+          opportunity,
+          beforeWrite,
+        );
   assert.equal(registration.custody.preparation, null);
   const packet = {
     schema_version: 1,
