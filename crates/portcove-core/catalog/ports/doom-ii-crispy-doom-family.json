@@ -34,11 +34,22 @@
         "Play opens the project’s setup and launch controls. Supply your own matching original game files that you are permitted to use.",
         "Portcove backups exclude external music packs, custom paths and data belonging to separately registered games."
       ],
-      "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
+      "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+      "references": [
+        {
+          "title": "Install the native package on Linux or Mac",
+          "instruction": "On Debian, install the crispy-doom package through the package manager. On Mac, use the upstream-documented MacPorts port or a supported Homebrew formula. Start crispy-doom with -iwad followed by the quoted path to your own DOOM2.WAD from Doom II or DOOM2F.WAD from the French edition. Use the external package manager for replacement."
+        },
+        {
+          "title": "Keep the existing Crispy profile",
+          "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
+        }
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["crispy-doom-", "-win64.zip"]
-    }
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

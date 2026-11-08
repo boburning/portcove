@@ -11,7 +11,10 @@
     "issue_number": 2594,
     "release_url": "https://github.com/openmoh/openmohaa/releases/tag/v0.82.1",
     "download_asset_hints": {
-      "windows-x86-64": ["openmohaa-", "-windows-x64.zip"]
+      "windows-x86-64": ["openmohaa-", "-windows-x64.zip"],
+      "linux-x86-64": ["-linux-amd64.zip"],
+      "macos-x86-64": ["-macos-multiarch-", "arm64", "x86_64", ".zip"],
+      "macos-aarch64": ["-macos-multiarch-", "arm64", "x86_64", ".zip"]
     },
     "recommended_download_channel": "stable",
     "manual_setup": {
@@ -34,9 +37,18 @@
         {
           "title": "Preserve your actual game data",
           "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+        },
+        {
+          "title": "Set up the native Linux or Mac archive",
+          "instruction": "Choose the official Linux amd64 or arm64 ZIP, or the universal Mac ZIP. The reviewed Linux builds need glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and SDL2. Keep the executable and libraries together in a separately prepared copy with your own patched PC data in main and maintt. If downloading through Portcove, clear “Extract the archive after downloading” and extract with your system tool so executable permissions are preserved. From that folder, run ./launch_openmohaa_breakthrough to select this game. The launch helper starts the game itself."
+        },
+        {
+          "title": "Use the ARM64 Windows package or preserve your Unix profile",
+          "instruction": "On Windows ARM64, select the official ARM64 ZIP and use launch_openmohaa_breakthrough.exe after preparing the same title data. Linux normally writes under ~/.openmohaa and Mac under ~/Library/Application Support/openmohaa. Keep the actual game folders, configuration, saves and any custom fs_homepath or com_homepath selections. You own these copies and profiles."
         }
       ]
-    }
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

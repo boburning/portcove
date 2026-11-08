@@ -12,7 +12,8 @@
     "release_url": "https://github.com/dhewm/dhewm3/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["dhewm3-1.", "_win32.zip"]
+      "windows-x86-64": ["dhewm3-1.", "_win32.zip"],
+      "linux-x86-64": ["dhewm3-1.", "_Linux_amd64.tar.gz"]
     },
     "manual_setup": {
       "steps": [
@@ -25,8 +26,18 @@
         "Back up that external profile and your original game separately before changing engines or versions."
       ],
       "help_url": "https://dhewm3.org/#how-to-install",
-      "references": []
-    }
+      "references": [
+        {
+          "title": "Prepare the upstream Linux player",
+          "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dhewm3 from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL and libcurl through your distribution. The inspected ARM64 executable needs glibc 2.38."
+        },
+        {
+          "title": "Set up dhewm3 on Mac",
+          "instruction": "Use the universal Mac Source Ports build linked from dhewm3.org. Copy dhewm3.app out of its disk image. Put your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders under ~/Library/Application Support/dhewm3. Open the app directly. Preserve that profile, its saves, and all original-data locations."
+        }
+      ]
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,
