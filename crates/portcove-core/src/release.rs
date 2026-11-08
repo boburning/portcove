@@ -148,9 +148,11 @@ struct ResolvedGithub {
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
-// The embedded beta catalog currently has 200 platform/channel selector slots.
-// One complete inventory therefore fits with headroom for successor definitions.
-const RELEASE_CACHE_MAX_ENTRIES: usize = 256;
+// One complete bulk check must fit in the selector cache, or later items evict
+// earlier ones and repeat provider reads within the same TTL. The embedded
+// catalog test below keeps every platform's provider selector slots within
+// half of this bound, so catalog growth fails CI before it degrades caching.
+pub(crate) const RELEASE_CACHE_MAX_ENTRIES: usize = 1024;
 pub(crate) const PROVIDER_JSON_MAX_BYTES: usize = 4 * 1024 * 1024;
 const CHECKSUM_MAX_BYTES: usize = 1024 * 1024;
 const CHECKSUM_MAX_SIDECARS: usize = 8;
@@ -2557,6 +2559,34 @@ mod tests {
                 .any(|key| key.repository
                     == format!("owner/repository-{}", RELEASE_CACHE_MAX_ENTRIES))
         );
+    }
+
+    #[test]
+    fn release_cache_holds_every_embedded_selector_slot_with_headroom() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        for platform in [
+            Platform::WindowsX86_64,
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+            Platform::MacosAarch64,
+        ] {
+            let slots: usize = catalog
+                .ports()
+                .iter()
+                .filter(|port| {
+                    matches!(
+                        port.release.provider,
+                        crate::ReleaseSource::Github | crate::ReleaseSource::Gitlab
+                    ) && !port.release.repository.is_empty()
+                        && port.platforms.contains(&platform)
+                })
+                .map(|port| port.channels.len())
+                .sum();
+            assert!(
+                slots * 2 <= RELEASE_CACHE_MAX_ENTRIES,
+                "{platform:?} has {slots} provider selector slots; raise RELEASE_CACHE_MAX_ENTRIES"
+            );
+        }
     }
 
     fn ok_json(body: &str, extra_headers: &str) -> String {
