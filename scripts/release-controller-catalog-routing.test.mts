@@ -584,7 +584,7 @@ void test("catalog maintenance authenticates pause and exact catalog environment
   );
   environments[0]!.environment.can_admins_bypass = false;
 });
-void test("installed two-purpose workflow remains mutually exclusive under unchanged source and job ceilings", async () => {
+void test("installed two-purpose workflow remains mutually exclusive under the exact source and job ceilings", async () => {
   const bytes = await readFile(
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
   );
@@ -677,8 +677,8 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
   assert.equal(
     slice4CapacityResources.catalog_job_minutes.reduce((a, b) => a + b, 0) +
       slice4CapacityResources.catalog_observer_job_minutes.reduce((a, b) => a + b, 0) +
-      1,
-    40,
+      slice4CapacityResources.wake_job_minutes.reduce((a, b) => a + b, 0),
+    44,
   );
   assert.equal(slice4CapacityResources.report_repair_maximum_job_minutes_per_candidate, 4);
 });

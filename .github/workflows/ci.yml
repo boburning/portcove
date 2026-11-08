@@ -530,11 +530,14 @@ jobs:
       - name: Read pinned script tool manager
         if: needs.classify.outputs.script_tools == 'true'
         id: aqua-version
-        run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/bootstrap-ci-aqua-linux.sh
       - uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         if: needs.classify.outputs.script_tools == 'true'
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
+          skip_install_aqua: "true"
           enable_aqua_install: "false"
       - name: Lint affected repository inputs
         run: node scripts/ci-baseline.mts lint

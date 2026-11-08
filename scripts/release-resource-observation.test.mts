@@ -75,7 +75,7 @@ void test("resource observations reconcile current purposes and keep provider, b
   assert.ok(production && wake && candidate);
   const result = observeReleaseResources(production, wake, candidate);
   assert.equal(result.accounting.application, 141);
-  assert.equal(result.accounting.catalog_alternative, 41);
+  assert.equal(result.accounting.catalog_alternative, 44);
   assert.equal(result.accounting.policy_envelope, 141);
   assert.equal(result.policy_matches_workflow, true);
   assert.equal(result.ratification_required_for_policy_change, true);
