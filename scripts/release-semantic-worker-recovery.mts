@@ -262,7 +262,17 @@ async function settleRetainedInvocation(
 export async function claimSemanticTechnicalAttempt(
   requestDirectory: string,
   systemctlSha256: string,
+  partition?: { request_id: string; max_lanes: number },
 ) {
+  if (
+    partition &&
+    (path.basename(requestDirectory) !== `request-${partition.request_id}` ||
+      !/^[a-f0-9]{64}$/u.test(partition.request_id) ||
+      !Number.isSafeInteger(partition.max_lanes) ||
+      partition.max_lanes < 1 ||
+      partition.max_lanes > 512)
+  )
+    throw new Error("retained semantic partition scope differs");
   const entries = await readdir(requestDirectory);
   const runs = entries.filter((name) => /^technical-[0-2]$/u.test(name)).sort();
   const anchor = path.join(
@@ -291,12 +301,21 @@ export async function claimSemanticTechnicalAttempt(
       await verifyRetainedApplicationPrelaunch(root);
       continue;
     }
-    const stopped = await json(root, "technical-stop.json");
+    const stopped: unknown = partition
+      ? JSON.parse(
+          (
+            await readBoundedPublicBuildInputFile(root, "technical-stop.json", 1024 * 1024)
+          ).toString("utf8"),
+        )
+      : await json(root, "technical-stop.json");
     if (
       !isRecord(stopped) ||
       stopped.outcome !== "technical-failure" ||
       !Array.isArray(stopped.invocations) ||
-      stopped.invocations.length > 2
+      (stopped.application_partition_request_id !== undefined &&
+        stopped.application_partition_request_id !== partition?.request_id) ||
+      stopped.invocations.length >
+        (partition && stopped.application_partition_request_id ? 2 * (partition.max_lanes + 1) : 2)
     )
       throw new Error("previous technical attempt is live, incomplete or ambiguous");
     for (const invocation of stopped.invocations) {

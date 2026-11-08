@@ -67,6 +67,55 @@ class SupervisorContract(unittest.TestCase):
             with self.assertRaisesRegex(supervisor.Refusal, "bounded single-link"):
                 supervisor.read_frozen_input(target, expected)
 
+    def test_qualified_lanes_share_exact_read_only_runtime_without_aliasing(self):
+        # A mock applies only to /tmp ancestry, which production forbids.
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            supervisor, "private_directory", side_effect=lambda path: Path(path)
+        ):
+            attempt = Path(directory) / ("request-" + "a" * 64) / "technical-0"
+            shared = attempt / ".semantic-shared-runtime"
+            shared.mkdir(parents=True, mode=0o700)
+            shared.chmod(0o500)
+            first, second = attempt / "r-first", attempt / "r-second"
+            first.mkdir()
+            second.mkdir()
+            selected = request()
+            selected["shared_runtime"] = True
+            supervisor.inspect_request(selected)
+            self.assertEqual(supervisor.runtime_directory(selected, first), shared)
+            self.assertEqual(supervisor.runtime_directory(selected, second), shared)
+            for path in (attempt / "fixture", attempt.parent / "r-other", Path(directory) / "r-other"):
+                with self.assertRaisesRegex(supervisor.Refusal, "original review attempt"):
+                    supervisor.runtime_directory(selected, path)
+            alias = second / "runtime"
+            alias.symlink_to(attempt / "not-a-runtime")
+            with self.assertRaisesRegex(supervisor.Refusal, "original review attempt"):
+                supervisor.runtime_directory(selected, second)
+            alias.unlink()
+            (first / "inputs").mkdir()
+            (first / "capture").mkdir()
+            (first / ".portcove-semantic-review-owned").write_bytes(b"fixture")
+            manifest = first / "inputs/manifest.json"
+            manifest.write_bytes(b'{"qualified_application_comparison":false}')
+            manifest.chmod(0o600)
+            with self.assertRaisesRegex(supervisor.Refusal, "qualified application comparison"):
+                supervisor.inspect_files({**selected, "run_root": str(first)})
+            shared.chmod(0o700)
+            binary = shared / "node"
+            binary.write_bytes(b"fixture")
+            binary.chmod(0o500)
+            link = attempt / "linked-node"
+            os.link(binary, link)
+            with self.assertRaisesRegex(supervisor.Refusal, "bounded single-link"):
+                supervisor.read_runtime(binary, "node", os.getuid())
+            link.unlink()
+            self.assertEqual(supervisor.read_runtime(binary, "node", os.getuid()), b"fixture")
+            with self.assertRaisesRegex(supervisor.Refusal, "directory must be read-only"):
+                supervisor.runtime_directory(selected, second)
+            for value in (False, "/foreign/path", 1):
+                with self.assertRaisesRegex(supervisor.Refusal, "fixed request fields"):
+                    supervisor.inspect_request({**selected, "shared_runtime": value})
+
     def test_transport_sockets_bind_under_long_request_custody(self):
         for name, kind in (("provider.sock", socket.SOCK_STREAM), ("control.sock", socket.SOCK_SEQPACKET)):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:

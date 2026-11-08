@@ -258,6 +258,18 @@ does not establish sound semantic judgment or grant capture/issuer authority;
 unavailable evidence retains changes-required/refused outcomes. Existing
 production activation and storage holds remain separately owned.
 
+The existing Linux worker can be appointed for one exact qualified application
+request with a finite lane count and wall-clock window. Each proposal and
+complete-opportunity phase has its own frozen bundle and verified page plan.
+Each lane runs under the same independent producer in a separate settled
+invocation, and its reader exposes only its assigned exact pages. The fixed
+parent replays every captured page and requires the complete, nonduplicated
+union before a separate settled synthesis can decide the phase. The issuer
+still requires the direct capture and rereads retained lane evidence. A lane
+report, an imported transcript, or a byte-coverage receipt grants no authority.
+The ordinary worker window and catalog/default reader paths apply without the
+exact application appointment.
+
 The prepared capacity configuration reader uses `portcove-release-pause` /
 `capacity.json`, verified raw Git objects and two exact-ref reads, with mandatory
 authenticated fresh observer/job guards. The document contains schema version 1,

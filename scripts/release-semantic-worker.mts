@@ -125,7 +125,7 @@ export function renderSemanticWorkerUnits(
   )
     throw new Error("initial probe requires its fixed configuration basename");
   return {
-    service: `[Unit]\nDescription=Portcove bounded semantic request worker\nAfter=network-online.target\n\n[Service]\nType=oneshot\nWorkingDirectory=${workerCheckout}\nEnvironment=PATH=%h/.cargo/bin:/usr/bin:/bin\nExecStart=${config.runtime.node_executable} ${workerCheckout}/scripts/release-semantic-worker.mts ${configurationPath} ${configurationSha256}\nUMask=0077\nTimeoutStartSec=2700\nTimeoutStopSec=30\nKillMode=control-group\nRestart=no\nStandardOutput=journal\nStandardError=journal\n`,
+    service: `[Unit]\nDescription=Portcove bounded semantic request worker\nAfter=network-online.target\n\n[Service]\nType=oneshot\nWorkingDirectory=${workerCheckout}\nEnvironment=PATH=%h/.cargo/bin:/usr/bin:/bin\nExecStart=${config.runtime.node_executable} ${workerCheckout}/scripts/release-semantic-worker.mts ${configurationPath} ${configurationSha256}\nUMask=0077\nTimeoutStartSec=${"application_partition" in config ? (config.application_partition?.wall_seconds ?? 2700) : 2700}\nTimeoutStopSec=30\nKillMode=control-group\nRestart=no\nStandardOutput=journal\nStandardError=journal\n`,
     timer:
       "[Unit]\nDescription=Observe Portcove semantic requests automatically\n\n[Timer]\nOnBootSec=2min\nOnUnitInactiveSec=5min\nRandomizedDelaySec=30s\nUnit=portcove-semantic-worker.service\n\n[Install]\nWantedBy=timers.target\n",
     initial_state: {
@@ -188,7 +188,10 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
   const value: unknown = structuredClone(raw);
   if (
     !isRecord(value) ||
-    Object.keys(value).sort().join(",") !==
+    Object.keys(value)
+      .filter((key) => key !== "application_partition")
+      .sort()
+      .join(",") !==
       "auth_cache,issuer,kind,namespace,output_parent,runtime,schema_version,setup_grant_sha256,source_git_sha256,source_read_token,source_repository,worker_revision" ||
     (value.schema_version !== 1 && value.schema_version !== 2) ||
     value.kind !== "portcove-fixed-semantic-worker" ||
@@ -199,6 +202,25 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
     !isRecord(value.issuer.issuer)
   )
     throw new Error("semantic worker fixed setup schema differs");
+  const partition = value.application_partition;
+  if (
+    "application_partition" in value &&
+    (!isRecord(partition) ||
+      Object.keys(partition).sort().join(",") !== "max_lanes,request_id,wall_seconds" ||
+      typeof partition.request_id !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(partition.request_id) ||
+      typeof partition.max_lanes !== "number" ||
+      !Number.isSafeInteger(partition.max_lanes) ||
+      partition.max_lanes < 1 ||
+      partition.max_lanes > 512 ||
+      typeof partition.wall_seconds !== "number" ||
+      !Number.isSafeInteger(partition.wall_seconds) ||
+      partition.wall_seconds < 2700 ||
+      partition.wall_seconds > 259200)
+  )
+    throw new Error(
+      "semantic partition setup requires an exact request and finite lane/window bounds",
+    );
   const runtime = inspectLinuxQualificationConfiguration(value.runtime);
   const issuer = inspectSemanticIssuerCustody(value.issuer);
   if (
@@ -233,6 +255,15 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
       "semantic source/reviewer/issuer credentials share a writable or executable boundary",
     );
   return {
+    ...(isRecord(partition)
+      ? {
+          application_partition: {
+            request_id: String(partition.request_id),
+            max_lanes: Number(partition.max_lanes),
+            wall_seconds: Number(partition.wall_seconds),
+          },
+        }
+      : {}),
     namespace,
     output_parent: output,
     auth_cache: authCache,
@@ -559,6 +590,21 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       authority: "none",
     };
   const request = selected.request;
+  const partitionScope = config.application_partition;
+  const partitionRequest =
+    partitionScope && selected.purpose === "application"
+      ? inspectReleaseReviewRequest(request)
+      : undefined;
+  if (
+    partitionScope &&
+    (!partitionRequest?.qualified_application ||
+      partitionRequest.request_id !== partitionScope.request_id)
+  )
+    throw new Error("held semantic partition setup does not appoint the selected request");
+  const partitionDeadline = partitionScope
+    ? entryStarted + (partitionScope.wall_seconds - 30) * 1000
+    : undefined;
+
   const runner = createGitHubRunner({
     cwd: directory,
     maxBuffer: 16 * 1024 * 1024,
@@ -718,7 +764,14 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
         snapshot.checkpoint,
         catalogClaims,
       )
-    : await claimSemanticTechnicalAttempt(requestDirectory, config.runtime.tools_sha256.systemctl);
+    : await claimSemanticTechnicalAttempt(
+        requestDirectory,
+        config.runtime.tools_sha256.systemctl,
+        partitionScope && {
+          request_id: partitionScope.request_id,
+          max_lanes: partitionScope.max_lanes,
+        },
+      );
   const invocations: { root: string; invocation_sha256: string }[] = [];
   const record = await open(path.join(attempt, "worker-attempt.jsonl"), "wx", 0o600);
   const retain = async (phase: string, evidence: unknown = null) => {
@@ -733,6 +786,9 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     await record.sync();
   };
   const guard = async () => {
+    if (partitionDeadline !== undefined && performance.now() >= partitionDeadline)
+      throw new Error("semantic partition opportunity window exhausted");
+
     requireFixedCheckout();
     const currentConfiguration = await readConfiguration();
     if (capacityDigest(currentConfiguration) !== capacityDigest(config))
@@ -798,6 +854,15 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
         backend: "linux-rootless" as const,
         output_parent: attempt,
         auth_cache: config.auth_cache,
+        ...(partitionScope && partitionRequest
+          ? {
+              application_partition: {
+                request: partitionRequest,
+                max_lanes: partitionScope.max_lanes,
+                deadline: partitionDeadline!,
+              },
+            }
+          : {}),
         requireIsolationReady: guard,
         onInvocationPrepared: async (value: { root: string; invocation_sha256: string }) => {
           invocations.push(structuredClone(value));
@@ -879,7 +944,12 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     const stop = await open(path.join(attempt, "technical-stop.json"), "wx", 0o600);
     try {
       await stop.writeFile(
-        JSON.stringify({ schema_version: 1, outcome: "technical-failure", invocations }),
+        JSON.stringify({
+          schema_version: 1,
+          outcome: "technical-failure",
+          invocations,
+          ...(partitionScope && { application_partition_request_id: partitionScope.request_id }),
+        }),
       );
       await stop.sync();
     } finally {
