@@ -1358,9 +1358,11 @@ provider contact. Its `activation_reason` refuses activation and recovery of a
 staged or interrupted package unless that package's version and SHA-256 match one
 of the `reviewed_artifacts`. Installed copies keep their retained definition and
 existing Play, backup and removal checks. Remove the hold only after reviewing
-the changed upstream behavior on the canonical port issue. Because the catalog is
-currently embedded, the hold reaches players with the next application release;
-independent delivery to unchanged clients remains with #246.
+the changed upstream behavior on the canonical port issue. A selected independent
+definition may reword or narrow an existing hold but cannot remove it or add a
+reviewed artifact. Because the catalog is currently embedded, the hold reaches
+players with the next application release; independent delivery to unchanged
+clients remains with #246.
 
 The reusable managed TFE, GB shared-preferences and version-local credentials
 policies support reviewed GitHub package rules as well as exact direct manifests.

@@ -38,7 +38,6 @@ struct CachedRelease {
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
-// Mirrors the GitHub cache: the current catalog has 200 selector slots.
 const PROVIDER_PAGE_SIZE: usize = 100;
 const GITLAB_MAX_RELEASE_PAGES: usize = 10;
 const GITLAB_MAX_PACKAGE_PAGES: usize = 10;
