@@ -1551,3 +1551,12 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^game_file_query::tests::empty_requirements_select_zero_source_profiles_and_zero_hashing$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
+
+# Qualification 42446922339/1 added real Apple tool preflight before
+# the child-ready marker. Keep the two-second post-acknowledgement
+# cancellation assertion and allow only these Mac fixtures time to start.
+[[profile.default.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = 'package(portcove-core) & (test(=psx::tests::managed_builder_generation_observes_active_cancellation) | test(=psx::tests::managed_builder_rebuild_observes_active_cancellation))'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+success-output = "immediate"

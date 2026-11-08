@@ -864,6 +864,9 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const macPsxCancellationFilter =
+    "package(portcove-core) & (test(=psx::tests::managed_builder_generation_observes_active_cancellation) | test(=psx::tests::managed_builder_rebuild_observes_active_cancellation))";
+  const macPsxCancellationPlatform = 'cfg(target_os = "macos")';
   assert.deepEqual(
     outputOverrides.map(outputIdentity).sort(),
     [
@@ -893,6 +896,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         filter,
       })),
       ...publicationFilters,
+      { platform: macPsxCancellationPlatform, filter: macPsxCancellationFilter },
       { filter: preparedPlayerAdoptionFilter },
       { filter: sourcePreparationFilter },
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),
@@ -1128,6 +1132,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     for (const field of ["retries", "threads-required", "priority"])
       assert.equal(override[field], undefined);
   }
+  assert.deepEqual(overrideFor(macPsxCancellationFilter, macPsxCancellationPlatform), {
+    platform: macPsxCancellationPlatform,
+    filter: macPsxCancellationFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 9, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   for (const value of [profile, ...overrides]) {
     assert.ok(value.retries === undefined || value.retries === 0);
     assert.equal(value["on-timeout"], undefined);

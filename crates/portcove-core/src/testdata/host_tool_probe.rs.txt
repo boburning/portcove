@@ -29,7 +29,8 @@ fn main() {
             fs::write("owned-builder-ready", std::process::id().to_string()).unwrap();
             match mode.as_str() {
                 "generation" | "rebuild" => {
-                    thread::sleep(Duration::from_secs(3));
+                    // Give a loaded native runner time to acknowledge the cancellation.
+                    thread::sleep(Duration::from_secs(8));
                     fs::write("owned-builder-completed", b"unexpected completion").unwrap();
                 }
                 "success" => println!("owned builder success"),

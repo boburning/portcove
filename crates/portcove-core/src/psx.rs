@@ -13,6 +13,7 @@ use crate::{
 };
 
 const TOOLCHAIN_VERSION: &str = "1.0.14";
+const APPLE_SYSTEM_BIN: &str = "/usr/bin";
 
 #[derive(Debug, Clone)]
 pub struct PsxManagedPreparation {
@@ -1375,7 +1376,7 @@ fn run_cli(
         .transpose()?;
     let pack_bin = toolchain_root.join("bin");
     let path = if let Some((_, compiler_bin)) = &apple_tools {
-        let system_bin = PathBuf::from("/usr/bin");
+        let system_bin = PathBuf::from(APPLE_SYSTEM_BIN);
         for bin in [compiler_bin, &system_bin] {
             for program in ["cmake", "ninja"] {
                 if bin.join(program).exists() {
@@ -1496,12 +1497,14 @@ fn macos_toolchain_sdk(
     quiesced: &mut bool,
 ) -> Result<(PathBuf, PathBuf)> {
     let mut query = |program: &str, arguments: &[&str]| -> Result<PathBuf> {
-        let mut command =
-            ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, program)?;
+        let mut command = ChildProcessPolicy::native_tool_spec(
+            ChildProcessClass::ManagedBuilder,
+            Path::new(APPLE_SYSTEM_BIN).join(program),
+        )?;
         command
             .args(arguments)
             .current_dir(project_root)
-            .env("PATH", "/usr/bin")
+            .env("PATH", APPLE_SYSTEM_BIN)
             .env("HOME", environment_root.join("home"))
             .env("TMPDIR", environment_root.join("temp"));
         let started = std::time::Instant::now();
@@ -1553,10 +1556,10 @@ fn macos_toolchain_sdk(
         }
         Ok(path)
     };
-    let developer = query("/usr/bin/xcode-select", &["--print-path"])?;
+    let developer = query("xcode-select", &["--print-path"])?;
     let developer = fs::canonicalize(developer)?;
     let sdk = query(
-        "/usr/bin/xcrun",
+        "xcrun",
         &["--no-cache", "--sdk", "macosx", "--show-sdk-path"],
     )?;
     let sdk = fs::canonicalize(sdk)?;
@@ -1568,7 +1571,7 @@ fn macos_toolchain_sdk(
     let mut compiler_bin = None;
     for compiler in ["clang", "clang++"] {
         let path = query(
-            "/usr/bin/xcrun",
+            "xcrun",
             &["--no-cache", "--sdk", "macosx", "--find", compiler],
         )?;
         let executable = fs::canonicalize(&path)?;
@@ -2459,18 +2462,26 @@ mod tests {
         let observer = crate::PortcoveService::new(service.library().clone()).unwrap();
         let id = activity.id.clone();
         let ready = root.join("owned-builder-ready");
+        let started = Instant::now();
         let request = thread::spawn(move || {
-            let deadline = Instant::now() + Duration::from_secs(6);
+            // Mac preflight probes Apple tools before it spawns the builder.
+            let ready_budget = if cfg!(target_os = "macos") { 25 } else { 6 };
+            let deadline = Instant::now() + Duration::from_secs(ready_budget);
             while !ready.is_file() {
                 assert!(Instant::now() < deadline, "owned builder did not start");
                 thread::sleep(Duration::from_millis(5));
             }
+            let ready_at = Instant::now();
             observer.request_cancellation(&id).unwrap();
+            (ready_at, Instant::now())
         });
-        let started = Instant::now();
         let result = run_builder_fixture(&root, &operation);
-        let elapsed = started.elapsed();
-        request.join().unwrap();
+        let returned_at = Instant::now();
+        let (ready_at, acknowledged_at) = request
+            .join()
+            .unwrap_or_else(|_| panic!("owned builder readiness failed: {result:?}"));
+        let readiness_elapsed = ready_at.saturating_duration_since(started);
+        let cancellation_elapsed = returned_at.saturating_duration_since(acknowledged_at);
         assert_eq!(
             fs::read(&player_source).unwrap(),
             b"unchanged external source"
@@ -2479,12 +2490,18 @@ mod tests {
             operation.checkpoint().is_err(),
             "real cancellation was accepted"
         );
-        println!("phase={phase} elapsed={elapsed:?} result={result:?}");
+        println!(
+            "phase={phase} readiness={readiness_elapsed:?} cancellation={cancellation_elapsed:?} result={result:?}"
+        );
+        assert_eq!(
+            result.as_ref().unwrap_err().code,
+            crate::ErrorCode::Cancelled
+        );
         let result = service.finish_activity(activity, result);
         assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
         assert!(
-            elapsed < Duration::from_secs(2),
-            "builder ignored cancellation"
+            cancellation_elapsed < Duration::from_secs(2),
+            "builder ignored acknowledged cancellation"
         );
         assert!(!root.join("owned-builder-completed").exists());
     }
