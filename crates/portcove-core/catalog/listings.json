@@ -21577,11 +21577,14 @@
     {
       "id": "einhander-einhander-recompiled",
       "name": "Einhänder / Einhander-Recompiled",
-      "summary": "Use an upstream-prepared Einhänder Windows player for your own supported USA disc. Upstream owns local generation and runtime replacement; Portcove can register the completed player.",
+      "summary": "Prepare your own USA Einhänder disc with the upstream setup kit and use the completed player.",
       "project_url": "https://github.com/strider973/Einhander-Recompiled",
       "issue_number": 350,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/strider973/Einhander-Recompiled",
@@ -21606,18 +21609,38 @@
             "instruction": "After successful upstream preparation, select build-release/Einhander_Recompiled.exe, the completed executable’s parent directory as working directory and the supported --launcher literal argument. Keep its staged game.toml and matching resources in place. The root setup executable starts a replacement product and exits on Windows, so select the completed product instead. Keep Generate/Rebuild and SDK/toolchain changes as deliberate upstream maintenance outside the active attached session; an intentional rebuild can end or replace the process."
           },
           {
+            "title": "Prepare the official Linux or Mac kit",
+            "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29, plus the host OpenGL and zlib libraries libOpenGL.so.0 and libz.so.1. The Mac setup player has a macOS 11 minimum. Select the Apple Command Line Tools or Xcode toolchain for its Clang and SDK. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SCUS-94243 CUE and all referenced BIN files. Use the title’s default generated OpenBIOS or a separately owned SCPH-1001 as upstream allows. Start the completed build-release/Einhander_Recompiled in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
+          },
+          {
             "title": "Review launch details, then choose Play",
             "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
           }
         ],
         "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
+          "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data.",
+          "This title enables its GCC overlay backend. Keep the creating toolchain, actual generated overlay data and compiler settings with the original project before updating.",
+          "The Linux and Mac kits perform local generation and use upstream setup and replacement. Package inspection does not qualify a generated native game, multiplayer or a save migration."
         ],
         "references": [
           {
             "title": "Preserve the whole creating project and effective player data",
             "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
           }
+        ]
+      },
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "einhander-",
+          "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "einhander-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "einhander-",
+          "-macos-arm64.zip"
         ]
       }
     },
@@ -39841,19 +39864,29 @@
             "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
           },
           {
+            "title": "Use the upstream Linux AppImage",
+            "instruction": "Choose EmeraldRecomp-linux-x86_64 from the upstream releases page. The observed v0.1.5 player needs glibc 2.34 and libstdc++ providing GLIBCXX_3.4.30. Open it with the host’s AppImage support and use its own ROM and BIOS picker. Its launcher uses ~/.local/share/EmeraldRecomp by default, or EmeraldRecomp under XDG_DATA_HOME when set. EMERALDRECOMP_HOME overrides the complete path. Different AppImages can share that writable home. Back up that whole profile, the original files, and actual save and state locations before replacing the app."
+          },
+          {
+            "title": "Import the separate ROM and BIOS in the Android app",
+            "instruction": "Use the official Android ARM64 APK. The observed v0.1.5 package requires Android 9 or later. In its setup screen choose your own USA Pokémon Emerald ROM and 16 KiB retail GBA BIOS separately. The app validates and copies them into its private roms and bios folders. Keep your original files separately. The app keeps its battery save under its private saves folder, and clearing app data or uninstalling can remove that save. Use a same-signed in-place update if you need to retain the app’s data and keep the creating version until you have verified actual recovery."
+          },
+          {
             "title": "Register the prepared player and use explicit Play",
             "instruction": "You manage this external game, original files, compiler outputs and saved data. The project’s tools generate native game code and replace caches; Portcove does not take over those files. It saves the executable, working folder and launch arguments you select; choose Play explicitly when you are ready. Removing the registration leaves external files in place. Portcove does not offer updates, backups, rollback, data migration or external-file deletion for this copy. Finish first-time setup with the project’s tools. These instructions do not confirm successful original-game setup, gameplay, multiplayer, saving and loading or physical controls."
           }
         ],
         "warnings": [
           "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-          "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+          "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation.",
+          "Linux and Android use their own upstream setup and replacement. The Android release disables Android backup in its manifest. The ROM and BIOS copies are not a backup of the app’s private saves."
         ],
-        "help_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3"
+        "help_url": "https://github.com/mstan/EmeraldRecomp/releases"
       },
       "original_game_title": "Pokémon Emerald",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -48361,11 +48394,14 @@
     {
       "id": "street-fighter-ex2-plus-recompiled",
       "name": "Street Fighter EX2 Plus Recompiled",
-      "summary": "Register a completed upstream-prepared Street Fighter EX2 Plus Windows player using your own USA disc and required retail BIOS.",
+      "summary": "Prepare your own USA Street Fighter EX2 Plus disc with the upstream setup kit and use the completed player.",
       "project_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
       "issue_number": 1117,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
@@ -48393,18 +48429,37 @@
             "instruction": "Select the completed build-release/Street_Fighter_EX2_Plus.exe with its executable directory as working directory and --launcher as the literal argument. Do not attach the release-root setup host or an SDK emitter. The completed game-dispatch binary bypasses setup forwarding; its native main owns launcher/game execution."
           },
           {
+            "title": "Prepare the official Linux or Mac kit",
+            "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29, plus the host OpenGL and zlib libraries libOpenGL.so.0 and libz.so.1. The Mac setup player has a macOS 11 minimum. Select the Apple Command Line Tools or Xcode toolchain for its Clang and SDK. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SLUS-01105 CUE and all referenced BIN files. Use your own USA SCPH-1001 retail BIOS, 512 KiB with CRC32 37157331. This title disables OpenBIOS, including on Linux and Mac. Start the completed build-release/Street_Fighter_EX2_Plus in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
+          },
+          {
             "title": "Review launch details and manage updates",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
           }
         ],
         "warnings": [
-          "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+          "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility.",
+          "The Linux and Mac kits perform local generation and use upstream setup and replacement. Package inspection does not qualify a generated native game, multiplayer or a save migration."
         ],
         "references": [
           {
             "title": "Preserve the whole creating copy and effective data",
             "instruction": "Keep the complete creating project/build-release, original CUE/BIN, own BIOS and generated game code. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and all effective custom roots. Do not assume compatibility with Street Fighter EX Plus Alpha or another PSXrecomp fork. Retain the framework PolyForm and separate third-party notices and comply with applicable component terms."
           }
+        ]
+      },
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "sfex2p-",
+          "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "sfex2p-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "sfex2p-",
+          "-macos-arm64.zip"
         ]
       }
     },
@@ -48522,11 +48577,14 @@
     {
       "id": "strider-2-recompiled",
       "name": "Strider 2 Recompiled",
-      "summary": "Register a completed upstream-prepared Strider 2 Windows player for your own USA disc; upstream owns preparation and replacement.",
+      "summary": "Prepare your own USA Strider 2 disc with the upstream setup kit and use the completed player.",
       "project_url": "https://github.com/strider973/STRIDER-2-Recompiled",
       "issue_number": 1118,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/strider973/STRIDER-2-Recompiled",
@@ -48554,18 +48612,37 @@
             "instruction": "Select the completed build-release/Strider_Recompiled.exe with its executable directory as working directory and --launcher as the literal argument. Do not attach the release-root setup host or an SDK emitter. The completed game-dispatch binary bypasses setup forwarding; its native main owns launcher/game execution."
           },
           {
+            "title": "Prepare the official Linux or Mac kit",
+            "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29, plus the host OpenGL and zlib libraries libOpenGL.so.0 and libz.so.1. The Mac setup player has a macOS 11 minimum. Select the Apple Command Line Tools or Xcode toolchain for its Clang and SDK. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SLUS-01163 CUE and all referenced BIN files. The title uses generated OpenBIOS by default. A separately owned retail BIOS is optional under its upstream setup. Start the completed build-release/Strider_Recompiled in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
+          },
+          {
             "title": "Review launch details and manage updates",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
           }
         ],
         "warnings": [
-          "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+          "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility.",
+          "The Linux and Mac kits perform local generation and use upstream setup and replacement. Package inspection does not qualify a generated native game, multiplayer or a save migration."
         ],
         "references": [
           {
             "title": "Preserve the whole creating copy and effective data",
             "instruction": "Keep the complete creating project/build-release, own original CUE/BIN, generated game code and any selected BIOS. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and every effective custom root. Retain the framework PolyForm and separate third-party notices; no cross-title or cross-fork save/runtime compatibility is assumed."
           }
+        ]
+      },
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "strider-",
+          "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "strider-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "strider-",
+          "-macos-arm64.zip"
         ]
       }
     },

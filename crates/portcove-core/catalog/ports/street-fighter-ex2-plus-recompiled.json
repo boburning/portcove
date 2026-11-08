@@ -3,10 +3,10 @@
   "listing": {
     "id": "street-fighter-ex2-plus-recompiled",
     "name": "Street Fighter EX2 Plus Recompiled",
-    "summary": "Register a completed upstream-prepared Street Fighter EX2 Plus Windows player using your own USA disc and required retail BIOS.",
+    "summary": "Prepare your own USA Street Fighter EX2 Plus disc with the upstream setup kit and use the completed player.",
     "project_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
     "issue_number": 1117,
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
     "artwork": {
@@ -33,12 +33,17 @@
           "instruction": "Select the completed build-release/Street_Fighter_EX2_Plus.exe with its executable directory as working directory and --launcher as the literal argument. Do not attach the release-root setup host or an SDK emitter. The completed game-dispatch binary bypasses setup forwarding; its native main owns launcher/game execution."
         },
         {
+          "title": "Prepare the official Linux or Mac kit",
+          "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29, plus the host OpenGL and zlib libraries libOpenGL.so.0 and libz.so.1. The Mac setup player has a macOS 11 minimum. Select the Apple Command Line Tools or Xcode toolchain for its Clang and SDK. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SLUS-01105 CUE and all referenced BIN files. Use your own USA SCPH-1001 retail BIOS, 512 KiB with CRC32 37157331. This title disables OpenBIOS, including on Linux and Mac. Start the completed build-release/Street_Fighter_EX2_Plus in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
+        },
+        {
           "title": "Review launch details and manage updates",
           "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+        "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility.",
+        "The Linux and Mac kits perform local generation and use upstream setup and replacement. Package inspection does not qualify a generated native game, multiplayer or a save migration."
       ],
       "references": [
         {
@@ -46,6 +51,11 @@
           "instruction": "Keep the complete creating project/build-release, original CUE/BIN, own BIOS and generated game code. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and all effective custom roots. Do not assume compatibility with Street Fighter EX Plus Alpha or another PSXrecomp fork. Retain the framework PolyForm and separate third-party notices and comply with applicable component terms."
         }
       ]
+    },
+    "download_asset_hints": {
+      "linux-x86-64": ["sfex2p-", "-linux-x64.zip"],
+      "macos-x86-64": ["sfex2p-", "-macos-x64.zip"],
+      "macos-aarch64": ["sfex2p-", "-macos-arm64.zip"]
     }
   }
 }
