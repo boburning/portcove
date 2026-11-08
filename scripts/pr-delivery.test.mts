@@ -730,6 +730,49 @@ void test("watcher waits quietly on one run and requires both terminal success a
   }
 });
 
+void test("watcher waits on the prior aggregate failure during an active selective retry", async () => {
+  const name = "rust";
+  const prior = { ...workflowJobs().find((job) => job.name === name)!, conclusion: "failure" };
+  const current = {
+    ...prior,
+    id: 99,
+    run_attempt: 2,
+    check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/99",
+  };
+  const jobs = [prior];
+  let pauses = 0;
+  await assert.rejects(
+    watchRequiredChecks(
+      {
+        workflowRun: async () => workflow({ run_attempt: 2 }),
+        requiredCheckState: async () => ({
+          jobs,
+          contexts: [
+            {
+              context: name,
+              source: "check-run",
+              check_run_id: pauses ? current.id : prior.id,
+              outcome: "failure",
+              conclusion: "failure",
+            },
+          ],
+        }),
+      },
+      {
+        ...watchOptions,
+        attempt: 2,
+        requiredContexts: [name],
+        sleep: async () => {
+          assert.equal(pauses++, 0, "must stop on a current-attempt failure");
+          jobs.push(current);
+        },
+      },
+    ),
+    /required checks failed: rust=failure/,
+  );
+  assert.equal(pauses, 1);
+});
+
 void test("resuming an expired deadline reads evidence once and never creates another wait", async () => {
   for (let resume = 0; resume < 2; resume += 1) {
     let reads = 0;
@@ -1484,10 +1527,13 @@ async function inspectionClient(
     incomplete?: boolean;
     paginated?: boolean;
     workflow?: Partial<DeliveryWorkflow>;
+    workflowAfter?: Partial<DeliveryWorkflow>;
+    jobs?: ReturnType<typeof workflowJobs>;
   } = {},
 ) {
   let pullReads = 0;
   let targetReads = 0;
+  let workflowReads = 0;
   const calls: string[] = [];
   const client = await deliveryFixture(({ endpoint, method }) => {
     assert.equal(method, "GET", "inspection must issue only GETs");
@@ -1509,7 +1555,10 @@ async function inspectionClient(
       });
     }
     if (endpoint.includes("/check-runs?")) {
-      const runs = options.checks ?? successfulRuns();
+      const runs = (options.checks ?? successfulRuns()).map((check) => ({
+        head_sha: head,
+        ...check,
+      }));
       if (options.paginated)
         return Response.json(
           {
@@ -1533,6 +1582,14 @@ async function inspectionClient(
       });
     }
     if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
+    if (endpoint.includes("/actions/runs/42/jobs?")) {
+      const jobs =
+        options.jobs ??
+        workflowJobs().filter((job) =>
+          (options.checks ?? successfulRuns()).some((check) => check.id === job.id),
+        );
+      return Response.json({ total_count: jobs.length, jobs });
+    }
     if (endpoint.endsWith("/actions/runs/42"))
       return Response.json({
         id: 42,
@@ -1542,6 +1599,7 @@ async function inspectionClient(
         status: "in_progress",
         conclusion: null,
         ...options.workflow,
+        ...(workflowReads++ > 0 ? options.workflowAfter : {}),
       });
     throw new Error(`Unexpected inspection read: ${endpoint}`);
   });
@@ -1673,7 +1731,9 @@ void test("inspection verifies hashed finite references without converting decla
       references: parseInspectionReferences(JSON.stringify(value), 7),
       now: () => now,
     });
-  const valid = await inspect();
+  const valid = await inspect(declaration, {
+    workflow: { status: "completed", conclusion: "success" },
+  });
   assert.equal(valid.review.state, "referenced");
   assert.equal(valid.acceptance.result, "passed");
   assert.equal(valid.watcher.state, "referenced");
@@ -1688,6 +1748,38 @@ void test("inspection verifies hashed finite references without converting decla
       })
     ).next_action,
     /terminal workflow.*cannot resume/,
+  );
+  const previous = successfulRuns().map((check) => ({ ...check, conclusion: "failure" }));
+  const retried = successfulRuns().map((check) => ({ ...check, id: check.id + 100 }));
+  const jobs = workflowJobs();
+  const failed = jobs.map((job) => ({ ...job, conclusion: "failure" }));
+  const retryJobs = jobs.map((job) => ({
+    ...job,
+    id: job.id + 100,
+    run_attempt: 2,
+    check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${job.id + 100}`,
+  }));
+  const retry = { ...declaration, watcher: { ...declaration.watcher, attempt: 2 } };
+  const finished = {
+    workflow: { run_attempt: 2, status: "completed", conclusion: "success" },
+    checks: [...previous, ...retried],
+    jobs: [...failed, ...retryJobs],
+  };
+  const resolved = await inspect(retry, finished);
+  assert.ok(resolved.checks.every((check) => check.outcome === "success"));
+  assert.match(resolved.next_action, /Verify current authority/);
+  const unbound = await inspect(declaration, finished);
+  assert.ok(unbound.checks.every((check) => check.outcome === "failure"));
+  const active = await inspect(retry, {
+    workflow: { run_attempt: 2 },
+    checks: previous,
+    jobs: failed,
+  });
+  assert.ok(active.checks.every((check) => check.outcome === "pending"));
+  assert.match(active.next_action, /Continue the existing/);
+  await assert.rejects(
+    inspect(retry, { ...finished, workflowAfter: { run_attempt: 3 } }),
+    /workflow changed during inspection/,
   );
   for (const [options, now] of [
     [{ checks: [], workflow: { run_attempt: 2 } }, Date.parse("2026-10-18T00:00:00Z")],
