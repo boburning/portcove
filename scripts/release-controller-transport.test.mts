@@ -787,6 +787,24 @@ void test("application coordinator diagnostics retain a closed refusal without e
     automatic_retry: false,
   });
   assert.equal(applicationCoordinatorRefusal(new Error("private")).stage, "fixed-entry");
+  const exchange = applicationCoordinatorRefusal(
+    new CoordinatorRemoteError("private", {
+      phase: "retained-application-review-claim",
+      retained_error: {
+        phase: "signing",
+        attempted_claim: false,
+        attempted_commit: false,
+        checkpoint: "private",
+        error: { message: "private" },
+      },
+    }),
+  );
+  assert.deepEqual(exchange.checkpoint_exchange, {
+    phase: "signing",
+    attempted_claim: false,
+    attempted_commit: false,
+  });
+
   assert.equal(
     applicationCoordinatorRefusal(new CoordinatorRemoteError("private", { phase: "unknown" }))
       .stage,

@@ -52,6 +52,7 @@ import {
 import {
   recoverRemoteCoordinator,
   readRemoteCoordinatorSnapshot,
+  hydrateRetainedCoordinatorCheckpoint,
 } from "./release-coordinator-recovery.mts";
 import {
   inspectCoordinatorRemoteNamespace,
@@ -60,6 +61,8 @@ import {
 import {
   checkpointReleaseOpportunity,
   recoverReleaseOpportunity,
+  exportRetainedCoordinatorCheckpoint,
+  stageRetainedCoordinatorClaim,
 } from "./release-coordinator-state.mts";
 import { planReleaseOpportunity, validateOpportunity } from "./release-coordinator.mts";
 import {
@@ -85,6 +88,7 @@ import {
 } from "./release-candidate-dispatch.mts";
 import {
   authenticateCapacityExecutor,
+  authenticateOwnedCheckpointJournalHistory,
   ensureOwnedCheckpointJournalHistory,
   publishOwnedSignedCoordinatorCheckpoint,
   executeOwnedCapacityEffect,
@@ -102,6 +106,10 @@ import { readProductionControllerWorkflowBytes } from "./production-controller-a
 import { controllerOidcSubject } from "./assembler-job-identity.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import {
+  isRetainedApplicationReviewClaimScope,
+  retainedApplicationReviewClaim,
+} from "./release-coordinator-checkpoint-authentication.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   receiveControllerTools,
@@ -1001,6 +1009,7 @@ async function coordinatorCheckpointPublisher(
   previous: string,
   configuration: unknown,
   controls: RecoveryMutationControls,
+  claimedChild?: string,
 ) {
   const authorities = await requireControllerApplicationCoordinatorAuthorities();
   if (inspectCoordinatorRemoteNamespace(configuration) !== authorities.namespace)
@@ -1026,12 +1035,11 @@ async function coordinatorCheckpointPublisher(
     if (typeof controls === "function") controls();
     else await controls.readCurrent();
   };
-  const selected = await ensureOwnedCheckpointJournalHistory(
-    executor,
-    repository,
-    previous,
-    refresh,
-  );
+  if (claimedChild !== undefined)
+    await authenticateOwnedCheckpointJournalHistory(executor, repository, previous, claimedChild);
+  const selected =
+    claimedChild !== undefined ||
+    (await ensureOwnedCheckpointJournalHistory(executor, repository, previous, refresh));
   return async (checkpoint: string) => {
     await refresh();
     if (selected)
@@ -3549,6 +3557,11 @@ export async function requestTrustedSemanticReview(
   phaseDeadline?: number,
 ) {
   const selected = structuredClone(raw);
+  if (
+    !selected.qualified_application &&
+    process.env.GITHUB_REF === retainedApplicationReviewClaim.successor_ref
+  )
+    throw new Error("retained application claim successor requires exact qualification");
   const budget = await coordinatorDeadline(phaseDeadline);
   return withCoordinatorDeadline(budget.monotonicDeadline, () =>
     requestTrustedSemanticReviewAt(privateParent, selected, budget),
@@ -3587,6 +3600,7 @@ async function requestTrustedSemanticReviewAt(
     });
     checkpoint = recovered.checkpoint;
     let recheckQualifiedSource: (() => void) | undefined;
+    let resumeClaim = false;
     if (qualified) {
       phase = "exact-qualified-neutral-request-gate";
       if (
@@ -3621,6 +3635,21 @@ async function requestTrustedSemanticReviewAt(
       )
         throw new Error("qualified application differs from the source-appointed authority");
       recheckQualifiedSource = appointed.recheck;
+      if (binding.controller_ref === retainedApplicationReviewClaim.successor_ref) {
+        resumeClaim = isRetainedApplicationReviewClaimScope(
+          checkpoint,
+          retainedApplicationReviewClaim.child,
+          binding.controller_ref,
+          binding.run_attempt,
+        );
+        if (
+          !resumeClaim ||
+          qualified.source_commit !== retainedApplicationReviewClaim.source ||
+          qualified.run_id !== retainedApplicationReviewClaim.qualification_run ||
+          qualified.run_attempt !== 1
+        )
+          throw new Error("retained application claim requires its exact qualified successor");
+      }
     }
     if (!qualified && selectCoordinatorPendingContextRecovery(recovered.input)) {
       phase = "actual-terminal-context-readback-recovery";
@@ -3861,6 +3890,22 @@ async function requestTrustedSemanticReviewAt(
       },
     );
     const base = sourceProof.source_baseline.commit;
+    if (resumeClaim) {
+      phase = "retained-application-review-claim";
+      if (base !== retainedApplicationReviewClaim.baseline || baseVersion !== "0.1.0-alpha.2")
+        throw new Error("retained application claim publication baseline changed");
+      return await resumeRetainedApplicationReviewClaim(
+        directory,
+        selected.remote_configuration,
+        recovered,
+        budget,
+        { ...publication, observed_at: retainedApplicationReviewClaim.clock },
+        async () => {
+          recheckQualifiedSource?.();
+          await readImmutableBaseline();
+        },
+      );
+    }
     if (source === base) {
       return {
         decision: "unchanged-published-source",
@@ -4044,6 +4089,170 @@ async function requestTrustedSemanticReviewAt(
       },
     );
   }
+}
+
+/** Settle only the immutable child already claimed by the failed r52 job.
+ * Fresh authentication happens after loading the original bytes; no new
+ * request, claim or checkpoint object is constructed here. */
+async function resumeRetainedApplicationReviewClaim(
+  directory: string,
+  configuration: unknown,
+  recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
+  publication: unknown,
+  assertSelectedSource: () => Promise<void>,
+) {
+  const pin = retainedApplicationReviewClaim;
+  const provider = await coordinatorBootstrapSourceProvider(budget, 2 * 1024 ** 2);
+  const [run, job, intent, proof, source] = await Promise.all([
+    provider.attempt(pin.original_run, 1),
+    provider.job(pin.original_job),
+    provider.versionTag(`portcove-production-checkpoint-intent/${pin.previous}`),
+    provider.versionTag(`portcove-production-checkpoint-proof/${pin.child}`),
+    provider.commit(pin.source),
+  ]);
+  if (
+    !isRecord(run) ||
+    run.id !== Number(pin.original_run) ||
+    run.run_attempt !== 1 ||
+    run.event !== "workflow_dispatch" ||
+    run.path !== ".github/workflows/application-update-production.yml" ||
+    run.head_sha !== pin.original_source ||
+    run.head_branch !== pin.original_ref.slice("refs/tags/".length) ||
+    run.status !== "completed" ||
+    run.conclusion !== "failure" ||
+    !isRecord(run.actor) ||
+    run.actor.id !== 41898282 ||
+    !isRecord(run.triggering_actor) ||
+    run.triggering_actor.id !== 41898282 ||
+    !isRecord(job) ||
+    job.id !== pin.original_job ||
+    job.run_id !== Number(pin.original_run) ||
+    job.run_attempt !== 1 ||
+    job.name !== "Coordinate application release" ||
+    job.head_sha !== pin.original_source ||
+    job.status !== "completed" ||
+    job.conclusion !== "failure" ||
+    intent.kind !== "present" ||
+    !isRecord(intent.data) ||
+    intent.data.ref !== `refs/tags/portcove-production-checkpoint-intent/${pin.previous}` ||
+    !isRecord(intent.data.object) ||
+    intent.data.object.type !== "commit" ||
+    intent.data.object.sha !== pin.child ||
+    proof.kind !== "absent" ||
+    !isRecord(source) ||
+    source.sha !== pin.source ||
+    !isRecord(source.tree) ||
+    source.tree.sha !== pin.source_tree
+  )
+    throw new Error("retained application claim original custody differs");
+  const retained = await hydrateRetainedCoordinatorCheckpoint(recovered.repository, pin.child, {
+    provider,
+  });
+  const object = exportRetainedCoordinatorCheckpoint(recovered.repository, pin.child);
+  const request = inspectReleaseReviewRequest(retained.input.review_request);
+  if (
+    object.previous !== pin.previous ||
+    object.tree.oid !== pin.tree ||
+    createHash("sha256").update(object.blob.contents).digest("hex") !== pin.state_sha256 ||
+    !request ||
+    request.request_id !== pin.request_id ||
+    request.before_checkpoint !== pin.previous ||
+    request.source_commit !== pin.source ||
+    request.source_tree !== pin.source_tree ||
+    request.base_commit !== pin.baseline ||
+    request.change_set_sha256 !== pin.delta ||
+    request.qualified_application?.run_id !== pin.qualification_run ||
+    request.qualified_application.run_attempt !== 1 ||
+    capacityDigest(retained.input.publication) !== capacityDigest(publication) ||
+    capacityDigest(retained.input.published_metadata) !==
+      capacityDigest(recovered.input.published_metadata)
+  )
+    throw new Error("retained application claim exact bytes or publication binding differs");
+  await assertSelectedSource();
+  const workflow = await readProductionControllerWorkflowBytes();
+  const reader = await authenticateControlReaderJob(process.env, workflow, {
+    phase: "coordinator",
+    deadline: budget.monotonicDeadline,
+  });
+  if (
+    !isRetainedApplicationReviewClaimScope(
+      recovered.checkpoint,
+      pin.child,
+      reader.admitted.execution_ref,
+      reader.admitted.run_attempt,
+    )
+  )
+    throw new Error("retained application claim lost its exact successor binding");
+  let readCurrent: (() => Promise<void>) | undefined;
+  const publish = await coordinatorCheckpointPublisher(
+    directory,
+    budget,
+    reader,
+    recovered.repository,
+    pin.previous,
+    configuration,
+    {
+      async readCurrent() {
+        if (!readCurrent) throw new Error("fresh retained claim controls unavailable");
+        await readCurrent();
+      },
+    },
+    pin.child,
+  );
+  await stageRetainedCoordinatorClaim(recovered.repository, pin.previous, pin.child);
+  let controls = await authenticateCoordinatorInitialControls(
+    directory,
+    request.request_id,
+    reader,
+    workflow,
+    budget,
+    "application",
+    "metadata-maintenance",
+  );
+  const readMaintenance = () =>
+    controls.readSdkMaintenance(undefined, {
+      deadline: budget.monotonicDeadline,
+      maxBytes: 16 * 1024 ** 2,
+    });
+  let current = await readMaintenance();
+  const stable = coordinatorMaintenanceIdentity(current);
+  let round = 0;
+  readCurrent = async () => {
+    budget.check();
+    await assertSelectedSource();
+    if (Date.now() - Date.parse(current.protection.observed_at) >= 30000) {
+      if (++round > 14) throw new Error("retained application claim control rounds exhausted");
+      controls = await authenticateReleaseControlRound(
+        path.join(directory, `retained-application-control-${round}`),
+        request.request_id,
+        "coordinator",
+        round,
+        { deadline: budget.monotonicDeadline, controlReader: "metadata-maintenance" },
+      );
+    }
+    current = await readMaintenance();
+    if (
+      controls.evidence_scope !== "github.com" ||
+      coordinatorMaintenanceIdentity(current) !== stable
+    )
+      throw new Error("retained application claim controls changed during settlement");
+    budget.check();
+  };
+  await publish(pin.child);
+  const settled = await readRemoteCoordinatorSnapshot(directory, configuration, {
+    transport: budget.journalTransport(),
+  });
+  if (settled.checkpoint !== pin.child)
+    throw new Error("retained application claim authoritative readback differs");
+  return {
+    decision: "review-requested",
+    directory,
+    checkpoint: pin.child,
+    review_request: request,
+    authority: "none",
+    automatic_retry: false,
+  };
 }
 
 /** Resolve the exact outstanding request through current authenticated controls.

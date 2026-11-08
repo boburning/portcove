@@ -338,7 +338,7 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   // adapters in isolated controller bundles, even for a credential-free refusal.
   const { requireControllerFixedJobJournalAuthorities } =
     await import("./release-authority-configuration.mts");
-  const { authenticateFixedJobCoordinatorHistory } =
+  const { authenticateFixedJobCoordinatorHistory, isRetainedApplicationReviewClaimScope } =
     await import("./release-coordinator-checkpoint-authentication.mts");
   const value = sessions.get(session)!;
   const deadline = value.journalDeadline!;
@@ -348,9 +348,17 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   const source = selected.source;
   if (
     claimedChild !== undefined &&
-    (selected.purpose !== "catalog-publication" || value.role !== "coordinator")
+    (value.role !== "coordinator" ||
+      (selected.purpose !== "catalog-publication" &&
+        (selected.purpose !== "application" ||
+          !isRetainedApplicationReviewClaimScope(
+            expected,
+            claimedChild,
+            source.execution_ref,
+            source.run_attempt,
+          ))))
   )
-    throw new Error("only the selected catalog coordinator can resume its authenticated claim");
+    throw new Error("only the selected coordinator can resume its exact authenticated claim");
   if (
     identity.controller_revision !== source.revision ||
     identity.execution_ref !== source.execution_ref ||

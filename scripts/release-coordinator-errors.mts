@@ -21,9 +21,35 @@ const applicationRefusalStages: readonly string[] = [
   "complete-publication-baseline-and-source",
   "actual-neutral-request-controls",
   "durable-neutral-review-request",
+  "retained-application-review-claim",
 ];
 
 export const applicationCoordinatorRefusalFile = "application-coordinator-operation-refusal.json";
+
+const checkpointExchangeStages: readonly string[] = [
+  "preimage",
+  "checkpoint-objects",
+  "claim",
+  "signing",
+  "proof-objects",
+  "commit",
+];
+
+function checkpointExchange(raw: unknown) {
+  if (
+    !isRecord(raw) ||
+    typeof raw.phase !== "string" ||
+    !checkpointExchangeStages.includes(raw.phase) ||
+    typeof raw.attempted_claim !== "boolean" ||
+    typeof raw.attempted_commit !== "boolean"
+  )
+    return;
+  return {
+    phase: raw.phase,
+    attempted_claim: raw.attempted_claim,
+    attempted_commit: raw.attempted_commit,
+  };
+}
 
 export function applicationCoordinatorRefusal(error: unknown) {
   const evidence = error instanceof CoordinatorRemoteError ? error.evidence : undefined;
@@ -33,9 +59,15 @@ export function applicationCoordinatorRefusal(error: unknown) {
     applicationRefusalStages.includes(evidence.phase)
       ? evidence.phase
       : "fixed-entry";
+  const exchange =
+    isRecord(evidence) &&
+    (stage === "durable-neutral-review-request" || stage === "retained-application-review-claim")
+      ? checkpointExchange(evidence.retained_error)
+      : undefined;
   return {
     schema_version: 1,
     stage,
+    ...(exchange === undefined ? {} : { checkpoint_exchange: exchange }),
     error_type: error instanceof CoordinatorRemoteError ? "coordinator-remote" : "unclassified",
     authority: "none",
     automatic_retry: false,
@@ -46,7 +78,16 @@ export function requireApplicationCoordinatorRefusal(raw: unknown) {
   if (
     !isRecord(raw) ||
     Object.keys(raw).sort().join(",") !==
-      "authority,automatic_retry,error_type,schema_version,stage" ||
+      (raw.checkpoint_exchange === undefined
+        ? "authority,automatic_retry,error_type,schema_version,stage"
+        : "authority,automatic_retry,checkpoint_exchange,error_type,schema_version,stage") ||
+    (raw.checkpoint_exchange !== undefined &&
+      ((raw.stage !== "durable-neutral-review-request" &&
+        raw.stage !== "retained-application-review-claim") ||
+        !isRecord(raw.checkpoint_exchange) ||
+        Object.keys(raw.checkpoint_exchange).sort().join(",") !==
+          "attempted_claim,attempted_commit,phase" ||
+        !checkpointExchange(raw.checkpoint_exchange))) ||
     raw.schema_version !== 1 ||
     raw.authority !== "none" ||
     raw.automatic_retry !== false ||
