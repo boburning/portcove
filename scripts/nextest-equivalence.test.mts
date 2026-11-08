@@ -437,8 +437,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     {
       platform: "x86_64-pc-windows-msvc",
       filter:
-        "package(portcove-core) & test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/)",
-      periods: 12,
+        "package(portcove-core) & test(/^service::native_portable::tests::(managed_native_declared_|native_engine_adoption_)/)",
+      periods: 24,
     },
     {
       platform: "x86_64-pc-windows-msvc",
@@ -450,12 +450,6 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       platform: "x86_64-pc-windows-msvc",
       filter:
         "package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_dune_ii_dune_dynasty$/)",
-      periods: 24,
-    },
-    {
-      platform: "x86_64-pc-windows-msvc",
-      filter:
-        "package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_(rustmania_racing_ray_m_w_muppet_racemania|body_harvest_recompiled)$/)",
       periods: 24,
     },
     {
@@ -586,6 +580,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       "slow-timeout": { period: "5s", "terminate-after": periods, "grace-period": "0s" },
       "success-output": "immediate",
     });
+  // Remaining hosted Windows portcove-core cases share one finite 60s room.
+  assert.deepEqual(overrideFor("package(portcove-core)", "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: "package(portcove-core)",
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+  });
   const historicalByteOnlyBackupFilter =
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)";
   const windowsRestoreSynchronizedFilter =
