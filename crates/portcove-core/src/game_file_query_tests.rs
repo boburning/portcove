@@ -765,8 +765,10 @@ fn explicit_refresh_constructs_its_own_batch_and_does_not_mutate_source_or_activ
 
 #[test]
 fn empty_requirements_select_zero_source_profiles_and_zero_hashing() {
+    eprintln!("empty query: fixture begin");
     let (temporary, service, _batch) = service_fixture();
     register_inert_query_source(&service, temporary.path().join("unrelated.z64"));
+    eprintln!("empty query: unrelated source registered");
     let port = service
         .catalog()
         .ports()
@@ -792,6 +794,7 @@ fn empty_requirements_select_zero_source_profiles_and_zero_hashing() {
             &crate::OperationCoordinator::new("empty-refresh", None),
         )
         .unwrap();
+    eprintln!("empty query: refresh completed");
     assert_eq!(
         snapshot.routes[0].state,
         GameFileQueryState::NoFilesRequired

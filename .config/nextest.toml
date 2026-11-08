@@ -1530,3 +1530,13 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_launch_boundary_shared_revocation_refuses_before_child_with_valid_baseline$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# CI 42432842693/1 Windows partition 1 stopped this exact query fixture
+# at 30.104s without phase output. It passed in 14.176s in 42429917803/1.
+# Keep its zero hashing assertions, product limits and zero retries. Add
+# fixture diagnostics and give only this Windows case a finite 60s budget.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^game_file_query::tests::empty_requirements_select_zero_source_profiles_and_zero_hashing$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
