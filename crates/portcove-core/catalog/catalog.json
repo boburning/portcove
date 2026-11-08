@@ -23139,6 +23139,14 @@
               "instruction": "For an already permitted 1.1.1 Android ARM64 copy on Android 11 or later, allow All files access for its chosen data folder. Use Install under Pikmin with your own matching ISO or GCM. The default folder is OpenNectar in shared storage. Pikmin 2 uses its own disc and setup."
             },
             {
+              "title": "Android ARM64 1.2 data folder",
+              "instruction": "For an already permitted 1.2 copy, use Android 10 or newer and OpenGL ES 3.0. On Android 10 grant the storage permission. On Android 11 or newer use Allow access to all files. Confirm the writable OpenNectar data folder, then choose Install under Pikmin and select your own matching ISO or GCM in the system picker."
+            },
+            {
+              "title": "Build an already permitted Mac copy",
+              "instruction": "With an already permitted 1.2 source checkout, use Xcode Command Line Tools, CMake and a Mac with OpenGL 4.1. Follow scripts/build-macos.sh. It builds both Pikmin regions and also builds a separate Pikmin 2 player. Start build/pikmin1/bin/nectar-launcher, choose Install under Pikmin and select your matching disc and a writable destination."
+            },
+            {
               "title": "Keep the creating installation and data",
               "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only."
             }
@@ -23147,7 +23155,13 @@
             "Use only a copy and bundled components you are already permitted to use. The upstream CC0 notice excludes Nintendo and other third-party material, and the package includes a separate Pikmin 2 runtime. An attributable grant for that bundled game code or a separately qualified package is needed before fresh acquisition can be offered.",
             "Keep the player-managed folder outside Portcove's managed installation. Preserve the creating installation and profile. The existing managed Windows acquisition hold remains in place."
           ],
-          "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/dc92d469517aaf899c4a6be849936e274a9c7303/README.md"
+          "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/f4633bf50099789047a3c70e62c86caf3cbaf38c/README.md",
+          "references": [
+            {
+              "title": "Keep the Mac and Android data you actually use",
+              "instruction": "On Mac keep the selected installation, its saves and the active settings folder. The launcher defaults to pikmin-native under XDG_DATA_HOME, or ~/.local/share/pikmin-native. On Android preserve the actual chosen OpenNectar folder and export the memory cards before replacing the copy. The card export covers only the cards."
+            }
+          ]
         },
         "artwork": {
           "game_id": 2239,
@@ -23530,12 +23544,17 @@
           "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
           "warnings": [
             "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup.",
-            "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable."
+            "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable.",
+            "The experimental Linux package includes translated game routines and separately sourced artwork. Follow the upstream notices and use only a copy and components you are already permitted to use."
           ],
           "steps": [
             {
               "title": "Use the complete Windows package",
-              "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core. Linux experimental AppImage packages have different storage and upstream installation instructions; the Windows contract does not establish their managed support or native qualification."
+              "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core."
+            },
+            {
+              "title": "Run a permitted experimental Linux copy",
+              "instruction": "For an already permitted v1.4.9 Linux x64 copy, keep the official AppImage in a writable folder and make it executable. Use a Vulkan driver, glibc 2.35 or newer, and libstdc++ with GLIBCXX_3.4.30. Open the AppImage and choose Select Game ROM with your own Road Rash 64 USA v1.0 original, then Start Game. Follow the included Linux help if your system needs a FUSE fallback."
             },
             {
               "title": "Keep optional setup with the game",
@@ -23550,6 +23569,10 @@
             {
               "title": "Preserve optional Road Rash imports before replacement",
               "instruction": "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
+            },
+            {
+              "title": "Back up the Linux profile and adjacent files",
+              "instruction": "Close the game and importer. Keep ~/.config/RoadRash64Recompiled or the profile you selected through APP_FOLDER_PATH, plus music and race-packs beside the writable AppImage. For an already working normal AppImage launch, select the AppImage and its containing folder when adding it to Portcove."
             },
             {
               "title": "Keep your current copy while changing routes",

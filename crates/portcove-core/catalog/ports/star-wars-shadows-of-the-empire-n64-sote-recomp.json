@@ -17,6 +17,28 @@
       "game_slug": "star-wars-shadows-of-the-empire",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "Current source has an MIT project grant, but the canonical selected-package texture permission/provenance condition remains unresolved. The older reviewed package contained reconstructed stock texture references; a new tag, source license or checksum alone does not establish the current package content basis. Fresh acquisition resumes after exact selected-package content and applicable permission are reviewed, or an asset-clean publication resolves that condition."
+    "download_block_reason": "The exact 0.9.7 Windows and experimental Linux packages include two texture packs. The MIT project grant excludes game-derived and third-party media. Fresh acquisition remains held pending permission for the bundled content or a reviewed asset-clean package.",
+    "manual_setup": {
+      "help_url": "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.7",
+      "steps": [
+        {
+          "title": "Keep your permitted Windows copy together",
+          "instruction": "For an already permitted 0.9.7 Windows copy, keep its program and companion files together. Put your own USA Rev 2 original beside Shadows of the Empire.exe as sote.us.v1.2.z64. Verify upstream launch in that folder, then select the executable and its containing folder in Portcove. Save the details before choosing Play."
+        },
+        {
+          "title": "Check the experimental Linux requirements",
+          "instruction": "Put your matching USA Rev 2 ROM in the permitted Linux kit as sote.us.v1.2.z64. The upstream Play.sh launcher uses glibc 2.43 or newer, libstdc++ with GLIBCXX_3.4.32, and Vulkan. Keep its own library folder beside the launcher. The publisher’s Linux run reached early gameplay and later showed solid-blue output. Preserve the working folder while those issues are investigated."
+        }
+      ],
+      "references": [
+        {
+          "title": "Preserve the working copy and player data",
+          "instruction": "Before changing kits, keep saves, settings, custom texture packs and your own optional PC movies, voices and music. The upstream Windows release defaults to Vulkan on first launch and then remembers your renderer choice."
+        }
+      ],
+      "warnings": [
+        "The release’s MIT grant applies to eligible project code. Use a copy and bundled components you are already permitted to use. Fresh package acquisition remains held."
+      ]
+    }
   }
 }

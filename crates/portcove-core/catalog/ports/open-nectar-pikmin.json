@@ -36,6 +36,14 @@
           "instruction": "For an already permitted 1.1.1 Android ARM64 copy on Android 11 or later, allow All files access for its chosen data folder. Use Install under Pikmin with your own matching ISO or GCM. The default folder is OpenNectar in shared storage. Pikmin 2 uses its own disc and setup."
         },
         {
+          "title": "Android ARM64 1.2 data folder",
+          "instruction": "For an already permitted 1.2 copy, use Android 10 or newer and OpenGL ES 3.0. On Android 10 grant the storage permission. On Android 11 or newer use Allow access to all files. Confirm the writable OpenNectar data folder, then choose Install under Pikmin and select your own matching ISO or GCM in the system picker."
+        },
+        {
+          "title": "Build an already permitted Mac copy",
+          "instruction": "With an already permitted 1.2 source checkout, use Xcode Command Line Tools, CMake and a Mac with OpenGL 4.1. Follow scripts/build-macos.sh. It builds both Pikmin regions and also builds a separate Pikmin 2 player. Start build/pikmin1/bin/nectar-launcher, choose Install under Pikmin and select your matching disc and a writable destination."
+        },
+        {
           "title": "Keep the creating installation and data",
           "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only."
         }
@@ -44,7 +52,13 @@
         "Use only a copy and bundled components you are already permitted to use. The upstream CC0 notice excludes Nintendo and other third-party material, and the package includes a separate Pikmin 2 runtime. An attributable grant for that bundled game code or a separately qualified package is needed before fresh acquisition can be offered.",
         "Keep the player-managed folder outside Portcove's managed installation. Preserve the creating installation and profile. The existing managed Windows acquisition hold remains in place."
       ],
-      "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/dc92d469517aaf899c4a6be849936e274a9c7303/README.md"
+      "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/f4633bf50099789047a3c70e62c86caf3cbaf38c/README.md",
+      "references": [
+        {
+          "title": "Keep the Mac and Android data you actually use",
+          "instruction": "On Mac keep the selected installation, its saves and the active settings folder. The launcher defaults to pikmin-native under XDG_DATA_HOME, or ~/.local/share/pikmin-native. On Android preserve the actual chosen OpenNectar folder and export the memory cards before replacing the copy. The card export covers only the cards."
+        }
+      ]
     }
   },
   "integration": {

@@ -21,18 +21,22 @@
     "release_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases",
     "download_block_reason": "Fresh package acquisition is held while the linked inherited n64decomp/007 code has no attributable grant: the upstream NOTICE excludes it from the port-layer MIT license. Reconsider after an attributable grant or an explicitly reviewed operation basis covers that exact linked code; a published archive or owned original alone does not settle it.",
     "manual_setup": {
-      "help_url": "https://github.com/jkdansereau/goldeneye-pc-port#readme",
+      "help_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
       "warnings": [
         "The upstream importer has 99 backup names and can overwrite its last slot when full."
       ],
       "steps": [
         {
-          "title": "Check the exact upstream permission condition",
-          "instruction": "New downloads of Windows v0.5.0 are paused because the upstream NOTICE excludes inherited src/, include/ and assets/ from its MIT licence, and the build uses that code. An attributable permission grant or reviewed basis for acquiring that exact package is still needed. Checking your original files or whether the executable runs does not resolve this separate permission requirement."
+          "title": "Check the permission for your exact copy",
+          "instruction": "Fresh Windows and Linux v0.5.0 acquisition remains held. The package NOTICE excludes inherited decompilation code and assets from the MIT grant. Resume acquisition when permission for the exact package is established."
         },
         {
-          "title": "Keep a permitted existing copy together",
-          "instruction": "If you already have a copy you are permitted to use, keep its complete matching runtime and your own required NTSC-U USA big-endian original. The reviewed player is ge007.x86_64.exe; select its containing folder as working directory, save launch details and choose Play deliberately. The game performs its own asset preparation. These instructions do not grant permission to acquire, register or execute a copy, and Portcove does not certify successful upstream conversion or gameplay."
+          "title": "Prepare your original in a permitted copy",
+          "instruction": "Keep the complete v0.5.0 folder. Place your own matching USA NTSC-U big-endian ROM at data/ge007.ntsc-final.z64. Run the upstream player in that folder to prepare its local assets before adding it."
+        },
+        {
+          "title": "Use the matching native player",
+          "instruction": "Choose ge007.x86_64.exe on Windows or ge007.x86_64 on Linux, and use its containing folder as the start folder. The Linux x64 kit uses glibc 2.29 or newer, zlib, and its adjacent SDL2 library. Save your details in Portcove, then choose Play."
         }
       ],
       "references": [
