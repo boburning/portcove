@@ -34,6 +34,7 @@
         "The reviewed package README lists OutRun Online Arcade’s title ID in its export example. Use Lode Runner’s 5841085B title folder."
       ],
       "help_url": "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md"
-    }
+    },
+    "download_block_reason": "Fresh Portcove downloads are held because the selected Lode Runner (2009) executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
   }
 }

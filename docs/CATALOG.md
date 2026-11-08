@@ -359,8 +359,9 @@ its retained contract. Keep useful existing permitted-copy instructions and
 upstream links. Remove a restriction only after reviewing the changed fact.
 Preparation refuses replacement records that remove or change an existing
 restriction; resolve its canonical condition in a reviewed Git-authored edit.
-A restricted authored listing cannot also supply a managed integration, whose
-acquisition eligibility belongs to the strict definition. Package observations,
+A restricted authored listing may retain a non-owning `user-prepared` integration
+for reviewing an independently permitted copy. Managed integrations continue to
+own acquisition eligibility through their strict definitions. Package observations,
 release links, hints and artwork enrichment do not resolve either condition.
 
 For an upstream-owned route, optional listing `download_asset_hints` maps a host

@@ -30,6 +30,7 @@
         "The upstream launcher owns the import and game handoff. Selecting the launcher or its script does not establish managed installation or save synchronization in Portcove."
       ],
       "help_url": "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md"
-    }
+    },
+    "download_block_reason": "Fresh Portcove downloads are held because the selected Fable II Pub Games executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
   }
 }

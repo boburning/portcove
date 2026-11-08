@@ -24,7 +24,7 @@
         },
         {
           "title": "Start the matching upstream player",
-          "instruction": "On Windows open Pilotwings64Recomp.exe. On Linux use Pilotwings64Recomp.sh from the extracted folder with system SDL2, GTK 3, FreeType and a working Vulkan driver."
+          "instruction": "On Windows open Pilotwings64Recomp.exe. On Linux use Pilotwings64Recomp.sh from the extracted folder with system SDL2, GTK 3, FreeType and a working Vulkan driver. The inspected Linux executable requires glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
         },
         {
           "title": "Preserve the actual profile",
@@ -32,10 +32,11 @@
         }
       ],
       "warnings": [
-        "The selected package’s notices identify missing RecompFrontend permission and other component terms. Fresh managed acquisition needs a documented grant or a suitable replacement.",
+        "The official frontend has since published a GPLv3 grant for the same code. The selected packages still have separate translated title code and the component conditions in their notices. Use an independently permitted copy.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
-    }
+    },
+    "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route."
   }
 }
