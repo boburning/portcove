@@ -155,7 +155,7 @@ async function produce() {
   if (publicJob) assert.ok(publicInput && acquired?.candidate.predecessor);
   const packages = publicJob ? undefined : await receiveNativePackages(source);
   const stageKind = publicJob ? "ordinary-public-initial" : "payload-signing";
-  await guardApplicationReleaseSource(source, false);
+  await guardApplicationReleaseSource(source, false, { useVerifiedSourceCustody: !publicJob });
   const prepared = source.prepared;
   assert.ok(
     isRecord(prepared) &&
@@ -286,7 +286,7 @@ async function produce() {
   // The owner consumes only fixed path/size/hash fields. No old controller
   // configuration, compiler bundles, App tokens or storage writer is restored.
   await writeApplicationJson(path.join(tools, "manifest.json"), { files: manifestFiles });
-  await guardApplicationReleaseSource(source, false);
+  await guardApplicationReleaseSource(source, false, { useVerifiedSourceCustody: !publicJob });
   const system = inspectWindowsSourceSystemCustody();
   let status: number | undefined;
   const ownerDeadline = Math.min(performance.now() + 570000, publicDeadline);

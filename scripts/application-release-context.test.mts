@@ -12,12 +12,14 @@ import {
   inspectApplicationBootstrapSource,
   applicationContextPriorRepositorySha256,
   applicationMetadataContextIdentity,
+  assertApplicationContextReservationHandoff,
   inspectApplicationRenewalSource,
   assertApplicationRenewalContext,
   prepareApplicationMetadataRenewalContext,
   inspectApplicationContextBeforeKey,
 } from "./application-release-context.mts";
 import { applicationReleaseTrust } from "./application-release-policy.mts";
+import { inspectApplicationRunCustody } from "./application-release-run.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
   readBoundedReleaseContextFiles,
@@ -542,8 +544,9 @@ void test("initial context copies public anchors and the fixed receiver acquires
       await withReadOnlyReleaseChildren(parent, async () => {
         process.env.GH_TOKEN = "different-ambient-before-metadata";
         const received = await receiveApplicationContext();
+        assert.equal(received.custody, undefined);
         for (const [name, bytes] of restored)
-          assert.deepEqual(await readFile(path.join(received, name)), bytes);
+          assert.deepEqual(await readFile(path.join(received.directory, name)), bytes);
       });
       assert.deepEqual(dispatches, [
         "/repos/boburning/portcove/actions/artifacts/55",
@@ -606,7 +609,66 @@ void test("native metadata identity binds every record byte independently of the
   ]);
   const before = applicationMetadataContextIdentity(files);
   assert.equal(before.versions.releases, "9007199254740994");
+  const producer = {
+    source: "a".repeat(40),
+    ref: "refs/tags/portcove-production-controller-windows-fixture",
+    run_id: "123",
+    run_attempt: 1,
+  };
+  const source = {
+    release_id: 100,
+    custody: inspectApplicationRunCustody({
+      schema_version: 1,
+      kind: "application-release-run-custody",
+      opportunity: "e".repeat(64),
+      source: producer.source,
+      source_tree: "b".repeat(40),
+      preparation: null,
+      runs: [{ id: producer.run_id, control_commit: producer.source, control_ref: producer.ref }],
+    }),
+  };
+  const reservation = {
+    ...before,
+    opportunity: source.custody.opportunity,
+    run_id: producer.run_id,
+    run_attempt: producer.run_attempt,
+    control_commit: producer.source,
+    control_ref: producer.ref,
+  };
+  const handoff = { owner_release_id: source.release_id, reservation };
+  const verify = (receipt: unknown = handoff, selected = source, actor = producer) =>
+    assertApplicationContextReservationHandoff(receipt, files, selected, actor);
+  assert.deepEqual(verify(), reservation);
+  for (const invalid of [
+    null,
+    { ...handoff, owner_release_id: 99 },
+    {
+      ...handoff,
+      reservation: { ...reservation, run_id: "124" },
+    },
+  ])
+    assert.throws(() => verify(invalid));
+  assert.throws(() => verify(handoff, source, { ...producer, run_attempt: 2 }));
+  assert.throws(
+    () =>
+      verify(handoff, {
+        ...source,
+        custody: { ...source.custody, metadata_contexts: [{ ...reservation, run_attempt: 2 }] },
+      }),
+    /later context reservation/u,
+  );
+  const member = {
+    ...source,
+    custody: inspectApplicationRunCustody({
+      ...source.custody,
+      schema_version: 2,
+      budget: { kind: "member", owner_release_id: 99, owner_opportunity: "f".repeat(64) },
+    }),
+  };
+  assert.throws(() => verify(handoff, member));
+  assert.deepEqual(verify({ ...handoff, owner_release_id: 99 }, member), reservation);
   files.set("records/releases/one.json", Buffer.from("changed record"));
+  assert.throws(() => verify(), /context differs from its producer reservation/u);
   const changed = applicationMetadataContextIdentity(files);
   assert.equal(changed.context_sha256, before.context_sha256);
   assert.notEqual(changed.context_inventory_sha256, before.context_inventory_sha256);

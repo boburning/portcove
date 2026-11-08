@@ -45,6 +45,10 @@ import {
   inspectApplicationReleaseReference,
   inspectApplicationRunCustody,
 } from "./application-release-run.mts";
+import type {
+  ApplicationBudgetContext,
+  ApplicationMetadataContextReservation,
+} from "./application-release-run.mts";
 
 export function inspectInitialApplicationDescriptor(
   raw: unknown,
@@ -236,7 +240,45 @@ export function applicationContextPriorRepositorySha256(files: ReadonlyMap<strin
   );
 }
 
-export async function packApplicationContext(directory: string, destination: string) {
+export type ApplicationContextReservationHandoff = {
+  owner_release_id: number;
+  reservation: ApplicationMetadataContextReservation;
+};
+
+/** Validate the exact notes reservation carried by the verified context producer. */
+export function assertApplicationContextReservationHandoff(
+  raw: unknown,
+  files: ReadonlyMap<string, Buffer>,
+  source: ApplicationBudgetContext,
+  producer: ReturnType<typeof inspectApplicationReleaseExecution>,
+) {
+  assert.ok(isRecord(raw) && Object.keys(raw).sort().join(",") === "owner_release_id,reservation");
+  const member = source.custody.budget;
+  const owner = member?.kind === "member" ? member.owner_release_id : source.release_id;
+  assert.ok(Number.isSafeInteger(owner) && Number(owner) > 0);
+  assert.equal(raw.owner_release_id, owner);
+  const reservation = {
+    ...applicationMetadataContextIdentity(files),
+    opportunity: source.custody.opportunity,
+    run_id: producer.run_id,
+    run_attempt: producer.run_attempt,
+    control_commit: producer.source,
+    control_ref: producer.ref,
+  };
+  assert.deepEqual(raw.reservation, reservation, "context differs from its producer reservation");
+  const known = source.custody.metadata_contexts?.at(-1);
+  if (known?.run_id === producer.run_id) {
+    assert.ok(known.run_attempt <= producer.run_attempt, "source has a later context reservation");
+    if (known.run_attempt === producer.run_attempt) assert.deepEqual(known, reservation);
+  }
+  return reservation;
+}
+
+export async function packApplicationContext(
+  directory: string,
+  destination: string,
+  custody?: ApplicationContextReservationHandoff,
+) {
   const current = inspectApplicationReleaseExecution(process.env);
   const publicFiles = await readBoundedReleaseContextFiles(directory);
   const files = [...publicFiles].map(([name, bytes]) => ({
@@ -251,6 +293,7 @@ export async function packApplicationContext(directory: string, destination: str
     run_id: current.run_id,
     producer_attempt: current.run_attempt,
     authority: "none",
+    ...(custody ? { custody } : {}),
     files,
   });
 }
@@ -322,12 +365,17 @@ export async function receiveApplicationContext() {
     maximum_archive_bytes: 32 * 1024 ** 2,
   });
   const directory = path.resolve("work/application-context");
-  await unpackApplicationContext(
-    await readApplicationJson(path.join(transfer, "context-bundle.json"), 32 * 1024 ** 2),
-    directory,
-    { source: current.source, run_id: current.run_id, attempt },
+  const bundle = await readApplicationJson(
+    path.join(transfer, "context-bundle.json"),
+    32 * 1024 ** 2,
   );
-  return directory;
+  assert.ok(isRecord(bundle));
+  await unpackApplicationContext(bundle, directory, {
+    source: current.source,
+    run_id: current.run_id,
+    attempt,
+  });
+  return { directory, custody: bundle.custody };
 }
 
 export function inspectApplicationContextBeforeKey(
