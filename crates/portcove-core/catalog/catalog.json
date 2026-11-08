@@ -37323,7 +37323,7 @@
             },
             {
               "title": "Use the upstream Linux AppImage",
-              "instruction": "Choose EmeraldRecomp-linux-x86_64 from the upstream releases page. The observed v0.1.5 player needs glibc 2.34 and libstdc++ providing GLIBCXX_3.4.30. Open it with the host’s AppImage support and use its own ROM and BIOS picker. Its launcher uses ~/.local/share/EmeraldRecomp by default, or the actual XDG_DATA_HOME or EMERALDRECOMP_HOME location. Different AppImages can share that writable home. Back up that whole profile, the original files, and actual save and state locations before replacing the app."
+              "instruction": "Choose EmeraldRecomp-linux-x86_64 from the upstream releases page. The observed v0.1.5 player needs glibc 2.34 and libstdc++ providing GLIBCXX_3.4.30. Open it with the host’s AppImage support and use its own ROM and BIOS picker. Its launcher uses ~/.local/share/EmeraldRecomp by default, or EmeraldRecomp under XDG_DATA_HOME when set. EMERALDRECOMP_HOME overrides the complete path. Different AppImages can share that writable home. Back up that whole profile, the original files, and actual save and state locations before replacing the app."
             },
             {
               "title": "Import the separate ROM and BIOS in the Android app",

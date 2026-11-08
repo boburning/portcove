@@ -21610,7 +21610,7 @@
           },
           {
             "title": "Prepare the official Linux or Mac kit",
-            "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29; the Mac setup player has a macOS 11 minimum. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SCUS-94243 CUE and all referenced BIN files. Use the title’s default generated OpenBIOS or a separately owned SCPH-1001 as upstream allows. Start the completed build-release/Einhander_Recompiled in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
+            "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29, plus the host OpenGL and zlib libraries libOpenGL.so.0 and libz.so.1. The Mac setup player has a macOS 11 minimum. Select the Apple Command Line Tools or Xcode toolchain for its Clang and SDK. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SCUS-94243 CUE and all referenced BIN files. Use the title’s default generated OpenBIOS or a separately owned SCPH-1001 as upstream allows. Start the completed build-release/Einhander_Recompiled in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
           },
           {
             "title": "Review launch details, then choose Play",
@@ -39865,7 +39865,7 @@
           },
           {
             "title": "Use the upstream Linux AppImage",
-            "instruction": "Choose EmeraldRecomp-linux-x86_64 from the upstream releases page. The observed v0.1.5 player needs glibc 2.34 and libstdc++ providing GLIBCXX_3.4.30. Open it with the host’s AppImage support and use its own ROM and BIOS picker. Its launcher uses ~/.local/share/EmeraldRecomp by default, or the actual XDG_DATA_HOME or EMERALDRECOMP_HOME location. Different AppImages can share that writable home. Back up that whole profile, the original files, and actual save and state locations before replacing the app."
+            "instruction": "Choose EmeraldRecomp-linux-x86_64 from the upstream releases page. The observed v0.1.5 player needs glibc 2.34 and libstdc++ providing GLIBCXX_3.4.30. Open it with the host’s AppImage support and use its own ROM and BIOS picker. Its launcher uses ~/.local/share/EmeraldRecomp by default, or EmeraldRecomp under XDG_DATA_HOME when set. EMERALDRECOMP_HOME overrides the complete path. Different AppImages can share that writable home. Back up that whole profile, the original files, and actual save and state locations before replacing the app."
           },
           {
             "title": "Import the separate ROM and BIOS in the Android app",
@@ -48430,7 +48430,7 @@
           },
           {
             "title": "Prepare the official Linux or Mac kit",
-            "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29; the Mac setup player has a macOS 11 minimum. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SLUS-01105 CUE and all referenced BIN files. Use your own USA SCPH-1001 retail BIOS, 512 KiB with CRC32 37157331. This title disables OpenBIOS, including on Linux and Mac. Start the completed build-release/Street_Fighter_EX2_Plus in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
+            "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29, plus the host OpenGL and zlib libraries libOpenGL.so.0 and libz.so.1. The Mac setup player has a macOS 11 minimum. Select the Apple Command Line Tools or Xcode toolchain for its Clang and SDK. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SLUS-01105 CUE and all referenced BIN files. Use your own USA SCPH-1001 retail BIOS, 512 KiB with CRC32 37157331. This title disables OpenBIOS, including on Linux and Mac. Start the completed build-release/Street_Fighter_EX2_Plus in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
           },
           {
             "title": "Review launch details and manage updates",
@@ -48613,7 +48613,7 @@
           },
           {
             "title": "Prepare the official Linux or Mac kit",
-            "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29; the Mac setup player has a macOS 11 minimum. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SLUS-01163 CUE and all referenced BIN files. The title uses generated OpenBIOS by default. A separately owned retail BIOS is optional under its upstream setup. Start the completed build-release/Strider_Recompiled in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
+            "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29, plus the host OpenGL and zlib libraries libOpenGL.so.0 and libz.so.1. The Mac setup player has a macOS 11 minimum. Select the Apple Command Line Tools or Xcode toolchain for its Clang and SDK. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SLUS-01163 CUE and all referenced BIN files. The title uses generated OpenBIOS by default. A separately owned retail BIOS is optional under its upstream setup. Start the completed build-release/Strider_Recompiled in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
           },
           {
             "title": "Review launch details and manage updates",

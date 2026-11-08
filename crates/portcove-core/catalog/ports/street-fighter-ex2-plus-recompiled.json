@@ -34,7 +34,7 @@
         },
         {
           "title": "Prepare the official Linux or Mac kit",
-          "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29; the Mac setup player has a macOS 11 minimum. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SLUS-01105 CUE and all referenced BIN files. Use your own USA SCPH-1001 retail BIOS, 512 KiB with CRC32 37157331. This title disables OpenBIOS, including on Linux and Mac. Start the completed build-release/Street_Fighter_EX2_Plus in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
+          "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29, plus the host OpenGL and zlib libraries libOpenGL.so.0 and libz.so.1. The Mac setup player has a macOS 11 minimum. Select the Apple Command Line Tools or Xcode toolchain for its Clang and SDK. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SLUS-01105 CUE and all referenced BIN files. Use your own USA SCPH-1001 retail BIOS, 512 KiB with CRC32 37157331. This title disables OpenBIOS, including on Linux and Mac. Start the completed build-release/Street_Fighter_EX2_Plus in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
         },
         {
           "title": "Review launch details and manage updates",
