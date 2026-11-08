@@ -18,6 +18,7 @@ import {
   immutableApplicationBootstrap,
   failedBootstrapRecovery,
   retainedServedRenewal,
+  retainedServedRenewalFeed,
 } from "./application-release-run.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
@@ -635,7 +636,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
     });
   const result = await inspect();
   assert.equal(result.actual_milliseconds, 1800000);
-  assert.equal(result.remaining_declared_minutes, 66);
+  assert.equal(result.remaining_declared_minutes, 67);
   assert.equal(result.attempts, 2);
   assert.equal(result.maximum_minutes, 140);
   assert.deepEqual(new Set(result.opportunities), new Set([child, parent]));
@@ -923,6 +924,62 @@ void test("only the exact retained renewal can admit a sixth execution and carry
       metadata_contexts: [original, second, { ...third, context_sha256: next.context_sha256 }],
     }),
     false,
+  );
+  const feed = retainedServedRenewalFeed;
+  const { id, control_commit, control_ref, conclusion } = feed.assembly;
+  const feedActor = { ...current, ref: feed.next_ref };
+  const feedCustody = inspectApplicationRunCustody({
+    ...custody,
+    runs: [
+      ...custody.runs.slice(0, -1),
+      { id, control_commit, control_ref },
+      { id: run, control_commit: source, control_ref: feed.next_ref },
+    ],
+    metadata_contexts: [
+      original,
+      second,
+      third,
+      { ...next, ...feed.context, run_id: id, control_commit, control_ref },
+    ],
+  });
+  const feedInventory = [
+    ...inventory.slice(0, -1),
+    {
+      ...active,
+      id: Number(id),
+      head_sha: control_commit,
+      head_branch: control_ref.slice(10),
+      status: "completed",
+      conclusion,
+    },
+    { ...active, head_branch: feed.next_ref.slice(10) },
+  ];
+  const permitFeed = (rows = feedInventory, selected = feedCustody, path = "metadata-recovery") =>
+    permitsRetainedServedRenewalContinuation(
+      rows,
+      feedActor,
+      opportunity,
+      "metadata-renewal",
+      path,
+      { release_id, custody: selected },
+    );
+  assert.ok(permitFeed());
+  assert.ok(permitFeed(feedInventory, feedCustody, "metadata-draft-recovery"));
+  assert.equal(permitFeed(feedInventory, feedCustody, "metadata-maintenance"), false);
+  assert.equal(permitFeed(feedInventory.slice(1)), false);
+  assert.equal(permitFeed([...feedInventory, { ...active, id: Number(run) + 1 }]), false);
+  assert.equal(
+    permitFeed(feedInventory, { ...feedCustody, metadata_contexts: [original, second, third] }),
+    false,
+  );
+  assert.throws(() =>
+    inspectApplicationRunCustody({
+      ...feedCustody,
+      metadata_contexts: [
+        ...feedCustody.metadata_contexts!,
+        { ...next, control_ref: feed.next_ref },
+      ],
+    }),
   );
 });
 

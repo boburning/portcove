@@ -15,6 +15,7 @@ import {
   immutableApplicationBootstrap,
   failedBootstrapRecovery,
   retainedServedRenewal,
+  retainedServedRenewalFeed,
   isEmptyApplicationBootstrapCustody,
   readApplicationBudgetOwnerAsync,
 } from "./application-release-run.mts";
@@ -417,11 +418,18 @@ export function permitsRetainedServedRenewalContinuation(
 ) {
   const expected = retainedServedRenewal;
   const custody = owner?.custody;
+  const feed = executionPath === "metadata-recovery" || executionPath === "metadata-draft-recovery";
+  const prior = feed
+    ? [...expected.predecessors, retainedServedRenewalFeed.assembly]
+    : expected.predecessors;
+  const retained = feed
+    ? [...expected.contexts, retainedServedRenewalFeed.context]
+    : expected.contexts;
   if (
     opportunity !== expected.opportunity ||
     purpose !== "metadata-renewal" ||
-    executionPath !== "metadata-maintenance" ||
-    execution.ref !== expected.next_ref ||
+    (!feed && executionPath !== "metadata-maintenance") ||
+    execution.ref !== (feed ? retainedServedRenewalFeed.next_ref : expected.next_ref) ||
     execution.run_attempt !== 1 ||
     owner?.release_id !== expected.release_id ||
     custody?.opportunity !== opportunity ||
@@ -429,11 +437,10 @@ export function permitsRetainedServedRenewalContinuation(
     custody.source_tree !== expected.source_tree ||
     custody.preparation !== null ||
     custody.budget !== undefined ||
-    runs.length !== expected.predecessors.length + 1
+    runs.length !== prior.length + 1
   )
     return false;
 
-  const prior = expected.predecessors;
   const current = {
     id: execution.run_id,
     control_commit: execution.source,
@@ -455,9 +462,9 @@ export function permitsRetainedServedRenewalContinuation(
     );
   };
   const contexts = custody.metadata_contexts ?? [];
-  const next = contexts[expected.contexts.length];
-  const contextProducers = prior.slice(-expected.contexts.length);
-  const burned = expected.contexts.every((identity, index) => {
+  const next = contexts[retained.length];
+  const contextProducers = prior.slice(-retained.length);
+  const burned = retained.every((identity, index) => {
     const actor = contextProducers[index]!;
     const context = contexts[index];
     return (
@@ -481,7 +488,7 @@ export function permitsRetainedServedRenewalContinuation(
       current,
     ]) &&
     burned &&
-    contexts.length <= expected.contexts.length + 1 &&
+    contexts.length <= retained.length + (feed ? 0 : 1) &&
     (next === undefined ||
       (next.opportunity === opportunity &&
         next.run_id === current.id &&
@@ -716,13 +723,27 @@ export async function readApplicationJobBudget(
     executionPath,
     owner,
   );
+  const exactServedRenewalFeed =
+    servedRenewalContinuation &&
+    (executionPath === "metadata-recovery" || executionPath === "metadata-draft-recovery");
+  const servedRenewalPredecessors = exactServedRenewalFeed
+    ? [...retainedServedRenewal.predecessors, retainedServedRenewalFeed.assembly]
+    : retainedServedRenewal.predecessors;
+  if (
+    execution.ref === retainedServedRenewalFeed.next_ref ||
+    executionPath === "metadata-draft-recovery"
+  )
+    assert.ok(
+      exactServedRenewalFeed,
+      "appointed feed-only renewal requires exact predecessor custody",
+    );
   if (executionPath === "bootstrap-recovery")
     assert.ok(budgetedBootstrap, "bootstrap recovery requires its single appointed continuation");
   assert.ok(
     Array.isArray(known) &&
       (known.length <= 3 ||
         budgetedBootstrap ||
-        (servedRenewalContinuation && known.length <= retainedServedRenewal.predecessors.length)) &&
+        (servedRenewalContinuation && known.length <= servedRenewalPredecessors.length)) &&
       new Set(known).size === known.length,
   );
   if (registeredRunIds === undefined)
@@ -749,7 +770,7 @@ export async function readApplicationJobBudget(
     owner,
   );
   const maximumAttempts = servedRenewalContinuation
-    ? retainedServedRenewal.predecessors.length + 1
+    ? servedRenewalPredecessors.length + 1
     : continuation
       ? 4
       : 3;
@@ -819,7 +840,8 @@ export async function readApplicationJobBudget(
         );
     }
     if (servedRenewalContinuation && !current) {
-      const prior = retainedServedRenewal.predecessors.find(({ id }) => id === String(run.id));
+      const prior = servedRenewalPredecessors.find(({ id }) => id === String(run.id));
+      if (exactServedRenewalFeed) assert.deepEqual(result.feed_executions, []);
       assert.equal(
         result.actual_milliseconds,
         prior?.milliseconds,

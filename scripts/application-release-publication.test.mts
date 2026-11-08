@@ -23,7 +23,7 @@ import {
   inspectBootstrapPublicationReceipt,
   readOriginalBootstrapSiteAsset,
   decodeBootstrapDraftSiteAsset,
-  inspectBootstrapDraftPreparation,
+  inspectMetadataDraftPreparation,
   inspectHistoricalApplicationPublication,
   readExpiredApplicationDraftAssets,
   readStagedDraftRecoveryBackup,
@@ -2135,15 +2135,14 @@ void test("historical metadata reader authenticates both assembly subjects while
   }
 });
 
-void test("bootstrap draft preparation is separate from protected publication and binds original asset IDs", async () => {
-  for (const fault of [
-    undefined,
-    "missing",
-    "identity",
-    "protection",
-    "immutable-identity",
-  ] as const) {
-    const f = fixture(fault === "protection" ? "expired-publication" : "valid");
+void test("metadata draft preparation is separate from protected publication and binds original asset IDs", async () => {
+  const faults = [undefined, "missing", "identity", "protection", "immutable-identity"] as const;
+  const cases = [fixture, renewalFixture].flatMap((createFixture) =>
+    faults.map((fault) => [createFixture, fault] as const),
+  );
+  for (const [createFixture, fault] of cases) {
+    const purpose = createFixture === fixture ? "metadata-bootstrap" : "metadata-renewal";
+    const f = createFixture(fault === "protection" ? "expired-publication" : "valid");
     const expected = { release_id: 10, custody: f.custody, binding: f.binding };
     const metadata = Buffer.from(JSON.stringify(f.raw));
     const prepared = await publishApplicationMetadataRelease(
@@ -2167,7 +2166,10 @@ void test("bootstrap draft preparation is separate from protected publication an
     const proof = {
       schema_version: 1,
       authority: "none",
-      kind: "application-bootstrap-draft-preparation",
+      kind:
+        purpose === "metadata-bootstrap"
+          ? "application-bootstrap-draft-preparation"
+          : "application-renewal-draft-preparation",
       control_commit: f.binding.control_commit,
       control_ref: f.binding.control_ref,
       run_id: f.binding.run_id,
@@ -2183,14 +2185,23 @@ void test("bootstrap draft preparation is separate from protected publication an
       run_id: f.binding.run_id,
       run_attempt: 1,
     };
-    const inspected = inspectBootstrapDraftPreparation(proof, producer);
+    const inspected = inspectMetadataDraftPreparation(proof, producer, purpose);
+    assert.throws(() =>
+      inspectMetadataDraftPreparation(
+        proof,
+        producer,
+        purpose === "metadata-bootstrap" ? "metadata-renewal" : "metadata-bootstrap",
+      ),
+    );
     for (const changed of [
       { control_commit: "f".repeat(40) },
       { producer_attempt: 2 },
       { assembly_attempt: 2 },
       { assets: [proof.assets[0], proof.assets[0]] },
     ])
-      assert.throws(() => inspectBootstrapDraftPreparation({ ...proof, ...changed }, producer));
+      assert.throws(() =>
+        inspectMetadataDraftPreparation({ ...proof, ...changed }, producer, purpose),
+      );
     if (fault === "missing") f.remoteAssets.pop();
     if (fault === "identity") f.remoteAssets[0]!.id++;
     const result = publishApplicationMetadataRelease(

@@ -40,8 +40,8 @@ export const applicationReleaseJobMinutes = Object.freeze({
 });
 
 /** Mutually exclusive execution paths, never an extra resource allowance.
- * Bootstrap and ordinary release split the same five-minute allowance into
- * preparation3/publication2; renewal retains its combined publisher. */
+ * All release modes split the same five-minute allowance into
+ * preparation3/publication2. */
 export function applicationReleaseBudgetMinutes(purpose: unknown) {
   assert.ok(
     purpose === "application-release" ||
@@ -49,13 +49,11 @@ export function applicationReleaseBudgetMinutes(purpose: unknown) {
       purpose === "metadata-renewal",
   );
   const jobs: Record<string, number> = { ...applicationReleaseJobMinutes };
-  if (purpose === "application-release" || purpose === "metadata-bootstrap") {
-    jobs.publication = 2;
-  } else delete jobs.publication_prepare;
+  jobs.publication = 2;
+  if (purpose !== "metadata-bootstrap") jobs["protection_draft_recovery / execute"] = 1;
   if (purpose === "application-release") {
     jobs.readback = 3;
     jobs.public_installed_readback = 2;
-    jobs["protection_draft_recovery / execute"] = 1;
   }
   if (purpose === "metadata-bootstrap") {
     // The empty bootstrap never builds, signs, or installs an executable.
@@ -95,6 +93,7 @@ export function applicationReleaseRemainingMinutes(
     executionPath === "ordinary" ||
       executionPath === "immutable-recovery" ||
       executionPath === "metadata-recovery" ||
+      executionPath === "metadata-draft-recovery" ||
       executionPath === "bootstrap-recovery" ||
       executionPath === "metadata-maintenance",
   );
@@ -115,7 +114,7 @@ export function applicationReleaseRemainingMinutes(
   }
   assert.equal(
     purpose,
-    executionPath === "metadata-recovery"
+    executionPath === "metadata-recovery" || executionPath === "metadata-draft-recovery"
       ? "metadata-renewal"
       : executionPath === "bootstrap-recovery"
         ? "metadata-bootstrap"
@@ -131,6 +130,11 @@ export function applicationReleaseRemainingMinutes(
     "public_installed",
     "public_installed_readback",
   ]);
+  if (executionPath === "metadata-draft-recovery") {
+    names.add("publication_prepare");
+    names.add("protection_publication / execute");
+    names.add("publication");
+  }
   return Object.freeze(
     Object.fromEntries(
       Object.entries(ordinary)

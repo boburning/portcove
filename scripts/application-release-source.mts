@@ -32,10 +32,12 @@ import {
   registerApplicationReleaseRun,
   resumeApplicationMetadataDraft,
   inspectBootstrapDraftRecovery,
+  requireBootstrapDraft,
   retainApplicationPreparation,
   inspectApplicationQualificationIdentity,
   readApplicationRunNotes,
   retainedServedRenewal,
+  retainedServedRenewalFeed,
   immutableApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
   registerApplicationBudgetRun,
@@ -333,6 +335,7 @@ async function beforeSourceRecord() {
 async function beforeSourceWrite(
   knownRunIds: readonly string[],
   budgetContext?: ApplicationBudgetContext,
+  retainedDraftRecovery = false,
 ) {
   await beforeSourceRecord();
   await readApplicationJobBudget(
@@ -347,7 +350,9 @@ async function beforeSourceWrite(
       : process.argv[2] === "recover-bootstrap"
         ? "bootstrap-recovery"
         : process.argv[2] === "recover-metadata"
-          ? "metadata-recovery"
+          ? retainedDraftRecovery
+            ? "metadata-draft-recovery"
+            : "metadata-recovery"
           : ["renew", "renew-unserved"].includes(process.argv[2] ?? "")
             ? "metadata-maintenance"
             : "ordinary",
@@ -943,12 +948,91 @@ async function renewUnservedMetadata() {
   await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
 }
 
+async function recoverRetainedMetadataDraftFeed(
+  execution: ReturnType<typeof inspectApplicationReleaseExecution>,
+  draft: Record<string, unknown>,
+  scratch: string,
+) {
+  const opportunity = retainedServedRenewal.opportunity;
+  const appointed = retainedServedRenewalFeed;
+  const preimage = {
+    release_id: retainedServedRenewal.release_id,
+    notes_sha256: appointed.draft_notes_sha256,
+    site_archive: {
+      name: "application-site.zip" as const,
+      ...appointed.assets["application-site.zip"],
+    },
+  };
+  requireBootstrapDraft(draft, preimage);
+  const notes = readApplicationRunNotes(draft.body);
+  assert.ok(notes && notes.custody.draft_assemblies?.length === 1);
+  assert.equal(notes.custody.draft_assemblies[0]!.context_sha256, appointed.context.context_sha256);
+  assert.equal(execution.run_attempt, 1);
+  const { discovered, prior } = await readApplicationPriorPublication(
+    scratch,
+    undefined,
+    "renew-served-metadata",
+  );
+  assert.equal(discovered.release_id, immutableApplicationBootstrap.release_id);
+  const basis = {
+    schema_version: 1,
+    kind: "application-metadata-renewal-basis",
+    root_sha256: prior.receipt.publication.root_sha256,
+    repository_sha256: prior.receipt.publication.repository_sha256,
+    site_generation: prior.receipt.site.generation,
+  };
+  assert.equal(releaseCanonicalDigest(basis), opportunity);
+  const registration = await registerApplicationReleaseRun(
+    await createApplicationRunRegistrationProvider(),
+    execution,
+    retainedServedRenewal.source,
+    retainedServedRenewal.source_tree,
+    opportunity,
+    (known, context) => beforeSourceWrite(known, context, true),
+    "create-or-resume",
+    undefined,
+    preimage,
+  );
+  const packet = {
+    schema_version: 1,
+    authority: "none",
+    purpose: "metadata-renewal",
+    execution_path: "metadata-draft-recovery",
+    opportunity,
+    renewal_basis: basis,
+    renewal_clock: "native-context-reservation-v1",
+    run_custody: { release_id: registration.release_id, custody: registration.custody },
+    control_commit: execution.source,
+    control_ref: execution.ref,
+    run_id: execution.run_id,
+    producer_attempt: execution.run_attempt,
+  };
+  inspectApplicationRenewalSource(packet);
+  await writeApplicationJson("work/application-source/source.json", packet);
+  await applicationOutput("source_attempt", execution.run_attempt);
+  await applicationOutput("known_runs", JSON.stringify(registration.known_run_ids));
+  await applicationOutput("retained_draft_recovery", true);
+}
+
 async function recoverImmutableMetadataFeed() {
   const execution = inspectApplicationReleaseExecution(process.env);
   await verifyApplicationReleaseTrust();
   await beforeSourceRecord();
   const opportunity = process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY ?? "";
   assert.match(opportunity, /^[a-f0-9]{64}$/u);
+  assert.ok(process.env.RUNNER_TEMP);
+  const scratch = path.resolve(process.env.RUNNER_TEMP, "application-metadata-recovery-selection");
+  await mkdir(scratch);
+  if (execution.ref === retainedServedRenewalFeed.next_ref) {
+    assert.equal(opportunity, retainedServedRenewal.opportunity);
+    const candidate = await (
+      await createApplicationRunRegistrationProvider()
+    ).release(retainedServedRenewal.release_id);
+    assert.equal(candidate.status, 200);
+    assert.ok(isRecord(candidate.body));
+    if (candidate.body.draft === true)
+      return recoverRetainedMetadataDraftFeed(execution, candidate.body, scratch);
+  }
   const tag = `portcove-production-candidate-${opportunity}`;
   const release = await (await openApplicationSourceMetadata()).releaseByTag(tag);
   assert.ok(isRecord(release) && Number.isSafeInteger(release.id) && Number(release.id) > 0);
@@ -957,12 +1041,41 @@ async function recoverImmutableMetadataFeed() {
   assert.ok(
     notes && notes.custody.opportunity === opportunity && notes.custody.preparation === null,
   );
-  assert.ok(process.env.RUNNER_TEMP);
-  const scratch = path.resolve(process.env.RUNNER_TEMP, "application-metadata-recovery-selection");
-  await mkdir(scratch);
   const expected = { release_id: Number(release.id), custody: notes.custody };
   const prior = await readApplicationImmutableMetadata(expected, scratch);
   assert.ok(isRecord(prior.metadata) && prior.metadata.purpose === "metadata-renewal");
+  if (execution.ref === retainedServedRenewalFeed.next_ref) {
+    const appointed = retainedServedRenewalFeed;
+    assert.equal(expected.release_id, retainedServedRenewal.release_id);
+    assert.equal(opportunity, retainedServedRenewal.opportunity);
+    assert.equal(execution.run_attempt, 1);
+    const { id, control_commit, control_ref, attempt } = appointed.assembly;
+    assert.deepEqual(prior.receipt.producer, { id, control_commit, control_ref });
+    assert.equal(prior.receipt.producer_attempt, attempt);
+    assert.equal(prior.receipt.site.generation, appointed.generation);
+    assert.equal(prior.metadata.context_sha256, appointed.context.context_sha256);
+    const assemblies = notes.custody.draft_assemblies;
+    assert.ok(assemblies?.length === 1);
+    const [assembly] = assemblies;
+    assert.equal(assembly!.release_id, expected.release_id);
+    assert.equal(assembly!.producer_attempt, attempt);
+    assert.equal(assembly!.context_sha256, appointed.context.context_sha256);
+    assert.deepEqual(assembly!.publication, prior.receipt.publication);
+    assert.deepEqual(
+      assembly!.subjects,
+      Object.entries(appointed.assets).map(([name, { bytes, sha256 }]) => ({
+        name,
+        bytes,
+        sha256,
+      })),
+    );
+    assert.equal(prior.assets.length, Object.keys(appointed.assets).length);
+    for (const [name, wanted] of Object.entries(appointed.assets)) {
+      const asset = prior.assets.find((row) => row.name === name);
+      assert.ok(asset && asset.bytes === wanted.bytes && asset.sha256 === wanted.sha256);
+      if ("id" in wanted) assert.equal(asset.id, wanted.id);
+    }
+  }
   const forward =
     prior.metadata.schema_version === 2
       ? {
@@ -1065,6 +1178,12 @@ async function prepareCompiler() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const command = process.argv[2];
+  if (process.env.GITHUB_REF === retainedServedRenewalFeed.next_ref)
+    assert.equal(
+      command,
+      "recover-metadata",
+      "the appointed continuation can only publish the retained feed",
+    );
   if (command === "select") await selectForQualification();
   else if (command === "wake-qualification")
     console.log(JSON.stringify(await readCurrentApplicationWakeQualification()));
