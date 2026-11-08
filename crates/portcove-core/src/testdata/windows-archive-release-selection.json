@@ -764,7 +764,7 @@
         "serial": "SLES-01156",
         "track_count": 1,
         "track_sha1": "3dcfffb32c962d7ee2b00ea532b044aaeaaeb8ad",
-        "track_sha256": "a8e56ca1fa612b6f164abf4452492f2e0f1598ec64a43610f23a499a10476fa0",
+        "track_sha256": null,
         "generated_executable": "Diablo_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
         "crash_diagnostic": true
