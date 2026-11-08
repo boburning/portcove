@@ -2585,7 +2585,8 @@ impl PortcoveService {
             remove_external,
             update,
         ];
-        if crate::managed_runtime_policy::acquisition_hold(&status.port_id).is_some() {
+        if crate::managed_runtime_policy::acquisition_hold(&self.catalog, &status.port_id).is_some()
+        {
             for assessment in &mut status.port_actions {
                 if matches!(assessment.action, Action::Install | Action::Update) {
                     assessment.availability = Availability::Held;
@@ -2657,7 +2658,7 @@ impl PortcoveService {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<crate::ScopedResolvedRelease> {
-        crate::managed_runtime_policy::require_acquisition_available(&port.id)?;
+        crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
         let scope = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &self.catalog,
@@ -3174,7 +3175,7 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
-        crate::managed_runtime_policy::require_acquisition_available(&port.id)?;
+        crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
         let ReleaseIntent {
             activate,
             shared_preferences,
@@ -3907,7 +3908,10 @@ impl PortcoveService {
         let staged = status
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
-        crate::managed_runtime_policy::require_managed_activation_available(&staged)?;
+        crate::managed_runtime_policy::require_managed_activation_available(
+            &self.catalog,
+            &staged,
+        )?;
         self.require_ghostship_install_data_compatibility(
             &staged,
             status
@@ -4145,7 +4149,7 @@ impl PortcoveService {
             let qualification =
                 InstallQualification::from_catalog(&self.catalog, &port_id, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
-            crate::managed_runtime_policy::require_acquisition_available(&port.id)?;
+            crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
             self.require_definition_adoption(&self.catalog, port)?;
             if let Some(active) = self.status(&port_id)?.active {
                 self.require_portable_transition(&active, port)?;
@@ -6915,7 +6919,7 @@ mod tests {
         assert!(!options.allowed);
         assert_eq!(
             options.reason.as_deref(),
-            crate::managed_runtime_policy::acquisition_hold(id)
+            crate::managed_runtime_policy::acquisition_hold_reason(&service.catalog, id)
         );
     }
 
@@ -6952,12 +6956,20 @@ mod tests {
 
         install.version = "0.8.5".into();
         assert!(
-            crate::managed_runtime_policy::require_managed_activation_available(&install).is_err()
+            crate::managed_runtime_policy::require_managed_activation_available(
+                &service.catalog,
+                &install
+            )
+            .is_err()
         );
         install.artifact.sha256 =
             "0e3ca0fddc6410747d735d98e0e515f534143417319af3f1c666c9b71b932d29".into();
         assert!(
-            crate::managed_runtime_policy::require_managed_activation_available(&install).is_ok()
+            crate::managed_runtime_policy::require_managed_activation_available(
+                &service.catalog,
+                &install
+            )
+            .is_ok()
         );
     }
 

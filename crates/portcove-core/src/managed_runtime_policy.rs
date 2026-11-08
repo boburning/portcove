@@ -2,32 +2,50 @@
 //! provider. Offline checks bind the hashed manifest to its registered artifact.
 use crate::{ArtifactIdentity, Platform, PortDefinition, PortcoveError, Result};
 
-/// Temporary containment for the incompatible Open Nectar launcher and data layout
-/// observed in #742. The current definition remains available to installed copies.
-pub(crate) fn acquisition_hold(port_id: &str) -> Option<&'static str> {
-    (port_id == "open-nectar-pikmin").then_some(
-        "Open Nectar managed acquisition is on hold while upstream launcher updates and settings storage are reviewed.",
-    )
+/// Catalog-owned containment for a managed route whose upstream release still
+/// matches its selector but changed reviewed behavior. Ports absent from the
+/// catalog have no hold; their retained definitions keep their own checks.
+pub(crate) fn acquisition_hold<'a>(
+    catalog: &'a crate::Catalog,
+    port_id: &str,
+) -> Option<&'a crate::ManagedAcquisitionHold> {
+    catalog
+        .port(port_id)
+        .ok()?
+        .managed_acquisition_hold
+        .as_ref()
 }
 
-pub(crate) fn require_acquisition_available(port_id: &str) -> Result<()> {
-    match acquisition_hold(port_id) {
+pub(crate) fn acquisition_hold_reason<'a>(
+    catalog: &'a crate::Catalog,
+    port_id: &str,
+) -> Option<&'a str> {
+    acquisition_hold(catalog, port_id).map(|hold| hold.reason.as_str())
+}
+
+pub(crate) fn require_acquisition_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
+    match acquisition_hold_reason(catalog, port_id) {
         Some(reason) => Err(PortcoveError::unsupported(reason)),
         None => Ok(()),
     }
 }
 
-pub(crate) fn require_managed_activation_available(install: &crate::InstallRecord) -> Result<()> {
-    if acquisition_hold(&install.port_id).is_some()
-        && (install.version != "0.8.5"
-            || install.artifact.sha256
-                != "0e3ca0fddc6410747d735d98e0e515f534143417319af3f1c666c9b71b932d29")
-    {
-        return Err(PortcoveError::unsupported(
-            "This staged Open Nectar package lacks reviewed launcher and settings compatibility. Keep the existing active copy.",
-        ));
+pub(crate) fn require_managed_activation_available(
+    catalog: &crate::Catalog,
+    install: &crate::InstallRecord,
+) -> Result<()> {
+    let Some(hold) = acquisition_hold(catalog, &install.port_id) else {
+        return Ok(());
+    };
+    if hold.reviewed_artifacts.iter().any(|reviewed| {
+        reviewed.version == install.version
+            && reviewed
+                .sha256
+                .eq_ignore_ascii_case(&install.artifact.sha256)
+    }) {
+        return Ok(());
     }
-    Ok(())
+    Err(PortcoveError::unsupported(hold.activation_reason.clone()))
 }
 
 pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
@@ -174,6 +192,67 @@ pub(crate) fn require_artifact(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn managed_acquisition_holds_follow_catalog_data_without_port_specific_code() {
+        let embedded = crate::Catalog::embedded().unwrap();
+        let mut document = embedded.authoritative_document();
+        let held = "open-nectar-pikmin";
+        let other = document
+            .ports
+            .iter()
+            .find(|port| port.id != held && port.managed_acquisition_hold.is_none())
+            .unwrap()
+            .id
+            .clone();
+        assert!(require_acquisition_available(&embedded, held).is_err());
+        assert!(require_acquisition_available(&embedded, &other).is_ok());
+
+        let hold = crate::ManagedAcquisitionHold {
+            reason: "held for review".into(),
+            activation_reason: "unreviewed package".into(),
+            reviewed_artifacts: vec![crate::ReviewedHoldArtifact {
+                version: "1.0.0".into(),
+                sha256: "b".repeat(64),
+            }],
+        };
+        for port in &mut document.ports {
+            if port.id == held {
+                port.managed_acquisition_hold = None;
+            } else if port.id == other {
+                port.managed_acquisition_hold = Some(hold.clone());
+            }
+        }
+        let changed =
+            crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert!(require_acquisition_available(&changed, held).is_ok());
+        let refusal = require_acquisition_available(&changed, &other).unwrap_err();
+        assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
+        assert!(require_acquisition_available(&changed, "not-in-catalog").is_ok());
+
+        let mut install = crate::InstallRecord {
+            id: "staged".into(),
+            port_id: other.clone(),
+            version: "1.0.0".into(),
+            path: std::path::PathBuf::from("staged"),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: true,
+            artifact: crate::ArtifactIdentity {
+                asset_name: "port.zip".into(),
+                sha256: "B".repeat(64),
+                size: 1,
+            },
+            manifest_sha256: "a".repeat(64),
+            selected_executable: "port.exe".into(),
+            runtime: None,
+        };
+        assert!(require_managed_activation_available(&changed, &install).is_ok());
+        install.version = "1.0.1".into();
+        let refusal = require_managed_activation_available(&changed, &install).unwrap_err();
+        assert!(refusal.message.contains("unreviewed package"));
+    }
 
     const PORTS: [&str; 3] = [
         "the-force-engine-dark-forces",

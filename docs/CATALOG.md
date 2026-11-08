@@ -1350,6 +1350,18 @@ add a mandatory maintainer review or full gameplay campaign. Changed setup,
 executable/data coordinates, ownership or package handling can require a reviewed
 rule change; existing transition and recovery guards still apply.
 
+When an upstream release still matches a managed route's selector but changes
+reviewed setup, replacement or data behavior, contain it with the integration's
+`managed_acquisition_hold` instead of port-specific Core code. Its `reason`
+refuses fresh Install, Update, catalog download and managed adoption before any
+provider contact. Its `activation_reason` refuses activation and recovery of a
+staged or interrupted package unless that package's version and SHA-256 match one
+of the `reviewed_artifacts`. Installed copies keep their retained definition and
+existing Play, backup and removal checks. Remove the hold only after reviewing
+the changed upstream behavior on the canonical port issue. Because the catalog is
+currently embedded, the hold reaches players with the next application release;
+independent delivery to unchanged clients remains with #246.
+
 The reusable managed TFE, GB shared-preferences and version-local credentials
 policies support reviewed GitHub package rules as well as exact direct manifests.
 Fresh dynamic acquisition requires an opaque in-process resolver binding to the
