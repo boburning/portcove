@@ -81,6 +81,7 @@ impl CollisionSet {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn extract_archive(
     source: &Path,
     destination: &Path,
