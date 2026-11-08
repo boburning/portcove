@@ -792,12 +792,15 @@ void test("application coordinator diagnostics retain a closed refusal without e
       .stage,
     "fixed-entry",
   );
-  await writeFile(path.join(root, applicationCoordinatorRefusalFile), JSON.stringify(known));
-  const output = await retainControllerDiagnostics(root, "coordinator");
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(output, applicationCoordinatorRefusalFile), "utf8")),
-    known,
+  const encoded = JSON.stringify(known);
+  await writeFile(
+    path.join(root, applicationCoordinatorRefusalFile),
+    `{"stage":"fixture-private-discarded-value",${encoded.slice(1)}`,
   );
+  const output = await retainControllerDiagnostics(root, "coordinator");
+  const retained = await readFile(path.join(output, applicationCoordinatorRefusalFile), "utf8");
+  assert.equal(retained.includes("fixture-private-discarded-value"), false);
+  assert.deepEqual(JSON.parse(retained), known);
   await rm(output, { recursive: true });
   await writeFile(
     path.join(root, applicationCoordinatorRefusalFile),
