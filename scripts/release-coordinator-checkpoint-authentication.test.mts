@@ -1,3 +1,4 @@
+import { parseControllerWitnessedTime } from "./github-controller-attestation.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
@@ -322,9 +323,25 @@ void test("witnessed time must belong to the started original job, including its
     { deadline: performance.now() + 60000, provider: f.provider },
   );
 });
+void test("GitHub CLI witnessed offsets normalize to the same instant and reject malformed civil time", () => {
+  const entry = { type: "Tlog", uri: "https://rekor.sigstore.dev" };
+  const expected = Date.parse("2026-11-08T13:59:07Z");
+  for (const timestamp of ["2026-11-08T08:59:07-05:00", "2026-11-08T19:29:07+05:30"])
+    assert.equal(parseControllerWitnessedTime({ ...entry, timestamp }), expected);
+  for (const timestamp of [
+    "2026-11-08T08:59:07",
+    "2026-11-08T08:59:07-0500",
+    "2026-11-08T08:59:07-05:60",
+    "2026-11-08T08:59:07-24:00",
+    "2026-11-31T08:59:07-05:00",
+    "2026-11-08T24:00:00-05:00",
+  ])
+    assert.throws(() => parseControllerWitnessedTime({ ...entry, timestamp }), /witnessed time/u);
+});
 void test("injected signature/job verification retains original bytes but cannot mint actual-provider custody", async (t) => {
   const directory = await root(t),
     f = checkpointProofFixture();
+  f.verification.verifiedTimestamps[0]!.timestamp = "2026-10-23T07:00:30.123-05:00";
   const receipt = await authenticateCoordinatorCheckpointEvidence(
     directory,
     f.checkpoint,
@@ -369,7 +386,7 @@ for (const fault of ["issuer", "statement", "timestamp", "late-timestamp"]) {
       f.verification.verifiedTimestamps.push({
         type: "tlog",
         uri: "https://rekor.sigstore.dev",
-        timestamp: "2026-10-23T12:02:00Z",
+        timestamp: "2026-10-23T07:02:00-05:00",
       });
     await assert.rejects(
       authenticateCoordinatorCheckpointEvidence(
@@ -905,12 +922,24 @@ for (const fault of [
   });
 }
 
-void test("the exact same-revision r51 adoption can hand off to only the r46 application source", () => {
+void test("the exact historical r51 adoption can hand off to only the r46 application source", () => {
   const retained = retainedCatalogBootstrapClaim;
   const checkpoint = { checkpoint: retained.child, previous: retained.previous };
   const source = { revision: "a".repeat(40), execution_ref: retained.application_ref };
-  const producer = { controller_revision: source.revision, controller_ref: retained.successor_ref };
+  const producer = {
+    controller_revision: retained.successor_revision,
+    controller_ref: retained.successor_ref,
+    workflow_sha256: retained.successor_workflow_sha256,
+  };
   assert.equal(matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source), true);
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(
+      checkpoint,
+      { ...producer, workflow_sha256: "a".repeat(64) },
+      source,
+    ),
+    false,
+  );
   assert.equal(
     matchesRetainedCatalogBootstrapHandoff(
       { ...checkpoint, checkpoint: "b".repeat(40) },
@@ -936,10 +965,11 @@ void test("the exact same-revision r51 adoption can hand off to only the r46 app
     false,
   );
   assert.equal(
-    matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, {
-      ...source,
-      revision: "b".repeat(40),
-    }),
+    matchesRetainedCatalogBootstrapHandoff(
+      checkpoint,
+      { ...producer, controller_revision: source.revision },
+      source,
+    ),
     false,
   );
   assert.equal(

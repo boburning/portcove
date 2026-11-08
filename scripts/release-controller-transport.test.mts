@@ -185,7 +185,7 @@ void test("transport clock preserves provider-start budget across subprocesses a
     job_id: 4,
     job_name: "Coordinate application release",
     phase: "coordinator",
-    profile_ms: 170000,
+    profile_ms: 290000,
     run_attempt: 1,
     run_id: "123",
     started_at: "2026-10-20T00:00:00Z",
@@ -219,9 +219,9 @@ void test("transport clock preserves provider-start budget across subprocesses a
     ),
     115500,
   );
-  assert.throws(
-    () => controllerTransportClock(catalog, "coordinator", identity, epoch, 500, 0n),
-    /identity/,
+  assert.equal(
+    controllerTransportClock(catalog, "coordinator", identity, epoch + 175000, 500, 175000000000n),
+    115500,
   );
   assert.throws(
     () =>

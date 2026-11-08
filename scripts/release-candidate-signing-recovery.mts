@@ -520,7 +520,7 @@ export interface CandidateSigningRecoveryRequest {
   checkpoint: string;
   remote_configuration: unknown;
 }
-/** Called only by the fixed coordinator under its original170s deadline and
+/** Called only by the fixed coordinator under its original job deadline and
  * actual control boundary. The callback refreshes that existing boundary;
  * neither it nor any returned locator can mint publication eligibility. */
 export async function recoverCandidateSigningCustody(

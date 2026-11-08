@@ -198,9 +198,8 @@ async function observeProtections(
   let snapshot = 0;
   let stage = "repository-identity";
   const started = performance.now();
-  // Catalog reads the complete retained ruleset inventory twice, along with
-  // the protected refs and each environment's complete selector inventory.
-  const requestLimit = purpose === "catalog-publication" ? 224 : releasePublication ? 128 : 80;
+  // Both purposes read the complete retained ruleset inventory twice.
+  const requestLimit = 224;
   const deadline = started + 120_000;
   const get = async (suffix: string) => {
     if (requests >= requestLimit || performance.now() >= deadline)
@@ -218,7 +217,7 @@ async function observeProtections(
   const read = async () => {
     const rulesets: Record<string, unknown>[] = [];
     const seen = new Set<number>();
-    const detailBatch = purpose === "catalog-publication" || releasePublication ? 4 : 1;
+    const detailBatch = 4;
     let complete = false;
     for (let page = 1; page <= 8; page++) {
       stage = "ruleset-inventory";

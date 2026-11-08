@@ -414,7 +414,7 @@ void test("coordinator budget includes original job setup and refuses missing du
     started_at: "2026-10-20T00:00:00Z",
   };
   const inventory = { total_count: 1, jobs: [job] };
-  assert.equal(coordinatorOriginalJobDeadline(inventory, expected, now, 100), 50100);
+  assert.equal(coordinatorOriginalJobDeadline(inventory, expected, now, 100), 170100);
   for (const bad of [
     { ...inventory, total_count: 2 },
     { ...inventory, jobs: [job, job], total_count: 2 },
@@ -422,7 +422,7 @@ void test("coordinator budget includes original job setup and refuses missing du
     { ...inventory, jobs: [{ ...job, run_attempt: 2 }] },
     { ...inventory, jobs: [{ ...job, head_sha: "b".repeat(40) }] },
     { ...inventory, jobs: [{ ...job, started_at: "2026-10-20T00:03:00Z" }] },
-    { ...inventory, jobs: [{ ...job, started_at: "2026-10-19T23:59:00Z" }] },
+    { ...inventory, jobs: [{ ...job, started_at: "2026-10-19T23:57:00Z" }] },
   ])
     assert.throws(() => coordinatorOriginalJobDeadline(bad, expected, now, 100));
 });

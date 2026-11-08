@@ -118,14 +118,13 @@ async function fixture(
   };
 }
 
-void test("catalog coordinator artifact transfer has scoped headroom and retains a safe refusal", async (t) => {
+void test("coordinator artifact transfer has scoped headroom and retains a safe refusal", async (t) => {
   const f = await fixture(t, "ready", "coordinator");
   const phases: unknown[] = [];
   let budget = 0;
   await assert.rejects(
     waitForControlArtifact(f.root, "ready", f.input, {
       ...f.options,
-      purpose: "catalog-publication",
       download: async (_, deadline) => {
         budget = deadline - performance.now();
         throw new Error("private provider response");

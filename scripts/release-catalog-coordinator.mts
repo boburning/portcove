@@ -1,4 +1,4 @@
-import { catalogCoordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
+import { coordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
 import {
   authenticateCapacityExecutor,
   authenticateOwnedCheckpointJournalHistory,
@@ -220,7 +220,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
   )
     throw new Error("catalog coordinator original deadline/private parent unavailable");
   let deadline = Math.min(
-    start + catalogCoordinatorJobBudgetMilliseconds,
+    start + coordinatorJobBudgetMilliseconds,
     phaseDeadline ?? Infinity,
     coordinatorCommandDeadline() ?? Infinity,
   );
@@ -236,7 +236,6 @@ export async function runFixedCatalogCoordinatorConfiguration(
     await readOriginalCoordinatorJobDeadline(
       Math.min(deadline, performance.now() + 15000),
       16 * 1024 ** 2,
-      "catalog-publication",
     ),
   );
   const journalTransport = { credential: { token: readerToken }, deadline };
@@ -310,7 +309,6 @@ export async function runFixedCatalogCoordinatorConfiguration(
           {
             deadline: Date.now() + Math.min(240000, Math.floor(deadline - performance.now())),
             phaseDeadline: deadline,
-            purpose: "catalog-publication",
           },
         );
         const controls = await authenticateCatalogReleaseControlSource(

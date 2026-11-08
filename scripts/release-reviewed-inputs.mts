@@ -49,7 +49,7 @@ import {
 } from "./release-coordinator-deadline.mts";
 import {
   currentClassificationJobDeadline,
-  currentCatalogCoordinatorProtectionJobDeadline,
+  currentCoordinatorProtectionJobDeadline,
   currentSharedProtectionJobDeadline,
 } from "./release-signing-job-budget.mts";
 import {
@@ -541,22 +541,25 @@ async function runOperation(
           guard: requireObserver,
         });
       }
+      const observationOptions: Parameters<typeof observeReleaseInputProtections>[1] = {
+        journalNamespace: observerRoles?.storage_journal?.namespace,
+        onRefusal: (evidence) =>
+          console.error(
+            JSON.stringify({
+              operation: catalogPurpose
+                ? "catalog-protection-observation"
+                : "application-protection-observation",
+              phase,
+              ...evidence,
+              authority: "none",
+            }),
+          ),
+      };
       result = catalogPurpose
-        ? await observeCatalogMaintenanceProtections(readProtection, {
-            journalNamespace: observerRoles?.storage_journal?.namespace,
-            onRefusal: (evidence) =>
-              console.error(
-                JSON.stringify({
-                  operation: "catalog-protection-observation",
-                  phase,
-                  ...evidence,
-                  authority: "none",
-                }),
-              ),
-          })
+        ? await observeCatalogMaintenanceProtections(readProtection, observationOptions)
         : await observeReleaseInputProtections(readProtection, {
+            ...observationOptions,
             releasePublication: phase === "release-publication",
-            journalNamespace: observerRoles?.storage_journal?.namespace,
           });
       requireObserver();
       if (productionObservation)
@@ -786,16 +789,25 @@ async function main() {
     const environment = { ...process.env };
     if (
       environment.GITHUB_JOB === "coordinator_protection_observation" &&
-      environment.PORTCOVE_EXECUTION_PURPOSE === "catalog-publication" &&
       mode === "observe-production-coordinator"
     ) {
-      const source = admitProductionCatalogProtectionObserver(
-        environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
-        environment,
-        await readProductionControllerWorkflowBytes(),
-        "coordinator",
-      );
-      const deadline = await currentCatalogCoordinatorProtectionJobDeadline({
+      const purpose = inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE);
+      const workflow = await readProductionControllerWorkflowBytes();
+      const source =
+        purpose === "catalog-publication"
+          ? admitProductionCatalogProtectionObserver(
+              environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
+              environment,
+              workflow,
+              "coordinator",
+            )
+          : admitProductionProtectionObserver(
+              environment.PORTCOVE_CONTROLLER_ADMISSION,
+              environment,
+              workflow,
+              "coordinator",
+            );
+      const deadline = await currentCoordinatorProtectionJobDeadline({
         run_id: String(source.run_id),
         run_attempt: 1,
         controller_revision: source.revision,
