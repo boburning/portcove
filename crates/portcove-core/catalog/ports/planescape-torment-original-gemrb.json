@@ -33,7 +33,7 @@
         },
         {
           "title": "Choose the upstream Linux build",
-          "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+          "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
         },
         {
           "title": "Choose the upstream Mac build",

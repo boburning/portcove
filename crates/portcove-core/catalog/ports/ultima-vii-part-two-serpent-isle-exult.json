@@ -29,7 +29,7 @@
         },
         {
           "title": "Import this edition in the Android launcher",
-          "instruction": "Install the official Exult Android APK. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Keep your original archive and an accessible backup of the game and save data before replacing the APK or clearing app data."
+          "instruction": "Install the official Exult Android APK. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
         },
         {
           "title": "Add the game and manage your files",

@@ -28009,7 +28009,7 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate-2, and use that absolute GamePath in a separate baldurs-gate-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
@@ -28088,7 +28088,7 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate, and use that absolute GamePath in a separate baldurs-gate.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
@@ -29790,7 +29790,7 @@
             },
             {
               "title": "Use the official Linux v1.1 launcher",
-              "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 4 v1.4 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 and the matching episode support files into that working folder. Use /EPISODE 4 and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH."
+              "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 4 v1.4 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 into that working folder along with the episode support files from data/keen4. Use /EPISODE 4 and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH."
             },
             {
               "title": "Keep upstream update ownership",
@@ -29861,7 +29861,7 @@
             },
             {
               "title": "Use the official Linux v1.1 launcher",
-              "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 5 v1.4 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK5, EGAGRAPH.CK5 and AUDIO.CK5 and the matching episode support files into that working folder. Use /EPISODE 5 and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH. The archive’s bundled Keen 4 shareware data does not supply this episode."
+              "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 5 v1.4 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK5, EGAGRAPH.CK5 and AUDIO.CK5 into that working folder along with the episode support files from data/keen5. Use /EPISODE 5 and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH. The archive’s bundled Keen 4 shareware data does not supply this episode."
             },
             {
               "title": "Keep upstream update ownership",
@@ -29932,7 +29932,7 @@
             },
             {
               "title": "Use the official Linux v1.1 launcher",
-              "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 6 v1.4 or v1.5 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK6, EGAGRAPH.CK6 and AUDIO.CK6 and the matching episode support files into that working folder. Use /EPISODE 6v14 or /EPISODE 6v15, as appropriate and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH. The archive’s bundled Keen 4 shareware data does not supply this episode."
+              "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 6 v1.4 or v1.5 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK6, EGAGRAPH.CK6 and AUDIO.CK6 into that working folder along with the episode support files from data/keen6e14 or data/keen6e15 for the selected revision. Use /EPISODE 6v14 or /EPISODE 6v15, as appropriate and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH. The archive’s bundled Keen 4 shareware data does not supply this episode."
             },
             {
               "title": "Keep upstream update ownership",
@@ -33741,7 +33741,7 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale-2, and use that absolute GamePath in a separate icewind-dale-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
@@ -33828,7 +33828,7 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale, and use that absolute GamePath in a separate icewind-dale.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
@@ -37168,7 +37168,7 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates ~/.var/app/org.gemrb.gemrb/config/gemrb/GemRB.cfg on first start. Point GamePath to this title’s complete working copy in an accessible folder. Keep this game’s own config, writable SavePath parent and dedicated empty CachePath. For the Flatpak, keep the sandbox’s data and configuration backed up separately."
+              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
@@ -42401,7 +42401,7 @@
             },
             {
               "title": "Import this edition in the Android launcher",
-              "instruction": "Install the official Exult Android APK. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Keep your original archive and an accessible backup of the game and save data before replacing the APK or clearing app data."
+              "instruction": "Install the official Exult Android APK. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
             },
             {
               "title": "Add the game and manage your files",
@@ -42480,7 +42480,7 @@
             },
             {
               "title": "Import this edition in the Android launcher",
-              "instruction": "Install the official Exult Android APK. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Keep your original archive and an accessible backup of the game and save data before replacing the APK or clearing app data."
+              "instruction": "Install the official Exult Android APK. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private blackgate/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
             },
             {
               "title": "Add the game and manage your files",

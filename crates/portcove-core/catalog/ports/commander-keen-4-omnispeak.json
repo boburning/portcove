@@ -23,7 +23,7 @@
         },
         {
           "title": "Use the official Linux v1.1 launcher",
-          "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 4 v1.4 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 and the matching episode support files into that working folder. Use /EPISODE 4 and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH."
+          "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 4 v1.4 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 into that working folder along with the episode support files from data/keen4. Use /EPISODE 4 and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH."
         },
         {
           "title": "Keep upstream update ownership",
