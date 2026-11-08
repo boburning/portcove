@@ -3136,6 +3136,17 @@ mod tests {
         dkr.persistent_paths.clear();
         dkr.runtime_source_filename = None;
         dkr.launch_arguments.clear();
+        // Keep the historical selector in the frozen input. The current route
+        // recognizes both official Windows archive spellings.
+        let dk64 = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "donkey-kong-64-recompiled")
+            .unwrap();
+        let previous_hints = dk64.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["DK64".into(), "-Windows-Release".into(), ".zip".into()],
+        );
+        assert_eq!(previous_hints, Some(vec!["DK64-Recompiled-Windows".into()]));
         for (id, hint) in [
             ("zelda64-recomp", "Linux-X64.zip"),
             ("banjo-recomp", "Linux-X64."),

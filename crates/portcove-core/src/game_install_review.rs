@@ -696,6 +696,14 @@ mod tests {
         // Keep the reviewed port; unrelated modern Native6 ports cannot be
         // represented after deleting their schema-2 source authority.
         document.ports.retain(|port| port.id == PORT);
+        // The legacy projection predates schema-3 guide references.
+        if let Some(guide) = document.ports[0]
+            .presentation
+            .as_mut()
+            .and_then(|presentation| presentation.manual_setup.as_mut())
+        {
+            guide.references.clear();
+        }
         document.schema_version = 1;
         document.source_catalog = None;
         service.replace_catalog_for_test(

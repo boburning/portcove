@@ -437,6 +437,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     {
       platform: "x86_64-pc-windows-msvc",
       filter:
+        "package(portcove-core) & test(/^game_file_query::tests::empty_requirements_select_zero_source_profiles_and_zero_hashing$/)",
+      periods: 12,
+    },
+    {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
         "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_status_revocation_holds_exact_current_and_retained_operations$/)",
       periods: 12,
     },
