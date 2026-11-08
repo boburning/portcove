@@ -21,7 +21,7 @@ import {
   payloadOriginalJobDeadline,
   classificationOriginalJobDeadline,
   buildingOriginalJobDeadline,
-  catalogCoordinatorProtectionOriginalJobDeadline,
+  coordinatorProtectionOriginalJobDeadline,
 } from "./release-signing-job-budget.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 const ref = "refs/tags/portcove-production-controller-test",
@@ -34,7 +34,7 @@ const ref = "refs/tags/portcove-production-controller-test",
     run_id: "12345",
     run_attempt: 1,
   };
-void test("catalog coordinator observer retains the original five-minute job origin", () => {
+void test("coordinator observer retains the original five-minute job origin", () => {
   const start = Date.parse("2026-11-08T12:05:20Z");
   const revision = "a".repeat(40);
   const inventory = {
@@ -53,12 +53,11 @@ void test("catalog coordinator observer retains the original five-minute job ori
   };
   const expected = { run_id: "1", controller_revision: revision };
   assert.equal(
-    catalogCoordinatorProtectionOriginalJobDeadline(inventory, expected, start + 175000, 1000),
+    coordinatorProtectionOriginalJobDeadline(inventory, expected, start + 175000, 1000),
     116000,
   );
   assert.throws(
-    () =>
-      catalogCoordinatorProtectionOriginalJobDeadline(inventory, expected, start + 290000, 1000),
+    () => coordinatorProtectionOriginalJobDeadline(inventory, expected, start + 290000, 1000),
     /original TUF job budget exhausted/u,
   );
 });

@@ -15,7 +15,7 @@ import {
 } from "./release-control-phases.mts";
 import { requireProtectionObserverSourceConfiguration } from "./release-authority-configuration-contract.mts";
 import {
-  currentCatalogCoordinatorProtectionJobDeadline,
+  currentCoordinatorProtectionJobDeadline,
   currentSharedProtectionJobDeadline,
 } from "./release-signing-job-budget.mts";
 
@@ -69,9 +69,10 @@ async function main() {
     controller_revision: admitted.revision,
     controller_ref: admitted.execution_ref,
   };
-  const catalogCoordinator = purpose === "catalog-publication" && phase === "coordinator";
-  const phaseDeadline = catalogCoordinator
-    ? await currentCatalogCoordinatorProtectionJobDeadline(identity)
+  const coordinatorObserver =
+    environment.GITHUB_JOB === "coordinator_protection_observation" && phase === "coordinator";
+  const phaseDeadline = coordinatorObserver
+    ? await currentCoordinatorProtectionJobDeadline(identity)
     : isSharedApplicationProtectionObserverSource(admitted)
       ? await currentSharedProtectionJobDeadline(identity, performance.now() + 570000)
       : undefined;
@@ -92,9 +93,8 @@ async function main() {
       ...(round ? { round } : {}),
     },
     {
-      purpose,
       ...(phaseDeadline === undefined ? {} : { phaseDeadline }),
-      ...(catalogCoordinator
+      ...(coordinatorObserver
         ? { onRefusal: (receipt) => console.error(JSON.stringify(receipt)) }
         : {}),
     },

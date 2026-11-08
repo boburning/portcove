@@ -8,7 +8,7 @@ import {
 } from "./production-controller-admission.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
-  catalogCoordinatorJobBudgetMilliseconds,
+  coordinatorJobBudgetMilliseconds,
   releaseControlPhaseProfile,
 } from "./release-control-phases.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
@@ -26,8 +26,7 @@ type ClockRole =
   | "classification-writer"
   | "classification-observer"
   | "candidate-building"
-  | "catalog-coordinator"
-  | "catalog-coordinator-protection"
+  | "coordinator-protection"
   | "coordinator"
   | "release-publication"
   | "site-publication"
@@ -70,8 +69,7 @@ function signingOriginalJobDeadline(
       "classification-writer",
       "classification-observer",
       "candidate-building",
-      "catalog-coordinator",
-      "catalog-coordinator-protection",
+      "coordinator-protection",
       "coordinator",
       "release-publication",
       "site-publication",
@@ -85,8 +83,8 @@ function signingOriginalJobDeadline(
   const maximum =
     (role === "native-windows" || role === "native-linux") && admittedNativeMaximum !== undefined
       ? admittedNativeMaximum
-      : role === "catalog-coordinator" || role === "catalog-coordinator-protection"
-        ? catalogCoordinatorJobBudgetMilliseconds
+      : role === "coordinator" || role === "coordinator-protection"
+        ? coordinatorJobBudgetMilliseconds
         : role === "payload" ||
             role === "native-windows" ||
             role === "native-linux" ||
@@ -94,13 +92,11 @@ function signingOriginalJobDeadline(
           ? 570000
           : role === "candidate-building"
             ? 525000
-            : role === "coordinator"
-              ? 170000
-              : role === "release-publication"
-                ? 350000
-                : role === "site-publication"
-                  ? 290000
-                  : 115000;
+            : role === "release-publication"
+              ? 350000
+              : role === "site-publication"
+                ? 290000
+                : 115000;
   if (
     !isRecord(raw) ||
     !Array.isArray(raw.jobs) ||
@@ -125,28 +121,26 @@ function signingOriginalJobDeadline(
   const name =
     role === "application-protection"
       ? applicationProtectionObserver.name
-      : role === "catalog-coordinator-protection"
+      : role === "coordinator-protection"
         ? releaseControlPhaseProfile("coordinator").observer_name
-        : role === "catalog-coordinator"
-          ? releaseControlPhaseProfile("coordinator").reader_name
-          : role === "coordinator" || role === "release-publication" || role === "site-publication"
-            ? releaseControlPhaseProfile(role).reader_name
-            : role === "native-windows" || role === "native-linux"
-              ? hostedNativeJobProfile(role === "native-linux" ? "linux-x86_64" : "windows-x86_64")
-                  .job
-              : role === "candidate-building"
-                ? "Authenticate release control inputs"
-                : role === "classification-writer"
-                  ? "Persist independently reviewed classification"
-                  : role === "classification-observer"
-                    ? "Observe release input protections"
-                    : releaseControlPhaseProfile(
-                        role.startsWith("catalog-")
-                          ? role
-                          : role === "payload"
-                            ? "payload"
-                            : `tuf-${role}`,
-                      ).reader_name;
+        : role === "coordinator" || role === "release-publication" || role === "site-publication"
+          ? releaseControlPhaseProfile(role).reader_name
+          : role === "native-windows" || role === "native-linux"
+            ? hostedNativeJobProfile(role === "native-linux" ? "linux-x86_64" : "windows-x86_64")
+                .job
+            : role === "candidate-building"
+              ? "Authenticate release control inputs"
+              : role === "classification-writer"
+                ? "Persist independently reviewed classification"
+                : role === "classification-observer"
+                  ? "Observe release input protections"
+                  : releaseControlPhaseProfile(
+                      role.startsWith("catalog-")
+                        ? role
+                        : role === "payload"
+                          ? "payload"
+                          : `tuf-${role}`,
+                    ).reader_name;
   const matches = raw.jobs.filter((job: unknown) => isRecord(job) && job.name === name);
   const job: unknown = matches[0];
   if (
@@ -366,14 +360,14 @@ export function sharedProtectionOriginalJobDeadline(...args: BudgetArguments) {
 export function currentSharedProtectionJobDeadline(identity: JobIdentity, processDeadline: number) {
   return currentSdkJobDeadline("application-protection", identity, processDeadline);
 }
-export function catalogCoordinatorProtectionOriginalJobDeadline(...args: BudgetArguments) {
-  return signingOriginalJobDeadline("catalog-coordinator-protection", ...args);
+export function coordinatorProtectionOriginalJobDeadline(...args: BudgetArguments) {
+  return signingOriginalJobDeadline("coordinator-protection", ...args);
 }
-export function currentCatalogCoordinatorProtectionJobDeadline(identity: JobIdentity) {
+export function currentCoordinatorProtectionJobDeadline(identity: JobIdentity) {
   return currentSdkJobDeadline(
-    "catalog-coordinator-protection",
+    "coordinator-protection",
     identity,
-    performance.now() + catalogCoordinatorJobBudgetMilliseconds,
+    performance.now() + coordinatorJobBudgetMilliseconds,
   );
 }
 function catalogClockRole(raw: unknown): CatalogControlPhase {
@@ -440,10 +434,7 @@ export async function currentControllerJobDeadline(
     role === "release-publication" ||
     role === "site-publication"
   ) {
-    selected =
-      role === "coordinator" && process.env.PORTCOVE_EXECUTION_PURPOSE === "catalog-publication"
-        ? "catalog-coordinator"
-        : role;
+    selected = role;
   } else if (
     typeof role === "string" &&
     ["tuf-releases", "tuf-preview", "tuf-stable", "tuf-snapshot", "tuf-timestamp"].includes(role)
@@ -466,7 +457,7 @@ async function currentSdkJobDeadline(
 ) {
   requireOriginalJobIdentity(identity);
   const lookupDeadline =
-    role === "catalog-coordinator-protection"
+    role === "coordinator-protection"
       ? Math.min(processDeadline, performance.now() + 15000)
       : processDeadline;
   const token = transport?.token ?? fixedReleaseReaderToken();

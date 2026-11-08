@@ -686,7 +686,7 @@ jobs:
       - tool_attest
       - classification_writer
     runs-on: ubuntu-22.04
-    timeout-minutes: ${{ inputs.publication_purpose == 'application' && 3 || 5 }}
+    timeout-minutes: 5
     environment: production-release-coordinator
     permissions:
       contents: write
@@ -791,7 +791,7 @@ jobs:
       && needs.tool_attest.result == 'success' }}
     needs: *a3
     runs-on: ubuntu-22.04
-    timeout-minutes: ${{ inputs.publication_purpose == 'application' && 3 || 5 }}
+    timeout-minutes: 5
     environment: production-release-protection-observer
     permissions:
       contents: read

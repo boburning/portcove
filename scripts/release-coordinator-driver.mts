@@ -1,4 +1,4 @@
-import { catalogCoordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
+import { coordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readWindowsApplicationQualification } from "./application-release-qualification.mts";
 import { readApplicationSourceCommitObjects } from "./application-release-source-git.mts";
@@ -824,10 +824,8 @@ export function coordinatorOriginalJobDeadline(
   expected: { run_id: string; controller_revision: string },
   now = Date.now(),
   monotonic = performance.now(),
-  purpose: "application" | "catalog-publication" = "application",
 ) {
-  const budget =
-    purpose === "catalog-publication" ? catalogCoordinatorJobBudgetMilliseconds : 170000;
+  const budget = coordinatorJobBudgetMilliseconds;
   if (
     !isRecord(raw) ||
     !Array.isArray(raw.jobs) ||
@@ -874,11 +872,7 @@ export function coordinatorOriginalJobDeadline(
   return monotonic + remaining;
 }
 /** Read the fixed original job with the caller's existing lookup limits. */
-export async function readOriginalCoordinatorJobDeadline(
-  lookupDeadline: number,
-  maxBytes: number,
-  purpose: "application" | "catalog-publication" = "application",
-) {
+export async function readOriginalCoordinatorJobDeadline(lookupDeadline: number, maxBytes: number) {
   const run = process.env.GITHUB_RUN_ID;
   const revision = process.env.GITHUB_SHA;
   if (
@@ -921,7 +915,6 @@ export async function readOriginalCoordinatorJobDeadline(
     },
     Date.now(),
     performance.now(),
-    purpose,
   );
 }
 async function coordinatorDeadline(phaseDeadline?: number) {
@@ -937,14 +930,14 @@ async function coordinatorDeadline(phaseDeadline?: number) {
     throw new Error("coordinator inherited deadline exhausted");
   const readerToken = fixedReleaseReaderToken();
   const monotonicDeadline = Math.min(
-    monotonicStart + 170000,
+    monotonicStart + coordinatorJobBudgetMilliseconds,
     inherited,
     await readOriginalCoordinatorJobDeadline(lookupDeadline, 1024 * 1024),
   );
   if (performance.now() >= monotonicDeadline)
     throw new Error("coordinator inherited deadline exhausted");
   const deadline = Date.now() + Math.floor(monotonicDeadline - performance.now());
-  const remaining = (maximum = 170000) => {
+  const remaining = (maximum = coordinatorJobBudgetMilliseconds) => {
     const left = Math.floor(
       Math.min(deadline - Date.now(), monotonicDeadline - performance.now(), maximum),
     );
@@ -1413,7 +1406,10 @@ async function coordinateTrustedReleaseAt(
             run_id: String(reader.admitted.run_id),
             run_attempt: reader.admitted.run_attempt,
           },
-          { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
+          {
+            deadline: Math.min(budget.deadline, Date.now() + 240000),
+            phaseDeadline: budget.monotonicDeadline,
+          },
         );
     const controls =
       round?.admission?.controls ??
@@ -2118,7 +2114,10 @@ async function prepareTrustedCoordinatorRenewalAt(
         run_id: String(reader.admitted.run_id),
         run_attempt: reader.admitted.run_attempt,
       },
-      { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
+      {
+        deadline: Math.min(budget.deadline, Date.now() + 240000),
+        phaseDeadline: budget.monotonicDeadline,
+      },
     );
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
@@ -2400,7 +2399,10 @@ async function authenticateCoordinatorInitialControls(
       run_id: String(reader.admitted.run_id),
       run_attempt: reader.admitted.run_attempt,
     },
-    { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
+    {
+      deadline: Math.min(budget.deadline, Date.now() + 240000),
+      phaseDeadline: budget.monotonicDeadline,
+    },
   );
   const authenticateSource =
     purpose === "catalog"
@@ -3928,7 +3930,10 @@ async function requestTrustedSemanticReviewAt(
         run_id: String(reader.admitted.run_id),
         run_attempt: reader.admitted.run_attempt,
       },
-      { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
+      {
+        deadline: Math.min(budget.deadline, Date.now() + 240000),
+        phaseDeadline: budget.monotonicDeadline,
+      },
     );
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
@@ -4079,7 +4084,10 @@ async function continueTrustedSemanticReview(
         run_id: String(reader.admitted.run_id),
         run_attempt: reader.admitted.run_attempt,
       },
-      { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
+      {
+        deadline: Math.min(budget.deadline, Date.now() + 240000),
+        phaseDeadline: budget.monotonicDeadline,
+      },
     );
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",

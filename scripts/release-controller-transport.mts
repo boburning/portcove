@@ -12,7 +12,7 @@ import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import {
-  catalogCoordinatorJobBudgetMilliseconds,
+  coordinatorJobBudgetMilliseconds,
   inspectReleaseControlPhase,
   releaseControlPhaseProfile,
 } from "./release-control-phases.mts";
@@ -37,7 +37,7 @@ type Phase = ReturnType<typeof inspectReleaseControlPhase>;
 const phaseBudgets: Record<Phase, number> = {
   admission: 535000,
   payload: 570000,
-  coordinator: 170000,
+  coordinator: coordinatorJobBudgetMilliseconds,
   "release-publication": 350000,
   "site-publication": 290000,
   "tuf-releases": 115000,
@@ -50,11 +50,6 @@ const phaseBudgets: Record<Phase, number> = {
   "catalog-snapshot": 115000,
   "catalog-timestamp": 115000,
 };
-function transportPhaseBudget(phase: Phase, environment: NodeJS.ProcessEnv) {
-  return phase === "coordinator" && environment.PORTCOVE_EXECUTION_PURPOSE === "catalog-publication"
-    ? catalogCoordinatorJobBudgetMilliseconds
-    : phaseBudgets[phase];
-}
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const exact = (raw: unknown, keys: string): raw is Record<string, unknown> =>
   isRecord(raw) && Object.keys(raw).sort().join(",") === keys;
@@ -714,7 +709,7 @@ export function controllerTransportClock(
       "controller_revision,execution_ref,job_id,job_name,monotonic_deadline_ns,phase,profile_ms,run_attempt,run_id,started_at",
     ) ||
     clock.phase !== phase ||
-    clock.profile_ms !== transportPhaseBudget(phase, environment) ||
+    clock.profile_ms !== phaseBudgets[phase] ||
     clock.run_id !== environment.GITHUB_RUN_ID ||
     clock.run_attempt !== 1 ||
     environment.GITHUB_RUN_ATTEMPT !== "1" ||
@@ -730,13 +725,13 @@ export function controllerTransportClock(
   )
     throw new Error("original transport clock identity differs");
   const left = Math.min(
-    Date.parse(clock.started_at) + transportPhaseBudget(phase, environment) - now,
+    Date.parse(clock.started_at) + phaseBudgets[phase] - now,
     Number((BigInt(clock.monotonic_deadline_ns) - hostMonotonic) / 1_000_000n),
   );
   if (
     !Number.isFinite(left) ||
     left <= 0 ||
-    left > transportPhaseBudget(phase, environment) ||
+    left > phaseBudgets[phase] ||
     !Number.isFinite(monotonic)
   )
     throw new Error("original transport clock exhausted");
@@ -767,7 +762,7 @@ async function originalDeadline(root: string, phase: Phase) {
     job_id: job.id,
     job_name: profile.reader_name,
     phase,
-    profile_ms: transportPhaseBudget(phase, environment),
+    profile_ms: phaseBudgets[phase],
     run_attempt: 1,
     run_id: environment.GITHUB_RUN_ID,
     started_at: job.started_at,

@@ -1278,7 +1278,7 @@ same retained intent and single job-token dispatch. The wake job has a
 two-minute ceiling. Preparation and dispatch use the same original provider
 job start and refuse after 115 seconds, including setup. The remaining five
 seconds are reserved for hosted receipt handling. The shared controller
-budgets include the wake and total 141 application minutes or 48 catalog
+budgets include the wake and total 145 application minutes or 48 catalog
 minutes. The $0 Stop policy and mutual exclusion continue to apply. The exact
 workflow digest and selected authority require ratification before activation.
 
@@ -1440,7 +1440,7 @@ operation grants availability for a subsequent effect. Source/configuration loss
 revocation or boundary drift refuses, and unrelated admission holds remain holds.
 
 The selected `initial-beta-windows-x86_64-v1` controller graph declares a
-141-minute application ceiling and a separate 48-minute catalog alternative;
+145-minute application ceiling and a separate 48-minute catalog alternative;
 these purposes are mutually exclusive. The workflow digest, complete allocation
 arrays and policy digest must match the exact appointed source. These ceilings
 are not measured runtime, free-provider headroom or a capacity reservation. The
@@ -2575,8 +2575,11 @@ same-process continuation. `requireActualCoordinatorMetadataPreparation` checks
 those original receipts, the unchanged published seed and descriptor, exact
 local/remote checkpoint, public generation marker and fresh controls before a
 fixed context producer may consume them. Its mode is explicitly `renewal`; an
-initial empty feed requires the separate bootstrap route. The original 170-second
-role deadline continues through this handoff. Serialized CLI output cannot
+initial empty feed requires the separate bootstrap route. The coordinator and
+its isolated protection observer each use five hosted minutes and a 290-second
+deadline from their own original job start. The coordinator handoff retains its
+240-second handshake cap, with at most 15 seconds for one provider request or
+artifact transfer. Its original deadline continues through this handoff. Serialized CLI output cannot
 recreate the private session or reset that budget.
 
 On a later renewal wake, the context continuation first reconciles the existing

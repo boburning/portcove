@@ -153,7 +153,6 @@ export async function waitForControlArtifact(
     /** Caller may only tighten the existing finite wait, never extend it. */
     deadline?: number;
     phaseDeadline?: number;
-    purpose?: "application" | "catalog-publication";
     onRefusal?: (receipt: {
       stage: string;
       polls: number;
@@ -273,8 +272,7 @@ export async function waitForControlArtifact(
       )
     ).artifacts;
   const name = controlHandshakeArtifactName(role, input);
-  const providerTimeout =
-    options.purpose === "catalog-publication" && input.phase === "coordinator" ? 15000 : 5000;
+  const providerTimeout = input.phase === "coordinator" ? 15000 : 5000;
   let polls = 0;
   let stage = "provider-setup";
   try {

@@ -107,7 +107,7 @@ void test("shared observer phases retain mode routing and the original ten-minut
     slice4CapacityResources.aggregate_job_minutes.reduce((a, b) => a + b, 0) +
     slice4CapacityResources.input_job_minutes.reduce((a, b) => a + b, 0) +
     slice4CapacityResources.wake_job_minutes.reduce((a, b) => a + b, 0);
-  assert.equal(completeAllocation, 141);
+  assert.equal(completeAllocation, 145);
   assert.equal(completeAllocation, slice4CapacityResources.declared_job_minutes);
   assert.equal(completeAllocation, slice4CapacityResources.total_job_minutes);
 });
@@ -762,13 +762,6 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       );
       return purpose === "application" ? 2 : 1;
     }
-    if (name === "coordinator" || name === "coordinator_protection_observation") {
-      assert.equal(
-        job["timeout-minutes"],
-        "${{ inputs.publication_purpose == 'application' && 3 || 5 }}",
-      );
-      return purpose === "catalog-publication" ? 5 : 3;
-    }
     const value = job["timeout-minutes"];
     assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0, name);
     return value;
@@ -840,9 +833,11 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       slice4CapacityResources.declared_job_minutes,
       slice4CapacityResources.catalog_declared_job_minutes,
     ),
-    141,
+    145,
   );
-  assert.equal(slice4CapacityResources.total_job_minutes, 141);
+  assert.equal(slice4CapacityResources.total_job_minutes, 145);
+  assert.equal(requiredJob("coordinator")["timeout-minutes"], 5);
+  assert.equal(requiredJob("coordinator_protection_observation")["timeout-minutes"], 5);
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
   assert.equal(requiredJob("protection_observation")["timeout-minutes"], 10);
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);
