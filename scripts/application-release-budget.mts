@@ -16,6 +16,8 @@ import {
   failedBootstrapRecovery,
   retainedServedRenewal,
   retainedServedRenewalFeed,
+  retainedR55Renewal,
+  retainedR56FeedRecovery,
   isEmptyApplicationBootstrapCustody,
   readApplicationBudgetOwnerAsync,
 } from "./application-release-run.mts";
@@ -669,6 +671,32 @@ export async function readBootstrapRecoveryObservations(
   return observations;
 }
 
+export function assertRetainedR56FeedBudget(
+  runId: string,
+  result: Pick<
+    ReturnType<typeof inspectApplicationJobBudget>,
+    "actual_milliseconds" | "feed_executions"
+  >,
+) {
+  const original = runId === retainedR55Renewal.original_run_id;
+  assert.ok(original || runId === retainedR56FeedRecovery.run_id, "unappointed r57 predecessor");
+  assert.equal(result.actual_milliseconds, original ? 561_000 : 936_000);
+  assert.deepEqual(
+    result.feed_executions,
+    original
+      ? []
+      : [
+          {
+            job_id: retainedR56FeedRecovery.feed_job_id,
+            attempt: 1,
+            started_at: "2026-11-09T07:20:44Z",
+            completed_at: "2026-11-09T07:21:56Z",
+            conclusion: "failure",
+          },
+        ],
+  );
+}
+
 export async function readApplicationJobBudget(
   registeredRunIds: readonly string[] | undefined,
   purpose: unknown,
@@ -705,6 +733,37 @@ export async function readApplicationJobBudget(
         "recorded related execution missing from provider history; no budget reset",
       );
   assert.ok(runs.some((run) => run.id === Number(execution.run_id)));
+  const recoverR56 = execution.ref === retainedR56FeedRecovery.next_ref;
+  if (recoverR56) {
+    assert.equal(executionPath, "metadata-recovery");
+    assert.equal(purpose, "metadata-renewal");
+    assert.equal(opportunity, retainedR55Renewal.opportunity);
+    assert.equal(execution.run_attempt, 1);
+    assert.equal(owner?.release_id, retainedR55Renewal.release_id);
+    assert.equal(runs.length, 3);
+    const expected = [
+      [
+        retainedR55Renewal.original_run_id,
+        retainedR55Renewal.original_source,
+        "portcove-production-controller-windows-20261108r55",
+        "cancelled",
+      ],
+      [
+        retainedR56FeedRecovery.run_id,
+        retainedR56FeedRecovery.control_commit,
+        retainedR55Renewal.next_ref.slice("refs/tags/".length),
+        "failure",
+      ],
+    ] as const;
+    for (const [id, sha, ref, conclusion] of expected) {
+      const row = runs.find((run) => String(run.id) === id);
+      assert.ok(row);
+      assert.deepEqual(
+        [row.head_sha, row.head_branch, row.run_attempt, row.status, row.conclusion],
+        [sha, ref, 1, "completed", conclusion],
+      );
+    }
+  }
   const known: unknown =
     registeredRunIds ?? JSON.parse(process.env.PORTCOVE_KNOWN_RELEASE_RUNS ?? "null");
   const budgetedBootstrap = permitsBudgetedEmptyBootstrap(
@@ -784,7 +843,9 @@ export async function readApplicationJobBudget(
           currentId,
         ])
       : undefined;
-  let actual = retainedDiagnostics.reduce((sum, charge) => sum + charge.milliseconds, 0),
+  let actual =
+      retainedDiagnostics.reduce((sum, charge) => sum + charge.milliseconds, 0) +
+      (recoverR56 ? retainedR56FeedRecovery.prior_charges_milliseconds : 0),
     remaining = 0,
     attempts = 0;
   const evidence = [];
@@ -830,6 +891,7 @@ export async function readApplicationJobBudget(
       current || budgetedBootstrap ? purpose : "application-release",
       current ? executionPath : "ordinary",
     );
+    if (recoverR56 && !current) assertRetainedR56FeedBudget(String(run.id), result);
     if ((continuation || budgetedBootstrap) && !current) {
       const prior = retainedBootstrapRuns.find(({ id }) => id === run.id);
       if (prior)

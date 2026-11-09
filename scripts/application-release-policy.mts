@@ -146,7 +146,11 @@ export function applicationReleaseRemainingMinutes(
         .filter(([name]) => names.has(name))
         .map(([name, minutes]) => [
           name,
-          executionPath === "bootstrap-recovery" && name === "feed" ? 16 : minutes,
+          name === "protection_feed / execute" && purpose === "metadata-renewal"
+            ? 3
+            : executionPath === "bootstrap-recovery" && name === "feed"
+              ? 16
+              : minutes,
         ]),
     ),
   );

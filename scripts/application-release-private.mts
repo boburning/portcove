@@ -171,6 +171,8 @@ import {
   retainedServedRenewal,
   retainedServedRenewalFeed,
   failedBootstrapRecovery,
+  retainedR56FeedRecovery,
+  requireRetainedR56PreNativeEvidence,
   isEmptyApplicationBootstrapCustody,
   createApplicationRunRegistrationProvider,
   inspectApplicationReleaseReference,
@@ -378,7 +380,7 @@ async function guard(
       receivedProtection = identity;
     }
     // Reuse only the authenticated provider input, never its freshness result.
-    // Every guard below rereads it and checks the original 60-second deadline.
+    // Each guard checks the original observation time against the appointed handoff.
     const receipt = await readApplicationJson(
       path.join(directory, "protection.json"),
       2 * 1024 ** 2,
@@ -394,11 +396,18 @@ async function guard(
     const observation = isRecord(receipt.observation) ? receipt.observation : undefined;
     publicationProtectionObservedAt =
       typeof observation?.observed_at === "string" ? observation.observed_at : undefined;
+    const recoveryFeedHandoff =
+      phase === "feed" &&
+      current.ref === retainedR56FeedRecovery.next_ref &&
+      source.purpose === "metadata-renewal" &&
+      source.execution_path === "metadata-recovery";
     assertProtectionWriteWindow = () => {
       markStage?.("protection-policy");
       const actualDigest = requireApplicationReleaseProtectionDigest(
         receipt.observation,
         source.purpose === "metadata-bootstrap",
+        Date.now(),
+        recoveryFeedHandoff ? "pages-feed-recovery" : "standard",
       );
       markStage?.("protection-digest");
       assert.equal(actualDigest, expectedDigest);
@@ -2159,12 +2168,38 @@ async function preflightBootstrapSite() {
       preimage = { kind: "initial", provider };
     }
   }
+  const recoverR56 = current.ref === retainedR56FeedRecovery.next_ref;
+  if (recoverR56) {
+    const prior = retainedR56FeedRecovery;
+    assert.equal(source.execution_path, "metadata-recovery");
+    assert.equal(site.generation, prior.generation);
+    assert.equal(preimage.kind, "prior");
+    const evidence = path.resolve("work/previous-r56-feed-effect");
+    const archive = await receiveApplicationData(evidence, {
+      id: prior.evidence_artifact_id,
+      name: `application-site-publication-${prior.run_id}-1`,
+      source: prior.control_commit,
+      run_id: prior.run_id,
+      files: ["pages-evidence.json"],
+      maximum_file_bytes: 4096,
+      maximum_archive_bytes: prior.evidence_archive_bytes,
+    });
+    assert.equal(archive.bytes, prior.evidence_archive_bytes);
+    assert.equal(archive.sha256, prior.evidence_archive_sha256);
+    const file = path.join(evidence, "pages-evidence.json");
+    assert.equal((await applicationFileIdentity(file)).sha256, prior.evidence_sha256);
+    requireRetainedR56PreNativeEvidence(await readApplicationJson(file, 4096));
+  }
   const admissionBudget = await guard(source, false);
   const firstControllerBuild =
     hasPrior &&
     preimage.kind === "prior" &&
     current.run_attempt === 1 &&
-    admissionBudget.budget.runs.every((run) => run.feed_executions.length === 0) &&
+    admissionBudget.budget.runs.every(
+      (run) =>
+        run.feed_executions.length === 0 ||
+        (recoverR56 && run.run_id === retainedR56FeedRecovery.run_id),
+    ) &&
     (await readApplicationControllerPagesAdmissions(current.source)).length === 0;
   await writeApplicationJson("work/application-site-preflight/plan.json", {
     schema_version: 1,
@@ -2189,6 +2224,7 @@ async function preflightBootstrapSite() {
     ...(recoverInitialBootstrap
       ? { previous_precreate_sha256: failedBootstrapRecovery.evidence_sha256 }
       : {}),
+    ...(recoverR56 ? { previous_precreate_sha256: retainedR56FeedRecovery.evidence_sha256 } : {}),
     preimage,
     ...(windowsCandidate ? { windows_candidate: windowsCandidate } : {}),
   });
@@ -2248,6 +2284,12 @@ async function deployBootstrapSite(readOnly = false) {
   const site = inspectSiteGeneration(plan.site, plan.site.generation);
   if (recoverInitialBootstrap)
     assert.equal(plan.previous_precreate_sha256, failedBootstrapRecovery.evidence_sha256);
+  const recoverR56 = current.ref === retainedR56FeedRecovery.next_ref;
+  if (recoverR56) {
+    assert.equal(source.execution_path, "metadata-recovery");
+    assert.equal(site.generation, retainedR56FeedRecovery.generation);
+    assert.equal(plan.previous_precreate_sha256, retainedR56FeedRecovery.evidence_sha256);
+  }
   assert.equal(site.application_root_sha256, applicationReleaseTrust.root.sha256);
   if (source.purpose === "metadata-bootstrap") {
     assert.equal(site.previous_generation, null);
@@ -2304,10 +2346,12 @@ async function deployBootstrapSite(readOnly = false) {
           site.generation,
         )
       : undefined;
+  if (recoverR56) assert.ok(firstControllerBuild, "r57 requires exact new controller admission");
   const priorRuns = (facts: Awaited<ReturnType<typeof guard>>) =>
     facts.budget.runs.filter(
       (run) =>
         (!recoverInitialBootstrap || run.run_id !== current.run_id) &&
+        (!recoverR56 || run.run_id !== retainedR56FeedRecovery.run_id) &&
         run.feed_executions.length > 0,
     );
   // The scoped create paths perform their complete live budget read after
