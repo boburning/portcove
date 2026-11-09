@@ -759,7 +759,7 @@ jobs:
           owner: boburning
           repositories: portcove
           permission-actions: write
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' &&
+        if: ${{ needs.admission.outputs.review_withdrawal != 'true' && steps.authorities.outputs.credential_transport == 'legacy-app' &&
           (needs.admission.outputs.publication_purpose == 'application') }}
       - name: Bind actual dispatch installation before credential use
         shell: bash
@@ -771,7 +771,7 @@ jobs:
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.dispatch.outputs.installation-id }}
         run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
           "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' &&
+        if: ${{ needs.admission.outputs.review_withdrawal != 'true' && steps.authorities.outputs.credential_transport == 'legacy-app' &&
           (needs.admission.outputs.publication_purpose == 'application') }}
       - id: job
         uses: ./.github/actions/release-controller-job
@@ -779,9 +779,10 @@ jobs:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
-          PORTCOVE_RELEASE_DISPATCH_TOKEN: ${{ steps.authorities.outputs.credential_transport == 'fixed-job'
-            && needs.admission.outputs.publication_purpose == 'application' && github.token ||
-            steps.dispatch.outputs.token }}
+          PORTCOVE_RELEASE_DISPATCH_TOKEN: ${{ needs.admission.outputs.review_withdrawal != 'true' &&
+            ((steps.authorities.outputs.credential_transport == 'fixed-job'
+            && needs.admission.outputs.publication_purpose == 'application' && github.token) ||
+            steps.dispatch.outputs.token) || '' }}
         with:
           storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
           storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
