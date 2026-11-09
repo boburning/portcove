@@ -1,4 +1,5 @@
 import type { Octokit } from "@octokit/core";
+import http from "node:http";
 import {
   GitHubApiError,
   sanitizeOperationError,
@@ -121,6 +122,32 @@ function requireJsonValues(value: unknown) {
   }
 }
 
+let environmentProxyHonored = false;
+
+/**
+ * Node's fetch ignores HTTPS_PROXY/HTTP_PROXY unless NODE_USE_ENV_PROXY is set,
+ * while gh, git and curl honor them. Where a proxy is the network route (for
+ * example a cloud session whose proxy supplies the GitHub credential), a direct
+ * connection fails authentication, so live clients opt in to Node's built-in
+ * proxy support, which also applies NO_PROXY. Without proxy variables nothing
+ * changes; TLS verification is unchanged.
+ */
+export function honorEnvironmentProxy(
+  environment: NodeJS.ProcessEnv = process.env,
+  enable: (environment: NodeJS.ProcessEnv) => unknown = (proxyEnvironment) =>
+    http.setGlobalProxyFromEnv(proxyEnvironment),
+) {
+  if (environmentProxyHonored) return false;
+  if (
+    environment.NODE_USE_ENV_PROXY === "1" ||
+    !["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"].some((name) => environment[name])
+  )
+    return false;
+  enable(environment);
+  environmentProxyHonored = true;
+  return true;
+}
+
 /** One neutral factory. No ambient credentials, domain imports, cache, inventory
  * interpretation or SDK retry/throttling plugin is installed here. */
 export async function createGitHubClient(options: GitHubClientOptions) {
@@ -180,6 +207,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
   const base = new URL(options.baseUrl ?? "https://api.github.com");
   if (base.username || base.password || base.protocol !== "https:")
     throw new GitHubApiError("invalid_configuration", "Invalid GitHub API origin");
+  if (!options.fetch) honorEnvironmentProxy();
   // Offline commands share this module without installing the live transport.
   const { Octokit } = await import("@octokit/core");
   const remaining = Math.ceil(options.deadline - now());

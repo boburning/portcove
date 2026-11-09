@@ -3,7 +3,7 @@ import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
+import { createGitHubClient, honorEnvironmentProxy, iterateGitHubPages } from "./github-client.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import {
   localDeveloperCredential,
@@ -1550,4 +1550,21 @@ void test("retained Release verifier fixes its command and rejects unscoped argu
       !error.message.includes(environment.GH_TOKEN),
   );
   assert.equal(calls, 1);
+});
+
+void test("live clients honor the standard proxy environment once, like gh and git", () => {
+  const enabled: NodeJS.ProcessEnv[] = [];
+  const enable = (environment: NodeJS.ProcessEnv) => enabled.push(environment);
+  assert.equal(honorEnvironmentProxy({}, enable), false, "no proxy variables change nothing");
+  assert.equal(
+    honorEnvironmentProxy({ HTTPS_PROXY: "http://127.0.0.1:9", NODE_USE_ENV_PROXY: "1" }, enable),
+    false,
+    "Node already honors the proxy",
+  );
+  assert.equal(enabled.length, 0);
+  const environment = { https_proxy: "http://127.0.0.1:9", NO_PROXY: "localhost" };
+  assert.equal(honorEnvironmentProxy(environment, enable), true);
+  assert.deepEqual(enabled, [environment], "NO_PROXY travels with the proxy environment");
+  assert.equal(honorEnvironmentProxy(environment, enable), false, "enabled only once");
+  assert.equal(enabled.length, 1);
 });

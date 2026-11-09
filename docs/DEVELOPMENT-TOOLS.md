@@ -3341,10 +3341,16 @@ Known cloud limits remain visible in `just doctor`:
   a writer can dispatch a modified workflow from another branch; storing
   `PORTCOVE_ROADMAP_TOKEN` in an environment limited to `main` with required
   reviewers makes it a hard boundary. Guarded merges reconstruct closing
-  relationships over REST (see the connector delivery route above): collect
-  `rest-timeline` closing observations for `prepare-merge`/`verify-merge` and
-  merge through the connector. A PR with a manual Development link still needs a
-  GraphQL-capable session.
+  relationships over REST (see the connector delivery route above): the live
+  `pr-delivery.mts` helper falls back automatically, and connector callers
+  collect `rest-timeline` observations for `prepare-merge`/`verify-merge`. A PR
+  with a manual Development link still needs a GraphQL-capable session.
+- The session's HTTPS proxy supplies its GitHub credential, so a direct
+  connection fails with `401 Bad credentials`. Node's `fetch` ignores
+  `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1`, which a session cannot set on its
+  environment, so the shared GitHub client enables Node's built-in proxy support
+  whenever a proxy variable is present (`NO_PROXY` still applies). A script that
+  reaches GitHub without that client needs the same treatment.
 - The daily discovery runner requires an interactive TTY and GraphQL; run it
   locally.
 - Windows targets and native Windows qualification remain hosted CI or
