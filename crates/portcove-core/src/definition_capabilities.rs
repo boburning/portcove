@@ -660,7 +660,7 @@ mod tests {
         let catalog = crate::Catalog::embedded().unwrap();
         for (id, minimum) in [
             ("sonic-3-and-knuckles-recomp", 26),
-            ("super-metroid-recomp", 28),
+            ("super-metroid-recomp", 29),
             ("mega-man-x2-snes-recomp", 28),
             ("sonic-the-hedgehog-recomp", 28),
         ] {
