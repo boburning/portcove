@@ -240,8 +240,12 @@ jobs:
       - id: workspace-cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          # The transport job restores this same Windows cache; only this
+          # superset workspace build saves it, and only from main.
+          shared-key: fast-rust-windows
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
-          key: fast-rust-tests-${{ hashFiles('Cargo.toml') }}
+          key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
         id: test-runner
         shell: pwsh
@@ -285,7 +289,7 @@ jobs:
             work/windows-rust-tests/manifest.json
           compression-level: 0
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 5
       - name: Summarize diagnostic timings
         if: always()
         continue-on-error: true
@@ -410,8 +414,9 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          cache-on-failure: true
-          key: fast-rust-transport-${{ hashFiles('Cargo.toml') }}
+          shared-key: fast-rust-windows
+          save-if: false
+          key: ${{ hashFiles('Cargo.toml') }}
       - name: Compare live CLI and headless and native Desktop serialization
         run: node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts
       - name: Summarize diagnostic timings
@@ -476,6 +481,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: runtime-diagnostics-linux-${{ hashFiles('Cargo.toml') }}
       - name: Check Rust formatting
@@ -770,6 +776,7 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -828,6 +835,7 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -873,6 +881,7 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -924,6 +933,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Check formatting
@@ -1013,6 +1023,7 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -1056,6 +1067,7 @@ jobs:
           targets: x86_64-apple-darwin
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -1147,6 +1159,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Install Linux desktop prerequisites
@@ -1224,6 +1237,7 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Install pinned prebuilt Rust quality tools

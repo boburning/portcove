@@ -110,6 +110,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           # Keep executable build artifacts specific to this image/glibc baseline.
           shared-key: deep-quality-ubuntu-22.04
       - name: Install Linux desktop prerequisites
