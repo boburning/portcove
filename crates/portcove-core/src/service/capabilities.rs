@@ -74,6 +74,7 @@ fn action_feature(
     status: &PortStatus,
     feature: CapabilityFeature,
     action: PortAction,
+    acquisition_hold: Option<&str>,
 ) -> PortCapabilityFeature {
     let matches = status
         .port_actions
@@ -91,9 +92,7 @@ fn action_feature(
         None => CapabilityMode::Unknown,
     };
     let hold = match action {
-        PortAction::Install | PortAction::Update => {
-            crate::managed_runtime_policy::acquisition_hold(&status.port_id)
-        }
+        PortAction::Install | PortAction::Update => acquisition_hold,
         _ => None,
     };
     PortCapabilityFeature {
@@ -126,7 +125,11 @@ fn simple(
 
 impl PortCapabilityReport {
     /// Cheap, pure projection used by workspace rendering: no reads, hashing or provider calls.
-    pub(crate) fn from_status(status: &PortStatus, actions: &[ListingActionAssessment]) -> Self {
+    pub(crate) fn from_status(
+        status: &PortStatus,
+        actions: &[ListingActionAssessment],
+        acquisition_hold: Option<&str>,
+    ) -> Self {
         use CapabilityFeature as F;
         use CapabilityMode as M;
         let selected = status
@@ -146,7 +149,7 @@ impl PortCapabilityReport {
             routes.push(PortCapabilityRoute {
                 route: route.into(),
                 install_id: None,
-                features: vec![action_feature(status, F::Setup, action)],
+                features: vec![action_feature(status, F::Setup, action, acquisition_hold)],
             });
         }
         let attach = actions
@@ -171,11 +174,26 @@ impl PortCapabilityReport {
             simple(F::Updates, M::Manual, "Updates are handled by you or upstream.", "Follow the upstream update instructions."),
             simple(F::Backup, M::Unavailable, "Portcove does not collect backups of this external copy. This says nothing about the game's ability to save.", "Protect external saved data using the upstream instructions.")] });
         let mut features = vec![
-            action_feature(status, F::Launch, PortAction::Launch),
-            action_feature(status, F::Updates, PortAction::Update),
-            action_feature(status, F::Backup, PortAction::BackupCreate),
-            action_feature(status, F::Restore, PortAction::BackupRestore),
-            action_feature(status, F::PreviousVersion, PortAction::Rollback),
+            action_feature(status, F::Launch, PortAction::Launch, acquisition_hold),
+            action_feature(status, F::Updates, PortAction::Update, acquisition_hold),
+            action_feature(
+                status,
+                F::Backup,
+                PortAction::BackupCreate,
+                acquisition_hold,
+            ),
+            action_feature(
+                status,
+                F::Restore,
+                PortAction::BackupRestore,
+                acquisition_hold,
+            ),
+            action_feature(
+                status,
+                F::PreviousVersion,
+                PortAction::Rollback,
+                acquisition_hold,
+            ),
             simple(
                 F::OriginalFiles,
                 M::Unknown,
@@ -314,10 +332,13 @@ impl super::PortcoveService {
     /// Focused read; optional detail failures never change operation eligibility.
     pub fn port_capabilities(&self, port_id: &str) -> crate::Result<PortCapabilityReport> {
         let status = self.listing_status(port_id)?;
-        let mut report = status
-            .capabilities
-            .clone()
-            .unwrap_or_else(|| PortCapabilityReport::from_status(&status.status, &status.actions));
+        let mut report = status.capabilities.clone().unwrap_or_else(|| {
+            PortCapabilityReport::from_status(
+                &status.status,
+                &status.actions,
+                crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, port_id),
+            )
+        });
         let catalog = self.catalog_for_installed_fallback(port_id)?;
         if let Ok(port) = catalog.port(port_id) {
             // These exact-scope records remain historical until an environment/edition/route
@@ -407,7 +428,7 @@ mod tests {
             allowed: true,
             reason: None,
         }];
-        let report = PortCapabilityReport::from_status(&status, &actions);
+        let report = PortCapabilityReport::from_status(&status, &actions, None);
         assert_eq!(
             report.routes[0].features[0].mode,
             CapabilityMode::Unavailable
@@ -431,7 +452,7 @@ mod tests {
             json!({ "format_version": 1, "records": "wrong" }),
         ] {
             listing.compatibility = Some(value);
-            let mut report = PortCapabilityReport::from_status(&status, &[]);
+            let mut report = PortCapabilityReport::from_status(&status, &[], None);
             report.add_advisories(&listing, &status);
             assert_ne!(report.advisory_state, "available");
             assert_eq!(report.routes[3].features[0].mode, CapabilityMode::Automatic);
@@ -480,7 +501,7 @@ mod tests {
                 "provenance":"https://example.com/evidence", "observed_at":1,"evidence":"observed"
             }]}));
             let before = serde_json::to_value(&status).unwrap();
-            let mut report = PortCapabilityReport::from_status(&status, &[]);
+            let mut report = PortCapabilityReport::from_status(&status, &[], None);
             report.add_advisories(&listing, &status);
             assert_eq!(
                 serde_json::to_value(&report.advisories[0].applicability).unwrap(),

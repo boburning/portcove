@@ -23056,6 +23056,16 @@
         "windows-x86-64"
       ],
       "adapter": "upstream-managed-setup",
+      "managed_acquisition_hold": {
+        "reason": "Open Nectar managed acquisition is on hold while upstream launcher updates and settings storage are reviewed.",
+        "activation_reason": "This staged Open Nectar package lacks reviewed launcher and settings compatibility. Keep the existing active copy.",
+        "reviewed_artifacts": [
+          {
+            "version": "0.8.5",
+            "sha256": "0e3ca0fddc6410747d735d98e0e515f534143417319af3f1c666c9b71b932d29"
+          }
+        ]
+      },
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {

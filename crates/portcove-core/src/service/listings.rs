@@ -63,7 +63,8 @@ impl PortcoveService {
             .launch_sessions()?
             .iter()
             .any(|session| session.port_id == port_id && session.outcome.is_none());
-        let mut projected = Self::assess_listing_status(status, owned, launching);
+        let hold = crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, port_id);
+        let mut projected = Self::assess_listing_status(status, owned, launching, hold);
         let pending = self.pending_setups()?;
         if let Some(report) = projected.capabilities.as_mut() {
             report.add_setup_context(listing, pending.iter().find(|p| p.port_id == port_id));
@@ -157,7 +158,11 @@ impl PortcoveService {
                 };
                 let has_owner = owned.contains(&status.port_id);
                 let launching = launching.contains(&status.port_id);
-                let mut projected = Self::assess_listing_status(status, has_owner, launching);
+                let hold = crate::managed_runtime_policy::acquisition_hold_reason(
+                    catalog,
+                    &status.port_id,
+                );
+                let mut projected = Self::assess_listing_status(status, has_owner, launching, hold);
                 if let Some(report) = projected.capabilities.as_mut() {
                     report.add_setup_context(
                         listing,
@@ -173,6 +178,7 @@ impl PortcoveService {
         status: PortStatus,
         has_managed_owner: bool,
         launching: bool,
+        acquisition_hold: Option<&str>,
     ) -> crate::PortListingStatus {
         use crate::ListingAction;
         let selected = status
@@ -221,7 +227,11 @@ impl PortcoveService {
         ];
         crate::PortListingStatus {
             port_id: status.port_id.clone(),
-            capabilities: Some(crate::PortCapabilityReport::from_status(&status, &actions)),
+            capabilities: Some(crate::PortCapabilityReport::from_status(
+                &status,
+                &actions,
+                acquisition_hold,
+            )),
             status,
             actions,
         }

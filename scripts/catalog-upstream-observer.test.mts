@@ -983,6 +983,65 @@ void test("a resumed opportunity gives untouched sources a turn before retrying 
   assert.ok(resumed.report.requests <= 2);
 });
 
+void test("untouched managed sources are admitted before listing-only sources", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: ["alpha", "beta", "gamma"].map((name) => ({
+      id: `listing-${name}`,
+      name: `Listing ${name}`,
+      summary: "Descriptive listing",
+      project_url: `https://github.com/listing-owner/${name}`,
+    })),
+  };
+  const sources = catalogObservationSources(input).sources;
+  const managed = sources.filter((source) => source.ports.some((port) => port.kind !== "listing"));
+  const listingOnly = sources.filter((source) =>
+    source.ports.every((port) => port.kind === "listing"),
+  );
+  assert.ok(managed.length > 0 && listingOnly.length === 3);
+  const result = await advanceCatalogObservations(input, null, h.options);
+  const order = result.report.attempted_source_keys;
+  const lastManaged = Math.max(...managed.map((source) => order.indexOf(source.key)));
+  const listingPositions = listingOnly
+    .map((source) => order.indexOf(source.key))
+    .filter((position) => position !== -1);
+  assert.ok(managed.every((source) => order.includes(source.key)));
+  assert.ok(listingPositions.every((position) => position > lastManaged));
+});
+
+void test("failing managed sources rejoin ordinary rotation instead of starving listings", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [
+      {
+        id: "listing-only",
+        name: "Listing only",
+        summary: "Descriptive listing",
+        project_url: "https://github.com/listing-owner/only",
+      },
+    ],
+  };
+  const sources = catalogObservationSources(input).sources;
+  const listing = sources.find((source) => source.ports.every((port) => port.kind === "listing"));
+  assert.ok(listing);
+  const first = await advanceCatalogObservations(input, null, {
+    ...h.options,
+    excludedSources: new Set([listing.key]),
+  });
+  const state = structuredClone(first.checkpoint);
+  for (const progress of Object.values(state.sources)) {
+    progress.exception_key = "f".repeat(64);
+    progress.completed_at = null;
+    progress.next_due_at = null;
+    progress.attempted_sequence = state.sequence;
+  }
+  h.tick();
+  const next = await advanceCatalogObservations(input, state, h.options);
+  assert.equal(next.report.attempted_source_keys[0], listing.key);
+});
+
 void test("the configured source gets an early bounded turn without starving untouched sources", async () => {
   const h = harness(2);
   const sources = catalogObservationSources(h.input).sources.sort((a, b) =>
