@@ -252,12 +252,16 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   );
   for (const value of timed) {
     assert.ok(seconds(value["slow-timeout"]) > seconds(defaultCutoff), String(value.filter));
+    // Budgets of 300s or more never retry, so a hang cannot double a long cutoff.
+    const long = seconds(value["slow-timeout"]) >= 300;
     assert.deepEqual(
       Object.keys(value)
         .filter((key) => !["platform", "filter"].includes(key))
         .sort(),
-      ["slow-timeout", "success-output"],
+      long ? ["retries", "slow-timeout", "success-output"] : ["slow-timeout", "success-output"],
+      String(value.filter),
     );
+    if (long) assert.equal(value.retries, 0);
     assert.equal(value["success-output"], "immediate");
   }
   // The exact populated transitions precede their 600s family so their own
@@ -343,14 +347,17 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     overrideFor("package(portcove-core) & test(activity_diagnostics::tests::)").priority,
     -50,
   );
-  // Every override names one known setting family; no retries or broad
-  // discovery exceptions are admitted per case.
-  for (const value of overrides)
+  // Every override names one known setting family; no broad discovery
+  // exceptions are admitted per case, and a per-case retry setting may only
+  // remove retries.
+  for (const value of overrides) {
+    if (value.retries !== undefined) assert.equal(value.retries, 0, String(value.filter));
     for (const key of Object.keys(value))
       assert.ok(
         [
           "platform",
           "filter",
+          "retries",
           "slow-timeout",
           "success-output",
           "threads-required",
@@ -359,4 +366,5 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         ].includes(key),
         key,
       );
+  }
 });

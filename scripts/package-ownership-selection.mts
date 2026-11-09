@@ -30,7 +30,7 @@ const dependencyFiles = new Set([
 // Crates that own the packaged Desktop shell, its native dialogs and the Linux
 // desktop stack. Other Cargo.lock churn leaves package ownership unchanged.
 const packagingCrate =
-  /^(?:portcove-desktop|tauri(?:-[a-z0-9-]+)?|tao(?:-macros)?|wry|rfd|muda|tray-icon|(?:gtk|gdk|gio|glib|atk|pango|cairo|soup|webkit2gtk|javascriptcore|libappindicator)[a-z0-9-]*)$/u;
+  /^(?:portcove-desktop|tauri(?:-[a-z0-9-]+)?|tao(?:-macros)?|wry|rfd|muda|tray-icon|(?:gtk|gdk|gio|glib|gobject|atk|pango|cairo|soup|webkit2gtk|javascriptcore|libappindicator|dbus|libdbus)[a-z0-9-]*)$/u;
 /** The Cargo.lock format version plus every packaging crate's complete entry. */
 function cargoLockIdentity(text: string) {
   const [header = "", ...blocks] = text.replace(/\r\n/gu, "\n").split(/^\[\[package\]\]\n/mu);

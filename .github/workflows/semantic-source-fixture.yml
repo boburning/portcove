@@ -32,9 +32,10 @@ on:
       - rust-toolchain.toml
       - package.json
       - pnpm-lock.yaml
-# Superseded pull request runs are cancelled; main runs always finish.
+# Superseded pull request runs are cancelled; every other run has its own
+# group, so pushes and dispatches always finish.
 concurrency:
-  group: semantic-source-fixture-${{ github.event.pull_request.number || github.ref }}
+  group: semantic-source-fixture-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read

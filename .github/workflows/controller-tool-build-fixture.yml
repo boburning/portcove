@@ -125,9 +125,10 @@ on:
       - pnpm-workspace.yaml
       - pnpm-lock.yaml
       - .node-version
-# Superseded pull request runs are cancelled; main runs always finish.
+# Superseded pull request runs are cancelled; every other run has its own
+# group, so pushes and dispatches always finish.
 concurrency:
-  group: controller-tool-build-fixture-${{ github.event.pull_request.number || github.ref }}
+  group: controller-tool-build-fixture-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read

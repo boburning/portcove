@@ -30,6 +30,8 @@ success-output = "immediate"
 platform = "x86_64-pc-windows-msvc"
 filter = "package(portcove-core) & test(/^service::native_portable::tests::compatible_archive_progression_(mega_man_x2|sonic|super_metroid|winback)$/)"
 slow-timeout = { period = "5s", terminate-after = 120, grace-period = "0s" }
+# A retry would double this long budget; hangs here fail on the first attempt.
+retries = 0
 success-output = "immediate"
 
 # CI 42512432572/1 Windows 1 hit 300.808s after earlier MMX2 passes
@@ -39,6 +41,8 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)'
 slow-timeout = { period = "5s", terminate-after = 84, grace-period = "0s" }
+# A retry would double this long budget; hangs here fail on the first attempt.
+retries = 0
 success-output = "immediate"
 
 # This exact populated Sonic fixture hit 300.825s in 42554188709/1
@@ -48,6 +52,8 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_sonic_populated_install$/)'
 slow-timeout = { period = "5s", terminate-after = 72, grace-period = "0s" }
+# A retry would double this long budget; hangs here fail on the first attempt.
+retries = 0
 success-output = "immediate"
 
 # The populated Super Metroid fixture hit the 300s limit in 42563344846/1
@@ -57,6 +63,8 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_super_metroid_populated_install$/)'
 slow-timeout = { period = "5s", terminate-after = 84, grace-period = "0s" }
+# A retry would double this long budget; hangs here fail on the first attempt.
+retries = 0
 success-output = "immediate"
 
 # The complete compatible-runtime fixture in41893774776/a1 Windows2 took
@@ -72,6 +80,8 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_/)'
 slow-timeout = { period = "5s", terminate-after = 120, grace-period = "0s" }
+# A retry would double this long budget; hangs here fail on the first attempt.
+retries = 0
 success-output = "immediate"
 
 # Required source fab49f3f, run 40904363207/attempt 1 Windows partition 3 retained

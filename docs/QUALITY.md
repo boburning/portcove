@@ -313,7 +313,9 @@ automatic retry. A case that fails both attempts fails the partition with its
 original failure; a case that passes only on retry is reported as flaky in the
 nextest summary, the retained JUnit report and the shared Rust outcome records
 (`nextest_attempt` and the inventory's `flaky` list). A flaky pass is evidence
-of nondeterminism to diagnose, not a causal repair. Other runners, watchers and
+of nondeterminism to diagnose, not a causal repair. Cases whose exact budget is
+at least 300 seconds keep zero retries so a hang cannot double a long cutoff
+inside the job limit. Other runners, watchers and
 qualification routes retain zero automatic retries.
 
 The November 2026 nextest calibration raised the default whole-case harness

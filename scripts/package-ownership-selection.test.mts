@@ -155,7 +155,17 @@ void test("Cargo.lock churn outside the packaged Desktop stack avoids ownership 
   const unrelated = replace("serde", "version", "1.0.999");
   assert.equal(decide(unrelated), false);
   assert.equal(decide(unrelated, ["Cargo.lock", "Cargo.toml"]), true);
-  for (const name of ["tauri", "tauri-runtime-wry", "wry", "tao", "rfd", "gtk", "webkit2gtk"])
+  for (const name of [
+    "tauri",
+    "tauri-runtime-wry",
+    "wry",
+    "tao",
+    "rfd",
+    "gtk",
+    "gobject-sys",
+    "libdbus-sys",
+    "webkit2gtk",
+  ])
     assert.equal(decide(replace(name, "version", "99.0.0")), true, name);
   assert.equal(decide(replace("tauri", "checksum", "0".repeat(64))), true);
   assert.equal(decide(lock.replace("\nversion = 4\n", "\nversion = 5\n")), true);
