@@ -68,6 +68,7 @@ mod native_external_profile;
 mod native_temp;
 mod operation;
 mod output_relocation;
+mod package_layout;
 mod output_root;
 mod path;
 mod permissions;

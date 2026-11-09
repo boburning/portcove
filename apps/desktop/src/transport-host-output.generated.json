@@ -15988,6 +15988,25 @@
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
           },
+          "reviewed_package_layouts": {
+            "additionalProperties": false,
+            "description": "Bounded fingerprint of the reviewed package layout for each platform. A\nrelease that still matches the asset selector but extracts to a different\nlayout is held for review instead of installing as an ordinary update.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              }
+            },
+            "type": "object"
+          },
           "runtime_data_policy": {
             "anyOf": [
               {
@@ -17302,6 +17321,31 @@
         "required": [
           "version",
           "sha256"
+        ],
+        "type": "object"
+      },
+      "ReviewedPackageLayout": {
+        "additionalProperties": false,
+        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every executable, launcher and\nupdater. A single wrapper directory (for example a versioned folder name) is\nlooked through. Names are compared case-insensitively. Plain data files,\ndocumentation and libraries may change between ordinary releases.",
+        "properties": {
+          "directories": {
+            "description": "Lowercase top-level directory names of the package root, sorted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "executables": {
+            "description": "Lowercase file names of every executable, launcher and updater at any\ndepth, sorted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "directories",
+          "executables"
         ],
         "type": "object"
       },

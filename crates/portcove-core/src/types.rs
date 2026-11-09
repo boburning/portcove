@@ -799,8 +799,28 @@ pub struct PortDefinition {
     /// release still matches its selector but changed reviewed behavior.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_acquisition_hold: Option<ManagedAcquisitionHold>,
+    /// Bounded fingerprint of the reviewed package layout for each platform. A
+    /// release that still matches the asset selector but extracts to a different
+    /// layout is held for review instead of installing as an ordinary update.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_package_layouts: BTreeMap<Platform, ReviewedPackageLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub presentation: Option<PortPresentation>,
+}
+
+/// The parts of an extracted package whose change signals changed runtime
+/// behavior: its top-level directories and every executable, launcher and
+/// updater. A single wrapper directory (for example a versioned folder name) is
+/// looked through. Names are compared case-insensitively. Plain data files,
+/// documentation and libraries may change between ordinary releases.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedPackageLayout {
+    /// Lowercase top-level directory names of the package root, sorted.
+    pub directories: Vec<String>,
+    /// Lowercase file names of every executable, launcher and updater at any
+    /// depth, sorted.
+    pub executables: Vec<String>,
 }
 
 /// Holds fresh managed acquisition and adoption for one route. Installed copies

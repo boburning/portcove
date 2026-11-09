@@ -1210,6 +1210,11 @@ impl Installer {
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
             let port = catalog.port(&request.port_id)?;
+            crate::package_layout::require_reviewed_layout(
+                port,
+                request.qualification.platform,
+                &payload_root,
+            )?;
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;

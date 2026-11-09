@@ -1108,6 +1108,30 @@ async fn successor_resolution_refuses_lost_variant_ambiguity_wrong_architecture_
 }
 
 #[tokio::test]
+async fn a_renamed_successor_asset_fails_closed_instead_of_falling_back_to_the_previous_release() {
+    let port = variant_port();
+    let old = release(
+        "v1.0.0",
+        vec![asset("Game-hd-v1.0.0-windows-x64.zip", Some('a'))],
+    );
+    // The successor keeps the platform tokens but upstream renamed the product, so
+    // the reviewed selector no longer matches. The route stays unavailable until a
+    // reviewed definition change; it never resolves to the older release.
+    let renamed = release(
+        "v2.0.0",
+        vec![asset("NewName-hd-v2.0.0-windows-x64.zip", Some('b'))],
+    );
+    let (api_root, _, server) = serve_http(vec![metadata(), releases(&[renamed, old])]);
+    let failure = GithubReleaseProvider::with_api_root(api_root)
+        .unwrap()
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(failure.code, crate::ErrorCode::NotFound);
+}
+
+#[tokio::test]
 async fn successor_checksum_must_name_the_successor_asset() {
     let port = variant_port();
     let new_name = "Game-hd-v2.0.0-windows-x64.zip";
