@@ -558,6 +558,33 @@ void test("REST timeline closing observations are derived by the helper and fail
       ...closing,
       method: "rest-timeline",
       timeline_pages: pages([committed, { event: "cross-referenced" }]),
+      inventory_checks: {
+        total_count: 1,
+        check_runs: [
+          {
+            id: 90,
+            name: "closing-inventory",
+            head_sha: head,
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "github-actions" },
+            check_suite: { id: 91 },
+          },
+        ],
+      },
+      inventory_runs: {
+        total_count: 1,
+        workflow_runs: [
+          {
+            check_suite_id: 91,
+            path: ".github/workflows/closing-inventory.yml",
+            event: "pull_request_target",
+            status: "completed",
+            conclusion: "success",
+            pull_requests: [{ number: 7 }],
+          },
+        ],
+      },
       ...change,
     });
     return {
@@ -605,6 +632,8 @@ void test("REST timeline closing observations are derived by the helper and fail
     [{ timeline_pages: undefined }, /incomplete/],
     [{ timeline_pages: pages(["not an event"]) }, /incomplete/],
     [{ relationships: [], total_count: 0 }, /differs from its raw REST timeline/],
+    [{ inventory_checks: undefined }, /check list is incomplete/],
+    [{ inventory_runs: { total_count: 0, workflow_runs: [] } }, /trusted default-branch workflow/],
   ] as const)
     assert.throws(() => prepareMergeSnapshot(snapshot(change), expected), pattern);
   const value = fixture();

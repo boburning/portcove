@@ -4,7 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
-import { readClosingRelationships } from "./closure-intent.mts";
+import {
+  closingInventoryCheckName,
+  closingInventoryFindings,
+  closingInventoryWorkflowPath,
+  readClosingRelationships,
+} from "./closure-intent.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import type {
   DeliveryPull,
@@ -1430,11 +1435,45 @@ const committedHead = { event: "committed", sha: head };
 const timelineUrl = (page: number) =>
   `https://api.github.com/repositories/1/issues/7/timeline?per_page=100&page=${page}`;
 
-type RestClosureOptions = { body?: string; pulls?: readonly Record<string, unknown>[] };
+type RestClosureOptions = {
+  body?: string;
+  pulls?: readonly Record<string, unknown>[];
+  inventory?: { checks?: unknown; runs?: unknown };
+};
+
+function inventoryCheck(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 90,
+    name: "closing-inventory",
+    head_sha: head,
+    status: "completed",
+    conclusion: "success",
+    app: { slug: "github-actions" },
+    check_suite: { id: 91 },
+    ...overrides,
+  };
+}
+
+function inventoryRun(overrides: Record<string, unknown> = {}) {
+  return {
+    total_count: 1,
+    workflow_runs: [
+      {
+        check_suite_id: 91,
+        path: ".github/workflows/closing-inventory.yml",
+        event: "pull_request_target",
+        status: "completed",
+        conclusion: "success",
+        pull_requests: [{ number: 7 }],
+        ...overrides,
+      },
+    ],
+  };
+}
 
 function restClosureResponder(
   timeline: unknown[][],
-  { body = "Related to #244.", pulls = [] }: RestClosureOptions = {},
+  { body = "Related to #244.", pulls = [], inventory = {} }: RestClosureOptions = {},
 ) {
   const requests: string[] = [];
   let pullReads = 0;
@@ -1455,6 +1494,15 @@ function restClosureResponder(
           head: { sha: head },
           ...pulls[pullReads++],
         });
+      if (
+        endpoint ===
+        `repos/boburning/portcove/commits/${head}/check-runs?check_name=closing-inventory&filter=all&per_page=100`
+      )
+        return Response.json(
+          inventory.checks ?? { total_count: 1, check_runs: [inventoryCheck()] },
+        );
+      if (endpoint === "repos/boburning/portcove/actions/runs?check_suite_id=91&per_page=1")
+        return Response.json(inventory.runs ?? inventoryRun());
       const page =
         /^repos\/boburning\/portcove\/issues\/7\/timeline\?per_page=100&page=(\d+)$/u.exec(
           endpoint,
@@ -1496,8 +1544,60 @@ void test("REST closure reconstruction replaces refused GraphQL and fails closed
     "POST graphql",
     "GET repos/boburning/portcove/pulls/7",
     "GET repos/boburning/portcove/issues/7/timeline?per_page=100&page=1",
+    `GET repos/boburning/portcove/commits/${head}/check-runs?check_name=closing-inventory&filter=all&per_page=100`,
+    "GET repos/boburning/portcove/actions/runs?check_suite_id=91&per_page=1",
     "GET repos/boburning/portcove/pulls/7",
   ]);
+
+  for (const [inventory, pattern] of [
+    [{ checks: { total_count: 0, check_runs: [] } }, /has not succeeded on this head/],
+    [
+      {
+        checks: {
+          total_count: 2,
+          check_runs: [inventoryCheck(), inventoryCheck({ id: 95, conclusion: "failure" })],
+        },
+      },
+      /has not succeeded on this head/,
+    ],
+    [
+      {
+        checks: {
+          total_count: 1,
+          check_runs: [inventoryCheck({ status: "in_progress", conclusion: null })],
+        },
+      },
+      /has not succeeded on this head/,
+    ],
+    [
+      { checks: { total_count: 1, check_runs: [inventoryCheck({ head_sha: base })] } },
+      /has not succeeded/,
+    ],
+    [
+      { checks: { total_count: 1, check_runs: [inventoryCheck({ app: { slug: "other-app" } })] } },
+      /has not succeeded/,
+    ],
+    [{ runs: inventoryRun({ event: "pull_request" }) }, /trusted default-branch workflow/],
+    [
+      { runs: inventoryRun({ path: ".github/workflows/ci.yml" }) },
+      /trusted default-branch workflow/,
+    ],
+    [{ runs: inventoryRun({ check_suite_id: 92 }) }, /trusted default-branch workflow/],
+    [{ runs: { total_count: 0, workflow_runs: [] } }, /trusted default-branch workflow/],
+    [
+      { runs: inventoryRun({ pull_requests: [{ number: 8 }] }) },
+      /did not run for this pull request/,
+    ],
+    [{ runs: inventoryRun({ pull_requests: [] }) }, /did not run for this pull request/],
+    [
+      { runs: inventoryRun({ pull_requests: [{ number: 7 }, { number: 8 }] }) },
+      /did not run for this pull request/,
+    ],
+  ] as const)
+    await assert.rejects(
+      async () => await read(restClosureResponder([[committedHead]], { inventory })),
+      pattern,
+    );
 
   assert.deepEqual(
     (
@@ -2280,4 +2380,57 @@ void test("watch REST collection resolves complete replay lineage without hiding
     watchRequiredChecks(client, { ...watchOptions, attempt: 2 }),
     /invalid or duplicate/,
   );
+});
+
+void test("the hosted closing inventory reports only links the body does not name", () => {
+  const repository = "boburning/portcove";
+  assert.deepEqual(
+    closingInventoryFindings(
+      {
+        body: "Closes #244 and fixes other/repo#3",
+        relationships: ["boburning/portcove#244", "other/repo#3"],
+      },
+      repository,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    closingInventoryFindings(
+      { body: "Related to #244.", relationships: ["boburning/portcove#244"] },
+      repository,
+    ),
+    ["boburning/portcove#244"],
+    "a manual Development link is a finding",
+  );
+  assert.deepEqual(
+    closingInventoryFindings({ body: "Closes #244", relationships: [] }, repository),
+    [],
+    "a keyword GitHub does not link only makes REST stricter",
+  );
+});
+
+void test("the closing-inventory workflow is the trusted check the REST path accepts", () => {
+  const workflow = readFileSync(
+    fileURLToPath(new URL(`../${closingInventoryWorkflowPath}`, import.meta.url)),
+    "utf8",
+  );
+  assert.deepEqual(
+    workflow
+      .match(/^ {2}pull_request_target:\s+types:\s+\[([^\]]*)\]/m)?.[1]
+      ?.split(",")
+      .map((value) => value.trim()),
+    ["opened", "edited", "synchronize", "reopened", "ready_for_review"],
+  );
+  assert.doesNotMatch(workflow, /^ {2}(?:pull_request|push|workflow_dispatch):/m);
+  assert.match(
+    workflow,
+    /^permissions:\r?\n {2}contents: read\r?\n {2}issues: read\r?\n {2}pull-requests: read$/m,
+  );
+  assert.match(workflow, new RegExp(`^ {4}name: ${closingInventoryCheckName}$`, "m"));
+  assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
+  assert.match(workflow, /persist-credentials: false/);
+  const install = workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts");
+  assert.ok(install > 0 && workflow.indexOf("GH_TOKEN:") > install);
+  assert.doesNotMatch(workflow.slice(0, install), /GH_TOKEN:|GITHUB_TOKEN:/u);
+  assert.match(workflow, /run: node scripts\/closing-inventory\.mts$/m);
 });
