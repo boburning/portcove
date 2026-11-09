@@ -1521,6 +1521,8 @@ void test("REST closure reconstruction replaces refused GraphQL and fails closed
     [Array.from({ length: 31 }, () => fullPage()), {}, /timeline is incomplete/],
     [[[committedHead]], { body: "Fixes **#244**" }, /cannot interpret exactly/],
     [[[committedHead]], { body: "Fixes GH-244, closes #3" }, /cannot interpret exactly/],
+    [[[committedHead]], { body: "_Fixes #244_" }, /cannot interpret exactly/],
+    [[[committedHead]], { body: "Fixes &#35;244" }, /cannot interpret exactly/],
     [[[committedHead]], { pulls: [{}, { body: "Closes #9" }] }, /changed during pagination/],
   ] as const)
     await assert.rejects(

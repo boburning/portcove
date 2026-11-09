@@ -109,12 +109,14 @@ export async function readClosingRelationships(
 
 const timelinePageLimit = 30;
 const timelinePageSize = 100;
-const closingKeyword = /\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)\b/giu;
+// Letters and digits only bound a keyword, so `_Fixes #12_` emphasis still counts.
+const closingKeyword =
+  /(?<![A-Za-z0-9])(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)(?![A-Za-z0-9])/giu;
 // Text after a closing keyword that GitHub might read as a reference although
-// the exact grammar did not: markup, GH- shorthand, other URL forms, zero-padded
-// or qualified numbers.
+// the exact grammar did not: a reference token, optionally behind markup, in GH-
+// shorthand, another URL form, an entity, or zero-padded or spaced form.
 const referenceLike =
-  /^\s*:?\s*(?:[#*_~`[(<]|gh-\d|(?:https?:\/\/|www\.)|[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\s*#)/iu;
+  /^\s*:?[\s*_~`[(<]*(?:#|&#|gh-\d|https?:\/\/|www\.|[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\s*#)/iu;
 
 const exactReferenceAt =
   /^(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s*:?\s*(?:<?https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/(?:issues|pull)\/[1-9]\d*|(?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#[1-9]\d*)\b/iu;
@@ -127,7 +129,10 @@ function nextTimelinePage(link: unknown, number: number) {
   if (link === null || link === undefined) return null;
   if (typeof link !== "string") throw new Error("Closing relationship timeline link is invalid");
   const next = /<([^>]+)>\s*;\s*rel="next"/u.exec(link)?.[1];
-  if (next === undefined) return null;
+  if (next === undefined) {
+    if (/next/iu.test(link)) throw new Error("Closing relationship timeline link is invalid");
+    return null;
+  }
   const url = new URL(next);
   if (
     url.origin !== "https://api.github.com" ||
@@ -148,8 +153,9 @@ function nextTimelinePage(link: unknown, number: number) {
  * the inventory unknown and refuses it.
  *
  * Each page is `{ url, link, events }`: the exact `per_page=100` request, its
- * raw `Link` header and the raw events. Every page but the last must link the
- * next one and the last must link none. The `committed` event of the candidate
+ * raw `Link` header and the raw events. Every page but the last is full and
+ * links the next one; the last is short and links none, so a timeline of an
+ * exact multiple of 100 events refuses. The `committed` event of the candidate
  * head binds the timeline to that pull request.
  */
 export function restTimelineRelationships(
@@ -168,7 +174,9 @@ export function restTimelineRelationships(
       !Array.isArray(page.events) ||
       page.events.length > timelinePageSize ||
       nextTimelinePage(page.link, candidate.number) !==
-        (index === entries.length - 1 ? null : index + 2)
+        (index === entries.length - 1 ? null : index + 2) ||
+      // A missing Link header must not make a truncated read look final.
+      (index === entries.length - 1) !== page.events.length < timelinePageSize
     )
       throw new Error("Closing relationship timeline is incomplete");
     const pageEvents: readonly unknown[] = page.events;

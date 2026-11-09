@@ -590,6 +590,15 @@ void test("REST timeline closing observations are derived by the helper and fail
     [{ timeline_pages: pages([committed, { event: "disconnected" }]) }, /manual Development/],
     [{ timeline_pages: pages([{ event: "commented" }]) }, /not bound to the pull request head/],
     [{ timeline_pages: unlinked }, /incomplete/],
+    [{ timeline_pages: pages([committed, ...full().slice(1)]) }, /incomplete/],
+    [
+      {
+        timeline_pages: pages(full(), [committed]).map((page, index) =>
+          index === 0 ? { ...page, link: page.link?.replace('rel="next"', "rel=next") } : page,
+        ),
+      },
+      /link is invalid/,
+    ],
     [{ timeline_pages: defaultSize }, /incomplete/],
     [{ timeline_pages: otherPull }, /incomplete/],
     [{ timeline_pages: pages([committed]).map(({ events }) => events) }, /incomplete/],

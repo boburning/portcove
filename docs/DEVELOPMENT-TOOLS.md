@@ -210,8 +210,8 @@ The complete PR issue timeline
 (`GET /repos/{owner}/{repo}/issues/{n}/timeline?per_page=100&page=N`) must
 contain the head's `committed` event and no `connected` or `disconnected`
 event, because REST does not identify a manual Development link's counterpart.
-The `Link` header proves completeness: every page but the last links the next
-and the last links none. Any such event, an unbound or partial timeline, or a PR
+Completeness needs both the page sizes and the `Link` header: every page but the
+last is full and links the next, and the last is short and links none. Any such event, an unbound or partial timeline, or a PR
 change between the bracketing reads leaves the inventory unknown; use GraphQL or
 a direct GitHub UI observation paired with bracketing raw PR reads instead. The
 live merge helper falls back to this reconstruction only when GraphQL answers
