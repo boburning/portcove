@@ -16,8 +16,8 @@
           "instruction": "Use your own USA z64 ROM, SHA-1 493ced9008dbe932d6e91179b68e8630cf23a023."
         },
         {
-          "title": "Follow upstream setup",
-          "instruction": "Extract the complete portable archive to a writable folder, then open JetForceGeminiRecompiled.exe on Windows or JetForceGeminiRecompiled on Linux. Select your original ROM in the launcher. Keep the executable with its bundled assets."
+          "title": "Start the complete portable package",
+          "instruction": "Extract the v1.3.2 portable archive into a writable folder. On Windows 10 or 11 with Direct3D 12, open JetForceGeminiRecompiled.exe. On Linux x64 with glibc 2.35 or newer and Vulkan, open JetForceGeminiRecompiled from that folder. Choose your own ROM in the launcher."
         },
         {
           "title": "Use the prepared Linux copy",
@@ -31,7 +31,11 @@
       "references": [
         {
           "title": "Choose the Linux package and keep its data",
-          "instruction": "The portable tarball keeps data in its own folder. The optional AppImage stores data in ~/.local/share/JetForceGeminiRecompiled. For Steam Deck, follow the upstream guide and start the AppImage through Steam for its controller handling."
+          "instruction": "The portable tarball keeps data beside its executable. The AppImage runs from a writable copy in JFG_GAME_DIR, or in JetForceGeminiRecompiled under XDG_DATA_HOME (default ~/.local/share). Keep saves, settings, mods and texture_packs in the folder you actually use. For Steam Deck, start the AppImage through Steam."
+        },
+        {
+          "title": "Replace a Linux 1.2.x copy",
+          "instruction": "Use the current upstream release page for the first update after the repository rename. Keep a backup of your portable folder or AppImage data before replacing it. The 1.3.2 release fixes an upstream Linux crash when selecting a save after restart."
         }
       ]
     },
