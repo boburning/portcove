@@ -240,6 +240,20 @@ and checkpoint without failing the job, because they cannot change what players
 install. They use a separate exception key, so a listing that later gains a
 managed port still reports its unresolved rule once.
 
+After each hosted run, `scripts/upstream-relocation-candidates.mts` reads that
+run's summary and lists proposal-only relocation candidates in the step summary
+for repositories that returned HTTP 301 or 404. For a 301 it reads the
+`Moved Permanently` body's numeric repository URL without following it, then
+makes one `/repositories/{id}` read for the current name. It compares that ID with
+the observer checkpoint's retained `repository_id`: `same-repository-renamed`
+means the numeric identities match; `different-repository`, `identity-unbound`,
+`name-reused`, `unavailable` and `unknown` keep the change unreviewed. The step
+continues on error and never changes the job result. Candidates grant no lineage,
+relocation, accounting or catalog authority; an accepted rename is still a
+reviewed catalog change, and qualification, holds and accepted bytes do not
+transfer by themselves. The same command accepts `--repository OWNER/NAME` for
+manual use.
+
 The forty-five-minute hosted job establishes a forty-minute observation deadline
 before checkout and build, reserving the final five minutes for checkpoint and
 artifact publication. Accepted page, validation or Core progress can automatically
