@@ -331,6 +331,21 @@ export async function claimSemanticTechnicalAttempt(
         (partition && stopped.application_partition_request_id ? 2 * (partition.max_lanes + 1) : 2)
     )
       throw new Error("previous technical attempt is live, incomplete or ambiguous");
+    if (name === "technical-2" && partition?.retry_stop_sha256) {
+      const retained = (await readdir(root)).filter((entry) => entry.startsWith("r-")).sort();
+      const located = stopped.invocations
+        .map((invocation: unknown) => {
+          if (!isRecord(invocation) || typeof invocation.root !== "string")
+            throw new Error("supplemental application invocation locator differs");
+          return path.basename(invocation.root);
+        })
+        .sort();
+      if (
+        new Set(located).size !== located.length ||
+        JSON.stringify(retained) !== JSON.stringify(located)
+      )
+        throw new Error("supplemental application invocation inventory differs");
+    }
     for (const invocation of stopped.invocations) {
       if (
         !isRecord(invocation) ||

@@ -121,6 +121,13 @@ void test("one supplemental application claim requires the exact third stop and 
     /stop differs/,
   );
   scope.retry_stop_sha256 = createHash("sha256").update(stop).digest("hex");
+  const orphan = path.join(request, "technical-2", "r-unlisted");
+  await mkdir(orphan);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), scope),
+    /inventory differs/,
+  );
+  await rm(orphan, { recursive: true });
   const next = await claimSemanticTechnicalAttempt(request, "a".repeat(64), scope);
   assert.equal(path.basename(next), "technical-3");
   assert.equal(
