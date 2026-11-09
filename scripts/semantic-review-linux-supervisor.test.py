@@ -183,6 +183,8 @@ class SupervisorContract(unittest.TestCase):
         self.assertIn('features.code_mode_host=false', args)
         self.assertIn('mcp_servers.portcove_frozen_bundle.omit_tools_from=["deferred","code_mode"]', args)
         self.assertIn('mcp_servers.portcove_frozen_bundle.required=true', args)
+        enabled = next(arg for arg in args if arg.startswith("mcp_servers.portcove_frozen_bundle.enabled_tools="))
+        self.assertEqual(json.loads(enabled.split("=", 1)[1]), ["list", "read", "read_text", "net_diff", "search", "read_page"])
         self.assertIn('analytics.enabled=false', args)
         self.assertIn('feedback.enabled=false', args)
         self.assertEqual(args[args.index("--model") + 1], "gpt-6.1-sol")

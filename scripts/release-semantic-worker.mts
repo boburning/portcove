@@ -210,6 +210,7 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
         "max_lanes,request_id,wall_seconds",
         "max_lanes,request_id,retry_stop_sha256,wall_seconds",
         "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,request_id,retry_stop_sha256,wall_seconds",
+        "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,next_prefix_sha256,next_stop_sha256,request_id,retry_stop_sha256,wall_seconds",
       ].includes(Object.keys(partition).sort().join(",")) ||
       ("retry_stop_sha256" in partition &&
         (typeof partition.retry_stop_sha256 !== "string" ||
@@ -219,6 +220,11 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
           !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256) ||
           typeof partition.continuation_prefix_sha256 !== "string" ||
           !/^[a-f0-9]{64}$/u.test(partition.continuation_prefix_sha256))) ||
+      ("next_stop_sha256" in partition &&
+        (typeof partition.next_stop_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.next_stop_sha256) ||
+          typeof partition.next_prefix_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.next_prefix_sha256))) ||
       typeof partition.request_id !== "string" ||
       !/^[a-f0-9]{64}$/u.test(partition.request_id) ||
       typeof partition.max_lanes !== "number" ||
@@ -280,6 +286,11 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
               typeof partition.continuation_prefix_sha256 === "string" && {
                 continuation_stop_sha256: partition.continuation_stop_sha256,
                 continuation_prefix_sha256: partition.continuation_prefix_sha256,
+              }),
+            ...(typeof partition.next_stop_sha256 === "string" &&
+              typeof partition.next_prefix_sha256 === "string" && {
+                next_stop_sha256: partition.next_stop_sha256,
+                next_prefix_sha256: partition.next_prefix_sha256,
               }),
           },
         }
@@ -649,7 +660,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   );
   const requestDirectory = path.join(config.output_parent, `request-${request.request_id}`);
   const existingLocators: string[] = [];
-  for (let index = 0; index < (selected.purpose === "application" ? 5 : 3); index++) {
+  for (let index = 0; index < (selected.purpose === "application" ? 6 : 3); index++) {
     const directory = path.join(requestDirectory, `technical-${index}`);
     try {
       await lstat(path.join(directory, "expected-check.json"));
@@ -761,17 +772,30 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
           sha256: partitionScope.continuation_prefix_sha256,
         }
       : undefined;
-  if (resumePrefix) {
-    await requirePrivateOwnerPath(resumePrefix.manifest_path, true);
-    if (((await lstat(resumePrefix.manifest_path)).mode & 0o777) !== 0o600)
-      throw new Error("semantic continuation prefix manifest must use mode 0600");
+  const resumeSuffix =
+    partitionScope?.next_prefix_sha256 && partitionScope.next_stop_sha256
+      ? {
+          previous_attempt: path.join(requestDirectory, "technical-4"),
+          stop_sha256: partitionScope.next_stop_sha256,
+          manifest_path: path.join(
+            path.dirname(configurationPath),
+            "application-proposal-suffix.json",
+          ),
+          sha256: partitionScope.next_prefix_sha256,
+        }
+      : undefined;
+  for (const retained of [resumePrefix, resumeSuffix]) {
+    if (!retained) continue;
+    await requirePrivateOwnerPath(retained.manifest_path, true);
+    if (((await lstat(retained.manifest_path)).mode & 0o777) !== 0o600)
+      throw new Error("semantic continuation manifest must use mode 0600");
     const manifest = await readBoundedPublicBuildInputFile(
-      path.dirname(resumePrefix.manifest_path),
-      path.basename(resumePrefix.manifest_path),
+      path.dirname(retained.manifest_path),
+      path.basename(retained.manifest_path),
       256 * 1024,
     );
-    if (digest(manifest) !== resumePrefix.sha256)
-      throw new Error("semantic continuation prefix differs from its setup appointment");
+    if (digest(manifest) !== retained.sha256)
+      throw new Error("semantic continuation manifest differs from its setup appointment");
   }
   const catalogRecovered =
     selected.purpose === "catalog"
@@ -819,6 +843,9 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
           }),
           ...(partitionScope.continuation_stop_sha256 && {
             continuation_stop_sha256: partitionScope.continuation_stop_sha256,
+          }),
+          ...(partitionScope.next_stop_sha256 && {
+            next_stop_sha256: partitionScope.next_stop_sha256,
           }),
         },
       );
@@ -914,6 +941,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
                 max_lanes: partitionScope.max_lanes,
                 deadline: partitionDeadline!,
                 ...(resumePrefix && { resume_prefix: resumePrefix }),
+                ...(resumeSuffix && { resume_suffix: resumeSuffix }),
               },
             }
           : {}),

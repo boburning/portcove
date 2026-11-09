@@ -288,7 +288,7 @@ def runtime_directory(request, root):
         return root / "runtime"
     require(
         re.fullmatch(r"r-[A-Za-z0-9_-]+", root.name)
-        and re.fullmatch(r"technical-[0-4]", root.parent.name)
+        and re.fullmatch(r"technical-[0-5]", root.parent.name)
         and re.fullmatch(r"request-[a-f0-9]{64}", root.parent.parent.name)
         and not os.path.lexists(root / "runtime"),
         "shared runtime requires a fresh lane in the original review attempt",
@@ -1088,7 +1088,8 @@ def codex_arguments(index_hash, mode):
             ]
         ),
         "--config",
-        'mcp_servers.portcove_frozen_bundle.enabled_tools=["list","read","read_text","net_diff","search"]',
+        # The materialized index exposes only the tools of its exact protocol.
+        'mcp_servers.portcove_frozen_bundle.enabled_tools=["list","read","read_text","net_diff","search","read_page"]',
         "--config",
         'mcp_servers.portcove_frozen_bundle.omit_tools_from=["deferred","code_mode"]',
         "--config",

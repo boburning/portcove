@@ -331,6 +331,17 @@ missing evidence refuses the continuation. Both syntheses and complete
 opportunity metadata still require fresh invocations. The prefix preflight has
 no authority to produce a Check or consume an attempt.
 
+A further source-bound continuation is limited to the case where the fourth
+attempt cleanly settled its final invocation but the reader rejected a page
+outside that lane. It pins the fourth stop, the original failed event capture,
+and a second reviewed manifest for its contiguous settled lanes. Both retained
+segments are replayed against the same proposal before running the refused lane
+again. Fresh projected application lanes expose only the numbered pages in
+their frozen assignment. The exact page bytes and complete response coverage
+remain mandatory. Legacy path-addressed captures are replayed against their
+original reader bytes. The ordinary reader and the fresh synthesis invocations
+retain their existing contracts.
+
 The prepared capacity configuration reader uses `portcove-release-pause` /
 `capacity.json`, verified raw Git objects and two exact-ref reads, with mandatory
 authenticated fresh observer/job guards. The document contains schema version 1,

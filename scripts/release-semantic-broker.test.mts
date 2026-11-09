@@ -1586,6 +1586,7 @@ void test("frozen source collection binds actual Git blobs, publication and comp
     replacement?: string,
     sessionLane = lane,
     readBundle = qualifiedProposal as Parameters<typeof createSemanticSnapshotReader>[0],
+    assignedOrdinal?: (index: number) => number,
   ) => {
     const reader = createSemanticSnapshotReader(readBundle);
     return Buffer.from(
@@ -1600,8 +1601,8 @@ void test("frozen source collection binds actual Git blobs, publication and comp
             id: `lane-page-${index}`,
             type: "mcp_tool_call",
             server: "portcove_frozen_bundle",
-            tool,
-            arguments: args,
+            tool: assignedOrdinal ? "read_page" : tool,
+            arguments: assignedOrdinal ? { page: assignedOrdinal(index) } : args,
           };
           const text = replacement ?? JSON.stringify(reader(tool, args));
           return [
@@ -1619,6 +1620,35 @@ void test("frozen source collection binds actual Git blobs, publication and comp
         .join("\n"),
     );
   };
+  const ordinalEvents = (ordinal: (index: number) => number) =>
+    laneEvents(0, undefined, undefined, undefined, 0, undefined, ordinal);
+  const ordinalCapture = ordinalEvents((index) => index + 1);
+  assert.equal(inspector.inspectLane(0, ordinalCapture, undefined, true).lane, 0);
+  assert.throws(() => inspector.inspectLane(0, ordinalCapture), /unauthorized reader/);
+  assert.throws(
+    () => inspector.inspectLane(0, laneEvents(0), undefined, true),
+    /unauthorized reader/,
+  );
+  assert.throws(
+    () =>
+      inspector.inspectLane(
+        0,
+        ordinalEvents(() => plan.lanes[0]!.pages.length + 1),
+        undefined,
+        true,
+      ),
+    /foreign page ordinal/,
+  );
+  assert.throws(
+    () =>
+      inspector.inspectLane(
+        0,
+        ordinalEvents(() => 1),
+        undefined,
+        true,
+      ),
+    /duplicate or foreign/,
+  );
   const findings = plan.lanes.map((_, lane) => inspector.inspectLane(lane, laneEvents(lane)));
   const unionReceipt = inspector.inspectUnion(findings);
   assert.equal(unionReceipt.authority, "none");

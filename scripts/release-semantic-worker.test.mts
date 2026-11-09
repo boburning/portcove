@@ -189,6 +189,58 @@ void test("supplemental application claims require exact prior stops and preserv
     claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
     /budget exhausted/,
   );
+
+  const fourth = path.join(request, "technical-4");
+  const fourthStop = continuationStop + "\n";
+  const fifth = {
+    ...continuation,
+    next_stop_sha256: createHash("sha256").update(fourthStop).digest("hex"),
+  };
+  await writeFile(path.join(fourth, "technical-stop.json"), continuationStop);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth),
+    /stop differs/,
+  );
+  await writeFile(path.join(fourth, "technical-stop.json"), fourthStop);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      ...scope,
+      next_stop_sha256: fifth.next_stop_sha256,
+    }),
+    /partition scope differs/,
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      ...fifth,
+      continuation_stop_sha256: "f".repeat(64),
+    }),
+    /stop differs/,
+  );
+  const unlisted = path.join(fourth, "r-unlisted");
+  await mkdir(unlisted);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth),
+    /inventory differs/,
+  );
+  await rm(unlisted, { recursive: true });
+  for (let index = 0; index <= 4; index++) {
+    const locator = path.join(request, `technical-${index}`, "expected-check.json");
+    await writeFile(locator, "original");
+    await assert.rejects(claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth), /GET-only/);
+    await rm(locator);
+  }
+  assert.equal(
+    path.basename(await claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth)),
+    "technical-5",
+  );
+  assert.equal(
+    await readFile(`${request}.attempts.jsonl`, "utf8"),
+    "technical-0\ntechnical-1\ntechnical-2\ntechnical-3\ntechnical-4\ntechnical-5\n",
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth),
+    /budget exhausted/,
+  );
 });
 
 void test("retained application prelaunch refuses an alternate canonical path or an invocation sibling", () => {
@@ -399,6 +451,16 @@ void test("worker setup excludes supplied outcomes/backends and separates the fi
       .application_partition,
     continuation,
   );
+  const next = {
+    ...continuation,
+    next_stop_sha256: "f".repeat(64),
+    next_prefix_sha256: "1".repeat(64),
+  };
+  assert.deepEqual(
+    inspectSemanticWorkerConfiguration({ ...raw, application_partition: next })
+      .application_partition,
+    next,
+  );
   for (const invalid of [
     null,
     { ...partition, request_id: "latest" },
@@ -409,6 +471,16 @@ void test("worker setup excludes supplied outcomes/backends and separates the fi
     { ...continuation, retry_stop_sha256: undefined },
     { ...continuation, continuation_stop_sha256: 1 },
     { ...continuation, continuation_prefix_sha256: "invalid" },
+    { ...continuation, next_stop_sha256: next.next_stop_sha256 },
+    { ...continuation, next_prefix_sha256: next.next_prefix_sha256 },
+    {
+      ...partition,
+      next_stop_sha256: next.next_stop_sha256,
+      next_prefix_sha256: next.next_prefix_sha256,
+    },
+    { ...next, next_stop_sha256: "invalid" },
+    { ...next, next_prefix_sha256: 1 },
+    { ...next, continuation_prefix_sha256: undefined },
     { ...partition, decision: "accepted" },
   ])
     assert.throws(() =>
