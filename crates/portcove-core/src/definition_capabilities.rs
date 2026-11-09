@@ -71,6 +71,10 @@ impl EngineTemplateCapability {
             contract_version: 10,
         });
         supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 11,
+        });
+        supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: 2,
         });
@@ -537,7 +541,7 @@ mod tests {
                 .compatible
         );
         assert!(
-            !check_definition_capabilities(&request("native-portable", 11, 11))
+            !check_definition_capabilities(&request("native-portable", 12, 12))
                 .unwrap()
                 .compatible
         );

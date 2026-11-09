@@ -46744,7 +46744,9 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -46757,6 +46759,14 @@
           "linux-x86-64": [
             "openrct2-",
             "-linux-bookworm-x86_64.tar.gz"
+          ],
+          "macos-x86-64": [
+            "openrct2-",
+            "-macos-universal.zip"
+          ],
+          "macos-aarch64": [
+            "openrct2-",
+            "-macos-universal.zip"
           ]
         }
       },
@@ -46766,6 +46776,12 @@
         ],
         "linux-x86-64": [
           "openrct2"
+        ],
+        "macos-x86-64": [
+          "OpenRCT2.app/Contents/MacOS/OpenRCT2"
+        ],
+        "macos-aarch64": [
+          "OpenRCT2.app/Contents/MacOS/OpenRCT2"
         ]
       },
       "persistent_paths": [],
@@ -46773,7 +46789,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative. Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux recommendation is upstream’s Debian Bookworm build, not an interchangeable build for every distribution. It requires the corresponding SDL2, ICU72, OpenSSL3, curl/font libraries and other upstream runtime dependencies. Keep libopenrct2.so with the player. User configuration and saves normally remain in OpenRCT2’s external XDG user directory, outside Portcove backups. Other distribution packages remain upstream alternatives. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "manual_preparation": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative. Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux recommendation is upstream’s Debian Bookworm build, not an interchangeable build for every distribution. It requires the corresponding SDL2, ICU72, OpenSSL3, curl/font libraries and other upstream runtime dependencies. Keep libopenrct2.so with the player. User configuration and saves normally remain in OpenRCT2’s external XDG user directory, outside Portcove backups. Other distribution packages remain upstream alternatives. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run. On Intel and Apple Silicon Mac, the standalone bundle reads and writes your OpenRCT2 profile in the actual account’s Library/Application Support/OpenRCT2 folder. Keep that folder outside managed runtime locations. Use a separately prepared copy when you need custom profile arguments.",
         "original_game_title": "RollerCoaster Tycoon 2",
         "manual_setup": {
           "steps": [
@@ -46787,7 +46803,7 @@
           "references": [
             {
               "title": "Use OpenRCT2 on Mac",
-              "instruction": "Download the official macos-universal ZIP for Intel or Apple Silicon. Unzip it, keep OpenRCT2.app together and open it to select your original RCT2 data. Keep the settings, saves and content under ~/Library/Application Support/OpenRCT2, including any custom data location. Maintain this copy outside Portcove."
+              "instruction": "For a managed copy on Intel or Apple Silicon, use Portcove Install and then Play. OpenRCT2 can ask you to select your installed RCT2 files on first Play. Keep your original files and the OpenRCT2 profile under ~/Library/Application Support/OpenRCT2. Portcove manages the bundle and leaves that profile under your ownership. The inspected upstream build declares macOS 10.14 or later on Intel and 11 or later on Apple Silicon. Portcove has its own OS requirements. For a separately maintained copy or a custom profile location, download the official macos-universal ZIP, extract the full OpenRCT2.app bundle and use upstream setup."
             },
             {
               "title": "Use the external Windows ARM64 or Linux package",
@@ -46807,7 +46823,8 @@
           "game_slug": "rollercoaster-tycoon-2",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "external_profile_policy": "openrct2-mac-v1"
     },
     {
       "id": "opentyrian-opentyrian",
