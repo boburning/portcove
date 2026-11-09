@@ -4,6 +4,8 @@ on:
     paths:
       - .github/workflows/controller-tool-build-fixture.yml
       - scripts/release-*.mts
+      - scripts/semantic-review-linux-supervisor*.py
+      - scripts/semantic-review-linux-supervisor.test.mts
       - scripts/application-release-private.mts
       - scripts/application-release-budget*.mts
       - scripts/application-release-run.mts
@@ -60,6 +62,9 @@ on:
       - scripts/release-controller-job-bootstrap.mts
       - scripts/release-controller-diagnostics.mts
       - scripts/release-control-step-bridge.mts
+      - scripts/release-semantic-*.mts
+      - scripts/semantic-review-linux-supervisor*.py
+      - scripts/semantic-review-linux-supervisor.test.mts
       - scripts/release-controller-wake.mts
       - scripts/application-release-private.mts
       - scripts/application-release-budget*.mts
