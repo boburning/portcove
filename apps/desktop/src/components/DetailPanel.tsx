@@ -3541,6 +3541,12 @@ function DetailRequirementsFacts({
             actions check their own requirements.
           </dd>
         </div>
+        {model.port.bios_source_profile && (
+          <div>
+            <dt>BIOS</dt>
+            <dd>Required BIOS not specified</dd>
+          </div>
+        )}
         <div>
           <dt>Selected update channel</dt>
           <dd>{releaseChannelPresentation(model.selectedChannel).label}</dd>

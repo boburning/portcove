@@ -1103,7 +1103,6 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   onCopyInstallation={() => model.ui.setAdoptOpen(true)}
                   setupSource={model.setupSource}
                   setSetupSource={model.setSetupSource}
-                  close={model.closeAddGames}
                 />
               )}
             </div>

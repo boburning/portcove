@@ -43,7 +43,6 @@ export function AddGames({
   onCopyInstallation: () => void;
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
-  close: () => void;
 }) {
   const [mode, setMode] = useState<"choose" | "files" | "folders" | "existing">("choose");
   const [foldersVisited, setFoldersVisited] = useState(false);

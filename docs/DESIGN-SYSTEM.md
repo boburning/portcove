@@ -947,7 +947,7 @@ opening another destination must not imply cancellation or task completion.
 ### Discover artwork and identity
 
 Catalog cards retain their own browsing filters, sort and route semantics. Whole
-cover images use Library's centered 2:3 frame and semantic neutral padding.
+cover images use Library's centered 2:3 frame and the shared letterbox fill.
 Artwork size is independent of title/status height, with the shared short-window bound. Missing artwork uses the same
 quiet game symbol as Library and Detail. Do not infer crop bounds or replace
 provider/user-selected artwork. Titles and project/variant identity follow the

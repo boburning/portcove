@@ -150,16 +150,20 @@ export function commandSurfaceCommands({
       disabled: !recent,
       action: () => recent && setSelectedId(recent.port.id),
     },
-    ...games.map(({ port, inLibrary }): PaletteCommand => ({
-      id: `game:${port.id}`,
-      group: inLibrary ? "Games in your library" : "Games in Discover",
-      label: gameIdentityLabel(port),
-      description: inLibrary ? "Open game details" : "Open details in Discover",
-      icon: Gamepad2,
-      keywords: `${port.id} ${port.name}`,
-      searchOnly: true,
-      action: () => setSelectedId(port.id),
-    })),
+    // Library games first so each group renders under one contiguous heading.
+    ...[...games.filter((game) => game.inLibrary), ...games.filter((game) => !game.inLibrary)].map(
+      ({ port, inLibrary }): PaletteCommand => ({
+        id: `game:${port.id}`,
+        group: inLibrary ? "Games in your library" : "Games in Discover",
+        label: gameIdentityLabel(port),
+        description: "Open game details",
+        icon: Gamepad2,
+        keywords: `${port.id} ${port.name}`,
+        searchOnly: true,
+        matchDescription: false,
+        action: () => setSelectedId(port.id),
+      }),
+    ),
   ];
 }
 
