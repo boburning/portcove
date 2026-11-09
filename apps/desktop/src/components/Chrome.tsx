@@ -851,7 +851,10 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
       )}
       <details className="mt-3 text-sm text-pc-muted-foreground">
         <summary className="cursor-pointer font-semibold">Connection details</summary>
-        <p className="mt-2 mb-0">Sign-in source: {source}.</p>
+        <p className="mt-2 mb-0">
+          Sign-in source: {source}
+          {status?.environment_variable ? ` (${status.environment_variable})` : ""}.
+        </p>
         <p className="mt-2 mb-0">{githubQuota(status)}.</p>
         <p className="mt-2 mb-0">
           Repeated checks for an unchanged GitHub release may not use the primary request limit.

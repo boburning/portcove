@@ -16633,6 +16633,12 @@
       "device_login_available": {
         "type": "boolean"
       },
+      "environment_variable": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "login": {
         "type": [
           "string",
@@ -16713,6 +16719,12 @@
           },
           "device_login_available": {
             "type": "boolean"
+          },
+          "environment_variable": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "login": {
             "type": [

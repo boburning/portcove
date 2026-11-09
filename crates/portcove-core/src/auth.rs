@@ -26,6 +26,8 @@ pub struct GithubRateLimit {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct GithubAuthStatus {
     pub source: GithubAuthSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment_variable: Option<String>,
     pub authenticated: bool,
     pub login: Option<String>,
     pub rate_limit: Option<GithubRateLimit>,
@@ -54,14 +56,19 @@ pub struct GithubDeviceLoginResult {
     pub status: Option<GithubAuthStatus>,
 }
 
-pub(crate) fn environment_token() -> Option<String> {
+pub(crate) fn environment_token() -> Option<(&'static str, String)> {
+    select_environment_token(|name| std::env::var(name).ok())
+}
+
+fn select_environment_token(
+    read: impl Fn(&str) -> Option<String>,
+) -> Option<(&'static str, String)> {
     ["PORTCOVE_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"]
-        .iter()
+        .into_iter()
         .find_map(|name| {
-            std::env::var(name)
-                .ok()
-                .map(|value| value.trim().to_owned())
-                .filter(|value| !value.is_empty())
+            let value = read(name)?;
+            let value = value.trim();
+            (!value.is_empty()).then(|| (name, value.to_owned()))
         })
 }
 
@@ -106,4 +113,37 @@ fn credential_error(action: &str, error: keyring::Error) -> PortcoveError {
     PortcoveError::state(format!(
         "could not {action} the GitHub credential in operating-system secure storage: {error}"
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::select_environment_token;
+
+    #[test]
+    fn environment_token_reports_the_selected_variable_with_existing_precedence() {
+        let values = [
+            ("PORTCOVE_GITHUB_TOKEN", " portcove-fixture "),
+            ("GH_TOKEN", "gh-fixture"),
+            ("GITHUB_TOKEN", "github-fixture"),
+        ];
+        for start in 0..values.len() {
+            let selected = select_environment_token(|name| {
+                values[start..]
+                    .iter()
+                    .find(|(key, _)| *key == name)
+                    .map(|(_, value)| (*value).to_owned())
+            });
+            let (name, value) = values[start];
+            assert_eq!(selected, Some((name, value.trim().to_owned())));
+        }
+        assert_eq!(
+            select_environment_token(|name| match name {
+                "PORTCOVE_GITHUB_TOKEN" => Some("  ".to_owned()),
+                "GH_TOKEN" => Some("fallback".to_owned()),
+                _ => None,
+            }),
+            Some(("GH_TOKEN", "fallback".to_owned()))
+        );
+        assert_eq!(select_environment_token(|_| None), None);
+    }
 }
