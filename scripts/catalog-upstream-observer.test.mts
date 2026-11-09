@@ -1049,6 +1049,12 @@ void test("failing managed sources rejoin ordinary rotation instead of starving 
   for (const progress of Object.values(budget.sources)) progress.exception_rule = "budget";
   const resumed = await advanceCatalogObservations(input, budget, h.options);
   assert.notEqual(resumed.report.attempted_source_keys[0], listing.key);
+
+  // Entries written before rules were recorded keep priority until reattempted.
+  const legacy = structuredClone(state);
+  for (const progress of Object.values(legacy.sources)) delete progress.exception_rule;
+  const legacyRun = await advanceCatalogObservations(input, legacy, h.options);
+  assert.notEqual(legacyRun.report.attempted_source_keys[0], listing.key);
 });
 
 void test("the configured source gets an early bounded turn without starving untouched sources", async () => {

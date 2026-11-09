@@ -338,7 +338,7 @@ export function validateCatalogObserverCheckpoint(
       (progress.exception_rule !== undefined &&
         progress.exception_rule !== null &&
         (typeof progress.exception_rule !== "string" ||
-          !/^[a-z][a-z0-9-]{0,63}$/u.test(progress.exception_rule))) ||
+          !/^[a-z-]{1,80}$/u.test(progress.exception_rule))) ||
       !Number.isSafeInteger(progress.change_intervals) ||
       Number(progress.change_intervals) < 0 ||
       (progress.mean_change_interval_ms !== null &&
@@ -619,7 +619,7 @@ export async function advanceCatalogObservations(
     // sources that serve a managed port: their releases can change what
     // players install, while listing-only sources are descriptive. A completed
     // managed source leaves `pending` until it is due again, and one with a
-    // recorded exception rejoins ordinary rotation, so listing-only sources
+    // recorded failure rejoins ordinary rotation, so listing-only sources
     // still receive turns. The durable rotation orders each group.
     .sort(
       (a, b) =>
