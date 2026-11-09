@@ -37,7 +37,7 @@
         },
         {
           "title": "Add the game and manage your files",
-          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and Android instructions below."
+          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and mobile instructions below."
         }
       ],
       "warnings": [],
@@ -52,8 +52,8 @@
           "instruction": "Use the upstream macOS-universal DMG on Intel or Apple Silicon. Copy devilutionX.app out of the image and keep the complete bundle. Put the matching MPQs in ~/Library/Application Support/diasurgical/devilution unless you already use a custom directory. Select Diablo in the upstream game mode if Hellfire data are also present. On either desktop platform, preserve the actual config, character saves and original files, including overrides. The upstream license governs use of the external copy."
         },
         {
-          "title": "Import your game files on Android",
-          "instruction": "Install the official DevilutionX app from the upstream release or Google Play. Use Import Data in the app to choose your files. Import your full Diablo DIABDAT.MPQ and select Diablo if Hellfire data are also present. The app copies the selected files into its external files directory, usually Android/data/org.diasurgical.devilutionx/files. Keep your originals and preserve that directory’s actual game data, saves and settings before replacing or removing the app. Use the same distribution channel for updates so the Android package signer remains compatible."
+          "title": "Prepare DevilutionX on Android, iPhone or iPad",
+          "instruction": "On Android, install the upstream 1.5.5 APK or use Google Play. Use Import Data in the app to choose your files. Import your full Diablo DIABDAT.MPQ and select Diablo if Hellfire data are also present. The app copies the selected files into its external files directory, usually Android/data/org.diasurgical.devilutionx/files. Keep your originals and preserve that directory’s actual game data, saves and settings before replacing or removing the app. Use the same distribution channel for updates so the Android package signer remains compatible. On iPhone or iPad, use the official 1.5.5 IPA with your own sideloading and signing setup on iOS or iPadOS 13 or later. Open the app once, then close it. Use Finder or iTunes file sharing to copy your owned DIABDAT.MPQ to the app’s Documents folder. Select Diablo in the app. Keep the Documents folder, including .sv characters and stashes and the configuration, before changing the installation."
         }
       ]
     },

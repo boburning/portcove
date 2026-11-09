@@ -47,11 +47,11 @@
         },
         {
           "title": "Upstream Android setup",
-          "instruction": "Use the official Android setup guide for Google Play, F-Droid or the matching upstream APK (ARM64, ARMv7 or x86-64). Import your own Heroes III data in the app and keep your originals separately. Install and update through the same channel because Android checks package identity and signing. Preserve the app profile before removing it."
+          "instruction": "Use the official Android setup guide for Google Play, F-Droid or the matching upstream APK (ARM64, ARMv7 or x86-64). Import your own Heroes III data in the app and keep your originals separately. Install and update through the same channel because Android checks package identity and signing. Preserve the app profile before removing it. Android guide at https://vcmi.eu/players/Installation_Android/."
         },
         {
-          "title": "Android setup guide",
-          "instruction": "https://vcmi.eu/players/Installation_Android/"
+          "title": "Upstream iPhone and iPad setup",
+          "instruction": "On iOS or iPadOS 12 or later, use VCMI’s upstream TestFlight route when available, or provision the official 1.7.5 IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
         }
       ]
     },
