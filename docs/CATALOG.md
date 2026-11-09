@@ -276,6 +276,14 @@ An x86-64 Linux sibling may select one complete standalone AppImage by its
 exact asset basename and executable hint. It uses the existing AppImage
 installation path and the same retained original and profile checks.
 
+Native portable capability 11 covers the official universal OpenRCT2 Mac
+bundle. The retained Mac executable is `OpenRCT2.app/Contents/MacOS/OpenRCT2`.
+Its fixed launch keeps the full bundle and uses the real account’s home for
+the external OpenRCT2 profile. Core requires an absolute account home and
+checks the effective profile for runtime overlap and unsafe aliases. Player
+data and original game files stay external. Existing Windows and Linux launches
+keep their separate behavior.
+
 The `external_profile_policy` declaration requires NativePortable capability 9.
 It checks the effective profile selected by the final managed game environment
 before the player starts. The reviewed Dune Dynasty policy follows Allegro's

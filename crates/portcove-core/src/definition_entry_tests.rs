@@ -31,6 +31,27 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn openrct2_mac_bundle_requires_native11_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("openrct2-openrct2").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(11);
+    for minimum in [10, 11] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        let fresh = inspect(&entry);
+        let retained = index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes);
+        for result in [fresh, retained] {
+            if minimum < 11 {
+                assert!(result.unwrap_err().message.contains("version 11"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}
+
+#[test]
 fn managed_external_profiles_require_version_9_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("dune-ii-dune-dynasty").unwrap();
@@ -716,8 +737,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
         let version = if crate::native_temp::has_sibling_platforms(port) {
             10
-        } else if port.external_profile_policy.is_some() {
-            9
+        } else if let Some(policy) = port.external_profile_policy {
+            crate::native_external_profile::minimum_capability(policy)
         } else if port.release.linux_tar_xz {
             8
         } else if crate::preparation::source::native(port) {
@@ -1370,8 +1391,8 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
     // Keep the upper-edge check on an unimplemented future reader.
-    entry["required_capabilities"][0]["minimum_version"] = json!(11);
-    entry["required_capabilities"][0]["maximum_version"] = json!(11);
+    entry["required_capabilities"][0]["minimum_version"] = json!(12);
+    entry["required_capabilities"][0]["maximum_version"] = json!(12);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }
 

@@ -663,6 +663,7 @@ pub enum RuntimeDataPolicy {
 pub enum ExternalProfilePolicy {
     DuneDynastyAllegroV1,
     Fheroes2V1,
+    Openrct2MacV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.

@@ -38900,7 +38900,7 @@
         "references": [
           {
             "title": "Use OpenRCT2 on Mac",
-            "instruction": "Download the official macos-universal ZIP for Intel or Apple Silicon. Unzip it, keep OpenRCT2.app together and open it to select your original RCT2 data. Keep the settings, saves and content under ~/Library/Application Support/OpenRCT2, including any custom data location. Maintain this copy outside Portcove."
+            "instruction": "For a managed copy on Intel or Apple Silicon, use Portcove Install and then Play. OpenRCT2 can ask you to select your installed RCT2 files on first Play. Keep your original files and the OpenRCT2 profile under ~/Library/Application Support/OpenRCT2. Portcove manages the bundle and leaves that profile under your ownership. The inspected upstream build declares macOS 10.14 or later on Intel and 11 or later on Apple Silicon. Portcove has its own OS requirements. For a separately maintained copy or a custom profile location, download the official macos-universal ZIP, extract the full OpenRCT2.app bundle and use upstream setup."
           },
           {
             "title": "Use the external Windows ARM64 or Linux package",
@@ -38920,12 +38920,6 @@
         "game_slug": "rollercoaster-tycoon-2",
         "match_kind": "underlying-game"
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "download_asset_hints": {
         "macos-x86-64": [
           "-macos-universal.zip"
@@ -38933,7 +38927,13 @@
         "macos-aarch64": [
           "-macos-universal.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "openspideyps1-gtteancum-spider-man",

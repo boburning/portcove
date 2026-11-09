@@ -177,14 +177,15 @@ impl DefinitionContentIndex {
                 "native original-file siblings with Windows temporary data require capability version 10",
             ));
         }
-        if port.external_profile_policy.is_some()
-            && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable" && requirement.minimum_version >= 9
-            })
-        {
-            return Err(PortcoveError::verification(
-                "managed external profile guards require native capability version 9",
-            ));
+        if let Some(policy) = port.external_profile_policy {
+            let minimum = crate::native_external_profile::minimum_capability(policy);
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "managed external profile guards require native capability version {minimum}"
+                )));
+            }
         }
         if port.release.linux_tar_xz
             && !document.required_capabilities.iter().any(|requirement| {

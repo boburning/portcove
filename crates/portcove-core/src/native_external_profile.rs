@@ -12,6 +12,18 @@ use crate::{
     PortcoveError, ReleaseSource, Result,
 };
 
+pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
+    match policy {
+        ExternalProfilePolicy::Openrct2MacV1 => 11,
+        ExternalProfilePolicy::DuneDynastyAllegroV1 | ExternalProfilePolicy::Fheroes2V1 => 9,
+    }
+}
+
+pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> bool {
+    policy != ExternalProfilePolicy::Openrct2MacV1
+        || matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+}
+
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     let Some(policy) = port.external_profile_policy else {
         return Ok(());
@@ -33,6 +45,16 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
                 Platform::WindowsX86_64,
                 Platform::LinuxX86_64,
                 Platform::MacosX86_64,
+            ],
+        ),
+        ExternalProfilePolicy::Openrct2MacV1 => (
+            "openrct2-openrct2",
+            "OpenRCT2/OpenRCT2",
+            &[
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosX86_64,
+                Platform::MacosAarch64,
             ],
         ),
     };
@@ -61,6 +83,30 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
             "external profiles require the reviewed upstream portable player and its external data layout",
         ));
     }
+    if policy == ExternalProfilePolicy::Openrct2MacV1 {
+        let mut mac_routes = port
+            .platforms
+            .iter()
+            .copied()
+            .filter(|&platform| applies_to(policy, platform))
+            .peekable();
+        if mac_routes.peek().is_none()
+            || mac_routes.any(|platform| {
+                port.executable_hints
+                    .get(&platform)
+                    .is_none_or(|hints| hints != &["OpenRCT2.app/Contents/MacOS/OpenRCT2"])
+                    || port
+                        .release
+                        .asset_hints
+                        .get(&platform)
+                        .is_none_or(|hints| hints != &["openrct2-", "-macos-universal.zip"])
+            })
+        {
+            return Err(PortcoveError::verification(
+                "OpenRCT2 Mac profile guard requires the official universal bundle and its exact executable",
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -72,7 +118,8 @@ pub(crate) fn launch_policy(
         let policy = current?.external_profile_policy?;
         // Both previously offered managed routes were Windows-only. Apply the
         // current safety check to that exact older layout without recapturing it.
-        (retained.platforms == [Platform::WindowsX86_64]
+        (applies_to(policy, Platform::WindowsX86_64)
+            && retained.platforms == [Platform::WindowsX86_64]
             && validate_layout(retained, policy).is_ok())
         .then_some(policy)
     })
@@ -121,8 +168,65 @@ fn linux_root(
     root.push(match policy {
         ExternalProfilePolicy::DuneDynastyAllegroV1 => "dunedynasty",
         ExternalProfilePolicy::Fheroes2V1 => "fheroes2",
+        ExternalProfilePolicy::Openrct2MacV1 => {
+            return Err(PortcoveError::unsupported(
+                "OpenRCT2 profile guard is Mac-only",
+            ));
+        }
     });
     Ok(root)
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn openrct2_mac_root(account_home: Option<&OsStr>) -> Result<PathBuf> {
+    // The profile prefers the real UID's passwd home. First Play can also
+    // probe Steam through that record, so an absent record is unsafe even
+    // when HOME could resolve the profile itself.
+    let home = require_absolute(account_home, "OpenRCT2 account home")?;
+    if home.parent().is_none() {
+        return Err(PortcoveError::launch(
+            "OpenRCT2 needs a personal profile outside the managed runtime",
+        ));
+    }
+    Ok(home.join("Library/Application Support/OpenRCT2"))
+}
+
+#[cfg(any(target_os = "macos", all(test, unix)))]
+fn macos_account_home() -> Result<Option<OsString>> {
+    use std::{ffi::CStr, mem::MaybeUninit, os::unix::ffi::OsStrExt, ptr};
+
+    let mut entry = MaybeUninit::<libc::passwd>::uninit();
+    let mut found = ptr::null_mut();
+    let mut buffer = vec![0_u8; 16 * 1024];
+    // SAFETY: the storage and output pointer stay valid during lookup.
+    // getpwuid_r uses the supplied buffer and does not borrow shared storage.
+    let status = unsafe {
+        libc::getpwuid_r(
+            libc::getuid(),
+            entry.as_mut_ptr(),
+            buffer.as_mut_ptr().cast(),
+            buffer.len(),
+            &mut found,
+        )
+    };
+    if status != 0 {
+        return Err(std::io::Error::from_raw_os_error(status).into());
+    }
+    if found.is_null() {
+        return Ok(None);
+    }
+    // SAFETY: a successful, nonempty lookup initialized entry, whose strings
+    // live in buffer until copied here.
+    let home = unsafe {
+        let home = entry.assume_init().pw_dir;
+        if home.is_null() {
+            return Err(PortcoveError::launch(
+                "OpenRCT2 account home is unavailable",
+            ));
+        }
+        CStr::from_ptr(home)
+    };
+    Ok(Some(OsStr::from_bytes(home.to_bytes()).to_os_string()))
 }
 
 fn roots(
@@ -131,6 +235,10 @@ fn roots(
     command: &Command,
 ) -> Result<Vec<PathBuf>> {
     match (policy, platform) {
+        #[cfg(any(target_os = "macos", all(test, unix)))]
+        (ExternalProfilePolicy::Openrct2MacV1, Platform::MacosX86_64 | Platform::MacosAarch64) => {
+            Ok(vec![openrct2_mac_root(macos_account_home()?.as_deref())?])
+        }
         (_, Platform::LinuxX86_64) => Ok(vec![
             linux_root(command, policy, "XDG_CONFIG_HOME", ".config")?,
             linux_root(command, policy, "XDG_DATA_HOME", ".local/share")?,
@@ -240,6 +348,65 @@ pub(crate) fn require_external_roots(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn openrct2_mac_requires_an_absolute_account_home_for_the_profile_and_steam_probe() {
+        let temporary = tempfile::tempdir().unwrap();
+        let account = temporary.path().join("account");
+        assert_eq!(
+            openrct2_mac_root(Some(account.as_os_str())).unwrap(),
+            account.join("Library/Application Support/OpenRCT2")
+        );
+        for unsafe_home in [None, Some(OsStr::new("")), Some(OsStr::new("relative"))] {
+            assert!(openrct2_mac_root(unsafe_home).is_err());
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn openrct2_mac_account_lookup_does_not_substitute_inherited_home() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut command = Command::new("openrct2");
+        command.env("HOME", temporary.path());
+        let observed = roots(
+            ExternalProfilePolicy::Openrct2MacV1,
+            Platform::MacosAarch64,
+            &command,
+        );
+        match openrct2_mac_root(macos_account_home().unwrap().as_deref()) {
+            Ok(expected) => assert_eq!(observed.unwrap(), [expected]),
+            Err(_) => assert!(observed.is_err()),
+        }
+    }
+
+    #[test]
+    fn openrct2_profile_guard_covers_only_its_exact_mac_bundle() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("openrct2-openrct2").unwrap();
+        let policy = port.external_profile_policy.unwrap();
+        validate(port).unwrap();
+        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+            assert!(!applies_to(policy, platform));
+        }
+        for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+            assert!(applies_to(policy, platform));
+            let mut changed = port.clone();
+            changed
+                .executable_hints
+                .insert(platform, vec!["Other.app/Contents/MacOS/OpenRCT2".into()]);
+            assert!(validate(&changed).is_err());
+            let mut changed = port.clone();
+            changed
+                .release
+                .asset_hints
+                .insert(platform, vec![".dmg".into()]);
+            assert!(validate(&changed).is_err());
+        }
+        let mut old = port.clone();
+        old.platforms = vec![Platform::WindowsX86_64];
+        old.external_profile_policy = None;
+        assert_eq!(launch_policy(&old, Some(port)), None);
+    }
 
     #[test]
     fn older_windows_contract_reuses_only_the_matching_current_guard() {
