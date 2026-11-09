@@ -93,7 +93,9 @@ use portcove_core::{
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
-use transport::{DESKTOP_EVENT_LIBRARY_CHANGED, DESKTOP_EVENT_OPERATION, emit_desktop_event};
+use transport::{
+    DESKTOP_EVENT_LIBRARY_CHANGED, DESKTOP_EVENT_OPERATION, MAIN_WINDOW_LABEL, emit_desktop_event,
+};
 
 type LaunchObservation = (Library, String);
 type LaunchObserver =
@@ -2622,7 +2624,7 @@ fn dispatch_main_window<T, F>(label: &str, invocation: T, dispatch: F) -> Result
 where
     F: FnOnce(T) -> bool,
 {
-    if label == "main" {
+    if label == MAIN_WINDOW_LABEL {
         Ok(dispatch(invocation))
     } else {
         Err(invocation)
@@ -2637,7 +2639,9 @@ where
     move |invoke| {
         let label = invoke.message.webview_ref().label().to_owned();
         #[cfg(feature = "native-compatibility-qualification")]
-        if label == "main" && webview_boundary_qualification::handles(invoke.message.command()) {
+        if label == MAIN_WINDOW_LABEL
+            && webview_boundary_qualification::handles(invoke.message.command())
+        {
             return webview_boundary_qualification::dispatch(invoke);
         }
         match dispatch_main_window(&label, invoke, &handler) {
@@ -2900,7 +2904,7 @@ pub fn run() -> std::process::ExitCode {
         .setup(move |app| {
             #[cfg(feature = "native-compatibility-qualification")]
             webview_boundary_qualification::validate_fixture()?;
-            if let Some(window) = app.get_webview_window("main") {
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
                 window.set_focus()?;
             }
             let handle = app.handle().clone();
@@ -3127,7 +3131,7 @@ mod tests {
         assert_eq!(secondary, Err("invocation"));
         assert_eq!(dispatches, 0);
 
-        let main = dispatch_main_window("main", "invocation", |_| {
+        let main = dispatch_main_window(MAIN_WINDOW_LABEL, "invocation", |_| {
             dispatches += 1;
             true
         });

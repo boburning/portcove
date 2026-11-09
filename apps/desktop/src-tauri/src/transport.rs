@@ -6,16 +6,28 @@ pub(crate) use crate::desktop_contract::{
 use serde::Serialize;
 use tauri::Emitter;
 
+/// The only webview that may invoke Portcove commands or receive Portcove events.
+/// The invoke guard and the event audience share this one label.
+pub(crate) const MAIN_WINDOW_LABEL: &str = "main";
+
 pub(crate) use crate::desktop_contract::{
     DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, DESKTOP_EVENT_LIBRARY_CHANGED, DESKTOP_EVENT_OPERATION,
 };
 
+/// Every Portcove event has one audience: the main window. `emit` would also reach
+/// listeners targeted at any other window a build creates. The event families
+/// (`library-changed`, `operation`, `application-update-notice`) are listened to
+/// only by the main window, so no consumer needs a wider audience. Listeners with
+/// Tauri's default `Any` target, which the frontend uses, still receive them; the
+/// capability test below is what keeps every other webview from registering one.
+/// The contract check (`scripts/check-transport-contract.mts`) keeps this as the only
+/// direct emit call.
 pub(crate) fn emit_desktop_event<T: Serialize + Clone>(
-    app: &tauri::AppHandle,
+    app: &tauri::AppHandle<impl tauri::Runtime>,
     event: &'static str,
     payload: T,
 ) -> tauri::Result<()> {
-    app.emit(event, payload)
+    app.emit_to(MAIN_WINDOW_LABEL, event, payload)
 }
 
 impl From<portcove_core::WorkspaceSnapshot> for DesktopWorkspaceSnapshot {
@@ -105,5 +117,41 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(reviewed.source_reference.unwrap().profile_id, "game");
+    }
+
+    #[test]
+    fn production_capabilities_and_window_are_selected_for_the_main_window_only() {
+        let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let mut reviewed = 0;
+        for entry in std::fs::read_dir(manifest.join("capabilities")).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+                continue;
+            }
+            let capability: Value =
+                serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+            let name = path.display().to_string();
+            assert_eq!(capability["windows"], json!([MAIN_WINDOW_LABEL]), "{name}");
+            for widening in ["webviews", "remote", "platforms"] {
+                assert!(
+                    capability.get(widening).is_none(),
+                    "{name} declares {widening}"
+                );
+            }
+            reviewed += 1;
+        }
+        assert!(reviewed > 0, "no capability file was reviewed");
+
+        // Tauri labels an unlabeled configured window "main"; keep exactly one window.
+        let config: Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let windows = config["app"]["windows"].as_array().unwrap();
+        assert_eq!(windows.len(), 1);
+        assert_eq!(
+            windows[0]
+                .get("label")
+                .and_then(Value::as_str)
+                .unwrap_or("main"),
+            MAIN_WINDOW_LABEL
+        );
     }
 }
