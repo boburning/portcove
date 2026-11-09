@@ -1328,8 +1328,10 @@ fn pinned_native_entries_require_v3_for_new_and_retained_readers() {
             .capabilities()
             .compatible
     );
-    let ordinary = entry_for_port(catalog.port("openrct2-openrct2").unwrap());
-    assert!(inspect(&ordinary).unwrap().capabilities().compatible);
+    let mut ordinary = fixture_catalog().ports()[0].clone();
+    ordinary.adapter = crate::AdapterKind::NativePortable;
+    let entry = entry_for_port(&ordinary);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
 #[test]
