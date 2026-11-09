@@ -2137,8 +2137,17 @@ original-disc profile and source contract explicit. Set the value to
 `true` for a required retail SCPH-1001 BIOS with its own profile and contract.
 Use `"bundled-openbios"` when the reviewed kit supplies and supports OpenBIOS.
 This projects the literal `--bios bios/openbios.bin` argument and rejects a
-retail BIOS profile. A Linux sibling uses the same generated player basename
-without `.exe`, its own asset selector and artifact-bound source applicability.
+retail BIOS profile. Use `"split-mods"` for the reviewed dual-platform kits
+with explicit retail SCPH-1001 or SCPH-5552 BIOS. Their player-owned mod paths
+are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
+`mods/state.toml.tmp`. Each verified runtime version keeps `mods/bundled` and
+its other build-provided files. The existing whole-`mods` forms keep their
+original persistence scope. The split-mods form requires explicit selectors
+with the same title prefix and the platform-specific `-windows-x64.zip` and
+`-linux-x64.zip` suffixes.
+
+A Linux sibling uses the same generated player basename without `.exe`, its
+own asset selector and artifact-bound source applicability.
 Preserve any separate upstream setup guide. The projection
 writes the `build-portcove` working coordinates, `--no-launcher`, overlay
 environment, owned save/settings/mod paths, and disposable diagnostic paths.

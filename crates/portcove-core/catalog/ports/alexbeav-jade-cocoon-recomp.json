@@ -58,6 +58,7 @@
     },
     "recommended_download_channel": "stable"
   },
+  "psx_managed_windows_v1": "split-mods",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -78,49 +79,6 @@
       "windows-x86-64": ["Jade_Cocoon_Story_of_the_Tamamayu.exe"],
       "linux-x86-64": ["Jade_Cocoon_Story_of_the_Tamamayu"]
     },
-    "persistent_paths": [
-      "saves",
-      "settings.toml",
-      "settings.toml.bad",
-      "input.ini",
-      "keybinds.ini",
-      "config.ini",
-      "disc.cfg",
-      "bios.cfg",
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "overlay-captures",
-      "overlay_captures.json",
-      "overlay_captures.json.d",
-      "overlay_captures.addendum.jsonl"
-    ],
-    "runtime_mutable_paths": [
-      "cache",
-      "psx_freeze_heartbeat.json",
-      "psx_freeze_heartbeat.json.tmp",
-      "psx_last_run_report.json",
-      "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt",
-      "psx_crash.txt"
-    ],
-    "runtime_mutable_file_patterns": [
-      {
-        "prefix": "psx_freeze_dump_psx-runtime_",
-        "suffix": ".json"
-      },
-      {
-        "prefix": "overlay_captures.json.",
-        "suffix": ".tmp"
-      }
-    ],
-    "launch_environment": {
-      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
-    },
-    "launch_arguments": ["--no-launcher"],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
