@@ -29,7 +29,31 @@ aqua_failure_is_attestation_only() {
   $seen
 }
 
-# Sourcing defines the helper above without running host setup.
+# Move a directory to a shared path and leave a symlink at the original path.
+# Reruns converge, including one interrupted between the move and the link; any
+# other layout is refused rather than overwritten.
+share_directory() {
+  local source=$1 target=$2
+  while [[ "$source" == */ && "$source" != / ]]; do source=${source%/}; done
+  if [[ -L "$source" ]]; then
+    [[ "$(readlink -- "$source")" == "$target" ]] && return 0
+    printf 'Refusing to share %s: it already links elsewhere.\n' "$source" >&2
+    return 1
+  fi
+  if [[ -d "$source" ]]; then
+    if [[ -e "$target" || -L "$target" ]]; then
+      printf 'Refusing to share %s: %s already exists.\n' "$source" "$target" >&2
+      return 1
+    fi
+    mv -- "$source" "$target"
+  elif [[ -e "$source" || -L "$target" || ! -d "$target" ]]; then
+    printf 'Refusing to share %s: unexpected layout.\n' "$source" >&2
+    return 1
+  fi
+  ln -s -- "$target" "$source"
+}
+
+# Sourcing defines the helpers above without running host setup.
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
 
 usage() {
@@ -53,6 +77,9 @@ Provision a disposable Linux x86_64 cloud session for Portcove development:
   powershell tools/containers/build/Dockerfile PowerShell version and SHA-256
   history    complete Git history when the clone is shallow
   test-user  an unprivileged identity and resource domain for scripts/cloud-test.sh
+  test-toolchain
+             the Rust toolchain moved to /opt/portcove-rust, read-only to it
+  test-pnpm  the pinned pnpm fetched once into its own caches
 
 Existing exact versions are reused. A failed step is reported and the
 remaining steps continue; the exit status is 1 when any step failed. An
@@ -316,21 +343,34 @@ create_test_user() {
 # can run offline cargo commands without opening /root or letting the test
 # identity modify the toolchain.
 share_rust_toolchain() {
-  local shared=/opt/portcove-rust pair source target
+  local shared=/opt/portcove-rust
   install -d -m 0755 "$shared"
-  for pair in "${RUSTUP_HOME:-$HOME/.rustup}|rustup" "${CARGO_HOME:-$HOME/.cargo}/bin|cargo-bin"; do
-    source="${pair%|*}"
-    target="$shared/${pair#*|}"
-    if [[ -L "$source" && "$(readlink -- "$source")" == "$target" ]]; then continue; fi
-    if [[ ! -d "$source" || -L "$source" || -e "$target" ]]; then
-      printf 'Cannot share %s at %s; it is not a directory or the target exists.\n' "$source" "$target" >&2
-      return 1
-    fi
-    mv -- "$source" "$target"
-    ln -s -- "$target" "$source"
-  done
+  share_directory "${RUSTUP_HOME:-$HOME/.rustup}" "$shared/rustup"
+  share_directory "${CARGO_HOME:-$HOME/.cargo}/bin" "$shared/cargo-bin"
   runuser -u portcove-test -- env -i PATH="$shared/cargo-bin:/usr/bin:/bin" \
     RUSTUP_HOME="$shared/rustup" CARGO_HOME=/home/portcove-test/.cargo cargo --version
+}
+
+# Offline fixtures run `corepack pnpm`, which fetches the pinned pnpm and its
+# native binary on first use. Fetch them once into the test identity's own
+# caches; it receives only a copy of the trusted CA bundle, never proxy or
+# credential variables, and the wrapper itself stays offline.
+seed_test_pnpm() {
+  local spec seed version ca=()
+  spec="$(node -p 'JSON.parse(require("node:fs").readFileSync("package.json","utf8")).packageManager')"
+  [[ "$spec" =~ ^pnpm@[0-9]+\.[0-9]+\.[0-9]+$ ]] || { printf 'Malformed packageManager\n' >&2; return 1; }
+  seed="$(mktemp -d)"
+  chmod 0755 "$seed"
+  if [[ -r "${NODE_EXTRA_CA_CERTS:-}" ]]; then
+    install -m 0644 "$NODE_EXTRA_CA_CERTS" "$seed/ca.crt"
+    ca=(NODE_EXTRA_CA_CERTS="$seed/ca.crt")
+  fi
+  version="$(runuser -u portcove-test -- env -i PATH="$PATH" HOME=/home/portcove-test \
+    COREPACK_ENABLE_AUTO_PIN=0 COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    "${ca[@]}" \
+    bash -c 'cd "$HOME" && corepack "$1" --version' seed "$spec" | tail -n 1)" || version=
+  rm -rf -- "${seed:?}"
+  [[ "$version" == "${spec#pnpm@}" ]]
 }
 
 step node install_node
@@ -346,6 +386,7 @@ step powershell install_powershell
 step history complete_history
 step test-user create_test_user
 step test-toolchain share_rust_toolchain
+step test-pnpm seed_test_pnpm
 
 printf '\n'
 node scripts/dev-doctor.mts || true

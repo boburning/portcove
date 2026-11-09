@@ -16,9 +16,10 @@ environment remove those cloud-only differences without changing any fixture
 or policy.
 
 The command has no network access: no proxy or credential variables are passed.
-Use it for offline Node and repository-tool suites, including fixtures that run
-offline cargo commands against the toolchain the bootstrap shares read-only
-under /opt/portcove-rust. Run builds and networked commands directly. Installed dependencies are copied once per lockfile
+Use it for offline Node and repository-tool suites, including fixtures that
+run offline cargo commands with the toolchain the bootstrap shares read-only
+under /opt/portcove-rust, and `corepack pnpm` with the pnpm it pre-fetched.
+Run builds and networked commands directly. Installed dependencies are copied once per lockfile
 and the browser cache is shared read-only; other ignored outputs are not copied.
 
 Example:

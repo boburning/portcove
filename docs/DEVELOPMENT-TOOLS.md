@@ -3323,7 +3323,9 @@ cache read-only. The identity cannot traverse `/root`, so the bootstrap moves
 rustup's home and the Cargo `bin` directory to root-owned `/opt/portcove-rust`,
 leaving symlinks at the original paths; the wrapper runs offline `cargo`
 commands from there with its own `CARGO_HOME` and cannot change the toolchain.
-Run builds and networked commands directly.
+Fixtures that run `corepack pnpm` need the pinned pnpm and its native binary, so
+the bootstrap fetches them once into the identity's own caches, giving it only a
+copy of the trusted CA bundle. Run builds and networked commands directly.
 
 Known cloud limits remain visible in `just doctor`:
 
