@@ -299,6 +299,10 @@ still requires the direct capture and rereads retained lane evidence. A lane
 report, an imported transcript, or a byte-coverage receipt grants no authority.
 The ordinary worker window and catalog/default reader paths apply without the
 exact application appointment.
+Within one attempt, complete review may replay genuine proposal content lanes
+against its independently rebuilt byte-identical content plan. It reads the
+complete opportunity metadata in fresh invocations and makes a separate
+settled synthesis decision. Both phases retain their original captures.
 Qualified synthesis uses a bounded larger instruction envelope so its retained
 lane findings can reach the final reviewer intact. One supplemental application
 attempt requires a source-bound appointment for the exact third stop digest and

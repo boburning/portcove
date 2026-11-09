@@ -31,6 +31,8 @@ import {
   inspectSemanticRuntimeEvents,
   createSemanticPartitionObservationInspector,
   planQualifiedApplicationSemanticPartitions,
+  requireMatchingSemanticContentLanes,
+  runSemanticRuntime,
   semanticObservationRanges,
   inspectSemanticFixtureEvents,
   requireDirectSemanticCapture,
@@ -1583,8 +1585,9 @@ void test("frozen source collection binds actual Git blobs, publication and comp
     report = { schema_version: 1, lane, plan_sha256, findings: "Inert fixture finding" },
     replacement?: string,
     sessionLane = lane,
+    readBundle = qualifiedProposal as Parameters<typeof createSemanticSnapshotReader>[0],
   ) => {
-    const reader = createSemanticSnapshotReader(qualifiedProposal);
+    const reader = createSemanticSnapshotReader(readBundle);
     return Buffer.from(
       [
         {
@@ -1684,14 +1687,86 @@ void test("frozen source collection binds actual Git blobs, publication and comp
   findings[0]!.findings = "modified";
   assert.throws(() => inspector.inspectUnion(findings), /copied, changed/);
 
-  const complete = planQualifiedApplicationSemanticPartitions(
-    {
-      phase: "complete",
-      bundle: prepareFrozenSemanticInputs(api, root, opportunity, evidence, undefined, qualified),
-    },
+  const completeBundle = prepareFrozenSemanticInputs(
+    api,
+    root,
+    opportunity,
+    evidence,
+    undefined,
+    qualified,
+  );
+  await assert.rejects(
+    runSemanticRuntime(
+      completeBundle,
+      { backend: "linux-rootless", application_partition: {} } as never,
+      { review: { outcome: "proposed", opportunity } } as never,
+    ),
+    /genuine same-attempt proposal capture/,
+  );
+  const completeInspector = createSemanticPartitionObservationInspector(
+    { phase: "complete", bundle: completeBundle },
     limits,
   );
+  const complete = completeInspector.plan;
   assert.notEqual(complete.plan_sha256, plan.plan_sha256);
+  const reuse = requireMatchingSemanticContentLanes(plan, complete, limits.lanes);
+  assert.ok(reuse.size > 0 && reuse.size < complete.lanes.length);
+  assert.throws(
+    () => requireMatchingSemanticContentLanes(plan, complete, plan.lanes.length),
+    /combined lane count/,
+  );
+  const truncated = structuredClone(complete);
+  truncated.lanes[reuse.keys().next().value!]!.pages.pop();
+  assert.throws(
+    () => requireMatchingSemanticContentLanes(plan, truncated, limits.lanes),
+    /plan differs/,
+  );
+  const completeFindings = complete.lanes.map((lane, index) => {
+    const old = reuse.get(index);
+    if (old === undefined) {
+      assert.ok(lane.pages.every((page) => page.arguments.snapshot === "manifest"));
+      return completeInspector.inspectLane(
+        index,
+        laneEvents(
+          index,
+          lane.pages,
+          {
+            schema_version: 1,
+            lane: index,
+            plan_sha256: complete.plan_sha256,
+            findings: "Fresh metadata fixture",
+          },
+          undefined,
+          1024 + index,
+          completeBundle,
+        ),
+      );
+    }
+    const original = { bundle_sha256: plan.bundle_sha256, plan_sha256, lane: old };
+    const inspected = completeInspector.inspectLane(index, laneEvents(old), original);
+    assert.deepEqual(inspected.reused_from, original);
+    assert.throws(
+      () =>
+        completeInspector.inspectLane(index, laneEvents(old, undefined, undefined, "{}"), original),
+      /observation differs/,
+    );
+    assert.throws(
+      () => completeInspector.inspectLane(index, laneEvents(old, []), original),
+      /every exact page/,
+    );
+    return inspected;
+  });
+  assert.throws(
+    () =>
+      completeInspector.inspectLane(0, laneEvents(0), {
+        bundle_sha256: plan.bundle_sha256,
+        plan_sha256,
+        lane: 0,
+      }),
+    /metadata requires a fresh lane/,
+  );
+  assert.throws(() => completeInspector.inspectUnion(completeFindings.slice(1)), /omits planned/);
+  assert.equal(completeInspector.inspectUnion(completeFindings).authority, "none");
   qualifiedProposal.manifest.evidence.compatibility = "modified";
   assert.throws(
     () => planQualifiedApplicationSemanticPartitions(input, limits),
