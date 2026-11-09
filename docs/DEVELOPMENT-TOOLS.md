@@ -3271,32 +3271,44 @@ names those hosts instead of waiting silently. Browser tests honor an inherited
 `PLAYWRIGHT_BROWSERS_PATH`; an image that presets it to its own browsers must
 point it at the checkout's `work/browser-cache` in the environment settings, or
 browser projects look for a revision that the bootstrap did not install there.
-Known cloud limits remain visible
-in `just doctor`:
+The bootstrap also installs the PowerShell version and SHA-256 pinned in
+`tools/containers/build/Dockerfile`, fetches complete Git history for a shallow
+clone, and builds `rscheck-cli` from the original archived crates in
+`vendor/rscheck`, which the installer verifies against its pinned checksums
+before any mirror is tried.
 
-- Ruff and actionlint need GitHub artifact attestation, which needs Sigstore trust
-  roots and the upstream attestation API. Sessions whose GitHub access is limited
-  to this repository cannot reach that API, so these tools stay unavailable;
-  ShellCheck installs normally. Checksum-only Aqua installation is not offered.
-- The pinned `rscheck-cli` exists only as archived crates on two external mirrors that
-  spread across many storage hosts, so it usually cannot be installed through a
-  per-host allowlist.
-- GitHub GraphQL is unavailable in Claude Code sessions, so Project fields,
+Release and native fixtures deliberately refuse root, Node processes that trust
+an egress proxy's injected CA settings (`NODE_OPTIONS=--use-openssl-ca`,
+`NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`), and fixture commits altered by a global
+commit-signing configuration. Run offline validation as
+`bash scripts/cloud-test.sh <command>`: it uses the unprivileged `portcove-test`
+identity that the bootstrap creates, with a minimal environment and a neutral Git
+identity, and changes no fixture or policy. Run networked commands directly,
+because the wrapper drops the proxy CA settings. The identity reaches this
+disposable checkout through ACLs, so the few native custody fixtures that refuse
+writable or foreign-owned inputs still fail under it; hosted CI owns them.
+
+Known cloud limits remain visible in `just doctor`:
+
+- Ruff and actionlint need GitHub artifact attestation through the upstream
+  attestation API. Sessions whose GitHub access is limited to this repository
+  cannot reach that API, so Aqua refuses them; ShellCheck installs normally.
+  Checksum-only Aqua installation is not offered. Their lint runs in hosted CI.
+- GitHub GraphQL is unavailable in Claude Code sessions, so Project field writes,
   `roadmap.mts` mutations and GraphQL-based delivery reads need a local session or
-  a hosted workflow. Issues, pull requests, checks and the REST guarded merge work.
+  a hosted workflow. Dispatch `roadmap-health.yml` through REST for scoped Project
+  checks. Issues, pull requests, checks and the REST guarded merge work.
 - The daily discovery runner requires an interactive TTY and GraphQL; run it
   locally.
-- Windows targets, PowerShell lint and native Windows qualification remain hosted
-  CI or Windows-host work; local feedback stays optional.
-- Release controller code refuses Node processes that trust injected CA settings
-  such as `SSL_CERT_FILE` or `NODE_EXTRA_CA_CERTS`, which a TLS-inspecting egress
-  proxy supplies. Those release-tooling suites therefore fail in such sessions by
-  design, as do root-refusing and PowerShell fixtures; hosted CI remains their
-  authority. Compare against an unmodified checkout before attributing a failure.
+- Windows targets and native Windows qualification remain hosted CI or
+  Windows-host work; local feedback stays optional.
 
-The storage preflight's 20 GiB floor can be tight on a cloud disk allowance. Set
-`PORTCOVE_MIN_FREE_GIB` on the environment from observed needs rather than
-deleting evidence; free space by removing disposable build output instead.
+The storage preflight's 20 GiB floor can be tight on a cloud disk allowance.
+Browser projects retain raw traces under `work/bt` even after passing runs, and a
+complete browser run can write over 10 GiB there. After confirming that the owning
+test process has exited and no failure evidence is needed, remove only that run's
+own `work/bt/run-*` directory. Set `PORTCOVE_MIN_FREE_GIB` on the environment from
+observed needs rather than deleting evidence.
 
 ## Shared local resources
 

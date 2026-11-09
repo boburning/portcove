@@ -17,45 +17,56 @@ CHECKSUMS = {
 INDEX = "registry+https://github.com/rust-lang/crates.io-index"
 
 
+VENDORED = Path(__file__).resolve().parent.parent / "vendor" / "rscheck"
+
+
 def checked_source(work, name, version, checksum):
     package = f"{name}-{version}"
     archive = work / f"{package}.crate"
+    vendored = VENDORED / f"{package}.crate"
     urls = (
         f"https://rsproxy.cn/api/v1/crates/{name}/{version}/download",
         f"https://mirror.sjtu.edu.cn/crates.io/crates/{name}/{package}.crate",
     )
-    for url in urls:
-        result = subprocess.run(
-            [
-                "curl",
-                "--disable",
-                "--fail",
-                "--silent",
-                "--show-error",
-                "--location",
-                "--proto",
-                "=https",
-                "--proto-redir",
-                "=https",
-                "--max-redirs",
-                "2",
-                "--connect-timeout",
-                "8",
-                "--max-time",
-                "20",
-                "--max-filesize",
-                "131072",
-                "--output",
-                str(archive),
-                url,
-            ],
-            check=False,
-        )
-        if result.returncode == 0:
-            break
-        archive.unlink(missing_ok=True)
-    else:
-        raise RuntimeError(f"No pinned archived crate origin responded: {name}")
+    # The repository copy is only another origin of bytes: the pinned checksum
+    # below still decides, and a mismatch falls back to the mirrors.
+    if vendored.is_file() and not vendored.is_symlink() and vendored.stat().st_size <= 131072:
+        archive.write_bytes(vendored.read_bytes())
+        if hashlib.sha256(archive.read_bytes()).hexdigest() != checksum:
+            archive.unlink()
+    if not archive.exists():
+        for url in urls:
+            result = subprocess.run(
+                [
+                    "curl",
+                    "--disable",
+                    "--fail",
+                    "--silent",
+                    "--show-error",
+                    "--location",
+                    "--proto",
+                    "=https",
+                    "--proto-redir",
+                    "=https",
+                    "--max-redirs",
+                    "2",
+                    "--connect-timeout",
+                    "8",
+                    "--max-time",
+                    "20",
+                    "--max-filesize",
+                    "131072",
+                    "--output",
+                    str(archive),
+                    url,
+                ],
+                check=False,
+            )
+            if result.returncode == 0:
+                break
+            archive.unlink(missing_ok=True)
+        else:
+            raise RuntimeError(f"No pinned archived crate origin responded: {name}")
     if hashlib.sha256(archive.read_bytes()).hexdigest() != checksum:
         raise ValueError(f"Archived crate checksum differs: {name}")
     with tarfile.open(archive, "r:gz") as source:

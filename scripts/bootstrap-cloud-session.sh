@@ -22,6 +22,9 @@ Provision a disposable Linux x86_64 cloud session for Portcove development:
   aqua       .config/tool-bootstrap.json, then the existing quality bootstrap
   browser    the pinned Playwright Chromium shell (needs the Playwright CDN)
   desktop    Linux desktop build prerequisites through apt
+  powershell tools/containers/build/Dockerfile PowerShell version and SHA-256
+  history    complete Git history when the clone is shallow
+  test-user  an unprivileged identity for scripts/cloud-test.sh
 
 Existing exact versions are reused. A failed step is reported and the
 remaining steps continue; the exit status is 1 when any step failed. An
@@ -229,6 +232,56 @@ install_desktop() {
   bash scripts/install-linux-desktop-prerequisites.sh
 }
 
+# The container build already pins PowerShell with its archive checksum; reuse
+# that single pin so Windows-shaped script fixtures run on Linux too.
+install_powershell() {
+  local version sha256 destination
+  version="$(sed -n 's/^ARG POWERSHELL_VERSION=//p' tools/containers/build/Dockerfile)"
+  sha256="$(sed -n 's/^ARG POWERSHELL_SHA256=//p' tools/containers/build/Dockerfile)"
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$sha256" =~ ^[0-9a-f]{64}$ ]]
+  if [[ "$(pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()' 2>/dev/null || true)" == "$version" ]]; then
+    return 0
+  fi
+  fetch "https://github.com/PowerShell/PowerShell/releases/download/v$version/powershell-$version-linux-x64.tar.gz" \
+    "$scratch/powershell.tar.gz"
+  printf '%s  %s\n' "$sha256" "$scratch/powershell.tar.gz" | sha256sum --check --status
+  destination="/opt/microsoft/powershell/$version"
+  mkdir -p "$destination"
+  tar -xzf "$scratch/powershell.tar.gz" -C "$destination"
+  chmod 0755 "$destination/pwsh"
+  ln -sfn "$destination/pwsh" "$(link_dir)/pwsh"
+  hash -r
+  [[ "$(pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()')" == "$version" ]]
+}
+
+# Fixtures that inspect commits and merge bases need the real history; a shallow
+# cloud clone otherwise makes them fail for reasons unrelated to the change.
+complete_history() {
+  if [[ "$(git rev-parse --is-shallow-repository)" == true ]]; then git fetch --quiet --unshallow origin; fi
+}
+
+# Release and native fixtures deliberately refuse root and inherited proxy TLS
+# settings. scripts/cloud-test.sh runs commands as this ordinary identity with a
+# minimal environment; the ACL grants it this disposable checkout only.
+create_test_user() {
+  local user=portcove-test toolchain
+  command -v setfacl >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq acl
+  id "$user" >/dev/null 2>&1 || useradd --create-home --shell /bin/bash "$user"
+  # Traverse-only access to root's home plus read access to the shared Rust
+  # toolchain; the identity keeps its own CARGO_HOME for registry writes.
+  for toolchain in "${RUSTUP_HOME:-$HOME/.rustup}" "${CARGO_HOME:-$HOME/.cargo}/bin"; do
+    setfacl -m "u:$user:x" "$HOME"
+    [[ "$(dirname "$toolchain")" == "$HOME" ]] || setfacl -m "u:$user:x" "$(dirname "$toolchain")"
+    setfacl -R -m "u:$user:rX" "$toolchain"
+  done
+  printf '[user]\n\tname = Portcove Fixture\n\temail = fixture@example.invalid\n[safe]\n\tdirectory = %s\n' \
+    "$project_root" > "/home/$user/.gitconfig"
+  chown "$user:" "/home/$user/.gitconfig"
+  setfacl -m "u:$user:rX" "$(dirname "$project_root")"
+  setfacl -R -m "u:$user:rwX" -m "d:u:$user:rwX" "$project_root"
+  setfacl -R -m "u:$user:rX" -m "d:u:$user:rX" "$project_root/.git"
+}
+
 step node install_node
 step frontend install_frontend
 step resources coordinate_resources
@@ -238,6 +291,9 @@ step source-tools install_source_tools
 step aqua install_aqua
 if ! $skip_browser; then step browser install_browser; fi
 if ! $skip_desktop; then step desktop install_desktop; fi
+step powershell install_powershell
+step history complete_history
+step test-user create_test_user
 
 printf '\n'
 node scripts/dev-doctor.mts || true
