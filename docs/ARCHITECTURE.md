@@ -752,9 +752,11 @@ continue to cover saved data; whole-library backup copies include the artwork ro
 
 Desktop owns native file selection and routes each read/change through a library
 generation check. React displays core results through a disposable cache for the
-visible viewport plus at most 32 inactive previews per generation. Requests are
-serialized for local-choice work to avoid competing for the artwork lock, while
-IGDB thumbnail retrieval uses a separate two-request drain. Undispatched requests
+visible viewport plus at most 256 inactive previews (bounded by encoded size) per
+generation. Local-choice reads run for up to four ports at once while each port's
+slots stay ordered; mutations and local thumbnail decoding run alone because Core
+refuses a contended artwork lock. IGDB thumbnail retrieval uses a separate
+two-request drain. Undispatched requests
 are keyed by port/slot, share the inactive-preview retention bound and recheck
 current state and viewport interest before IPC. A refreshed choice replaces queued
 work, and offscreen queued work is discarded so current covers can proceed.
@@ -2256,8 +2258,9 @@ also fails.
 
 Each ready Desktop library generation also owns one persistent, connection-scoped SQLite
 `data_version` observer. Commits from a CLI or another process are checked with that same observing
-connection every second while work is running, every ten seconds while visible and idle, and every
-thirty seconds while hidden. Query owns these intervals and foreground triggers. A quiet hint
+connection every second while work is running (every three seconds while this window's own
+operation events keep arriving), every ten seconds while visible and idle, and not at all while
+hidden and idle; focus and visibility return reconcile instead. Query owns these intervals and foreground triggers. A quiet hint
 reads activities without unconditionally retrieving a full snapshot. A detected commit remains
 pending until separate recovery settles and a fresh essential read follows. Visible sessions
 retrieve a full snapshot when the sixty-second fallback is due so non-database observations
@@ -3472,7 +3475,7 @@ after a successful change, and distinguishes a saved choice from a failed releas
 refresh. Changing channel does not install or activate a version. Current channel
 identity invalidates old install/update reviews and mismatched update snapshots.
 
-Lifecycle startup and explicit orphan discovery use the core journal under the existing source-dependent or per-port locks. The initial journal inventory identifies candidate IDs; recovery reloads each record after acquiring its lock and uses its current phase and durable fields. A removed record is not recreated, and a record whose kind, port owner, or creation identity changed is left for a later correctly locked pass. Unchanged failed retries retain the original cause and latest bounded retry diagnostic without rewriting the journal. Core read-only service construction leaves cancellation and lifecycle recovery untouched. Desktop startup and library-generation initialization recover pending work; ordinary status/workspace reads do not. When the desktop change observer sees an external library commit or receives a library-change event, a separate generation-bound discovery call retries newly orphaned CLI work before refreshing the view. Quiet focus and periodic full reconciliation remain read-only. Live-worker locks still exclude recovery. CLI observation commands open without advancing recovery, while mutating commands retain startup recovery.
+Lifecycle startup and explicit orphan discovery use the core journal under the existing source-dependent or per-port locks. The initial journal inventory identifies candidate IDs; recovery reloads each record after acquiring its lock and uses its current phase and durable fields. A removed record is not recreated, and a record whose kind, port owner, or creation identity changed is left for a later correctly locked pass. Unchanged failed retries retain the original cause and latest bounded retry diagnostic without rewriting the journal. Core read-only service construction leaves cancellation and lifecycle recovery untouched. Desktop startup and library-generation initialization recover pending work; ordinary status/workspace reads do not. When the desktop change observer sees a library commit with no intervening write from this window, or receives a library-change event, a separate generation-bound discovery call retries newly orphaned CLI work before refreshing the view. A commit that coincides with this window's own operation lifecycle (start, pushed operation events, settled mutation refreshes) is refreshed without a discovery pass; a later trigger covers an external commit that lands inside that window. Quiet focus and periodic full reconciliation remain read-only. Live-worker locks still exclude recovery. CLI observation commands open without advancing recovery, while mutating commands retain startup recovery.
 
 Desktop install and adoption reviews are ephemeral, generation-bound presentation state. Port/channel changes invalidate install plans; adoption path, target, dialog closure and newer reviews invalidate copy previews. Late results and request errors cannot replace newer review intent, and an older adoption completion cannot close a reopened dialog. Core still revalidates the content-bound adoption plan before copying.
 
