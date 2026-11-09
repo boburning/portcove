@@ -392,13 +392,33 @@ describe("workspace refresh recovery", () => {
   });
 
   it("offers the held catalog digest and reuses an unchanged catalog by reference", async () => {
+    const listings = {
+      format_version: 1,
+      listings: [
+        {
+          id: "listing-held",
+          name: "Held Listing",
+          summary: "An upstream project.",
+          project_url: "https://example.com/project",
+          platforms: [],
+          availability: "unknown" as const,
+        },
+      ],
+    };
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({
       ...structuredClone(snapshot),
+      listing_catalog: listings,
       catalog_digest: "digest-1",
     });
     await render();
     const heldCatalog = data.catalog;
-    const { catalog: _omitted, ...withoutCatalog } = structuredClone(snapshot);
+    const heldListings = data.listingCatalog;
+    expect(heldListings?.listings[0]?.id).toBe("listing-held");
+    const {
+      catalog: _omitted,
+      listing_catalog: _omittedListings,
+      ...withoutCatalog
+    } = structuredClone(snapshot);
     const fresh = {
       ...withoutCatalog,
       statuses: [{ ...snapshot.statuses[0]!, successful_launches: 42 }],
@@ -410,7 +430,21 @@ describe("workspace refresh recovery", () => {
     await act(async () => data.refresh());
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, "digest-1");
     expect(data.catalog).toBe(heldCatalog);
+    expect(data.listingCatalog).toBe(heldListings);
     expect(data.statuses[0]?.successful_launches).toBe(42);
+
+    // A changed digest within the same generation delivers new documents.
+    const changed = structuredClone(snapshot);
+    changed.catalog.ports = [];
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({
+      ...changed,
+      catalog_digest: "digest-2",
+    });
+    await act(async () => data.refresh());
+    expect(desktopApi.workspaceSnapshot).toHaveBeenLastCalledWith(7, "digest-1");
+    expect(data.catalog).not.toBe(heldCatalog);
+    expect(data.catalog?.ports).toEqual([]);
+    expect(data.listingCatalog).toBeUndefined();
   });
 
   it("accepts listing-only changes atomically without replacing strict catalog state", async () => {
