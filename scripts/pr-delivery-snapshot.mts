@@ -476,7 +476,11 @@ function closing(
     throw new Error("Closing inventory contains duplicate relationships");
   if (item.method === "rest-timeline") {
     // The helper derives the REST inventory itself from the raw timeline pages.
-    const derived = restTimelineRelationships(candidate.body, repository, item.timeline_pages);
+    const derived = restTimelineRelationships(
+      { number: candidate.number, head: candidate.head.sha, body: candidate.body },
+      repository,
+      item.timeline_pages,
+    );
     if (!same(derived, relationships))
       throw new Error("Closing inventory differs from its raw REST timeline reconstruction");
   } else if ("timeline_pages" in item)

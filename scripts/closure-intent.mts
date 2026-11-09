@@ -71,7 +71,7 @@ interface ClosingApi {
     url: string;
     data?: unknown;
     request: { portcove: GitHubRequestPolicy };
-  }): Promise<{ data: unknown }>;
+  }): Promise<{ data: unknown; headers?: Record<string, unknown> }>;
 }
 
 function closingObservation(
@@ -109,39 +109,91 @@ export async function readClosingRelationships(
 
 const timelinePageLimit = 30;
 const timelinePageSize = 100;
+const closingKeyword = /\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)\b/giu;
+// Text after a closing keyword that GitHub might read as a reference although
+// the exact grammar did not: markup, GH- shorthand, other URL forms, zero-padded
+// or qualified numbers.
+const referenceLike =
+  /^\s*:?\s*(?:[#*_~`[(<]|gh-\d|(?:https?:\/\/|www\.)|[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\s*#)/iu;
+
+const exactReferenceAt =
+  /^(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s*:?\s*(?:<?https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/(?:issues|pull)\/[1-9]\d*|(?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#[1-9]\d*)\b/iu;
+
+function timelinePageUrl(repository: string, number: number, page: number) {
+  return `https://api.github.com/repos/${repository}/issues/${number}/timeline?per_page=${timelinePageSize}&page=${page}`;
+}
+
+function nextTimelinePage(link: unknown, number: number) {
+  if (link === null || link === undefined) return null;
+  if (typeof link !== "string") throw new Error("Closing relationship timeline link is invalid");
+  const next = /<([^>]+)>\s*;\s*rel="next"/u.exec(link)?.[1];
+  if (next === undefined) return null;
+  const url = new URL(next);
+  if (
+    url.origin !== "https://api.github.com" ||
+    !url.pathname.endsWith(`/issues/${number}/timeline`) ||
+    url.searchParams.get("per_page") !== String(timelinePageSize)
+  )
+    throw new Error("Closing relationship timeline link is not bound to the pull request");
+  return Number(url.searchParams.get("page"));
+}
 
 /**
  * REST reconstruction from the PR body and its complete issue timeline: closing
  * keywords in the body (the same grammar the candidate checks apply to commits
- * and the squash message) are the relationships. Manual Development links
- * appear only as connected/disconnected timeline events whose counterpart REST
- * does not identify exactly, so any such event leaves the inventory unknown and
- * refuses it. Pages are the raw `per_page=100` responses in order; only a short
- * final page proves the timeline complete.
+ * and the squash message) are the relationships. Without GraphQL as a
+ * backstop, a keyword followed by any other reference-like text refuses.
+ * Manual Development links appear as connected/disconnected timeline events
+ * whose counterpart REST does not identify exactly, so any such event leaves
+ * the inventory unknown and refuses it.
+ *
+ * Each page is `{ url, link, events }`: the exact `per_page=100` request, its
+ * raw `Link` header and the raw events. Every page but the last must link the
+ * next one and the last must link none. The `committed` event of the candidate
+ * head binds the timeline to that pull request.
  */
-export function restTimelineRelationships(body: string, repository: string, pages: unknown) {
-  if (
-    !Array.isArray(pages) ||
-    pages.length < 1 ||
-    pages.length > timelinePageLimit ||
-    !pages.every(
-      (page: unknown, index) =>
-        Array.isArray(page) &&
-        (index === pages.length - 1
-          ? page.length < timelinePageSize
-          : page.length === timelinePageSize),
-    )
-  )
+export function restTimelineRelationships(
+  candidate: { number: number; head: string; body: string },
+  repository: string,
+  pages: unknown,
+) {
+  if (!Array.isArray(pages) || pages.length < 1 || pages.length > timelinePageLimit)
     throw new Error("Closing relationship timeline is incomplete or exceeds its bounded inventory");
-  for (const event of (pages as unknown[][]).flat()) {
+  const entries: readonly unknown[] = pages;
+  const events: unknown[] = [];
+  entries.forEach((page, index) => {
+    if (
+      !isRecord(page) ||
+      page.url !== timelinePageUrl(repository, candidate.number, index + 1) ||
+      !Array.isArray(page.events) ||
+      page.events.length > timelinePageSize ||
+      nextTimelinePage(page.link, candidate.number) !==
+        (index === entries.length - 1 ? null : index + 2)
+    )
+      throw new Error("Closing relationship timeline is incomplete");
+    const pageEvents: readonly unknown[] = page.events;
+    events.push(...pageEvents);
+  });
+  let headObserved = false;
+  for (const event of events) {
     if (!isRecord(event) || typeof event.event !== "string")
       throw new Error("Closing relationship timeline is incomplete");
     if (event.event === "connected" || event.event === "disconnected")
       throw new Error(
         "A manual Development link is unknown over REST; read closing relationships through GraphQL",
       );
+    if (event.event === "committed" && event.sha === candidate.head) headObserved = true;
   }
-  return closingReferences(body, repository);
+  if (!headObserved)
+    throw new Error("Closing relationship timeline is not bound to the pull request head");
+  for (const match of candidate.body.matchAll(closingKeyword)) {
+    const at = candidate.body.slice(match.index);
+    if (referenceLike.test(at.slice(match[0].length)) && !exactReferenceAt.test(at))
+      throw new Error(
+        "A closing keyword precedes a reference REST cannot interpret exactly; read closing relationships through GraphQL",
+      );
+  }
+  return closingReferences(candidate.body, repository);
 }
 
 /** Live REST reconstruction bracketed by unchanged pull request reads. */
@@ -171,15 +223,17 @@ export async function readClosingRelationshipsRest(
   const first = await readPull();
   const pages: unknown[] = [];
   for (let page = 1; page <= timelinePageLimit; page += 1) {
-    const { data: events } = await api.request({
+    const url = timelinePageUrl(repository, number, page);
+    const { data: events, headers } = await api.request({
       method: "GET",
-      url: `https://api.github.com/repos/${repository}/issues/${number}/timeline?per_page=${timelinePageSize}&page=${page}`,
+      url,
       request: { portcove: { replay: "safe-read", attempts: 0 } },
     });
-    pages.push(events);
-    if (!Array.isArray(events) || events.length < timelinePageSize) break;
+    const link = headers?.link ?? null;
+    pages.push({ url, link, events });
+    if (nextTimelinePage(link, number) === null) break;
   }
-  const relationships = restTimelineRelationships(first.body, repository, pages);
+  const relationships = restTimelineRelationships({ number, ...first }, repository, pages);
   if (JSON.stringify(await readPull()) !== JSON.stringify(first))
     throw new Error("Closing relationship inventory changed during pagination");
   return closingObservation(first, relationships, "rest");

@@ -1426,36 +1426,58 @@ void test("unchanged source head does not hide PR body or relationship changes",
   }
 });
 
-function restClosureResponder(timeline: unknown[][], body = "Related to #244.") {
+const committedHead = { event: "committed", sha: head };
+const timelineUrl = (page: number) =>
+  `https://api.github.com/repositories/1/issues/7/timeline?per_page=100&page=${page}`;
+
+type RestClosureOptions = { body?: string; pulls?: readonly Record<string, unknown>[] };
+
+function restClosureResponder(
+  timeline: unknown[][],
+  { body = "Related to #244.", pulls = [] }: RestClosureOptions = {},
+) {
   const requests: string[] = [];
+  let pullReads = 0;
   return {
     requests,
     respond({ method, endpoint }: DeliveryFixtureRequest) {
-      requests.push(`${method} ${endpoint.split("?")[0]}`);
+      requests.push(`${method} ${endpoint}`);
       if (endpoint === "graphql")
         return Response.json(
           { message: "GitHub GraphQL is not available from this session" },
           { status: 403 },
         );
       if (endpoint === "repos/boburning/portcove/pulls/7")
-        return Response.json({ number: 7, title: "fix: safe delivery", body, head: { sha: head } });
+        return Response.json({
+          number: 7,
+          title: "fix: safe delivery",
+          body,
+          head: { sha: head },
+          ...pulls[pullReads++],
+        });
       const page =
         /^repos\/boburning\/portcove\/issues\/7\/timeline\?per_page=100&page=(\d+)$/u.exec(
           endpoint,
         );
-      if (page) return Response.json(timeline[Number(page[1]) - 1] ?? []);
+      if (page) {
+        const index = Number(page[1]) - 1;
+        return Response.json(timeline[index] ?? [], {
+          headers:
+            index < timeline.length - 1 ? { link: `<${timelineUrl(index + 2)}>; rel="next"` } : {},
+        });
+      }
       return undefined;
     },
   };
 }
 
+const fullPage = () => Array.from({ length: 100 }, () => ({ event: "commented" }));
+
 void test("REST closure reconstruction replaces refused GraphQL and fails closed on manual links", async () => {
-  const quiet = restClosureResponder([[{ event: "cross-referenced" }]]);
-  const observed = await readClosingRelationships(
-    await fixtureGitHub(quiet.respond),
-    "boburning/portcove",
-    7,
-  );
+  const read = async (responder: ReturnType<typeof restClosureResponder>) =>
+    await readClosingRelationships(await fixtureGitHub(responder.respond), "boburning/portcove", 7);
+  const quiet = restClosureResponder([[committedHead, { event: "cross-referenced" }]]);
+  const observed = await read(quiet);
   assert.equal(observed.source, "rest");
   assert.deepEqual(observed.relationships, []);
   assert.equal(observed.head, head);
@@ -1473,30 +1495,40 @@ void test("REST closure reconstruction replaces refused GraphQL and fails closed
   assert.deepEqual(quiet.requests, [
     "POST graphql",
     "GET repos/boburning/portcove/pulls/7",
-    "GET repos/boburning/portcove/issues/7/timeline",
+    "GET repos/boburning/portcove/issues/7/timeline?per_page=100&page=1",
     "GET repos/boburning/portcove/pulls/7",
   ]);
 
-  const keyword = restClosureResponder([[]], "Closes #244 and fixes other/repo#3");
   assert.deepEqual(
-    (await readClosingRelationships(await fixtureGitHub(keyword.respond), "boburning/portcove", 7))
-      .relationships,
+    (
+      await read(
+        restClosureResponder([[committedHead]], { body: "Closes #244 and fixes other/repo#3" }),
+      )
+    ).relationships,
     ["boburning/portcove#244", "other/repo#3"],
   );
+  assert.deepEqual(
+    (await read(restClosureResponder([fullPage(), [committedHead]]))).relationships,
+    [],
+    "Pagination follows the Link header across a full page",
+  );
 
-  for (const event of ["connected", "disconnected"]) {
-    const paged = restClosureResponder([
-      Array.from({ length: 100 }, () => ({ event: "commented" })),
-      [{ event }],
-    ]);
+  for (const [timeline, options, pattern] of [
+    [[fullPage(), [committedHead, { event: "connected" }]], {}, /manual Development link/],
+    [[[committedHead, { event: "disconnected" }]], {}, /manual Development link/],
+    [[[{ event: "committed", sha: base }]], {}, /not bound to the pull request head/],
+    [[["not an event"]], {}, /incomplete/],
+    [Array.from({ length: 31 }, () => fullPage()), {}, /timeline is incomplete/],
+    [[[committedHead]], { body: "Fixes **#244**" }, /cannot interpret exactly/],
+    [[[committedHead]], { body: "Fixes GH-244, closes #3" }, /cannot interpret exactly/],
+    [[[committedHead]], { pulls: [{}, { body: "Closes #9" }] }, /changed during pagination/],
+  ] as const)
     await assert.rejects(
-      async () =>
-        await readClosingRelationships(await fixtureGitHub(paged.respond), "boburning/portcove", 7),
-      /manual Development link is unknown over REST/,
+      async () => await read(restClosureResponder(timeline as unknown[][], options)),
+      pattern,
     );
-  }
 
-  const merged = restClosureResponder([[{ event: "connected" }]]);
+  const merged = restClosureResponder([[committedHead, { event: "connected" }]]);
   const client = await deliveryFixture(
     (request) =>
       merged.respond(request) ?? assert.fail("Closure refusal must precede merge mutation"),
@@ -1521,6 +1553,7 @@ void test("GraphQL closure integrity failures never fall back to REST", async ()
   for (const respond of [
     () => Response.json(closingPage({ headRefOid: "not-a-sha" })),
     () => Response.json({ message: "unavailable" }, { status: 502 }),
+    () => Response.json({ data: null, errors: [{ message: "Something went wrong" }] }),
   ]) {
     const requests: string[] = [];
     await assert.rejects(

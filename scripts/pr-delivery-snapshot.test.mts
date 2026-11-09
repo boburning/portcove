@@ -539,18 +539,31 @@ void test("complete direct closing observations never default missing relationsh
 });
 
 void test("REST timeline closing observations are derived by the helper and fail closed", () => {
-  const rest = (closing: Record<string, unknown>, change: Record<string, unknown> = {}) => ({
-    ...closing,
-    method: "rest-timeline",
-    timeline_pages: [[{ event: "cross-referenced" }]],
-    ...change,
-  });
+  const pageUrl = (page: number) =>
+    `https://api.github.com/repos/${repository}/issues/7/timeline?per_page=100&page=${page}`;
+  const pages = (...events: unknown[][]) =>
+    events.map((page, index) => ({
+      url: pageUrl(index + 1),
+      link:
+        index < events.length - 1
+          ? `<https://api.github.com/repositories/1/issues/7/timeline?per_page=100&page=${index + 2}>; rel="next"`
+          : null,
+      events: page,
+    }));
+  const committed = { event: "committed", sha: head };
+  const full = () => Array.from({ length: 100 }, () => ({ event: "commented" }));
   const snapshot = (change: Record<string, unknown> = {}) => {
     const value = fixture();
+    const rest = (closing: Record<string, unknown>) => ({
+      ...closing,
+      method: "rest-timeline",
+      timeline_pages: pages([committed, { event: "cross-referenced" }]),
+      ...change,
+    });
     return {
       ...value,
-      closing_before: rest(value.closing_before, change),
-      closing_after: rest(value.closing_after, change),
+      closing_before: rest(value.closing_before),
+      closing_after: rest(value.closing_after),
     };
   };
   const prepared = prepareMergeSnapshot(snapshot(), expected);
@@ -561,22 +574,27 @@ void test("REST timeline closing observations are derived by the helper and fail
     "REST and directly observed inventories of the same candidate share one fingerprint",
   );
   assert.doesNotThrow(() =>
-    prepareMergeSnapshot(
-      snapshot({
-        timeline_pages: [Array.from({ length: 100 }, () => ({ event: "commented" })), []],
-      }),
-      expected,
-    ),
+    prepareMergeSnapshot(snapshot({ timeline_pages: pages(full(), [committed]) }), expected),
   );
+  const unlinked = pages(full(), [committed]).map((page) => ({ ...page, link: null }));
+  const defaultSize = pages([committed]).map((page) => ({
+    ...page,
+    url: page.url.replace("per_page=100", "per_page=30"),
+  }));
+  const otherPull = pages([committed]).map((page) => ({
+    ...page,
+    url: page.url.replace("/issues/7/", "/issues/8/"),
+  }));
   for (const [change, pattern] of [
-    [{ timeline_pages: [[{ event: "connected" }]] }, /manual Development link/],
-    [{ timeline_pages: [[], [{ event: "disconnected" }]] }, /incomplete/],
-    [
-      { timeline_pages: [Array.from({ length: 100 }, () => ({ event: "commented" }))] },
-      /incomplete/,
-    ],
+    [{ timeline_pages: pages(full(), [committed, { event: "connected" }]) }, /manual Development/],
+    [{ timeline_pages: pages([committed, { event: "disconnected" }]) }, /manual Development/],
+    [{ timeline_pages: pages([{ event: "commented" }]) }, /not bound to the pull request head/],
+    [{ timeline_pages: unlinked }, /incomplete/],
+    [{ timeline_pages: defaultSize }, /incomplete/],
+    [{ timeline_pages: otherPull }, /incomplete/],
+    [{ timeline_pages: pages([committed]).map(({ events }) => events) }, /incomplete/],
     [{ timeline_pages: undefined }, /incomplete/],
-    [{ timeline_pages: [["not an event"]] }, /incomplete/],
+    [{ timeline_pages: pages(["not an event"]) }, /incomplete/],
     [{ relationships: [], total_count: 0 }, /differs from its raw REST timeline/],
   ] as const)
     assert.throws(() => prepareMergeSnapshot(snapshot(change), expected), pattern);
@@ -584,7 +602,7 @@ void test("REST timeline closing observations are derived by the helper and fail
   assert.throws(
     () =>
       prepareMergeSnapshot(
-        { ...value, closing_after: { ...value.closing_after, timeline_pages: [[]] } },
+        { ...value, closing_after: { ...value.closing_after, timeline_pages: pages([committed]) } },
         expected,
       ),
     /Only rest-timeline/,
