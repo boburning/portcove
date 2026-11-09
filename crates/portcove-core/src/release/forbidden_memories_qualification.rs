@@ -211,6 +211,7 @@ mod tests {
                 Some(GithubCredential {
                     token: None,
                     source: GithubAuthSource::Anonymous,
+                    environment_variable: None,
                     intent: 0,
                 }),
                 false,

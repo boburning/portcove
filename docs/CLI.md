@@ -670,7 +670,7 @@ portcove --json auth logout
 `auth logout` removes that saved credential; it cannot remove an
 environment-provided token.
 
-Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-process environment and avoid interactive auth commands. `auth status` reports only the credential source, GitHub login, and rate-limit headers; it never returns the token.
+Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-process environment and avoid interactive auth commands. `auth status` reports the credential source, the selected variable name for an environment token, the GitHub login, and rate-limit headers. The token value stays private.
 
 Authentication does not bypass original game-file, artifact, source or operation checks.
 

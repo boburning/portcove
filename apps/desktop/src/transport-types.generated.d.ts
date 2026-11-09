@@ -3347,6 +3347,7 @@ export interface OutputGhostshipRecoveryResult {
 export interface GithubAuthStatus {
   authenticated: boolean;
   device_login_available: boolean;
+  environment_variable?: string | null;
   login: string | null;
   rate_limit: GithubRateLimit | null;
   source: GithubAuthSource;
