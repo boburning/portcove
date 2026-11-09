@@ -29,7 +29,25 @@
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/ethannicholas/bluestorm-recomp#readme"
+      "help_url": "https://github.com/ethannicholas/bluestorm-recomp/blob/3d864805fb781354d59c95a5a9715302b62984ab/README.md",
+      "references": [
+        {
+          "title": "Build on Windows or an Apple silicon Mac",
+          "instruction": "Follow the pinned upstream guide with CMake, Ninja and Python. Run build.ps1 on Windows x64 or ARM64 with Clang and the Windows SDK and C++ tools. On Apple silicon, use build.sh with Xcode or its command line tools and SDL2. Start build/waverace.exe on Windows or build/waverace on Mac from the repository root."
+        },
+        {
+          "title": "Keep the matching original and memory card",
+          "instruction": "Use your own USA GWRE01 image. The build checks SHA-1 d500d8f5bab39ae5fed67d0a0864095a9ea190d9 for the disc’s main.dol. Keep the configured image available at runtime. Preserve saves/memcard_a.raw and any input recordings that include memory-card copies. Keep game-derived code, binaries and saves private."
+        },
+        {
+          "title": "Build for a Quest 3",
+          "instruction": "Follow upstream’s Windows build-android.ps1 and package-apk.ps1 instructions with the Android SDK, NDK and JDK. Install your private build on your own headset after enabling developer mode. Keep game.iso and the memory card under Android/data/com.ethannicholas.waverace/files, along with any vr.txt settings. The APK and original disc are separate."
+        },
+        {
+          "title": "Build for Apple Vision Pro",
+          "instruction": "Follow build-visionos.sh on a Mac with Xcode 26 and the visionOS SDK. Use your own Apple development team and paired headset in Developer Mode. Select the owned image in Files or use upstream’s push option. Keep the disc, memory card, settings and logs in the app’s Documents folder."
+        }
+      ]
     }
   }
 }

@@ -25,7 +25,13 @@
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/matteo-pacini/theme-hospital-enhanced#readme"
+      "help_url": "https://github.com/matteo-pacini/theme-hospital-enhanced/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md",
+      "references": [
+        {
+          "title": "Follow the current DOS build",
+          "instruction": "The pinned master revision documents the DOS reconstruction. Use the matching owned GOG installer identified by upstream. After closing DOSBox, preserve build/run, including HOSPITAL.CFG and your saves, and keep the original data it links from orig. The earlier native branch instructions apply to a different revision."
+        }
+      ]
     }
   }
 }
