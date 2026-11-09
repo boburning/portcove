@@ -1,0 +1,23 @@
+{
+  "index_schema": 1,
+  "definitions": [
+    {
+      "namespace": "official",
+      "stable_id": "chameleon-twist-jp-recompiled",
+      "revision": 1,
+      "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json"
+    }
+  ],
+  "contents": [
+    {
+      "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json",
+      "sha256": "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4",
+      "length": 5318
+    },
+    {
+      "target": "sha256/beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d.json",
+      "sha256": "beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d",
+      "length": 8325
+    }
+  ]
+}
