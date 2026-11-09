@@ -220,11 +220,13 @@ manufactured by a later resume.
 
 Request admission uses received provider capacity with a five-percent reserve,
 observed request cost and remaining runtime. Sources serving at least one managed
-port go before listing-only sources while they have no recorded exception,
-because their releases can change what players install. Within each group,
+port go before listing-only sources while they have no recorded failure,
+because their releases can change what players install. Budget, cancellation and
+quota stops are partial progress and keep that priority; checkpoints record each
+exception's rule, and older entries without one keep it until their next attempt. Within each group,
 eligible sources without a recorded turn go first, then the least recently
 attempted sources. A completed managed source leaves the pending set until it is
-due again, and a managed source with a recorded exception rejoins ordinary
+due again, and a managed source with a recorded failure rejoins ordinary
 rotation, so listing-only sources still receive turns. Unknown quota uses
 the existing finite request envelope; it is not assumed available. Quantum/runtime
 exhaustion has no provider retry clock. Actual depletion and provider retry

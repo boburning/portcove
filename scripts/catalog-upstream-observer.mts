@@ -78,6 +78,8 @@ export interface SourceProgress {
   last_complete_policies: Record<string, unknown>[];
   retry_at: string | null;
   exception_key: string | null;
+  /** Rule behind `exception_key`; absent in checkpoints written before #4779. */
+  exception_rule?: string | null;
   selection_progress: SelectionProgress | null;
   policy_progress: PolicyProgress | null;
   current_config: ObserverConfig | null;
@@ -333,6 +335,10 @@ export function validateCatalogObserverCheckpoint(
       ].some(
         (value) => value !== null && (typeof value !== "string" || !/^[a-f0-9]{64}$/u.test(value)),
       ) ||
+      (progress.exception_rule !== undefined &&
+        progress.exception_rule !== null &&
+        (typeof progress.exception_rule !== "string" ||
+          !/^[a-z-]{1,80}$/u.test(progress.exception_rule))) ||
       !Number.isSafeInteger(progress.change_intervals) ||
       Number(progress.change_intervals) < 0 ||
       (progress.mean_change_interval_ms !== null &&
@@ -591,9 +597,15 @@ export async function advanceCatalogObservations(
     options.prioritizeConfigured === true &&
     (isScheduledPriority(source) ||
       (isConfigured(source) && state.sources[source.key]?.attempted_sequence !== state.sequence));
+  // Budget, cancellation and quota stops are partial progress, not failures, so
+  // a large managed source keeps its priority while it advances across turns.
+  const partialProgressRules = ["budget", "cancelled", "provider-quota"];
+  const healthy = (progress: SourceProgress | undefined) =>
+    !progress?.exception_key ||
+    progress.exception_rule === undefined ||
+    (progress.exception_rule !== null && partialProgressRules.includes(progress.exception_rule));
   const servesManagedPort = (source: ObservableSource) =>
-    !state.sources[source.key]?.exception_key &&
-    source.ports.some((port) => port.kind !== "listing");
+    healthy(state.sources[source.key]) && source.ports.some((port) => port.kind !== "listing");
   const pending = sources
     .filter((source) => {
       if (options.excludedSources?.has(source.key)) return false;
@@ -607,7 +619,7 @@ export async function advanceCatalogObservations(
     // sources that serve a managed port: their releases can change what
     // players install, while listing-only sources are descriptive. A completed
     // managed source leaves `pending` until it is due again, and one with a
-    // recorded exception rejoins ordinary rotation, so listing-only sources
+    // recorded failure rejoins ordinary rotation, so listing-only sources
     // still receive turns. The durable rotation orders each group.
     .sort(
       (a, b) =>
@@ -927,6 +939,7 @@ export async function advanceCatalogObservations(
           policies: result.policies,
         });
         progress.exception_key = null;
+        progress.exception_rule = null;
         progress.retry_at = null;
         progress.policy_progress = null;
         completed.push(source.key);
@@ -940,6 +953,7 @@ export async function advanceCatalogObservations(
         )
           notifyException = true;
         progress.exception_key = key;
+        progress.exception_rule = rule;
         progress.retry_at = error instanceof ObservationFailure ? error.retryAt : null;
         failures.push({
           source: source.key,
@@ -1229,6 +1243,7 @@ export async function advanceCatalogObservations(
         )
           notifyException = true;
         progress.exception_key = result.report.exception.key;
+        progress.exception_rule = result.report.exception.rule;
         progress.retry_at = result.report.exception.retry_at;
         if (result.report.exception.rule === "rate-limit") {
           remaining = 0;
@@ -1289,6 +1304,7 @@ export async function advanceCatalogObservations(
         }
         progress.retry_at = null;
         progress.exception_key = null;
+        progress.exception_rule = null;
         // Coverage and current Core output can change eligibility without changing provider facts.
         progress.completed_scope_sha256 = binding;
         progress.last_complete_config = config;
@@ -1324,6 +1340,7 @@ export async function advanceCatalogObservations(
       )
         notifyException = true;
       progress.exception_key = key;
+      progress.exception_rule = rule;
       failures.push({
         source: source.key,
         repository: source.repository,
