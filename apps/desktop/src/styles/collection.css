@@ -505,14 +505,6 @@
     margin-block-start: 0.625rem;
     font-weight: 580;
   }
-  /* Covers reserve the same subtitle height so every row of cards shares one rhythm. */
-  .collection-cover .collection-project {
-    display: -webkit-box;
-    overflow: hidden;
-    min-block-size: 3em;
-    margin-block-start: 0.125rem;
-    -webkit-line-clamp: 2;
-  }
   .collection-cover .library-entry-chips {
     min-block-size: 24px;
   }

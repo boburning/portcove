@@ -91,7 +91,7 @@ it.each(["dark", "light"])(
     await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
     expect(document.activeElement).toBe(domToggle);
     expect(saved.get(1)?.has("absent-port")).toBe(true);
-    await userEvent.click(page.getByRole("button", { name: "Favorites (1)", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Favorites 1", exact: true }));
     await expect
       .element(page.getByRole("button", { name: "Favorite Two independent port", exact: true }))
       .not.toBeInTheDocument();
@@ -114,7 +114,7 @@ it.each(["dark", "light"])(
       )
       .not.toBeInTheDocument();
     await expect
-      .element(page.getByRole("button", { name: "Favorites (1)", exact: true }))
+      .element(page.getByRole("button", { name: "Favorites 1", exact: true }))
       .toHaveAttribute("aria-pressed", "true");
     const details = page.getByRole("button").filter({
       has: page.getByRole("heading", { name: "One independent port", exact: true }),

@@ -1588,7 +1588,7 @@ function renderFiltersPortBrowserView(
             variant={favorites.only ? "selected" : "ghost"}
             ref={filterButton}
             data-favorites-filter
-            aria-label={`Favorites (${model.favoriteCount ?? "unavailable"})`}
+            aria-label={`Favorites ${model.favoriteCount ?? "unavailable"}`}
             aria-pressed={favorites.only}
             disabled={!favorites.ids}
             onClick={() => {
