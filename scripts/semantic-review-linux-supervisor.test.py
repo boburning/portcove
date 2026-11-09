@@ -42,9 +42,11 @@ class SupervisorContract(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             frozen = Path(directory) / "frozen"
             frozen.write_bytes(b"expected")
-            with patch.object(supervisor.os, "read", return_value=b""):
-                with self.assertRaisesRegex(supervisor.Refusal, "observed file size"):
-                    supervisor.read_regular(frozen, 32)
+            with (
+                patch.object(supervisor.os, "read", return_value=b""),
+                self.assertRaisesRegex(supervisor.Refusal, "observed file size"),
+            ):
+                supervisor.read_regular(frozen, 32)
         mountinfo = supervisor.read_regular("/proc/self/mountinfo", supervisor.MIB, exact_size=False)
         self.assertTrue(mountinfo)
 
