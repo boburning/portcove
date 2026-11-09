@@ -25,7 +25,8 @@
         }
       ],
       "warnings": [
-        "Upstream marks the Linux and Steam Deck routes untested. Portcove has not observed native setup or gameplay."
+        "Upstream marks the Linux and Steam Deck routes untested. Portcove has not observed native setup or gameplay.",
+        "The Android app disables Android backup. Clearing its data or uninstalling can remove its imported ROM and separate Japanese and English saves. Keep your external original and update io.github.wootbeer.snprecomp with the same package identity and signer."
       ],
       "help_url": "https://github.com/wootbeer/snprecomp",
       "references": [
@@ -34,8 +35,8 @@
           "instruction": "Keep the installed snprecomp profile and your original files before replacing the package. On Linux, the default profile is ~/.config/snprecomp. The portable.txt mode stores data with the application. Japanese and English profiles have separate saves."
         },
         {
-          "title": "Upstream Android setup",
-          "instruction": "The upstream ARM64 APK is separate from the desktop packages. It needs Android 9 or newer and Vulkan descriptor indexing. Follow the upstream release guide, then use its system file picker. The app copies your ROM into its own storage. Keep your external original and app data, and update only with the same package identity and signer. Portcove does not install or update this APK."
+          "title": "Set up the separate Android ARM64 app",
+          "instruction": "Use SnPRecompiled-0.2.11-android.apk from the upstream release on Android 9 or newer. It needs a Vulkan driver with descriptor indexing. Open the app and choose Load ROM to select your original with the system picker. The app copies it into its own storage."
         }
       ]
     },

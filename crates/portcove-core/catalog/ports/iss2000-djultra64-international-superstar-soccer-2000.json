@@ -16,8 +16,12 @@
           "instruction": "Use your own Europe English/German revision 0 ROM, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf."
         },
         {
-          "title": "Follow upstream setup",
-          "instruction": "Extract the complete ZIP into a writable folder. Run iss2000.exe on Windows or launch.sh on Linux, then select the supported original in the upstream picker. Use a Vulkan-capable GPU. The Linux package requires GLIBC 2.38 and GLIBCXX 3.4.32 or newer."
+          "title": "Start the Windows x64 package",
+          "instruction": "Extract ISS2000-Windows-0.7.1.zip into a writable folder and run iss2000.exe. Use a Vulkan-capable GPU and select your supported original when asked."
+        },
+        {
+          "title": "Start the Linux x64 package",
+          "instruction": "Extract ISS2000-Linux-0.7.1.zip into a writable folder and run ./launch.sh there. It loads the adjacent lib/ files and appends diagnostics to data/runtime.log. Use Vulkan, glibc 2.38 and libstdc++ with GLIBCXX 3.4.32 or newer. Select your supported original when asked."
         }
       ],
       "warnings": [
@@ -26,8 +30,8 @@
       "help_url": "https://github.com/djultra64/ISS2000",
       "references": [
         {
-          "title": "Keep your original and saves",
-          "instruction": "The upstream player keeps its imported original, settings and saves under data/ beside the executable. Keep your original separately and back up the data folder before replacing the package."
+          "title": "Keep the portable data folder",
+          "instruction": "The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
         }
       ]
     },

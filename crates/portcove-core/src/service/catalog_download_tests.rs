@@ -681,8 +681,11 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
         false,
     )
     .await;
-    assert_embedded_player_download_holds(&["star-wars-shadows-of-the-empire-n64-sote-recomp"])
-        .await;
+    assert_embedded_player_download_holds(&[
+        "star-wars-shadows-of-the-empire-n64-sote-recomp",
+        "egg-of-time-chrono-trigger-nds",
+    ])
+    .await;
 }
 
 #[tokio::test]
