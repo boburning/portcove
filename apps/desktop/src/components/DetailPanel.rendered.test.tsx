@@ -2292,3 +2292,27 @@ it.each(["current", "pending", "failed"] as const)(
     expect(overview.includes("Review backup history")).toBe(readStatus !== "current");
   },
 );
+
+it.each([null, "bios"])(
+  "summarizes unrecorded setup facts for a retained installation (BIOS profile %s)",
+  (biosProfile) => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, bios_source_profile: biosProfile }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{ ...portStatus(), active: installRecord() }}
+      />,
+    );
+    const overview = detailSection(html, "overview");
+    expect(overview).toContain("Setup details");
+    expect(overview).toContain(
+      "Files, platforms and setup method weren’t recorded for this installation.",
+    );
+    expect(overview).not.toContain("Recorded requirements unavailable");
+    expect(overview).not.toContain("Recorded package targets unavailable");
+    expect(overview).not.toContain("Recorded setup method unavailable");
+    expect(overview.includes("Required BIOS not specified")).toBe(biosProfile !== null);
+  },
+);

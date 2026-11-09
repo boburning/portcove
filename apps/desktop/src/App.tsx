@@ -110,7 +110,7 @@ import { useGamepadNavigation } from "./gamepad";
 import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
-import { useCommandSurface } from "./use-command-surface";
+import { useCommandSurface, withLibraryVisibility } from "./use-command-surface";
 import type {
   ActivityRecord,
   BootstrapStatus,
@@ -588,10 +588,15 @@ function useWorkspace(props: WorkspaceProps) {
     });
   };
   usePendingHostToolFocus(data, ui.view, pendingToolId, setPendingToolId);
+  const hiddenPortIds = organization.snapshot?.hidden_port_ids;
+  const paletteGames = useMemo(
+    () => withLibraryVisibility(model.searchableGames, hiddenPortIds),
+    [model.searchableGames, hiddenPortIds],
+  );
   const commandSurface = useCommandSurface({
     view: ui.view,
     recent: model.recent,
-    games: model.searchableGames,
+    games: paletteGames,
     installedCount: model.overview.installed,
     busy: Boolean(operations.busy),
     setView: setPrimaryView,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition, portStatus } from "./test-fixtures";
-import { commandSurfaceCommands } from "./use-command-surface";
+import { commandSurfaceCommands, withLibraryVisibility } from "./use-command-surface";
 
 function commands(recent = true) {
   const actions = {
@@ -120,5 +120,23 @@ describe("command surface game search", () => {
     ]);
     games[1]!.action();
     expect(setSelectedId).toHaveBeenCalledWith("discover-game");
+  });
+});
+
+describe("command surface Library visibility", () => {
+  it("lists Library-hidden games only as Discover results", () => {
+    const shown = { ...portDefinition(), id: "shown" };
+    const hidden = { ...portDefinition(), id: "hidden" };
+    const games = [
+      { port: shown, inLibrary: true },
+      { port: hidden, inLibrary: true },
+    ];
+    expect(
+      withLibraryVisibility(games, ["hidden"]).map(({ port, inLibrary }) => [port.id, inLibrary]),
+    ).toEqual([
+      ["shown", true],
+      ["hidden", false],
+    ]);
+    expect(withLibraryVisibility(games, undefined)).toEqual(games);
   });
 });
