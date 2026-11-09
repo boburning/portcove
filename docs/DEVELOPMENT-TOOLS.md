@@ -3365,8 +3365,16 @@ Known cloud limits remain visible in `just doctor`:
   has.
 - The daily discovery runner requires an interactive TTY and GraphQL; run it
   locally.
-- Windows targets and native Windows qualification remain hosted CI or
-  Windows-host work; local feedback stays optional.
+- Windows targets and native Windows qualification run on hosted runners.
+  Pull request CI already runs the diff-selected Windows jobs. For the complete
+  plan on a pushed branch, dispatch `qualification.yml` on that branch through
+  the REST workflow-dispatch API (`POST
+  /repos/{owner}/{repo}/actions/workflows/qualification.yml/dispatches` with
+  `{"ref": "BRANCH"}`) or the connector's workflow-run tool; it calls `ci.yml`
+  with `force_qualification: true`, so every Windows job runs on that ref.
+  Follow the [manually requested qualification](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
+  order, then read the run's jobs and logs over REST. Local feedback stays
+  optional.
 
 The storage preflight's 20 GiB floor can be tight on a cloud disk allowance.
 Browser projects retain raw traces under `work/bt` even after passing runs, and a
