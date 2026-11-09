@@ -657,6 +657,14 @@ pub enum RuntimeDataPolicy {
     VersionLocalRetroAchievementsV1,
 }
 
+/// Closed upstream profile resolution for managed portable players.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExternalProfilePolicy {
+    DuneDynastyAllegroV1,
+    Fheroes2V1,
+}
+
 /// Preserve complete mod package versions without replacing packaged defaults.
 /// This grants neither executable trust nor mod/save compatibility.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -740,6 +748,9 @@ pub struct PortDefinition {
     pub managed_initialization: Option<ManagedInitialization>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_data_policy: Option<RuntimeDataPolicy>,
+    /// Native9: check the external roots selected by the final game environment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_profile_policy: Option<ExternalProfilePolicy>,
     /// Official Shipwright Windows portable packages write player data in their working directory.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub windows_shipwright_persistence: bool,
