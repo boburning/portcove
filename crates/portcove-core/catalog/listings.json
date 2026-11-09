@@ -2362,7 +2362,7 @@
       "id": "f-zero-snes-recomp",
       "name": "F-Zero SNES Recomp",
       "summary": "Native F-Zero recompilation.",
-      "project_url": "https://github.com/mstan/FZeroSNESRecomp",
+      "project_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp",
       "original_game_title": "F-Zero",
       "variant_label": "SNES",
       "artwork": {
