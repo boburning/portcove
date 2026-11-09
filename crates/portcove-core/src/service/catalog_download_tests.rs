@@ -1205,49 +1205,56 @@ async fn sevenz_download_extracts_inert_payload_and_never_publishes_crc_or_cance
 
 #[tokio::test]
 async fn tar_xz_download_publishes_only_a_verified_external_setup() {
-    for invalid in [false, true] {
-        let (_temporary, service, request) = fixture();
-        let mut bytes = crate::archive::xz_fixture();
-        if invalid {
-            *bytes.last_mut().unwrap() ^= 1;
-        }
-        let digest = format!("sha256:{}", crate::signed_catalog::digest(&bytes));
-        let github = GithubFixture::new(bytes, Some(digest), None);
-        github.assets.lock().unwrap()[0]["name"] = json!("player-linux-x86_64.tar.xz");
-        let preview = service
-            .catalog_download_preview_with_provider(&request, &github.provider)
-            .await
-            .unwrap();
-        assert!(preview.artifact.can_extract);
-        let result = service
-            .download_catalog_package_with_provider(
-                &request,
-                &preview.preview_sha256,
-                |_| {},
-                &github.provider,
-            )
-            .await;
-        assert!(service.library.all_installs().unwrap().is_empty());
-        if invalid {
-            assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
-            assert!(!preview.destination_path.exists());
-            let pending = service.pending_setups().unwrap();
-            let [pending] = pending.as_slice() else {
-                panic!("expected a retained failure record");
-            };
-            assert_eq!(pending.state, PendingSetupState::AttentionRequired);
-            assert_eq!(pending.path, preview.destination_path);
-            assert!(
-                fs::read_dir(&request.destination_parent)
-                    .unwrap()
-                    .next()
-                    .is_none()
-            );
-        } else {
-            let pending = result.unwrap();
-            assert_eq!(pending.state, PendingSetupState::Downloaded);
-            assert_eq!(fs::read(pending.path.join("player")).unwrap(), b"player");
-        }
+    assert_tar_xz_download(false).await;
+}
+
+#[tokio::test]
+async fn tar_xz_download_retains_failure_without_publication() {
+    assert_tar_xz_download(true).await;
+}
+
+async fn assert_tar_xz_download(invalid: bool) {
+    let (_temporary, service, request) = fixture();
+    let mut bytes = crate::archive::xz_fixture();
+    if invalid {
+        *bytes.last_mut().unwrap() ^= 1;
+    }
+    let digest = format!("sha256:{}", crate::signed_catalog::digest(&bytes));
+    let github = GithubFixture::new(bytes, Some(digest), None);
+    github.assets.lock().unwrap()[0]["name"] = json!("player-linux-x86_64.tar.xz");
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    assert!(preview.artifact.can_extract);
+    let result = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await;
+    assert!(service.library.all_installs().unwrap().is_empty());
+    if invalid {
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
+        assert!(!preview.destination_path.exists());
+        let pending = service.pending_setups().unwrap();
+        let [pending] = pending.as_slice() else {
+            panic!("expected a retained failure record");
+        };
+        assert_eq!(pending.state, PendingSetupState::AttentionRequired);
+        assert_eq!(pending.path, preview.destination_path);
+        assert!(
+            fs::read_dir(&request.destination_parent)
+                .unwrap()
+                .next()
+                .is_none()
+        );
+    } else {
+        let pending = result.unwrap();
+        assert_eq!(pending.state, PendingSetupState::Downloaded);
+        assert_eq!(fs::read(pending.path.join("player")).unwrap(), b"player");
     }
 }
 

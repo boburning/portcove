@@ -177,20 +177,21 @@ pub(crate) mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let output = temporary.path().join("external");
         let bytes = fixture();
+        fs::create_dir(&output).unwrap();
         extract(&bytes, &output, &|| Ok(())).unwrap();
         assert_eq!(fs::read(output.join("player")).unwrap(), b"player");
 
         let managed = temporary.path().join("managed");
-        assert!(
-            super::super::extract_archive(
-                &temporary.path().join(ASSET),
-                &managed,
-                ASSET,
-                bytes.len() as u64,
-            )
-            .is_err()
-        );
-        assert!(!managed.exists());
+        fs::create_dir(&managed).unwrap();
+        let error = super::super::extract_archive(
+            &temporary.path().join(ASSET),
+            &managed,
+            ASSET,
+            bytes.len() as u64,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(fs::read_dir(managed).unwrap().next().is_none());
     }
 
     #[test]
