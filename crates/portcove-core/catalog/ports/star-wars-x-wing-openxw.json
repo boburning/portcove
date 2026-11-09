@@ -15,7 +15,37 @@
       "game_slug": "star-wars-x-wing",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2896
+    "issue_number": 2896,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your original game data",
+          "instruction": "Select your complete original 1994 and/or 1998 installations when prompted. For 1998, choose the root containing X-Wing Data, IVFiles and MUSIC. If you have both editions, the upstream recommended configuration combines them."
+        },
+        {
+          "title": "Start the Linux player",
+          "instruction": "Extract the upstream v0.0.3 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later and a Vulkan driver."
+        }
+      ],
+      "warnings": [
+        "Back up the entire effective profile, all original game folders, and the working player before updating. If the profile cannot be opened, check the working directory for pilots, settings and other files."
+      ],
+      "references": [
+        {
+          "title": "Use the optional 1993 flight mode",
+          "instruction": "An extracted original 1993 installation with B-Wing can supply flight graphics and missions. Keep an installed 1994 or 1998 edition for its menus and cutscenes."
+        },
+        {
+          "title": "Open the Apple silicon Mac app",
+          "instruction": "Mount the upstream v0.0.3 macos-arm64-release.dmg and copy OpenXW.app out of it. Use Apple silicon, macOS 13 or later and Metal. Keep the app bundle intact and maintain this copy outside Portcove."
+        },
+        {
+          "title": "Keep your settings and pilots",
+          "instruction": "The normal SDL profile is TotallyOpen/OpenXW under the Linux data home or Mac Application Support. Keep the whole profile with the player closed."
+        }
+      ],
+      "help_url": "https://github.com/elyosh/OpenXW/blob/6ab86085a8285eb8dd12637c2bb81164dc234ff4/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

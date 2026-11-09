@@ -7,7 +7,33 @@
     "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
     "project_url": "https://github.com/elyosh/OpenXvT",
     "setup_url": "https://github.com/elyosh/OpenXvT",
-    "issue_number": 2899
+    "issue_number": 2899,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your original game data",
+          "instruction": "Select your complete X-Wing vs. TIE Fighter installation root containing BalanceOfPower. The base game by itself is insufficient."
+        },
+        {
+          "title": "Start the Linux player",
+          "instruction": "Extract the upstream v0.0.5 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXvT. Run OpenXvT with glibc 2.35 or later and a Vulkan driver. The OpenXvT build also needs libcurl.so.4."
+        }
+      ],
+      "warnings": [
+        "Back up the entire effective profile, all original game folders, and the working player before updating. If the profile cannot be opened, check the working directory for pilots, settings and other files."
+      ],
+      "references": [
+        {
+          "title": "Open the Apple silicon Mac app",
+          "instruction": "Mount the upstream v0.0.5 macos-arm64-release.dmg and copy OpenXvT.app out of it. Use Apple silicon, macOS 13 or later and Metal. Keep the app bundle intact and maintain this copy outside Portcove."
+        },
+        {
+          "title": "Keep your settings and pilots",
+          "instruction": "The normal SDL profile is TotallyOpen/OpenXvT under the Linux data home or Mac Application Support. Keep the whole profile with the player closed."
+        }
+      ],
+      "help_url": "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
