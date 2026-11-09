@@ -31,14 +31,24 @@ impl Fixture {
     }
 
     fn with_port(port_id: &'static str, zip_source: bool) -> Self {
-        Self::with_route(port_id, zip_source, false, false)
+        Self::with_route(port_id, zip_source, false, false, false)
     }
 
     fn native(zip_source: bool, wrapped: bool) -> Self {
-        Self::with_route(PORT, zip_source, true, wrapped)
+        Self::with_route(PORT, zip_source, true, wrapped, false)
     }
 
-    fn with_route(port_id: &'static str, zip_source: bool, native: bool, wrapped: bool) -> Self {
+    fn native_siblings() -> Self {
+        Self::with_route(PORT, false, true, true, true)
+    }
+
+    fn with_route(
+        port_id: &'static str,
+        zip_source: bool,
+        native: bool,
+        wrapped: bool,
+        siblings: bool,
+    ) -> Self {
         eprintln!("source fixture: temporary library");
         let temporary = if native {
             tempfile::Builder::new()
@@ -91,7 +101,21 @@ impl Fixture {
                     *hint = format!("publisher/{hint}");
                 }
             }
-            if cfg!(windows) {
+            if siblings {
+                for (platform, executable) in [
+                    (Platform::WindowsX86_64, "publisher/game.exe"),
+                    (Platform::LinuxX86_64, "publisher/game"),
+                    (Platform::MacosX86_64, "publisher/game"),
+                ] {
+                    if platform != host {
+                        port.platforms.push(platform);
+                        port.executable_hints
+                            .insert(platform, vec![executable.into()]);
+                    }
+                }
+                port.launch_arguments = vec!["--observe-launch".into()];
+            }
+            if cfg!(windows) || siblings {
                 port.windows_temp_directory = Some("profile".into());
                 port.windows_runtime_path_policy =
                     Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath);
@@ -1475,14 +1499,27 @@ fn native_fixture_release(
 #[tokio::test]
 async fn native6_same_source_stage_activate_and_rollback_preserve_current_profile_and_hold_remapping()
  {
-    let mut fixture = Fixture::native(false, true);
+    // Use one complete lifecycle. Windows creates N with its prior Native6
+    // declaration, then N+1 uses the shared sibling contract.
+    let mut fixture = Fixture::native_siblings();
     let catalog = fixture.service.catalog().clone();
     let (first_release, server) = native_fixture_release(&fixture, "v1");
     let provider = std::sync::Arc::new(NativeFixtureProvider(std::sync::Mutex::new(first_release)));
     fixture.service =
         PortcoveService::with_provider(fixture.service.library().clone(), provider.clone())
             .unwrap();
-    fixture.service.replace_catalog_for_test(catalog.clone());
+    let initial = if cfg!(windows) {
+        let mut prior = catalog.authoritative_document();
+        let port = &mut prior.ports[0];
+        port.platforms
+            .retain(|platform| *platform == Platform::WindowsX86_64);
+        port.executable_hints
+            .retain(|platform, _| *platform == Platform::WindowsX86_64);
+        Catalog::from_json(&serde_json::to_string(&prior).unwrap()).unwrap()
+    } else {
+        catalog.clone()
+    };
+    fixture.service.replace_catalog_for_test(initial);
     let first = crate::test_fixture::async_phase(
         "native originals: provider install N",
         fixture
@@ -1492,16 +1529,50 @@ async fn native6_same_source_stage_activate_and_rollback_preserve_current_profil
     .await
     .unwrap();
     server.join().unwrap();
+    fixture.service.replace_catalog_for_test(catalog.clone());
+    let spec = fixture.service.prepare_launch(NATIVE_PORT, None).unwrap();
+    assert_eq!(spec.fixed_arguments_only, !cfg!(windows));
+    assert_eq!(spec.environment.contains_key("TEMP"), cfg!(windows));
+    assert_eq!(spec.environment.contains_key("TMP"), cfg!(windows));
+    assert_eq!(spec.arguments, ["--observe-launch"]);
+    #[cfg(unix)]
+    {
+        assert!(
+            crate::ChildProcessPolicy::game_command(
+                &spec.process_spec(),
+                &["--unexpected-override".into()],
+            )
+            .is_err()
+        );
+        let profile = spec.working_directory.join("profile");
+        fs::create_dir_all(&profile).unwrap();
+        let outside = fixture._temporary.path().join("external-player-data");
+        fs::write(&outside, b"outside profile").unwrap();
+        let alias = profile.join("settings.ini");
+        std::os::unix::fs::symlink(&outside, &alias).unwrap();
+        for link in ["symlink", "hardlink"] {
+            if link == "hardlink" {
+                fs::hard_link(&outside, &alias).unwrap();
+            }
+            let error = crate::native_temp::recheck(
+                catalog.port(NATIVE_PORT).unwrap(),
+                Platform::current().unwrap(),
+                &spec,
+                &|| Ok(()),
+            )
+            .unwrap_err();
+            assert!(
+                error.message.contains("shared preferences"),
+                "{link}: {error}"
+            );
+            assert_eq!(fs::read(&outside).unwrap(), b"outside profile");
+            fs::remove_file(&alias).unwrap();
+        }
+    }
     assert!(
         fixture
             .service
-            .supervise_launch(
-                NATIVE_PORT,
-                None,
-                &["--observe-launch".into()],
-                LaunchStdio::Null,
-                |_| {}
-            )
+            .supervise_launch(NATIVE_PORT, None, &[], LaunchStdio::Null, |_| {})
             .unwrap()
             .successful
     );
@@ -1590,13 +1661,7 @@ async fn native6_same_source_stage_activate_and_rollback_preserve_current_profil
     assert!(
         fixture
             .service
-            .supervise_launch(
-                NATIVE_PORT,
-                None,
-                &["--observe-launch".into()],
-                LaunchStdio::Null,
-                |_| {}
-            )
+            .supervise_launch(NATIVE_PORT, None, &[], LaunchStdio::Null, |_| {})
             .unwrap()
             .successful
     );

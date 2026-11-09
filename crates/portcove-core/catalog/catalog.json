@@ -38222,7 +38222,9 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -38233,12 +38235,26 @@
           "windows-x86-64": [
             "bstone-",
             "-win64.zip"
+          ],
+          "linux-x86-64": [
+            "bstone-",
+            "-linux.zip"
+          ],
+          "macos-x86-64": [
+            "bstone-",
+            "-darwin.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "bstone.exe"
+        ],
+        "linux-x86-64": [
+          "bstone"
+        ],
+        "macos-x86-64": [
+          "bstone"
         ]
       },
       "windows_runtime_path_policy": "relative-file-max-path",
@@ -38269,7 +38285,7 @@
           "steps": [
             {
               "title": "Choose the runtime owner and original edition",
-              "instruction": "This managed offer uses --aog for retail Aliens of Gold only; shareware remains on the explicit upstream/non-owning route. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+              "instruction": "This managed offer uses --aog for retail Aliens of Gold only; shareware remains on the explicit upstream/non-owning route. The managed offer uses the official Windows x64, Linux x64 or Intel Mac package and a private profile beside the selected player. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
             },
             {
               "title": "Use this original game and edition",
@@ -38277,21 +38293,25 @@
             },
             {
               "title": "Prepare upstream and select the real player",
-              "instruction": "Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --aog as a separate argument to choose this game. Use --aog_sw instead when deliberately choosing supported shareware."
+              "instruction": "For an upstream-owned copy, extract the official BStone ZIP for Windows x64, Linux x64 or Intel Mac into a separate folder and keep the complete package. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe on Windows or bstone on Linux or Intel Mac, with its enclosing folder as the working directory. Add --aog as a separate argument to choose this game. Use --aog_sw instead when deliberately choosing supported shareware."
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Linux needs glibc 2.29 or later for the reviewed build. The official Mac ZIP is Intel-only and the reviewed executable needs macOS 14 or later."
             }
           ],
           "warnings": [
             "Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
           ],
-          "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
+          "help_url": "https://github.com/bibendovsky/bstone#readme",
           "references": [
             {
               "title": "Keep the actual original and player data",
               "instruction": "Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
+            },
+            {
+              "title": "Reviewed BStone package",
+              "instruction": "The reviewed Linux x64 and Intel Mac ZIPs are documented at https://github.com/bibendovsky/bstone/releases/tag/v1.3.4."
             }
           ]
         },
@@ -38403,7 +38423,9 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -38414,12 +38436,26 @@
           "windows-x86-64": [
             "bstone-",
             "-win64.zip"
+          ],
+          "linux-x86-64": [
+            "bstone-",
+            "-linux.zip"
+          ],
+          "macos-x86-64": [
+            "bstone-",
+            "-darwin.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "bstone.exe"
+        ],
+        "linux-x86-64": [
+          "bstone"
+        ],
+        "macos-x86-64": [
+          "bstone"
         ]
       },
       "windows_runtime_path_policy": "relative-file-max-path",
@@ -38450,7 +38486,7 @@
           "steps": [
             {
               "title": "Choose the runtime owner and original edition",
-              "instruction": "This managed offer uses --ps for Planet Strike only. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+              "instruction": "This managed offer uses --ps for Planet Strike only. The managed offer uses the official Windows x64, Linux x64 or Intel Mac package and a private profile beside the selected player. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
             },
             {
               "title": "Use this original game and edition",
@@ -38458,21 +38494,25 @@
             },
             {
               "title": "Prepare upstream and select the real player",
-              "instruction": "Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --ps as a separate argument to choose this game."
+              "instruction": "For an upstream-owned copy, extract the official BStone ZIP for Windows x64, Linux x64 or Intel Mac into a separate folder and keep the complete package. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe on Windows or bstone on Linux or Intel Mac, with its enclosing folder as the working directory. Add --ps as a separate argument to choose this game."
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Linux needs glibc 2.29 or later for the reviewed build. The official Mac ZIP is Intel-only and the reviewed executable needs macOS 14 or later."
             }
           ],
           "warnings": [
             "Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
           ],
-          "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
+          "help_url": "https://github.com/bibendovsky/bstone#readme",
           "references": [
             {
               "title": "Keep the actual original and player data",
               "instruction": "Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
+            },
+            {
+              "title": "Reviewed BStone package",
+              "instruction": "The reviewed Linux x64 and Intel Mac ZIPs are documented at https://github.com/bibendovsky/bstone/releases/tag/v1.3.4."
             }
           ]
         },
@@ -41038,7 +41078,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -41048,12 +41089,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "devilutionx-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "devilutionx-linux-x86_64.appimage"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "devilutionx.exe"
+        ],
+        "linux-x86-64": [
+          "devilutionx.AppImage"
         ]
       },
       "windows_runtime_path_policy": "relative-file-max-path",
@@ -41097,7 +41144,7 @@
           "steps": [
             {
               "title": "Choose the runtime owner and original set",
-              "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+              "instruction": "The managed Windows and Linux x64 offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
             },
             {
               "title": "Use this original game and edition",
@@ -41113,15 +41160,15 @@
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and mobile instructions below."
+              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. The Linux reference below separates managed installation from upstream setup. Use the upstream application for the Mac and mobile instructions."
             }
           ],
           "warnings": [],
           "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
           "references": [
             {
-              "title": "Prepare DevilutionX on Linux",
-              "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. For the official v1.5.5 x86-64 tar.xz, use Portcove Download to extract into a new setup folder or unpack it yourself. Keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Diablo in the upstream game mode if Hellfire data are also present."
+              "title": "Choose a DevilutionX route on Linux",
+              "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned copy, make the AppImage executable and supply your matching MPQs in its actual data folder, normally ~/.local/share/diasurgical/devilution. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
             },
             {
               "title": "Prepare DevilutionX on Mac",
@@ -41145,7 +41192,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -41155,12 +41203,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "devilutionx-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "devilutionx-linux-x86_64.appimage"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "devilutionx.exe"
+        ],
+        "linux-x86-64": [
+          "devilutionx.AppImage"
         ]
       },
       "windows_runtime_path_policy": "relative-file-max-path",
@@ -41232,7 +41286,7 @@
           "steps": [
             {
               "title": "Choose the runtime owner and original set",
-              "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+              "instruction": "The managed Windows and Linux x64 offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
             },
             {
               "title": "Use this original game and edition",
@@ -41248,15 +41302,15 @@
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and mobile instructions below."
+              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. The Linux reference below separates managed installation from upstream setup. Use the upstream application for the Mac and mobile instructions."
             }
           ],
           "warnings": [],
           "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
           "references": [
             {
-              "title": "Prepare DevilutionX on Linux",
-              "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. For the official v1.5.5 x86-64 tar.xz, use Portcove Download to extract into a new setup folder or unpack it yourself. Keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal."
+              "title": "Choose a DevilutionX route on Linux",
+              "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned copy, make the AppImage executable and supply your matching MPQs in its actual data folder, normally ~/.local/share/diasurgical/devilution. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
             },
             {
               "title": "Prepare DevilutionX on Mac",

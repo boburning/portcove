@@ -104,6 +104,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     n64_runtime_at_executable_parent: bool,
     partitioned_archive: bool,
     requires_tar_xz: bool,
+    native_original_appimage: bool,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -119,6 +120,7 @@ impl ReleaseSelectionCacheKey {
             n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent,
             partitioned_archive: port.archive_data_compatibility_v1.is_some(),
             requires_tar_xz: port.release.requires_tar_xz(platform),
+            native_original_appimage: native_original_appimage(port, platform).is_some(),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1670,12 +1672,33 @@ struct GithubAsset {
     digest: Option<String>,
 }
 
+pub(crate) fn native_original_appimage(port: &PortDefinition, platform: Platform) -> Option<&str> {
+    if platform != Platform::LinuxX86_64
+        || !port.platforms.contains(&platform)
+        || !crate::native_temp::has_sibling_platforms(port)
+        || !port.bundled_runtime.is_empty()
+    {
+        return None;
+    }
+    let [asset] = port.release.asset_hints.get(&platform)?.as_slice() else {
+        return None;
+    };
+    let [executable] = port.executable_hints.get(&platform)?.as_slice() else {
+        return None;
+    };
+    [asset, executable]
+        .into_iter()
+        .all(|name| !name.contains(['/', '\\']) && name.to_ascii_lowercase().ends_with(".appimage"))
+        .then_some(asset)
+}
+
 fn choose_asset<'a>(
     port: &PortDefinition,
     platform: Platform,
     assets: &'a [GithubAsset],
 ) -> Result<&'a GithubAsset> {
     let requires_tar_xz = port.release.requires_tar_xz(platform);
+    let standalone = native_original_appimage(port, platform);
     let hints = port
         .release
         .asset_hints
@@ -1686,7 +1709,9 @@ fn choose_asset<'a>(
         .iter()
         .filter_map(|asset| {
             let name = asset.name.to_ascii_lowercase();
-            let supported_package = if requires_tar_xz {
+            let supported_package = if let Some(expected) = standalone {
+                name.eq_ignore_ascii_case(expected)
+            } else if requires_tar_xz {
                 name.ends_with(".tar.xz")
             } else {
                 is_supported_package(&name)
@@ -1701,6 +1726,7 @@ fn choose_asset<'a>(
             if (port.adapter == AdapterKind::NativePortable
                 || port.n64_runtime_at_executable_parent)
                 && !can_extract
+                && standalone.is_none()
             {
                 return None;
             }
@@ -2539,6 +2565,7 @@ mod tests {
             n64_runtime_at_executable_parent: false,
             partitioned_archive: false,
             requires_tar_xz: false,
+            native_original_appimage: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2564,6 +2591,7 @@ mod tests {
                         n64_runtime_at_executable_parent: false,
                         partitioned_archive: false,
                         requires_tar_xz: false,
+                        native_original_appimage: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

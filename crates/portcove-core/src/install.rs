@@ -959,6 +959,11 @@ impl Installer {
                 "managed TAR.XZ requires the matching retained Linux native release declaration",
             ));
         }
+        crate::managed_runtime_policy::require_native_original_artifact(
+            port,
+            request.qualification.platform,
+            &request.release.asset.name,
+        )?;
         crate::installed_mutability::require_shipwright_release(
             port,
             request.qualification.platform,
@@ -1221,7 +1226,12 @@ impl Installer {
             }
             if port.windows_temp_directory.is_some() {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
-                crate::native_temp::require_pristine_package(port, &payload_root, &selected)?;
+                crate::native_temp::require_pristine_package(
+                    port,
+                    request.qualification.platform,
+                    &payload_root,
+                    &selected,
+                )?;
                 crate::native_temp::require_canonical_data(port, &self.library)?;
             }
         }
@@ -2298,7 +2308,12 @@ impl Installer {
             }
             if port.windows_temp_directory.is_some() {
                 let selected = resolve_declared_executable(root, qualification)?;
-                crate::native_temp::require_pristine_package(port, root, &selected)?;
+                crate::native_temp::require_pristine_package(
+                    port,
+                    qualification.platform,
+                    root,
+                    &selected,
+                )?;
                 crate::native_temp::require_canonical_data(port, &self.library)?;
             }
         }
@@ -3148,6 +3163,11 @@ fn write_manifest(
         ));
     }
     let catalog = retained_contract.catalog(port_id)?;
+    crate::managed_runtime_policy::require_native_original_artifact(
+        catalog.port(port_id)?,
+        qualification.platform,
+        &artifact.asset_name,
+    )?;
     crate::managed_shared_preferences::require_artifact(
         catalog.port(port_id)?,
         version,
@@ -3604,6 +3624,13 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
+        crate::managed_runtime_policy::require_native_original_artifact(
+            catalog.port(&install.port_id)?,
+            manifest
+                .platform
+                .ok_or_else(|| PortcoveError::verification("retained manifest has no platform"))?,
+            &manifest.artifact.asset_name,
+        )?;
         if let Some(admission) = &manifest.archive_data_admission {
             crate::archive_data_transition::effective_port(install, &catalog, admission)?;
         }

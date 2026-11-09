@@ -363,6 +363,8 @@ impl Adapter for StandardAdapter {
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
                 || port.external_profile_policy.is_some()
+                || (platform != Platform::WindowsX86_64
+                    && crate::native_temp::has_sibling_platforms(port))
                 || port
                     .release
                     .managed_build
@@ -418,6 +420,7 @@ impl Adapter for StandardAdapter {
         std::fs::create_dir_all(&user_data)?;
         crate::native_temp::prepare(
             port,
+            platform,
             install_root,
             &working_directory,
             &executable,
