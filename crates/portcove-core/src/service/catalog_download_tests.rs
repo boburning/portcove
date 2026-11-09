@@ -684,6 +684,8 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
     assert_embedded_player_download_holds(&[
         "star-wars-shadows-of-the-empire-n64-sote-recomp",
         "egg-of-time-chrono-trigger-nds",
+        "star-wars-tie-fighter-opentie",
+        "destinity13-timesplitters-2-ps2-slus20314-native-linux",
     ])
     .await;
 }

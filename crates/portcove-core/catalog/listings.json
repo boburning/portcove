@@ -49202,12 +49202,13 @@
     {
       "id": "star-wars-tie-fighter-opentie",
       "name": "Star Wars: TIE Fighter / OpenTIE",
-      "summary": "Explore Star Wars: TIE Fighter / OpenTIE and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare a permitted OpenTIE copy with your own TIE95 or TIE98 game data.",
       "project_url": "https://github.com/elyosh/OpenTIE",
       "issue_number": 1975,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/elyosh/OpenTIE",
+      "download_block_reason": "Portcove downloads are paused while the selected package permissions are being reviewed. The guide covers a copy you are already permitted to use.",
       "artwork": {
         "game_id": 166,
         "cover_id": 106709,
