@@ -927,3 +927,148 @@ void test("relocation candidates read moved and missing identities from an obser
   assert.match(summary, /proposal only/);
   assert.match(summary, /`b\/moved` \| same-repository-renamed \| `b\/renamed`/);
 });
+
+// Relocation evidence (#4784): read-only provider facts for a reviewed rename.
+type EvidenceRead = import("./upstream-relocation-evidence.mts").MetadataRead;
+const { observationHash } = await import("./upstream-observer.mts");
+const { maxRequests, parseEvidenceRequests, relocationEvidenceReport, renderEvidenceSummary } =
+  await import("./upstream-relocation-evidence.mts");
+
+const repository = "New-Org/Game";
+const release = {
+  id: 393440319,
+  tag_name: "v1.8.3",
+  draft: false,
+  prerelease: false,
+  created_at: "2026-09-22T03:40:00Z",
+  published_at: "2026-09-22T03:42:21Z",
+  assets: [{ name: "Game-1.8.3-windows-x64.zip" }],
+};
+const asset = {
+  id: 580473673,
+  name: "Game-1.8.3-windows-x64.zip",
+  size: 8247843,
+  state: "uploaded",
+  digest: `sha256:${"a".repeat(64)}`,
+  browser_download_url: `https://github.com/${repository}/releases/download/v1.8.3/Game-1.8.3-windows-x64.zip`,
+  created_at: "2026-09-22T03:41:00Z",
+  updated_at: "2026-09-22T03:42:00Z",
+};
+
+function fakeRead(overrides: Record<string, unknown> = {}) {
+  const endpoints: string[] = [];
+  const responses: Record<string, unknown> = {
+    [`/repos/${repository}`]: { id: 1348026644, full_name: repository, archived: false },
+    [`/repos/${repository}/releases?per_page=30`]: [release],
+    [`/repos/${repository}/releases/tags/v1.8.3`]: release,
+    [`/repos/${repository}/releases/393440319/assets?per_page=100`]: [asset],
+    ...overrides,
+  };
+  const read: EvidenceRead = async (endpoint) => {
+    endpoints.push(endpoint);
+    if (!(endpoint in responses)) throw new Error(`unexpected endpoint ${endpoint}`);
+    return responses[endpoint];
+  };
+  return { read, endpoints };
+}
+
+void test("requests are bounded, exact and unique", () => {
+  assert.deepEqual(parseEvidenceRequests(" a/b  c/d@v1.0.0 "), [
+    { repository: "a/b", tag: null },
+    { repository: "c/d", tag: "v1.0.0" },
+  ]);
+  for (const text of [
+    "",
+    "a",
+    "a/b/c",
+    "../b",
+    "a/..",
+    "a/b@",
+    "a/b@../x",
+    "a/b@v1 x",
+    "a/b A/B",
+    Array.from({ length: maxRequests + 1 }, (_, index) => `o/r${index}`).join(" "),
+  ])
+    assert.throws(() => parseEvidenceRequests(text), JSON.stringify(text));
+});
+
+void test("pin evidence uses the observer's facts and hashes at the current name", async () => {
+  const { read, endpoints } = fakeRead();
+  const report = await relocationEvidenceReport(
+    parseEvidenceRequests(`${repository}@v1.8.3`),
+    read,
+  );
+  assert.equal(report.authority, "evidence-only");
+  assert.equal(report.redirects_followed, false);
+  assert.equal(report.artifacts_downloaded, false);
+  const [result] = report.results;
+  assert.ok(result?.ok);
+  assert.deepEqual(result.repository, { id: 1348026644, full_name: repository, archived: false });
+  assert.deepEqual(result.releases[0]?.asset_names, ["Game-1.8.3-windows-x64.zip"]);
+  assert.equal(result.releases_may_be_partial, false);
+  assert.ok(result.pin);
+  const { assets: _assets, ...releaseFacts } = release;
+  assert.deepEqual(result.pin.release, releaseFacts);
+  assert.equal(result.pin.release_facts_sha256, observationHash(releaseFacts));
+  const [pinned] = result.pin.assets;
+  assert.ok(pinned);
+  const { asset_facts_sha256: digest, ...facts } = pinned;
+  assert.equal(facts.id, 580473673);
+  assert.equal(facts.browser_download_url, asset.browser_download_url);
+  assert.equal(digest, observationHash(facts));
+  assert.deepEqual(endpoints, [
+    `/repos/${repository}`,
+    `/repos/${repository}/releases?per_page=30`,
+    `/repos/${repository}/releases/tags/v1.8.3`,
+    `/repos/${repository}/releases/393440319/assets?per_page=100`,
+  ]);
+  assert.match(renderEvidenceSummary(report), /580473673, 8247843 B/u);
+});
+
+void test("a request without a tag reads only repository and release sample", async () => {
+  const { read, endpoints } = fakeRead();
+  const report = await relocationEvidenceReport(parseEvidenceRequests(repository), read);
+  assert.ok(report.results[0]?.ok);
+  assert.equal(report.results[0].pin, null);
+  assert.equal(endpoints.length, 2);
+});
+
+void test("inconsistent provider facts fail that request without hiding the others", async () => {
+  for (const [name, overrides] of [
+    [
+      "foreign download URL",
+      {
+        [`/repos/${repository}/releases/393440319/assets?per_page=100`]: [
+          { ...asset, browser_download_url: asset.browser_download_url.replace("New-Org", "Old") },
+        ],
+      },
+    ],
+    [
+      "different tag",
+      { [`/repos/${repository}/releases/tags/v1.8.3`]: { ...release, tag_name: "v1.8.4" } },
+    ],
+    [
+      "possibly capped assets",
+      {
+        [`/repos/${repository}/releases/393440319/assets?per_page=100`]: Array.from(
+          { length: 100 },
+          () => asset,
+        ),
+      },
+    ],
+    ["invalid repository", { [`/repos/${repository}`]: { id: "1", full_name: repository } }],
+  ] as const) {
+    const { read } = fakeRead({
+      ...overrides,
+      "/repos/other/repo": { id: 7, full_name: "other/repo", archived: true },
+      "/repos/other/repo/releases?per_page=30": [],
+    });
+    const report = await relocationEvidenceReport(
+      parseEvidenceRequests(`${repository}@v1.8.3 other/repo`),
+      read,
+    );
+    assert.equal(report.results[0]?.ok, false, name);
+    assert.equal(report.results[1]?.ok, true, name);
+    assert.match(renderEvidenceSummary(report), /failed:/u, name);
+  }
+});
