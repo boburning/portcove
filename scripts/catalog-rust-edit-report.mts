@@ -53,8 +53,14 @@ export function classifyCatalogRustEdits(files: readonly string[]): CatalogRustE
   };
 }
 
+// Changed paths come from the pull request. Keep every listed name on one line
+// and out of markdown/workflow-command syntax.
+export function displayPath(file: string) {
+  return `\`${file.replace(/[\p{Cc}\u2028\u2029`|<>[\]]/gu, "?")}\``;
+}
+
 function listed(files: readonly string[]) {
-  const shown = files.slice(0, listedFileLimit).map((file) => `\`${file}\``);
+  const shown = files.slice(0, listedFileLimit).map(displayPath);
   const hidden = files.length - shown.length;
   return hidden > 0 ? [...shown, `and ${hidden} more`].join(", ") : shown.join(", ");
 }

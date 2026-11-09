@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   classifyCatalogRustEdits,
+  displayPath,
   isCatalogDataPath,
   isRustTestPath,
   renderCatalogRustEditReport,
@@ -63,4 +64,13 @@ void test("long file lists are bounded", () => {
   const many = Array.from({ length: 25 }, (_, index) => `crates/portcove-core/src/m${index}.rs`);
   const message = renderCatalogRustEditReport(classifyCatalogRustEdits([port, ...many]));
   assert.match(message ?? "", /and 5 more/u);
+});
+
+void test("hostile file names cannot start workflow commands or break markdown", () => {
+  const hostile = "crates/a\n::stop-commands::token`|[x](http://e).rs";
+  assert.equal(displayPath(hostile).includes("\n"), false);
+  assert.equal(/[`|[\]]/u.test(displayPath(hostile).slice(1, -1)), false);
+  const message = renderCatalogRustEditReport(classifyCatalogRustEdits([port, hostile])) ?? "";
+  assert.equal(message.includes("\n"), false);
+  assert.equal(message.startsWith("This change updates"), true);
 });
