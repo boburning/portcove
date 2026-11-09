@@ -518,6 +518,10 @@ export async function advanceCatalogObservations(
   let operationBytes = 0;
   let unknownSizeResponses = 0;
   let notifyException = false;
+  // Only exceptions that can affect what players install fail the job. A
+  // listing-only source's exception stays in the report and its checkpoint.
+  const notifiesOnException = (source: ObservableSource) =>
+    source.ports.some((port) => port.kind !== "listing");
   let requestStartedAt = now();
   let sampledCostMs = 0;
   let sampledRequests = 0;
@@ -921,7 +925,8 @@ export async function advanceCatalogObservations(
         const key = observationHash({ source: source.key, rule });
         if (
           progress.exception_key !== key &&
-          !["budget", "cancelled", "provider-quota"].includes(rule)
+          !["budget", "cancelled", "provider-quota"].includes(rule) &&
+          notifiesOnException(source)
         )
           notifyException = true;
         progress.exception_key = key;
@@ -1209,7 +1214,8 @@ export async function advanceCatalogObservations(
           pending.push(source);
         if (
           result.notify_exception &&
-          !["budget", "cancelled"].includes(result.report.exception.rule)
+          !["budget", "cancelled"].includes(result.report.exception.rule) &&
+          notifiesOnException(source)
         )
           notifyException = true;
         progress.exception_key = result.report.exception.key;
@@ -1301,7 +1307,11 @@ export async function advanceCatalogObservations(
       }
       const rule = error instanceof ObservationFailure ? error.rule : "source-operation-failed";
       const key = observationHash({ source: source.key, rule });
-      if (progress.exception_key !== key && !["budget", "cancelled"].includes(rule))
+      if (
+        progress.exception_key !== key &&
+        !["budget", "cancelled"].includes(rule) &&
+        notifiesOnException(source)
+      )
         notifyException = true;
       progress.exception_key = key;
       failures.push({

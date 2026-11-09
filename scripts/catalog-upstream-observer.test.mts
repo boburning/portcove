@@ -1440,6 +1440,34 @@ void test("new provider exceptions notify once and failed refresh retains every 
   assert.equal(repeated.notify_exception, false);
 });
 
+void test("listing-only provider exceptions are reported without failing the job", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [
+      {
+        id: "listing-gone",
+        name: "Listing gone",
+        summary: "Descriptive listing",
+        project_url: "https://github.com/listing-owner/gone",
+      },
+    ],
+  };
+  const fetch = h.options.fetch!;
+  const result = await advanceCatalogObservations(input, null, {
+    ...h.options,
+    fetch: async (url, init) =>
+      url.includes("/listing-owner/gone")
+        ? new Response(JSON.stringify({ message: "Not Found" }), {
+            status: 404,
+            headers: { "content-type": "application/json" },
+          })
+        : fetch(url, init),
+  });
+  assert.ok(result.report.failures.some((failure) => failure.repository === "listing-owner/gone"));
+  assert.equal(result.notify_exception, false);
+});
+
 void test("provider reset headers do not turn fair quantum exhaustion into provider backoff", async () => {
   const h = harness(2);
   h.setQuota(100);

@@ -24,8 +24,8 @@ stand in for complete release headers, candidate assets, Core eligibility or byt
 Invalid optional health evidence is preserved and falls back to a fresh primary
 lookup; conflicting trusted identities remain held.
 
-The `Configured upstream observer` workflow requests observations at 00:17,
-06:17, 12:17 and 18:17 UTC. Hosted scheduling can be delayed or skipped; this is
+The `Configured upstream observer` workflow requests observations hourly at
+minute 17 UTC. Hosted scheduling can be delayed or skipped; this is
 a requested cadence, not a delivery guarantee. The configured baseline retains
 its cadence and twelve-hour freshness bound. Catalog sources use durable fair
 turns, activity observations and staleness to admit work within the same job.
@@ -224,8 +224,11 @@ the existing finite request envelope; it is not assumed available. Quantum/runti
 exhaustion has no provider retry clock. Actual depletion and provider retry
 responses defer the shared provider until its reset. A budget-limited source with
 progress can receive another turn automatically while capacity remains. A failure
-isolates its source. New non-budget exceptions fail the job once; continuing
-exceptions and normal continuation remain visible without repeated notifications.
+isolates its source. A new non-budget exception on a source that serves a managed
+port fails the job once; continuing exceptions and normal continuation remain
+visible without repeated notifications. Listing-only exceptions are recorded in
+the report and checkpoint without failing the job, because they cannot change
+what players install.
 
 The existing ten-minute hosted job establishes a nine-minute observation deadline
 before checkout and build, reserving the final minute for checkpoint and artifact

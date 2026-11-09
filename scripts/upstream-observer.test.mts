@@ -345,8 +345,13 @@ void test("scheduled observation keeps the configured cadence, read-only authori
     new URL("../.github/workflows/configured-upstream-observer.yml", import.meta.url),
     "utf8",
   );
-  const cadence = `17 */${config.cadence_hours} * * *`;
-  assert.ok(workflow.includes(`cron: '${cadence}'`) || workflow.includes(`cron: "${cadence}"`));
+  // Hourly opportunities admit due sources; each source keeps the configured
+  // cadence and freshness bound, so the schedule may only be more frequent.
+  const opportunities = "17 * * * *";
+  assert.ok(
+    workflow.includes(`cron: '${opportunities}'`) || workflow.includes(`cron: "${opportunities}"`),
+  );
+  assert.ok(config.cadence_hours >= 1);
   assert.match(workflow, /permissions:\s+contents: read/);
   assert.doesNotMatch(
     workflow,
