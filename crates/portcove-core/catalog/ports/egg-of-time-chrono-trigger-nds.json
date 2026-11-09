@@ -44,7 +44,7 @@
         },
         {
           "title": "Find the experimental Mac source instructions",
-          "instruction": "Use Building from source in the upstream guide. It lists CMake 3.25+, a C11 compiler, Python with Capstone, SDL3, FFmpeg and ds-decomp 0.12.1. Follow the region-specific extraction and build instructions with your own original."
+          "instruction": "Use Building from source in the upstream guide. It lists CMake 3.25+, Ninja, a C11 compiler, Python with Capstone, SDL3, FFmpeg, system libcurl and ds-decomp 0.12.1. Follow the region-specific extraction and build instructions with your own original."
         }
       ]
     }

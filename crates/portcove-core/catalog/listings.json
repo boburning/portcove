@@ -22365,7 +22365,7 @@
           },
           {
             "title": "Find the experimental Mac source instructions",
-            "instruction": "Use Building from source in the upstream guide. It lists CMake 3.25+, a C11 compiler, Python with Capstone, SDL3, FFmpeg and ds-decomp 0.12.1. Follow the region-specific extraction and build instructions with your own original."
+            "instruction": "Use Building from source in the upstream guide. It lists CMake 3.25+, Ninja, a C11 compiler, Python with Capstone, SDL3, FFmpeg, system libcurl and ds-decomp 0.12.1. Follow the region-specific extraction and build instructions with your own original."
           }
         ]
       }
@@ -29619,7 +29619,7 @@
           },
           {
             "title": "Start the complete portable package",
-            "instruction": "Extract the v1.3.2 portable archive into a writable folder. On Windows 10 or 11 with Direct3D 12, open JetForceGeminiRecompiled.exe. On Linux x64 with glibc 2.35 or newer and Vulkan, open JetForceGeminiRecompiled from that folder. Choose your own ROM in the launcher."
+            "instruction": "Extract the v1.3.2 portable archive into a writable folder. On Windows 10 or 11 with Direct3D 12, open JetForceGeminiRecompiled.exe. For the Linux x64 tarball and AppImage, use glibc 2.35 or newer, Vulkan and system FreeType and D-Bus libraries. For the tarball, open JetForceGeminiRecompiled from the extracted folder. Choose your own ROM in the launcher."
           },
           {
             "title": "Use the prepared Linux copy",

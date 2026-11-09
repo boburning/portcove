@@ -17,7 +17,7 @@
         },
         {
           "title": "Start the complete portable package",
-          "instruction": "Extract the v1.3.2 portable archive into a writable folder. On Windows 10 or 11 with Direct3D 12, open JetForceGeminiRecompiled.exe. On Linux x64 with glibc 2.35 or newer and Vulkan, open JetForceGeminiRecompiled from that folder. Choose your own ROM in the launcher."
+          "instruction": "Extract the v1.3.2 portable archive into a writable folder. On Windows 10 or 11 with Direct3D 12, open JetForceGeminiRecompiled.exe. For the Linux x64 tarball and AppImage, use glibc 2.35 or newer, Vulkan and system FreeType and D-Bus libraries. For the tarball, open JetForceGeminiRecompiled from the extracted folder. Choose your own ROM in the launcher."
         },
         {
           "title": "Use the prepared Linux copy",
