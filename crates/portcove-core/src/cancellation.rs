@@ -58,6 +58,7 @@ pub(crate) struct CancellationScope {
     id: String,
     _guard: PortOperationGuard,
     checked: Mutex<Option<Instant>>,
+    connection: Mutex<Option<rusqlite::Connection>>,
 }
 
 impl std::fmt::Debug for CancellationScope {
@@ -86,6 +87,7 @@ impl CancellationScope {
             id: activity.id.clone(),
             _guard: guard,
             checked: Mutex::new(None),
+            connection: Mutex::new(None),
         })
     }
 
@@ -102,6 +104,7 @@ impl CancellationScope {
             id: id.to_owned(),
             _guard: guard,
             checked: Mutex::new(None),
+            connection: Mutex::new(None),
         })
     }
 
@@ -118,8 +121,25 @@ impl CancellationScope {
         Ok(())
     }
 
+    /// Exact check on every call. Download loops call this twice per network
+    /// chunk, so the scope keeps one connection instead of opening a new one
+    /// (and re-applying PRAGMAs) each time; each statement still reads the
+    /// latest committed request.
     fn check_now(&self) -> Result<()> {
-        let state = cancellation_state(&self.library, &self.id)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| PortcoveError::state("cancellation connection lock poisoned"))?;
+        if connection.is_none() {
+            *connection = Some(database::connect(self.library.root())?);
+        }
+        let state = cancellation_state_on(
+            connection
+                .as_ref()
+                .expect("cancellation connection was opened"),
+            &self.id,
+        )?;
+        drop(connection);
         if state.is_some_and(|state| state.phase == CancellationPhase::Preparing && state.requested)
         {
             return Err(cancelled(&self.id));
@@ -132,24 +152,27 @@ impl CancellationScope {
     }
 
     /// Only use with a read-only network future, never with a spawned mutation worker.
-    ///
-    /// Entry and completion checks share the `checkpoint` clock, so a tight loop
-    /// of short futures (one per download chunk) queries SQLite at most every
-    /// 50 ms while a long future is still observed at the same cadence.
     pub async fn interruptible<T>(&self, future: impl Future<Output = Result<T>>) -> Result<T> {
-        self.checkpoint()?;
+        self.check_now()?;
         tokio::pin!(future);
         loop {
             tokio::select! {
-                result = &mut future => { self.checkpoint()?; return result; }
-                _ = tokio::time::sleep(CANCELLATION_INTERVAL) => self.checkpoint()?,
+                result = &mut future => { self.check_now()?; return result; }
+                _ = tokio::time::sleep(CANCELLATION_INTERVAL) => self.check_now()?,
             }
         }
     }
 }
 
 pub(crate) fn cancellation_state(library: &Library, id: &str) -> Result<Option<CancellationState>> {
-    let row = database::connect(library.root())?.query_row(
+    cancellation_state_on(&database::connect(library.root())?, id)
+}
+
+fn cancellation_state_on(
+    connection: &rusqlite::Connection,
+    id: &str,
+) -> Result<Option<CancellationState>> {
+    let row = connection.query_row(
         "SELECT cancellation_phase, cancel_requested FROM activity_history WHERE id=?1 AND status='running'",
         [id], |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, bool>(1)?)),
     ).optional()?;
