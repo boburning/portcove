@@ -414,6 +414,18 @@ export const retainedServedRenewal = {
   ],
 } as const;
 
+/** One forward renewal of the original r55 draft after its observer timed out.
+ * The signed v6 role bytes remain retained; the original reservation burns v6. */
+export const retainedR55Renewal = {
+  opportunity: "c3c807ea153d31ec420aec53cb146faf068049215a2994918364c8ef017b75de",
+  release_id: 438789814,
+  notes_sha256: "3fe9cb189682ff637e65fb2fec5bf6f7d3d05bf711656743db14ad9d90fdc01d",
+  context_sha256: "bf4c4a0cf397347ccd054b72c260717c6f8ab97dbaba7d1a6a4fb1d0bed26fc4",
+  original_run_id: "42570808720",
+  original_source: "3dfc18b702caca3c7e7c06ae85cac5f0d93365dd",
+  next_ref: "refs/tags/portcove-production-controller-windows-20261109r56",
+} as const;
+
 /** One feed-only continuation of the exact r43 signed renewal. */
 export const retainedServedRenewalFeed = {
   next_ref: "refs/tags/portcove-production-controller-windows-20261105r44",
@@ -906,6 +918,28 @@ export async function resumeApplicationMetadataDraft(
     "create-or-resume",
     undefined,
     expected,
+  );
+}
+
+export async function resumeR55MetadataDraft(
+  provider: ApplicationRunRegistrationProvider,
+  execution: Execution,
+  opportunity: string,
+  beforeWrite: Parameters<typeof registerApplicationReleaseRun>[5],
+) {
+  const retained = retainedR55Renewal;
+  assert.equal(execution.ref, retained.next_ref);
+  assert.equal(execution.run_attempt, 1);
+  assert.notEqual(execution.source, retained.original_source);
+  assert.notEqual(execution.run_id, retained.original_run_id);
+  assert.equal(opportunity, retained.opportunity);
+  return resumeApplicationMetadataDraft(
+    provider,
+    execution,
+    opportunity,
+    { release_id: retained.release_id, notes_sha256: retained.notes_sha256 },
+    beforeWrite,
+    [retained.context_sha256],
   );
 }
 
