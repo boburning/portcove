@@ -400,6 +400,12 @@ pub struct VerificationReport {
     pub failures: Vec<String>,
 }
 
+pub(crate) struct RetainedPersistenceMetadata {
+    pub(crate) catalog: Option<crate::Catalog>,
+    pub(crate) preparation_mode: Option<crate::PreparationMode>,
+    pub(crate) admitted_port: Option<PortDefinition>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InstallManifest {
     schema_version: u32,
@@ -2313,6 +2319,13 @@ impl Installer {
         install: &InstallRecord,
     ) -> Result<Option<PortDefinition>> {
         let manifest = verified_manifest(install)?;
+        Self::admitted_archive_data_port(install, &manifest)
+    }
+
+    fn admitted_archive_data_port(
+        install: &InstallRecord,
+        manifest: &InstallManifest,
+    ) -> Result<Option<PortDefinition>> {
         let Some(admission) = &manifest.archive_data_admission else {
             return Ok(None);
         };
@@ -2322,6 +2335,23 @@ impl Installer {
             .ok_or_else(|| PortcoveError::verification("data admission has no creating contract"))?
             .catalog(&install.port_id)?;
         crate::archive_data_transition::effective_port(install, &creating, admission).map(Some)
+    }
+
+    /// Read the current registered manifest once for a single persistence
+    /// authority calculation. Separate operations still verify fresh bytes.
+    pub(crate) fn retained_persistence_metadata(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<RetainedPersistenceMetadata> {
+        let manifest = verified_manifest(install)?;
+        Ok(RetainedPersistenceMetadata {
+            catalog: catalog_for_verified_manifest(install, &manifest)?,
+            preparation_mode: manifest
+                .retained_contract
+                .as_ref()
+                .and_then(crate::installed_contract::InstalledContract::preparation_mode),
+            admitted_port: Self::admitted_archive_data_port(install, &manifest)?,
+        })
     }
 
     /// Produce an explicit data-only wrapper; the creating contract, runtime and
