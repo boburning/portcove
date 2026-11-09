@@ -3367,16 +3367,18 @@ Known cloud limits remain visible in `just doctor`:
   has.
 - The daily discovery runner requires an interactive TTY and GraphQL; run it
   locally.
-- Windows targets and native Windows qualification run on hosted runners.
-  Pull request CI already runs the diff-selected Windows jobs. For the complete
-  plan on a pushed branch, dispatch `qualification.yml` on that branch through
-  the REST workflow-dispatch API (`POST
+- Windows targets run on hosted runners. Pull request CI runs the
+  diff-selected fast Windows jobs, including the Windows helper contracts,
+  which only run there. For the qualification-mode Windows jobs on a pushed
+  branch, dispatch `qualification.yml` on that branch through the REST
+  workflow-dispatch API (`POST
   /repos/{owner}/{repo}/actions/workflows/qualification.yml/dispatches` with
   `{"ref": "BRANCH"}`) or the connector's workflow-run tool; it calls `ci.yml`
-  with `force_qualification: true`, so every Windows job runs on that ref.
-  Follow the [manually requested qualification](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
-  order, then read the run's jobs and logs over REST. Local feedback stays
-  optional.
+  with `force_qualification: true`. Follow the
+  [manually requested qualification](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
+  order, then read the run's jobs and logs over REST. Explicit native Windows
+  acceptance remains the separate `portcove-desktop-verification` route. Local
+  feedback stays optional.
 
 The storage preflight's 20 GiB floor can be tight on a cloud disk allowance.
 Browser projects retain raw traces under `work/bt` even after passing runs, and a
