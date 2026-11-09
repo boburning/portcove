@@ -2142,6 +2142,8 @@ struct ManagedPsxArchiveExpectation {
     bios_profile: Option<String>,
     #[serde(default)]
     crash_diagnostic: bool,
+    #[serde(default)]
+    split_mod_paths: bool,
 }
 
 impl ManagedPsxArchiveExpectation {
@@ -2211,6 +2213,33 @@ impl ManagedPsxArchiveExpectation {
                     .iter()
                     .any(|path| path == "psx_crash.txt"),
                 "{id}: crash diagnostic must not enter backups"
+            );
+        }
+        if self.split_mod_paths {
+            let is_mod_path = |path: &str| path == "mods" || path.starts_with("mods/");
+            let actual: std::collections::BTreeSet<_> = port
+                .persistent_paths
+                .iter()
+                .map(String::as_str)
+                .filter(|path| is_mod_path(path))
+                .collect();
+            assert_eq!(
+                actual,
+                std::collections::BTreeSet::from([
+                    "mods/.staging",
+                    "mods/installed",
+                    "mods/packages",
+                    "mods/state.toml",
+                    "mods/state.toml.tmp",
+                ]),
+                "{id}: split player mod paths"
+            );
+            assert!(
+                !port
+                    .runtime_mutable_paths
+                    .iter()
+                    .any(|path| is_mod_path(path)),
+                "{id}: bundled mods must remain verified runtime files"
             );
         }
         let profile_id = port.source_profile.as_deref().unwrap();

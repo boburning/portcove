@@ -1531,6 +1531,446 @@
         "claim": "Redump Wipeout (Europe), SCES-00010, disc 352, has 12 tracks and data Track 1 size 64988112, SHA-1 93a70ff5be6d8a4b25bf40ba453e6ded864ad645, MD5 23c2abd60259c0ddb84a2c4e72278729 and CRC32 7f6c5a6a. Those fields match the v0.1.4 package and tagged alternate. Redump entry 984 is Rev 1 and does not match. The Core route binds the first track and count; later tracks and the full TOC are not independently authenticated.",
         "immutable_url": "https://redump.info/disc/352",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-armored-core-project-phantasma-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/armored-core-project-phantasma-recomp",
+        "authority_ref": "5f79ffc1515435a2fd5ae318bad4f0159308f54a",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00670, 1 track, retail SCPH-1001 and generated player Armored_Core_Project_Phantasma. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/blob/5f79ffc1515435a2fd5ae318bad4f0159308f54a/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-armored-core-project-phantasma-recomp-redump-15417",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/15417; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Armored Core - Project Phantasma (USA), SLUS-00670, has 1 track. Track 1 size 454072416, SHA-1 0d3b5bbf3f860fad1482c242566b2ba890f314e2, MD5 91badb09339ee7e3b6d235609e8da1be and CRC32 aaa1ef9c agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/15417",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-azure-dreams-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/azure-dreams-recomp",
+        "authority_ref": "ae54f6e672da42649aa4995bd402c8f54504abfa",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00614, 1 track, retail SCPH-1001 and generated player Azure_Dreams. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/blob/ae54f6e672da42649aa4995bd402c8f54504abfa/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-azure-dreams-recomp-redump-2424",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/2424; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Azure Dreams (USA), SLUS-00614, has 1 track. Track 1 size 298576992, SHA-1 fab68454be5e4e48f7a43ac797cc8c47325c6a20, MD5 9f0afe31a2993af90e43a5ff3139e331 and CRC32 7b0c5f60 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/2424",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-bushido-blade-2-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/bushido-blade-2-recomp",
+        "authority_ref": "e3ce3d204ff143b81c4c545c235be2f335614e2c",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00663, 1 track, retail SCPH-1001 and generated player Bushido_Blade_2. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/blob/e3ce3d204ff143b81c4c545c235be2f335614e2c/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-bushido-blade-2-recomp-redump-17",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/17; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Bushido Blade 2 (USA), SLUS-00663, has 1 track. Track 1 size 701714496, SHA-1 89c1ad4025bfdb78e387ae9acc43e33b7f51db19, MD5 7ca449137357040901724c3ccedede33 and CRC32 39aade1a agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/17",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-colony-wars-red-sun-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/colony-wars-red-sun-recomp",
+        "authority_ref": "5f1bc05d723de19bf32f2194127705f55a84ef02",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00866, 1 track, retail SCPH-1001 and generated player Colony_Wars_Red_Sun. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/blob/5f1bc05d723de19bf32f2194127705f55a84ef02/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-colony-wars-red-sun-recomp-redump-378",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/378; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Colony Wars - Red Sun (USA), SLUS-00866, has 1 track. Track 1 size 697450320, SHA-1 a2e9b43caac15c2afc63781947428bd64a735e2e, MD5 978507959bab6666b96fbb222c40b1f6 and CRC32 d475b99c agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/378",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-digimon-world-2-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/digimon-world-2-recomp",
+        "authority_ref": "d69bcf91b264687854b689408b45f4e999a0dfff",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-01193, 1 track, retail SCPH-1001 and generated player Digimon_World_2. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/blob/d69bcf91b264687854b689408b45f4e999a0dfff/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-digimon-world-2-recomp-redump-7304",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7304; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Digimon World 2 (USA), SLUS-01193, has 1 track. Track 1 size 461993952, SHA-1 d9cb009bc0006e901d8ab1365f764ab71da02115, MD5 e8ee6810a33c45273800df07628d816b and CRC32 b0cd9681 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/7304",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp",
+        "authority_ref": "35c1a67fa2bfe85d2b4e24a0375dc9265f9a9af7",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLES-03736, 1 track, retail SCPH-5552 and generated player Dragon_Ball_Z_Ultimate_Battle_22. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/blob/35c1a67fa2bfe85d2b4e24a0375dc9265f9a9af7/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-redump-371",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/371; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Dragon Ball Z - Ultimate Battle 22 (Europe), SLES-03736, has 1 track. Track 1 size 335562192, SHA-1 2bc030896e91290407f9f80446197a7e5e3eebca, MD5 ddb7a6e3d9f9dda0e5295576e7d95d8b and CRC32 92a3adf5 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/371",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-future-cop-lapd-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/future-cop-lapd-recomp",
+        "authority_ref": "96f1fd0e9cc45a58d0d84535bd3a8199af976c23",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLES-01449, 1 track, retail SCPH-5552 and generated player Future_Cop_LAPD. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/blob/96f1fd0e9cc45a58d0d84535bd3a8199af976c23/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-future-cop-lapd-recomp-redump-33403",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/33403; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Future Cop - L.A.P.D. (Europe) (En,Fr), SLES-01449, has 1 track. Track 1 size 673104768, SHA-1 62791ea95e4e64a94dbe4d86bf49da45de415de0, MD5 a25a51f497d45f41755d6849da262c19 and CRC32 13e76e37 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/33403",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-g-police-weapons-of-justice-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp",
+        "authority_ref": "a12950b697723f7d3568e340f1fa476705e5f644",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00798, 1 track, retail SCPH-1001 and generated player G_Police_Weapons_of_Justice. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/blob/a12950b697723f7d3568e340f1fa476705e5f644/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-g-police-weapons-of-justice-recomp-redump-7335",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7335; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump G-Police - Weapons of Justice (USA), SLUS-00798, has 1 track. Track 1 size 701396976, SHA-1 6465f16acf5b9818a520ce28ca476c3d4eec6856, MD5 88c94a5e217f67aaafc9bf7016dfc871 and CRC32 c6af61a9 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/7335",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-incredible-crisis-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/incredible-crisis-recomp",
+        "authority_ref": "1dba6057ceff844faaaf21d5952a449ddc2d1aa2",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-01225, 1 track, retail SCPH-1001 and generated player Incredible_Crisis. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/blob/1dba6057ceff844faaaf21d5952a449ddc2d1aa2/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-incredible-crisis-recomp-redump-15512",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/15512; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Incredible Crisis (USA), SLUS-01225, has 1 track. Track 1 size 721377216, SHA-1 024fc3ec2309809406b2663b753bf5c4f505cd5b, MD5 4d51e2807dface60c09b3f10558b3b95 and CRC32 9f87357b agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/15512",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-jade-cocoon-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/jade-cocoon-recomp",
+        "authority_ref": "28a07efd4bb6a0ee1bbedc7b4163326dde4a2f58",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00854, 1 track, retail SCPH-1001 and generated player Jade_Cocoon_Story_of_the_Tamamayu. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/blob/28a07efd4bb6a0ee1bbedc7b4163326dde4a2f58/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-jade-cocoon-recomp-redump-93",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/93; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Jade Cocoon - Story of the Tamamayu (USA), SLUS-00854, has 1 track. Track 1 size 656913600, SHA-1 51735a1336f87e45e564e9dc93a1a42233ada807, MD5 ba04169c79f16ba75887e2ead699d977 and CRC32 f5701480 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/93",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-kartia-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/kartia-recomp",
+        "authority_ref": "e4ad3814ce5d6a273b07a6d81e6ce43376a6f8f1",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00631, 1 track, retail SCPH-1001 and generated player Kartia_The_Word_of_Fate. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/blob/e4ad3814ce5d6a273b07a6d81e6ce43376a6f8f1/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-kartia-recomp-redump-1607",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1607; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Kartia - The Word of Fate (USA), SLUS-00631, has 1 track. Track 1 size 531937728, SHA-1 803a93070f70d3b7ec172517033329efdad1f4ca, MD5 674d1dd5c315873f4cd795576ae419eb and CRC32 d3b9df56 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/1607",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-mega-man-legends-2-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/mega-man-legends-2-recomp",
+        "authority_ref": "01b162a70f12beacc85c2526e34c7a19177c29bb",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLES-03556, 2 tracks, retail SCPH-5552 and generated player Mega_Man_Legends_2. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/blob/01b162a70f12beacc85c2526e34c7a19177c29bb/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-mega-man-legends-2-recomp-redump-27002",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/27002; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Mega Man Legends 2 (Europe), SLES-03556, has 2 tracks. Track 1 size 547380960, SHA-1 7deaf00c967c7a45fc1e9778612da970f57ab27a, MD5 aa59b0481fae568a4e970b146e1e1422 and CRC32 c8a989e2 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/27002",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-misadventures-of-tron-bonne-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp",
+        "authority_ref": "0a3f18321fa51d15c9477f93bf503d8a96e885d2",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLES-02795, 2 tracks, retail SCPH-5552 and generated player The_Misadventures_of_Tron_Bonne. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/blob/0a3f18321fa51d15c9477f93bf503d8a96e885d2/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-misadventures-of-tron-bonne-recomp-redump-26820",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/26820; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Misadventures of Tron Bonne, The (Europe), SLES-02795, has 2 tracks. Track 1 size 349947024, SHA-1 bd24f4400d59ea258753e8096de890f1f2c37eb9, MD5 8f2e4a1fc24643fcecdfdd8f5d9b4646 and CRC32 e9101133 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/26820",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-nightmare-creatures-ii-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/nightmare-creatures-ii-recomp",
+        "authority_ref": "2fdf0456bb6a82bf56b4401fe27c68f8333dd208",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-01112, 2 tracks, retail SCPH-1001 and generated player Nightmare_Creatures_II. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/blob/2fdf0456bb6a82bf56b4401fe27c68f8333dd208/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-nightmare-creatures-ii-recomp-redump-13362",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/13362; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Nightmare Creatures II (USA), SLUS-01112, has 2 tracks. Track 1 size 610224048, SHA-1 7e9a2196d97bce6e6c05f924a42b30633b45c17e, MD5 7648f81f2b76d02b9367a5dd8d5495ff and CRC32 a3a8072b agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/13362",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-rival-schools-evolution-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/rival-schools-evolution-recomp",
+        "authority_ref": "d9238d53bdce61a35e02fcd4adc57690c2598d3b",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00771, 1 track, retail SCPH-1001 and generated player Rival_Schools_Evolution_Disc. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/blob/d9238d53bdce61a35e02fcd4adc57690c2598d3b/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-rival-schools-evolution-recomp-redump-1592",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1592; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Rival Schools - United by Fate (USA) (Disc 2) (Evolution Disc), SLUS-00771, has 1 track. Track 1 size 385655088, SHA-1 2bf1af92ed996ebd4d624046496d21567aac39f0, MD5 a7af7e5b80c23fdd08db6b629399dfd7 and CRC32 a1134215 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/1592",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-rival-schools-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/rival-schools-recomp",
+        "authority_ref": "fa0ad34660ea3fd9eb00b306e5808325442292a1",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00681, 1 track, retail SCPH-1001 and generated player Rival_Schools_United_by_Fate. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/blob/fa0ad34660ea3fd9eb00b306e5808325442292a1/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-rival-schools-recomp-redump-1593",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1593; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Rival Schools - United by Fate (USA) (Disc 1) (Arcade Disc), SLUS-00681, has 1 track. Track 1 size 725629632, SHA-1 4bc0b5d38806d7836850d869654bf662b00490d9, MD5 742089ecce542ff076d862694e150370 and CRC32 be1ce7d9 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/1593",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-rollcage-stage-ii-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/rollcage-stage-ii-recomp",
+        "authority_ref": "5f9c56577b2e4b739a964593dcf03d479f31cb6f",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00867, 13 tracks, retail SCPH-1001 and generated player Rollcage_Stage_II. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/blob/5f9c56577b2e4b739a964593dcf03d479f31cb6f/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-rollcage-stage-ii-recomp-redump-6722",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/6722; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Rollcage Stage II (USA), SLUS-00867, has 13 tracks. Track 1 size 189747600, SHA-1 a710c5fab77cbbfe2a5d3678913cf968aee224f9, MD5 c502fc992a02a593f4a0a67ece6f2ef3 and CRC32 d8c95e56 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/6722",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-spider-man-2-enter-electro-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp",
+        "authority_ref": "34b4c3a1082053ffb5ac0eb72f8da63946f06e93",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-01378, 1 track, retail SCPH-1001 and generated player Spider_Man_2_Enter_Electro. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/blob/34b4c3a1082053ffb5ac0eb72f8da63946f06e93/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-spider-man-2-enter-electro-recomp-redump-594",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/594; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Spider-Man 2 - Enter - Electro (USA) (Rev 1), SLUS-01378, has 1 track. Track 1 size 717414096, SHA-1 135ccc4b075ac2c348d2240605ed4266a73c0e42, MD5 d4661873701762fd3277fc59702e15ce and CRC32 42368537 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/594",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-suikoden-ii-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/suikoden-ii-recomp",
+        "authority_ref": "c88ef520334c12bf8f5c54725a9c846203ba9d66",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00958, 1 track, retail SCPH-1001 and generated player Suikoden_II. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/blob/c88ef520334c12bf8f5c54725a9c846203ba9d66/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-suikoden-ii-recomp-redump-148",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/148; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Suikoden II (USA), SLUS-00958, has 1 track. Track 1 size 513907296, SHA-1 123ad3a15b3f634afd2ba0144405f9d156417907, MD5 d0e75f47e4b2451339a5f13ad821ca5d and CRC32 7fbe0579 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/148",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-tail-concerto-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tail-concerto-recomp",
+        "authority_ref": "65d02d5774721f839cbfa06f4a972f0012289884",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SLUS-00660, 2 tracks, retail SCPH-1001 and generated player Tail_Concerto. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/blob/65d02d5774721f839cbfa06f4a972f0012289884/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-tail-concerto-recomp-redump-13672",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/13672; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Tail Concerto (USA), SLUS-00660, has 2 tracks. Track 1 size 596434272, SHA-1 d52bc3ff4cfcbbb9ed68d3299596dcd3213b1971, MD5 bc9c9e0ff03e13b7762aacfda2a82041 and CRC32 02d2d3b6 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/13672",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-team-buddies-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/team-buddies-recomp",
+        "authority_ref": "79bae1c84219b98277e40d2c71abeab80469885f",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SCES-02986, 1 track, retail SCPH-5552 and generated player Team_Buddies. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/blob/79bae1c84219b98277e40d2c71abeab80469885f/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-team-buddies-recomp-redump-43791",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/43791; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Team Buddies (Europe) (En,Es,It), SCES-02986, has 1 track. Track 1 size 717458784, SHA-1 d9c06591a916da6281fb92eaa3f2c083d5b31a5f, MD5 8605d49da65c8306ac92e4b5660eba12 and CRC32 40ce9451 agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/43791",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-wild-arms-recomp-v010-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/wild-arms-recomp",
+        "authority_ref": "1fdc64391938487203e2533bfb77d7362c747182",
+        "reviewed_at": "2026-11-09",
+        "claim": "Exact v0.1.0 Windows and Linux setup kits match provider SHA-256, release manifest and tagged source. The kit selects SCUS-94608, 1 track, retail SCPH-1001 and generated player Wild_Arms. Bundled mods are staged by the runtime build. The player package and state paths are separate. Native setup and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/blob/1fdc64391938487203e2533bfb77d7362c747182/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-wild-arms-recomp-redump-170",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/170; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-09",
+        "claim": "Redump Wild Arms (USA), SCUS-94608, has 1 track. Track 1 size 637163856, SHA-1 428a3678e42c0660697bf43643db1aa566f4821b, MD5 19f6de83eb8b7525d7bf8eb27566ce30 and CRC32 53a5248c agree with the kit. Core binds the first data track and count.",
+        "immutable_url": "https://redump.info/disc/170",
+        "live_url": null
       }
     ],
     "identities": [
@@ -10419,6 +10859,1040 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-armored-core-project-phantasma-recomp-usa-psx",
+        "label": "Armored Core - Project Phantasma (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Armored Core - Project Phantasma (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00670"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "0d3b5bbf3f860fad1482c242566b2ba890f314e2",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-armored-core-project-phantasma-recomp-v010-static-contract",
+                  "alexbeav-armored-core-project-phantasma-recomp-redump-15417"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-armored-core-project-phantasma-recomp-v010-static-contract",
+              "alexbeav-armored-core-project-phantasma-recomp-redump-15417"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-azure-dreams-recomp-usa-psx",
+        "label": "Azure Dreams (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Azure Dreams (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00614"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "fab68454be5e4e48f7a43ac797cc8c47325c6a20",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-azure-dreams-recomp-v010-static-contract",
+                  "alexbeav-azure-dreams-recomp-redump-2424"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-azure-dreams-recomp-v010-static-contract",
+              "alexbeav-azure-dreams-recomp-redump-2424"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-bushido-blade-2-recomp-usa-psx",
+        "label": "Bushido Blade 2 (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Bushido Blade 2 (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00663"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "89c1ad4025bfdb78e387ae9acc43e33b7f51db19",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-bushido-blade-2-recomp-v010-static-contract",
+                  "alexbeav-bushido-blade-2-recomp-redump-17"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-bushido-blade-2-recomp-v010-static-contract",
+              "alexbeav-bushido-blade-2-recomp-redump-17"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-colony-wars-red-sun-recomp-usa-psx",
+        "label": "Colony Wars - Red Sun (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Colony Wars - Red Sun (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00866"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "a2e9b43caac15c2afc63781947428bd64a735e2e",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-colony-wars-red-sun-recomp-v010-static-contract",
+                  "alexbeav-colony-wars-red-sun-recomp-redump-378"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-colony-wars-red-sun-recomp-v010-static-contract",
+              "alexbeav-colony-wars-red-sun-recomp-redump-378"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-digimon-world-2-recomp-usa-psx",
+        "label": "Digimon World 2 (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Digimon World 2 (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01193"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "d9cb009bc0006e901d8ab1365f764ab71da02115",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-digimon-world-2-recomp-v010-static-contract",
+                  "alexbeav-digimon-world-2-recomp-redump-7304"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-digimon-world-2-recomp-v010-static-contract",
+              "alexbeav-digimon-world-2-recomp-redump-7304"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-europe-psx",
+        "label": "Dragon Ball Z - Ultimate Battle 22 (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Dragon Ball Z - Ultimate Battle 22 (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-03736"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "2bc030896e91290407f9f80446197a7e5e3eebca",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-v010-static-contract",
+                  "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-redump-371"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-v010-static-contract",
+              "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-redump-371"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-future-cop-lapd-recomp-europe-psx",
+        "label": "Future Cop - L.A.P.D. (Europe) (En,Fr) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Future Cop - L.A.P.D. (Europe) (En,Fr) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-01449"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "62791ea95e4e64a94dbe4d86bf49da45de415de0",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-future-cop-lapd-recomp-v010-static-contract",
+                  "alexbeav-future-cop-lapd-recomp-redump-33403"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-future-cop-lapd-recomp-v010-static-contract",
+              "alexbeav-future-cop-lapd-recomp-redump-33403"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-g-police-weapons-of-justice-recomp-usa-psx",
+        "label": "G-Police - Weapons of Justice (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "G-Police - Weapons of Justice (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00798"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "6465f16acf5b9818a520ce28ca476c3d4eec6856",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-g-police-weapons-of-justice-recomp-v010-static-contract",
+                  "alexbeav-g-police-weapons-of-justice-recomp-redump-7335"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-g-police-weapons-of-justice-recomp-v010-static-contract",
+              "alexbeav-g-police-weapons-of-justice-recomp-redump-7335"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-incredible-crisis-recomp-usa-psx",
+        "label": "Incredible Crisis (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Incredible Crisis (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01225"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "024fc3ec2309809406b2663b753bf5c4f505cd5b",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-incredible-crisis-recomp-v010-static-contract",
+                  "alexbeav-incredible-crisis-recomp-redump-15512"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-incredible-crisis-recomp-v010-static-contract",
+              "alexbeav-incredible-crisis-recomp-redump-15512"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-jade-cocoon-recomp-usa-psx",
+        "label": "Jade Cocoon - Story of the Tamamayu (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Jade Cocoon - Story of the Tamamayu (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00854"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "51735a1336f87e45e564e9dc93a1a42233ada807",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-jade-cocoon-recomp-v010-static-contract",
+                  "alexbeav-jade-cocoon-recomp-redump-93"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-jade-cocoon-recomp-v010-static-contract",
+              "alexbeav-jade-cocoon-recomp-redump-93"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-kartia-recomp-usa-psx",
+        "label": "Kartia - The Word of Fate (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Kartia - The Word of Fate (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00631"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "803a93070f70d3b7ec172517033329efdad1f4ca",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-kartia-recomp-v010-static-contract",
+                  "alexbeav-kartia-recomp-redump-1607"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-kartia-recomp-v010-static-contract",
+              "alexbeav-kartia-recomp-redump-1607"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-mega-man-legends-2-recomp-europe-psx",
+        "label": "Mega Man Legends 2 (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Mega Man Legends 2 (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-03556"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "7deaf00c967c7a45fc1e9778612da970f57ab27a",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-mega-man-legends-2-recomp-v010-static-contract",
+                  "alexbeav-mega-man-legends-2-recomp-redump-27002"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-mega-man-legends-2-recomp-v010-static-contract",
+              "alexbeav-mega-man-legends-2-recomp-redump-27002"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-misadventures-of-tron-bonne-recomp-europe-psx",
+        "label": "Misadventures of Tron Bonne, The (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Misadventures of Tron Bonne, The (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-02795"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "bd24f4400d59ea258753e8096de890f1f2c37eb9",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-misadventures-of-tron-bonne-recomp-v010-static-contract",
+                  "alexbeav-misadventures-of-tron-bonne-recomp-redump-26820"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-misadventures-of-tron-bonne-recomp-v010-static-contract",
+              "alexbeav-misadventures-of-tron-bonne-recomp-redump-26820"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-nightmare-creatures-ii-recomp-usa-psx",
+        "label": "Nightmare Creatures II (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Nightmare Creatures II (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01112"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "7e9a2196d97bce6e6c05f924a42b30633b45c17e",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-nightmare-creatures-ii-recomp-v010-static-contract",
+                  "alexbeav-nightmare-creatures-ii-recomp-redump-13362"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-nightmare-creatures-ii-recomp-v010-static-contract",
+              "alexbeav-nightmare-creatures-ii-recomp-redump-13362"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-rival-schools-evolution-recomp-usa-psx",
+        "label": "Rival Schools - United by Fate (USA) (Disc 2) (Evolution Disc) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Rival Schools - United by Fate (USA) (Disc 2) (Evolution Disc) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00771"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "2bf1af92ed996ebd4d624046496d21567aac39f0",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-rival-schools-evolution-recomp-v010-static-contract",
+                  "alexbeav-rival-schools-evolution-recomp-redump-1592"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-rival-schools-evolution-recomp-v010-static-contract",
+              "alexbeav-rival-schools-evolution-recomp-redump-1592"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-rival-schools-recomp-usa-psx",
+        "label": "Rival Schools - United by Fate (USA) (Disc 1) (Arcade Disc) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Rival Schools - United by Fate (USA) (Disc 1) (Arcade Disc) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00681"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "4bc0b5d38806d7836850d869654bf662b00490d9",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-rival-schools-recomp-v010-static-contract",
+                  "alexbeav-rival-schools-recomp-redump-1593"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-rival-schools-recomp-v010-static-contract",
+              "alexbeav-rival-schools-recomp-redump-1593"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-rollcage-stage-ii-recomp-usa-psx",
+        "label": "Rollcage Stage II (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Rollcage Stage II (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00867"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  13
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "a710c5fab77cbbfe2a5d3678913cf968aee224f9",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-rollcage-stage-ii-recomp-v010-static-contract",
+                  "alexbeav-rollcage-stage-ii-recomp-redump-6722"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-rollcage-stage-ii-recomp-v010-static-contract",
+              "alexbeav-rollcage-stage-ii-recomp-redump-6722"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-spider-man-2-enter-electro-recomp-usa-psx",
+        "label": "Spider-Man 2 - Enter - Electro (USA) (Rev 1) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa-rev-1",
+            "title": "Spider-Man 2 - Enter - Electro (USA) (Rev 1) disc",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [
+              "SLUS-01378"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "135ccc4b075ac2c348d2240605ed4266a73c0e42",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-spider-man-2-enter-electro-recomp-v010-static-contract",
+                  "alexbeav-spider-man-2-enter-electro-recomp-redump-594"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-spider-man-2-enter-electro-recomp-v010-static-contract",
+              "alexbeav-spider-man-2-enter-electro-recomp-redump-594"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-suikoden-ii-recomp-usa-psx",
+        "label": "Suikoden II (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Suikoden II (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00958"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "123ad3a15b3f634afd2ba0144405f9d156417907",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-suikoden-ii-recomp-v010-static-contract",
+                  "alexbeav-suikoden-ii-recomp-redump-148"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-suikoden-ii-recomp-v010-static-contract",
+              "alexbeav-suikoden-ii-recomp-redump-148"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-tail-concerto-recomp-usa-psx",
+        "label": "Tail Concerto (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Tail Concerto (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00660"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "d52bc3ff4cfcbbb9ed68d3299596dcd3213b1971",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-tail-concerto-recomp-v010-static-contract",
+                  "alexbeav-tail-concerto-recomp-redump-13672"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-tail-concerto-recomp-v010-static-contract",
+              "alexbeav-tail-concerto-recomp-redump-13672"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-team-buddies-recomp-europe-psx",
+        "label": "Team Buddies (Europe) (En,Es,It) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Team Buddies (Europe) (En,Es,It) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SCES-02986"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "d9c06591a916da6281fb92eaa3f2c083d5b31a5f",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-team-buddies-recomp-v010-static-contract",
+                  "alexbeav-team-buddies-recomp-redump-43791"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-team-buddies-recomp-v010-static-contract",
+              "alexbeav-team-buddies-recomp-redump-43791"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-wild-arms-recomp-usa-psx",
+        "label": "Wild Arms (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Wild Arms (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SCUS-94608"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "428a3678e42c0660697bf43643db1aa566f4821b",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-wild-arms-recomp-v010-static-contract",
+                  "alexbeav-wild-arms-recomp-redump-170"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-wild-arms-recomp-v010-static-contract",
+              "alexbeav-wild-arms-recomp-redump-170"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -15074,6 +16548,1392 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "fa83b3be67076b4c70136392469564cf14a2989a750ff091aa40478ccbf22438"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-armored-core-project-phantasma-recomp-game-source",
+        "port_id": "alexbeav-armored-core-project-phantasma-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-armored-core-project-phantasma-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-armored-core-project-phantasma-recomp-v010-static-contract",
+          "alexbeav-armored-core-project-phantasma-recomp-redump-15417"
+        ],
+        "authority_ref": "5f79ffc1515435a2fd5ae318bad4f0159308f54a",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/blob/5f79ffc1515435a2fd5ae318bad4f0159308f54a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "a980f0b1997997a1f86e1c920062ba2c300b7cb7f0c0fbfb505097b4d1435d20"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "0dd6d387189dede80e99a1ffb6a9c94c678f00dda10d2db38b69c487b4b0d227"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-armored-core-project-phantasma-recomp-bios-source",
+        "port_id": "alexbeav-armored-core-project-phantasma-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-armored-core-project-phantasma-recomp-v010-static-contract"
+        ],
+        "authority_ref": "5f79ffc1515435a2fd5ae318bad4f0159308f54a",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/blob/5f79ffc1515435a2fd5ae318bad4f0159308f54a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "a980f0b1997997a1f86e1c920062ba2c300b7cb7f0c0fbfb505097b4d1435d20"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "0dd6d387189dede80e99a1ffb6a9c94c678f00dda10d2db38b69c487b4b0d227"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-azure-dreams-recomp-game-source",
+        "port_id": "alexbeav-azure-dreams-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-azure-dreams-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-azure-dreams-recomp-v010-static-contract",
+          "alexbeav-azure-dreams-recomp-redump-2424"
+        ],
+        "authority_ref": "ae54f6e672da42649aa4995bd402c8f54504abfa",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/blob/ae54f6e672da42649aa4995bd402c8f54504abfa/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b0da230c96b8a7495f0483de62b97757a71568930eea7cb0f4ecbf9d0169ee56"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "7e6c21601a62b7b535adf89ddb5206ae1f2e6142461ebae9bf4e6cc1a97dbd7c"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-azure-dreams-recomp-bios-source",
+        "port_id": "alexbeav-azure-dreams-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-azure-dreams-recomp-v010-static-contract"
+        ],
+        "authority_ref": "ae54f6e672da42649aa4995bd402c8f54504abfa",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/blob/ae54f6e672da42649aa4995bd402c8f54504abfa/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b0da230c96b8a7495f0483de62b97757a71568930eea7cb0f4ecbf9d0169ee56"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "7e6c21601a62b7b535adf89ddb5206ae1f2e6142461ebae9bf4e6cc1a97dbd7c"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-bushido-blade-2-recomp-game-source",
+        "port_id": "alexbeav-bushido-blade-2-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-bushido-blade-2-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-bushido-blade-2-recomp-v010-static-contract",
+          "alexbeav-bushido-blade-2-recomp-redump-17"
+        ],
+        "authority_ref": "e3ce3d204ff143b81c4c545c235be2f335614e2c",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/blob/e3ce3d204ff143b81c4c545c235be2f335614e2c/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "9149471e9742b72165812e12e1dcd679dba88cb323563eaf3e6254074509a29e"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "1546fb7fc1724013bc2fe49c61553cb35ba3598e96d08b674276db4df0374a89"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-bushido-blade-2-recomp-bios-source",
+        "port_id": "alexbeav-bushido-blade-2-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-bushido-blade-2-recomp-v010-static-contract"
+        ],
+        "authority_ref": "e3ce3d204ff143b81c4c545c235be2f335614e2c",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/blob/e3ce3d204ff143b81c4c545c235be2f335614e2c/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "9149471e9742b72165812e12e1dcd679dba88cb323563eaf3e6254074509a29e"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "1546fb7fc1724013bc2fe49c61553cb35ba3598e96d08b674276db4df0374a89"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-colony-wars-red-sun-recomp-game-source",
+        "port_id": "alexbeav-colony-wars-red-sun-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-colony-wars-red-sun-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-colony-wars-red-sun-recomp-v010-static-contract",
+          "alexbeav-colony-wars-red-sun-recomp-redump-378"
+        ],
+        "authority_ref": "5f1bc05d723de19bf32f2194127705f55a84ef02",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/blob/5f1bc05d723de19bf32f2194127705f55a84ef02/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "61ca59aa785156d4a9d588f595b2717b2e6d855068e28a0cb428728cf5eb8647"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "cfd244db57a832c17d26aaa854383756874efa4f21873a172fe9eb34ce76f816"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-colony-wars-red-sun-recomp-bios-source",
+        "port_id": "alexbeav-colony-wars-red-sun-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-colony-wars-red-sun-recomp-v010-static-contract"
+        ],
+        "authority_ref": "5f1bc05d723de19bf32f2194127705f55a84ef02",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/blob/5f1bc05d723de19bf32f2194127705f55a84ef02/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "61ca59aa785156d4a9d588f595b2717b2e6d855068e28a0cb428728cf5eb8647"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "cfd244db57a832c17d26aaa854383756874efa4f21873a172fe9eb34ce76f816"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-digimon-world-2-recomp-game-source",
+        "port_id": "alexbeav-digimon-world-2-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-digimon-world-2-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-digimon-world-2-recomp-v010-static-contract",
+          "alexbeav-digimon-world-2-recomp-redump-7304"
+        ],
+        "authority_ref": "d69bcf91b264687854b689408b45f4e999a0dfff",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/blob/d69bcf91b264687854b689408b45f4e999a0dfff/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "c3b6c53476651eb672944699e397a1d2ed0edb2d7d57cddd369a333acabef024"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "a4e468fb83a3be75be56f43ad7fecf9e838c5b45738b33492c702a676feef4a0"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-digimon-world-2-recomp-bios-source",
+        "port_id": "alexbeav-digimon-world-2-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-digimon-world-2-recomp-v010-static-contract"
+        ],
+        "authority_ref": "d69bcf91b264687854b689408b45f4e999a0dfff",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/blob/d69bcf91b264687854b689408b45f4e999a0dfff/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "c3b6c53476651eb672944699e397a1d2ed0edb2d7d57cddd369a333acabef024"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "a4e468fb83a3be75be56f43ad7fecf9e838c5b45738b33492c702a676feef4a0"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-game-source",
+        "port_id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-v010-static-contract",
+          "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-redump-371"
+        ],
+        "authority_ref": "35c1a67fa2bfe85d2b4e24a0375dc9265f9a9af7",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/blob/35c1a67fa2bfe85d2b4e24a0375dc9265f9a9af7/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "c9fd67f360d226ee1dd92ba281eb2682a98a3a5ad453678e81fc3812f203fcaf"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d627ccec93fb9498ca556c6a18cb8d77f5c4dc8319b80bf5bd9691cd6993d735"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-bios-source",
+        "port_id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-dragon-ball-z-ultimate-battle-22-recomp-v010-static-contract"
+        ],
+        "authority_ref": "35c1a67fa2bfe85d2b4e24a0375dc9265f9a9af7",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/blob/35c1a67fa2bfe85d2b4e24a0375dc9265f9a9af7/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "c9fd67f360d226ee1dd92ba281eb2682a98a3a5ad453678e81fc3812f203fcaf"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d627ccec93fb9498ca556c6a18cb8d77f5c4dc8319b80bf5bd9691cd6993d735"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-future-cop-lapd-recomp-game-source",
+        "port_id": "alexbeav-future-cop-lapd-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-future-cop-lapd-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-future-cop-lapd-recomp-v010-static-contract",
+          "alexbeav-future-cop-lapd-recomp-redump-33403"
+        ],
+        "authority_ref": "96f1fd0e9cc45a58d0d84535bd3a8199af976c23",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/blob/96f1fd0e9cc45a58d0d84535bd3a8199af976c23/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "fb7e2a42226db8a62c87ca45e137e4537113425a1c7c13d88105b1d47c26bc83"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "a82972985f7e356f2528795c91eade4cf5af40077027b4a7b7cda6e1b676d7d5"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-future-cop-lapd-recomp-bios-source",
+        "port_id": "alexbeav-future-cop-lapd-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-future-cop-lapd-recomp-v010-static-contract"
+        ],
+        "authority_ref": "96f1fd0e9cc45a58d0d84535bd3a8199af976c23",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/blob/96f1fd0e9cc45a58d0d84535bd3a8199af976c23/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "fb7e2a42226db8a62c87ca45e137e4537113425a1c7c13d88105b1d47c26bc83"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "a82972985f7e356f2528795c91eade4cf5af40077027b4a7b7cda6e1b676d7d5"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-g-police-weapons-of-justice-recomp-game-source",
+        "port_id": "alexbeav-g-police-weapons-of-justice-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-g-police-weapons-of-justice-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-g-police-weapons-of-justice-recomp-v010-static-contract",
+          "alexbeav-g-police-weapons-of-justice-recomp-redump-7335"
+        ],
+        "authority_ref": "a12950b697723f7d3568e340f1fa476705e5f644",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/blob/a12950b697723f7d3568e340f1fa476705e5f644/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "0ffdb71e7a47c920a3b6b90b74264ef8e375e67ae9a14e94e04687df1e25a8c8"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "3b1f3ed83ff344afe2459911182d98156d5f0c9a08993f3ce567a41a18f3c15d"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-g-police-weapons-of-justice-recomp-bios-source",
+        "port_id": "alexbeav-g-police-weapons-of-justice-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-g-police-weapons-of-justice-recomp-v010-static-contract"
+        ],
+        "authority_ref": "a12950b697723f7d3568e340f1fa476705e5f644",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/blob/a12950b697723f7d3568e340f1fa476705e5f644/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "0ffdb71e7a47c920a3b6b90b74264ef8e375e67ae9a14e94e04687df1e25a8c8"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "3b1f3ed83ff344afe2459911182d98156d5f0c9a08993f3ce567a41a18f3c15d"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-incredible-crisis-recomp-game-source",
+        "port_id": "alexbeav-incredible-crisis-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-incredible-crisis-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-incredible-crisis-recomp-v010-static-contract",
+          "alexbeav-incredible-crisis-recomp-redump-15512"
+        ],
+        "authority_ref": "1dba6057ceff844faaaf21d5952a449ddc2d1aa2",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/blob/1dba6057ceff844faaaf21d5952a449ddc2d1aa2/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b275b575c8d944d5435f6433d3521cebe7cfe4dbb5b7150d23743fdcd9512172"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "fb52b31647ef0863056b2d1d45822e067f2f62a4d8325a647b9c477596707f84"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-incredible-crisis-recomp-bios-source",
+        "port_id": "alexbeav-incredible-crisis-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-incredible-crisis-recomp-v010-static-contract"
+        ],
+        "authority_ref": "1dba6057ceff844faaaf21d5952a449ddc2d1aa2",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/blob/1dba6057ceff844faaaf21d5952a449ddc2d1aa2/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b275b575c8d944d5435f6433d3521cebe7cfe4dbb5b7150d23743fdcd9512172"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "fb52b31647ef0863056b2d1d45822e067f2f62a4d8325a647b9c477596707f84"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-jade-cocoon-recomp-game-source",
+        "port_id": "alexbeav-jade-cocoon-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-jade-cocoon-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-jade-cocoon-recomp-v010-static-contract",
+          "alexbeav-jade-cocoon-recomp-redump-93"
+        ],
+        "authority_ref": "28a07efd4bb6a0ee1bbedc7b4163326dde4a2f58",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/blob/28a07efd4bb6a0ee1bbedc7b4163326dde4a2f58/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "552d7a45faa54a71147bdd51104e61a688a069a206d73e1549430a5ada392f25"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b47a13a4eb5843d5cd85b14fdf057482d9413db8eb24e92c9cc74382c125ace8"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-jade-cocoon-recomp-bios-source",
+        "port_id": "alexbeav-jade-cocoon-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-jade-cocoon-recomp-v010-static-contract"
+        ],
+        "authority_ref": "28a07efd4bb6a0ee1bbedc7b4163326dde4a2f58",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/blob/28a07efd4bb6a0ee1bbedc7b4163326dde4a2f58/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "552d7a45faa54a71147bdd51104e61a688a069a206d73e1549430a5ada392f25"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b47a13a4eb5843d5cd85b14fdf057482d9413db8eb24e92c9cc74382c125ace8"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-kartia-recomp-game-source",
+        "port_id": "alexbeav-kartia-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-kartia-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-kartia-recomp-v010-static-contract",
+          "alexbeav-kartia-recomp-redump-1607"
+        ],
+        "authority_ref": "e4ad3814ce5d6a273b07a6d81e6ce43376a6f8f1",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/blob/e4ad3814ce5d6a273b07a6d81e6ce43376a6f8f1/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "6fe08e7158add08d022c20863f6f40d0e3d3aaff12553cdd8e95e577fccb7f33"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b9599d49c991c499117ba136290e3d837da8e56d620651d735658fe4d64c9f2e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-kartia-recomp-bios-source",
+        "port_id": "alexbeav-kartia-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-kartia-recomp-v010-static-contract"
+        ],
+        "authority_ref": "e4ad3814ce5d6a273b07a6d81e6ce43376a6f8f1",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/blob/e4ad3814ce5d6a273b07a6d81e6ce43376a6f8f1/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "6fe08e7158add08d022c20863f6f40d0e3d3aaff12553cdd8e95e577fccb7f33"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b9599d49c991c499117ba136290e3d837da8e56d620651d735658fe4d64c9f2e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-mega-man-legends-2-recomp-game-source",
+        "port_id": "alexbeav-mega-man-legends-2-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-mega-man-legends-2-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-mega-man-legends-2-recomp-v010-static-contract",
+          "alexbeav-mega-man-legends-2-recomp-redump-27002"
+        ],
+        "authority_ref": "01b162a70f12beacc85c2526e34c7a19177c29bb",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/blob/01b162a70f12beacc85c2526e34c7a19177c29bb/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "e48dc1dfd844bda8d9c4c91ece4332fec28aee04858b6caa2fed0d48b3765383"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "6b6ef83d046cf3e8add984e9e08a926534d013ae141abe2ea8cc7ebddfefde79"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-mega-man-legends-2-recomp-bios-source",
+        "port_id": "alexbeav-mega-man-legends-2-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-mega-man-legends-2-recomp-v010-static-contract"
+        ],
+        "authority_ref": "01b162a70f12beacc85c2526e34c7a19177c29bb",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/blob/01b162a70f12beacc85c2526e34c7a19177c29bb/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "e48dc1dfd844bda8d9c4c91ece4332fec28aee04858b6caa2fed0d48b3765383"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "6b6ef83d046cf3e8add984e9e08a926534d013ae141abe2ea8cc7ebddfefde79"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-misadventures-of-tron-bonne-recomp-game-source",
+        "port_id": "alexbeav-misadventures-of-tron-bonne-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-misadventures-of-tron-bonne-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-misadventures-of-tron-bonne-recomp-v010-static-contract",
+          "alexbeav-misadventures-of-tron-bonne-recomp-redump-26820"
+        ],
+        "authority_ref": "0a3f18321fa51d15c9477f93bf503d8a96e885d2",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/blob/0a3f18321fa51d15c9477f93bf503d8a96e885d2/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "5d96ad14b375ddad46c446c726d452369478f1b783de272ec38c1ba1f5f92ac5"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "9e2ce096498762fa93bb8048735bac6bbeb4b29bee903805dcffe21e319251ab"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-misadventures-of-tron-bonne-recomp-bios-source",
+        "port_id": "alexbeav-misadventures-of-tron-bonne-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-misadventures-of-tron-bonne-recomp-v010-static-contract"
+        ],
+        "authority_ref": "0a3f18321fa51d15c9477f93bf503d8a96e885d2",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/blob/0a3f18321fa51d15c9477f93bf503d8a96e885d2/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "5d96ad14b375ddad46c446c726d452369478f1b783de272ec38c1ba1f5f92ac5"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "9e2ce096498762fa93bb8048735bac6bbeb4b29bee903805dcffe21e319251ab"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-nightmare-creatures-ii-recomp-game-source",
+        "port_id": "alexbeav-nightmare-creatures-ii-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-nightmare-creatures-ii-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-nightmare-creatures-ii-recomp-v010-static-contract",
+          "alexbeav-nightmare-creatures-ii-recomp-redump-13362"
+        ],
+        "authority_ref": "2fdf0456bb6a82bf56b4401fe27c68f8333dd208",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/blob/2fdf0456bb6a82bf56b4401fe27c68f8333dd208/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "7d89f07942219589c84c052dc65519c6043f38bf7346c7125a8c88800a0fa182"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "2b926ccada24e02b04da0cfad379dbfeb6cc93b7620880a7260f48e5ec4dfdb0"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-nightmare-creatures-ii-recomp-bios-source",
+        "port_id": "alexbeav-nightmare-creatures-ii-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-nightmare-creatures-ii-recomp-v010-static-contract"
+        ],
+        "authority_ref": "2fdf0456bb6a82bf56b4401fe27c68f8333dd208",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/blob/2fdf0456bb6a82bf56b4401fe27c68f8333dd208/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "7d89f07942219589c84c052dc65519c6043f38bf7346c7125a8c88800a0fa182"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "2b926ccada24e02b04da0cfad379dbfeb6cc93b7620880a7260f48e5ec4dfdb0"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-rival-schools-evolution-recomp-game-source",
+        "port_id": "alexbeav-rival-schools-evolution-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-rival-schools-evolution-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-rival-schools-evolution-recomp-v010-static-contract",
+          "alexbeav-rival-schools-evolution-recomp-redump-1592"
+        ],
+        "authority_ref": "d9238d53bdce61a35e02fcd4adc57690c2598d3b",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/blob/d9238d53bdce61a35e02fcd4adc57690c2598d3b/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d1a1a9f72c431c21b52b28d2233fd71150ce0323f8e1fd38a8c407fbc8282322"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "defabab0053f2abc1157e9105304ca3628cd4bf56ba301be4f962e3acd1ab193"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-rival-schools-evolution-recomp-bios-source",
+        "port_id": "alexbeav-rival-schools-evolution-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-rival-schools-evolution-recomp-v010-static-contract"
+        ],
+        "authority_ref": "d9238d53bdce61a35e02fcd4adc57690c2598d3b",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/blob/d9238d53bdce61a35e02fcd4adc57690c2598d3b/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d1a1a9f72c431c21b52b28d2233fd71150ce0323f8e1fd38a8c407fbc8282322"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "defabab0053f2abc1157e9105304ca3628cd4bf56ba301be4f962e3acd1ab193"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-rival-schools-recomp-game-source",
+        "port_id": "alexbeav-rival-schools-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-rival-schools-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-rival-schools-recomp-v010-static-contract",
+          "alexbeav-rival-schools-recomp-redump-1593"
+        ],
+        "authority_ref": "fa0ad34660ea3fd9eb00b306e5808325442292a1",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/blob/fa0ad34660ea3fd9eb00b306e5808325442292a1/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "f93e4a935a6ecba10aa78d7854a174dbdd48251dbdf5d92ca9f3157bb73b028b"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "9253c5a740b01359de9a7bfc150cb3060e7a936b44e849a7c5e5fdb28218eab1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-rival-schools-recomp-bios-source",
+        "port_id": "alexbeav-rival-schools-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-rival-schools-recomp-v010-static-contract"
+        ],
+        "authority_ref": "fa0ad34660ea3fd9eb00b306e5808325442292a1",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/blob/fa0ad34660ea3fd9eb00b306e5808325442292a1/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "f93e4a935a6ecba10aa78d7854a174dbdd48251dbdf5d92ca9f3157bb73b028b"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "9253c5a740b01359de9a7bfc150cb3060e7a936b44e849a7c5e5fdb28218eab1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-rollcage-stage-ii-recomp-game-source",
+        "port_id": "alexbeav-rollcage-stage-ii-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-rollcage-stage-ii-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-rollcage-stage-ii-recomp-v010-static-contract",
+          "alexbeav-rollcage-stage-ii-recomp-redump-6722"
+        ],
+        "authority_ref": "5f9c56577b2e4b739a964593dcf03d479f31cb6f",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/blob/5f9c56577b2e4b739a964593dcf03d479f31cb6f/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "91c8058c6c335ca81ddad2c93d4ec8e2b42b43e18200a803559b18e7fa3cc5bb"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "3dd57be8e706ed74249878c4a5c5154d6b81f9b23a241ef2b016179e15c4f2bf"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-rollcage-stage-ii-recomp-bios-source",
+        "port_id": "alexbeav-rollcage-stage-ii-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-rollcage-stage-ii-recomp-v010-static-contract"
+        ],
+        "authority_ref": "5f9c56577b2e4b739a964593dcf03d479f31cb6f",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/blob/5f9c56577b2e4b739a964593dcf03d479f31cb6f/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "91c8058c6c335ca81ddad2c93d4ec8e2b42b43e18200a803559b18e7fa3cc5bb"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "3dd57be8e706ed74249878c4a5c5154d6b81f9b23a241ef2b016179e15c4f2bf"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-spider-man-2-enter-electro-recomp-game-source",
+        "port_id": "alexbeav-spider-man-2-enter-electro-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-spider-man-2-enter-electro-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev-1"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-spider-man-2-enter-electro-recomp-v010-static-contract",
+          "alexbeav-spider-man-2-enter-electro-recomp-redump-594"
+        ],
+        "authority_ref": "34b4c3a1082053ffb5ac0eb72f8da63946f06e93",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/blob/34b4c3a1082053ffb5ac0eb72f8da63946f06e93/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b185a40663774e8234b718dc7bdebf08ca3c1ca19a45e4becebc09c8ff6f7a24"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "70ec12ff314b50286c0eb43cfdca9101e3e8a0b15f2fb6733df6ca2b995c7462"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-spider-man-2-enter-electro-recomp-bios-source",
+        "port_id": "alexbeav-spider-man-2-enter-electro-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-spider-man-2-enter-electro-recomp-v010-static-contract"
+        ],
+        "authority_ref": "34b4c3a1082053ffb5ac0eb72f8da63946f06e93",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/blob/34b4c3a1082053ffb5ac0eb72f8da63946f06e93/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "b185a40663774e8234b718dc7bdebf08ca3c1ca19a45e4becebc09c8ff6f7a24"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "70ec12ff314b50286c0eb43cfdca9101e3e8a0b15f2fb6733df6ca2b995c7462"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-suikoden-ii-recomp-game-source",
+        "port_id": "alexbeav-suikoden-ii-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-suikoden-ii-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-suikoden-ii-recomp-v010-static-contract",
+          "alexbeav-suikoden-ii-recomp-redump-148"
+        ],
+        "authority_ref": "c88ef520334c12bf8f5c54725a9c846203ba9d66",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/blob/c88ef520334c12bf8f5c54725a9c846203ba9d66/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "c83d77c076476e0360a91f70d05d802fc6decb77bcd92c5df7bd89a5e78dcf7a"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "f6cfd38bb4f9dca498e26d16dd7ccf1fb4605eadf92944b91711d3de4cd4c08f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-suikoden-ii-recomp-bios-source",
+        "port_id": "alexbeav-suikoden-ii-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-suikoden-ii-recomp-v010-static-contract"
+        ],
+        "authority_ref": "c88ef520334c12bf8f5c54725a9c846203ba9d66",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/blob/c88ef520334c12bf8f5c54725a9c846203ba9d66/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "c83d77c076476e0360a91f70d05d802fc6decb77bcd92c5df7bd89a5e78dcf7a"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "f6cfd38bb4f9dca498e26d16dd7ccf1fb4605eadf92944b91711d3de4cd4c08f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tail-concerto-recomp-game-source",
+        "port_id": "alexbeav-tail-concerto-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-tail-concerto-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tail-concerto-recomp-v010-static-contract",
+          "alexbeav-tail-concerto-recomp-redump-13672"
+        ],
+        "authority_ref": "65d02d5774721f839cbfa06f4a972f0012289884",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/blob/65d02d5774721f839cbfa06f4a972f0012289884/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "0024c4ce438e72b65b8b52eebde65601256a8f416b2aa903805e6d51822efe4a"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "11f54fee4cf06d1e6312ca76aef83492817a70c0cf2ba69eea5522d5fbbf57c7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tail-concerto-recomp-bios-source",
+        "port_id": "alexbeav-tail-concerto-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tail-concerto-recomp-v010-static-contract"
+        ],
+        "authority_ref": "65d02d5774721f839cbfa06f4a972f0012289884",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/blob/65d02d5774721f839cbfa06f4a972f0012289884/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "0024c4ce438e72b65b8b52eebde65601256a8f416b2aa903805e6d51822efe4a"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "11f54fee4cf06d1e6312ca76aef83492817a70c0cf2ba69eea5522d5fbbf57c7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-team-buddies-recomp-game-source",
+        "port_id": "alexbeav-team-buddies-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-team-buddies-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-team-buddies-recomp-v010-static-contract",
+          "alexbeav-team-buddies-recomp-redump-43791"
+        ],
+        "authority_ref": "79bae1c84219b98277e40d2c71abeab80469885f",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/blob/79bae1c84219b98277e40d2c71abeab80469885f/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "26e14098c48b6aefd68c7655daf37ff2c79ee780cf7b17b30326e1b09bd05821"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d99efb1592c9a1950815c7a6bd704104261fbe1635f6ef0d3317819d6952ea8d"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-team-buddies-recomp-bios-source",
+        "port_id": "alexbeav-team-buddies-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-team-buddies-recomp-v010-static-contract"
+        ],
+        "authority_ref": "79bae1c84219b98277e40d2c71abeab80469885f",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/blob/79bae1c84219b98277e40d2c71abeab80469885f/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "26e14098c48b6aefd68c7655daf37ff2c79ee780cf7b17b30326e1b09bd05821"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "d99efb1592c9a1950815c7a6bd704104261fbe1635f6ef0d3317819d6952ea8d"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-wild-arms-recomp-game-source",
+        "port_id": "alexbeav-wild-arms-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-wild-arms-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-wild-arms-recomp-v010-static-contract",
+          "alexbeav-wild-arms-recomp-redump-170"
+        ],
+        "authority_ref": "1fdc64391938487203e2533bfb77d7362c747182",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/blob/1fdc64391938487203e2533bfb77d7362c747182/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "7d5cd3fc69ecfd00828f8300499107af38307eb396d87520c6644b4c887ba1ba"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "9dd44a4b9eb19c5a14e0cab44096577f40aa1ccabdec912800e1e0e7a692a3e4"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-wild-arms-recomp-bios-source",
+        "port_id": "alexbeav-wild-arms-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-wild-arms-recomp-v010-static-contract"
+        ],
+        "authority_ref": "1fdc64391938487203e2533bfb77d7362c747182",
+        "reviewed_at": "2026-11-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/blob/1fdc64391938487203e2533bfb77d7362c747182/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "7d5cd3fc69ecfd00828f8300499107af38307eb396d87520c6644b4c887ba1ba"
+          },
+          {
+            "upstream_ref": "v0.1.0",
+            "artifact_sha256": "9dd44a4b9eb19c5a14e0cab44096577f40aa1ccabdec912800e1e0e7a692a3e4"
           }
         ],
         "aliases": [],

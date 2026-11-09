@@ -562,7 +562,7 @@ Official release discovery may replace changing direct manifests when the same
 reviewed package, executable and preparation rules apply. Native archives do not
 replace this richer integration. Platform commitments remain independently scoped.
 
-The upstream framework stages bundled mod packages into the same
+Older upstream framework versions stage bundled mod packages into the same
 `mods/packages/<id>/<version>` tree used for player imports. For a retained
 contract declaring `mods`, Core preserves complete destination-only packages and
 adds complete absent versions through private, same-filesystem staging and atomic
@@ -584,7 +584,14 @@ runtime data remains intact; failed collection is not a completed backup or
 recovery. Normal collection still mirrors deliberate package removals and ordinary
 root-state changes. Only the retained `packages` layout has package semantics;
 arbitrary historical `bundled` or `installed` folders are not reclassified.
-Supporting newer split-root SDK layouts remains a separate compatibility decision.
+
+For a reviewed split layout, declare the exact player paths
+`mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
+`mods/state.toml.tmp`. The runtime build stages its own `mods/bundled` files
+and any bundled README. Those files belong to the verified runtime version.
+Core carries declared player paths through normal retained collection, restore
+and rollback. Upstream owns any legacy package migration within those paths.
+The existing whole-tree contract continues to apply to older definitions.
 
 PS1 installs publish inactive and run player-data preflight before activation.
 Older interrupted install journals use the same order; an already committed

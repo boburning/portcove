@@ -849,6 +849,460 @@
         "bios_profile": "psx-scph-5552-bios",
         "crash_diagnostic": true
       }
+    },
+    "alexbeav-armored-core-project-phantasma-recomp": {
+      "inventory": "alexbeav-armored-core-project-phantasma-recomp",
+      "selected_assets": [
+        "armoredcoreprojectphantasma-0.1.0-windows-x64.zip",
+        "armoredcoreprojectphantasma-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "armoredcoreprojectphantasma-0.1.0-linux-x64.zip",
+        "armoredcoreprojectphantasma-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00670",
+        "track_count": 1,
+        "track_sha1": "0d3b5bbf3f860fad1482c242566b2ba890f314e2",
+        "track_sha256": null,
+        "generated_executable": "Armored_Core_Project_Phantasma.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-azure-dreams-recomp": {
+      "inventory": "alexbeav-azure-dreams-recomp",
+      "selected_assets": [
+        "azuredreams-0.1.0-windows-x64.zip",
+        "azuredreams-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "azuredreams-0.1.0-linux-x64.zip",
+        "azuredreams-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00614",
+        "track_count": 1,
+        "track_sha1": "fab68454be5e4e48f7a43ac797cc8c47325c6a20",
+        "track_sha256": null,
+        "generated_executable": "Azure_Dreams.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-bushido-blade-2-recomp": {
+      "inventory": "alexbeav-bushido-blade-2-recomp",
+      "selected_assets": [
+        "bushidoblade2-0.1.0-windows-x64.zip",
+        "bushidoblade2-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "bushidoblade2-0.1.0-linux-x64.zip",
+        "bushidoblade2-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00663",
+        "track_count": 1,
+        "track_sha1": "89c1ad4025bfdb78e387ae9acc43e33b7f51db19",
+        "track_sha256": null,
+        "generated_executable": "Bushido_Blade_2.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-colony-wars-red-sun-recomp": {
+      "inventory": "alexbeav-colony-wars-red-sun-recomp",
+      "selected_assets": [
+        "colonywarsredsun-0.1.0-windows-x64.zip",
+        "colonywarsredsun-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "colonywarsredsun-0.1.0-linux-x64.zip",
+        "colonywarsredsun-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00866",
+        "track_count": 1,
+        "track_sha1": "a2e9b43caac15c2afc63781947428bd64a735e2e",
+        "track_sha256": null,
+        "generated_executable": "Colony_Wars_Red_Sun.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-digimon-world-2-recomp": {
+      "inventory": "alexbeav-digimon-world-2-recomp",
+      "selected_assets": [
+        "digimonworld2-0.1.0-windows-x64.zip",
+        "digimonworld2-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "digimonworld2-0.1.0-linux-x64.zip",
+        "digimonworld2-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01193",
+        "track_count": 1,
+        "track_sha1": "d9cb009bc0006e901d8ab1365f764ab71da02115",
+        "track_sha256": null,
+        "generated_executable": "Digimon_World_2.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-dragon-ball-z-ultimate-battle-22-recomp": {
+      "inventory": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp",
+      "selected_assets": [
+        "dragonballzultimatebattle22-0.1.0-windows-x64.zip",
+        "dragonballzultimatebattle22-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "dragonballzultimatebattle22-0.1.0-linux-x64.zip",
+        "dragonballzultimatebattle22-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-03736",
+        "track_count": 1,
+        "track_sha1": "2bc030896e91290407f9f80446197a7e5e3eebca",
+        "track_sha256": null,
+        "generated_executable": "Dragon_Ball_Z_Ultimate_Battle_22.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-future-cop-lapd-recomp": {
+      "inventory": "alexbeav-future-cop-lapd-recomp",
+      "selected_assets": [
+        "futurecoplapd-0.1.0-windows-x64.zip",
+        "futurecoplapd-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "futurecoplapd-0.1.0-linux-x64.zip",
+        "futurecoplapd-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-01449",
+        "track_count": 1,
+        "track_sha1": "62791ea95e4e64a94dbe4d86bf49da45de415de0",
+        "track_sha256": null,
+        "generated_executable": "Future_Cop_LAPD.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-g-police-weapons-of-justice-recomp": {
+      "inventory": "alexbeav-g-police-weapons-of-justice-recomp",
+      "selected_assets": [
+        "gpoliceweaponsofjustice-0.1.0-windows-x64.zip",
+        "gpoliceweaponsofjustice-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "gpoliceweaponsofjustice-0.1.0-linux-x64.zip",
+        "gpoliceweaponsofjustice-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00798",
+        "track_count": 1,
+        "track_sha1": "6465f16acf5b9818a520ce28ca476c3d4eec6856",
+        "track_sha256": null,
+        "generated_executable": "G_Police_Weapons_of_Justice.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-incredible-crisis-recomp": {
+      "inventory": "alexbeav-incredible-crisis-recomp",
+      "selected_assets": [
+        "incrediblecrisis-0.1.0-windows-x64.zip",
+        "incrediblecrisis-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "incrediblecrisis-0.1.0-linux-x64.zip",
+        "incrediblecrisis-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01225",
+        "track_count": 1,
+        "track_sha1": "024fc3ec2309809406b2663b753bf5c4f505cd5b",
+        "track_sha256": null,
+        "generated_executable": "Incredible_Crisis.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-jade-cocoon-recomp": {
+      "inventory": "alexbeav-jade-cocoon-recomp",
+      "selected_assets": [
+        "jadecocoon-0.1.0-windows-x64.zip",
+        "jadecocoon-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "jadecocoon-0.1.0-linux-x64.zip",
+        "jadecocoon-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00854",
+        "track_count": 1,
+        "track_sha1": "51735a1336f87e45e564e9dc93a1a42233ada807",
+        "track_sha256": null,
+        "generated_executable": "Jade_Cocoon_Story_of_the_Tamamayu.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-kartia-recomp": {
+      "inventory": "alexbeav-kartia-recomp",
+      "selected_assets": ["kartia-0.1.0-windows-x64.zip", "kartia-999.123.456-windows-x64.zip"],
+      "linux_selected_assets": ["kartia-0.1.0-linux-x64.zip", "kartia-999.123.456-linux-x64.zip"],
+      "managed_psx": {
+        "serial": "SLUS-00631",
+        "track_count": 1,
+        "track_sha1": "803a93070f70d3b7ec172517033329efdad1f4ca",
+        "track_sha256": null,
+        "generated_executable": "Kartia_The_Word_of_Fate.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-mega-man-legends-2-recomp": {
+      "inventory": "alexbeav-mega-man-legends-2-recomp",
+      "selected_assets": [
+        "megamanlegends2-0.1.0-windows-x64.zip",
+        "megamanlegends2-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "megamanlegends2-0.1.0-linux-x64.zip",
+        "megamanlegends2-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-03556",
+        "track_count": 2,
+        "track_sha1": "7deaf00c967c7a45fc1e9778612da970f57ab27a",
+        "track_sha256": null,
+        "generated_executable": "Mega_Man_Legends_2.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-misadventures-of-tron-bonne-recomp": {
+      "inventory": "alexbeav-misadventures-of-tron-bonne-recomp",
+      "selected_assets": [
+        "misadventuresoftronbonne-0.1.0-windows-x64.zip",
+        "misadventuresoftronbonne-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "misadventuresoftronbonne-0.1.0-linux-x64.zip",
+        "misadventuresoftronbonne-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLES-02795",
+        "track_count": 2,
+        "track_sha1": "bd24f4400d59ea258753e8096de890f1f2c37eb9",
+        "track_sha256": null,
+        "generated_executable": "The_Misadventures_of_Tron_Bonne.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-nightmare-creatures-ii-recomp": {
+      "inventory": "alexbeav-nightmare-creatures-ii-recomp",
+      "selected_assets": [
+        "nightmarecreaturesii-0.1.0-windows-x64.zip",
+        "nightmarecreaturesii-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "nightmarecreaturesii-0.1.0-linux-x64.zip",
+        "nightmarecreaturesii-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01112",
+        "track_count": 2,
+        "track_sha1": "7e9a2196d97bce6e6c05f924a42b30633b45c17e",
+        "track_sha256": null,
+        "generated_executable": "Nightmare_Creatures_II.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-rival-schools-evolution-recomp": {
+      "inventory": "alexbeav-rival-schools-evolution-recomp",
+      "selected_assets": [
+        "rivalschoolsevolution-0.1.0-windows-x64.zip",
+        "rivalschoolsevolution-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "rivalschoolsevolution-0.1.0-linux-x64.zip",
+        "rivalschoolsevolution-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00771",
+        "track_count": 1,
+        "track_sha1": "2bf1af92ed996ebd4d624046496d21567aac39f0",
+        "track_sha256": null,
+        "generated_executable": "Rival_Schools_Evolution_Disc.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-rival-schools-recomp": {
+      "inventory": "alexbeav-rival-schools-recomp",
+      "selected_assets": [
+        "rivalschools-0.1.0-windows-x64.zip",
+        "rivalschools-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "rivalschools-0.1.0-linux-x64.zip",
+        "rivalschools-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00681",
+        "track_count": 1,
+        "track_sha1": "4bc0b5d38806d7836850d869654bf662b00490d9",
+        "track_sha256": null,
+        "generated_executable": "Rival_Schools_United_by_Fate.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-rollcage-stage-ii-recomp": {
+      "inventory": "alexbeav-rollcage-stage-ii-recomp",
+      "selected_assets": [
+        "rollcagestageii-0.1.0-windows-x64.zip",
+        "rollcagestageii-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "rollcagestageii-0.1.0-linux-x64.zip",
+        "rollcagestageii-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00867",
+        "track_count": 13,
+        "track_sha1": "a710c5fab77cbbfe2a5d3678913cf968aee224f9",
+        "track_sha256": null,
+        "generated_executable": "Rollcage_Stage_II.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-spider-man-2-enter-electro-recomp": {
+      "inventory": "alexbeav-spider-man-2-enter-electro-recomp",
+      "selected_assets": [
+        "spiderman2enterelectro-0.1.0-windows-x64.zip",
+        "spiderman2enterelectro-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "spiderman2enterelectro-0.1.0-linux-x64.zip",
+        "spiderman2enterelectro-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-01378",
+        "track_count": 1,
+        "track_sha1": "135ccc4b075ac2c348d2240605ed4266a73c0e42",
+        "track_sha256": null,
+        "generated_executable": "Spider_Man_2_Enter_Electro.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true,
+        "revision": "Rev 1"
+      }
+    },
+    "alexbeav-suikoden-ii-recomp": {
+      "inventory": "alexbeav-suikoden-ii-recomp",
+      "selected_assets": [
+        "suikodenii-0.1.0-windows-x64.zip",
+        "suikodenii-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "suikodenii-0.1.0-linux-x64.zip",
+        "suikodenii-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00958",
+        "track_count": 1,
+        "track_sha1": "123ad3a15b3f634afd2ba0144405f9d156417907",
+        "track_sha256": null,
+        "generated_executable": "Suikoden_II.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-tail-concerto-recomp": {
+      "inventory": "alexbeav-tail-concerto-recomp",
+      "selected_assets": [
+        "tailconcerto-0.1.0-windows-x64.zip",
+        "tailconcerto-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "tailconcerto-0.1.0-linux-x64.zip",
+        "tailconcerto-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SLUS-00660",
+        "track_count": 2,
+        "track_sha1": "d52bc3ff4cfcbbb9ed68d3299596dcd3213b1971",
+        "track_sha256": null,
+        "generated_executable": "Tail_Concerto.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-team-buddies-recomp": {
+      "inventory": "alexbeav-team-buddies-recomp",
+      "selected_assets": [
+        "teambuddies-0.1.0-windows-x64.zip",
+        "teambuddies-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "teambuddies-0.1.0-linux-x64.zip",
+        "teambuddies-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCES-02986",
+        "track_count": 1,
+        "track_sha1": "d9c06591a916da6281fb92eaa3f2c083d5b31a5f",
+        "track_sha256": null,
+        "generated_executable": "Team_Buddies.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-wild-arms-recomp": {
+      "inventory": "alexbeav-wild-arms-recomp",
+      "selected_assets": ["wildarms-0.1.0-windows-x64.zip", "wildarms-999.123.456-windows-x64.zip"],
+      "linux_selected_assets": [
+        "wildarms-0.1.0-linux-x64.zip",
+        "wildarms-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCUS-94608",
+        "track_count": 1,
+        "track_sha1": "428a3678e42c0660697bf43643db1aa566f4821b",
+        "track_sha256": null,
+        "generated_executable": "Wild_Arms.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
     }
   },
   "inventories": {
@@ -4788,6 +5242,1678 @@
           }
         ]
       }
+    ],
+    "alexbeav-armored-core-project-phantasma-recomp": [
+      {
+        "id": 388653746,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:25:12Z",
+        "assets": [
+          {
+            "id": 564061460,
+            "name": "armoredcoreprojectphantasma-0.1.0-linux-x64.zip",
+            "size": 24983652,
+            "digest": "sha256:0dd6d387189dede80e99a1ffb6a9c94c678f00dda10d2db38b69c487b4b0d227",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases/download/v0.1.0/armoredcoreprojectphantasma-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564061456,
+            "name": "armoredcoreprojectphantasma-0.1.0-macos-arm64.zip",
+            "size": 23755476,
+            "digest": "sha256:644620dad1823647f409ff25a9cf5357c6791466fb7bcdce3ece23938a2756f8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases/download/v0.1.0/armoredcoreprojectphantasma-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564061458,
+            "name": "armoredcoreprojectphantasma-0.1.0-macos-x64.zip",
+            "size": 24347665,
+            "digest": "sha256:3fd48e5c6acfe547de26311e9413ddf75718bd99371bb8d5c6a26c97e6ba0673",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases/download/v0.1.0/armoredcoreprojectphantasma-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564061454,
+            "name": "armoredcoreprojectphantasma-0.1.0-windows-x64.zip",
+            "size": 27058206,
+            "digest": "sha256:a980f0b1997997a1f86e1c920062ba2c300b7cb7f0c0fbfb505097b4d1435d20",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases/download/v0.1.0/armoredcoreprojectphantasma-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564061455,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2684,
+            "digest": "sha256:e8285300c1832924646127773f8093b934071d2c27db43c82433a5ce1a11e812",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564061469,
+            "name": "SHA256SUMS.txt",
+            "size": 553,
+            "digest": "sha256:07f181ba5ae43b2068d8fa8ac828b3a21e425e88bee201f400749cbaac21f30c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981586,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964758,
+            "name": "armoredcoreprojectphantasma-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/armoredcoreprojectphantasma-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964759,
+            "name": "armoredcoreprojectphantasma-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/armoredcoreprojectphantasma-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-azure-dreams-recomp": [
+      {
+        "id": 388654258,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:26:16Z",
+        "assets": [
+          {
+            "id": 564063141,
+            "name": "azuredreams-0.1.0-linux-x64.zip",
+            "size": 24984053,
+            "digest": "sha256:7e6c21601a62b7b535adf89ddb5206ae1f2e6142461ebae9bf4e6cc1a97dbd7c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases/download/v0.1.0/azuredreams-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564063139,
+            "name": "azuredreams-0.1.0-macos-arm64.zip",
+            "size": 23755172,
+            "digest": "sha256:d9db0c4086fc3550a350033cb07220e4b42f42aa64f4663e29578b33cf782b9a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases/download/v0.1.0/azuredreams-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564063138,
+            "name": "azuredreams-0.1.0-macos-x64.zip",
+            "size": 24348518,
+            "digest": "sha256:53ca3ab8b2ce797e98b0d02ddf6d4f327459d92f20ed12b095a6ddb3185c5913",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases/download/v0.1.0/azuredreams-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564063137,
+            "name": "azuredreams-0.1.0-windows-x64.zip",
+            "size": 27059187,
+            "digest": "sha256:b0da230c96b8a7495f0483de62b97757a71568930eea7cb0f4ecbf9d0169ee56",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases/download/v0.1.0/azuredreams-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564063134,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2602,
+            "digest": "sha256:3da107c881d822d274c0862e8439073ee1605c85ea33fbb0e7dd6517f632d41c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564063159,
+            "name": "SHA256SUMS.txt",
+            "size": 489,
+            "digest": "sha256:8b4e9f52f8cc96823973f1e265bf0b317f6f5842888cf09642e6d3f6497c6ab2",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981587,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964761,
+            "name": "azuredreams-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/azuredreams-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964762,
+            "name": "azuredreams-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/azuredreams-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-bushido-blade-2-recomp": [
+      {
+        "id": 388656756,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:30:48Z",
+        "assets": [
+          {
+            "id": 564070543,
+            "name": "bushidoblade2-0.1.0-linux-x64.zip",
+            "size": 24985487,
+            "digest": "sha256:1546fb7fc1724013bc2fe49c61553cb35ba3598e96d08b674276db4df0374a89",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases/download/v0.1.0/bushidoblade2-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564070539,
+            "name": "bushidoblade2-0.1.0-macos-arm64.zip",
+            "size": 23756986,
+            "digest": "sha256:ff867b80af04783584f0d86b8d5d8a6d61da34438e6416a1556595e2ca4ec3f8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases/download/v0.1.0/bushidoblade2-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564070542,
+            "name": "bushidoblade2-0.1.0-macos-x64.zip",
+            "size": 24349420,
+            "digest": "sha256:9fbc4994a1d389dc482511b9c0a6f5a4d6f11cccae4808bdc7a7d6a9d1262c90",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases/download/v0.1.0/bushidoblade2-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564070544,
+            "name": "bushidoblade2-0.1.0-windows-x64.zip",
+            "size": 27060120,
+            "digest": "sha256:9149471e9742b72165812e12e1dcd679dba88cb323563eaf3e6254074509a29e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases/download/v0.1.0/bushidoblade2-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564070538,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2613,
+            "digest": "sha256:711d27a2b6a3f6e939e72600f919de5c7a7dabe5e84a610be31d6a946f341011",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564070559,
+            "name": "SHA256SUMS.txt",
+            "size": 497,
+            "digest": "sha256:8720f745567d505693aaa466dfa08170760d4f389ef1e71d15123d5013657d72",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981588,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964764,
+            "name": "bushidoblade2-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/bushidoblade2-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964765,
+            "name": "bushidoblade2-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/bushidoblade2-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-colony-wars-red-sun-recomp": [
+      {
+        "id": 388659240,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:34:57Z",
+        "assets": [
+          {
+            "id": 564077458,
+            "name": "colonywarsredsun-0.1.0-linux-x64.zip",
+            "size": 24989567,
+            "digest": "sha256:cfd244db57a832c17d26aaa854383756874efa4f21873a172fe9eb34ce76f816",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases/download/v0.1.0/colonywarsredsun-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564077454,
+            "name": "colonywarsredsun-0.1.0-macos-arm64.zip",
+            "size": 23760094,
+            "digest": "sha256:61c7abddaf0879eba322463cdd54ef8c272b5977c5b6d8c99a5a56d482a43343",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases/download/v0.1.0/colonywarsredsun-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564077459,
+            "name": "colonywarsredsun-0.1.0-macos-x64.zip",
+            "size": 24352712,
+            "digest": "sha256:2633c1ecbc61e8c7e1a85fc77216879e826a4d3c9b503beb463bdfadcf92ee29",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases/download/v0.1.0/colonywarsredsun-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564077456,
+            "name": "colonywarsredsun-0.1.0-windows-x64.zip",
+            "size": 27063072,
+            "digest": "sha256:61ca59aa785156d4a9d588f595b2717b2e6d855068e28a0cb428728cf5eb8647",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases/download/v0.1.0/colonywarsredsun-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564077455,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2629,
+            "digest": "sha256:79585c57b3ab2891316b9b0682baa21cfbc58aea926ab3b5476b79968a2e394f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564077482,
+            "name": "SHA256SUMS.txt",
+            "size": 509,
+            "digest": "sha256:be95bc8943931cd01d6cd4739b1c64be746964e8efbb098a0942282a28a6649b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981589,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964767,
+            "name": "colonywarsredsun-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/colonywarsredsun-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964768,
+            "name": "colonywarsredsun-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/colonywarsredsun-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-digimon-world-2-recomp": [
+      {
+        "id": 388687387,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:22:12Z",
+        "assets": [
+          {
+            "id": 564158436,
+            "name": "digimonworld2-0.1.0-linux-x64.zip",
+            "size": 24983987,
+            "digest": "sha256:a4e468fb83a3be75be56f43ad7fecf9e838c5b45738b33492c702a676feef4a0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases/download/v0.1.0/digimonworld2-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564158433,
+            "name": "digimonworld2-0.1.0-macos-arm64.zip",
+            "size": 23754617,
+            "digest": "sha256:35740fd86eb9d674f49c90f610507cfa8e88df87e5312049ac2b054e45a286a0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases/download/v0.1.0/digimonworld2-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564158432,
+            "name": "digimonworld2-0.1.0-macos-x64.zip",
+            "size": 24347923,
+            "digest": "sha256:881e215a9772de3e318396696f7f525057140d1091663fd1b68889ad2ea0f8a3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases/download/v0.1.0/digimonworld2-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564158434,
+            "name": "digimonworld2-0.1.0-windows-x64.zip",
+            "size": 27058535,
+            "digest": "sha256:c3b6c53476651eb672944699e397a1d2ed0edb2d7d57cddd369a333acabef024",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases/download/v0.1.0/digimonworld2-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564158439,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2613,
+            "digest": "sha256:fa0ecd72969a1a4dc2ea8247f53b85490df5a0be885ecb0ff91367d9002e38fe",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564158451,
+            "name": "SHA256SUMS.txt",
+            "size": 497,
+            "digest": "sha256:077376f1c62c0d8ac7e2a1395df1f5457a2ebda3e20425985226bcd5defa3830",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981592,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964776,
+            "name": "digimonworld2-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/digimonworld2-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964777,
+            "name": "digimonworld2-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/digimonworld2-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-dragon-ball-z-ultimate-battle-22-recomp": [
+      {
+        "id": 388661821,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:39:46Z",
+        "assets": [
+          {
+            "id": 564084469,
+            "name": "dragonballzultimatebattle22-0.1.0-linux-x64.zip",
+            "size": 24983467,
+            "digest": "sha256:d627ccec93fb9498ca556c6a18cb8d77f5c4dc8319b80bf5bd9691cd6993d735",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases/download/v0.1.0/dragonballzultimatebattle22-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564084472,
+            "name": "dragonballzultimatebattle22-0.1.0-macos-arm64.zip",
+            "size": 23754726,
+            "digest": "sha256:86da662c693081891cd3ce364d35b12c3b35997205d5b5fcc46a1d1f8f5daa86",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases/download/v0.1.0/dragonballzultimatebattle22-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564084468,
+            "name": "dragonballzultimatebattle22-0.1.0-macos-x64.zip",
+            "size": 24346935,
+            "digest": "sha256:4ecebe1121e6e8f8565dd60b3b7e6bbd13d1b5200566d246fd4124d262bb197d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases/download/v0.1.0/dragonballzultimatebattle22-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564084473,
+            "name": "dragonballzultimatebattle22-0.1.0-windows-x64.zip",
+            "size": 27058100,
+            "digest": "sha256:c9fd67f360d226ee1dd92ba281eb2682a98a3a5ad453678e81fc3812f203fcaf",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases/download/v0.1.0/dragonballzultimatebattle22-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564084471,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2686,
+            "digest": "sha256:c992afeadb196ce5d1d1f6ec2b9583485a83309c1de932f3c8b622632e7aad30",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564084491,
+            "name": "SHA256SUMS.txt",
+            "size": 553,
+            "digest": "sha256:3f82455ea44a63c0c76a1424a3f33af429d55bc7807fdca3c7b1e23f54df0e37",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981593,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964779,
+            "name": "dragonballzultimatebattle22-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/dragonballzultimatebattle22-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964780,
+            "name": "dragonballzultimatebattle22-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/dragonballzultimatebattle22-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-future-cop-lapd-recomp": [
+      {
+        "id": 388664434,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:43:16Z",
+        "assets": [
+          {
+            "id": 564091672,
+            "name": "futurecoplapd-0.1.0-linux-x64.zip",
+            "size": 24986549,
+            "digest": "sha256:a82972985f7e356f2528795c91eade4cf5af40077027b4a7b7cda6e1b676d7d5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases/download/v0.1.0/futurecoplapd-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564091675,
+            "name": "futurecoplapd-0.1.0-macos-arm64.zip",
+            "size": 23758106,
+            "digest": "sha256:a9db9c476c5287af5bdde74bacf892d1ce391dc1a9e84ac2be16b8b784a25fe1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases/download/v0.1.0/futurecoplapd-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564091669,
+            "name": "futurecoplapd-0.1.0-macos-x64.zip",
+            "size": 24350652,
+            "digest": "sha256:247535ebffa36c66d40d56c3e0c22d590a904f723a6d742c61f431075a25c5ac",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases/download/v0.1.0/futurecoplapd-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564091668,
+            "name": "futurecoplapd-0.1.0-windows-x64.zip",
+            "size": 27061192,
+            "digest": "sha256:fb7e2a42226db8a62c87ca45e137e4537113425a1c7c13d88105b1d47c26bc83",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases/download/v0.1.0/futurecoplapd-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564091676,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2613,
+            "digest": "sha256:b283ba12ad6007e6fa715ab9b809f02b289cdf5544aae75dd9bbf434aa23ef6b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564091693,
+            "name": "SHA256SUMS.txt",
+            "size": 497,
+            "digest": "sha256:e584afdfada94ab7b8aee737bba2c44543cab8958f1ebaf4d8e07a2ddb58a815",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981595,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964785,
+            "name": "futurecoplapd-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/futurecoplapd-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964786,
+            "name": "futurecoplapd-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/futurecoplapd-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-g-police-weapons-of-justice-recomp": [
+      {
+        "id": 388666638,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:46:52Z",
+        "assets": [
+          {
+            "id": 564097699,
+            "name": "gpoliceweaponsofjustice-0.1.0-linux-x64.zip",
+            "size": 24984972,
+            "digest": "sha256:3b1f3ed83ff344afe2459911182d98156d5f0c9a08993f3ce567a41a18f3c15d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases/download/v0.1.0/gpoliceweaponsofjustice-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564097702,
+            "name": "gpoliceweaponsofjustice-0.1.0-macos-arm64.zip",
+            "size": 23755963,
+            "digest": "sha256:add7e2fa3728d6ff7bc5cfa218d3840e7a3c62b64895b319a5f65b8fd733b63f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases/download/v0.1.0/gpoliceweaponsofjustice-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564097704,
+            "name": "gpoliceweaponsofjustice-0.1.0-macos-x64.zip",
+            "size": 24348192,
+            "digest": "sha256:0d7cef6469d3db6b3d35486b5fd108a2335147e85e465cf408c96f5c99f09482",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases/download/v0.1.0/gpoliceweaponsofjustice-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564097701,
+            "name": "gpoliceweaponsofjustice-0.1.0-windows-x64.zip",
+            "size": 27058624,
+            "digest": "sha256:0ffdb71e7a47c920a3b6b90b74264ef8e375e67ae9a14e94e04687df1e25a8c8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases/download/v0.1.0/gpoliceweaponsofjustice-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564097703,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2665,
+            "digest": "sha256:9dfff2c1dac3c87a2ff4be6bd5f6bf97ae8bff53bc6c88e48f395b561d5eff25",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564097712,
+            "name": "SHA256SUMS.txt",
+            "size": 537,
+            "digest": "sha256:29806a50e73ec1246d2ec16616a8870dc55f087e3495f810418c949969b172c8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981596,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964788,
+            "name": "gpoliceweaponsofjustice-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/gpoliceweaponsofjustice-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964789,
+            "name": "gpoliceweaponsofjustice-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/gpoliceweaponsofjustice-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-incredible-crisis-recomp": [
+      {
+        "id": 388667339,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:48:02Z",
+        "assets": [
+          {
+            "id": 564099667,
+            "name": "incrediblecrisis-0.1.0-linux-x64.zip",
+            "size": 24984363,
+            "digest": "sha256:fb52b31647ef0863056b2d1d45822e067f2f62a4d8325a647b9c477596707f84",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases/download/v0.1.0/incrediblecrisis-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564099672,
+            "name": "incrediblecrisis-0.1.0-macos-arm64.zip",
+            "size": 23755886,
+            "digest": "sha256:797281e5f50a893b718dd1c4e35e5d24d1e8a61ef9b23047b143de214094db6c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases/download/v0.1.0/incrediblecrisis-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564099668,
+            "name": "incrediblecrisis-0.1.0-macos-x64.zip",
+            "size": 24347685,
+            "digest": "sha256:b721ef680954464f1d8069f7938d0cbaae8c781962a4feac082ba3ca407c4905",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases/download/v0.1.0/incrediblecrisis-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564099663,
+            "name": "incrediblecrisis-0.1.0-windows-x64.zip",
+            "size": 27058998,
+            "digest": "sha256:b275b575c8d944d5435f6433d3521cebe7cfe4dbb5b7150d23743fdcd9512172",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases/download/v0.1.0/incrediblecrisis-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564099670,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2627,
+            "digest": "sha256:34202a098994d84666a69831f4c89242518ed97da4d8de6956c1771f3d9d5c13",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564099683,
+            "name": "SHA256SUMS.txt",
+            "size": 509,
+            "digest": "sha256:daadb497b22c8898804cc85ef284522e2f4bd26a56f62b960822e519a76cb433",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981598,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964794,
+            "name": "incrediblecrisis-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/incrediblecrisis-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964795,
+            "name": "incrediblecrisis-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/incrediblecrisis-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-jade-cocoon-recomp": [
+      {
+        "id": 388670264,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:53:07Z",
+        "assets": [
+          {
+            "id": 564107274,
+            "name": "jadecocoon-0.1.0-linux-x64.zip",
+            "size": 24985814,
+            "digest": "sha256:b47a13a4eb5843d5cd85b14fdf057482d9413db8eb24e92c9cc74382c125ace8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases/download/v0.1.0/jadecocoon-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564107267,
+            "name": "jadecocoon-0.1.0-macos-arm64.zip",
+            "size": 23757707,
+            "digest": "sha256:19be72125d27f2226dc807e79d5d739318d6f15f0c42b029ab0482740b7f51ac",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases/download/v0.1.0/jadecocoon-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564107271,
+            "name": "jadecocoon-0.1.0-macos-x64.zip",
+            "size": 24349953,
+            "digest": "sha256:0464456da4ec6867a55ed54f96656d33a80dd19af994dcab71864d9c2312d59d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases/download/v0.1.0/jadecocoon-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564107270,
+            "name": "jadecocoon-0.1.0-windows-x64.zip",
+            "size": 27060606,
+            "digest": "sha256:552d7a45faa54a71147bdd51104e61a688a069a206d73e1549430a5ada392f25",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases/download/v0.1.0/jadecocoon-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564107266,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2597,
+            "digest": "sha256:8f2d06a85208308d6f3e45d80c44e4d0563f50cbef248e7f9e8f8a851d746ce1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564107287,
+            "name": "SHA256SUMS.txt",
+            "size": 485,
+            "digest": "sha256:b8673fdeafde2159403b3b587807236aac04736183f1d78fe35e8672ea8e25f8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981599,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964797,
+            "name": "jadecocoon-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/jadecocoon-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964798,
+            "name": "jadecocoon-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/jadecocoon-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-kartia-recomp": [
+      {
+        "id": 388672216,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:56:35Z",
+        "assets": [
+          {
+            "id": 564113789,
+            "name": "kartia-0.1.0-linux-x64.zip",
+            "size": 24984016,
+            "digest": "sha256:b9599d49c991c499117ba136290e3d837da8e56d620651d735658fe4d64c9f2e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases/download/v0.1.0/kartia-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564113787,
+            "name": "kartia-0.1.0-macos-arm64.zip",
+            "size": 23755932,
+            "digest": "sha256:80bae1b375c385ab5234974b6b71d39873ebae5eb23b7ca21d15d9ea567ed204",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases/download/v0.1.0/kartia-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564113784,
+            "name": "kartia-0.1.0-macos-x64.zip",
+            "size": 24348098,
+            "digest": "sha256:d5359fb81dbbc70ee411004e4acede8b3dc59cc43636462d1ffcfe5064ddd2ff",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases/download/v0.1.0/kartia-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564113786,
+            "name": "kartia-0.1.0-windows-x64.zip",
+            "size": 27058647,
+            "digest": "sha256:6fe08e7158add08d022c20863f6f40d0e3d3aaff12553cdd8e95e577fccb7f33",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases/download/v0.1.0/kartia-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564113785,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2576,
+            "digest": "sha256:6e8fe43328ae590babaef993e186b12d865521309d1a080aabba8f1825917bef",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564113804,
+            "name": "SHA256SUMS.txt",
+            "size": 469,
+            "digest": "sha256:16c895eb2bcc209aad0333a60f299adfccae29c4aa055ff3d5d83aef3e18d5bc",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981600,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964800,
+            "name": "kartia-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/kartia-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964801,
+            "name": "kartia-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/kartia-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-mega-man-legends-2-recomp": [
+      {
+        "id": 388672337,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T19:56:49Z",
+        "assets": [
+          {
+            "id": 564114127,
+            "name": "megamanlegends2-0.1.0-linux-x64.zip",
+            "size": 24984181,
+            "digest": "sha256:6b6ef83d046cf3e8add984e9e08a926534d013ae141abe2ea8cc7ebddfefde79",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases/download/v0.1.0/megamanlegends2-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564114121,
+            "name": "megamanlegends2-0.1.0-macos-arm64.zip",
+            "size": 23755765,
+            "digest": "sha256:219028b819fd5c3a38e26ffbd174df2d4d335e82b721030262992cea1cba5b1b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases/download/v0.1.0/megamanlegends2-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564114125,
+            "name": "megamanlegends2-0.1.0-macos-x64.zip",
+            "size": 24348167,
+            "digest": "sha256:ef94eafe62a6cbbbf2322f3caf8b80cb4b753af5e6e1ef891a2a2105b455542c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases/download/v0.1.0/megamanlegends2-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564114122,
+            "name": "megamanlegends2-0.1.0-windows-x64.zip",
+            "size": 27058723,
+            "digest": "sha256:e48dc1dfd844bda8d9c4c91ece4332fec28aee04858b6caa2fed0d48b3765383",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases/download/v0.1.0/megamanlegends2-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564114126,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2624,
+            "digest": "sha256:410d85cf1352f0bda1dee240f6a1852f72cd037d792ce76334b079a9fc84eae6",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564114143,
+            "name": "SHA256SUMS.txt",
+            "size": 505,
+            "digest": "sha256:a46b3682fa4603da5e855e46667ba9177f6a4b84a92f8cc79e89d9e9da0d7fc8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981601,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964803,
+            "name": "megamanlegends2-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/megamanlegends2-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964804,
+            "name": "megamanlegends2-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/megamanlegends2-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-misadventures-of-tron-bonne-recomp": [
+      {
+        "id": 388675910,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:03:02Z",
+        "assets": [
+          {
+            "id": 564124950,
+            "name": "misadventuresoftronbonne-0.1.0-linux-x64.zip",
+            "size": 24983160,
+            "digest": "sha256:9e2ce096498762fa93bb8048735bac6bbeb4b29bee903805dcffe21e319251ab",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/download/v0.1.0/misadventuresoftronbonne-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564124946,
+            "name": "misadventuresoftronbonne-0.1.0-macos-arm64.zip",
+            "size": 23755009,
+            "digest": "sha256:296e3e8ce6a2b0b1f9bd3f911cf6cbe18fb9957d92deea87392e222f164102b6",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/download/v0.1.0/misadventuresoftronbonne-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564124949,
+            "name": "misadventuresoftronbonne-0.1.0-macos-x64.zip",
+            "size": 24347132,
+            "digest": "sha256:87c610f8c09c1421ef115788281c9719f1438b5f38ed0c68cfe6b822cea93d92",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/download/v0.1.0/misadventuresoftronbonne-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564124951,
+            "name": "misadventuresoftronbonne-0.1.0-windows-x64.zip",
+            "size": 27057710,
+            "digest": "sha256:5d96ad14b375ddad46c446c726d452369478f1b783de272ec38c1ba1f5f92ac5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/download/v0.1.0/misadventuresoftronbonne-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564124947,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2669,
+            "digest": "sha256:aa40ff5c96017c1c133bf9071080699abd704c1ea0ecfa00345d9c866fbd1ed8",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564124979,
+            "name": "SHA256SUMS.txt",
+            "size": 541,
+            "digest": "sha256:736584270f0102787cdddc2a54428e4956f8e5a5469bc419509fb31a0906ea47",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981602,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964806,
+            "name": "misadventuresoftronbonne-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/misadventuresoftronbonne-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964807,
+            "name": "misadventuresoftronbonne-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/misadventuresoftronbonne-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-nightmare-creatures-ii-recomp": [
+      {
+        "id": 388678026,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:06:27Z",
+        "assets": [
+          {
+            "id": 564131213,
+            "name": "nightmarecreaturesii-0.1.0-linux-x64.zip",
+            "size": 24990863,
+            "digest": "sha256:2b926ccada24e02b04da0cfad379dbfeb6cc93b7620880a7260f48e5ec4dfdb0",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases/download/v0.1.0/nightmarecreaturesii-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564131216,
+            "name": "nightmarecreaturesii-0.1.0-macos-arm64.zip",
+            "size": 23761235,
+            "digest": "sha256:b961ee1b17e6961700d452e3843784e4cf6112f9af02ade62c16695f24a7fcb4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases/download/v0.1.0/nightmarecreaturesii-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564131215,
+            "name": "nightmarecreaturesii-0.1.0-macos-x64.zip",
+            "size": 24353466,
+            "digest": "sha256:7ee0854f57aca960ed86aa0bd8437b9c27be3abf7104bd7fb2380c4f7b030a79",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases/download/v0.1.0/nightmarecreaturesii-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564131208,
+            "name": "nightmarecreaturesii-0.1.0-windows-x64.zip",
+            "size": 27064560,
+            "digest": "sha256:7d89f07942219589c84c052dc65519c6043f38bf7346c7125a8c88800a0fa182",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases/download/v0.1.0/nightmarecreaturesii-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564131210,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2648,
+            "digest": "sha256:085f4fab8d1172c47f714df9581bc0eb9182da7f2995cbbf2638f792152ca1bc",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564131226,
+            "name": "SHA256SUMS.txt",
+            "size": 525,
+            "digest": "sha256:049a19a239b2783b72883ba0de95ad07a276397eda6adf95ff1301df6825c7ad",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981603,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964809,
+            "name": "nightmarecreaturesii-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/nightmarecreaturesii-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964810,
+            "name": "nightmarecreaturesii-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/nightmarecreaturesii-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-rival-schools-evolution-recomp": [
+      {
+        "id": 388675275,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:01:57Z",
+        "assets": [
+          {
+            "id": 564123068,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2653,
+            "digest": "sha256:9899535081e6e10ebbb2122c1e605246bc16d141f0312a8f31bf0bb36b43857b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564123069,
+            "name": "rivalschoolsevolution-0.1.0-linux-x64.zip",
+            "size": 24990659,
+            "digest": "sha256:defabab0053f2abc1157e9105304ca3628cd4bf56ba301be4f962e3acd1ab193",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/download/v0.1.0/rivalschoolsevolution-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564123064,
+            "name": "rivalschoolsevolution-0.1.0-macos-arm64.zip",
+            "size": 23759302,
+            "digest": "sha256:4db303595ea53d06efabb7a99a96359b7b633383599792eafe7d46f5c56f6311",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/download/v0.1.0/rivalschoolsevolution-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564123061,
+            "name": "rivalschoolsevolution-0.1.0-macos-x64.zip",
+            "size": 24355488,
+            "digest": "sha256:e1022bb4741ca6bf9f22e733a1eef059530b7ec5c27002b7f6cf2d81ca13cf6c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/download/v0.1.0/rivalschoolsevolution-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564123070,
+            "name": "rivalschoolsevolution-0.1.0-windows-x64.zip",
+            "size": 27063589,
+            "digest": "sha256:d1a1a9f72c431c21b52b28d2233fd71150ce0323f8e1fd38a8c407fbc8282322",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/download/v0.1.0/rivalschoolsevolution-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564123086,
+            "name": "SHA256SUMS.txt",
+            "size": 529,
+            "digest": "sha256:865cafcaa705cc8cd0b246dc3b7eca805fd3d21f89e5e0083e396ac302920173",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981604,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964812,
+            "name": "rivalschoolsevolution-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/rivalschoolsevolution-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964813,
+            "name": "rivalschoolsevolution-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/rivalschoolsevolution-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-rival-schools-recomp": [
+      {
+        "id": 388678383,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:07:01Z",
+        "assets": [
+          {
+            "id": 564132111,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2607,
+            "digest": "sha256:cf26f7e8e9e1e336ea4fae45fee3030f77451d935fdf15d0b0071e748c7b0624",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564132112,
+            "name": "rivalschools-0.1.0-linux-x64.zip",
+            "size": 24990599,
+            "digest": "sha256:9253c5a740b01359de9a7bfc150cb3060e7a936b44e849a7c5e5fdb28218eab1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases/download/v0.1.0/rivalschools-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564132105,
+            "name": "rivalschools-0.1.0-macos-arm64.zip",
+            "size": 23759280,
+            "digest": "sha256:94a2c6da80c806a4a8a091c37f47870cad6d0024b4f65f8cd27612d1fcb090b7",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases/download/v0.1.0/rivalschools-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564132106,
+            "name": "rivalschools-0.1.0-macos-x64.zip",
+            "size": 24355456,
+            "digest": "sha256:6d90457500619438c8d2d64a08a860b27fc9636d2a2886960fd46b7ea6157b85",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases/download/v0.1.0/rivalschools-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564132108,
+            "name": "rivalschools-0.1.0-windows-x64.zip",
+            "size": 27063557,
+            "digest": "sha256:f93e4a935a6ecba10aa78d7854a174dbdd48251dbdf5d92ca9f3157bb73b028b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases/download/v0.1.0/rivalschools-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564132123,
+            "name": "SHA256SUMS.txt",
+            "size": 493,
+            "digest": "sha256:755c604c3373dea20c0063dffb8b41038d103f0b56d5a73185de8a5bd3d69277",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981605,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964815,
+            "name": "rivalschools-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/rivalschools-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964816,
+            "name": "rivalschools-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/rivalschools-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-rollcage-stage-ii-recomp": [
+      {
+        "id": 388678769,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:07:38Z",
+        "assets": [
+          {
+            "id": 564133204,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2623,
+            "digest": "sha256:24731caa51dd7f3d34cd153f91f95c285b8f4da3bb4043264a698c66c03b0c4c",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564133205,
+            "name": "rollcagestageii-0.1.0-linux-x64.zip",
+            "size": 24982429,
+            "digest": "sha256:3dd57be8e706ed74249878c4a5c5154d6b81f9b23a241ef2b016179e15c4f2bf",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases/download/v0.1.0/rollcagestageii-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564133207,
+            "name": "rollcagestageii-0.1.0-macos-arm64.zip",
+            "size": 23753959,
+            "digest": "sha256:f79c5364ebb3f176b223326fe9c5b9ee942ea9eec1356787bb5cf4dd1ae6fa8e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases/download/v0.1.0/rollcagestageii-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564133203,
+            "name": "rollcagestageii-0.1.0-macos-x64.zip",
+            "size": 24345756,
+            "digest": "sha256:2b71af597f696924750b7c9d5b09f05d7da1960c405c1426f5ed21df4ff5f518",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases/download/v0.1.0/rollcagestageii-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564133200,
+            "name": "rollcagestageii-0.1.0-windows-x64.zip",
+            "size": 27057012,
+            "digest": "sha256:91c8058c6c335ca81ddad2c93d4ec8e2b42b43e18200a803559b18e7fa3cc5bb",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases/download/v0.1.0/rollcagestageii-0.1.0-windows-x64.zip"
+          },
+          {
+            "id": 564133224,
+            "name": "SHA256SUMS.txt",
+            "size": 505,
+            "digest": "sha256:e892420481731feb45360c314eebce201a24f9f0053f9f824e049ac3e61a1477",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          }
+        ]
+      },
+      {
+        "id": 999981606,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964818,
+            "name": "rollcagestageii-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/rollcagestageii-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964819,
+            "name": "rollcagestageii-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/rollcagestageii-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-spider-man-2-enter-electro-recomp": [
+      {
+        "id": 388681370,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:11:58Z",
+        "assets": [
+          {
+            "id": 564141231,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2660,
+            "digest": "sha256:0b7b86ff309ee4c8ce5673c661476d52ca0d3e24f06e534121ccf32e115fd0da",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564141243,
+            "name": "SHA256SUMS.txt",
+            "size": 533,
+            "digest": "sha256:1ff58758b0b2704166b18db9fc13963a8e725632a6a143af4e72dbc56c29f4e5",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          },
+          {
+            "id": 564141232,
+            "name": "spiderman2enterelectro-0.1.0-linux-x64.zip",
+            "size": 24986408,
+            "digest": "sha256:70ec12ff314b50286c0eb43cfdca9101e3e8a0b15f2fb6733df6ca2b995c7462",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases/download/v0.1.0/spiderman2enterelectro-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564141237,
+            "name": "spiderman2enterelectro-0.1.0-macos-arm64.zip",
+            "size": 23758214,
+            "digest": "sha256:459d8ddd8cb0dbe756a585f06cbe25f8e37c13aa54d08cdebc4e5621d7dd5cbd",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases/download/v0.1.0/spiderman2enterelectro-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564141230,
+            "name": "spiderman2enterelectro-0.1.0-macos-x64.zip",
+            "size": 24350374,
+            "digest": "sha256:4fdb4455cea92a6a1bd1c63211141838b6a61b64eaa503fb67559e1d6697ec93",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases/download/v0.1.0/spiderman2enterelectro-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564141238,
+            "name": "spiderman2enterelectro-0.1.0-windows-x64.zip",
+            "size": 27060830,
+            "digest": "sha256:b185a40663774e8234b718dc7bdebf08ca3c1ca19a45e4becebc09c8ff6f7a24",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases/download/v0.1.0/spiderman2enterelectro-0.1.0-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999981607,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964821,
+            "name": "spiderman2enterelectro-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/spiderman2enterelectro-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964822,
+            "name": "spiderman2enterelectro-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/spiderman2enterelectro-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-suikoden-ii-recomp": [
+      {
+        "id": 388681576,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:12:21Z",
+        "assets": [
+          {
+            "id": 564141777,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2597,
+            "digest": "sha256:7892868e9d7e20a1d139a5735181b6a1a2837d6a888be298a343a99712cf1c5a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564141795,
+            "name": "SHA256SUMS.txt",
+            "size": 485,
+            "digest": "sha256:16764af27af4936a88e3a418fd007fe31cacaae32b8c60780e5131b4cf668b88",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          },
+          {
+            "id": 564141781,
+            "name": "suikodenii-0.1.0-linux-x64.zip",
+            "size": 24984845,
+            "digest": "sha256:f6cfd38bb4f9dca498e26d16dd7ccf1fb4605eadf92944b91711d3de4cd4c08f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases/download/v0.1.0/suikodenii-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564141783,
+            "name": "suikodenii-0.1.0-macos-arm64.zip",
+            "size": 23757032,
+            "digest": "sha256:5bcc68a2bdd4c7b2878e8e614dbe36b1fa8612a24aa3fb23995f1a122ae70e4e",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases/download/v0.1.0/suikodenii-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564141772,
+            "name": "suikodenii-0.1.0-macos-x64.zip",
+            "size": 24348451,
+            "digest": "sha256:38f6d16e51b005c724eaa34498e72d657d42c8cbaafc61b54b165192d4191fc4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases/download/v0.1.0/suikodenii-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564141775,
+            "name": "suikodenii-0.1.0-windows-x64.zip",
+            "size": 27059994,
+            "digest": "sha256:c83d77c076476e0360a91f70d05d802fc6decb77bcd92c5df7bd89a5e78dcf7a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases/download/v0.1.0/suikodenii-0.1.0-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999981608,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964824,
+            "name": "suikodenii-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/suikodenii-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964825,
+            "name": "suikodenii-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/suikodenii-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-tail-concerto-recomp": [
+      {
+        "id": 388684018,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:16:26Z",
+        "assets": [
+          {
+            "id": 564148665,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2607,
+            "digest": "sha256:9486add536cf0d6e061756ff718b16c8e1a114b354605f21c289dde7def8f292",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564148683,
+            "name": "SHA256SUMS.txt",
+            "size": 493,
+            "digest": "sha256:0867004bd6f821321b0dc9a0335c3f2b201c150f7015641bf840c81add7b72f2",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          },
+          {
+            "id": 564148666,
+            "name": "tailconcerto-0.1.0-linux-x64.zip",
+            "size": 24984910,
+            "digest": "sha256:11f54fee4cf06d1e6312ca76aef83492817a70c0cf2ba69eea5522d5fbbf57c7",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases/download/v0.1.0/tailconcerto-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564148664,
+            "name": "tailconcerto-0.1.0-macos-arm64.zip",
+            "size": 23755934,
+            "digest": "sha256:6bfaf52d39e03bbdcc206609fbc53706c9d4b579619091ade8285d042768b8cf",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases/download/v0.1.0/tailconcerto-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564148663,
+            "name": "tailconcerto-0.1.0-macos-x64.zip",
+            "size": 24349191,
+            "digest": "sha256:f8a24487d22ba15be7066fea2a465a6891ae2113127a5375c5b325fa6430c647",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases/download/v0.1.0/tailconcerto-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564148662,
+            "name": "tailconcerto-0.1.0-windows-x64.zip",
+            "size": 27059798,
+            "digest": "sha256:0024c4ce438e72b65b8b52eebde65601256a8f416b2aa903805e6d51822efe4a",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases/download/v0.1.0/tailconcerto-0.1.0-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999981609,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964827,
+            "name": "tailconcerto-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tailconcerto-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964828,
+            "name": "tailconcerto-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/tailconcerto-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-team-buddies-recomp": [
+      {
+        "id": 388683660,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:15:52Z",
+        "assets": [
+          {
+            "id": 564147785,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2602,
+            "digest": "sha256:b775cb9f275062e9fc62c1154656525619bab2cad52b370e8db24e361b07d8e7",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564147807,
+            "name": "SHA256SUMS.txt",
+            "size": 489,
+            "digest": "sha256:71a28b6c476f69911a11af46a6535e362f630e0ee3944efa0c0fa1e802e06c57",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          },
+          {
+            "id": 564147789,
+            "name": "teambuddies-0.1.0-linux-x64.zip",
+            "size": 24987958,
+            "digest": "sha256:d99efb1592c9a1950815c7a6bd704104261fbe1635f6ef0d3317819d6952ea8d",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/download/v0.1.0/teambuddies-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564147782,
+            "name": "teambuddies-0.1.0-macos-arm64.zip",
+            "size": 23755452,
+            "digest": "sha256:8625d3b1d922fb52f8e5bdc0e9c70cf4a5186a1874b3bad416b3c44c9fc6e610",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/download/v0.1.0/teambuddies-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564147786,
+            "name": "teambuddies-0.1.0-macos-x64.zip",
+            "size": 24352101,
+            "digest": "sha256:c0a7e28c8b774679f625cad6987f344890291b62ef1ead89a1661774daa0004b",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/download/v0.1.0/teambuddies-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564147781,
+            "name": "teambuddies-0.1.0-windows-x64.zip",
+            "size": 27060248,
+            "digest": "sha256:26e14098c48b6aefd68c7655daf37ff2c79ee780cf7b17b30326e1b09bd05821",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/download/v0.1.0/teambuddies-0.1.0-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999981610,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964830,
+            "name": "teambuddies-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/teambuddies-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964831,
+            "name": "teambuddies-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/teambuddies-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    ],
+    "alexbeav-wild-arms-recomp": [
+      {
+        "id": 388686424,
+        "tag_name": "v0.1.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-14T20:20:34Z",
+        "assets": [
+          {
+            "id": 564155721,
+            "name": "RELEASE-MANIFEST.json",
+            "size": 2587,
+            "digest": "sha256:67620f0563334efee439e1db97fc7145bb49b6721d82d1f0a55da8062e5ab719",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases/download/v0.1.0/RELEASE-MANIFEST.json"
+          },
+          {
+            "id": 564155748,
+            "name": "SHA256SUMS.txt",
+            "size": 477,
+            "digest": "sha256:0c118f14bae3f3339ac5b627aa7477296548aa83507f9ccacff35254d4a90806",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases/download/v0.1.0/SHA256SUMS.txt"
+          },
+          {
+            "id": 564155718,
+            "name": "wildarms-0.1.0-linux-x64.zip",
+            "size": 24983052,
+            "digest": "sha256:9dd44a4b9eb19c5a14e0cab44096577f40aa1ccabdec912800e1e0e7a692a3e4",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases/download/v0.1.0/wildarms-0.1.0-linux-x64.zip"
+          },
+          {
+            "id": 564155716,
+            "name": "wildarms-0.1.0-macos-arm64.zip",
+            "size": 23754645,
+            "digest": "sha256:a0d247fe507b2a079896c9fe3cde517aa195159f11ebd701951244f32c682650",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases/download/v0.1.0/wildarms-0.1.0-macos-arm64.zip"
+          },
+          {
+            "id": 564155720,
+            "name": "wildarms-0.1.0-macos-x64.zip",
+            "size": 24346312,
+            "digest": "sha256:b292ee81b552c806e404ed6b85e45c66e2c5a454dcadb7a534ebfafabbb7c7f1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases/download/v0.1.0/wildarms-0.1.0-macos-x64.zip"
+          },
+          {
+            "id": 564155722,
+            "name": "wildarms-0.1.0-windows-x64.zip",
+            "size": 27057795,
+            "digest": "sha256:7d5cd3fc69ecfd00828f8300499107af38307eb396d87520c6644b4c887ba1ba",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases/download/v0.1.0/wildarms-0.1.0-windows-x64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999981611,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999964833,
+            "name": "wildarms-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wildarms-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999964834,
+            "name": "wildarms-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wildarms-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -5460,6 +7586,226 @@
       "inventory": "alexbeav-wipeout-recomp",
       "release_index": 0,
       "asset": "wipeout-recomp-0.1.4-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-armored-core-project-phantasma-recomp",
+      "release_index": 0,
+      "asset": "armoredcoreprojectphantasma-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-armored-core-project-phantasma-recomp",
+      "release_index": 0,
+      "asset": "armoredcoreprojectphantasma-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-azure-dreams-recomp",
+      "release_index": 0,
+      "asset": "azuredreams-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-azure-dreams-recomp",
+      "release_index": 0,
+      "asset": "azuredreams-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-bushido-blade-2-recomp",
+      "release_index": 0,
+      "asset": "bushidoblade2-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-bushido-blade-2-recomp",
+      "release_index": 0,
+      "asset": "bushidoblade2-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-colony-wars-red-sun-recomp",
+      "release_index": 0,
+      "asset": "colonywarsredsun-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-colony-wars-red-sun-recomp",
+      "release_index": 0,
+      "asset": "colonywarsredsun-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-digimon-world-2-recomp",
+      "release_index": 0,
+      "asset": "digimonworld2-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-digimon-world-2-recomp",
+      "release_index": 0,
+      "asset": "digimonworld2-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp",
+      "release_index": 0,
+      "asset": "dragonballzultimatebattle22-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp",
+      "release_index": 0,
+      "asset": "dragonballzultimatebattle22-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-future-cop-lapd-recomp",
+      "release_index": 0,
+      "asset": "futurecoplapd-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-future-cop-lapd-recomp",
+      "release_index": 0,
+      "asset": "futurecoplapd-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-g-police-weapons-of-justice-recomp",
+      "release_index": 0,
+      "asset": "gpoliceweaponsofjustice-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-g-police-weapons-of-justice-recomp",
+      "release_index": 0,
+      "asset": "gpoliceweaponsofjustice-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-incredible-crisis-recomp",
+      "release_index": 0,
+      "asset": "incrediblecrisis-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-incredible-crisis-recomp",
+      "release_index": 0,
+      "asset": "incrediblecrisis-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-jade-cocoon-recomp",
+      "release_index": 0,
+      "asset": "jadecocoon-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-jade-cocoon-recomp",
+      "release_index": 0,
+      "asset": "jadecocoon-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-kartia-recomp",
+      "release_index": 0,
+      "asset": "kartia-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-kartia-recomp",
+      "release_index": 0,
+      "asset": "kartia-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-mega-man-legends-2-recomp",
+      "release_index": 0,
+      "asset": "megamanlegends2-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-mega-man-legends-2-recomp",
+      "release_index": 0,
+      "asset": "megamanlegends2-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-misadventures-of-tron-bonne-recomp",
+      "release_index": 0,
+      "asset": "misadventuresoftronbonne-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-misadventures-of-tron-bonne-recomp",
+      "release_index": 0,
+      "asset": "misadventuresoftronbonne-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-nightmare-creatures-ii-recomp",
+      "release_index": 0,
+      "asset": "nightmarecreaturesii-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-nightmare-creatures-ii-recomp",
+      "release_index": 0,
+      "asset": "nightmarecreaturesii-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-rival-schools-evolution-recomp",
+      "release_index": 0,
+      "asset": "rivalschoolsevolution-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-rival-schools-evolution-recomp",
+      "release_index": 0,
+      "asset": "rivalschoolsevolution-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-rival-schools-recomp",
+      "release_index": 0,
+      "asset": "rivalschools-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-rival-schools-recomp",
+      "release_index": 0,
+      "asset": "rivalschools-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-rollcage-stage-ii-recomp",
+      "release_index": 0,
+      "asset": "rollcagestageii-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-rollcage-stage-ii-recomp",
+      "release_index": 0,
+      "asset": "rollcagestageii-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-spider-man-2-enter-electro-recomp",
+      "release_index": 0,
+      "asset": "spiderman2enterelectro-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-spider-man-2-enter-electro-recomp",
+      "release_index": 0,
+      "asset": "spiderman2enterelectro-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-suikoden-ii-recomp",
+      "release_index": 0,
+      "asset": "suikodenii-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-suikoden-ii-recomp",
+      "release_index": 0,
+      "asset": "suikodenii-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-tail-concerto-recomp",
+      "release_index": 0,
+      "asset": "tailconcerto-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-tail-concerto-recomp",
+      "release_index": 0,
+      "asset": "tailconcerto-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-team-buddies-recomp",
+      "release_index": 0,
+      "asset": "teambuddies-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-team-buddies-recomp",
+      "release_index": 0,
+      "asset": "teambuddies-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-wild-arms-recomp",
+      "release_index": 0,
+      "asset": "wildarms-0.1.0-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-wild-arms-recomp",
+      "release_index": 0,
+      "asset": "wildarms-0.1.0-macos-x64.zip"
     }
   ]
 }

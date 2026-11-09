@@ -37,6 +37,7 @@
         }
       ],
       "warnings": [
+        "Use the retail European disc for this kit. A prerelease disc shares its first data track and 12-track count.",
         "Portcove has not verified native setup, gameplay or save compatibility for this kit."
       ],
       "help_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/releases/tag/v0.1.0",
