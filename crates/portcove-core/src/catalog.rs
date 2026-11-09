@@ -2597,7 +2597,10 @@ mod tests {
         assert_eq!(port.release.provider, ReleaseSource::Github);
         assert!(port.release.user_prepared.is_empty());
         assert!(port.release.direct.is_empty());
-        assert_eq!(port.release.repository, "RetroPortingToolKit/FZeroSNESRecomp");
+        assert_eq!(
+            port.release.repository,
+            "RetroPortingToolKit/FZeroSNESRecomp"
+        );
         assert_eq!(
             port.release.asset_hints[&Platform::WindowsX86_64],
             ["FZeroSNESRecomp-", "-windows-x64.zip"]
