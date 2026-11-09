@@ -3147,6 +3147,15 @@ mod tests {
             vec!["DK64".into(), "-Windows-Release".into(), ".zip".into()],
         );
         assert_eq!(previous_hints, Some(vec!["DK64-Recompiled-Windows".into()]));
+        // The frozen input keeps the former path. A reviewed upstream_lineage
+        // relocation moved the same GitHub repository identity (1352192597).
+        let mk4 = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "mortal-kombat-4-recompiled")
+            .unwrap();
+        assert_eq!(mk4.release.repository, "Alexbeav/mortal-kombat-4-recomp");
+        mk4.project_url = "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp".into();
+        mk4.release.repository = "alexbeavs-ps1-ports/mortal-kombat-4-recomp".into();
         for (id, hint) in [
             ("zelda64-recomp", "Linux-X64.zip"),
             ("banjo-recomp", "Linux-X64."),
