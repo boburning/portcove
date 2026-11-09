@@ -34,6 +34,18 @@ export interface SearchableGame {
   inLibrary: boolean;
 }
 
+/** Library-hidden games stay searchable, but only as Discover results (DESIGN-SYSTEM). */
+export function withLibraryVisibility(
+  games: readonly SearchableGame[],
+  hiddenPortIds: readonly string[] | undefined,
+): SearchableGame[] {
+  if (!hiddenPortIds?.length) return [...games];
+  const hidden = new Set(hiddenPortIds);
+  return games.map((game) =>
+    game.inLibrary && hidden.has(game.port.id) ? { ...game, inLibrary: false } : game,
+  );
+}
+
 export function commandSurfaceCommands({
   recent,
   games = [],

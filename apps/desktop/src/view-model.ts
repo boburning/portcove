@@ -19,6 +19,7 @@ import type {
 } from "./types";
 import { portActionPresentation } from "./features/port-actions/port-action-presentation";
 import { gameTitle, gameIdentityLabel } from "./port-identity";
+import { normalizeGameSearchText } from "./search-text";
 
 const unfinishedActivityAfterSeconds = 24 * 60 * 60;
 
@@ -533,10 +534,6 @@ function searchableText(port: CatalogEntry) {
   return normalizeGameSearchText(
     `${gameTitle(port)} ${port.name} ${port.presentation?.variant_label ?? ""} ${port.summary} ${port.id} ${installationMethod} ${port.platforms.join(" ")} ${port.platforms.map(platformLabel).join(" ")}`,
   );
-}
-
-function normalizeGameSearchText(value: string): string {
-  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
 export function errorText(error: unknown) {
