@@ -4572,7 +4572,21 @@ export interface SupportBundleSection {
 export interface OutputDesktopWorkspaceSnapshot {
   activities: ActivityFeed;
   browsing?: CatalogBrowsingSnapshot | null;
-  catalog: CatalogDocument;
+  /**
+   * Omitted only when `catalog_unchanged` is true.
+   */
+  catalog?: CatalogDocument | null;
+  /**
+   * SHA-256 of the catalog and listing documents as serialized here. A
+   * caller that already holds these exact documents passes the digest back
+   * and receives `catalog_unchanged` without either document.
+   */
+  catalog_digest?: string | null;
+  /**
+   * True when `catalog` and `listing_catalog` were omitted because the
+   * caller's known digest matched; the caller keeps its own copies.
+   */
+  catalog_unchanged?: boolean;
   listing_catalog?: CatalogListingDocument | null;
   listing_statuses?: PortListingStatus[];
   pending_setups?: PendingSetupRecord[];

@@ -21,8 +21,10 @@ pub(crate) fn emit_desktop_event<T: Serialize + Clone>(
 impl From<portcove_core::WorkspaceSnapshot> for DesktopWorkspaceSnapshot {
     fn from(snapshot: portcove_core::WorkspaceSnapshot) -> Self {
         Self {
-            catalog: snapshot.catalog,
+            catalog: Some(snapshot.catalog),
             listing_catalog: snapshot.listing_catalog,
+            catalog_digest: None,
+            catalog_unchanged: false,
             listing_statuses: snapshot.listing_statuses,
             pending_setups: snapshot.pending_setups,
             statuses: snapshot.statuses,

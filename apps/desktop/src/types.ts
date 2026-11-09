@@ -84,7 +84,12 @@ export type HostToolProbeResult = Generated.TransportOutputs["host_tool_probe_re
 
 export type DoctorReport = Generated.TransportOutputs["doctor"];
 
-export type WorkspaceSnapshot = Generated.TransportOutputs["desktop_workspace_snapshot"];
+/** The snapshot as it crosses IPC; the catalog may be omitted when unchanged. */
+export type WorkspaceSnapshotTransport = Generated.TransportOutputs["desktop_workspace_snapshot"];
+/** A complete snapshot after the frontend restores an unchanged catalog. */
+export type WorkspaceSnapshot = WorkspaceSnapshotTransport & {
+  catalog: NonNullable<WorkspaceSnapshotTransport["catalog"]>;
+};
 export type CatalogBrowsingSnapshot = NonNullable<WorkspaceSnapshot["browsing"]>;
 export type CatalogBrowsingContext = CatalogBrowsingSnapshot["contexts"][number];
 
