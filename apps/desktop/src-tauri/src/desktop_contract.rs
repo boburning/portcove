@@ -18,9 +18,20 @@ pub(crate) type DesktopError = portcove_core::FailureReport;
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct DesktopWorkspaceSnapshot {
-    pub(crate) catalog: portcove_core::CatalogDocument,
+    /// Omitted only when `catalog_unchanged` is true.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) catalog: Option<portcove_core::CatalogDocument>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) listing_catalog: Option<portcove_core::CatalogListingDocument>,
+    /// SHA-256 of the catalog and listing documents as serialized here. A
+    /// caller that already holds these exact documents passes the digest back
+    /// and receives `catalog_unchanged` without either document.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) catalog_digest: Option<String>,
+    /// True when `catalog` and `listing_catalog` were omitted because the
+    /// caller's known digest matched; the caller keeps its own copies.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) catalog_unchanged: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) listing_statuses: Vec<portcove_core::PortListingStatus>,
     #[serde(skip_serializing_if = "Vec::is_empty")]

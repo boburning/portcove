@@ -576,11 +576,13 @@ async fn get_activities(
 async fn get_workspace_snapshot(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
+    known_catalog_digest: Option<String>,
 ) -> DesktopResult<DesktopWorkspaceSnapshot> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
         let snapshot = workspace_snapshot_with_service(&service)?;
+        let snapshot = omit_known_catalog(snapshot, known_catalog_digest.as_deref())?;
         require_library_generation(state_generation(&state), generation)?;
         Ok(snapshot)
     })
@@ -627,6 +629,38 @@ fn workspace_changed_at_generation(state: &DesktopState, generation: u64) -> Des
     let changed = observer.changed().map_err(DesktopError::from)?;
     require_library_generation(state_generation(state), generation)?;
     Ok(changed)
+}
+
+/// Digest the catalog and listing documents exactly as they would cross IPC,
+/// and drop them when the caller already holds that digest. About 7 MB of JSON
+/// otherwise crosses IPC and is re-parsed and compared on the UI thread for
+/// every full workspace read.
+fn omit_known_catalog(
+    mut snapshot: DesktopWorkspaceSnapshot,
+    known_digest: Option<&str>,
+) -> DesktopResult<DesktopWorkspaceSnapshot> {
+    use sha2::{Digest, Sha256};
+    struct HashWriter(Sha256);
+    impl std::io::Write for HashWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.update(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut writer = HashWriter(Sha256::new());
+    serde_json::to_writer(&mut writer, &(&snapshot.catalog, &snapshot.listing_catalog))
+        .map_err(|error| DesktopError::from(PortcoveError::from(error)))?;
+    let digest = hex::encode(writer.0.finalize());
+    if known_digest == Some(digest.as_str()) {
+        snapshot.catalog = None;
+        snapshot.listing_catalog = None;
+        snapshot.catalog_unchanged = true;
+    }
+    snapshot.catalog_digest = Some(digest);
+    Ok(snapshot)
 }
 
 fn workspace_snapshot_with_service(
@@ -3569,6 +3603,43 @@ mod tests {
             serde_json::to_value(desktop).unwrap(),
             serde_json::to_value(core).unwrap()
         );
+    }
+
+    #[test]
+    fn known_catalog_digest_omits_only_the_unchanged_documents() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+
+        let full =
+            omit_known_catalog(workspace_snapshot_with_service(&service).unwrap(), None).unwrap();
+        let digest = full.catalog_digest.clone().unwrap();
+        assert!(!full.catalog_unchanged);
+        assert!(full.catalog.is_some());
+
+        let stale = omit_known_catalog(
+            workspace_snapshot_with_service(&service).unwrap(),
+            Some("0000"),
+        )
+        .unwrap();
+        assert!(!stale.catalog_unchanged);
+        assert_eq!(stale.catalog_digest.as_deref(), Some(digest.as_str()));
+        assert!(stale.catalog.is_some());
+
+        let known = omit_known_catalog(
+            workspace_snapshot_with_service(&service).unwrap(),
+            Some(&digest),
+        )
+        .unwrap();
+        assert!(known.catalog_unchanged);
+        assert!(known.catalog.is_none() && known.listing_catalog.is_none());
+        assert_eq!(known.catalog_digest.as_deref(), Some(digest.as_str()));
+        let full_value = serde_json::to_value(&full).unwrap();
+        let known_value = serde_json::to_value(&known).unwrap();
+        assert_eq!(full_value["statuses"], known_value["statuses"]);
+        assert_eq!(full_value["sources"], known_value["sources"]);
+        assert!(known_value.get("catalog").is_none());
+        assert_eq!(known_value["catalog_unchanged"], true);
     }
 
     #[test]

@@ -19,7 +19,11 @@ The workspace snapshot is one pure local-IPC TanStack Query in
 `usePortcoveData`, keyed by library generation and owned by that hook's mounted
 client. Subscription readiness enables the query; Query owns snapshot/error/fetch
 state, deduplication, polling and focus triggers. Structural sharing plus a narrow
-port-ID adapter preserves unchanged statuses across reordering. Reads work offline
+port-ID adapter preserves unchanged statuses across reordering. Each full read
+offers the SHA-256 `catalog_digest` the generation already holds; when the catalog
+and listing documents serialize to the same digest, Tauri omits both and sets
+`catalog_unchanged`, and the hook reuses its held objects by reference instead of
+receiving and comparing about 7 MB again. Reads work offline
 with retries disabled. Cheap change detection and activity reads precede periodic
 full reconciliation; explicit refresh requests a full snapshot. A mutation arriving
 during a read joins that read before targeted invalidation requests a fresh one,

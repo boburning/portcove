@@ -391,6 +391,28 @@ describe("workspace refresh recovery", () => {
     expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
   });
 
+  it("offers the held catalog digest and reuses an unchanged catalog by reference", async () => {
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({
+      ...structuredClone(snapshot),
+      catalog_digest: "digest-1",
+    });
+    await render();
+    const heldCatalog = data.catalog;
+    const { catalog: _omitted, ...withoutCatalog } = structuredClone(snapshot);
+    const fresh = {
+      ...withoutCatalog,
+      statuses: [{ ...snapshot.statuses[0]!, successful_launches: 42 }],
+      catalog_digest: "digest-1",
+      catalog_unchanged: true,
+    };
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(fresh);
+    await act(async () => data.refresh());
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, "digest-1");
+    expect(data.catalog).toBe(heldCatalog);
+    expect(data.statuses[0]?.successful_launches).toBe(42);
+  });
+
   it("accepts listing-only changes atomically without replacing strict catalog state", async () => {
     await render();
     const strictCatalog = data.catalog;
@@ -661,7 +683,7 @@ describe("workspace refresh recovery", () => {
     expect(data.catalog).toEqual(snapshot.catalog);
     expect(data.diagnosticRefreshing).toBe(true);
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
-    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, null);
     diagnostics.resolve(doctor);
     await act(async () => diagnostics.promise);
     expect(data.doctor).toEqual(doctor);
@@ -674,14 +696,14 @@ describe("workspace refresh recovery", () => {
       .mockReturnValueOnce(previous.promise)
       .mockResolvedValueOnce(current);
     await render();
-    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, null);
 
     await root.rerender(<Fixture generation={8} />);
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(8);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(8, null);
     expect(data.statuses).toEqual([]);
 
     previous.resolve(snapshot);
@@ -869,7 +891,7 @@ describe("workspace refresh recovery", () => {
       vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(current);
       await root.rerender(<Fixture generation={8} />);
       await act(nextBrowserTask);
-      expect(desktopApi.workspaceSnapshot).toHaveBeenLastCalledWith(8);
+      expect(desktopApi.workspaceSnapshot).toHaveBeenLastCalledWith(8, null);
       const currentStatuses = data.statuses;
       vi.mocked(desktopApi.workspaceSnapshot).mockClear();
       await act(async () => {
