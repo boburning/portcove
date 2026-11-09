@@ -12,6 +12,10 @@ on:
     paths:
       - scripts/release-handshake-hosted-fixture.mts
       - .github/workflows/release-handshake-fixture.yml
+# Superseded pull request runs are cancelled; main runs always finish.
+concurrency:
+  group: release-handshake-fixture-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:

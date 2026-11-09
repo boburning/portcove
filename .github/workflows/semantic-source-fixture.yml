@@ -32,6 +32,10 @@ on:
       - rust-toolchain.toml
       - package.json
       - pnpm-lock.yaml
+# Superseded pull request runs are cancelled; main runs always finish.
+concurrency:
+  group: semantic-source-fixture-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:

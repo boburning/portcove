@@ -30,9 +30,11 @@ on:
 permissions:
   contents: read
 
+# A newer pull request revision supersedes the full package build; manual
+# dispatches always finish.
 concurrency:
-  group: linux-package-ownership-rehearsal-${{ github.ref }}
-  cancel-in-progress: false
+  group: linux-package-ownership-rehearsal-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store

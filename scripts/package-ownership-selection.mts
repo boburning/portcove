@@ -21,7 +21,33 @@ import { parseAllDocuments } from "yaml";
 import { isDeepStrictEqual } from "node:util";
 import { pathToFileURL } from "node:url";
 
-const dependencyFiles = new Set(["apps/desktop/package.json", "package.json", "pnpm-lock.yaml"]);
+const dependencyFiles = new Set([
+  "apps/desktop/package.json",
+  "package.json",
+  "pnpm-lock.yaml",
+  "Cargo.lock",
+]);
+// Crates that own the packaged Desktop shell, its native dialogs and the Linux
+// desktop stack. Other Cargo.lock churn leaves package ownership unchanged.
+const packagingCrate =
+  /^(?:portcove-desktop|tauri(?:-[a-z0-9-]+)?|tao(?:-macros)?|wry|rfd|muda|tray-icon|(?:gtk|gdk|gio|glib|atk|pango|cairo|soup|webkit2gtk|javascriptcore|libappindicator)[a-z0-9-]*)$/u;
+/** The Cargo.lock format version plus every packaging crate's complete entry. */
+function cargoLockIdentity(text: string) {
+  const [header = "", ...blocks] = text.replace(/\r\n/gu, "\n").split(/^\[\[package\]\]\n/mu);
+  const version = /^version = ([34])$/mu.exec(header);
+  if (!version || !blocks.length || /^\[/mu.test(header))
+    throw new Error("unknown Cargo.lock format");
+  const packaging: string[] = [];
+  for (const block of blocks) {
+    const name = /^name = "([^"\n]+)"\n/u.exec(block);
+    // Any other table (for example [metadata] or [patch.unused]) is unknown.
+    if (!name || /^\[/mu.test(block)) throw new Error("invalid Cargo.lock package");
+    if (packagingCrate.test(name[1]!)) packaging.push(block.trimEnd());
+  }
+  if (!packaging.some((block) => block.startsWith('name = "tauri"\n')))
+    throw new Error("Cargo.lock lacks the packaged Desktop shell");
+  return { version: version[1], packaging: packaging.sort() };
+}
 function manifestIdentity(text: string, desktop = false) {
   const value = objectValue(JSON.parse(text));
   if (desktop)
@@ -100,7 +126,9 @@ export function needsPackageOwnership(
       const identity =
         file === "pnpm-lock.yaml"
           ? lockIdentity
-          : (text: string) => manifestIdentity(text, file.startsWith("apps/"));
+          : file === "Cargo.lock"
+            ? cargoLockIdentity
+            : (text: string) => manifestIdentity(text, file.startsWith("apps/"));
       if (!isDeepStrictEqual(identity(before(file)), identity(after(file)))) return true;
     }
     return false;
@@ -140,6 +168,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   console.log(
     needed
       ? "Packaging inputs changed or uncertain: rehearse ownership."
-      : "Frontend dependency change leaves packaging inputs unchanged.",
+      : "Dependency change leaves packaging inputs unchanged.",
   );
 }

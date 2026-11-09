@@ -1318,7 +1318,13 @@ Frontend setup uses the pinned package-manager declaration and frozen lockfile;
 Core setup selects the existing Rust pin/components and cargo-nextest only.
 Daily keeps existing Aqua checksum/attestation and Cargo cache boundaries.
 
-The Linux package-ownership rehearsal gives its packaging-prerequisite APT install
+On pull requests, the Linux package-ownership rehearsal's cheap selection job
+skips the DEB/RPM build when only dependency manifests or lockfiles changed and
+their packaging closure did not: the `@tauri-apps/*` npm graph, and the Cargo.lock
+entries of the Desktop crate, Tauri, its WebView/window/dialog crates and the
+GTK/WebKit stack. Any other changed path, a new lockfile format or a parse failure
+keeps the rehearsal. A newer pull request revision cancels a superseded run.
+The rehearsal gives its packaging-prerequisite APT install
 a finite 600-second budget within a 30-minute step. The longer step covers the
 existing bounded index/mirror fallback and cleanup; an interrupted install still
 refuses a retry. Package/runtime assertions and the 45-minute build-job limit
