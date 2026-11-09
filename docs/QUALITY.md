@@ -246,7 +246,11 @@ regular Rust files within the independent release-tool crate may omit it;
 manifests, build scripts, fixtures, renames, deletions and permission changes keep
 the replay. The maintained Cargo consumer-boundary contract must fail if another
 workspace package starts depending on release tools. Required Windows Rust
-selection and full qualification coverage remain separate obligations.
+selection and full qualification coverage remain separate obligations. The
+replay uses the strict default nextest profile; its serial test groups, not a
+single global slot, keep contending CLI lifecycle cases apart. It and the
+Windows partitions record one shared source manifest from
+`scripts/runtime-diagnostics-source.mts`.
 
 Cheap source-consumer contracts run before selected compilation/runtime work.
 The maintained native compatibility source inventory selects its declaration
