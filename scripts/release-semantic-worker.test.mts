@@ -96,6 +96,50 @@ void test("persistent technical exclusion resumes pre-launch failure twice, reta
   await assert.rejects(claimSemanticTechnicalAttempt(another, "a".repeat(64)), /GET-only/);
 });
 
+void test("one supplemental application claim requires the exact third stop and preserves its anchor", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "semantic-supplemental-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const requestId = "b".repeat(64);
+  const request = path.join(parent, `request-${requestId}`);
+  await mkdir(request);
+  let stop = "";
+  for (let index = 0; index < 3; index++) {
+    const current = await claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      request_id: requestId,
+      max_lanes: 400,
+    });
+    stop = JSON.stringify({
+      outcome: "technical-failure",
+      invocations: [],
+      application_partition_request_id: requestId,
+    });
+    await writeFile(path.join(current, "technical-stop.json"), stop);
+  }
+  const scope = { request_id: requestId, max_lanes: 400, retry_stop_sha256: "c".repeat(64) };
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), scope),
+    /stop differs/,
+  );
+  scope.retry_stop_sha256 = createHash("sha256").update(stop).digest("hex");
+  const orphan = path.join(request, "technical-2", "r-unlisted");
+  await mkdir(orphan);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), scope),
+    /inventory differs/,
+  );
+  await rm(orphan, { recursive: true });
+  const next = await claimSemanticTechnicalAttempt(request, "a".repeat(64), scope);
+  assert.equal(path.basename(next), "technical-3");
+  assert.equal(
+    await readFile(`${request}.attempts.jsonl`, "utf8"),
+    "technical-0\ntechnical-1\ntechnical-2\ntechnical-3\n",
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), scope),
+    /budget exhausted/,
+  );
+});
+
 void test("retained application prelaunch refuses an alternate canonical path or an invocation sibling", () => {
   const request = "request-b59b5c190f4933ff6f26ef05b0f5fd137b9da2e0e5114d2499a678f2a918b7be";
   const root = `/home/boburning/portcove-semantic/private/production-semantic-output/${request}/technical-0`;

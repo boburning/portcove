@@ -206,7 +206,13 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
   if (
     "application_partition" in value &&
     (!isRecord(partition) ||
-      Object.keys(partition).sort().join(",") !== "max_lanes,request_id,wall_seconds" ||
+      ![
+        "max_lanes,request_id,wall_seconds",
+        "max_lanes,request_id,retry_stop_sha256,wall_seconds",
+      ].includes(Object.keys(partition).sort().join(",")) ||
+      ("retry_stop_sha256" in partition &&
+        (typeof partition.retry_stop_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.retry_stop_sha256))) ||
       typeof partition.request_id !== "string" ||
       !/^[a-f0-9]{64}$/u.test(partition.request_id) ||
       typeof partition.max_lanes !== "number" ||
@@ -261,6 +267,9 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
             request_id: String(partition.request_id),
             max_lanes: Number(partition.max_lanes),
             wall_seconds: Number(partition.wall_seconds),
+            ...(typeof partition.retry_stop_sha256 === "string" && {
+              retry_stop_sha256: partition.retry_stop_sha256,
+            }),
           },
         }
       : {}),
@@ -629,7 +638,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   );
   const requestDirectory = path.join(config.output_parent, `request-${request.request_id}`);
   const existingLocators: string[] = [];
-  for (let index = 0; index < 3; index++) {
+  for (let index = 0; index < (selected.purpose === "application" ? 4 : 3); index++) {
     const directory = path.join(requestDirectory, `technical-${index}`);
     try {
       await lstat(path.join(directory, "expected-check.json"));
@@ -770,6 +779,9 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
         partitionScope && {
           request_id: partitionScope.request_id,
           max_lanes: partitionScope.max_lanes,
+          ...(partitionScope.retry_stop_sha256 && {
+            retry_stop_sha256: partitionScope.retry_stop_sha256,
+          }),
         },
       );
   const invocations: { root: string; invocation_sha256: string }[] = [];
