@@ -10,6 +10,9 @@ import {
   rmSync,
   writeFileSync,
   symlinkSync,
+  readlinkSync,
+  statSync,
+  readFileSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -1065,6 +1068,59 @@ void test("cloud bootstrap accepts only the exact Ruff and actionlint attestatio
       );
       assert.equal(result.status === 0, accepted, `${label}: ${result.stderr}`);
     }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("cloud bootstrap shares a directory by symlink and converges or refuses on rerun", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-share-directory-"));
+  const share = (source: string, target: string) =>
+    spawnSync(
+      "bash",
+      [
+        "-c",
+        'source scripts/bootstrap-cloud-session.sh && share_directory "$1" "$2"',
+        "test",
+        source,
+        target,
+      ],
+      { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8" },
+    );
+  try {
+    const source = path.join(directory, "home", ".rustup");
+    const target = path.join(directory, "shared", "rustup");
+    mkdirSync(path.join(source, "toolchains"), { recursive: true });
+    mkdirSync(path.dirname(target));
+    writeFileSync(path.join(source, "settings.toml"), "default = 1\n");
+
+    assert.equal(
+      share(`${source}//`, target).status,
+      0,
+      "a trailing slash still links the original path",
+    );
+    assert.equal(readlinkSync(source), target);
+    assert.equal(readFileSync(path.join(source, "settings.toml"), "utf8"), "default = 1\n");
+    assert.equal(share(source, target).status, 0, "a rerun is a no-op");
+
+    rmSync(source);
+    assert.equal(share(source, target).status, 0, "an interrupted move is completed by linking");
+    assert.equal(readlinkSync(source), target);
+
+    const other = path.join(directory, "home", ".cargo-bin");
+    mkdirSync(other);
+    const refusedTarget = share(other, target);
+    assert.notEqual(refusedTarget.status, 0);
+    assert.match(refusedTarget.stderr, /already exists/u);
+    assert.ok(statSync(other).isDirectory(), "an existing target is never overwritten");
+
+    const foreign = path.join(directory, "home", "foreign");
+    symlinkSync(other, foreign);
+    assert.match(share(foreign, target).stderr, /links elsewhere/u);
+    assert.match(
+      share(path.join(directory, "missing"), path.join(directory, "absent")).stderr,
+      /unexpected layout/u,
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
