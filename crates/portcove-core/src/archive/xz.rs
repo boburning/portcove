@@ -142,7 +142,7 @@ pub(crate) mod tests {
         tar.into_inner().unwrap()
     }
 
-    fn encode(bytes: &[u8]) -> Vec<u8> {
+    pub(crate) fn encode(bytes: &[u8]) -> Vec<u8> {
         encode_xz(
             bytes,
             &LzmaEncProps::new().with_dict_size(1 << 16),

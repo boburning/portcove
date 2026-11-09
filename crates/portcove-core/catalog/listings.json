@@ -49277,7 +49277,7 @@
           },
           {
             "title": "Start the Linux player",
-            "instruction": "Choose the official v0.0.17 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXWA. Run OpenXWA with glibc 2.35 or later, the GCC 12 runtime or newer, and a Vulkan driver."
+            "instruction": "On Linux x86-64, install the official portable engine in Portcove, then choose Play and select your original game data in the upstream picker. Use glibc 2.35 or later, the GCC 12 runtime or newer, and a Vulkan driver. If you prefer an external copy, keep the resources, shaders and lib folder beside OpenXWA."
           }
         ],
         "warnings": [
@@ -49335,7 +49335,7 @@
           },
           {
             "title": "Start the Linux player",
-            "instruction": "Choose the official v0.0.3 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.29, and a Vulkan driver."
+            "instruction": "On Linux x86-64, install the official portable engine in Portcove, then choose Play and select your original game data in the upstream picker. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.29, and a Vulkan driver. If you prefer an external copy, keep the resources, shaders and lib folder beside OpenXW."
           }
         ],
         "warnings": [
@@ -49389,7 +49389,7 @@
           },
           {
             "title": "Start the Linux player",
-            "instruction": "Choose the official v0.0.5 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
+            "instruction": "On Linux x86-64, install the official portable engine in Portcove, then choose Play and select your original game data in the upstream picker. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver. If you prefer an external copy, keep the resources, shaders and lib folder beside OpenXvT."
           }
         ],
         "warnings": [

@@ -16,7 +16,7 @@
         },
         {
           "title": "Start the Linux player",
-          "instruction": "Choose the official v0.0.5 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
+          "instruction": "On Linux x86-64, install the official portable engine in Portcove, then choose Play and select your original game data in the upstream picker. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver. If you prefer an external copy, keep the resources, shaders and lib folder beside OpenXvT."
         }
       ],
       "warnings": [
@@ -34,7 +34,7 @@
       ],
       "help_url": "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md"
     },
-    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "platforms": ["macos-aarch64"],
     "availability": "packages",
     "release_url": "https://github.com/elyosh/OpenXvT/releases/tag/v0.0.5",
     "download_asset_hints": {
@@ -57,23 +57,26 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "elyosh/OpenXvT",
       "asset_hints": {
-        "windows-x86-64": ["-windows-x86_64-release.zip"]
-      }
+        "windows-x86-64": ["-windows-x86_64-release.zip"],
+        "linux-x86-64": ["-linux-x86_64-release.tar.xz"]
+      },
+      "linux_tar_xz": true
     },
     "executable_hints": {
-      "windows-x86-64": ["OpenXvT.exe"]
+      "windows-x86-64": ["OpenXvT.exe"],
+      "linux-x86-64": ["OpenXvT"]
     },
     "persistent_paths": ["config.yaml"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On Play, keep the normal in-process setup picker and select your own complete X-Wing vs. TIE Fighter installation with its BalanceOfPower subfolder. Balance of Power is required by this implementation; the base game alone is not the offered tuple. Keep the full original root, package resources, DLLs, shaders and established control/music choices. Optional explicit setup/import arguments are upstream tools, not forced on each start. Multiplayer and save compatibility have not been qualified here. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXvT; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered."
+      "manual_preparation": "On Play, keep the normal in-process setup picker and select your own complete X-Wing vs. TIE Fighter installation with its BalanceOfPower subfolder. Balance of Power is required by this implementation; the base game alone is not the offered tuple. Keep the full original root, package resources, libraries, shaders and established control/music choices. Optional explicit setup/import arguments are upstream tools, not forced on each start. Multiplayer and save compatibility have not been qualified here. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXvT; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered. On Linux x86-64, use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
     }
   }
 }

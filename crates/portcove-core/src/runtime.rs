@@ -27,6 +27,26 @@ impl BundledRuntime {
 }
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    let linux = Platform::LinuxX86_64;
+    if port.release.requires_tar_xz(linux)
+        && (port.adapter != crate::AdapterKind::NativePortable
+            || port.release.provider != crate::ReleaseSource::Github
+            || !port.platforms.contains(&linux)
+            || port.release.curated.contains_key(&linux)
+            || port.release.direct.contains_key(&linux)
+            || port.release.user_prepared.contains_key(&linux)
+            || port.release.managed_build.contains_key(&linux)
+            || port.bundled_runtime.contains_key(&linux)
+            || !port.release.asset_hints.get(&linux).is_some_and(|hints| {
+                hints
+                    .iter()
+                    .any(|hint| hint.to_ascii_lowercase().ends_with(".tar.xz"))
+            }))
+    {
+        return Err(PortcoveError::usage(
+            "managed TAR.XZ requires a Linux x86-64 GitHub NativePortable player and an archive-specific asset hint",
+        ));
+    }
     crate::installed_mutability::validate_shipwright_persistence(port)?;
     if port.n64_runtime_at_executable_parent
         && (port.adapter != crate::AdapterKind::N64RecompPortable

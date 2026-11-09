@@ -2378,6 +2378,52 @@ async fn portable_engine_linux_siblings_select_player_archives() {
     }
 }
 
+#[test]
+fn native_linux_tar_xz_selection_keeps_the_windows_archive_and_cache_identity() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, prefix) in [
+        ("star-wars-x-wing-openxw", "openxw"),
+        ("star-wars-x-wing-alliance-openxwa", "openxwa"),
+        (
+            "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+            "openxvt",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let linux = Platform::LinuxX86_64;
+        let windows = Platform::WindowsX86_64;
+        assert!(port.release.requires_tar_xz(linux));
+        let inventory = [
+            format!("{prefix}-1.0-linux-x86_64-release.tar.xz"),
+            format!("{prefix}-1.0-linux-x86_64-release.tar.xz.zip"),
+            format!("{prefix}-1.0-linux-aarch64-release.tar.xz"),
+            format!("{prefix}-1.0-windows-x86_64-release.zip"),
+        ]
+        .map(|name| serde_json::from_value::<GithubAsset>(asset(&name, Some('a'))).unwrap());
+        assert_eq!(
+            choose_asset(port, linux, &inventory).unwrap().name,
+            inventory[0].name
+        );
+        assert!(choose_asset(port, linux, &inventory[1..]).is_err());
+        assert_eq!(
+            choose_asset(port, windows, &inventory).unwrap().name,
+            inventory[3].name
+        );
+
+        let mut legacy = port.clone();
+        legacy.release.linux_tar_xz = false;
+        assert!(choose_asset(&legacy, linux, &inventory[..1]).is_err());
+        assert_eq!(
+            ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, windows),
+            ReleaseSelectionCacheKey::new(&legacy, ReleaseChannel::Stable, windows)
+        );
+        assert_ne!(
+            ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, linux),
+            ReleaseSelectionCacheKey::new(&legacy, ReleaseChannel::Stable, linux)
+        );
+    }
+}
+
 #[tokio::test]
 async fn windows_archive_selection_advances_from_shared_release_inventories() {
     #[derive(serde::Deserialize)]

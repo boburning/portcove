@@ -261,7 +261,11 @@ source profiles require a Native6 lower bound.
 
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
-contract. For example, the CorsixTH and SDL Sopwith records use the shared route
+contract. A Linux x86-64 GitHub package can instead declare `release.linux_tar_xz`
+and a required Linux TAR.XZ asset hint. That route accepts only matching TAR.XZ
+players and uses the same bounded reader as downloaded setup. Independent
+definitions require NativePortable capability 8 for this declaration.
+For example, the CorsixTH and SDL Sopwith records use the shared route
 without game-specific Rust or React code. The minimum integration shape is:
 
 ```json

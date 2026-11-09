@@ -160,6 +160,7 @@ mod tests {
                 repository: String::new(),
                 rolling_tag: None,
                 asset_hints: BTreeMap::new(),
+                linux_tar_xz: false,
                 direct,
                 user_prepared: BTreeMap::new(),
             },

@@ -11,6 +11,8 @@ use crate::{PortcoveError, Result};
 
 pub(crate) mod sevenz;
 mod xz;
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+pub(crate) use xz::tests::encode as encode_xz_fixture;
 #[cfg(test)]
 pub(crate) use xz::tests::fixture as xz_fixture;
 
@@ -143,15 +145,7 @@ pub(crate) fn extract_download_archive_with_checkpoint(
         let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
         sevenz::extract(source, destination, compressed_size, checkpoint)
     } else if name.ends_with(".tar.xz") {
-        checkpoint()?;
-        let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
-        extract_tar(
-            || xz::open(source, compressed_size, checkpoint),
-            destination,
-            compressed_size,
-            true,
-            checkpoint,
-        )
+        extract_tar_xz_with_checkpoint(source, destination, expected_compressed_size, checkpoint)
     } else {
         extract_archive_with_checkpoint(
             source,
@@ -161,6 +155,23 @@ pub(crate) fn extract_download_archive_with_checkpoint(
             checkpoint,
         )
     }
+}
+
+pub(crate) fn extract_tar_xz_with_checkpoint(
+    source: &Path,
+    destination: &Path,
+    expected_compressed_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
+    let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
+    extract_tar(
+        || xz::open(source, compressed_size, checkpoint),
+        destination,
+        compressed_size,
+        true,
+        checkpoint,
+    )
 }
 
 pub(crate) fn validate_download_size(actual: u64, expected: u64) -> Result<()> {

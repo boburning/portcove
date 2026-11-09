@@ -59,6 +59,10 @@ impl EngineTemplateCapability {
             contract_version: 7,
         });
         supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 8,
+        });
+        supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: 2,
         });

@@ -11,7 +11,8 @@ use crate::{
     ResolvedRelease, Result, RuntimeIdentity, RuntimeOrigin,
     adapter::{hash_file, walk_files},
     archive::{
-        extract_archive_with_checkpoint, validate_download_progress, validate_download_size,
+        extract_archive_with_checkpoint, extract_tar_xz_with_checkpoint,
+        validate_download_progress, validate_download_size,
     },
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -47,6 +48,7 @@ struct AssetPreparation<'a> {
     payload_root: &'a Path,
     acquisition: Option<AssetAcquisition<'a>>,
     acquired: Option<&'a Path>,
+    requires_tar_xz: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -64,6 +66,7 @@ pub struct InstallQualification {
     acquisition: Option<crate::ScopedResolvedRelease>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
+    requires_tar_xz: bool,
     executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
     persistent_paths: Vec<String>,
@@ -219,6 +222,7 @@ impl InstallQualification {
             acquisition: None,
             retained_contract: None,
             platform,
+            requires_tar_xz: port.release.requires_tar_xz(platform),
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory.clone(),
             persistent_paths: port.persistent_paths.clone(),
@@ -934,6 +938,21 @@ impl Installer {
             )?;
         }
         let port = catalog.port(&request.port_id)?;
+        let requires_tar_xz = port.release.requires_tar_xz(request.qualification.platform);
+        let is_tar_xz = request
+            .release
+            .asset
+            .name
+            .to_ascii_lowercase()
+            .ends_with(".tar.xz");
+        if requires_tar_xz != request.qualification.requires_tar_xz
+            || is_tar_xz != requires_tar_xz
+            || (requires_tar_xz && request.qualification.retained_contract.is_none())
+        {
+            return Err(PortcoveError::unsupported(
+                "managed TAR.XZ requires the matching retained Linux native release declaration",
+            ));
+        }
         crate::installed_mutability::require_shipwright_release(
             port,
             request.qualification.platform,
@@ -952,7 +971,7 @@ impl Installer {
                 "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
             ));
         }
-        if crate::managed_runtime_policy::requires_provider_resolution(port) {
+        if requires_tar_xz || crate::managed_runtime_policy::requires_provider_resolution(port) {
             request.qualification.acquisition.as_ref().ok_or_else(|| {
                 PortcoveError::verification("dynamic runtime policy requires an exact provider resolution before acquisition")
             })?.require_selection(port, request.qualification.platform, request.release.channel)?;
@@ -1158,6 +1177,7 @@ impl Installer {
                     acquired: acquired
                         .map(|inputs| inputs.path(&request.release.asset))
                         .transpose()?,
+                    requires_tar_xz: request.qualification.requires_tar_xz,
                 },
                 operation,
                 emit,
@@ -1208,6 +1228,7 @@ impl Installer {
                     acquired: acquired
                         .map(|inputs| inputs.path(&runtime.asset))
                         .transpose()?,
+                    requires_tar_xz: false,
                 },
                 operation,
                 emit,
@@ -1486,6 +1507,7 @@ impl Installer {
             payload_root,
             acquisition,
             acquired,
+            requires_tar_xz,
         } = input;
         let (artifact, cache_worker) = self
             .acquire_asset_bytes(asset, download_path, operation, emit, acquisition, acquired)
@@ -1498,19 +1520,29 @@ impl Installer {
         #[cfg(test)]
         let archive_worker_test_hook = self.archive_worker_test_hook.clone();
         let worker = tokio::task::spawn_blocking(move || {
-            let result = extract_asset(
-                &extraction_path,
-                &extraction_root,
-                &asset_name,
-                expected_size,
-                &|| {
-                    #[cfg(test)]
-                    if let Some(hook) = &archive_worker_test_hook {
-                        (hook.checkpoint)()?;
-                    }
-                    extraction_operation.checkpoint()
-                },
-            );
+            let checkpoint = || {
+                #[cfg(test)]
+                if let Some(hook) = &archive_worker_test_hook {
+                    (hook.checkpoint)()?;
+                }
+                extraction_operation.checkpoint()
+            };
+            let result = if requires_tar_xz {
+                extract_tar_xz_with_checkpoint(
+                    &extraction_path,
+                    &extraction_root,
+                    expected_size,
+                    &checkpoint,
+                )
+            } else {
+                extract_asset(
+                    &extraction_path,
+                    &extraction_root,
+                    &asset_name,
+                    expected_size,
+                    &checkpoint,
+                )
+            };
             #[cfg(test)]
             if let Some(hook) = &archive_worker_test_hook {
                 hook.finished

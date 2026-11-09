@@ -202,8 +202,10 @@ existing archive size and TAR metadata limits also apply. It verifies every
 indexed block and consumes the TAR terminator and up to one 10 KiB record of
 zero padding through the end of the stream before extraction writes. Input
 seeks and reads, TAR scanning and output writes honor the existing
-cancellation checkpoint. Managed release admission retains its separate format
-rules.
+cancellation checkpoint. NativePortable Linux x86-64 managed release admission
+uses the same TAR.XZ reader when the retained GitHub declaration and exact
+release selection require that format. The managed install transaction retains
+ownership of private staging, manifest verification and publication.
 
 7z extraction uses the pinned in-process reader with
 encryption and optional codecs disabled, one decoder thread and checksum
