@@ -1944,7 +1944,6 @@ for (const [file, tests] of [
     ],
   ],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
-  ["crates/portcove-core/catalog/catalog-current-authoring.json", catalogGeneratorContractTests],
   [
     "crates/portcove-core/catalog/catalog-schema1-fixture.json",
     ["scripts/migrate-catalog-schema2.test.mts"],

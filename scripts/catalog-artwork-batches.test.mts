@@ -268,7 +268,7 @@ void test("coverless port falls through to exact original; ambiguous and failed 
 void test("the entire accepted cover inventory survives a routine executable release without lookup", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const accepted = fixtureCatalog(
-    fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8")),
+    fixtureJson(readFileSync(join(catalogRoot, "catalog.json"), "utf8")),
   );
   const input = structuredClone(accepted);
   requiredFixture(requiredFixture(input.ports[0]).release).version = "ordinary-successor";
@@ -356,7 +356,7 @@ void test("another port can reuse a uniquely accepted original-game asset withou
 void test("an unavailable explicit refresh retains permitted accepted metadata", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const accepted = fixtureCatalog(
-    fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8")),
+    fixtureJson(readFileSync(join(catalogRoot, "catalog.json"), "utf8")),
   );
   const port = requiredFixture(accepted.ports[0]);
   const mapping = record(requiredFixture(port.presentation).artwork);
