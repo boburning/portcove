@@ -216,7 +216,10 @@ change between the bracketing reads leaves the inventory unknown; use GraphQL or
 a direct GitHub UI observation paired with bracketing raw PR reads instead. The
 live merge helper falls back to this reconstruction only when GraphQL answers
 HTTP 403, including an exhausted rate limit; integrity failures and other
-errors never fall back. Issue bodies and REST issue reads cannot
+errors never fall back. GitHub documents `connected` on pull request timelines,
+but not for a link from an issue in a repository the reader cannot see; the
+[closure contract](CONTRIBUTION-CONVENTIONS.md#review-and-merge) keeps that case
+out of REST delivery. Issue bodies and REST issue reads cannot
 establish live Project fields. An unavailable or partial inventory remains
 unknown, with the exact missing observation recorded; do not silently
 substitute an empty array.
