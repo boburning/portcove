@@ -3319,8 +3319,11 @@ It refreshes a private copy of the working tree owned by the unprivileged
 domain and a neutral Git identity, and runs the command there with a minimal
 environment. It changes no fixture, policy or checkout permission. The command
 has no network or proxy access and shares installed dependencies and the browser
-cache read-only, so run Rust, cargo and networked commands directly; the
-repository-tool test that spawns `cargo` therefore fails under the wrapper.
+cache read-only. The identity cannot traverse `/root`, so the bootstrap moves
+rustup's home and the Cargo `bin` directory to root-owned `/opt/portcove-rust`,
+leaving symlinks at the original paths; the wrapper runs offline `cargo`
+commands from there with its own `CARGO_HOME` and cannot change the toolchain.
+Run builds and networked commands directly.
 
 Known cloud limits remain visible in `just doctor`:
 

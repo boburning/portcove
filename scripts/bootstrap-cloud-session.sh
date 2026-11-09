@@ -310,6 +310,29 @@ create_test_user() {
   fi
 }
 
+# The test identity cannot traverse /root, where rustup installs. Move rustup's
+# home and the cargo bin directory to root-owned, world-readable /opt paths and
+# leave symlinks behind, so root's tooling is unchanged and scripts/cloud-test.sh
+# can run offline cargo commands without opening /root or letting the test
+# identity modify the toolchain.
+share_rust_toolchain() {
+  local shared=/opt/portcove-rust pair source target
+  install -d -m 0755 "$shared"
+  for pair in "${RUSTUP_HOME:-$HOME/.rustup}|rustup" "${CARGO_HOME:-$HOME/.cargo}/bin|cargo-bin"; do
+    source="${pair%|*}"
+    target="$shared/${pair#*|}"
+    if [[ -L "$source" && "$(readlink -- "$source")" == "$target" ]]; then continue; fi
+    if [[ ! -d "$source" || -L "$source" || -e "$target" ]]; then
+      printf 'Cannot share %s at %s; it is not a directory or the target exists.\n' "$source" "$target" >&2
+      return 1
+    fi
+    mv -- "$source" "$target"
+    ln -s -- "$target" "$source"
+  done
+  runuser -u portcove-test -- env -i PATH="$shared/cargo-bin:/usr/bin:/bin" \
+    RUSTUP_HOME="$shared/rustup" CARGO_HOME=/home/portcove-test/.cargo cargo --version
+}
+
 step node install_node
 step frontend install_frontend
 step resources coordinate_resources
@@ -322,6 +345,7 @@ if ! $skip_desktop; then step desktop install_desktop; fi
 step powershell install_powershell
 step history complete_history
 step test-user create_test_user
+step test-toolchain share_rust_toolchain
 
 printf '\n'
 node scripts/dev-doctor.mts || true

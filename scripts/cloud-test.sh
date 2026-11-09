@@ -16,8 +16,9 @@ environment remove those cloud-only differences without changing any fixture
 or policy.
 
 The command has no network access: no proxy or credential variables are passed.
-Use it for offline Node and repository-tool suites. Run Rust, cargo and other
-networked commands directly. Installed dependencies are copied once per lockfile
+Use it for offline Node and repository-tool suites, including fixtures that run
+offline cargo commands against the toolchain the bootstrap shares read-only
+under /opt/portcove-rust. Run builds and networked commands directly. Installed dependencies are copied once per lockfile
 and the browser cache is shared read-only; other ignored outputs are not copied.
 
 Example:
@@ -71,8 +72,17 @@ rm -rf -- /home/portcove-test/dependencies
 # Scratch stays outside the copy so isolated "no installed packages" fixtures
 # cannot resolve the copy's node_modules through a parent directory.
 runuser -u "$user" -- mkdir -p "$home/temp" "$home/outputs"
+# The shared toolchain is read-only to this identity; Cargo's own cache stays in
+# its home.
+rust=/opt/portcove-rust
+test_path="$PATH"
+rust_env=()
+if [[ -d "$rust/rustup" && -d "$rust/cargo-bin" ]]; then
+  test_path="$rust/cargo-bin:$PATH"
+  rust_env=(RUSTUP_HOME="$rust/rustup" CARGO_HOME="$home/.cargo")
+fi
 exec runuser -u "$user" -- env -i \
-  PATH="$PATH" HOME="$home" LANG=C.UTF-8 TERM="${TERM:-dumb}" \
+  PATH="$test_path" HOME="$home" LANG=C.UTF-8 TERM="${TERM:-dumb}" "${rust_env[@]}" \
   PLAYWRIGHT_BROWSERS_PATH="$project_root/work/browser-cache" \
   PORTCOVE_TEMP_DIR="$home/temp" PORTCOVE_OUTPUT_DIR="$home/outputs" \
   bash -c 'cd "$1" && shift && exec "$@"' cloud-test "$home/portcove" "$@"
