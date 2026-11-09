@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-suikoden-ii-recomp",
     "name": "Suikoden II / Alexbeav PSXRecomp",
+    "original_game_title": "Suikoden II",
     "summary": "Build a native Suikoden II player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp",
     "issue_number": 1608,

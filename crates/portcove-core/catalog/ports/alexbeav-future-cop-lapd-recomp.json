@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-future-cop-lapd-recomp",
     "name": "Future Cop: L.A.P.D. / Alexbeav PSXRecomp",
+    "original_game_title": "Future Cop: L.A.P.D.",
     "summary": "Build a native Future Cop: L.A.P.D. player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp",
     "issue_number": 1595,
@@ -132,7 +133,7 @@
         {
           "role": "bios",
           "profile_id": "psx-scph-5552-bios",
-          "label": "PlayStation SCPH-5552 BIOS",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
           "verification": "catalog-identity"
         }
       ],

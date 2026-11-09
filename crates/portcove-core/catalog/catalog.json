@@ -30822,6 +30822,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Armored Core - Project Phantasma (USA) complete CHD (SLUS-00670, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Armored Core: Project Phantasma",
         "manual_setup": {
           "steps": [
             {
@@ -30966,6 +30967,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Azure Dreams (USA) complete CHD (SLUS-00614, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Azure Dreams",
         "manual_setup": {
           "steps": [
             {
@@ -31245,6 +31247,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Bushido Blade 2 (USA) complete CHD (SLUS-00663, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Bushido Blade 2",
         "manual_setup": {
           "steps": [
             {
@@ -31521,6 +31524,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Colony Wars - Red Sun (USA) complete CHD (SLUS-00866, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Colony Wars: Red Sun",
         "manual_setup": {
           "steps": [
             {
@@ -32062,6 +32066,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Digimon World 2 (USA) complete CHD (SLUS-01193, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Digimon World 2",
         "manual_setup": {
           "steps": [
             {
@@ -32200,12 +32205,13 @@
           {
             "role": "bios",
             "profile_id": "psx-scph-5552-bios",
-            "label": "PlayStation SCPH-5552 BIOS",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Dragon Ball Z - Ultimate Battle 22 (Europe) complete CHD (SLES-03736, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Dragon Ball Z: Ultimate Battle 22",
         "manual_setup": {
           "steps": [
             {
@@ -32344,12 +32350,13 @@
           {
             "role": "bios",
             "profile_id": "psx-scph-5552-bios",
-            "label": "PlayStation SCPH-5552 BIOS",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Future Cop - L.A.P.D. (Europe) (En,Fr) complete CHD (SLES-01449, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Future Cop: L.A.P.D.",
         "manual_setup": {
           "steps": [
             {
@@ -32494,6 +32501,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own G-Police - Weapons of Justice (USA) complete CHD (SLUS-00798, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "G-Police: Weapons of Justice",
         "manual_setup": {
           "steps": [
             {
@@ -32638,6 +32646,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Incredible Crisis (USA) complete CHD (SLUS-01225, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Incredible Crisis",
         "manual_setup": {
           "steps": [
             {
@@ -32782,6 +32791,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Jade Cocoon - Story of the Tamamayu (USA) complete CHD (SLUS-00854, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Jade Cocoon: Story of the Tamamayu",
         "manual_setup": {
           "steps": [
             {
@@ -32926,6 +32936,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Kartia - The Word of Fate (USA) complete CHD (SLUS-00631, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Kartia: The Word of Fate",
         "manual_setup": {
           "steps": [
             {
@@ -33687,12 +33698,13 @@
           {
             "role": "bios",
             "profile_id": "psx-scph-5552-bios",
-            "label": "PlayStation SCPH-5552 BIOS",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Mega Man Legends 2 (Europe) complete CHD (SLES-03556, 2 tracks) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Mega Man Legends 2",
         "manual_setup": {
           "steps": [
             {
@@ -34087,12 +34099,13 @@
           {
             "role": "bios",
             "profile_id": "psx-scph-5552-bios",
-            "label": "PlayStation SCPH-5552 BIOS",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Misadventures of Tron Bonne, The (Europe) complete CHD (SLES-02795, 2 tracks) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "The Misadventures of Tron Bonne",
         "manual_setup": {
           "steps": [
             {
@@ -34373,6 +34386,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Nightmare Creatures II (USA) complete CHD (SLUS-01112, 2 tracks) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Nightmare Creatures II",
         "manual_setup": {
           "steps": [
             {
@@ -34789,6 +34803,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Rival Schools - United by Fate (USA) (Disc 2) (Evolution Disc) complete CHD (SLUS-00771, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Rival Schools: United by Fate",
         "manual_setup": {
           "steps": [
             {
@@ -34933,6 +34948,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Rival Schools - United by Fate (USA) (Disc 1) (Arcade Disc) complete CHD (SLUS-00681, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Rival Schools: United by Fate",
         "manual_setup": {
           "steps": [
             {
@@ -35077,6 +35093,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Rollcage Stage II (USA) complete CHD (SLUS-00867, 13 tracks) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Rollcage Stage II",
         "manual_setup": {
           "steps": [
             {
@@ -35221,6 +35238,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Spider-Man 2 - Enter - Electro (USA) (Rev 1) complete CHD (SLUS-01378, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Spider-Man 2: Enter Electro",
         "manual_setup": {
           "steps": [
             {
@@ -35502,6 +35520,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Suikoden II (USA) complete CHD (SLUS-00958, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Suikoden II",
         "manual_setup": {
           "steps": [
             {
@@ -35782,6 +35801,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Tail Concerto (USA) complete CHD (SLUS-00660, 2 tracks) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Tail Concerto",
         "manual_setup": {
           "steps": [
             {
@@ -35920,12 +35940,13 @@
           {
             "role": "bios",
             "profile_id": "psx-scph-5552-bios",
-            "label": "PlayStation SCPH-5552 BIOS",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Team Buddies (Europe) (En,Es,It) complete CHD (SCES-02986, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Team Buddies",
         "manual_setup": {
           "steps": [
             {
@@ -37270,6 +37291,7 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Wild Arms (USA) complete CHD (SCUS-94608, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+        "original_game_title": "Wild Arms",
         "manual_setup": {
           "steps": [
             {

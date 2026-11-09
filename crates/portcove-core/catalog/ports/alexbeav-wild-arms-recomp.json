@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-wild-arms-recomp",
     "name": "Wild Arms / Alexbeav PSXRecomp",
+    "original_game_title": "Wild Arms",
     "summary": "Build a native Wild Arms player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp",
     "issue_number": 1611,

@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-bushido-blade-2-recomp",
     "name": "Bushido Blade 2 / Alexbeav PSXRecomp",
+    "original_game_title": "Bushido Blade 2",
     "summary": "Build a native Bushido Blade 2 player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp",
     "issue_number": 1588,

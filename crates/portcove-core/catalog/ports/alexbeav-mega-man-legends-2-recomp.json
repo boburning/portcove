@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-mega-man-legends-2-recomp",
     "name": "Mega Man Legends 2 / Alexbeav PSXRecomp",
+    "original_game_title": "Mega Man Legends 2",
     "summary": "Build a native Mega Man Legends 2 player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp",
     "issue_number": 1601,
@@ -132,7 +133,7 @@
         {
           "role": "bios",
           "profile_id": "psx-scph-5552-bios",
-          "label": "PlayStation SCPH-5552 BIOS",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
           "verification": "catalog-identity"
         }
       ],

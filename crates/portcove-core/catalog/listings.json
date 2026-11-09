@@ -5189,6 +5189,7 @@
     {
       "id": "alexbeav-armored-core-project-phantasma-recomp",
       "name": "Armored Core: Project Phantasma / Alexbeav PSXRecomp",
+      "original_game_title": "Armored Core: Project Phantasma",
       "summary": "Build a native Armored Core: Project Phantasma player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp",
       "issue_number": 1586,
@@ -5263,6 +5264,7 @@
     {
       "id": "alexbeav-azure-dreams-recomp",
       "name": "Azure Dreams / Alexbeav PSXRecomp",
+      "original_game_title": "Azure Dreams",
       "summary": "Build a native Azure Dreams player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp",
       "issue_number": 1587,
@@ -5407,6 +5409,7 @@
     {
       "id": "alexbeav-bushido-blade-2-recomp",
       "name": "Bushido Blade 2 / Alexbeav PSXRecomp",
+      "original_game_title": "Bushido Blade 2",
       "summary": "Build a native Bushido Blade 2 player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp",
       "issue_number": 1588,
@@ -5611,6 +5614,7 @@
     {
       "id": "alexbeav-colony-wars-red-sun-recomp",
       "name": "Colony Wars: Red Sun / Alexbeav PSXRecomp",
+      "original_game_title": "Colony Wars: Red Sun",
       "summary": "Build a native Colony Wars: Red Sun player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp",
       "issue_number": 1589,
@@ -6033,6 +6037,7 @@
     {
       "id": "alexbeav-digimon-world-2-recomp",
       "name": "Digimon World 2 / Alexbeav PSXRecomp",
+      "original_game_title": "Digimon World 2",
       "summary": "Build a native Digimon World 2 player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp",
       "issue_number": 1592,
@@ -6107,6 +6112,7 @@
     {
       "id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp",
       "name": "Dragon Ball Z: Ultimate Battle 22 / Alexbeav PSXRecomp",
+      "original_game_title": "Dragon Ball Z: Ultimate Battle 22",
       "summary": "Build a native Dragon Ball Z: Ultimate Battle 22 player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp",
       "issue_number": 1593,
@@ -6495,6 +6501,7 @@
     {
       "id": "alexbeav-future-cop-lapd-recomp",
       "name": "Future Cop: L.A.P.D. / Alexbeav PSXRecomp",
+      "original_game_title": "Future Cop: L.A.P.D.",
       "summary": "Build a native Future Cop: L.A.P.D. player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp",
       "issue_number": 1595,
@@ -6628,6 +6635,7 @@
     {
       "id": "alexbeav-g-police-weapons-of-justice-recomp",
       "name": "G-Police: Weapons of Justice / Alexbeav PSXRecomp",
+      "original_game_title": "G-Police: Weapons of Justice",
       "summary": "Build a native G-Police: Weapons of Justice player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp",
       "issue_number": 1596,
@@ -6909,6 +6917,7 @@
     {
       "id": "alexbeav-incredible-crisis-recomp",
       "name": "Incredible Crisis / Alexbeav PSXRecomp",
+      "original_game_title": "Incredible Crisis",
       "summary": "Build a native Incredible Crisis player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp",
       "issue_number": 1598,
@@ -7042,6 +7051,7 @@
     {
       "id": "alexbeav-jade-cocoon-recomp",
       "name": "Jade Cocoon: Story of the Tamamayu / Alexbeav PSXRecomp",
+      "original_game_title": "Jade Cocoon: Story of the Tamamayu",
       "summary": "Build a native Jade Cocoon: Story of the Tamamayu player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp",
       "issue_number": 1599,
@@ -7116,6 +7126,7 @@
     {
       "id": "alexbeav-kartia-recomp",
       "name": "Kartia: The Word of Fate / Alexbeav PSXRecomp",
+      "original_game_title": "Kartia: The Word of Fate",
       "summary": "Build a native Kartia: The Word of Fate player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp",
       "issue_number": 1600,
@@ -7711,6 +7722,7 @@
     {
       "id": "alexbeav-mega-man-legends-2-recomp",
       "name": "Mega Man Legends 2 / Alexbeav PSXRecomp",
+      "original_game_title": "Mega Man Legends 2",
       "summary": "Build a native Mega Man Legends 2 player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp",
       "issue_number": 1601,
@@ -8037,6 +8049,7 @@
     {
       "id": "alexbeav-misadventures-of-tron-bonne-recomp",
       "name": "The Misadventures of Tron Bonne / Alexbeav PSXRecomp",
+      "original_game_title": "The Misadventures of Tron Bonne",
       "summary": "Build a native The Misadventures of Tron Bonne player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp",
       "issue_number": 1602,
@@ -8299,6 +8312,7 @@
     {
       "id": "alexbeav-nightmare-creatures-ii-recomp",
       "name": "Nightmare Creatures II / Alexbeav PSXRecomp",
+      "original_game_title": "Nightmare Creatures II",
       "summary": "Build a native Nightmare Creatures II player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp",
       "issue_number": 1603,
@@ -8808,6 +8822,7 @@
     {
       "id": "alexbeav-rival-schools-evolution-recomp",
       "name": "Rival Schools: Evolution Disc / Alexbeav PSXRecomp",
+      "original_game_title": "Rival Schools: United by Fate",
       "summary": "Build a native Rival Schools: Evolution Disc player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp",
       "issue_number": 1604,
@@ -8882,6 +8897,7 @@
     {
       "id": "alexbeav-rival-schools-recomp",
       "name": "Rival Schools: United by Fate / Alexbeav PSXRecomp",
+      "original_game_title": "Rival Schools: United by Fate",
       "summary": "Build a native Rival Schools: United by Fate player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp",
       "issue_number": 1605,
@@ -8956,6 +8972,7 @@
     {
       "id": "alexbeav-rollcage-stage-ii-recomp",
       "name": "Rollcage Stage II / Alexbeav PSXRecomp",
+      "original_game_title": "Rollcage Stage II",
       "summary": "Build a native Rollcage Stage II player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp",
       "issue_number": 1606,
@@ -9089,6 +9106,7 @@
     {
       "id": "alexbeav-spider-man-2-enter-electro-recomp",
       "name": "Spider-Man 2: Enter Electro / Alexbeav PSXRecomp",
+      "original_game_title": "Spider-Man 2: Enter Electro",
       "summary": "Build a native Spider-Man 2: Enter Electro player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp",
       "issue_number": 1607,
@@ -9352,6 +9370,7 @@
     {
       "id": "alexbeav-suikoden-ii-recomp",
       "name": "Suikoden II / Alexbeav PSXRecomp",
+      "original_game_title": "Suikoden II",
       "summary": "Build a native Suikoden II player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp",
       "issue_number": 1608,
@@ -9555,6 +9574,7 @@
     {
       "id": "alexbeav-tail-concerto-recomp",
       "name": "Tail Concerto / Alexbeav PSXRecomp",
+      "original_game_title": "Tail Concerto",
       "summary": "Build a native Tail Concerto player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp",
       "issue_number": 1609,
@@ -9629,6 +9649,7 @@
     {
       "id": "alexbeav-team-buddies-recomp",
       "name": "Team Buddies / Alexbeav PSXRecomp",
+      "original_game_title": "Team Buddies",
       "summary": "Build a native Team Buddies player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp",
       "issue_number": 1610,
@@ -10641,6 +10662,7 @@
     {
       "id": "alexbeav-wild-arms-recomp",
       "name": "Wild Arms / Alexbeav PSXRecomp",
+      "original_game_title": "Wild Arms",
       "summary": "Build a native Wild Arms player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp",
       "issue_number": 1611,

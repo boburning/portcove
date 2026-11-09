@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-misadventures-of-tron-bonne-recomp",
     "name": "The Misadventures of Tron Bonne / Alexbeav PSXRecomp",
+    "original_game_title": "The Misadventures of Tron Bonne",
     "summary": "Build a native The Misadventures of Tron Bonne player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp",
     "issue_number": 1602,
@@ -132,7 +133,7 @@
         {
           "role": "bios",
           "profile_id": "psx-scph-5552-bios",
-          "label": "PlayStation SCPH-5552 BIOS",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
           "verification": "catalog-identity"
         }
       ],

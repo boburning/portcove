@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-armored-core-project-phantasma-recomp",
     "name": "Armored Core: Project Phantasma / Alexbeav PSXRecomp",
+    "original_game_title": "Armored Core: Project Phantasma",
     "summary": "Build a native Armored Core: Project Phantasma player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp",
     "issue_number": 1586,

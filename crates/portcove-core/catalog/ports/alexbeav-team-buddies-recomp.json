@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-team-buddies-recomp",
     "name": "Team Buddies / Alexbeav PSXRecomp",
+    "original_game_title": "Team Buddies",
     "summary": "Build a native Team Buddies player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp",
     "issue_number": 1610,
@@ -132,7 +133,7 @@
         {
           "role": "bios",
           "profile_id": "psx-scph-5552-bios",
-          "label": "PlayStation SCPH-5552 BIOS",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
           "verification": "catalog-identity"
         }
       ],

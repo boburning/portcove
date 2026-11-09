@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-digimon-world-2-recomp",
     "name": "Digimon World 2 / Alexbeav PSXRecomp",
+    "original_game_title": "Digimon World 2",
     "summary": "Build a native Digimon World 2 player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp",
     "issue_number": 1592,

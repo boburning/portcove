@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp",
     "name": "Dragon Ball Z: Ultimate Battle 22 / Alexbeav PSXRecomp",
+    "original_game_title": "Dragon Ball Z: Ultimate Battle 22",
     "summary": "Build a native Dragon Ball Z: Ultimate Battle 22 player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp",
     "issue_number": 1593,
@@ -132,7 +133,7 @@
         {
           "role": "bios",
           "profile_id": "psx-scph-5552-bios",
-          "label": "PlayStation SCPH-5552 BIOS",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
           "verification": "catalog-identity"
         }
       ],

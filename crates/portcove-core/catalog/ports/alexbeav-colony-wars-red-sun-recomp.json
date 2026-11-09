@@ -3,6 +3,7 @@
   "listing": {
     "id": "alexbeav-colony-wars-red-sun-recomp",
     "name": "Colony Wars: Red Sun / Alexbeav PSXRecomp",
+    "original_game_title": "Colony Wars: Red Sun",
     "summary": "Build a native Colony Wars: Red Sun player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp",
     "issue_number": 1589,
