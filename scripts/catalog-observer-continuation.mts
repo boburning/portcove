@@ -120,12 +120,15 @@ export async function continueCatalogBatches<
   operation: (excluded: ReadonlySet<string>) => Promise<T>,
   {
     deadline,
+    maxRequests = Infinity,
     now = Date.now,
     signal,
     onBatch = () => {},
     evidenceByteLimit = 4 * 1024 * 1024,
   }: {
     deadline: number;
+    /** Stop admitting further batches once this many requests are spent. */
+    maxRequests?: number;
     now?: () => number;
     signal?: AbortSignal;
     onBatch?: (result: T) => void | Promise<void>;
@@ -178,6 +181,7 @@ export async function continueCatalogBatches<
       !more ||
       !result.made_progress ||
       result.handoff_exhausted ||
+      requests >= maxRequests ||
       now() >= deadline ||
       signal?.aborted
     )

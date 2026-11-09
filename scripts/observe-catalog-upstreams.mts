@@ -145,6 +145,16 @@ export async function retireObserverConfigurations(
   return cleanupDeferred;
 }
 
+/**
+ * Hosted opportunity budgets. GitHub delays or drops many scheduled runs on this
+ * repository (#4779), so each run gets a longer finite window, a handoff budget
+ * proportionate to it, and a request ceiling that leaves most of the shared
+ * hourly token allowance to upstream-health and other workflows.
+ */
+export const hostedOpportunityMs = 40 * 60000;
+export const hostedHandoffByteLimit = 32 * 1024 * 1024;
+export const hostedRequestLimit = 1800;
+
 export async function runCatalogUpstreams(
   args: string[],
   runtime: {
@@ -162,6 +172,7 @@ export async function runCatalogUpstreams(
     prioritizeConfigured?: boolean;
     scheduledPrioritySources?: ReadonlySet<string>;
     handoff?: { directory: string; sizes: Map<string, number>; bytes: number };
+    handoffByteLimit?: number;
   } = {},
 ) {
   const root = runtime.root ?? defaultRoot;
@@ -229,9 +240,12 @@ export async function runCatalogUpstreams(
     health = null;
   }
   const summaryByteLimit = config.budget.response_bytes;
-  const handoffByteLimit = config.budget.total_bytes - summaryByteLimit - observerSnapshotLimit;
-  if (handoffByteLimit <= 0)
+  const handoffByteLimit =
+    runtime.handoffByteLimit ??
+    config.budget.total_bytes - summaryByteLimit - observerSnapshotLimit;
+  if (!Number.isSafeInteger(handoffByteLimit) || handoffByteLimit <= 0)
     throw new ObservationFailure("budget", "Checkpoint, summary and handoff envelopes unavailable");
+  const artifactByteLimit = handoffByteLimit + summaryByteLimit + observerSnapshotLimit;
   const handoff = runtime.handoff ?? {
     directory: path.join(root, "work/upstream-observer-handoff", randomUUID()),
     sizes: new Map<string, number>(),
@@ -533,7 +547,7 @@ export async function runCatalogUpstreams(
     let summary: unknown = {
       ...result.report,
       artifact_bytes: artifactBytes,
-      artifact_byte_limit: config.budget.total_bytes,
+      artifact_byte_limit: artifactByteLimit,
       cleanup_deferred_configurations: cleanupDeferred,
     };
     if (Buffer.byteLength(JSON.stringify(summary)) > summaryByteLimit)
@@ -552,7 +566,7 @@ export async function runCatalogUpstreams(
         failure_events: result.report.failures.length,
         requests: result.report.requests,
         artifact_bytes: artifactBytes,
-        artifact_byte_limit: config.budget.total_bytes,
+        artifact_byte_limit: artifactByteLimit,
         global_eligibility: "not-assessed",
         protected_publication: "not-authorized",
       };
@@ -584,7 +598,7 @@ export async function runCatalogOpportunity(
   if (
     !Number.isFinite(runtime.deadline) ||
     runtime.deadline <= now() ||
-    runtime.deadline - now() > 9 * 60000
+    runtime.deadline - now() > hostedOpportunityMs
   )
     throw new ObservationFailure(
       "budget",
@@ -668,6 +682,7 @@ export async function runCatalogOpportunity(
           handoff,
           excludedSources: excluded,
           prioritizeConfigured,
+          handoffByteLimit: hostedHandoffByteLimit,
           log: () => {},
         });
         await assertInputs();
@@ -676,6 +691,7 @@ export async function runCatalogOpportunity(
       },
       {
         deadline: runtime.deadline,
+        maxRequests: hostedRequestLimit,
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
         onBatch: (batch) => {
@@ -711,7 +727,8 @@ export async function runCatalogOpportunity(
       ...result.report,
       bounded_batches: result.batches,
       artifact_bytes: handoff.bytes,
-      artifact_byte_limit: config.budget.total_bytes,
+      artifact_byte_limit:
+        hostedHandoffByteLimit + config.budget.response_bytes + observerSnapshotLimit,
     };
     if (Buffer.byteLength(JSON.stringify(summary)) > config.budget.response_bytes)
       summary = {

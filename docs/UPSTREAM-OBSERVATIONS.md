@@ -28,9 +28,11 @@ The `Configured upstream observer` workflow requests observations hourly at
 minute 31 UTC, away from the daily 09:23 upstream-health run and the :17 and :43
 schedules that share the repository token. Scheduled run 42484849060 on
 2026-11-08 used 744 requests and reported 4,026 remaining, so its observed hourly
-allowance was about 5,000. This is dated evidence, not a guaranteed limit; the
-nine-minute window and existing reserve still bound each run. Hosted scheduling can be delayed or skipped; this is a requested
-cadence, not a delivery guarantee. The configured baseline keeps its twelve-hour
+allowance was about 5,000. This is dated evidence, not a guaranteed limit. Hosted
+scheduling is delayed or dropped often on this repository: on 2026-11-08 the
+hourly `:43` cleanup schedule started about every four hours and the daily 09:23
+health run started near 16:00. This is a requested cadence, not a delivery
+guarantee, so each hosted run carries more work instead of relying on frequency. The configured baseline keeps its twelve-hour
 freshness bound and receives a turn in every opportunity. Catalog sources use durable fair
 turns, activity observations and staleness to admit work within the same job.
 Unknown activity uses the existing cadence; measured change intervals may defer
@@ -236,12 +238,14 @@ and checkpoint without failing the job, because they cannot change what players
 install. They use a separate exception key, so a listing that later gains a
 managed port still reports its unresolved rule once.
 
-The existing ten-minute hosted job establishes a nine-minute observation deadline
-before checkout and build, reserving the final minute for checkpoint and artifact
-publication. Accepted page, validation or Core progress can automatically start
-another operation within that opportunity; each operation keeps its existing
+The forty-five-minute hosted job establishes a forty-minute observation deadline
+before checkout and build, reserving the final five minutes for checkpoint and
+artifact publication. Accepted page, validation or Core progress can automatically
+start another operation within that opportunity; each operation keeps its existing
 three-minute admission budget. Request counts and refreshed clocks alone cannot
-authorize another batch. Non-budget failures stay visible and are excluded from
+authorize another batch. A hosted opportunity also stops admitting batches after
+1,800 provider requests, about a third of the observed hourly allowance, so
+upstream-health and other workflows sharing the token keep capacity. Non-budget failures stay visible and are excluded from
 further attempts in that job. All batches share one aggregate handoff byte budget;
 input or inspector changes stop continuation and preserve earlier evidence. The
 standalone command without this explicit hosted deadline remains one bounded
@@ -282,7 +286,9 @@ The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
 The hosted path reserves four MiB of that same sixteen-MiB output envelope for a
 complete inert recovery snapshot, in addition to the existing four-MiB summary
-reserve. Source handoffs use the remaining eight MiB across all batches. The
+reserve. Standalone source handoffs use the remaining eight MiB across all batches.
+A hosted opportunity gives source handoffs thirty-two MiB, proportionate to its
+forty-minute window; nothing in the repository reads this one-day artifact back. The
 snapshot contains the catalog scheduler and its referenced per-source checkpoints;
 it excludes reports, locks, temporary files and executables. Production format 4
 streams source checkpoint JSON records through one Brotli compressor, preserving
@@ -405,8 +411,8 @@ before an absent checkpoint tree is published atomically. A partial or foreign
 cache is preserved and refused. Existing current catalog/Core scope and freshness
 checks still apply; restoration never refreshes an observation clock.
 
-Recovery has one at-most-sixty-second collection opportunity inside the existing
-nine-minute job opportunity, with finite metadata, compressed and expanded bytes
+Recovery has one at-most-sixty-second collection opportunity inside the
+forty-minute job opportunity, with finite metadata, compressed and expanded bytes
 and no automatic retry. Snapshots have one-day retention and a twenty-four-hour
 recovery-age bound. The deployment cutover explicitly records a new baseline only
 when trusted predecessor source shows no snapshot publisher; an older
@@ -651,9 +657,9 @@ Changed contracts discard incompatible reuse; corrupt or future evidence fails
 closed. An interrupted process can resume accepted locations without resetting
 numeric identity baselines. A PR cannot write trusted history.
 
-The ten-minute hosted deadline remains. A deadline anchored at the first job step
-allows up to nine minutes for preparation and automatic bounded collector batches,
-leaving one minute for history/artifact retention and cleanup. Observed main run
+The forty-five-minute hosted job limit applies. A deadline anchored at the first
+job step allows up to forty minutes for preparation and automatic bounded collector
+batches, leaving five minutes for history/artifact retention and cleanup. Observed main run
 40462280230 used roughly twelve seconds for preparation and two seconds for
 retention. The separate RetComM check retains at most two sequential 15-second
 request deadlines per title (titles run concurrently); selected IDs accumulate

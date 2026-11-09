@@ -19,13 +19,13 @@ jobs:
       contents: read
       actions: read
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
       - name: Bound the existing hosted observation opportunity
         run: |
           python3 - <<'PY'
           import datetime, os
-          deadline = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=9)
+          deadline = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=40)
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
               output.write("PORTCOVE_OBSERVER_OPPORTUNITY_DEADLINE_UTC=" + deadline.isoformat() + "\n")
           PY
