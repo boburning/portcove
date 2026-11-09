@@ -1035,6 +1035,7 @@ void test("failing managed sources rejoin ordinary rotation instead of starving 
   const state = structuredClone(first.checkpoint);
   for (const progress of Object.values(state.sources)) {
     progress.exception_key = "f".repeat(64);
+    progress.exception_rule = "provider-transport";
     progress.completed_at = null;
     progress.next_due_at = null;
     progress.attempted_sequence = state.sequence;
@@ -1042,6 +1043,12 @@ void test("failing managed sources rejoin ordinary rotation instead of starving 
   h.tick();
   const next = await advanceCatalogObservations(input, state, h.options);
   assert.equal(next.report.attempted_source_keys[0], listing.key);
+
+  // Budget stops are partial progress: the managed source keeps its priority.
+  const budget = structuredClone(state);
+  for (const progress of Object.values(budget.sources)) progress.exception_rule = "budget";
+  const resumed = await advanceCatalogObservations(input, budget, h.options);
+  assert.notEqual(resumed.report.attempted_source_keys[0], listing.key);
 });
 
 void test("the configured source gets an early bounded turn without starving untouched sources", async () => {
