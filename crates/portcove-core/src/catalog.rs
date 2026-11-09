@@ -176,6 +176,18 @@ impl Catalog {
                 .map_err(|_| PortcoveError::usage("qualification catalog must be valid UTF-8"))?;
             return Self::from_json(value);
         }
+        // The bundled bytes never change within a process, and `Catalog` shares
+        // its documents behind `Arc`, so parse and validate them once. A
+        // failure is not cached: the uncached path reproduces the typed error.
+        static EMBEDDED: std::sync::LazyLock<Option<Catalog>> =
+            std::sync::LazyLock::new(|| Catalog::parse_embedded().ok());
+        match EMBEDDED.as_ref() {
+            Some(catalog) => Ok(catalog.clone()),
+            None => Self::parse_embedded(),
+        }
+    }
+
+    fn parse_embedded() -> Result<Self> {
         Self::from_json(EMBEDDED_CATALOG)?.with_embedded_listings()
     }
 

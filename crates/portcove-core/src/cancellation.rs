@@ -51,6 +51,8 @@ impl CancellationState {
     }
 }
 
+const CANCELLATION_INTERVAL: Duration = Duration::from_millis(50);
+
 pub(crate) struct CancellationScope {
     library: Library,
     id: String,
@@ -108,7 +110,7 @@ impl CancellationScope {
             .checked
             .lock()
             .map_err(|_| PortcoveError::state("cancellation clock lock poisoned"))?;
-        if checked.is_some_and(|last| last.elapsed() < Duration::from_millis(50)) {
+        if checked.is_some_and(|last| last.elapsed() < CANCELLATION_INTERVAL) {
             return Ok(());
         }
         self.check_now()?;
@@ -130,13 +132,17 @@ impl CancellationScope {
     }
 
     /// Only use with a read-only network future, never with a spawned mutation worker.
+    ///
+    /// Entry and completion checks share the `checkpoint` clock, so a tight loop
+    /// of short futures (one per download chunk) queries SQLite at most every
+    /// 50 ms while a long future is still observed at the same cadence.
     pub async fn interruptible<T>(&self, future: impl Future<Output = Result<T>>) -> Result<T> {
-        self.check_now()?;
+        self.checkpoint()?;
         tokio::pin!(future);
         loop {
             tokio::select! {
-                result = &mut future => { self.check_now()?; return result; }
-                _ = tokio::time::sleep(Duration::from_millis(50)) => self.check_now()?,
+                result = &mut future => { self.checkpoint()?; return result; }
+                _ = tokio::time::sleep(CANCELLATION_INTERVAL) => self.checkpoint()?,
             }
         }
     }
