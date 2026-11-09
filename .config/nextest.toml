@@ -284,6 +284,14 @@ test-group = 'core-cancellation'
 filter = 'package(portcove-core) & test(import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library)'
 threads-required = "num-test-threads"
 
+# CI 42663725267 fast rust-quality: this real install/update/prepare/launch CLI
+# lifecycle took 83.5s alone on Linux and exceeded 120s beside the parallel
+# diagnostics replay. It owns the runner's CPU; keep this exact case exclusive.
+[[profile.default.overrides]]
+filter = 'package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)'
+test-group = '@global'
+threads-required = "num-test-threads"
+
 # This conversion failure path spawns and reaps multiple owned native process
 # trees. Keep the exact cleanup race isolated from another filesystem-heavy test.
 [[profile.default.overrides]]

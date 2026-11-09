@@ -294,6 +294,10 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         "num-test-threads",
       ],
       [
+        "package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)",
+        "num-test-threads",
+      ],
+      [
         "package(portcove-core) & test(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes)",
         "num-test-threads",
       ],
