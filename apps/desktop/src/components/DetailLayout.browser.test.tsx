@@ -239,7 +239,7 @@ it("keeps unknown original systems explicit and shows every offered update chann
     </DetailLayout>,
   );
   const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
-  for (const label of ["Not specified", "Stable", "Preview", "Rolling"])
+  for (const label of ["Original system not specified", "Stable", "Preview", "Rolling"])
     await expect.element(identity.getByText(label, { exact: true })).toBeVisible();
   await expect
     .element(page.getByRole("tab", { name: "Manage", exact: true }))

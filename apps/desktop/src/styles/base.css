@@ -79,6 +79,40 @@
   summary {
     cursor: pointer;
   }
+  /* One disclosure chevron for every native details element that does not draw its own. */
+  summary:not(.list-none) {
+    position: relative;
+    padding-inline-start: 1.1em;
+    list-style: none;
+    overflow-wrap: anywhere;
+  }
+  summary:not(.list-none)::-webkit-details-marker {
+    display: none;
+  }
+  summary:not(.list-none)::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0.15em;
+    inset-block-start: calc(0.5lh - 0.3em);
+    inline-size: 0.42em;
+    block-size: 0.42em;
+    border-inline-end: 1.5px solid currentColor;
+    border-block-end: 1.5px solid currentColor;
+    opacity: 0.7;
+    transform: rotate(-45deg);
+    transition: transform var(--duration-fast, 150ms) ease;
+  }
+  summary:not(.list-none):dir(rtl)::before {
+    transform: rotate(135deg);
+  }
+  details[open] > summary:not(.list-none)::before {
+    transform: rotate(45deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    summary:not(.list-none)::before {
+      transition: none;
+    }
+  }
   .bootstrap-recovery {
     block-size: 100dvh;
     overflow-y: auto;

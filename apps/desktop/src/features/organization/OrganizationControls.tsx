@@ -125,7 +125,7 @@ export function OrganizationControls({
           open={editing}
           onToggle={(event) => setEditing(event.currentTarget.open)}
         >
-          <summary className="cursor-pointer p-2">Edit collections</summary>
+          <summary className="cursor-pointer py-2 pe-2">Edit collections</summary>
           <form
             className="mt-2 flex max-w-full flex-wrap items-end gap-2"
             onSubmit={(event) => {
@@ -220,7 +220,7 @@ export function OrganizationControls({
       <Popover.Trigger
         render={
           <Button
-            variant={selected === "all" ? "outline" : "selected"}
+            variant={selected === "all" || selected === "" ? "outline" : "selected"}
             size="sm"
             className={triggerClassName}
           />
@@ -268,7 +268,16 @@ export function SidebarCollections({
           selected={selected}
           onSelect={onSelect}
           discover={false}
-          trigger={knownEmpty ? "Create your first collection" : <Plus aria-hidden="true" />}
+          trigger={
+            knownEmpty ? (
+              <>
+                <Plus aria-hidden="true" />
+                Create your first collection
+              </>
+            ) : (
+              <Plus aria-hidden="true" />
+            )
+          }
           triggerLabel={knownEmpty ? "Create your first collection" : "Manage collections"}
           triggerClassName={knownEmpty ? "sidebar-collections-create" : ""}
         >
@@ -378,7 +387,7 @@ export function OrganizationMenuItems({
 }) {
   const snapshot = organization.snapshot;
   const hidden = snapshot?.hidden_port_ids.includes(port.id) ?? false;
-  const itemClass = `${controlFocus} flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection`;
+  const itemClass = `${controlFocus} flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection [&_svg]:size-4 [&_svg]:shrink-0`;
   return (
     <>
       <Menu.Item

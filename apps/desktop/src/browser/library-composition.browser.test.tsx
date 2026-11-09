@@ -110,7 +110,7 @@ it.each([
     await expect
       .element(page.getByRole("heading", { name: "Add games", exact: true }))
       .toBeVisible();
-    await page.getByRole("button", { name: "Back to library", exact: true }).click();
+    await page.getByRole("button", { name: "Back to Library", exact: true }).click();
     await expect
       .poll(() => document.activeElement?.hasAttribute("data-add-games-trigger"))
       .toBe(true);
@@ -1068,7 +1068,7 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
   await captureParityState("discover-group-save-rejected");
 }, 45_000);
 
-it("keeps the Library favorite visible and reveals overflow for pointer and keyboard use", async () => {
+it("keeps the Library favorite and overflow visible for pointer and keyboard use", async () => {
   await page.viewport(1440, 900);
   await mount();
   const favorite = document.querySelector<HTMLButtonElement>(
@@ -1077,11 +1077,8 @@ it("keeps the Library favorite visible and reveals overflow for pointer and keyb
   const cover = favorite.closest<HTMLElement>(".collection-cover")!;
   const more = cover.querySelector<HTMLElement>(".collection-more")!;
   await userEvent.hover(document.querySelector("main h1")!);
-  const hidesOnPointer =
-    matchMedia("(hover: hover) and (pointer: fine)").matches &&
-    !matchMedia("(any-pointer: coarse)").matches;
   expect(getComputedStyle(favorite).opacity).toBe("1");
-  expect(getComputedStyle(more).opacity).toBe(hidesOnPointer ? "0" : "1");
+  expect(getComputedStyle(more).opacity).toBe("1");
   await userEvent.hover(cover);
   expect(getComputedStyle(favorite).opacity).toBe("1");
   expect(getComputedStyle(more).opacity).toBe("1");
