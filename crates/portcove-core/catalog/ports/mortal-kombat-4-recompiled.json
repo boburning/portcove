@@ -5,7 +5,7 @@
     "id": "mortal-kombat-4-recompiled",
     "name": "Mortal Kombat 4: Recompiled",
     "summary": "Native Mortal Kombat 4 recompilation.",
-    "project_url": "https://github.com/Alexbeav/mortal-kombat-4-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
     "original_game_title": "Mortal Kombat 4",
     "variant_label": "PlayStation",
     "artwork": {
@@ -26,7 +26,7 @@
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "psx-recomp-managed",
     "release": {
-      "repository": "Alexbeav/mortal-kombat-4-recomp",
+      "repository": "alexbeavs-ps1-ports/mortal-kombat-4-recomp",
       "asset_hints": {
         "windows-x86-64": ["windows-x64"],
         "linux-x86-64": ["linux-x64"],
