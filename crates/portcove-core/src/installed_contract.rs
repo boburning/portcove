@@ -13,11 +13,8 @@ use crate::{Catalog, DefinitionSelectionIdentity, PortcoveError, Result};
 // other on every rollback/status read. Keys retain the complete bounded bytes
 // and format, never a mutable path or an authorization result. Installation reads
 // still verify current manifest bytes/digests; policy and integrity stay fresh.
-// Keys are SHA-256 digests of the canonical interpretation input, so the cache
-// holds one entry per installed port in a large library without retaining
-// multi-megabyte legacy catalog strings.
-static DECODED_CATALOGS: Mutex<Vec<(u32, [u8; 32], Catalog)>> = Mutex::new(Vec::new());
-const DECODED_CATALOG_CAPACITY: usize = 32;
+static DECODED_CATALOGS: Mutex<Vec<(u32, String, Catalog)>> = Mutex::new(Vec::new());
+const DECODED_CATALOG_CAPACITY: usize = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -167,10 +164,6 @@ impl InstalledContract {
                 cache_key,
             ))?;
         }
-        let cache_key: [u8; 32] = {
-            use sha2::{Digest, Sha256};
-            Sha256::digest(cache_key.as_bytes()).into()
-        };
         if let Ok(mut cache) = DECODED_CATALOGS.lock()
             && let Some(index) = cache
                 .iter()
