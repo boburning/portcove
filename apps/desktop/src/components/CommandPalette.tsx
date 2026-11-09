@@ -13,6 +13,10 @@ export interface PaletteCommand {
   icon: LucideIcon;
   shortcut?: string;
   keywords?: string;
+  /** Listed only once the player types a query, so long game lists do not bury navigation. */
+  searchOnly?: boolean;
+  /** False when the description is generic and should not widen search matches. */
+  matchDescription?: boolean;
   disabled?: boolean;
   action: () => void;
 }
@@ -228,10 +232,10 @@ function OpenCommandPalette({
 
 export function filterCommands(commands: PaletteCommand[], query: string) {
   const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return commands;
+  if (terms.length === 0) return commands.filter((command) => !command.searchOnly);
   return commands.filter((command) => {
     const haystack =
-      `${command.label} ${command.description} ${command.keywords ?? ""}`.toLowerCase();
+      `${command.label} ${command.matchDescription === false ? "" : command.description} ${command.keywords ?? ""}`.toLowerCase();
     return terms.every((term) => haystack.includes(term));
   });
 }

@@ -458,12 +458,13 @@
   .sidebar-collections-create {
     width: 100%;
     justify-content: flex-start;
+    gap: 0.625rem;
     margin-block-start: 4px;
-    padding: 8px 12px;
+    padding: 8px 0;
     border-color: transparent;
     background: transparent;
     color: var(--color-text-secondary);
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     font-weight: 400;
     text-align: start;
     letter-spacing: normal;
@@ -473,17 +474,33 @@
     color: var(--color-text);
     background: var(--color-bg-hover);
   }
-  [aria-label="Library quick views"] {
+  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) {
     gap: 24px;
   }
-  [aria-label="Library quick views"] > button {
+  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button {
     min-block-size: 44px;
     padding: 0 0 14px;
     border: 0;
     font-weight: 400;
   }
-  [aria-label="Library quick views"] > button::after {
+  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button::after {
     inset-inline: 0;
+  }
+  /* Discover's Favorites view sits beside its collection tabs and reads as one of them. */
+  .browse-navigation .filter-row > button[data-favorites-filter] {
+    min-block-size: 44px;
+    padding: 0 0 14px;
+    border: 0;
+    border-radius: 0;
+    font-weight: 400;
+  }
+  .browse-navigation .filter-row > button[data-favorites-filter]::after {
+    inset-inline: 0;
+  }
+  /* Discover cards share Library's type weights instead of inheriting button weight. */
+  .discover-game :is(.collection-project, .readiness, .library-card-action),
+  .discover-game-actions > button {
+    font-weight: 400;
   }
   [data-library-header] [data-add-games-trigger] {
     color: var(--color-text);

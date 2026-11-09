@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import type { PaletteCommand } from "./components/CommandPalette";
 import { commandShortcut, useGlobalShortcuts } from "./keyboard-shortcuts";
+import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type { RecentPort, View } from "./view-model";
 
 interface CommandSurfaceOptions {
   recent?: RecentPort | undefined;
+  games?: readonly SearchableGame[];
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;
@@ -27,8 +29,14 @@ interface CommandSurfaceOptions {
   openUpdates?: () => void;
 }
 
+export interface SearchableGame {
+  port: CatalogEntry;
+  inLibrary: boolean;
+}
+
 export function commandSurfaceCommands({
   recent,
+  games = [],
   installedCount,
   busy,
   setView,
@@ -142,12 +150,27 @@ export function commandSurfaceCommands({
       disabled: !recent,
       action: () => recent && setSelectedId(recent.port.id),
     },
+    // Library games first so each group renders under one contiguous heading.
+    ...[...games.filter((game) => game.inLibrary), ...games.filter((game) => !game.inLibrary)].map(
+      ({ port, inLibrary }): PaletteCommand => ({
+        id: `game:${port.id}`,
+        group: inLibrary ? "Games in your library" : "Games in Discover",
+        label: gameIdentityLabel(port),
+        description: "Open game details",
+        icon: Gamepad2,
+        keywords: `${port.id} ${port.name}`,
+        searchOnly: true,
+        matchDescription: false,
+        action: () => setSelectedId(port.id),
+      }),
+    ),
   ];
 }
 
 export function useCommandSurface({
   view,
   recent,
+  games,
   installedCount,
   busy,
   setView,
@@ -158,6 +181,7 @@ export function useCommandSurface({
 }: {
   view: View;
   recent?: RecentPort | undefined;
+  games?: readonly SearchableGame[];
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;
@@ -185,6 +209,7 @@ export function useCommandSurface({
     () =>
       commandSurfaceCommands({
         recent,
+        ...(games ? { games } : {}),
         installedCount,
         busy,
         setView,
@@ -200,6 +225,7 @@ export function useCommandSurface({
       checkAll,
       focusLibrarySearch,
       focusSearch,
+      games,
       installedCount,
       openUpdates,
       recent,

@@ -252,7 +252,7 @@
     min-block-size: 2.75rem;
     align-content: start;
     gap: var(--space-2);
-    margin-block-start: auto;
+    margin-block-start: var(--space-2);
     padding-block-start: 0.625rem;
   }
   .library-entry-footer .collection-state {
@@ -280,7 +280,7 @@
   .collection-row {
     --collection-thumb: 40px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 250px) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 23rem) auto;
     gap: 8px 20px;
     align-items: center;
     padding: 12px 10px;
@@ -335,6 +335,14 @@
   }
   .collection-row .collection-state {
     padding-inline-start: 0;
+  }
+  @container collection (width > 48em) {
+    .collection-row .library-entry-footer {
+      flex-wrap: nowrap;
+    }
+    .collection-row .library-entry-footer .collection-state {
+      flex: 1 1 auto;
+    }
   }
   .collection-row .library-entry-chips {
     position: relative;
@@ -497,6 +505,9 @@
     margin-block-start: 0.625rem;
     font-weight: 580;
   }
+  .collection-cover .library-entry-chips {
+    min-block-size: 24px;
+  }
   @media (width <= 480px) {
     .collection-cover .collection-title {
       font-size: 0.8125rem;
@@ -520,19 +531,6 @@
   @media (height <= 800px) and (width >= 761px) {
     .collection-covers:not(.discover-grid) {
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
-    }
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .collection-cover .collection-more {
-      opacity: 0;
-    }
-    .collection-cover:is(:hover, :focus-within) .collection-more {
-      opacity: 1;
-    }
-  }
-  @media (any-pointer: coarse) {
-    .collection-cover .collection-more {
-      opacity: 1;
     }
   }
   .collection-identity:hover .collection-art,
@@ -830,69 +828,69 @@
   .collection-entry .library-card-action:not(.library-card-play):hover {
     background: var(--color-bg-hover);
   }
-  .library-query-tools[data-view="library"] [aria-label="Collection view"] {
+  .library-query-tools [aria-label="Collection view"] {
     border-radius: 6px;
     border-color: var(--color-control-border);
     background: var(--color-bg-elevated);
   }
-  .library-query-tools[data-view="library"] [aria-label="Collection view"] > button {
+  .library-query-tools [aria-label="Collection view"] > button {
     font-weight: 400;
   }
-  .library-query-tools[data-view="library"] .browse-sort [data-slot="select-trigger"] {
+  .library-query-tools .browse-sort [data-slot="select-trigger"] {
     border-radius: 6px;
     background: var(--color-bg-elevated);
     font-size: 0.8125rem;
   }
-  .library-query-tools[data-view="library"] .browse-sort [data-slot="select-value"] {
+  .library-query-tools .browse-sort [data-slot="select-value"] {
     font-weight: 400;
   }
-  .library-query-tools[data-view="library"] .search {
+  .library-query-tools .search {
     border-radius: 6px;
   }
-  .library-query-tools[data-view="library"] .search input {
+  .library-query-tools .search input {
     font-size: 0.8125rem;
   }
-  .library-query-tools[data-view="library"] .browse-toolbar > button {
+  .library-query-tools .browse-toolbar > button {
     font-weight: 400;
     color: var(--color-text-secondary);
     background: var(--color-bg-elevated);
     border-color: var(--color-control-border);
   }
-  .library-query-tools[data-view="library"] .browse-toolbar {
+  .library-query-tools .browse-toolbar {
     gap: 10px;
   }
   @container library-query (max-width: 24.25rem) {
-    .library-query-tools[data-view="library"] .browse-toolbar {
+    .library-query-tools .browse-toolbar {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    .library-query-tools[data-view="library"] .browse-toolbar > .search {
+    .library-query-tools .browse-toolbar > .search {
       grid-column: 1 / -1;
     }
-    .library-query-tools[data-view="library"] .search kbd {
+    .library-query-tools .search kbd {
       display: none;
     }
-    .library-query-tools[data-view="library"] .browse-sort {
+    .library-query-tools .browse-sort {
       width: 100%;
     }
-    .library-query-tools[data-view="library"] [aria-label="Collection view"] {
+    .library-query-tools [aria-label="Collection view"] {
       grid-column: 1 / -1;
       justify-self: end;
       margin-inline-start: 0;
     }
   }
   @container library-query (width <= 13rem) {
-    .library-query-tools[data-view="library"] .browse-toolbar {
+    .library-query-tools .browse-toolbar {
       grid-template-columns: minmax(0, 1fr);
       gap: 6px;
     }
   }
   @container library-query (width <= 16rem) {
-    .library-query-tools[data-view="library"] .browse-sort [data-slot="select-trigger"] {
+    .library-query-tools .browse-sort [data-slot="select-trigger"] {
       min-inline-size: 0;
       gap: 6px;
     }
-    .library-query-tools[data-view="library"] .browse-sort [data-slot="select-value"] {
+    .library-query-tools .browse-sort [data-slot="select-value"] {
       min-inline-size: 0;
       overflow-wrap: anywhere;
     }
@@ -915,7 +913,7 @@
 
 @layer utilities {
   @media (width <= 30rem) {
-    .library-query-tools[data-view="library"] {
+    .library-query-tools {
       margin-block-end: 14px;
     }
   }
@@ -923,16 +921,16 @@
 
 /* Library parity: retain safe narrow/enlarged reflow and independent controls. */
 @layer utilities {
-  .library-query-tools[data-view="library"] .search {
+  .library-query-tools .search {
     min-block-size: 2.5rem;
   }
-  .library-query-tools[data-view="library"] .browse-toolbar > button {
+  .library-query-tools .browse-toolbar > button {
     min-block-size: 40px;
   }
   .collection-cover .collection-main {
     padding-block-end: 10px;
   }
-  .library-query-tools[data-view="library"] .collection-result-summary > button {
+  .library-query-tools .collection-result-summary > button {
     min-block-size: 24px;
     padding-block: 0;
     background: transparent;
@@ -996,7 +994,7 @@
 @layer utilities {
   @container app-window (width > 47.5rem) {
     @container library-query (width > 30rem) {
-      .library-query-tools[data-view="library"] .browse-toolbar > .search {
+      .library-query-tools .browse-toolbar > .search {
         flex-basis: 10rem;
       }
     }
@@ -1031,14 +1029,14 @@
 }
 
 @layer utilities {
-  .library-query-tools[data-view="library"] .search input {
+  .library-query-tools .search input {
     min-block-size: 2.375rem;
   }
 }
 
 @layer utilities {
   @container app-window (width <= 47.5rem) {
-    .library-query-tools[data-view="library"] .search {
+    .library-query-tools .search {
       margin-block-end: 2px;
     }
   }

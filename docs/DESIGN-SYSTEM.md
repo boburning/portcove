@@ -74,7 +74,8 @@ channels, total Single/Multiple port options and library membership. Advanced
 setup, attention, updates and observed file controls retain their existing query
 owners and unavailable states. OR within facets and AND across facets must match
 one eligible port/context. Clear filters preserves search; Escape and Done return
-focus to Filters. Source systems without reviewed metadata say Not specified.
+focus to Filters. Source systems without reviewed metadata say Not specified; the
+game detail identity chip names the fact as Original system not specified.
 Each workspace composes collection/navigation choices, one search/filter/sort/view toolbar, then a wrapping result and active-filter summary. Chips name their categories and share the choices’ canonical identity icons/colors; target labels retain architecture. Clear filters preserves search and returns focus to Filters.
 
 Comparisons use balanced project cards, side by side where space allows and stacked in compact windows, with aligned setup, file, target, ownership and observation sections. Filtered-out projects retain their own actions and explicit qualification. Unresearched gameplay differences remain unclaimed.
@@ -325,6 +326,7 @@ Finishing is acceptance within the owning journeys, not a separate perpetual pol
 - Acknowledge an action promptly without inventing its outcome. Copy confirmation is local; launch distinguishes accepted, starting, running when authoritative, and failure; install/update uses real stages or an honest indeterminate state; cancellation distinguishes requested from stopped; integration results distinguish core success from optional partial failure. The existing operation/event authority owns progress and durable outcomes, while toasts remain supplemental.
 - Catalog completion identifies the applied update, restored catalog, selected source or publisher trust change. Relocation results display the supplied retained and pending-cleanup folder paths without deletion advice. Retained logs explain available saved output independently of the operation outcome. Digest copy announces success or failure and offers the exact selectable value on failure; an older attempt cannot replace current feedback. Zero-total progress retains the concrete action and indeterminate state without an absent-telemetry sentence or fabricated percentage.
 - Command-palette query changes choose the best eligible result predictably, background refresh preserves the active command by stable identity where possible, and Enter during IME composition never executes a command.
+- Typing in the command palette also lists matching games, grouped as Library or Discover entries, and opens their details. Game results appear only for a non-empty query so the empty palette stays a short list of destinations and actions.
 - Command-palette pointer movement, option focus and direct clicks remain usable alongside keyboard selection. A popup appearing beneath a stationary pointer must not replace the command selected with the arrow keys.
 - Artwork remains legible and stable across bright, dark, white, missing, unusual-aspect, and long-title cases. Optional artwork failure does not become launch failure, and essential actions never depend on imagery.
 - Optical review covers icon/label alignment, tabular numerals where values change or align in columns, consistent dialog geometry, subordinate shortcut hints, long-path identification and exact copying, and reduced nested-card emphasis. Essential instructions and warnings never exist only in a tooltip or browser title.
@@ -539,7 +541,9 @@ Portcove targets dense desktop use and a minimum 960-pixel-wide Tauri window. At
 contract; [#206](https://github.com/boburning/portcove/issues/206) owns its desktop
 presentation. Start with consistent 2:3 portrait library/catalog covers unless
 current design evidence supports another established layout. Letterbox other
-ratios instead of silently cropping important content. Wide detail imagery is
+ratios instead of silently cropping important content; the letterboxed space shows
+a softened, blurred copy of the same artwork behind the whole image, removed for
+reduced transparency and forced colors. Wide detail imagery is
 optional; titles, status and actions remain readable outside images, including
 generated fallback states. Logos, icons, animation and a crop editor are not
 required for this slice.
@@ -943,7 +947,7 @@ opening another destination must not imply cancellation or task completion.
 ### Discover artwork and identity
 
 Catalog cards retain their own browsing filters, sort and route semantics. Whole
-cover images use Library's centered 2:3 frame and semantic neutral padding.
+cover images use Library's centered 2:3 frame and the shared letterbox fill.
 Artwork size is independent of title/status height, with the shared short-window bound. Missing artwork uses the same
 quiet game symbol as Library and Detail. Do not infer crop bounds or replace
 provider/user-selected artwork. Titles and project/variant identity follow the

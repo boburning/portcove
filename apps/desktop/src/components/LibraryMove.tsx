@@ -208,20 +208,21 @@ export function LibraryMoveRecovery({
   return (
     <section aria-label="Library move recovery">
       <h2 className="text-base">Finish changing library location</h2>
-      <p className="[overflow-wrap:anywhere] [unicode-bidi:plaintext]">
+      <p className="mt-1 text-sm [overflow-wrap:anywhere] text-pc-muted-foreground [unicode-bidi:plaintext]">
         Original library: {source}
       </p>
-      <p>Continue to check the new copy and finish switching libraries.</p>
-      {canKeepOriginal ? (
-        <p>Keep using the original library before the new copy is activated.</p>
-      ) : (
-        <p>The new copy is already active. Continue to finish the location change.</p>
-      )}
-      <p>Neither option deletes the copied files.</p>
+      <ul className="mt-3 grid list-disc gap-1 ps-5 text-sm">
+        <li>Continue to check the new copy and finish switching libraries.</li>
+        {canKeepOriginal ? (
+          <li>Keep using the original library before the new copy is activated.</li>
+        ) : (
+          <li>The new copy is already active. Continue to finish the location change.</li>
+        )}
+        <li>Neither option deletes the copied files.</li>
+      </ul>
       <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
         <Button
           data-focusable
-          variant="primary"
           disabled={busy || disabled}
           onClick={() => {
             void recover(false);
