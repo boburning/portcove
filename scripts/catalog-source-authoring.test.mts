@@ -774,10 +774,10 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
   assert.ok(consumers.length > 0);
   for (const record of consumers) {
     const id = record.listing.id;
-    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    const projected = projectAuthoredPort(record);
+    assert.ok(projected);
+    assert.equal(JSON.stringify(projected), JSON.stringify(accepted.get(id)), id);
     if (record.psx_managed_windows_v1 === "bundled-openbios") {
-      const projected = projectAuthoredPort(record);
-      assert.ok(projected);
       assert.deepEqual(projected.launch_arguments, [
         "--no-launcher",
         "--bios",
@@ -792,10 +792,12 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     duplicate.integration!.runtime_subdirectory = "setup-host";
     assert.throws(() => checkedAuthoredPort(duplicate), /already owns runtime_subdirectory/u);
     const otherBios = structuredClone(record);
-    otherBios.integration!.bios_source_profile = "psx-scph-5552-bios";
+    otherBios.integration!.bios_source_profile =
+      record.psx_managed_windows_v1 === "split-mods" ? "psx-scph-5501-bios" : "psx-scph-5552-bios";
     assert.throws(() => checkedAuthoredPort(otherBios), /retail SCPH-1001/u);
     const otherPlatform = structuredClone(record);
-    otherPlatform.integration!.platforms = ["macos-arm64"];
+    delete otherPlatform.listing.platforms;
+    otherPlatform.integration!.platforms = ["macos-aarch64"];
     assert.throws(() => checkedAuthoredPort(otherPlatform), /reviewed Windows GitHub kit/u);
     const otherPlayer = structuredClone(record);
     otherPlayer.integration!.executable_hints = {
@@ -810,4 +812,51 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     delete release.asset_hints["linux-x86-64"];
     assert.throws(() => checkedAuthoredPort(missingSelector), /explicit asset selector/u);
   }
+});
+
+void test("PSX split mods retain player data with explicit dual-platform and retail BIOS facts", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const consumers = records.filter((record) => record.psx_managed_windows_v1 === "split-mods");
+  const biosProfiles = new Set(consumers.map((record) => record.integration!.bios_source_profile));
+  assert.deepEqual(biosProfiles, new Set(["psx-scph-1001-bios", "psx-scph-5552-bios"]));
+  for (const record of consumers) {
+    const projected = projectAuthoredPort(record);
+    assert.ok(projected);
+    assert.deepEqual(
+      (projected.persistent_paths as string[]).filter(
+        (path) => path === "mods" || path.startsWith("mods/"),
+      ),
+      [
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+      ],
+    );
+  }
+
+  const [record] = consumers;
+  assert.ok(record);
+  const withoutBios = structuredClone(record);
+  delete withoutBios.integration!.bios_source_profile;
+  assert.throws(() => checkedAuthoredPort(withoutBios), /explicit retail SCPH-5552/u);
+  const windowsOnly = structuredClone(record);
+  windowsOnly.integration!.platforms = ["windows-x86-64"];
+  assert.throws(() => checkedAuthoredPort(windowsOnly), /exact Windows and Linux x64/u);
+  const withoutWindowsSelector = structuredClone(record);
+  const release = withoutWindowsSelector.integration!.release as {
+    asset_hints: Record<string, string[]>;
+  };
+  delete release.asset_hints["windows-x86-64"];
+  assert.throws(() => checkedAuthoredPort(withoutWindowsSelector), /exact Windows and Linux x64/u);
+  release.asset_hints["windows-x86-64"] = release.asset_hints["linux-x86-64"]!;
+  assert.throws(() => checkedAuthoredPort(withoutWindowsSelector), /exact Windows and Linux x64/u);
+  const wholeMods = structuredClone(record);
+  wholeMods.integration!.persistent_paths = ["mods"];
+  assert.throws(() => checkedAuthoredPort(wholeMods), /already owns persistent_paths/u);
+  assert.throws(
+    () => checkedAuthoredPort({ ...record, psx_managed_windows_v1: "split-mods-openbios" }),
+    /reviewed Windows GitHub kit/u,
+  );
 });

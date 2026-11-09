@@ -45,6 +45,14 @@ const runtimeLayout = {
   runtime_subdirectory: "build-portcove",
 };
 
+const splitModPaths = [
+  "mods/installed",
+  "mods/packages",
+  "mods/.staging",
+  "mods/state.toml",
+  "mods/state.toml.tmp",
+];
+
 const explicitFields = new Set([
   "support_tier",
   "channels",
@@ -59,21 +67,31 @@ const explicitFields = new Set([
   "bios_source_profile",
 ]);
 
+function isAssetSelector(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((hint) => typeof hint === "string" && hint.trim())
+  );
+}
+
 export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const layout = record.psx_managed_windows_v1;
   if (layout === undefined) return record;
   const bundledOpenBios = layout === "bundled-openbios";
+  const splitMods = layout === "split-mods";
   const integration = record.integration;
-  const executable = isRecord(integration?.executable_hints)
-    ? integration.executable_hints["windows-x86-64"]
-    : undefined;
-  const linuxExecutable = isRecord(integration?.executable_hints)
-    ? integration.executable_hints["linux-x86-64"]
-    : undefined;
+  const executableHints = isRecord(integration?.executable_hints)
+    ? integration.executable_hints
+    : {};
+  const executable = executableHints["windows-x86-64"];
+  const linuxExecutable = executableHints["linux-x86-64"];
   const assetHints = isRecord(integration?.release) ? integration.release.asset_hints : undefined;
   const linuxAssets = isRecord(assetHints) ? assetHints["linux-x86-64"] : undefined;
+  const windowsAssets = isRecord(assetHints) ? assetHints["windows-x86-64"] : undefined;
+  const biosProfile = integration?.bios_source_profile;
   if (
-    (layout !== true && !bundledOpenBios) ||
+    (layout !== true && !bundledOpenBios && !splitMods) ||
     !integration ||
     integration.adapter !== "psx-recomp-managed" ||
     !Array.isArray(integration.platforms) ||
@@ -89,7 +107,8 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     !integration.source_profile ||
     (bundledOpenBios
       ? Object.hasOwn(integration, "bios_source_profile")
-      : integration.bios_source_profile !== "psx-scph-1001-bios") ||
+      : biosProfile !== "psx-scph-1001-bios" &&
+        !(splitMods && biosProfile === "psx-scph-5552-bios")) ||
     !Array.isArray(executable) ||
     executable.length !== 1 ||
     typeof executable[0] !== "string" ||
@@ -98,14 +117,30 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       (!Array.isArray(linuxExecutable) ||
         linuxExecutable.length !== 1 ||
         linuxExecutable[0] !== executable[0].slice(0, -4) ||
-        !Array.isArray(linuxAssets) ||
-        linuxAssets.length === 0 ||
-        !linuxAssets.every((hint) => typeof hint === "string" && hint.trim()))) ||
+        !isAssetSelector(linuxAssets))) ||
     record.settings_qualification_v1 !== undefined ||
     record.settings_observation_v1 !== undefined
   )
     throw new Error(
-      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS or explicit bundled OpenBIOS without a retail profile. An optional Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
+      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS or explicit bundled OpenBIOS without a retail profile. The split-mods layout also accepts an explicit retail SCPH-5552 BIOS. A Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
+    );
+
+  if (
+    splitMods &&
+    (integration.platforms.length !== 2 ||
+      !isRecord(assetHints) ||
+      Object.keys(assetHints).length !== 2 ||
+      !isAssetSelector(windowsAssets) ||
+      !isAssetSelector(linuxAssets) ||
+      windowsAssets.length !== 2 ||
+      linuxAssets.length !== 2 ||
+      windowsAssets[0] !== linuxAssets[0] ||
+      windowsAssets[1] !== "-windows-x64.zip" ||
+      linuxAssets[1] !== "-linux-x64.zip" ||
+      Object.keys(executableHints).length !== 2)
+  )
+    throw new Error(
+      "PSX split-mods authoring requires exact Windows and Linux x64 kit selectors and generated players.",
     );
 
   for (const field of Object.keys(runtimeLayout))
@@ -121,11 +156,17 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       );
 
   const { presentation, bios_source_profile, ...operation } = integration;
+  const projectedLayout = structuredClone(runtimeLayout);
+  if (splitMods) {
+    projectedLayout.persistent_paths = projectedLayout.persistent_paths.flatMap((path) =>
+      path === "mods" ? splitModPaths : [path],
+    );
+  }
   return {
     ...record,
     integration: {
       ...operation,
-      ...structuredClone(runtimeLayout),
+      ...projectedLayout,
       ...(bundledOpenBios
         ? { launch_arguments: ["--no-launcher", "--bios", "bios/openbios.bin"] }
         : {}),
