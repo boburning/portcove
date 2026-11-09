@@ -318,6 +318,19 @@ attempt requires a source-bound appointment for the exact third stop digest and
 settled readback of every original invocation. It preserves the original
 attempt anchor and possible Check effects still require GET-only reconciliation.
 
+If that supplemental attempt stops during the proposal with a custody refusal,
+one further source-bound continuation requires the exact third and fourth stop
+digests and an independently reviewed digest of the private prefix manifest.
+The continuation requires every original invocation to be settled and every
+original Check effect to be reconciled. It admits only the contiguous positive
+prefix of the fourth attempt, using the original invocation, request, isolation,
+and event identities. The worker rebuilds the proposal and its exact plan,
+checks the retained inputs and reader bytes, and replays the complete assigned
+responses. The refused lane runs again in a fresh invocation. Any changed or
+missing evidence refuses the continuation. Both syntheses and complete
+opportunity metadata still require fresh invocations. The prefix preflight has
+no authority to produce a Check or consume an attempt.
+
 The prepared capacity configuration reader uses `portcove-release-pause` /
 `capacity.json`, verified raw Git objects and two exact-ref reads, with mandatory
 authenticated fresh observer/job guards. The document contains schema version 1,

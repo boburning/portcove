@@ -38,6 +38,16 @@ def request():
 
 
 class SupervisorContract(unittest.TestCase):
+    def test_regular_input_refuses_early_eof_but_proc_mountinfo_is_dynamic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            frozen = Path(directory) / "frozen"
+            frozen.write_bytes(b"expected")
+            with patch.object(supervisor.os, "read", return_value=b""):
+                with self.assertRaisesRegex(supervisor.Refusal, "observed file size"):
+                    supervisor.read_regular(frozen, 32)
+        mountinfo = supervisor.read_regular("/proc/self/mountinfo", supervisor.MIB, exact_size=False)
+        self.assertTrue(mountinfo)
+
     def test_only_qualified_application_instructions_get_synthesis_bound(self):
         with tempfile.TemporaryDirectory() as directory:
             instructions = Path(directory) / "instructions.txt"
