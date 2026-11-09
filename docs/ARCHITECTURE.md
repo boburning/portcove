@@ -506,6 +506,24 @@ install the Windows permission boundary exits the application. Other platform
 permission behavior requires its own native qualification and is not inferred
 from Windows results.
 
+The declaration, capability and event-audience review (#1281) kept two choices
+and changed one. Command declarations stay on the generated handler list behind
+the main-window gate; a per-command manifest would be a second inventory to keep
+synchronized with that list and the generated transport schema, and the gate
+already rejects every other webview. Capability selection stays explicit: the
+`default` capability names only the `main` window, and a host test refuses any
+capability file that names another window, `webviews`, `remote` or `platforms`,
+or a configured window other than `main`. Events changed: every Portcove event
+(`library-changed`, `operation`, `application-update-notice`) is emitted with an
+explicit `main` target through one function that shares the invoke gate's label.
+Each event has one consumer, in the main window, and none is a global event.
+Targeting is a second layer, not the boundary: the frontend's default listeners
+use Tauri's `Any` target and still receive every event, so the fixture windows
+are kept from receiving operation details by never being granted event listening
+in the capability, which the test above enforces. A host test registers listeners
+on `main`, on a second window and on `Any`, and checks that the second window
+receives nothing while `main` and the default listeners receive each event.
+
 The optional native compatibility feature can create unprivileged secondary
 and loopback-origin windows for boundary qualification. Its remote test window
 may navigate so the existing remote ACL can actually be exercised; it never
