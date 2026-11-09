@@ -5230,6 +5230,25 @@
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
           },
+          "reviewed_package_layouts": {
+            "additionalProperties": false,
+            "description": "Bounded fingerprint of the reviewed package layout for each platform. A\nrelease that still matches the asset selector but extracts to a different\nlayout is held for review instead of installing as an ordinary update.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              }
+            },
+            "type": "object"
+          },
           "runtime_data_policy": {
             "anyOf": [
               {
@@ -5884,6 +5903,31 @@
         "required": [
           "version",
           "sha256"
+        ],
+        "type": "object"
+      },
+      "ReviewedPackageLayout": {
+        "additionalProperties": false,
+        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
+        "properties": {
+          "directories": {
+            "description": "Lowercase top-level directory names of the package root, sorted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "executables": {
+            "description": "Lowercase package-relative paths (with `/`) of every program or script at\nany depth, sorted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "directories",
+          "executables"
         ],
         "type": "object"
       },
@@ -27910,6 +27954,31 @@
         ],
         "type": "object"
       },
+      "ReviewedPackageLayout": {
+        "additionalProperties": false,
+        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
+        "properties": {
+          "directories": {
+            "description": "Lowercase top-level directory names of the package root, sorted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "executables": {
+            "description": "Lowercase package-relative paths (with `/`) of every program or script at\nany depth, sorted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "directories",
+          "executables"
+        ],
+        "type": "object"
+      },
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
@@ -28396,6 +28465,25 @@
       },
       "release": {
         "$ref": "#/$defs/ReleaseSpec"
+      },
+      "reviewed_package_layouts": {
+        "additionalProperties": false,
+        "description": "Bounded fingerprint of the reviewed package layout for each platform. A\nrelease that still matches the asset selector but extracts to a different\nlayout is held for review instead of installing as an ordinary update.",
+        "properties": {
+          "linux-x86-64": {
+            "$ref": "#/$defs/ReviewedPackageLayout"
+          },
+          "macos-aarch64": {
+            "$ref": "#/$defs/ReviewedPackageLayout"
+          },
+          "macos-x86-64": {
+            "$ref": "#/$defs/ReviewedPackageLayout"
+          },
+          "windows-x86-64": {
+            "$ref": "#/$defs/ReviewedPackageLayout"
+          }
+        },
+        "type": "object"
       },
       "runtime_data_policy": {
         "anyOf": [
@@ -37530,6 +37618,25 @@
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
           },
+          "reviewed_package_layouts": {
+            "additionalProperties": false,
+            "description": "Bounded fingerprint of the reviewed package layout for each platform. A\nrelease that still matches the asset selector but extracts to a different\nlayout is held for review instead of installing as an ordinary update.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ReviewedPackageLayout"
+              }
+            },
+            "type": "object"
+          },
           "runtime_data_policy": {
             "anyOf": [
               {
@@ -38184,6 +38291,31 @@
         "required": [
           "version",
           "sha256"
+        ],
+        "type": "object"
+      },
+      "ReviewedPackageLayout": {
+        "additionalProperties": false,
+        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
+        "properties": {
+          "directories": {
+            "description": "Lowercase top-level directory names of the package root, sorted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "executables": {
+            "description": "Lowercase package-relative paths (with `/`) of every program or script at\nany depth, sorted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "directories",
+          "executables"
         ],
         "type": "object"
       },

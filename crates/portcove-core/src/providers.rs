@@ -203,6 +203,7 @@ mod tests {
             setup_output_paths: vec![],
             upstream_status: UpstreamStatus::Retired,
             managed_acquisition_hold: None,
+            reviewed_package_layouts: BTreeMap::new(),
             presentation: None,
         };
         let release =

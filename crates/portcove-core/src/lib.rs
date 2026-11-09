@@ -69,6 +69,7 @@ mod native_temp;
 mod operation;
 mod output_relocation;
 mod output_root;
+mod package_layout;
 mod path;
 mod permissions;
 mod persistence;

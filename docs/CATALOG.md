@@ -1408,6 +1408,27 @@ reviewed artifact. Because the catalog is currently embedded, the hold reaches
 players with the next application release; independent delivery to unchanged
 clients remains with #246.
 
+An integration may also record `reviewed_package_layouts`, one bounded fingerprint
+per platform, so a release that matches the selector but changes shape is held
+without a maintainer edit. The fingerprint lists the lowercase top-level directory
+names and the package-relative path of every program or script (`.exe`, `.appimage`,
+`.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or an executable mode bit
+on non-Windows packages), so a moved or duplicated launcher is drift. Libraries such as
+DLLs are not fingerprinted.
+One wrapper directory beside nothing else, such as a versioned folder name, is
+looked through. Core compares the extracted staging tree to the fingerprint after
+extraction and before any activation. An unchanged layout proceeds as an ordinary
+compatible release; plain data files, documentation and libraries may change. A
+different layout is refused with a player-facing reason naming the new or missing
+programs and folders, leaves the installed copy untouched, and uses the existing
+unsupported-acquisition surface, not a new hold authority. Platforms without a
+fingerprint keep today's behavior, and older clients ignore the field. A selected
+independent definition may replace a fingerprint after review but cannot remove
+one. The fingerprint is a gate, not part of the installed contract, and grants no
+qualification. Persistent-path anchors stay in the existing `persistent_paths`
+data. Exact-name matching means a route whose executable name carries a version
+needs a reviewed fingerprint update, which is the safe direction.
+
 The reusable managed TFE, GB shared-preferences and version-local credentials
 policies support reviewed GitHub package rules as well as exact direct manifests.
 Fresh dynamic acquisition requires an opaque in-process resolver binding to the
