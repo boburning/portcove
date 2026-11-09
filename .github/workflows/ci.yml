@@ -54,11 +54,41 @@ env:
   VP_GIT_HOOKS: "0"
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
+# Pull request runs get a group of their own so a replacement starts at once instead of
+# waiting for the superseded run's gate jobs to drain; the supersede job cancels the old run.
 concurrency:
-  group: ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number || github.ref }}
+  group: ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number && format('pr-{0}-{1}', github.event.pull_request.number, github.run_id) || github.ref }}
   cancel-in-progress: ${{ !inputs.force_qualification }}
 
 jobs:
+  supersede:
+    timeout-minutes: 5
+    name: cancel-superseded-runs
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Cancel older runs of this pull request
+        # Best effort: fork tokens are read-only, and a failed cancel only costs runner time.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CURRENT_RUN: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          case "$PR_NUMBER$CURRENT_RUN" in *[!0-9]*) echo "Unexpected run identity" >&2; exit 1 ;; esac
+          for status in queued in_progress waiting; do
+            gh api --paginate "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&status=$status&per_page=100" \
+              --jq ".workflow_runs[] | select(.id < $CURRENT_RUN) | select(any(.pull_requests[]?; .number == $PR_NUMBER)) | .id"
+          done | sort -u | while read -r run; do
+            echo "Cancelling superseded run $run"
+            gh api -X POST "repos/$REPO/actions/runs/$run/cancel" || true
+          done
+
   classify:
     timeout-minutes: 15
     permissions:
