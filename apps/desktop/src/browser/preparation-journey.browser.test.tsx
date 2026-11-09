@@ -98,9 +98,7 @@ it.each(["orchard", "summit"])(
       { container: root },
     );
     const title = portId === "orchard" ? "Orchard Quest" : "Summit Racer";
-    await page
-      .getByRole("button", { name: `View details for ${title} ${title}`, exact: true })
-      .click();
+    await page.getByRole("button", { name: `View details for ${title}`, exact: true }).click();
     await page.getByRole("tab", { name: "Game files", exact: true }).click();
     await page.getByRole("button", { name: "Review setup", exact: true }).click();
     expect(review).toHaveBeenCalledWith(portId, 1);
