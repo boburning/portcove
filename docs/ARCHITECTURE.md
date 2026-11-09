@@ -191,8 +191,21 @@ the existing GitHub provider and archive checks. A download publishes into a new
 user-owned child folder outside the Library and managed outputs; it never runs
 an installer. Shared release/package suitability and bounded native executable
 discovery supply suggestions; explicit registration and launch revalidate them.
-Generic GitHub/GitLab downloaded setup can optionally extract ZIP, tar.gz/tgz
-and bounded 7z packages. 7z extraction uses the pinned in-process reader with
+Generic GitHub/GitLab downloaded setup can optionally extract ZIP, tar.gz/tgz,
+tar.xz and bounded 7z packages. TAR.XZ uses the pinned in-process LZMA decoder
+with a single verified worker. The reader bounds the raw index to 32 KiB before
+allocation and requires one unpadded stream with CRC32 or CRC64. It preflights
+up to 1,024 plain LZMA2 block headers, at most 64 MiB of decoded bytes per
+block and a 96 MiB decoder budget. It applies the compression ratio to the
+entire indexed output before decoding, including headers and padding. The
+existing archive size and TAR metadata limits also apply. It verifies every
+indexed block and consumes the TAR terminator and up to one 10 KiB record of
+zero padding through the end of the stream before extraction writes. Input
+seeks and reads, TAR scanning and output writes honor the existing
+cancellation checkpoint. Managed release admission retains its separate format
+rules.
+
+7z extraction uses the pinned in-process reader with
 encryption and optional codecs disabled, one decoder thread and checksum
 verification through final stream completion. Before writes it rejects
 unsupported codec chains, links, reparse points, special files and anti-items,

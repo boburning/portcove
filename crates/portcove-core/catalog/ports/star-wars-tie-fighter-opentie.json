@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Prepare the complete upstream Windows copy",
-          "instruction": "Use an already permitted v0.0.7 Windows OpenTIE copy with all supplied resources, shaders and runtime libraries. Select OpenTIE.exe, not the installer, development tools or a different TIE Fighter project. The GPL-3.0 engine terms do not license original commercial game data, third-party components or optional instrument ROMs. Keep the whole creating copy; no new package or original was acquired or tested by Portcove."
+          "instruction": "Use an already permitted v0.0.7 Windows OpenTIE copy with all supplied resources, shaders and runtime libraries. Select OpenTIE.exe, not the installer, development tools or a different TIE Fighter project. The GPL-3.0 engine terms do not license original commercial game data, third-party components or optional instrument ROMs. Keep the whole creating Windows copy."
         },
         {
           "title": "Finish original-data and pilot setup upstream",
@@ -44,6 +44,12 @@
       "warnings": [
         "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
         "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+      ],
+      "references": [
+        {
+          "title": "Prepare a permitted Linux or Mac copy",
+          "instruction": "For Linux x86-64, use the official v0.0.7 TAR.XZ, keep the complete folder and run OpenTIE with Vulkan, glibc 2.35 or newer and libstdc++ with GLIBCXX_3.4.29. For Apple silicon, copy OpenTIE.app out of the official v0.0.7 ARM64 DMG and use macOS 13 or newer with Metal. Use a copy you are already permitted to use. Follow the same TIE95 or TIE98 original-data setup, preserve the actual TotallyOpen/OpenTIE profile, and maintain each copy upstream."
+        }
       ]
     }
   }

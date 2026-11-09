@@ -3712,6 +3712,7 @@ dependencies = [
  "jiff",
  "keyring",
  "libc",
+ "lzma-turbo",
  "octocrab",
  "proptest",
  "reqwest",

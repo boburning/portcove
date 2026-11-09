@@ -417,7 +417,6 @@ impl GitlabReleaseProvider {
             .map_err(|_| PortcoveError::verification("invalid GitLab release URL"))?
             .pop_if_empty()
             .push(&release.tag_name);
-        let lower = file.file_name.to_ascii_lowercase();
         Ok(CatalogDownloadCandidate {
             release_id,
             asset_id,
@@ -427,10 +426,7 @@ impl GitlabReleaseProvider {
             size: file.size,
             download_url: link.url.clone(),
             sha256: Some(file.file_sha256.to_ascii_lowercase()),
-            can_extract: lower.ends_with(".zip")
-                || lower.ends_with(".7z")
-                || lower.ends_with(".tar.gz")
-                || lower.ends_with(".tgz"),
+            can_extract: crate::archive::can_extract_download_archive(&file.file_name),
         })
     }
 

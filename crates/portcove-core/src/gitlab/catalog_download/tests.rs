@@ -7,6 +7,7 @@ use std::sync::mpsc::Receiver;
 enum Mode {
     File,
     Sevenz,
+    TarXz,
     External,
     Duplicate,
     Ambiguous,
@@ -34,10 +35,10 @@ fn fixture(mode: Mode) -> (GitlabReleaseProvider, Receiver<String>, HttpServer) 
             .unwrap();
         let root = format!("http://{host}");
         let duplicate = matches!(mode, Mode::Duplicate | Mode::Ambiguous);
-        let filename = if matches!(mode, Mode::Sevenz) {
-            "player.7z"
-        } else {
-            "player.zip"
+        let filename = match mode {
+            Mode::Sevenz => "player.7z",
+            Mode::TarXz => "player.tar.xz",
+            _ => "player.zip",
         };
         let link = json!({"id":7,"name":filename, "url": if matches!(mode, Mode::External) {
             "https://pixeldrain.com/u/not-a-registry-file".into()
@@ -116,6 +117,23 @@ async fn registry_sevenz_candidate_keeps_exact_integrity_and_enables_generic_ext
         .await
         .unwrap();
     assert_eq!(refreshed, *candidate);
+    server.join().unwrap();
+}
+
+#[tokio::test]
+async fn registry_tar_xz_candidate_supports_checked_setup() {
+    let (provider, _requests, server) = fixture(Mode::TarXz);
+    let (candidates, coverage, _, _) = provider
+        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
+        .await
+        .unwrap();
+    assert!(coverage.candidates_complete);
+    let [candidate] = candidates.as_slice() else {
+        panic!("expected one registry candidate");
+    };
+    assert_eq!(candidate.name, "player.tar.xz");
+    assert!(candidate.can_extract);
+    assert_eq!(candidate.sha256.as_deref(), Some("a".repeat(64).as_str()));
     server.join().unwrap();
 }
 
