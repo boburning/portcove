@@ -160,13 +160,32 @@ export function retainedRepositoryIds(checkpoint: unknown): Map<string, number> 
  */
 const candidateRules = new Set(["repository-unavailable", "provider-transport", "transport"]);
 
-export function relocationRepositoriesFromReport(report: unknown): string[] | null {
+/** Observer source keys the checkpoint records as GitHub-provider sources. */
+export function githubSourceKeys(checkpoint: unknown): Set<string> {
+  const keys = new Set<string>();
+  if (!isRecord(checkpoint) || !isRecord(checkpoint.sources)) return keys;
+  for (const [key, progress] of Object.entries(checkpoint.sources))
+    if (isRecord(progress) && (progress.provider ?? "github") === "github") keys.add(key);
+  return keys;
+}
+
+/**
+ * Only failures whose source the checkpoint records as a GitHub provider are
+ * selected; GitLab and direct-manifest transport failures share rule names but
+ * must never be probed against GitHub.
+ */
+export function relocationRepositoriesFromReport(
+  report: unknown,
+  githubSources: ReadonlySet<string>,
+): string[] | null {
   if (!isRecord(report) || !Array.isArray(report.failures)) return null;
   const failures = report.failures;
   const repositories = new Set<string>();
   for (const failure of failures) {
     if (
       isRecord(failure) &&
+      typeof failure.source === "string" &&
+      githubSources.has(failure.source) &&
       typeof failure.repository === "string" &&
       repositoryPattern.test(failure.repository) &&
       typeof failure.rule === "string" &&
@@ -225,6 +244,7 @@ async function main(args: string[]) {
   let checkpointPath: string | null = null;
   let summaryPath: string | null = null;
   let coverageUnknown = false;
+  let reportPath: string | null = null;
   for (let index = 0; index < args.length; index++) {
     const flag = args[index];
     const value = args[index + 1];
@@ -236,13 +256,22 @@ async function main(args: string[]) {
         "usage: upstream-relocation-candidates.mts (--repository OWNER/NAME | --report PATH) [...] [--checkpoint PATH] [--summary PATH]",
       );
     if (flag === "--repository") repositories.push(value);
-    else if (flag === "--report") {
-      const selected = relocationRepositoriesFromReport(JSON.parse(await readFile(value, "utf8")));
-      if (selected === null) coverageUnknown = true;
-      else repositories.push(...selected);
-    } else if (flag === "--checkpoint") checkpointPath = value;
+    else if (flag === "--report") reportPath = value;
+    else if (flag === "--checkpoint") checkpointPath = value;
     else summaryPath = value;
     index++;
+  }
+  const checkpoint: unknown = checkpointPath
+    ? JSON.parse(await readFile(checkpointPath, "utf8"))
+    : null;
+  const retained = retainedRepositoryIds(checkpoint);
+  if (reportPath) {
+    const selected = relocationRepositoriesFromReport(
+      JSON.parse(await readFile(reportPath, "utf8")),
+      githubSourceKeys(checkpoint),
+    );
+    if (selected === null) coverageUnknown = true;
+    else repositories.push(...selected);
   }
   if (repositories.length === 0) {
     console.log(
@@ -260,9 +289,6 @@ async function main(args: string[]) {
       );
     return;
   }
-  const retained = checkpointPath
-    ? retainedRepositoryIds(JSON.parse(await readFile(checkpointPath, "utf8")))
-    : new Map<string, number>();
   const deadline = performance.now() + 60_000;
   const sdk = await createGitHubClient({
     credential: localDeveloperCredential({ deadline }),

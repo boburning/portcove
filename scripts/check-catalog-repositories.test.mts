@@ -830,49 +830,83 @@ void test("relocation candidates classify moved repositories without following r
 });
 
 void test("relocation candidates read moved and missing identities from an observer report", async () => {
-  const { relocationRepositoriesFromReport, renderRelocationSummary } =
+  const { relocationRepositoriesFromReport, renderRelocationSummary, githubSourceKeys } =
     await import("./upstream-relocation-candidates.mts");
   const report = {
     failures: [
       // Real observer texts: a first identity lookup, and a retained source whose
       // release listing refused the redirect as a generic transport failure.
       {
+        source: "s-b",
         repository: "b/moved",
         rule: "provider-transport",
         details:
           "Primary repository identity returned HTTP 301; preserve the declared source and reconcile its current primary-provider availability.",
       },
       {
+        source: "s-e",
         repository: "e/renamed",
         rule: "transport",
         details: "provider transport failed within its retry budget",
       },
       {
+        source: "s-a",
         repository: "a/gone",
         rule: "repository-unavailable",
         details: "Primary repository identity returned HTTP 404",
       },
       {
+        source: "s-c",
         repository: "c/budget",
         rule: "budget",
         details: "provider response byte or time budget exhausted",
       },
       {
+        source: "s-d",
         repository: "d/transport",
         rule: "provider-transport",
         details: "Primary repository identity returned HTTP 502",
       },
-      { repository: "b/moved", rule: "provider-transport", details: "returned HTTP 301" },
+      {
+        source: "s-b",
+        repository: "b/moved",
+        rule: "provider-transport",
+        details: "returned HTTP 301",
+      },
     ],
   };
-  assert.deepEqual(relocationRepositoriesFromReport(report), [
+  const github = new Set(["s-a", "s-b", "s-c", "s-d", "s-e"]);
+  assert.deepEqual(relocationRepositoriesFromReport(report, github), [
     "a/gone",
     "b/moved",
     "d/transport",
     "e/renamed",
   ]);
   // A compact summary without a failure list is unassessed, not empty.
-  assert.equal(relocationRepositoriesFromReport({ coverage: "partial" }), null);
+  assert.equal(relocationRepositoriesFromReport({ coverage: "partial" }, github), null);
+  // GitLab and unknown sources share rule names but are never probed on GitHub.
+  assert.deepEqual(
+    relocationRepositoriesFromReport(
+      {
+        failures: [
+          {
+            source: "gitlab",
+            repository: "sonicdcer/ExtremeGRecomp",
+            rule: "provider-transport",
+            details: "x",
+          },
+          { source: "missing", repository: "x/y", rule: "transport", details: "x" },
+        ],
+      },
+      githubSourceKeys({
+        sources: {
+          gitlab: { provider: "gitlab", repository: "sonicdcer/ExtremeGRecomp" },
+          "s-a": { repository: "a/gone" },
+        },
+      }),
+    ),
+    [],
+  );
   const summary = renderRelocationSummary({
     format: 1,
     authority: "proposal-only",
