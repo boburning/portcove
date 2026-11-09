@@ -36,7 +36,8 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     }
     if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath) {
         let supported_route = (port.adapter == AdapterKind::NativePortable
-            && port.platforms == [Platform::WindowsX86_64])
+            && (port.platforms == [Platform::WindowsX86_64]
+                || crate::native_temp::has_sibling_platforms(port)))
             || (port.adapter == AdapterKind::LibultrashipPortable
                 && port.platforms.contains(&Platform::WindowsX86_64));
         return if supported_route

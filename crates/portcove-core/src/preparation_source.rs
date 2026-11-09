@@ -210,6 +210,14 @@ pub(crate) fn require_fresh_canonical_data(port: &PortDefinition, library: &Libr
                 PortcoveError::conflict("native originals require their active creating contract")
             })?;
         let retained = catalog.port(&port.id)?;
+        let executable_changed = if crate::native_temp::has_sibling_platforms(retained)
+            || crate::native_temp::has_sibling_platforms(port)
+        {
+            let host = Platform::current()?;
+            retained.executable_hints.get(&host) != port.executable_hints.get(&host)
+        } else {
+            retained.executable_hints != port.executable_hints
+        };
         if !native(retained)
             || retained.source_profile != port.source_profile
             || retained.runtime_source_set != port.runtime_source_set
@@ -218,7 +226,7 @@ pub(crate) fn require_fresh_canonical_data(port: &PortDefinition, library: &Libr
             || retained.windows_temp_directory != port.windows_temp_directory
             || retained.runtime_subdirectory != port.runtime_subdirectory
             || retained.launch_from_install_root != port.launch_from_install_root
-            || retained.executable_hints != port.executable_hints
+            || executable_changed
         {
             return Err(PortcoveError::conflict(
                 "native original or player-data scope changed; preserve the existing installation and data",

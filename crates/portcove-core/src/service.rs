@@ -5080,7 +5080,12 @@ impl PortcoveService {
                             &|| operation.checkpoint(),
                         )?;
                     }
-                    crate::native_temp::recheck(retained_port, &spec)?;
+                    crate::native_temp::recheck(
+                        retained_port,
+                        Platform::current()?,
+                        &spec,
+                        &|| operation.checkpoint(),
+                    )?;
                     self.require_installed_shared_preferences(install)?;
                     if retained_port.managed_shared_preferences.is_some()
                         && (spec.arguments != retained_port.launch_arguments
