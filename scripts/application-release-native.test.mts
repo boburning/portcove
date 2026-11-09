@@ -1628,7 +1628,7 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
   assert.equal(recoveryObserver.with.phase, "draft-recovery");
   assert.equal(
     recoveryObserver.with.timeout_minutes,
-    "${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}",
+    "${{ (inputs.mode == 'prepare' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}",
   );
   assert.ok(prep.needs.includes("protection_draft_recovery"));
   assert.ok(

@@ -36,7 +36,7 @@ async function run() {
     createHash("sha256").update(workflow).digest("hex"),
     env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
-  inspectApplicationSpendingAppointment(env);
+  inspectApplicationSpendingAppointment(env, "read-only");
   const pauseCommit = env.PORTCOVE_DIAGNOSTIC_PAUSE ?? "";
   const expectedDigest = env.PORTCOVE_DIAGNOSTIC_OWNER_DIGEST ?? "";
   assert.match(pauseCommit, /^[a-f0-9]{40}$/u);

@@ -36,7 +36,7 @@ on:
       qualification_attempt:
         type: string
         default: ""
-        description: Exact qualification attempt selected by the fixed automatic wake.
+        description: Exact qualification attempt for prepare. Automatic wake always supplies this input.
       qualification_run:
         type: string
         default: ""
@@ -164,7 +164,7 @@ jobs:
   source:
     if: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap') || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved')) && github.repository == 'boburning/portcove' && github.ref_protected && github.sha == vars.PORTCOVE_APPLICATION_RELEASE_REVISION && github.ref == vars.PORTCOVE_APPLICATION_RELEASE_REF }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 2
+    timeout-minutes: ${{ inputs.mode == 'prepare' && 5 || 2 }}
     environment: production-release-admission
     permissions:
       contents: write
@@ -269,7 +269,7 @@ jobs:
     with:
       operation: observe
       phase: payload
-      timeout_minutes: 1
+      timeout_minutes: 3
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -596,7 +596,7 @@ jobs:
     with:
       operation: observe
       phase: metadata
-      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -691,7 +691,7 @@ jobs:
     with:
       operation: observe
       phase: snapshot
-      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -738,7 +738,7 @@ jobs:
     with:
       operation: observe
       phase: timestamp
-      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -882,7 +882,7 @@ jobs:
     with:
       operation: observe
       phase: draft-recovery
-      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -1000,7 +1000,7 @@ jobs:
     with:
       operation: observe
       phase: publication
-      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -1176,7 +1176,7 @@ jobs:
     with:
       operation: observe
       phase: feed
-      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || inputs.mode == 'recover-metadata' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || inputs.mode == 'recover-metadata' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}

@@ -82,6 +82,14 @@ export function applicationReleaseBudgetMinutes(purpose: unknown) {
   return Object.freeze(jobs);
 }
 
+const ordinaryPrepareMaximumMinutes = 160;
+
+export function applicationReleaseMaximumMinutes(purpose: unknown, executionPath: unknown) {
+  return purpose === "application-release" && executionPath === "ordinary"
+    ? ordinaryPrepareMaximumMinutes
+    : 140;
+}
+
 /** Recovery reuses an immutable payload. Only its actual remaining jobs are
  * reserved; all earlier ordinary work is still charged by the budget reader. */
 export function applicationReleaseRemainingMinutes(
@@ -97,7 +105,17 @@ export function applicationReleaseRemainingMinutes(
       executionPath === "bootstrap-recovery" ||
       executionPath === "metadata-maintenance",
   );
-  if (executionPath === "ordinary") return ordinary;
+  if (executionPath === "ordinary") {
+    if (purpose !== "application-release") return ordinary;
+    return Object.freeze(
+      Object.fromEntries(
+        Object.entries(ordinary).map(([name, minutes]) => [
+          name,
+          name === "source" ? 5 : name.startsWith("protection_") ? 3 : minutes,
+        ]),
+      ),
+    );
+  }
   if (executionPath === "metadata-maintenance") {
     assert.equal(purpose, "metadata-renewal");
     const payloadWork = new Set([
@@ -242,7 +260,10 @@ export function inspectApplicationPublicationPause(raw: unknown) {
   return { paused: raw.publication_paused, authority: "none" as const };
 }
 
-export function inspectApplicationSpendingAppointment(environment: NodeJS.ProcessEnv) {
+export function inspectApplicationSpendingAppointment(
+  environment: NodeJS.ProcessEnv,
+  maximumMinutes: number | "read-only" = 140,
+) {
   const raw: unknown = JSON.parse(environment.PORTCOVE_APPLICATION_RELEASE_SPENDING ?? "null");
   assert.ok(isRecord(raw));
   assert.equal(raw.budget_id, "4a6859d9-fdb7-4da2-afd3-acbdc9848eec");
@@ -250,7 +271,15 @@ export function inspectApplicationSpendingAppointment(environment: NodeJS.Proces
   assert.equal(raw.amount_usd, 0);
   assert.equal(raw.stop_usage, true);
   assert.equal(raw.operator_id, 43177418);
-  assert.equal(raw.application_minutes, 140);
+  // Routing and paused diagnostics may observe older and current appointments.
+  // Source admission and private writers still require the exact mode-specific cap.
+  if (maximumMinutes === "read-only") {
+    assert.ok(
+      raw.application_minutes === 140 || raw.application_minutes === ordinaryPrepareMaximumMinutes,
+    );
+  } else {
+    assert.equal(raw.application_minutes, maximumMinutes);
+  }
   assert.equal(raw.catalog_minutes, 40);
   assert.equal(raw.workflow_sha256, environment.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256);
   assert.ok(typeof raw.workflow_sha256 === "string" && /^[a-f0-9]{64}$/u.test(raw.workflow_sha256));

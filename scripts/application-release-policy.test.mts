@@ -210,25 +210,33 @@ void test("bootstrap and renewal observer jobs reserve setup and upload time aro
   );
   assert.deepEqual(workflow.errors, []);
   const bootstrap = applicationReleaseBudgetMinutes("metadata-bootstrap");
-  const ordinary = applicationReleaseBudgetMinutes("application-release");
+  const ordinary = applicationReleaseRemainingMinutes("application-release");
   const renewal = applicationReleaseRemainingMinutes("metadata-renewal", "metadata-maintenance");
   const renewalModes = "inputs.mode == 'renew' || inputs.mode == 'renew-unserved'";
   for (const name of Object.keys(bootstrap).filter((name) => name.startsWith("protection_"))) {
     assert.equal(bootstrap[name], 3);
-    assert.equal(ordinary[name], 1);
+    assert.equal(ordinary[name], 3);
     assert.equal(renewal[name], 3);
     const job = name.split(" / ")[0]!;
     assert.equal(
       workflow.getIn(["jobs", job, "with", "timeout_minutes"]),
       job === "protection_feed"
-        ? `\${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || inputs.mode == 'recover-metadata' || ${renewalModes}) && 3 || 1 }}`
-        : `\${{ (inputs.mode == 'bootstrap' || ${renewalModes}) && 3 || 1 }}`,
+        ? `\${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || inputs.mode == 'recover-metadata' || ${renewalModes}) && 3 || 1 }}`
+        : `\${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || ${renewalModes}) && 3 || 1 }}`,
     );
   }
+  assert.equal(ordinary["source"], 5);
+  assert.equal(
+    workflow.getIn(["jobs", "source", "timeout-minutes"]),
+    "${{ inputs.mode == 'prepare' && 5 || 2 }}",
+  );
+  assert.equal(ordinary["protection_payload / execute"], 3);
+  assert.equal(workflow.getIn(["jobs", "protection_payload", "with", "timeout_minutes"]), 3);
+  assert.equal(ordinary["protection_draft_recovery / execute"], 3);
   assert.equal(renewal["protection_draft_recovery / execute"], 3);
   assert.equal(
     workflow.getIn(["jobs", "protection_draft_recovery", "with", "timeout_minutes"]),
-    `\${{ (${renewalModes}) && 3 || 1 }}`,
+    `\${{ (inputs.mode == 'prepare' || ${renewalModes}) && 3 || 1 }}`,
   );
 });
 
@@ -305,11 +313,14 @@ void test("source and private jobs require the same owner-appointed zero-dollar 
     catalog_minutes: 40,
     workflow_sha256: hash,
   };
-  const inspect = (record: unknown) =>
-    inspectApplicationSpendingAppointment({
-      PORTCOVE_APPLICATION_RELEASE_SPENDING: JSON.stringify(record),
-      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: hash,
-    });
+  const inspect = (record: unknown, maximumMinutes: number | "read-only" = 140) =>
+    inspectApplicationSpendingAppointment(
+      {
+        PORTCOVE_APPLICATION_RELEASE_SPENDING: JSON.stringify(record),
+        PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: hash,
+      },
+      maximumMinutes,
+    );
   assert.deepEqual(inspect(spending), {
     budget_id: spending.budget_id,
     headroom: "unknown",
@@ -328,6 +339,12 @@ void test("source and private jobs require the same owner-appointed zero-dollar 
   ])
     assert.throws(() => inspect({ ...spending, ...change }));
   assert.throws(() => inspect(null));
+  assert.throws(() => inspect(spending, 160));
+  assert.doesNotThrow(() => inspect({ ...spending, application_minutes: 160 }, 160));
+  assert.throws(() => inspect({ ...spending, application_minutes: 160 }));
+  for (const application_minutes of [140, 160])
+    assert.doesNotThrow(() => inspect({ ...spending, application_minutes }, "read-only"));
+  assert.throws(() => inspect({ ...spending, application_minutes: 161 }, "read-only"));
 });
 
 void test("main qualification can attest public packages but cannot enter the private release guard", () => {

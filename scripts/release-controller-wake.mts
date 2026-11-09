@@ -1154,7 +1154,7 @@ export async function wakeRatifiedController(
       environment.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 !== config.workflow_sha256
     )
       throw new Error("native wake differs from appointed application release source");
-    inspectApplicationSpendingAppointment(environment);
+    inspectApplicationSpendingAppointment(environment, "read-only");
     // Routing observation only. Source admission independently verifies the
     // full owner-controlled Git object closure before any production write.
     const pauseRef = async () => {
