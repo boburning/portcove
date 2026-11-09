@@ -49224,7 +49224,7 @@
           },
           {
             "title": "Start the Linux player",
-            "instruction": "Extract the upstream v0.0.17 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXWA. Run OpenXWA with glibc 2.35 or later and a Vulkan driver."
+            "instruction": "Extract the upstream v0.0.17 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXWA. Run OpenXWA with glibc 2.35 or later, the GCC 12 runtime or newer, and a Vulkan driver."
           }
         ],
         "warnings": [
@@ -49271,7 +49271,7 @@
           },
           {
             "title": "Start the Linux player",
-            "instruction": "Extract the upstream v0.0.3 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later and a Vulkan driver."
+            "instruction": "Extract the upstream v0.0.3 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.29, and a Vulkan driver."
           }
         ],
         "warnings": [
@@ -49314,7 +49314,7 @@
           },
           {
             "title": "Start the Linux player",
-            "instruction": "Extract the upstream v0.0.5 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXvT. Run OpenXvT with glibc 2.35 or later and a Vulkan driver. The OpenXvT build also needs libcurl.so.4."
+            "instruction": "Extract the upstream v0.0.5 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
           }
         ],
         "warnings": [
