@@ -911,7 +911,6 @@ mod tests {
         fs::metadata(path).unwrap().permissions().mode() & 0o7777
     }
 
-    #[cfg(unix)]
     fn write_tar_gz(path: &Path, entries: &[(&str, &[u8], u32)]) {
         let encoder = flate2::write::GzEncoder::new(
             File::create(path).unwrap(),
