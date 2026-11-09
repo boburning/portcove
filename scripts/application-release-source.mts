@@ -31,6 +31,7 @@ import {
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
   resumeApplicationMetadataDraft,
+  resumeR55MetadataDraft,
   inspectBootstrapDraftRecovery,
   requireBootstrapDraft,
   retainApplicationPreparation,
@@ -38,6 +39,7 @@ import {
   readApplicationRunNotes,
   retainedServedRenewal,
   retainedServedRenewalFeed,
+  retainedR55Renewal,
   immutableApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
   registerApplicationBudgetRun,
@@ -793,27 +795,31 @@ async function renewPublishedMetadata() {
     );
     await beforeSourceWrite(known, context);
   };
-  const registration =
-    opportunity === retainedServedRenewal.opportunity
-      ? await resumeApplicationMetadataDraft(
-          provider,
-          execution,
-          opportunity,
-          {
-            release_id: retainedServedRenewal.release_id,
-            notes_sha256: retainedServedRenewal.notes_sha256,
-          },
-          beforeWrite,
-          retainedServedRenewal.contexts.map(({ context_sha256 }) => context_sha256),
-        )
-      : await registerApplicationReleaseRun(
-          provider,
-          execution,
-          execution.source,
-          commit.tree.sha,
-          opportunity,
-          beforeWrite,
-        );
+  let registration;
+  if (execution.ref === retainedR55Renewal.next_ref) {
+    registration = await resumeR55MetadataDraft(provider, execution, opportunity, beforeWrite);
+  } else if (opportunity === retainedServedRenewal.opportunity) {
+    registration = await resumeApplicationMetadataDraft(
+      provider,
+      execution,
+      opportunity,
+      {
+        release_id: retainedServedRenewal.release_id,
+        notes_sha256: retainedServedRenewal.notes_sha256,
+      },
+      beforeWrite,
+      retainedServedRenewal.contexts.map(({ context_sha256 }) => context_sha256),
+    );
+  } else {
+    registration = await registerApplicationReleaseRun(
+      provider,
+      execution,
+      execution.source,
+      commit.tree.sha,
+      opportunity,
+      beforeWrite,
+    );
+  }
   assert.equal(registration.custody.preparation, null);
   const packet = {
     schema_version: 1,
@@ -1184,6 +1190,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "recover-metadata",
       "the appointed continuation can only publish the retained feed",
     );
+  if (process.env.GITHUB_REF === retainedR55Renewal.next_ref)
+    assert.equal(command, "renew", "the appointed r56 continuation can only renew the r55 draft");
   if (command === "select") await selectForQualification();
   else if (command === "wake-qualification")
     console.log(JSON.stringify(await readCurrentApplicationWakeQualification()));

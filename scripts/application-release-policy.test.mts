@@ -204,24 +204,32 @@ void test("application Pages readers declare their provider read permissions", a
     assert.equal(workflow.getIn(["jobs", job, "permissions", "pages"]), undefined, job);
 });
 
-void test("bootstrap observer jobs reserve setup and upload time around the bounded collector", async () => {
+void test("bootstrap and renewal observer jobs reserve setup and upload time around the bounded collector", async () => {
   const workflow = parseDocument(
     await readFile(new URL(`../${applicationReleaseWorkflow}`, import.meta.url), "utf8"),
   );
   assert.deepEqual(workflow.errors, []);
   const bootstrap = applicationReleaseBudgetMinutes("metadata-bootstrap");
   const ordinary = applicationReleaseBudgetMinutes("application-release");
+  const renewal = applicationReleaseRemainingMinutes("metadata-renewal", "metadata-maintenance");
+  const renewalModes = "inputs.mode == 'renew' || inputs.mode == 'renew-unserved'";
   for (const name of Object.keys(bootstrap).filter((name) => name.startsWith("protection_"))) {
     assert.equal(bootstrap[name], 3);
     assert.equal(ordinary[name], 1);
+    assert.equal(renewal[name], 3);
     const job = name.split(" / ")[0]!;
     assert.equal(
       workflow.getIn(["jobs", job, "with", "timeout_minutes"]),
       job === "protection_feed"
-        ? "${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap') && 3 || 1 }}"
-        : "${{ inputs.mode == 'bootstrap' && 3 || 1 }}",
+        ? `\${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || ${renewalModes}) && 3 || 1 }}`
+        : `\${{ (inputs.mode == 'bootstrap' || ${renewalModes}) && 3 || 1 }}`,
     );
   }
+  assert.equal(renewal["protection_draft_recovery / execute"], 3);
+  assert.equal(
+    workflow.getIn(["jobs", "protection_draft_recovery", "with", "timeout_minutes"]),
+    `\${{ (${renewalModes}) && 3 || 1 }}`,
+  );
 });
 
 void test("initial immutable bootstrap recovery reserves only its longer feed and readback tail", async () => {

@@ -109,7 +109,12 @@ export function applicationReleaseRemainingMinutes(
       "payload / execute",
     ]);
     return Object.freeze(
-      Object.fromEntries(Object.entries(ordinary).filter(([name]) => !payloadWork.has(name))),
+      Object.fromEntries(
+        Object.entries(ordinary)
+          .filter(([name]) => !payloadWork.has(name))
+          // Each renewal observer also needs attested setup and artifact upload.
+          .map(([name, minutes]) => [name, name.startsWith("protection_") ? 3 : minutes]),
+      ),
     );
   }
   assert.equal(

@@ -596,7 +596,7 @@ jobs:
     with:
       operation: observe
       phase: metadata
-      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -691,7 +691,7 @@ jobs:
     with:
       operation: observe
       phase: snapshot
-      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -738,7 +738,7 @@ jobs:
     with:
       operation: observe
       phase: timestamp
-      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -882,7 +882,7 @@ jobs:
     with:
       operation: observe
       phase: draft-recovery
-      timeout_minutes: 1
+      timeout_minutes: ${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -1000,7 +1000,7 @@ jobs:
     with:
       operation: observe
       phase: publication
-      timeout_minutes: ${{ inputs.mode == 'bootstrap' && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}
@@ -1176,7 +1176,7 @@ jobs:
     with:
       operation: observe
       phase: feed
-      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap') && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}

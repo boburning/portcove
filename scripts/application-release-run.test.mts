@@ -7,6 +7,8 @@ import {
   createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
   resumeApplicationMetadataDraft,
+  resumeR55MetadataDraft,
+  retainedR55Renewal,
   inspectBootstrapDraftRecovery,
   retainApplicationPreparation,
   readRegisteredApplicationRuns,
@@ -96,7 +98,7 @@ function fixture(mode = "valid") {
         if (mode.startsWith("lost-")) throw new Error("ambiguous POST response");
         return { status: 201, headers: new Map(), body: structuredClone(value) };
       }
-      const selected = new RegExp(`^${root}/releases/(10|11)$`, "u").exec(endpoint);
+      const selected = new RegExp(`^${root}/releases/(10|11|438789814)$`, "u").exec(endpoint);
       assert.ok(selected);
       const value = releases.find((release) => release.id === Number(selected[1]));
       assert.ok(value);
@@ -1002,6 +1004,143 @@ void test("retained renewal draft continues with the exact prior reservation as 
   assert.equal(newPlan.existing, undefined);
   assert.deepEqual(newPlan.previous_reserved_versions, burned.versions);
   assert.equal(f.mutations.length, before + 1);
+});
+
+void test("r56 resumes only the exact r55 draft and reserves above its original v6 context", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-11-09T07:00:00Z") });
+  const retained = retainedR55Renewal;
+  const exactNotes =
+    "Portcove application preparation. No publication or acceptance is implied.\n\n<!-- portcove-application-runs-v1\n" +
+    JSON.stringify({
+      schema_version: 3,
+      metadata_contexts: [
+        {
+          opportunity: "c3c807ea153d31ec420aec53cb146faf068049215a2994918364c8ef017b75de",
+          run_id: "42570808720",
+          run_attempt: 1,
+          control_commit: "3dfc18b702caca3c7e7c06ae85cac5f0d93365dd",
+          control_ref: "refs/tags/portcove-production-controller-windows-20261108r55",
+          generated_at: "2026-11-09T06:09:19.149Z",
+          root_sha256: "17de1676cd26c4bd2867d3a7941793147b94670d027e7846557d813bc9f43f92",
+          offline_targets_sha256:
+            "377ca58a2535229056afe552ca34035c3c0791fe4b8ac1a3a0b861dfc2782642",
+          prior_repository_sha256:
+            "2f09956c9673b69a37fff2556e611af654adf4141f80ffc24a2d207d7873354e",
+          versions: {
+            targets: "1",
+            snapshot: "6",
+            timestamp: "6",
+            releases: "6",
+            preview: "6",
+            stable: "6",
+          },
+          context_sha256: "bf4c4a0cf397347ccd054b72c260717c6f8ab97dbaba7d1a6a4fb1d0bed26fc4",
+          context_inventory_sha256:
+            "f7e7f12aec267e3eab28e6c340566652cce2b6bdd7f98cdd21efca794826e16a",
+          records_sha256: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        },
+      ],
+      kind: "application-release-run-custody",
+      source: "3dfc18b702caca3c7e7c06ae85cac5f0d93365dd",
+      source_tree: "6c40e31c26cb60e57a98e31fa6c22ebd72f328d6",
+      opportunity: "c3c807ea153d31ec420aec53cb146faf068049215a2994918364c8ef017b75de",
+      preparation: null,
+      runs: [
+        {
+          id: "42570808720",
+          control_commit: "3dfc18b702caca3c7e7c06ae85cac5f0d93365dd",
+          control_ref: "refs/tags/portcove-production-controller-windows-20261108r55",
+        },
+      ],
+    }) +
+    "\n-->";
+  const original = readApplicationRunNotes(exactNotes)?.custody;
+  assert.ok(original);
+  const burned = original.metadata_contexts?.[0];
+  assert.ok(burned);
+  assert.equal(burned.context_sha256, retained.context_sha256);
+  const draft = {
+    id: retained.release_id,
+    draft: true,
+    prerelease: true,
+    immutable: false,
+    tag_name: `portcove-production-candidate-${retained.opportunity}`,
+    target_commitish: retained.original_source,
+    body: exactNotes,
+    assets: [],
+  };
+  const next = { ...execution, ref: retained.next_ref };
+  for (const refused of [
+    { ...next, ref: execution.ref },
+    { ...next, source: retained.original_source },
+    { ...next, run_id: retained.original_run_id },
+    { ...next, run_attempt: 2 },
+  ]) {
+    const f = fixture();
+    f.releases.push(draft);
+    await assert.rejects(
+      resumeR55MetadataDraft(f.registration, refused, retained.opportunity, f.guard),
+    );
+    assert.equal(f.mutations.length, 0);
+  }
+  for (const drift of [
+    { body: exactNotes + "\n" },
+    { assets: [{ id: 5, name: "unexpected.json", state: "uploaded" }] },
+    { target_commitish: "1".repeat(40) },
+  ]) {
+    const f = fixture();
+    f.releases.push({ ...draft, ...drift });
+    await assert.rejects(
+      resumeR55MetadataDraft(f.registration, next, retained.opportunity, f.guard),
+    );
+    assert.equal(f.mutations.length, 0);
+  }
+
+  const f = fixture();
+  f.releases.push({ ...draft });
+  await assert.rejects(resumeR55MetadataDraft(f.registration, next, "1".repeat(64), f.guard));
+  assert.equal(f.mutations.length, 0);
+  const resumed = await resumeR55MetadataDraft(f.registration, next, retained.opportunity, f.guard);
+  assert.equal(resumed.release_id, retained.release_id);
+  assert.equal(resumed.custody.source, retained.original_source);
+  assert.deepEqual(resumed.known_run_ids, [retained.original_run_id, next.run_id]);
+  assert.deepEqual(resumed.custody.metadata_contexts, [burned]);
+  assert.equal(f.mutations.length, 1);
+  const plan = await readApplicationMetadataContextPlan(f.registration, resumed, next);
+  assert.equal(plan.existing, undefined);
+  assert.deepEqual(plan.previous_reserved_versions, burned.versions);
+  const replacement = {
+    ...burned,
+    generated_at: plan.generated_at,
+    run_id: next.run_id,
+    control_commit: next.source,
+    control_ref: next.ref,
+    context_sha256: "1".repeat(64),
+    context_inventory_sha256: "2".repeat(64),
+  };
+  await assert.rejects(
+    retainApplicationMetadataContext(f.registration, resumed, next, replacement, async () => {}),
+  );
+  assert.equal(f.mutations.length, 1);
+  const forward = {
+    ...replacement,
+    versions: {
+      targets: "1",
+      releases: "7",
+      preview: "7",
+      stable: "7",
+      snapshot: "7",
+      timestamp: "7",
+    },
+  };
+  const result = await retainApplicationMetadataContext(
+    f.registration,
+    resumed,
+    next,
+    forward,
+    async () => {},
+  );
+  assert.deepEqual(result.custody.metadata_contexts, [burned, forward]);
 });
 
 void test("native context reservations freeze full bytes and burn versions under the original cost owner", async () => {
