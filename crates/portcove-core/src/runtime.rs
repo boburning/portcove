@@ -27,6 +27,7 @@ impl BundledRuntime {
 }
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    crate::native_external_profile::validate(port)?;
     let linux = Platform::LinuxX86_64;
     if port.release.requires_tar_xz(linux)
         && (port.adapter != crate::AdapterKind::NativePortable

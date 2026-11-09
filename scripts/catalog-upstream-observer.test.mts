@@ -1095,6 +1095,21 @@ void test("the configured source gets an early bounded turn without starving unt
   assert.ok(next.report.requests <= 2);
 });
 
+void test("scarce capacity completes admitted sources instead of one request each", async () => {
+  const h = harness(40);
+  for (let index = 0; index < 60; index++)
+    h.input.ports.push({
+      id: `many-${index}`,
+      channels: ["stable"],
+      release: { repository: `owner/many-${index}` },
+    });
+  const result = await advanceCatalogObservations(h.input, null, h.options);
+  // Dividing 40 requests across 62 pending sources would admit one request per
+  // source and complete none. Depth-first turns finish admitted sources.
+  assert.ok(result.report.completed_source_keys.length > 0);
+  assert.ok(result.report.requests <= 40);
+});
+
 void test("the configured first turn admits a page set while other sources retain capacity", async () => {
   const h = harness(8);
   for (const name of ["extra-one", "extra-two"]) {

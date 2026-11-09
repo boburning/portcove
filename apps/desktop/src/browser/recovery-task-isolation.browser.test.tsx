@@ -155,7 +155,7 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     await navigateTo("Library");
     await page
       .getByRole("button", {
-        name: "View details for Harbor Adventure Harbor Adventure",
+        name: "View details for Harbor Adventure",
         exact: true,
       })
       .click();

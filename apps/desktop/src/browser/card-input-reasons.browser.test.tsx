@@ -185,7 +185,7 @@ it.each([
       const details =
         view === "library"
           ? page.getByRole("button", {
-              name: `View details for ${name} ${name}`,
+              name: `View details for ${name}`,
               exact: true,
             })
           : card

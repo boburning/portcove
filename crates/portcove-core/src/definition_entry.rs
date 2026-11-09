@@ -168,6 +168,15 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if port.external_profile_policy.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 9
+            })
+        {
+            return Err(PortcoveError::verification(
+                "managed external profile guards require native capability version 9",
+            ));
+        }
         if port.release.linux_tar_xz
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable" && requirement.minimum_version >= 8

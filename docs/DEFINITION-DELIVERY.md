@@ -62,6 +62,10 @@ definitions, so a new declaration does not retrofit historical manifests. This
 capability grants neither upstream Unicode support nor external-profile ownership
 or protected publication. See the [runtime path contract](CATALOG.md).
 
+Native portable version 9 consumes `external_profile_policy` for the reviewed
+Dune Dynasty and fheroes2 external profile checks. Both fresh and retained
+indexed entries must declare capability 9 when they use this field.
+
 Native portable version 8 consumes `release.linux_tar_xz` for an ordinary
 GitHub-backed Linux x86-64 managed native player. It requires a matching
 archive-specific hint and the same retained definition and platform as the

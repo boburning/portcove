@@ -42,3 +42,19 @@ it("keeps repeated presentation groups contiguous without reordering commands", 
   ]);
   expect(groups.flatMap((group) => group.commands)).toEqual(registry);
 });
+
+it("lists search-only commands only for a query and can ignore generic descriptions", () => {
+  const game: PaletteCommand = {
+    id: "game:harbor",
+    label: "Harbor Adventure",
+    description: "Open game details",
+    searchOnly: true,
+    matchDescription: false,
+    icon: Library,
+    action: vi.fn(),
+  };
+  const all = [...commands, game];
+  expect(filterCommands(all, "").map((command) => command.id)).toEqual(["library", "catalog"]);
+  expect(filterCommands(all, "harbor").map((command) => command.id)).toEqual(["game:harbor"]);
+  expect(filterCommands(all, "details")).toEqual([]);
+});

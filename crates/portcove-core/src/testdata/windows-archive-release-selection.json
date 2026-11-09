@@ -77,11 +77,29 @@
       "selected_assets": [
         "dunedynasty-v1.6.4-windows-x64.zip",
         "dunedynasty-v1.6.5-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "dunedynasty-v1.6.4-linux-x86-64.zip",
+        "dunedynasty-v1.6.5-linux-x86-64.zip"
       ]
     },
     "heroes-of-might-and-magic-ii-fheroes2": {
       "inventory": "fheroes2",
-      "selected_assets": ["fheroes2_windows_x64_SDL2.zip", "fheroes2_windows_x64_SDL2.zip"]
+      "selected_assets": [
+        "fheroes2_windows_x64_SDL2.zip",
+        "fheroes2_windows_x64_SDL2.zip",
+        "fheroes2_windows_x64_SDL2.zip"
+      ],
+      "linux_selected_assets": [
+        "fheroes2_ubuntu_x86-64_SDL2.zip",
+        "fheroes2_ubuntu_x86-64_SDL2.zip",
+        "fheroes2_ubuntu_x86-64_SDL2.zip"
+      ],
+      "macos_x86_64_selected_assets": [
+        "fheroes2_macos_x86-64_SDL2.zip",
+        "fheroes2_macos_x86-64_SDL2.zip",
+        "fheroes2_macos_x86-64_SDL2.zip"
+      ]
     },
     "quake-ironwail": {
       "inventory": "ironwail",
@@ -2252,6 +2270,85 @@
         "prerelease": false,
         "published_at": "2026-06-30T14:33:54Z",
         "tag_name": "1.1.17"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_android.zip",
+            "digest": "sha256:b76acc2c70acdaec6c66ad481c63c9e12c214c7707bd9b9d73c59b275f71dc63",
+            "id": 725524870,
+            "name": "fheroes2_android.zip",
+            "size": 27630101
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_macos_x86-64_SDL2.zip",
+            "digest": "sha256:59f81060dac91f4195271a997561390d31b902d44d2082d7240db6107d80275f",
+            "id": 725141079,
+            "name": "fheroes2_macos_x86-64_SDL2.zip",
+            "size": 5379945
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_psv.zip",
+            "digest": "sha256:305f294ac284b389889aa1dfa32b1b77d3870dff841cdff41f29c1b1fad65e82",
+            "id": 725141208,
+            "name": "fheroes2_psv.zip",
+            "size": 14982748
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_switch.zip",
+            "digest": "sha256:afda46e9793d2f100a7af819533ed209f0259af61743803d354337fe56f7da05",
+            "id": 725141559,
+            "name": "fheroes2_switch.zip",
+            "size": 8882064
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_ubuntu_arm64_SDL2.zip",
+            "digest": "sha256:f0eb41db4a3d009cdc635ee0836d720a54d8e4107ed89027f9de7b0e302fb99e",
+            "id": 725141754,
+            "name": "fheroes2_ubuntu_arm64_SDL2.zip",
+            "size": 5681093
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_ubuntu_x86-64_SDL2.zip",
+            "digest": "sha256:bf1973e1edca4776ac36a5162c5b518ce910f7cbdce3568ad7067c865891fe10",
+            "id": 725141870,
+            "name": "fheroes2_ubuntu_x86-64_SDL2.zip",
+            "size": 5923454
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_windows_x64_SDL2.zip",
+            "digest": "sha256:34cda1c1c21bcd668d13460943a4bf8eb94df7396f7f20806f807800b4de71e2",
+            "id": 725141995,
+            "name": "fheroes2_windows_x64_SDL2.zip",
+            "size": 12887302
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_windows_x64_SDL2_installer.exe",
+            "digest": "sha256:9b6b9404572cf9d8f32cb3cf7d442effa09391ff29c4dfb1a5493c43a262697a",
+            "id": 725142368,
+            "name": "fheroes2_windows_x64_SDL2_installer.exe",
+            "size": 36477257
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_windows_x86_SDL2.zip",
+            "digest": "sha256:5a9b85926f2b2ea0f1cf4f4f788b4bf82dcb72b01be7d60a54726e152bdea375",
+            "id": 725143248,
+            "name": "fheroes2_windows_x86_SDL2.zip",
+            "size": 12277249
+          },
+          {
+            "browser_download_url": "https://github.com/ihhub/fheroes2/releases/download/1.1.18/fheroes2_windows_x86_SDL2_installer.exe",
+            "digest": "sha256:9907fe0c3b5424dcb82be5451b668bf9d0084ac57905be485c1fc1e18ccf8a86",
+            "id": 725143565,
+            "name": "fheroes2_windows_x86_SDL2_installer.exe",
+            "size": 24363934
+          }
+        ],
+        "draft": false,
+        "id": 438509264,
+        "prerelease": false,
+        "published_at": "2026-11-08T20:45:36Z",
+        "tag_name": "1.1.18"
       }
     ],
     "ironwail": [
@@ -6995,11 +7092,6 @@
     {
       "inventory": "dune_dynasty",
       "release_index": 0,
-      "asset": "dunedynasty-v1.6.4-linux-x86-64.zip"
-    },
-    {
-      "inventory": "dune_dynasty",
-      "release_index": 0,
       "asset": "dunedynasty-v1.6.4-macos-arm64.zip"
     },
     {
@@ -7035,11 +7127,6 @@
     {
       "inventory": "dune_dynasty",
       "release_index": 1,
-      "asset": "dunedynasty-v1.6.5-linux-x86-64.zip"
-    },
-    {
-      "inventory": "dune_dynasty",
-      "release_index": 1,
       "asset": "dunedynasty-v1.6.5-macos-arm64.zip"
     },
     {
@@ -7065,11 +7152,6 @@
     {
       "inventory": "fheroes2",
       "release_index": 0,
-      "asset": "fheroes2_macos_x86-64_SDL2.zip"
-    },
-    {
-      "inventory": "fheroes2",
-      "release_index": 0,
       "asset": "fheroes2_psv.zip"
     },
     {
@@ -7081,11 +7163,6 @@
       "inventory": "fheroes2",
       "release_index": 0,
       "asset": "fheroes2_ubuntu_arm64_SDL2.zip"
-    },
-    {
-      "inventory": "fheroes2",
-      "release_index": 0,
-      "asset": "fheroes2_ubuntu_x86-64_SDL2.zip"
     },
     {
       "inventory": "fheroes2",
@@ -7100,11 +7177,6 @@
     {
       "inventory": "fheroes2",
       "release_index": 1,
-      "asset": "fheroes2_macos_x86-64_SDL2.zip"
-    },
-    {
-      "inventory": "fheroes2",
-      "release_index": 1,
       "asset": "fheroes2_psv.zip"
     },
     {
@@ -7116,11 +7188,6 @@
       "inventory": "fheroes2",
       "release_index": 1,
       "asset": "fheroes2_ubuntu_arm64_SDL2.zip"
-    },
-    {
-      "inventory": "fheroes2",
-      "release_index": 1,
-      "asset": "fheroes2_ubuntu_x86-64_SDL2.zip"
     },
     {
       "inventory": "fheroes2",
@@ -7806,6 +7873,31 @@
       "inventory": "alexbeav-wild-arms-recomp",
       "release_index": 0,
       "asset": "wildarms-0.1.0-macos-x64.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 2,
+      "asset": "fheroes2_android.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 2,
+      "asset": "fheroes2_psv.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 2,
+      "asset": "fheroes2_switch.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 2,
+      "asset": "fheroes2_ubuntu_arm64_SDL2.zip"
+    },
+    {
+      "inventory": "fheroes2",
+      "release_index": 2,
+      "asset": "fheroes2_windows_x86_SDL2.zip"
     }
   ]
 }

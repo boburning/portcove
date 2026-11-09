@@ -317,6 +317,10 @@ export type AdapterKind =
       | "psx-recomp-managed"
     )
   | "native-portable";
+/**
+ * Closed upstream profile resolution for managed portable players.
+ */
+export type ExternalProfilePolicy = "dune-dynasty-allegro-v1" | "fheroes2-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
@@ -1769,6 +1773,10 @@ export interface PortDefinition {
     "macos-x86-64"?: string[];
     "windows-x86-64"?: string[];
   };
+  /**
+   * Native9: check the external roots selected by the final game environment.
+   */
+  external_profile_policy?: ExternalProfilePolicy | null;
   /**
    * Optional, release-bound editable configuration. Retained installations
    * keep the exact declaration; today's catalog never grants edits to them.

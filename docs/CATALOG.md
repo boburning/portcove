@@ -265,6 +265,21 @@ contract. A Linux x86-64 GitHub package can instead declare `release.linux_tar_x
 and a required Linux TAR.XZ asset hint. That route accepts only matching TAR.XZ
 players and uses the same bounded reader as downloaded setup. Independent
 definitions require NativePortable capability 8 for this declaration.
+
+The `external_profile_policy` declaration requires NativePortable capability 9.
+It checks the effective profile selected by the final managed game environment
+before the player starts. The reviewed Dune Dynasty policy follows Allegro's
+Windows roaming folder and Linux HOME-relative XDG selection. It refuses a
+portable config in the managed runtime. The fheroes2 policy follows the
+standalone player's Windows HOME/APPDATA, Linux XDG/HOME, or Intel Mac HOME
+selection. Profile roots must resolve outside managed runtime locations. A
+bounded metadata check holds profiles with nested symbolic links, reparse
+points, or hard-linked files. Dune Dynasty paths must also fit the upstream
+player’s fixed buffers.
+Portcove leaves those profiles and original files under their existing owner.
+The same check applies to the matching older managed Windows layout without
+rewriting its creating manifest.
+Use an independently prepared copy for portable or otherwise ambiguous profiles.
 For example, the CorsixTH and SDL Sopwith records use the shared route
 without game-specific Rust or React code. The minimum integration shape is:
 

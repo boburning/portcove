@@ -181,6 +181,7 @@ mod tests {
             n64_runtime_at_executable_parent: false,
             managed_initialization: None,
             runtime_data_policy: None,
+            external_profile_policy: None,
             mod_package_policy: None,
             game_settings: None,
             windows_shipwright_persistence: false,

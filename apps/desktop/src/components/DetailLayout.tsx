@@ -48,6 +48,7 @@ export type RevealDetailSection = (
 export function DetailLayout({
   backLabel,
   favoriteControl,
+  heroSupplement,
   port,
   projectUrl,
   openSupport,
@@ -67,6 +68,8 @@ export function DetailLayout({
 }: {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
+  /** Secondary hero content that must not share the primary action row. */
+  heroSupplement?: ReactNode;
   port: Identity;
   projectUrl?: string | undefined;
   openSupport?: (() => void) | undefined;
@@ -199,7 +202,9 @@ export function DetailLayout({
             {sourceSystems.map((system) => (
               <Chip key={`system:${system}`} style={identityStyle(system)} title="Original system">
                 <IdentityIcon name={system} />
-                {identityLabel(system)}
+                {system === "not-specified"
+                  ? "Original system not specified"
+                  : identityLabel(system)}
               </Chip>
             ))}
             {[...new Set(port.platforms?.map((platform) => platform.split("-")[0]!))].map(
@@ -289,6 +294,7 @@ export function DetailLayout({
               </Menu.Portal>
             </Menu.Root>
           </div>
+          {heroSupplement && <div className="detail-hero-supplement mt-4">{heroSupplement}</div>}
         </div>
       </GameHero>
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
@@ -370,7 +376,7 @@ export function DetailLayout({
                       {openSupport && (
                         <Button
                           variant="link"
-                          className="w-full justify-start rounded-none border-b border-pc-border px-0 py-3 text-start text-xs"
+                          className="w-full justify-start gap-2.5 rounded-none border-x-0 border-t-0 border-b border-pc-border px-0 py-3 text-start text-xs"
                           onClick={openSupport}
                         >
                           <FileText aria-hidden="true" />
