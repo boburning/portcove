@@ -104,7 +104,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     n64_runtime_at_executable_parent: bool,
     partitioned_archive: bool,
     requires_tar_xz: bool,
-    native_original_appimage: bool,
+    native_appimage: bool,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -120,7 +120,7 @@ impl ReleaseSelectionCacheKey {
             n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent,
             partitioned_archive: port.archive_data_compatibility_v1.is_some(),
             requires_tar_xz: port.release.requires_tar_xz(platform),
-            native_original_appimage: native_original_appimage(port, platform).is_some(),
+            native_appimage: native_appimage(port, platform).is_some(),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1672,12 +1672,51 @@ struct GithubAsset {
     digest: Option<String>,
 }
 
-pub(crate) fn native_original_appimage(port: &PortDefinition, platform: Platform) -> Option<&str> {
+pub(crate) enum NativeAppImage<'a> {
+    Exact(&'a str),
+    Versioned { prefix: &'a str, suffix: &'a str },
+}
+
+impl NativeAppImage<'_> {
+    pub(crate) fn matches(&self, name: &str) -> bool {
+        match self {
+            Self::Exact(expected) => name.eq_ignore_ascii_case(expected),
+            Self::Versioned { prefix, suffix } => {
+                let name = name.to_ascii_lowercase();
+                let Some(version) = name
+                    .strip_prefix(*prefix)
+                    .and_then(|name| name.strip_suffix(*suffix))
+                else {
+                    return false;
+                };
+                let mut parts = version.strip_prefix('v').unwrap_or(version).split('.');
+                (0..3).all(|_| {
+                    parts.next().is_some_and(|part| {
+                        !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())
+                    })
+                }) && parts.next().is_none()
+            }
+        }
+    }
+}
+
+pub(crate) fn native_appimage(
+    port: &PortDefinition,
+    platform: Platform,
+) -> Option<NativeAppImage<'_>> {
     if platform != Platform::LinuxX86_64
         || !port.platforms.contains(&platform)
-        || !crate::native_temp::has_sibling_platforms(port)
         || !port.bundled_runtime.is_empty()
     {
+        return None;
+    }
+    if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompAppimageV1) {
+        let [prefix, suffix] = port.release.asset_hints.get(&platform)?.as_slice() else {
+            return None;
+        };
+        return Some(NativeAppImage::Versioned { prefix, suffix });
+    }
+    if !crate::native_temp::has_sibling_platforms(port) {
         return None;
     }
     let [asset] = port.release.asset_hints.get(&platform)?.as_slice() else {
@@ -1689,7 +1728,7 @@ pub(crate) fn native_original_appimage(port: &PortDefinition, platform: Platform
     [asset, executable]
         .into_iter()
         .all(|name| !name.contains(['/', '\\']) && name.to_ascii_lowercase().ends_with(".appimage"))
-        .then_some(asset)
+        .then_some(NativeAppImage::Exact(asset))
 }
 
 fn choose_asset<'a>(
@@ -1698,7 +1737,7 @@ fn choose_asset<'a>(
     assets: &'a [GithubAsset],
 ) -> Result<&'a GithubAsset> {
     let requires_tar_xz = port.release.requires_tar_xz(platform);
-    let standalone = native_original_appimage(port, platform);
+    let standalone = native_appimage(port, platform);
     let hints = port
         .release
         .asset_hints
@@ -1709,8 +1748,8 @@ fn choose_asset<'a>(
         .iter()
         .filter_map(|asset| {
             let name = asset.name.to_ascii_lowercase();
-            let supported_package = if let Some(expected) = standalone {
-                name.eq_ignore_ascii_case(expected)
+            let supported_package = if let Some(expected) = &standalone {
+                expected.matches(&name)
             } else if requires_tar_xz {
                 name.ends_with(".tar.xz")
             } else {
@@ -2565,7 +2604,7 @@ mod tests {
             n64_runtime_at_executable_parent: false,
             partitioned_archive: false,
             requires_tar_xz: false,
-            native_original_appimage: false,
+            native_appimage: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2591,7 +2630,7 @@ mod tests {
                         n64_runtime_at_executable_parent: false,
                         partitioned_archive: false,
                         requires_tar_xz: false,
-                        native_original_appimage: false,
+                        native_appimage: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

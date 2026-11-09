@@ -284,7 +284,23 @@ checks the effective profile for runtime overlap and unsafe aliases. Player
 data and original game files stay external. Existing Windows and Linux launches
 keep their separate behavior.
 
-The `external_profile_policy` declaration requires NativePortable capability 9.
+Native portable capability 12 adds the direct Linux x86-64 AppImage for
+recompiled players with the reviewed `recomp-appimage-v1` layout. Its matching
+Windows executable and declared title data fallback retain their existing
+contract. Core matches the title prefix, version and exact package suffix,
+binds the provider artifact, and retains the complete AppImage under a stable
+executable name. Linux launches with the package’s ordinary arguments and
+the player’s external configuration and launcher state.
+
+Before launch, Core checks effective configuration, state and temporary paths
+against the managed library and registered output roots. Adjacent AppImage
+`.home` and `.config` folders require a separate player-managed copy. Core
+reserves the launcher’s predictable log fallback under sticky system `/tmp`
+and preserves safe existing user-owned contents. The original ROM and the
+Linux profile remain the player’s files.
+
+The `external_profile_policy` declaration requires NativePortable capability 9 or
+the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment
 before the player starts. The reviewed Dune Dynasty policy follows Allegro's
 Windows roaming folder and Linux HOME-relative XDG selection. It refuses a

@@ -4441,7 +4441,8 @@
         "enum": [
           "dune-dynasty-allegro-v1",
           "fheroes2-v1",
-          "openrct2-mac-v1"
+          "openrct2-mac-v1",
+          "recomp-appimage-v1"
         ],
         "type": "string"
       },
@@ -27052,7 +27053,8 @@
         "enum": [
           "dune-dynasty-allegro-v1",
           "fheroes2-v1",
-          "openrct2-mac-v1"
+          "openrct2-mac-v1",
+          "recomp-appimage-v1"
         ],
         "type": "string"
       },
@@ -36741,7 +36743,8 @@
         "enum": [
           "dune-dynasty-allegro-v1",
           "fheroes2-v1",
-          "openrct2-mac-v1"
+          "openrct2-mac-v1",
+          "recomp-appimage-v1"
         ],
         "type": "string"
       },

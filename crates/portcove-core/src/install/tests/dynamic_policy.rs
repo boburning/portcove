@@ -359,7 +359,7 @@ fn native10_appimage_requires_provider_selection_and_exact_retained_asset() {
         ),
     ] {
         assert_eq!(
-            crate::managed_runtime_policy::require_native_original_artifact(port, selected, name)
+            crate::managed_runtime_policy::require_native_appimage_artifact(port, selected, name)
                 .is_ok(),
             allowed
         );

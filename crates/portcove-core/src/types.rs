@@ -664,6 +664,7 @@ pub enum ExternalProfilePolicy {
     DuneDynastyAllegroV1,
     Fheroes2V1,
     Openrct2MacV1,
+    RecompAppimageV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.
