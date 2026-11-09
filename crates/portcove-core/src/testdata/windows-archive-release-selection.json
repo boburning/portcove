@@ -2,6 +2,7 @@
   "cases": {
     "super-metroid-recomp": {
       "inventory": "super_metroid",
+      "repository_id": 1263295135,
       "selected_assets": [
         "supermetroid-0.4.4-windows-x64.zip",
         "supermetroid-0.4.5-windows-x64.zip"
@@ -1353,33 +1354,39 @@
             "name": "SHA256SUMS",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.4/SHA256SUMS",
             "size": 404,
-            "digest": "sha256:089922cda074564024f031b693a5cb15d32b7f2e59ee7763f728d53389cd2a12"
+            "digest": "sha256:089922cda074564024f031b693a5cb15d32b7f2e59ee7763f728d53389cd2a12",
+            "id": 724634676
           },
           {
             "name": "supermetroid-0.4.4-linux-x64.zip",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.4/supermetroid-0.4.4-linux-x64.zip",
             "size": 14938225,
-            "digest": "sha256:4a7f0116c42460c4b0e9643225a2b27a3ff4d58ad3fd41cce49e59703b5f73a8"
+            "digest": "sha256:4a7f0116c42460c4b0e9643225a2b27a3ff4d58ad3fd41cce49e59703b5f73a8",
+            "id": 724634683
           },
           {
             "name": "supermetroid-0.4.4-macos-arm64.zip",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.4/supermetroid-0.4.4-macos-arm64.zip",
             "size": 16053002,
-            "digest": "sha256:3a90ed95da071ecdc5f2fd6c0dbeec33223bbdb81c7d4305651a1145262bc335"
+            "digest": "sha256:3a90ed95da071ecdc5f2fd6c0dbeec33223bbdb81c7d4305651a1145262bc335",
+            "id": 724634684
           },
           {
             "name": "supermetroid-0.4.4-macos-x64.zip",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.4/supermetroid-0.4.4-macos-x64.zip",
             "size": 16608822,
-            "digest": "sha256:1044ee32986f69b0649ecb809beb693a010e912ad580b88fd3ea2f0fd6c32c1c"
+            "digest": "sha256:1044ee32986f69b0649ecb809beb693a010e912ad580b88fd3ea2f0fd6c32c1c",
+            "id": 724634680
           },
           {
             "name": "supermetroid-0.4.4-windows-x64.zip",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.4/supermetroid-0.4.4-windows-x64.zip",
             "size": 15246552,
-            "digest": "sha256:8addb8fc232c73ed46cd10fe86830134795723b5c2b016d017861be7b31e46e2"
+            "digest": "sha256:8addb8fc232c73ed46cd10fe86830134795723b5c2b016d017861be7b31e46e2",
+            "id": 724634677
           }
-        ]
+        ],
+        "id": 438396341
       },
       {
         "tag_name": "v0.4.5",
@@ -1390,33 +1397,39 @@
             "name": "SHA256SUMS",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.5/SHA256SUMS",
             "size": 405,
-            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "id": 999000010
           },
           {
             "name": "supermetroid-0.4.5-linux-x64.zip",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.5/supermetroid-0.4.5-linux-x64.zip",
             "size": 14938227,
-            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "id": 999000011
           },
           {
             "name": "supermetroid-0.4.5-macos-arm64.zip",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.5/supermetroid-0.4.5-macos-arm64.zip",
             "size": 16053005,
-            "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "id": 999000012
           },
           {
             "name": "supermetroid-0.4.5-macos-x64.zip",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.5/supermetroid-0.4.5-macos-x64.zip",
             "size": 16608826,
-            "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+            "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "id": 999000013
           },
           {
             "name": "supermetroid-0.4.5-windows-x64.zip",
             "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.5/supermetroid-0.4.5-windows-x64.zip",
             "size": 15246557,
-            "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+            "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+            "id": 999000014
           }
-        ]
+        ],
+        "id": 999000001
       }
     ],
     "rustmania": [

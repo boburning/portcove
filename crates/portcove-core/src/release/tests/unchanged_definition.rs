@@ -2429,6 +2429,7 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
     #[derive(serde::Deserialize)]
     struct Case {
         inventory: String,
+        repository_id: Option<u64>,
         selected_assets: Vec<String>,
         #[serde(default)]
         linux_selected_assets: Vec<String>,
@@ -2505,7 +2506,14 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
                 );
                 selected_zips.insert((case.inventory.clone(), index, name.clone()));
                 let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
-                let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
+                let repository = match case.repository_id {
+                    Some(id) => ok_json(
+                        &serde_json::json!({"id":id,"archived":false}).to_string(),
+                        "",
+                    ),
+                    None => metadata(),
+                };
+                let (root, requests, server) = serve_http(vec![repository, releases(&visible)]);
                 let selected = GithubReleaseProvider::with_api_root(root)
                     .unwrap()
                     .resolve(port, channel, platform)
