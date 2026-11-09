@@ -951,6 +951,11 @@ void test("Renovate derived-data repair keeps its write token away from regenera
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { regenerate, publish } = workflow.jobs;
   assert.ok(isRecord(regenerate) && isRecord(publish));
+  assert.ok(
+    typeof publish.if === "string" &&
+      publish.if.includes("github.triggering_actor == 'renovate[bot]'"),
+    "re-runs by others cannot publish",
+  );
   for (const guard of [
     "github.event.pull_request.head.repo.full_name == github.repository",
     "startsWith(github.head_ref, 'renovate/')",

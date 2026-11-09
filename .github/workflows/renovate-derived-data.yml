@@ -75,7 +75,7 @@ jobs:
 
   publish:
     needs: regenerate
-    if: needs.regenerate.outputs.changed == 'true'
+    if: needs.regenerate.outputs.changed == 'true' && github.actor == 'renovate[bot]' && github.triggering_actor == 'renovate[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -132,7 +132,9 @@ jobs:
           git config user.email 'renovate-derived-data@portcove.invalid'
           git add -- aqua-checksums.json .config/tool-bootstrap.json
           git commit -m "build(deps): regenerate Aqua derived integrity data"
-          authorization="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$APP_TOKEN" | base64 -w0)"
+          encoded="$(printf 'x-access-token:%s' "$APP_TOKEN" | base64 -w0)"
+          echo "::add-mask::$encoded"
+          authorization="AUTHORIZATION: basic $encoded"
           git -c "http.https://github.com/.extraheader=$authorization" push \
             --force-with-lease="refs/heads/$HEAD_REF:$HEAD_SHA" origin "HEAD:refs/heads/$HEAD_REF"
           echo 'Pushed regenerated Aqua derived data.' >> "$GITHUB_STEP_SUMMARY"

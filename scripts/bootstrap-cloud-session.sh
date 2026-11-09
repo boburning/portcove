@@ -10,7 +10,7 @@ set -euo pipefail
 # exact refusal for those two packages; any other error keeps the step failed.
 aqua_failure_is_attestation_only() {
   local log=$1 line seen=false tools='(astral-sh/ruff|rhysd/actionlint)'
-  while IFS= read -r line; do
+  while IFS= read -r line || [[ -n "$line" ]]; do
     line="$(sed -E 's/\x1b\[[0-9;]*m//g' <<<"$line")"
     if [[ "$line" =~ (^|[[:space:]])ERR[[:space:]] || "$line" =~ level=error || "$line" =~ ^[[:space:]]*[Ee]rror[[:space:]:] ]]; then
       if [[ "$line" =~ ERR[[:space:]]install\ the\ package[[:space:]].*package_name=${tools}[[:space:]].*GitHub\ Artifact\ Attestations ]]; then
