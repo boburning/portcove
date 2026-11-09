@@ -606,10 +606,19 @@ pub struct ReleaseSpec {
     pub rolling_tag: Option<String>,
     #[serde(default)]
     pub asset_hints: BTreeMap<Platform, Vec<String>>,
+    /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub linux_tar_xz: bool,
     #[serde(default)]
     pub direct: BTreeMap<Platform, DirectReleaseSpec>,
     #[serde(default)]
     pub user_prepared: BTreeMap<Platform, UserPreparedRuntimeSpec>,
+}
+
+impl ReleaseSpec {
+    pub(crate) fn requires_tar_xz(&self, platform: Platform) -> bool {
+        self.linux_tar_xz && platform == Platform::LinuxX86_64
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

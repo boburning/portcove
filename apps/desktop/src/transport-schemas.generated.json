@@ -5783,6 +5783,10 @@
             },
             "type": "object"
           },
+          "linux_tar_xz": {
+            "description": "Native8: select the checked TAR.XZ player archive on Linux x86-64.",
+            "type": "boolean"
+          },
           "managed_build": {
             "additionalProperties": false,
             "description": "Core-owned fixed original-driven recipes, distinct from downloaded executables.",
@@ -27793,6 +27797,10 @@
             },
             "type": "object"
           },
+          "linux_tar_xz": {
+            "description": "Native8: select the checked TAR.XZ player archive on Linux x86-64.",
+            "type": "boolean"
+          },
           "managed_build": {
             "additionalProperties": false,
             "description": "Core-owned fixed original-driven recipes, distinct from downloaded executables.",
@@ -38034,6 +38042,10 @@
               }
             },
             "type": "object"
+          },
+          "linux_tar_xz": {
+            "description": "Native8: select the checked TAR.XZ player archive on Linux x86-64.",
+            "type": "boolean"
           },
           "managed_build": {
             "additionalProperties": false,

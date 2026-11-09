@@ -279,7 +279,9 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if crate::preparation::source::native(port) {
+        let capability_version = if port.release.linux_tar_xz {
+            8
+        } else if crate::preparation::source::native(port) {
             6
         } else if port.windows_shipwright_persistence {
             3
@@ -410,6 +412,7 @@ fn indexed_policy_fixtures_keep_delivered_reader_floors() {
         ("resident-evil-gaiden-recomp", 21),
         ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
+        ("star-wars-x-wing-openxw", 8),
     ] {
         let bundle = IndexedCatalogFixture::new(&catalog, id).at_revision(7);
         let entry: serde_json::Value = serde_json::from_slice(&bundle.contents[0].1).unwrap();

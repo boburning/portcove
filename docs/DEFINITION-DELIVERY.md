@@ -62,6 +62,14 @@ definitions, so a new declaration does not retrofit historical manifests. This
 capability grants neither upstream Unicode support nor external-profile ownership
 or protected publication. See the [runtime path contract](CATALOG.md).
 
+Native portable version 8 consumes `release.linux_tar_xz` for an ordinary
+GitHub-backed Linux x86-64 managed native player. It requires a matching
+archive-specific hint and the same retained definition and platform as the
+verified release selection. It uses the bounded TAR.XZ reader inside the
+existing managed publication transaction. Indexed entries with the declaration
+require a Native8 lower bound for fresh and retained reads. Older readers and
+the other platforms retain their existing package contracts.
+
 Native portable version 5 consumes `windows_temp_directory`: a dedicated,
 declared Windows entry-data directory used internally for relative `TEMP`/`TMP`.
 Its ASCII basename and `relative-file-max-path` contract preserve the existing

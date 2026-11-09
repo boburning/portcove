@@ -3112,12 +3112,13 @@ impl PortcoveService {
             &self.catalog,
             &port.id,
         )?;
+        let platform = Platform::current()?;
         let resolution = if scope.is_some()
-            || crate::managed_runtime_policy::requires_provider_resolution(port)
+            || crate::managed_runtime_policy::requires_provider_resolution_on(port, platform)
         {
             let resolved = reporter
                 .operation
-                .interruptible(self.resolve_release(port, release.channel, Platform::current()?))
+                .interruptible(self.resolve_release(port, release.channel, platform))
                 .await?;
             if resolved.release.asset != release.asset
                 || resolved.release.version != release.version

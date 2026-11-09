@@ -31,6 +31,39 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn native_linux_tar_xz_requires_version_8_in_fresh_and_retained_readers() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.release.linux_tar_xz = true;
+    port.release.asset_hints.insert(
+        crate::Platform::LinuxX86_64,
+        vec!["-linux-x86_64.tar.xz".into()],
+    );
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    entry["required_capabilities"][0]["maximum_version"] = json!(8);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap_err().message.contains("version 8"));
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 8")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(8);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+}
+
+#[test]
 fn libultraship_windows_paths_require_the_owning_v2_template() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("2ship2harkinian").unwrap().clone();
@@ -620,7 +653,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if crate::preparation::source::native(port) {
+        let version = if port.release.linux_tar_xz {
+            8
+        } else if crate::preparation::source::native(port) {
             6
         } else if port.windows_shipwright_persistence {
             3
@@ -1269,9 +1304,9 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     );
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
-    // Native7 is now implemented; retain refusal for an unimplemented future reader.
-    entry["required_capabilities"][0]["minimum_version"] = json!(8);
-    entry["required_capabilities"][0]["maximum_version"] = json!(8);
+    // Keep the upper-edge check on an unimplemented future reader.
+    entry["required_capabilities"][0]["minimum_version"] = json!(9);
+    entry["required_capabilities"][0]["maximum_version"] = json!(9);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }
 

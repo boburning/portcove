@@ -103,6 +103,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     adapter: AdapterKind,
     n64_runtime_at_executable_parent: bool,
     partitioned_archive: bool,
+    requires_tar_xz: bool,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -117,6 +118,7 @@ impl ReleaseSelectionCacheKey {
             adapter: port.adapter,
             n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent,
             partitioned_archive: port.archive_data_compatibility_v1.is_some(),
+            requires_tar_xz: port.release.requires_tar_xz(platform),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1673,6 +1675,7 @@ fn choose_asset<'a>(
     platform: Platform,
     assets: &'a [GithubAsset],
 ) -> Result<&'a GithubAsset> {
+    let requires_tar_xz = port.release.requires_tar_xz(platform);
     let hints = port
         .release
         .asset_hints
@@ -1683,15 +1686,18 @@ fn choose_asset<'a>(
         .iter()
         .filter_map(|asset| {
             let name = asset.name.to_ascii_lowercase();
-            if is_checksum_name(&name)
-                || is_auxiliary_package(&name)
-                || !is_supported_package(&name)
-            {
+            let supported_package = if requires_tar_xz {
+                name.ends_with(".tar.xz")
+            } else {
+                is_supported_package(&name)
+            };
+            if is_checksum_name(&name) || is_auxiliary_package(&name) || !supported_package {
                 return None;
             }
-            let can_extract = [".zip", ".tar.gz", ".tgz"]
-                .iter()
-                .any(|extension| name.ends_with(extension));
+            let can_extract = requires_tar_xz
+                || [".zip", ".tar.gz", ".tgz"]
+                    .iter()
+                    .any(|extension| name.ends_with(extension));
             if (port.adapter == AdapterKind::NativePortable
                 || port.n64_runtime_at_executable_parent)
                 && !can_extract
@@ -2532,6 +2538,7 @@ mod tests {
             adapter: AdapterKind::NativePortable,
             n64_runtime_at_executable_parent: false,
             partitioned_archive: false,
+            requires_tar_xz: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2556,6 +2563,7 @@ mod tests {
                         adapter: AdapterKind::NativePortable,
                         n64_runtime_at_executable_parent: false,
                         partitioned_archive: false,
+                        requires_tar_xz: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

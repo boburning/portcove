@@ -168,6 +168,15 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if port.release.linux_tar_xz
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 8
+            })
+        {
+            return Err(PortcoveError::verification(
+                "managed Linux TAR.XZ requires native capability version 8",
+            ));
+        }
         if port.n64_runtime_at_executable_parent
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "n64-recomp-portable" && requirement.minimum_version >= 4
