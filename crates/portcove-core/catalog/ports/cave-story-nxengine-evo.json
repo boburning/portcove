@@ -39,9 +39,18 @@
         {
           "title": "Retain the actual profile and fallback",
           "instruction": "Preserve the entire creating runtime/data/mods/translations and actual SDL nxengine preference directory, normally under the current account’s AppData. It holds settings.dat, profile.dat/profile2.dat and other slots, debug.log and mod-specific progress; overlays can change the data selected. If preference lookup fails paths can fall back to the working directory. Preserve both effective locations before updates; a second executable may share profiles. The current Windows release lacks an independently published accepted digest for managed install; a freshly computed hash would not authenticate it."
+        },
+        {
+          "title": "Use your permitted Linux copy",
+          "instruction": "The v2.6.5-1 x86-64 AppImage supplies its own launch environment. Open the complete AppImage yourself and keep the accompanying data, translations and mods. Preserve the effective SDL nxengine profile and any working-folder fallback. The AppImage setup has separate process supervision requirements."
+        },
+        {
+          "title": "Use your permitted Intel Mac copy",
+          "instruction": "The v2.6.5-1 DMG contains NXEngine.app for Intel Macs on macOS 10.14 or later. Copy the intact app out of the disk image and open it yourself after reviewing its publisher. Keep the effective SDL nxengine profile and any working-folder fallback as well as the complete player."
         }
       ]
-    }
+    },
+    "download_block_reason": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification."
   },
   "upstream_lineage": {
     "format_version": 1,
