@@ -471,6 +471,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       overrides.indexOf(overrideFor(curatedInstalledWithdrawalFilter, "x86_64-pc-windows-msvc")),
   );
   const currentFullBaselineBudgets = [
+    {
+      platform: "x86_64-unknown-linux-gnu",
+      filter:
+        "package(portcove-core) & test(/^service::native_portable::native_tar_xz_tests::native_linux_tar_xz_managed_lifecycle_preserves_declared_and_unclaimed_data$/)",
+      periods: 12,
+    },
     { platform: "x86_64-pc-windows-msvc", filter: windowsInstalledRevocationFilter, periods: 18 },
     {
       platform: "x86_64-pc-windows-msvc",

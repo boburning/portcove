@@ -7,6 +7,13 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# The Linux managed TAR.XZ lifecycle finished last in a 33.47s focused
+# run. Give this exact reviewed acquisition/restore fixture 60s.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^service::native_portable::native_tar_xz_tests::native_linux_tar_xz_managed_lifecycle_preserves_declared_and_unclaimed_data$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
 
 # Exact observed outer harness allowances. Keep all assertions, product
 # deadlines, cleanup, two workers and zero retries.
