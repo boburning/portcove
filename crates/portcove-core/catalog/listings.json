@@ -19620,7 +19620,7 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and Android instructions below."
+            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and mobile instructions below."
           }
         ],
         "warnings": [],
@@ -19635,8 +19635,8 @@
             "instruction": "Use the upstream macOS-universal DMG on Intel or Apple Silicon. Copy devilutionX.app out of the image and keep the complete bundle. Put the matching MPQs in ~/Library/Application Support/diasurgical/devilution unless you already use a custom directory. Select Diablo in the upstream game mode if Hellfire data are also present. On either desktop platform, preserve the actual config, character saves and original files, including overrides. The upstream license governs use of the external copy."
           },
           {
-            "title": "Import your game files on Android",
-            "instruction": "Install the official DevilutionX app from the upstream release or Google Play. Use Import Data in the app to choose your files. Import your full Diablo DIABDAT.MPQ and select Diablo if Hellfire data are also present. The app copies the selected files into its external files directory, usually Android/data/org.diasurgical.devilutionx/files. Keep your originals and preserve that directory’s actual game data, saves and settings before replacing or removing the app. Use the same distribution channel for updates so the Android package signer remains compatible."
+            "title": "Prepare DevilutionX on Android, iPhone or iPad",
+            "instruction": "On Android, install the upstream 1.5.5 APK or use Google Play. Use Import Data in the app to choose your files. Import your full Diablo DIABDAT.MPQ and select Diablo if Hellfire data are also present. The app copies the selected files into its external files directory, usually Android/data/org.diasurgical.devilutionx/files. Keep your originals and preserve that directory’s actual game data, saves and settings before replacing or removing the app. Use the same distribution channel for updates so the Android package signer remains compatible. On iPhone or iPad, use the official 1.5.5 IPA with your own sideloading and signing setup on iOS or iPadOS 13 or later. Open the app once, then close it. Use Finder or iTunes file sharing to copy your owned DIABDAT.MPQ to the app’s Documents folder. Select Diablo in the app. Keep the Documents folder, including .sv characters and stashes and the configuration, before changing the installation."
           }
         ]
       },
@@ -19700,7 +19700,7 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and Android instructions below."
+            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and mobile instructions below."
           }
         ],
         "warnings": [],
@@ -19715,8 +19715,8 @@
             "instruction": "Use the upstream macOS-universal DMG on Intel or Apple Silicon. Copy devilutionX.app out of the image and keep the complete bundle. Put the matching MPQs in ~/Library/Application Support/diasurgical/devilution unless you already use a custom directory. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal. On either desktop platform, preserve the actual config, character saves and original files, including overrides. The upstream license governs use of the external copy."
           },
           {
-            "title": "Import your game files on Android",
-            "instruction": "Install the official DevilutionX app from the upstream release or Google Play. Use Import Data in the app to choose your files. Import your full Diablo DIABDAT.MPQ and all four Hellfire MPQs listed above, then select Hellfire in the app. The app copies the selected files into its external files directory, usually Android/data/org.diasurgical.devilutionx/files. Keep your originals and preserve that directory’s actual game data, saves and settings before replacing or removing the app. Use the same distribution channel for updates so the Android package signer remains compatible."
+            "title": "Prepare DevilutionX on Android, iPhone or iPad",
+            "instruction": "On Android, install the upstream 1.5.5 APK or use Google Play. Use Import Data in the app to choose your files. Import your full Diablo DIABDAT.MPQ and all four Hellfire MPQs listed above, then select Hellfire in the app. The app copies the selected files into its external files directory, usually Android/data/org.diasurgical.devilutionx/files. Keep your originals and preserve that directory’s actual game data, saves and settings before replacing or removing the app. Use the same distribution channel for updates so the Android package signer remains compatible. On iPhone or iPad, use the official 1.5.5 IPA with your own sideloading and signing setup on iOS or iPadOS 13 or later. Open the app once, then close it. Use Finder or iTunes file sharing to copy your owned DIABDAT.MPQ and the four Hellfire MPQs listed above to the app’s Documents folder. Select Hellfire in the app. Keep the Documents folder, including .hsv characters and stashes and the configuration, before changing the installation."
           }
         ]
       },
@@ -55841,7 +55841,7 @@
           },
           {
             "title": "Import this edition in the Android launcher",
-            "instruction": "Install the official Exult Android APK. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
+            "instruction": "Install the official Exult 1.12.1 APK from Exult’s download page on Android 9 or later. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
           },
           {
             "title": "Add the game and manage your files",
@@ -55858,6 +55858,10 @@
           {
             "title": "Keep your originals and game data",
             "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+          },
+          {
+            "title": "Set up this edition on iPhone or iPad",
+            "instruction": "Use Exult’s TestFlight build if you receive an invitation, or build the pinned 1.12.1 source yourself in Xcode for iOS or iPadOS 13 or later. Prepare a game folder with your own Serpent Isle files under game/serpentisle/static. Use lowercase for every file and folder name, then copy the complete game folder into the app with Finder or iTunes file sharing. Keep the app’s Documents folder, including its settings, saves and autosaves, before changing the app. The iOS guide is at https://exult.info/docs.html#iOS-Guide."
           }
         ]
       },
@@ -55905,7 +55909,7 @@
           },
           {
             "title": "Import this edition in the Android launcher",
-            "instruction": "Install the official Exult Android APK. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private blackgate/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
+            "instruction": "Install the official Exult 1.12.1 APK from Exult’s download page on Android 9 or later. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private blackgate/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
           },
           {
             "title": "Add the game and manage your files",
@@ -55922,6 +55926,10 @@
           {
             "title": "Keep your originals and game data",
             "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+          },
+          {
+            "title": "Set up this edition on iPhone or iPad",
+            "instruction": "Use Exult’s TestFlight build if you receive an invitation, or build the pinned 1.12.1 source yourself in Xcode for iOS or iPadOS 13 or later. Prepare a game folder with your own Black Gate files under game/blackgate/static. Use lowercase for every file and folder name, then copy the complete game folder into the app with Finder or iTunes file sharing. Keep the app’s Documents folder, including its settings, saves and autosaves, before changing the app. The iOS guide is at https://exult.info/docs.html#iOS-Guide."
           }
         ]
       },
@@ -57202,11 +57210,11 @@
           },
           {
             "title": "Upstream Android setup",
-            "instruction": "Use the official Android setup guide for Google Play, F-Droid or the matching upstream APK (ARM64, ARMv7 or x86-64). Import your own Heroes III data in the app and keep your originals separately. Install and update through the same channel because Android checks package identity and signing. Preserve the app profile before removing it."
+            "instruction": "Use the official Android setup guide for Google Play, F-Droid or the matching upstream APK (ARM64, ARMv7 or x86-64). Import your own Heroes III data in the app and keep your originals separately. Install and update through the same channel because Android checks package identity and signing. Preserve the app profile before removing it. Android guide at https://vcmi.eu/players/Installation_Android/."
           },
           {
-            "title": "Android setup guide",
-            "instruction": "https://vcmi.eu/players/Installation_Android/"
+            "title": "Upstream iPhone and iPad setup",
+            "instruction": "On iOS or iPadOS 12 or later, use VCMI’s upstream TestFlight route when available, or provision the official 1.7.5 IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
           }
         ]
       },

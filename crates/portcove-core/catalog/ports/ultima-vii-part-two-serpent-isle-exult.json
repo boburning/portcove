@@ -29,7 +29,7 @@
         },
         {
           "title": "Import this edition in the Android launcher",
-          "instruction": "Install the official Exult Android APK. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
+          "instruction": "Install the official Exult 1.12.1 APK from Exult’s download page on Android 9 or later. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
         },
         {
           "title": "Add the game and manage your files",
@@ -46,6 +46,10 @@
         {
           "title": "Keep your originals and game data",
           "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+        },
+        {
+          "title": "Set up this edition on iPhone or iPad",
+          "instruction": "Use Exult’s TestFlight build if you receive an invitation, or build the pinned 1.12.1 source yourself in Xcode for iOS or iPadOS 13 or later. Prepare a game folder with your own Serpent Isle files under game/serpentisle/static. Use lowercase for every file and folder name, then copy the complete game folder into the app with Finder or iTunes file sharing. Keep the app’s Documents folder, including its settings, saves and autosaves, before changing the app. The iOS guide is at https://exult.info/docs.html#iOS-Guide."
         }
       ]
     },
