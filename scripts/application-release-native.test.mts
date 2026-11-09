@@ -1626,7 +1626,10 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
   const recoveryObserver = raw.jobs.protection_draft_recovery;
   assert.ok(isRecord(recoveryObserver) && isRecord(recoveryObserver.with));
   assert.equal(recoveryObserver.with.phase, "draft-recovery");
-  assert.equal(recoveryObserver.with.timeout_minutes, 1);
+  assert.equal(
+    recoveryObserver.with.timeout_minutes,
+    "${{ (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}",
+  );
   assert.ok(prep.needs.includes("protection_draft_recovery"));
   assert.ok(
     typeof prep.if === "string" &&
