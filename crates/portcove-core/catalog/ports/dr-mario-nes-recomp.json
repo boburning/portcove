@@ -9,6 +9,40 @@
     "original_game_title": "Dr. Mario",
     "variant_label": "NES",
     "issue_number": 157,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the Windows package that matches your original",
+          "instruction": "Use the official USA Windows x64 ZIP with your Japan/USA Rev 1 original for the Portcove registration route. For an original European ROM, use the official EU Windows x64 ZIP and its upstream player."
+        },
+        {
+          "title": "Set up the Windows player",
+          "instruction": "Extract the full ZIP with its DLLs and assets. Open DrMarioRecomp.exe from that folder and select your own matching original. Keep the USA NTSC and European PAL copies and their profiles separate."
+        },
+        {
+          "title": "Register your prepared USA copy",
+          "instruction": "After setup, close the player. In Portcove select DrMarioRecomp.exe and its extracted folder. Add the original ROM’s full path as one argument line without quotes. If you leave the argument empty, keep the upstream launcher enabled."
+        },
+        {
+          "title": "Build the Linux player from upstream source",
+          "instruction": "On Linux x86-64, use the upstream source and its pinned submodules, CMake, a native C/C++ toolchain and system SDL2 development files. Set SDL2_DIR to the system SDL2 CMake package and NESRECOMP_ROM to your matching original. Set DRMARIO_REGION to usa or eu and use separate build folders. Launch the result through the upstream instructions."
+        },
+        {
+          "title": "Keep your player data",
+          "instruction": "Back up the actual settings and saves with the game closed before updating the upstream player. Keep cycle save states with their creating build and region. Removing a Portcove registration leaves the player, original and profile in place."
+        }
+      ],
+      "warnings": [
+        "The existing Portcove registration observation covers the USA Windows package. The European package and Linux source build are upstream setup."
+      ],
+      "help_url": "https://github.com/mstan/DrMarioNesRecomp/releases",
+      "references": [
+        {
+          "title": "Reviewed Windows packages and Linux source evidence",
+          "instruction": "See https://github.com/mstan/DrMarioNesRecomp/releases/tag/v1.3.1 for the separate USA and European packages and the upstream Linux system SDL2 instructions."
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3476,
       "cover_id": 544213,

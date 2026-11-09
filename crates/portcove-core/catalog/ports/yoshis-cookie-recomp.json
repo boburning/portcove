@@ -8,6 +8,36 @@
     "project_url": "https://github.com/mstan/YoshisCookieRecomp",
     "original_game_title": "Yoshi's Cookie",
     "issue_number": 155,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the official Windows player",
+          "instruction": "Download the Windows x64 ZIP from Yoshi’s Cookie Recomp Releases. Extract the whole archive, open YoshisCookieRecomp.exe and select your own matching USA ROM before registering the prepared copy in Portcove."
+        },
+        {
+          "title": "Register your prepared Windows copy",
+          "instruction": "After setup, close the player. In Portcove select YoshisCookieRecomp.exe and its extracted folder. Add the original ROM’s full path as one argument line without quotes. If you leave the argument empty, keep the upstream launcher enabled."
+        },
+        {
+          "title": "Build the Linux player from upstream source",
+          "instruction": "On Linux x86-64, use the upstream source and its pinned submodules, CMake, a native C/C++ toolchain and system SDL2 development files. Set SDL2_DIR to the system SDL2 CMake package and NESRECOMP_ROM to your matching USA original. Build and launch through the upstream instructions."
+        },
+        {
+          "title": "Keep your settings and saves",
+          "instruction": "Back up your actual settings and saves with the game closed before updating the player. Keep cycle save states with their creating build. Removing a Portcove registration leaves the player, original and profile in place."
+        }
+      ],
+      "warnings": [
+        "The existing Portcove registration route is for the Windows package. Linux setup uses the player’s own upstream build."
+      ],
+      "help_url": "https://github.com/mstan/YoshisCookieRecomp/releases",
+      "references": [
+        {
+          "title": "Reviewed Windows package and Linux source evidence",
+          "instruction": "See https://github.com/mstan/YoshisCookieRecomp/releases/tag/v1.1.1 for the reviewed Windows ZIP and upstream Linux system SDL2 instructions."
+        }
+      ]
+    },
     "artwork": {
       "game_id": 18657,
       "cover_id": 277899,
