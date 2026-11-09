@@ -41,13 +41,15 @@ import {
   LayoutGrid,
   List,
   Play,
+  Save,
   Boxes,
+  ArrowDownCircle,
   CheckCircle2,
   Gamepad2,
+  History,
   LoaderCircle,
   MoreHorizontal,
   Settings2,
-  Star,
   Wrench,
 } from "lucide-react";
 import {
@@ -1097,11 +1099,11 @@ const PortCard = memo(function PortCard({
           disabled={!favorites.ids || favorites.busy}
           className={cn(
             controlFocus,
-            "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground",
+            "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",
           )}
           onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
         >
-          <Icon glyph={Star} size="sm" />
+          <Heart aria-hidden="true" />
           {favorites.ids?.has(port.id) ? "Remove from favorites" : "Add to favorites"}
         </Menu.Item>
       )}
@@ -1189,7 +1191,7 @@ function LibraryEntry({
             controlFocus,
             "collection-identity cursor-pointer text-start hover:text-pc-interactive-foreground",
           )}
-          aria-label={`View details for ${gameTitle(port)} ${gameProjectLabel(port) ?? port.name}`}
+          aria-label={`View details for ${gameIdentityLabel(port).replace(" · ", " ")}`}
           aria-describedby={input ? setupDescriptionId : undefined}
           data-detail-game-id={port.id}
           data-detail-origin={detailOrigin}
@@ -1209,8 +1211,11 @@ function LibraryEntry({
             >
               {gameTitle(port)}
             </span>{" "}
-            <span className="collection-project block wrap-anywhere text-[var(--color-text-secondary)]">
-              {gameProjectLabel(port) ?? port.name}
+            <span
+              className="collection-project block wrap-anywhere text-[var(--color-text-secondary)]"
+              title={gameProjectLabel(port)}
+            >
+              {gameProjectLabel(port)}
             </span>
           </span>
         </button>
@@ -1597,7 +1602,7 @@ function renderFiltersPortBrowserView(
             variant={favorites.only ? "selected" : "ghost"}
             ref={filterButton}
             data-favorites-filter
-            aria-label={`Favorites (${model.favoriteCount ?? "unavailable"})`}
+            aria-label={`Favorites ${model.favoriteCount ?? "unavailable"}`}
             aria-pressed={favorites.only}
             disabled={!favorites.ids}
             onClick={() => {
@@ -1612,8 +1617,8 @@ function renderFiltersPortBrowserView(
             }}
           >
             Favorites{" "}
-            <span className="browse-count">
-              ({model.favoriteCount === undefined ? "unavailable" : model.favoriteCount})
+            <span className="browse-count" aria-hidden="true">
+              {model.favoriteCount ?? "unavailable"}
             </span>
           </Button>
         )}
@@ -1802,9 +1807,16 @@ function CollectionResultSummary({
   const count = constrainedLibrary
     ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
     : model.resultCount;
+  // The unfiltered library total already appears under the page heading.
+  const showCount = model.view !== "library" || constrainedLibrary || model.resultsUnavailable;
+  const hasContext =
+    model.organizationView !== "all" ||
+    (model.libraryReadiness !== "all" && model.view === "library") ||
+    Boolean(model.collectionLayoutFailure);
+  if (!showCount && !hasContext) return null;
   return (
     <div className="collection-result-summary">
-      <span>{model.resultsUnavailable ? "Ports unavailable" : count}</span>
+      {showCount && <span>{model.resultsUnavailable ? "Ports unavailable" : count}</span>}
       {model.organizationView !== "all" && (
         <span>
           Collection:{" "}
@@ -2064,10 +2076,11 @@ function LibraryUpdateReview({
         <Button
           variant="link"
           size="sm"
-          className="h-auto min-h-6 p-0 text-start text-xs whitespace-normal"
+          className="library-update-review h-auto min-h-6 items-start gap-1.5 p-0 text-start text-xs font-normal whitespace-normal"
           data-detail-origin={`${detailOrigin}:update`}
           onClick={() => onSelect(port.id, `${detailOrigin}:update`, "updates")}
         >
+          <Icon glyph={ArrowDownCircle} size="sm" />
           {status?.acquisition
             ? gameUpdateAcquisitionLabel(status.acquisition.phase)
             : status?.staged
@@ -2121,7 +2134,7 @@ function PortCardActionMenu({
             <Menu.Item
               className={cn(
                 controlFocus,
-                "cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground",
+                "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",
               )}
               onClick={() =>
                 onSelect(
@@ -2131,6 +2144,7 @@ function PortCardActionMenu({
                 )
               }
             >
+              <History aria-hidden="true" />
               {port.release && !status?.external_runtime?.user_selected
                 ? "Updates and activity"
                 : "Launch details"}
@@ -2139,10 +2153,11 @@ function PortCardActionMenu({
               <Menu.Item
                 className={cn(
                   controlFocus,
-                  "cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground",
+                  "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",
                 )}
                 onClick={() => onSelect(port.id, overflowOrigin, "saves")}
               >
+                <Save aria-hidden="true" />
                 Saves & backups
               </Menu.Item>
             )}

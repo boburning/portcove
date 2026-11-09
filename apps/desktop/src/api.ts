@@ -115,7 +115,7 @@ import type {
   UpdateCheck,
   UpdateCheckOutcome,
   UpdatePolicy,
-  WorkspaceSnapshot,
+  WorkspaceSnapshotTransport,
 } from "./types";
 
 export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "choice_revision"> & {
@@ -394,8 +394,11 @@ export const desktopApi = {
     invoke<GithubDeviceLoginResult>("poll_github_device_login", { sessionId }),
   catalog: () => invoke<CatalogDocument>("get_catalog"),
   statuses: () => invoke<PortStatus[]>("get_statuses"),
-  workspaceSnapshot: (generation: number) =>
-    invoke<WorkspaceSnapshot>("get_workspace_snapshot", { generation }),
+  workspaceSnapshot: (generation: number, knownCatalogDigest?: string | null) =>
+    invoke<WorkspaceSnapshotTransport>("get_workspace_snapshot", {
+      generation,
+      knownCatalogDigest: knownCatalogDigest ?? null,
+    }),
   workspaceChanged: (generation: number) =>
     invoke<boolean>("get_workspace_changed", { generation }),
   catalogDownloadCandidates: (

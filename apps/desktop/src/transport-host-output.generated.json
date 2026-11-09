@@ -13775,6 +13775,14 @@
         ],
         "type": "string"
       },
+      "ExternalProfilePolicy": {
+        "description": "Closed upstream profile resolution for managed portable players.",
+        "enum": [
+          "dune-dynasty-allegro-v1",
+          "fheroes2-v1"
+        ],
+        "type": "string"
+      },
       "ExternalRuntimeRecord": {
         "properties": {
           "archive_sha256": {
@@ -15830,6 +15838,17 @@
               }
             },
             "type": "object"
+          },
+          "external_profile_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExternalProfilePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Native9: check the external roots selected by the final game environment."
           },
           "game_settings": {
             "anyOf": [
@@ -18968,7 +18987,26 @@
         ]
       },
       "catalog": {
-        "$ref": "#/$defs/CatalogDocument"
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogDocument"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Omitted only when `catalog_unchanged` is true."
+      },
+      "catalog_digest": {
+        "description": "SHA-256 of the catalog and listing documents as serialized here. A\ncaller that already holds these exact documents passes the digest back\nand receives `catalog_unchanged` without either document.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "catalog_unchanged": {
+        "description": "True when `catalog` and `listing_catalog` were omitted because the\ncaller's known digest matched; the caller keeps its own copies.",
+        "type": "boolean"
       },
       "listing_catalog": {
         "anyOf": [
@@ -19006,7 +19044,6 @@
       }
     },
     "required": [
-      "catalog",
       "statuses",
       "sources",
       "activities"

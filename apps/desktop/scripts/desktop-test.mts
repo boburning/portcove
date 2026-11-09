@@ -3424,9 +3424,10 @@ try {
       "desktop_workspace_snapshot",
       success(await invoke("get_workspace_snapshot", { generation: original.generation })),
     );
+    const workspaceCatalog = required(workspace.catalog);
     const allPortIds = [
       ...new Set([
-        ...workspace.catalog.ports.map((port) => port.id),
+        ...workspaceCatalog.ports.map((port) => port.id),
         ...(workspace.listing_catalog?.listings.map((listing) => listing.id) ?? []),
         ...(workspace.pending_setups?.map((setup) => setup.port_id) ?? []),
       ]),
@@ -3444,7 +3445,7 @@ try {
       const expected =
         channels.length === 0
           ? allPortIds
-          : workspace.catalog.ports
+          : workspaceCatalog.ports
               .filter((port) => port.channels.some((channel) => channels.includes(channel)))
               .map((port) => port.id)
               .sort();

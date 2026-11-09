@@ -84,6 +84,7 @@ export async function createBodyClient(): Promise<BodyApi> {
   });
   const sdk = await createGitHubClient({
     ...scope,
+    environmentProxy: true,
     allowRequest: (method, url) =>
       (method === "POST" && url.pathname === "/graphql") ||
       (["GET", "POST", "PATCH"].includes(method) &&

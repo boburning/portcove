@@ -201,7 +201,12 @@ void test("all fixed workers select credentials from their actual full source be
         step.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
     );
     assert.ok(legacy.length >= 2, name);
-    const evaluate = (expression: string, transport: string, purpose: string): unknown =>
+    const evaluate = (
+      expression: string,
+      transport: string,
+      purpose: string,
+      withdrawal = "",
+    ): unknown =>
       runInNewContext(expression.slice(3, -2), {
         steps: {
           authorities: { outputs: { credential_transport: transport } },
@@ -209,7 +214,9 @@ void test("all fixed workers select credentials from their actual full source be
           dispatch: { outputs: { token: purpose === "application" ? "inert-dispatch" : "" } },
           publication: { outputs: { token: "inert-publication" } },
         },
-        needs: { admission: { outputs: { publication_purpose: purpose } } },
+        needs: {
+          admission: { outputs: { publication_purpose: purpose, review_withdrawal: withdrawal } },
+        },
         github: { token: "inert-fixed-job" },
       });
     for (const step of legacy) {
@@ -238,6 +245,11 @@ void test("all fixed workers select credentials from their actual full source be
       );
       if (worker.env?.PORTCOVE_RELEASE_DISPATCH_TOKEN) {
         assert.equal(name, "coordinator");
+        for (const transport of ["fixed-job", "legacy-app"])
+          assert.equal(
+            evaluate(worker.env.PORTCOVE_RELEASE_DISPATCH_TOKEN, transport, purpose, "true"),
+            "",
+          );
         assert.equal(
           evaluate(worker.env.PORTCOVE_RELEASE_DISPATCH_TOKEN, "fixed-job", purpose),
           purpose === "application" ? "inert-fixed-job" : "",

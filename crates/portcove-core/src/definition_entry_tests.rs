@@ -31,6 +31,35 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn managed_external_profiles_require_version_9_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("dune-ii-dune-dynasty").unwrap();
+    assert!(port.external_profile_policy.is_some());
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(8);
+    entry["required_capabilities"][0]["maximum_version"] = json!(9);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap_err().message.contains("version 9"));
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 9")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(9);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+}
+
+#[test]
 fn native_linux_tar_xz_requires_version_8_in_fresh_and_retained_readers() {
     let mut port = fixture_catalog().ports()[0].clone();
     port.adapter = crate::AdapterKind::NativePortable;
@@ -266,8 +295,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(29);
-        entry["required_capabilities"][0]["maximum_version"] = json!(29);
+        entry["required_capabilities"][0]["minimum_version"] = json!(30);
+        entry["required_capabilities"][0]["maximum_version"] = json!(30);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -459,6 +488,38 @@ fn entry_for_port(port: &crate::PortDefinition) -> Value {
         "port": port, "source_contracts": [], "execution_contract": contract,
         "persistence_contract": contract, "artifact_bindings": [], "evidence_references": []
     })
+}
+
+#[test]
+fn staged_sibling_packages_require_version_29_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("super-metroid-recomp").unwrap();
+    assert!(crate::runtime_path_policy::has_staged_sibling_platforms(
+        port
+    ));
+    let mut entry = entry_for_port(port);
+    let requirement = &mut entry["required_capabilities"][0];
+    requirement["minimum_version"] = json!(28);
+    requirement["maximum_version"] = json!(29);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap_err().message.contains("version 29"));
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 29")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(29);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
 }
 
 fn target(bytes: &[u8]) -> String {
@@ -653,7 +714,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.release.linux_tar_xz {
+        let version = if port.external_profile_policy.is_some() {
+            9
+        } else if port.release.linux_tar_xz {
             8
         } else if crate::preparation::source::native(port) {
             6
@@ -1305,8 +1368,8 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
     // Keep the upper-edge check on an unimplemented future reader.
-    entry["required_capabilities"][0]["minimum_version"] = json!(9);
-    entry["required_capabilities"][0]["maximum_version"] = json!(9);
+    entry["required_capabilities"][0]["minimum_version"] = json!(10);
+    entry["required_capabilities"][0]["maximum_version"] = json!(10);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }
 

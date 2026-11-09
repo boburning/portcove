@@ -37,6 +37,8 @@ async function main() {
     const roles = requireControllerInputRoleConfiguration(JSON.parse(raw), admitted, purpose);
     if (purpose === "application")
       outputs += `release_profile=${applicationReleaseProfile(JSON.parse(raw))}\n`;
+    if ("review_withdrawal" in roles && roles.review_withdrawal)
+      outputs += "review_withdrawal=true\n";
     outputs += `classification_transport=${roles.classification_transport}\nprotection_app_id=${roles.protection_app_id}\nprotection_installation_id=${roles.protection_installation_id}\n`;
   }
   if (environment.GITHUB_OUTPUT) await appendFile(environment.GITHUB_OUTPUT, outputs);

@@ -279,7 +279,9 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if port.release.linux_tar_xz {
+        let capability_version = if port.external_profile_policy.is_some() {
+            9
+        } else if port.release.linux_tar_xz {
             8
         } else if crate::preparation::source::native(port) {
             6

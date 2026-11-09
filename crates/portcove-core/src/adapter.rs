@@ -362,6 +362,7 @@ impl Adapter for StandardAdapter {
             fixed_arguments_only: port.managed_initialization.is_some()
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
+                || port.external_profile_policy.is_some()
                 || port
                     .release
                     .managed_build

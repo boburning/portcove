@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition, portStatus } from "./test-fixtures";
-import { commandSurfaceCommands } from "./use-command-surface";
+import { commandSurfaceCommands, withLibraryVisibility } from "./use-command-surface";
 
 function commands(recent = true) {
   const actions = {
@@ -92,5 +92,51 @@ describe("command surface player-facing copy", () => {
       description: "No completed launch is recorded yet",
       disabled: true,
     });
+  });
+});
+
+describe("command surface game search", () => {
+  it("groups library games before Discover games and opens their details", () => {
+    const setSelectedId = vi.fn();
+    const library = { ...portDefinition(), id: "library-game", name: "Library Game" };
+    const discover = { ...portDefinition(), id: "discover-game", name: "Discover Game" };
+    const games = commandSurfaceCommands({
+      games: [
+        { port: discover, inLibrary: false },
+        { port: library, inLibrary: true },
+      ],
+      installedCount: 1,
+      busy: false,
+      setView: vi.fn(),
+      setAdoptOpen: vi.fn(),
+      setSelectedId,
+      checkAll: vi.fn(async () => undefined),
+      focusSearch: vi.fn(),
+      focusLibrarySearch: vi.fn(),
+    }).filter(({ id }) => id.startsWith("game:"));
+    expect(games.map(({ id, group, searchOnly }) => [id, group, searchOnly])).toEqual([
+      ["game:library-game", "Games in your library", true],
+      ["game:discover-game", "Games in Discover", true],
+    ]);
+    games[1]!.action();
+    expect(setSelectedId).toHaveBeenCalledWith("discover-game");
+  });
+});
+
+describe("command surface Library visibility", () => {
+  it("lists Library-hidden games only as Discover results", () => {
+    const shown = { ...portDefinition(), id: "shown" };
+    const hidden = { ...portDefinition(), id: "hidden" };
+    const games = [
+      { port: shown, inLibrary: true },
+      { port: hidden, inLibrary: true },
+    ];
+    expect(
+      withLibraryVisibility(games, ["hidden"]).map(({ port, inLibrary }) => [port.id, inLibrary]),
+    ).toEqual([
+      ["shown", true],
+      ["hidden", false],
+    ]);
+    expect(withLibraryVisibility(games, undefined)).toEqual(games);
   });
 });

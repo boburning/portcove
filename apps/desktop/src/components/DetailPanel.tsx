@@ -138,6 +138,7 @@ type AsyncAction = () => void | Promise<unknown>;
 interface DetailPanelProps {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
+  heroSupplement?: ReactNode;
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
@@ -319,6 +320,7 @@ export function DetailPanel(props: DetailPanelProps) {
     <DetailBody
       backLabel={props.backLabel}
       favoriteControl={props.favoriteControl}
+      heroSupplement={props.heroSupplement}
       state={state}
       opening={props.opening}
       extraFiles={props.extraFiles}
@@ -434,6 +436,7 @@ function detailBodyAvailability(
 function DetailBody(model: {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
+  heroSupplement?: ReactNode;
   state: DetailState;
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
@@ -494,6 +497,7 @@ function DetailBody(model: {
     <DetailLayout
       backLabel={model.backLabel}
       favoriteControl={model.favoriteControl}
+      heroSupplement={model.heroSupplement}
       port={model.displayPort ?? model.port}
       projectUrl={model.port.project_url}
       openSupport={model.openSupport}
@@ -3527,6 +3531,32 @@ function DetailRequirementsFacts({
   external: boolean;
 }) {
   const { retained, setup, source, bios, manual } = detailRequirementContext(model);
+  if (retained && !setup && !external)
+    return (
+      <dl className="detail-facts">
+        <div>
+          <dt>Setup details</dt>
+          <dd>
+            Files, platforms and setup method weren’t recorded for this installation. Play and other
+            actions check their own requirements.
+          </dd>
+        </div>
+        {model.port.bios_source_profile && (
+          <div>
+            <dt>BIOS</dt>
+            <dd>Required BIOS not specified</dd>
+          </div>
+        )}
+        <div>
+          <dt>Selected update channel</dt>
+          <dd>{releaseChannelPresentation(model.selectedChannel).label}</dd>
+        </div>
+        <div>
+          <dt>Readiness</dt>
+          <dd>{model.state.title}</dd>
+        </div>
+      </dl>
+    );
   return (
     <dl className="detail-facts">
       <div>

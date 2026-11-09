@@ -239,7 +239,7 @@ async function inspectGameFirstBaseline(
     "Game-first scenario requires the harness-owned library beneath this output scope",
   );
   const ports = pair.map((id) =>
-    required(before.workspace.catalog.ports.find((port) => port.id === id)),
+    required(required(before.workspace.catalog).ports.find((port) => port.id === id)),
   );
   const [ship, recompiled] = ports.map((port) => required(port.presentation?.original_game));
   assert.equal(required(ship).id, gameId);
@@ -253,7 +253,7 @@ async function inspectGameFirstBaseline(
     ["majoras-mask-n64-usa-1-0"],
   );
   const picori = required(
-    before.workspace.catalog.ports.find((port) => port.id === "project-picori"),
+    required(before.workspace.catalog).ports.find((port) => port.id === "project-picori"),
   );
   assert.equal(picori.presentation?.original_game?.id, "the-legend-of-zelda-the-minish-cap");
   const gzdoom = required(

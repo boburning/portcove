@@ -57,6 +57,14 @@ pub(crate) fn validate_declaration(port: &PortDefinition) -> Result<()> {
 /// Compare only this data transition's unchanged source/execution coordinates.
 /// Full predecessor fingerprint and exact artifact admission are checked first.
 fn same_coordinates(old: &PortDefinition, new: &PortDefinition) -> bool {
+    let windows = crate::Platform::WindowsX86_64;
+    let windows_hint = old.executable_hints.get(&windows);
+    let same_executable = old.executable_hints == new.executable_hints
+        || (old.platforms == [windows]
+            && old.executable_hints.len() == 1
+            && windows_hint.is_some()
+            && windows_hint == new.executable_hints.get(&windows)
+            && crate::runtime_path_policy::has_staged_sibling_platforms(new));
     old.id == new.id
         && old.adapter == new.adapter
         && crate::persistence::ready_staged_archive(old)
@@ -65,7 +73,7 @@ fn same_coordinates(old: &PortDefinition, new: &PortDefinition) -> bool {
         && old.persistent_file_patterns == new.persistent_file_patterns
         && old.runtime_subdirectory == new.runtime_subdirectory
         && old.launch_from_install_root == new.launch_from_install_root
-        && old.executable_hints == new.executable_hints
+        && same_executable
         && old.launch_arguments == new.launch_arguments
         && old.launch_environment == new.launch_environment
         && old.user_data_environment == new.user_data_environment
@@ -202,6 +210,31 @@ mod tests {
             mismatches.is_empty(),
             "creating fingerprints differ: {mismatches:?}"
         );
+    }
+
+    #[test]
+    fn windows_predecessor_keeps_its_exact_launch_coordinates_when_siblings_are_added() {
+        let catalog = Catalog::embedded().unwrap();
+        let id = "super-metroid-recomp";
+        let creating = historical(id);
+        let target = catalog.port(id).unwrap();
+        let mut install: InstallRecord = serde_json::from_value(serde_json::json!({
+            "id":"controlled-install","port_id":id,"version":"v0.4.2","path":"controlled-runtime",
+            "channel":"stable","installed_at":1,"verified":true,"staged":false,
+            "artifact":{"asset_name":"predecessor.zip",
+                "sha256":target.archive_data_transition_v1.as_ref().unwrap().predecessor_archive_sha256,
+                "size":1}
+        }))
+        .unwrap();
+        require_predecessor(&install, &creating, target).unwrap();
+        let mut changed = target.clone();
+        changed.executable_hints.insert(
+            crate::Platform::WindowsX86_64,
+            vec!["DifferentPlayer.exe".into()],
+        );
+        assert!(require_predecessor(&install, &creating, &changed).is_err());
+        install.artifact.sha256 = "a".repeat(64);
+        assert!(require_predecessor(&install, &creating, target).is_err());
     }
     #[test]
     fn admission_changes_only_data_and_rejects_foreign_archive_or_creating_contract() {

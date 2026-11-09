@@ -1,3 +1,4 @@
+import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 import { inspectCatalogReviewDisposition } from "./release-catalog-review-disposition.mts";
 import {
   inspectCatalogReviewRequest,
@@ -504,6 +505,7 @@ export function planReleaseOpportunity(input: unknown) {
       "metadata_bootstrap",
       "review_request",
       "review_disposition",
+      "review_withdrawal",
       "catalog_publication",
       "catalog_initialization",
       "catalog_review_request",
@@ -530,7 +532,8 @@ export function planReleaseOpportunity(input: unknown) {
     Object.hasOwn(input, "metadata_renewal") ||
     Object.hasOwn(input, "metadata_bootstrap") ||
     Object.hasOwn(input, "review_request") ||
-    Object.hasOwn(input, "review_disposition");
+    Object.hasOwn(input, "review_disposition") ||
+    Object.hasOwn(input, "review_withdrawal");
   if (
     hasMetadata &&
     (input.schema_version !== 2 ||
@@ -561,6 +564,9 @@ export function planReleaseOpportunity(input: unknown) {
   );
   const reviewRequest = inspectReleaseReviewRequest(input.review_request);
   const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
+  const reviewWithdrawal = inspectReleaseReviewWithdrawal(input.review_withdrawal);
+  if (reviewWithdrawal && reviewRequest?.source_commit === reviewWithdrawal.source_commit)
+    throw new Error("withdrawn application source cannot be requested again");
   const metadataRenewal =
     input.metadata_renewal === undefined || input.metadata_renewal === null
       ? null
@@ -687,7 +693,7 @@ export function planReleaseOpportunity(input: unknown) {
   }
   if (input.opportunity === null) {
     if (
-      (!metadataBootstrap && !publishedSite && !catalogInitialization) ||
+      (!metadataBootstrap && !publishedSite && !catalogInitialization && !reviewWithdrawal) ||
       active ||
       publication.reserved_versions.length !== 0
     )
@@ -769,6 +775,9 @@ export function planReleaseOpportunity(input: unknown) {
       .update(JSON.stringify(stable(opportunity.classification)))
       .digest("hex"),
   };
+
+  if (reviewWithdrawal?.source_commit === opportunity.source_commit)
+    return plan("pause", "application source was withdrawn for safety", authority);
 
   if (
     controller.capacity &&

@@ -4436,6 +4436,14 @@
         ],
         "type": "object"
       },
+      "ExternalProfilePolicy": {
+        "description": "Closed upstream profile resolution for managed portable players.",
+        "enum": [
+          "dune-dynasty-allegro-v1",
+          "fheroes2-v1"
+        ],
+        "type": "string"
+      },
       "ExternalRuntimeTrust": {
         "description": "Who admitted the executable bytes. User selection grants execution intent,\nnever curated package authenticity or ownership of the selected files.",
         "enum": [
@@ -5071,6 +5079,17 @@
               }
             },
             "type": "object"
+          },
+          "external_profile_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExternalProfilePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Native9: check the external roots selected by the final game environment."
           },
           "game_settings": {
             "anyOf": [
@@ -27027,6 +27046,14 @@
         ],
         "type": "object"
       },
+      "ExternalProfilePolicy": {
+        "description": "Closed upstream profile resolution for managed portable players.",
+        "enum": [
+          "dune-dynasty-allegro-v1",
+          "fheroes2-v1"
+        ],
+        "type": "string"
+      },
       "ExternalRuntimeTrust": {
         "description": "Who admitted the executable bytes. User selection grants execution intent,\nnever curated package authenticity or ownership of the selected files.",
         "enum": [
@@ -28218,6 +28245,17 @@
           }
         },
         "type": "object"
+      },
+      "external_profile_policy": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ExternalProfilePolicy"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Native9: check the external roots selected by the final game environment."
       },
       "game_settings": {
         "anyOf": [
@@ -36696,6 +36734,14 @@
         ],
         "type": "object"
       },
+      "ExternalProfilePolicy": {
+        "description": "Closed upstream profile resolution for managed portable players.",
+        "enum": [
+          "dune-dynasty-allegro-v1",
+          "fheroes2-v1"
+        ],
+        "type": "string"
+      },
       "ExternalRuntimeTrust": {
         "description": "Who admitted the executable bytes. User selection grants execution intent,\nnever curated package authenticity or ownership of the selected files.",
         "enum": [
@@ -37331,6 +37377,17 @@
               }
             },
             "type": "object"
+          },
+          "external_profile_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExternalProfilePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Native9: check the external roots selected by the final game environment."
           },
           "game_settings": {
             "anyOf": [

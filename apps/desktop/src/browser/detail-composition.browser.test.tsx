@@ -309,7 +309,7 @@ it.each(["dark", "light"])("renders the production preparation owner in %s", asy
   await mount(theme, "setup");
   await page
     .getByRole("button", {
-      name: "View details for Harbor Adventure Harbor Adventure",
+      name: "View details for Harbor Adventure",
       exact: true,
     })
     .click();

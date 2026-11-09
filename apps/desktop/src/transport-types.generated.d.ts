@@ -317,6 +317,10 @@ export type AdapterKind =
       | "psx-recomp-managed"
     )
   | "native-portable";
+/**
+ * Closed upstream profile resolution for managed portable players.
+ */
+export type ExternalProfilePolicy = "dune-dynasty-allegro-v1" | "fheroes2-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
@@ -1769,6 +1773,10 @@ export interface PortDefinition {
     "macos-x86-64"?: string[];
     "windows-x86-64"?: string[];
   };
+  /**
+   * Native9: check the external roots selected by the final game environment.
+   */
+  external_profile_policy?: ExternalProfilePolicy | null;
   /**
    * Optional, release-bound editable configuration. Retained installations
    * keep the exact declaration; today's catalog never grants edits to them.
@@ -4564,7 +4572,21 @@ export interface SupportBundleSection {
 export interface OutputDesktopWorkspaceSnapshot {
   activities: ActivityFeed;
   browsing?: CatalogBrowsingSnapshot | null;
-  catalog: CatalogDocument;
+  /**
+   * Omitted only when `catalog_unchanged` is true.
+   */
+  catalog?: CatalogDocument | null;
+  /**
+   * SHA-256 of the catalog and listing documents as serialized here. A
+   * caller that already holds these exact documents passes the digest back
+   * and receives `catalog_unchanged` without either document.
+   */
+  catalog_digest?: string | null;
+  /**
+   * True when `catalog` and `listing_catalog` were omitted because the
+   * caller's known digest matched; the caller keeps its own copies.
+   */
+  catalog_unchanged?: boolean;
   listing_catalog?: CatalogListingDocument | null;
   listing_statuses?: PortListingStatus[];
   pending_setups?: PendingSetupRecord[];

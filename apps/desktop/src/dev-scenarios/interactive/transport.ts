@@ -499,7 +499,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       } satisfies GameComparison;
     },
     get_workspace_snapshot: (args) => {
-      requireArgs("get_workspace_snapshot", args, { generation });
+      requireArgs("get_workspace_snapshot", args, { generation, knownCatalogDigest: null });
       const snapshot = workspace(journey);
       snapshot.activities = feed();
       const [status] = snapshot.statuses;

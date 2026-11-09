@@ -363,6 +363,9 @@ export async function installHistoryFixture(browser: WebDriver, fixture: History
       }
       function suppliedSnapshot(value: unknown) {
         const snapshot = record(value);
+        // This fixture rewrites the catalog on every read, so never let the
+        // app hold a digest that would make the host omit it next time.
+        delete snapshot.catalog_digest;
         probe.snapshots++;
         probe.modeSnapshots[probe.mode] = (probe.modeSnapshots[probe.mode] ?? 0) + 1;
         snapshot.sources = [

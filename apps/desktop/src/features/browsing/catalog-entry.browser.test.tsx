@@ -137,9 +137,7 @@ async function openProjectedDetail(clearMedia: boolean, editionNeutral = true) {
     .toBeVisible();
   const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
   await expect.element(identity.getByText("Nintendo 64", { exact: true })).toBeVisible();
-  await expect
-    .element(identity.getByText("Not specified", { exact: true }))
-    .not.toBeInTheDocument();
+  await expect.element(identity.getByText(/not specified/i)).not.toBeInTheDocument();
   return read;
 }
 

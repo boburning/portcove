@@ -246,6 +246,30 @@ it("shows upstream first-run requirements and external backup limits before inst
   expect(install).toHaveBeenCalledOnce();
 });
 
+it("shows the Windows DKC3 setup first in the managed install review", async () => {
+  const port = currentCatalogPort("dkc3-recomp");
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/dkc3.sfc"
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={actions}
+    />,
+  );
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain(
+    "On Windows, select your own headerless North American English/French DKC3 ROM in Portcove",
+  );
+  expect(setup.element().textContent).toContain(
+    "On Apple Silicon, use the upstream Mac app and its launcher.",
+  );
+  expect(setup.element().textContent).not.toContain("download the official Mac arm64 ZIP");
+});
+
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
   const port = currentCatalogPort("alariq-mc2");
   const install = vi.fn();

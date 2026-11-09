@@ -1,3 +1,7 @@
+import {
+  inspectReleaseReviewWithdrawal,
+  matchesWithdrawnReviewRequest,
+} from "./release-review-withdrawal.mts";
 import { coordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readWindowsApplicationQualification } from "./application-release-qualification.mts";
@@ -1010,6 +1014,7 @@ async function coordinatorCheckpointPublisher(
   configuration: unknown,
   controls: RecoveryMutationControls,
   claimedChild?: string,
+  requireSigned = false,
 ) {
   const authorities = await requireControllerApplicationCoordinatorAuthorities();
   if (inspectCoordinatorRemoteNamespace(configuration) !== authorities.namespace)
@@ -1040,6 +1045,8 @@ async function coordinatorCheckpointPublisher(
   const selected =
     claimedChild !== undefined ||
     (await ensureOwnedCheckpointJournalHistory(executor, repository, previous, refresh));
+  if (requireSigned && !selected)
+    throw new Error("review withdrawal requires signed journal history");
   return async (checkpoint: string) => {
     await refresh();
     if (selected)
@@ -3552,6 +3559,7 @@ export async function requestTrustedSemanticReview(
   raw: {
     remote_configuration: unknown;
     qualified_application?: QualifiedApplicationReview;
+    review_withdrawal?: NonNullable<ReturnType<typeof inspectReleaseReviewWithdrawal>>;
     tools?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"];
   },
   phaseDeadline?: number,
@@ -3578,6 +3586,7 @@ async function requestTrustedSemanticReviewAt(
       "remote_configuration",
       "remote_configuration,tools",
       "qualified_application,remote_configuration,tools",
+      "remote_configuration,review_withdrawal,tools",
     ].includes(Object.keys(selected).sort().join(","))
   )
     throw new Error("neutral review request invocation fields differ");
@@ -3599,6 +3608,16 @@ async function requestTrustedSemanticReviewAt(
       transport: budget.journalTransport(),
     });
     checkpoint = recovered.checkpoint;
+    if (selected.review_withdrawal) {
+      phase = "paused-application-review-withdrawal";
+      return await withdrawTrustedApplicationReview(
+        directory,
+        selected.remote_configuration,
+        recovered,
+        selected.review_withdrawal,
+        budget,
+      );
+    }
     let recheckQualifiedSource: (() => void) | undefined;
     let resumeClaim = false;
     if (qualified) {
@@ -4255,6 +4274,101 @@ async function resumeRetainedApplicationReviewClaim(
   };
 }
 
+/** Withdraw one owner-appointed request under the existing paused signed journal path. */
+async function withdrawTrustedApplicationReview(
+  directory: string,
+  configuration: unknown,
+  recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
+  withdrawal: NonNullable<ReturnType<typeof inspectReleaseReviewWithdrawal>>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
+) {
+  const appointed = await requireControllerJobSourceConfiguration("coordinator");
+  if (
+    appointed.binding.purpose !== "application" ||
+    appointed.binding.namespace !== inspectCoordinatorRemoteNamespace(configuration) ||
+    capacityDigest(appointed.binding.review_withdrawal) !== capacityDigest(withdrawal)
+  )
+    throw new Error("review withdrawal differs from the source-bound owner grant");
+  const { checkpoint, input } = recovered;
+  if (
+    capacityDigest(input.review_withdrawal) === capacityDigest(withdrawal) &&
+    input.review_request === null
+  )
+    return {
+      decision: "review-withdrawal-already-retained",
+      directory,
+      checkpoint,
+      authority: "none",
+    };
+  if (
+    checkpoint !== withdrawal.request_checkpoint ||
+    !matchesWithdrawnReviewRequest(withdrawal, inspectReleaseReviewRequest(input.review_request)) ||
+    coordinatorHasUnresolvedEffect(input) ||
+    selectCoordinatorPendingContextRecovery(input) ||
+    selectCoordinatorPendingPagesRecovery(input) ||
+    inspectSettledPagesMetadataHandoff(input) ||
+    selectCoordinatorCandidateSigningRecovery(input) ||
+    !isRecord(input.controller)
+  )
+    throw new Error("review withdrawal original checkpoint, request or effects differ");
+  const workflow = await readProductionControllerWorkflowBytes();
+  const reader = await authenticateControlReaderJob(process.env, workflow, {
+    phase: "coordinator",
+    deadline: budget.monotonicDeadline,
+  });
+  const controls = await authenticateCoordinatorInitialControls(
+    directory,
+    capacityDigest(withdrawal),
+    reader,
+    workflow,
+    budget,
+  );
+  const observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
+  if (!observed.resource_policy_matches_controller)
+    throw new Error("review withdrawal bounded policy differs");
+  const checkpointControls = {
+    async readCurrent() {
+      budget.check();
+      appointed.recheck();
+      if (
+        (await controls.readSdkWithdrawal(withdrawal.source_commit)).facts_sha256 !==
+        observed.facts_sha256
+      )
+        throw new Error("review withdrawal controls changed before journal mutation");
+      budget.check();
+    },
+  };
+  const current = await readRemoteCoordinatorSnapshot(directory, configuration, {
+    transport: budget.journalTransport(),
+  });
+  if (current.checkpoint !== checkpoint) throw new Error("review withdrawal journal head changed");
+  const publish = await coordinatorCheckpointPublisher(
+    directory,
+    budget,
+    reader,
+    recovered.repository,
+    checkpoint,
+    configuration,
+    checkpointControls,
+    undefined,
+    true,
+  );
+  const saved = await checkpointReleaseOpportunity(recovered.repository, checkpoint, {
+    ...input,
+    controller: { ...input.controller, publication_paused: true },
+    review_request: null,
+    review_withdrawal: withdrawal,
+  });
+  await publish(saved.checkpoint);
+  return {
+    decision: "review-withdrawn",
+    directory,
+    checkpoint: saved.checkpoint,
+    authority: "none",
+    automatic_retry: false,
+  };
+}
+
 /** Resolve the exact outstanding request through current authenticated controls.
  * Accepted persisted records enter the existing coordinator using this same
  * recovered bare repository, observer and deadline. Only genuinely missing
@@ -4423,19 +4537,25 @@ export async function runFixedCoordinatorConfiguration(
   const input: unknown = structuredClone(raw);
   if (
     !isRecord(input) ||
-    !["remote_configuration,tools", "qualified_application,remote_configuration,tools"].includes(
-      Object.keys(input).sort().join(","),
-    ) ||
+    ![
+      "remote_configuration,tools",
+      "qualified_application,remote_configuration,tools",
+      "remote_configuration,review_withdrawal,tools",
+    ].includes(Object.keys(input).sort().join(",")) ||
     !isRecord(input.tools) ||
     Object.keys(input.tools).sort().join(",") !== "artifact,bundle" ||
     !path.isAbsolute(parent)
   )
     throw new Error("fixed coordinator invocation fields differ");
+  const withdrawal = inspectReleaseReviewWithdrawal(input.review_withdrawal);
+  if (Object.hasOwn(input, "review_withdrawal") && !withdrawal)
+    throw new Error("fixed coordinator review withdrawal absent");
   const actual = await requestTrustedSemanticReview(
     parent,
     {
       remote_configuration: input.remote_configuration,
       tools: input.tools as Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
+      ...(withdrawal ? { review_withdrawal: withdrawal } : {}),
       ...(Object.hasOwn(input, "qualified_application")
         ? { qualified_application: inspectQualifiedApplicationReview(input.qualified_application) }
         : {}),
@@ -4459,9 +4579,11 @@ async function runCoordinatorCli() {
   const selection: unknown = JSON.parse(await readFile(selectionFile, "utf8"));
   if (!isRecord(selection)) throw new Error("coordinator selection must be an object");
   if (
-    ["remote_configuration,tools", "qualified_application,remote_configuration,tools"].includes(
-      Object.keys(selection).sort().join(","),
-    )
+    [
+      "remote_configuration,tools",
+      "qualified_application,remote_configuration,tools",
+      "remote_configuration,review_withdrawal,tools",
+    ].includes(Object.keys(selection).sort().join(","))
   ) {
     console.log(
       JSON.stringify(await runFixedCoordinatorConfiguration(selection, path.resolve(directory))),

@@ -138,6 +138,7 @@ jobs:
       'catalog-publication' && vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION != '')) }}
     outputs:
       publication_paused: ${{ steps.pause.outputs.publication_paused }}
+      review_withdrawal: ${{ steps.admit.outputs.review_withdrawal }}
       publication_purpose: ${{ steps.admit.outputs.publication_purpose }}
       classification_transport: ${{ steps.admit.outputs.classification_transport }}
       protection_app_id: ${{ steps.admit.outputs.protection_app_id }}
@@ -219,7 +220,9 @@ jobs:
       - tool_bootstrap
       - tool_bootstrap_windows
     if: ${{ !cancelled() && needs.admission.result == 'success' &&
-      needs.admission.outputs.publication_paused == 'false' && needs.tool_bootstrap.result == 'success' && ((needs.admission.outputs.publication_purpose == 'application' &&
+      ((needs.admission.outputs.publication_paused == 'false' && needs.admission.outputs.review_withdrawal != 'true') ||
+      (needs.admission.outputs.publication_paused == 'true' && needs.admission.outputs.review_withdrawal == 'true' &&
+      needs.admission.outputs.publication_purpose == 'application')) && needs.tool_bootstrap.result == 'success' && ((needs.admission.outputs.publication_purpose == 'application' &&
       needs.tool_bootstrap_windows.result == 'success') ||
       (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
       needs.tool_bootstrap_windows.result == 'skipped')) }}
@@ -598,7 +601,7 @@ jobs:
           PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ needs.admission.outputs.protection_installation_id }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer.outputs.installation-id }}
         run: node scripts/release-reviewed-inputs.mts observe-production-classification
-    if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' && needs.admission.outputs.review_withdrawal != 'true' }}
   classification_writer:
     name: Persist independently reviewed classification
     needs:
@@ -675,7 +678,7 @@ jobs:
           PORTCOVE_STORAGE_INSTALLATION_ID: ${{ steps.storage.outputs.installation-id }}
           PORTCOVE_TRUSTED_PROTECTION_OBSERVATION: ${{ needs.classification_protection_observation.outputs.observation }}
         run: node scripts/release-reviewed-inputs.mts persist-production-request
-    if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' && needs.admission.outputs.review_withdrawal != 'true' }}
   coordinator:
     name: Coordinate application release
     if: ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
@@ -756,7 +759,7 @@ jobs:
           owner: boburning
           repositories: portcove
           permission-actions: write
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' &&
+        if: ${{ needs.admission.outputs.review_withdrawal != 'true' && steps.authorities.outputs.credential_transport == 'legacy-app' &&
           (needs.admission.outputs.publication_purpose == 'application') }}
       - name: Bind actual dispatch installation before credential use
         shell: bash
@@ -768,7 +771,7 @@ jobs:
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.dispatch.outputs.installation-id }}
         run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
           "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' &&
+        if: ${{ needs.admission.outputs.review_withdrawal != 'true' && steps.authorities.outputs.credential_transport == 'legacy-app' &&
           (needs.admission.outputs.publication_purpose == 'application') }}
       - id: job
         uses: ./.github/actions/release-controller-job
@@ -776,9 +779,10 @@ jobs:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
-          PORTCOVE_RELEASE_DISPATCH_TOKEN: ${{ steps.authorities.outputs.credential_transport == 'fixed-job'
-            && needs.admission.outputs.publication_purpose == 'application' && github.token ||
-            steps.dispatch.outputs.token }}
+          PORTCOVE_RELEASE_DISPATCH_TOKEN: ${{ needs.admission.outputs.review_withdrawal != 'true' &&
+            ((steps.authorities.outputs.credential_transport == 'fixed-job'
+            && needs.admission.outputs.publication_purpose == 'application' && github.token) ||
+            steps.dispatch.outputs.token) || '' }}
         with:
           storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
           storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}

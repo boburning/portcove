@@ -5066,6 +5066,23 @@ impl PortcoveService {
                     )?;
                     let retained_catalog = self.installed_catalog(install)?;
                     let retained_port = retained_catalog.port(&install.port_id)?;
+                    if let Some(policy) = crate::native_external_profile::launch_policy(
+                        retained_port,
+                        self.catalog.port(&install.port_id).ok(),
+                    ) {
+                        if !arguments.is_empty() {
+                            return Err(PortcoveError::usage(
+                                "managed external profiles require the ordinary launch without extra arguments",
+                            ));
+                        }
+                        crate::native_external_profile::require_external_roots(
+                            policy,
+                            &self.library,
+                            &spec,
+                            &command,
+                            &|| operation.checkpoint(),
+                        )?;
+                    }
                     crate::native_temp::recheck(retained_port, &spec)?;
                     self.require_installed_shared_preferences(install)?;
                     if retained_port.managed_shared_preferences.is_some()
@@ -5939,6 +5956,7 @@ impl PortcoveService {
                     current.runtime_data_policy.is_some()
                         || current.archive_data_compatibility_v1.is_some()
                         || current.managed_shared_preferences.is_some()
+                        || current.external_profile_policy.is_some()
                         || current.n64_runtime_at_executable_parent
                         || (cfg!(windows) && current.windows_shipwright_persistence)
                 }) {

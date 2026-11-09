@@ -110,16 +110,24 @@ function DefinitionControls({
   };
 
   return (
-    <section className="grid min-w-0 gap-2" aria-label="Official setup information">
-      <p>
+    <section
+      className="grid min-w-0 gap-2 border-t border-pc-border pt-4"
+      aria-label="Official setup information"
+    >
+      <p className="text-sm text-pc-muted-foreground">
         Check the official catalog for setup options. Checking does not install or replace game
         files.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" disabled={busy || submitting} onClick={() => void check()}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={busy || submitting}
+          onClick={() => void check()}
+        >
           Check setup availability
         </Button>
-        <Button variant="ghost" disabled={submitting} onClick={openSettings}>
+        <Button variant="ghost" size="sm" disabled={submitting} onClick={openSettings}>
           Catalog update settings
         </Button>
       </div>

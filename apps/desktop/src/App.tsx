@@ -1,5 +1,5 @@
 import { TooltipProvider } from "./components/ui/tooltip";
-import { Heart } from "lucide-react";
+import { ArrowLeft, Heart } from "lucide-react";
 import { gameGroupId } from "./features/browsing/original-game";
 import {
   addRequiredSource,
@@ -118,7 +118,7 @@ import { useGamepadNavigation } from "./gamepad";
 import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
-import { useCommandSurface } from "./use-command-surface";
+import { useCommandSurface, withLibraryVisibility } from "./use-command-surface";
 import type {
   ActivityRecord,
   BootstrapStatus,
@@ -597,9 +597,15 @@ function useWorkspace(props: WorkspaceProps) {
     });
   };
   usePendingHostToolFocus(data, ui.view, pendingToolId, setPendingToolId);
+  const hiddenPortIds = organization.snapshot?.hidden_port_ids;
+  const paletteGames = useMemo(
+    () => withLibraryVisibility(model.searchableGames, hiddenPortIds),
+    [model.searchableGames, hiddenPortIds],
+  );
   const commandSurface = useCommandSurface({
     view: ui.view,
     recent: model.recent,
+    games: paletteGames,
     installedCount: model.overview.installed,
     busy: Boolean(operations.busy),
     setView: setPrimaryView,
@@ -680,7 +686,13 @@ function useWorkspace(props: WorkspaceProps) {
   const renderPageHeader = () =>
     !model.entry &&
     (addGamesOpen && ui.view === "library" ? (
-      <h1 tabIndex={-1}>Add games</h1>
+      <div className="add-games-heading grid justify-items-start gap-2">
+        <Button variant="ghost" size="sm" className="add-games-back" onClick={closeAddGames}>
+          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          Back to Library
+        </Button>
+        <h1 tabIndex={-1}>Add games</h1>
+      </div>
     ) : (
       <PageHeader
         view={ui.view}
@@ -727,6 +739,10 @@ function useWorkspace(props: WorkspaceProps) {
         organization={organization}
         onSelect={(portId) => switchPortDetails(portId)}
       />
+    </>
+  );
+  const setupAvailabilityControl = model.entry && (
+    <>
       <OfficialDefinitionUpdates
         portId={model.entry.id}
         portName={model.entry.name}
@@ -759,6 +775,7 @@ function useWorkspace(props: WorkspaceProps) {
           (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
         )}
         implementationControl={implementationControl}
+        heroSupplement={setupAvailabilityControl}
         favoriteControl={
           model.status?.external_runtime
             ? renderSelectedPortFavoriteControl({
@@ -780,6 +797,7 @@ function useWorkspace(props: WorkspaceProps) {
       <>
         <SelectedPortPanel
           implementationControl={implementationControl}
+          heroSupplement={setupAvailabilityControl}
           backLabel={detailBackLabel}
           favorites={favorites}
           extraFiles={
@@ -1001,7 +1019,13 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
           >
             <WorkspaceToolbar
               view={model.ui.view}
-              detailTitle={model.model.entry ? gameTitle(model.model.entry) : undefined}
+              detailTitle={
+                model.model.entry
+                  ? gameTitle(model.model.entry)
+                  : model.addGamesOpen && model.ui.view === "library"
+                    ? "Add games"
+                    : undefined
+              }
               onOpenCommands={() => model.commandSurface.setOpen(true)}
             />
             <div
@@ -1093,7 +1117,6 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
                   onCopyInstallation={() => model.ui.setAdoptOpen(true)}
                   setupSource={model.setupSource}
                   setSetupSource={model.setSetupSource}
-                  close={model.closeAddGames}
                 />
               )}
             </div>
@@ -1216,6 +1239,12 @@ function useAppModel(
   );
   const overview = useMemo(() => summarizeLibrary(entries, statusMap), [entries, statusMap]);
   const recent = useMemo(() => mostRecentPort(entries, statusMap), [entries, statusMap]);
+  const searchableGames = useMemo(() => {
+    const library = new Set(
+      filterPorts(entries, statusMap, "library", "all", "").map((entry) => entry.id),
+    );
+    return entries.map((port) => ({ port, inLibrary: library.has(port.id) }));
+  }, [entries, statusMap]);
   const sourceNeeds = useMemo(
     () =>
       requiredSourceNeeds(
@@ -1260,6 +1289,7 @@ function useAppModel(
     libraryFilterCandidates,
     overview,
     recent,
+    searchableGames,
     sourceNeeds,
     ...selection,
     entry: entries.find((entry) => entry.id === selectedId),
@@ -1688,6 +1718,7 @@ function renderSelectedPortFavoriteControl({
 
 function SelectedPortPanel({
   implementationControl,
+  heroSupplement,
   favorites,
   organization,
   openSupport,
@@ -1710,6 +1741,7 @@ function SelectedPortPanel({
   close,
 }: {
   implementationControl?: ReactNode;
+  heroSupplement?: ReactNode;
   favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
   openSupport: () => void;
@@ -1768,6 +1800,7 @@ function SelectedPortPanel({
   return (
     <DetailPanel
       backLabel={backLabel}
+      heroSupplement={heroSupplement}
       favoriteControl={
         <>
           {implementationControl}

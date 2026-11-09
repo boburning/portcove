@@ -538,6 +538,86 @@ void test("complete direct closing observations never default missing relationsh
   );
 });
 
+void test("REST timeline closing observations are derived by the helper and fail closed", () => {
+  const pageUrl = (page: number) =>
+    `https://api.github.com/repos/${repository}/issues/7/timeline?per_page=100&page=${page}`;
+  const pages = (...events: unknown[][]) =>
+    events.map((page, index) => ({
+      url: pageUrl(index + 1),
+      link:
+        index < events.length - 1
+          ? `<https://api.github.com/repositories/1/issues/7/timeline?per_page=100&page=${index + 2}>; rel="next"`
+          : null,
+      events: page,
+    }));
+  const committed = { event: "committed", sha: head };
+  const full = () => Array.from({ length: 100 }, () => ({ event: "commented" }));
+  const snapshot = (change: Record<string, unknown> = {}) => {
+    const value = fixture();
+    const rest = (closing: Record<string, unknown>) => ({
+      ...closing,
+      method: "rest-timeline",
+      timeline_pages: pages([committed, { event: "cross-referenced" }]),
+      ...change,
+    });
+    return {
+      ...value,
+      closing_before: rest(value.closing_before),
+      closing_after: rest(value.closing_after),
+    };
+  };
+  const prepared = prepareMergeSnapshot(snapshot(), expected);
+  assert.deepEqual(prepared.closure_targets, [repository + "#123"]);
+  assert.equal(
+    prepared.closing_fingerprint,
+    prepareMergeSnapshot(fixture(), expected).closing_fingerprint,
+    "REST and directly observed inventories of the same candidate share one fingerprint",
+  );
+  assert.doesNotThrow(() =>
+    prepareMergeSnapshot(snapshot({ timeline_pages: pages(full(), [committed]) }), expected),
+  );
+  const unlinked = pages(full(), [committed]).map((page) => ({ ...page, link: null }));
+  const defaultSize = pages([committed]).map((page) => ({
+    ...page,
+    url: page.url.replace("per_page=100", "per_page=30"),
+  }));
+  const otherPull = pages([committed]).map((page) => ({
+    ...page,
+    url: page.url.replace("/issues/7/", "/issues/8/"),
+  }));
+  for (const [change, pattern] of [
+    [{ timeline_pages: pages(full(), [committed, { event: "connected" }]) }, /manual Development/],
+    [{ timeline_pages: pages([committed, { event: "disconnected" }]) }, /manual Development/],
+    [{ timeline_pages: pages([{ event: "commented" }]) }, /not bound to the pull request head/],
+    [{ timeline_pages: unlinked }, /incomplete/],
+    [{ timeline_pages: pages([committed, ...full().slice(1)]) }, /incomplete/],
+    [
+      {
+        timeline_pages: pages(full(), [committed]).map((page, index) =>
+          index === 0 ? { ...page, link: page.link?.replace('rel="next"', "rel=next") } : page,
+        ),
+      },
+      /link is invalid/,
+    ],
+    [{ timeline_pages: defaultSize }, /incomplete/],
+    [{ timeline_pages: otherPull }, /incomplete/],
+    [{ timeline_pages: pages([committed]).map(({ events }) => events) }, /incomplete/],
+    [{ timeline_pages: undefined }, /incomplete/],
+    [{ timeline_pages: pages(["not an event"]) }, /incomplete/],
+    [{ relationships: [], total_count: 0 }, /differs from its raw REST timeline/],
+  ] as const)
+    assert.throws(() => prepareMergeSnapshot(snapshot(change), expected), pattern);
+  const value = fixture();
+  assert.throws(
+    () =>
+      prepareMergeSnapshot(
+        { ...value, closing_after: { ...value.closing_after, timeline_pages: pages([committed]) } },
+        expected,
+      ),
+    /Only rest-timeline/,
+  );
+});
+
 void test("snapshot freshness covers start, completion, validation and both closing observations", () => {
   for (const change of [
     { started_at: "2026-10-22T19:58:59Z" },

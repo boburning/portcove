@@ -6,7 +6,7 @@
     "summary": "Play Heroes of Might and Magic II with the fheroes2 engine and your own game resources.",
     "original_game_title": "Heroes of Might and Magic II",
     "project_url": "https://github.com/ihhub/fheroes2",
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/ihhub/fheroes2",
     "artwork": {
@@ -27,7 +27,7 @@
         },
         {
           "title": "Choose an independent Linux or Mac package",
-          "instruction": "For a separate Linux x86-64 or ARM64 ZIP, keep the complete archive contents in a permanent folder and use upstream’s extraction script or manually copy your own ANIM, DATA, MAPS and MUSIC when present. Start fheroes2 from its folder. The 1.1.17 Linux ZIPs need SDL2, SDL2_image, SDL2_mixer, zlib, glibc 2.35 and libstdc++ providing GLIBCXX_3.4.30. Flathub’s io.github.ihhub.Fheroes2 uses its own first-start import and sandbox profile. On Apple Silicon, use the native Homebrew or MacPorts route and upstream’s fheroes2-extract-resources tool. For the Intel Mac ZIP, follow upstream’s SDL library setup. The 1.1.17 binary needs macOS 10.15 or later and matching Intel SDL2 compatibility, SDL2_image, SDL2_mixer and libpng at its /usr/local/opt paths. Standalone Mac builds use ~/.fheroes2 with an ordinary HOME; source-built Mac app bundles use separate Library/Preferences and Library/Application Support profiles. Keep the actual profile and the package that created it."
+          "instruction": "For a separate Linux x86-64 or ARM64 ZIP, keep the complete archive contents in a permanent folder and use upstream’s extraction script or manually copy your own ANIM, DATA, MAPS and MUSIC when present. Start fheroes2 from its folder. The Linux ZIPs need SDL2, SDL2_image, SDL2_mixer, zlib, glibc 2.35 and libstdc++ providing GLIBCXX_3.4.30. Flathub’s io.github.ihhub.Fheroes2 uses its own first-start import and sandbox profile. On Apple Silicon, use the native Homebrew or MacPorts route and upstream’s fheroes2-extract-resources tool. For the Intel Mac ZIP, follow upstream’s SDL library setup. The Intel binary needs macOS 10.15 or later and matching Intel SDL2 compatibility, SDL2_image, SDL2_mixer and libpng at its /usr/local/opt paths. Standalone Mac builds use ~/.fheroes2 with an ordinary HOME; source-built Mac app bundles use separate Library/Preferences and Library/Application Support profiles. Keep the actual profile and the package that created it."
         },
         {
           "title": "Import your originals with the Android Toolset",
@@ -60,17 +60,22 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
     "adapter": "native-portable",
+    "external_profile_policy": "fheroes2-v1",
     "release": {
       "provider": "github",
       "repository": "ihhub/fheroes2",
       "asset_hints": {
-        "windows-x86-64": ["fheroes2_windows_x64_SDL2.zip"]
+        "windows-x86-64": ["fheroes2_windows_x64_SDL2.zip"],
+        "linux-x86-64": ["fheroes2_ubuntu_x86-64_SDL2.zip"],
+        "macos-x86-64": ["fheroes2_macos_x86-64_SDL2.zip"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["fheroes2.exe"]
+      "windows-x86-64": ["fheroes2.exe"],
+      "linux-x86-64": ["fheroes2"],
+      "macos-x86-64": ["fheroes2"]
     },
     "persistent_paths": [],
     "presentation": {
@@ -91,10 +96,11 @@
     "managed_native": {
       "preparation": {
         "title": "Copy your Heroes II resources to the personal fheroes2 folder before Play",
-        "instruction": "Create %HOME%/.fheroes2 if HOME points to an absolute personal folder, or %APPDATA%/fheroes2 if HOME is unset and APPDATA points to an absolute personal folder. Use a separately prepared copy if neither applies. Copy ANIM, DATA, MAPS and MUSIC from your own supported Heroes of Might and Magic II installation when present. Keep the directories and original files together. Use the same Windows account and environment for setup and Play. Keep originals out of the managed game folder."
+        "instruction": "Copy your own supported Heroes II ANIM, DATA, MAPS and MUSIC directories when present. Use HOME/.fheroes2 on Windows or Intel Mac, or APPDATA/fheroes2 on Windows when HOME is unset. On Linux, use XDG_DATA_HOME/fheroes2 or ~/.local/share/fheroes2. Use absolute personal profile locations outside the managed game folder and the same account and environment for setup and Play."
       },
       "warnings": [
         "The Windows x64 ZIP may need the Microsoft Visual C++ x64 Redistributable linked by upstream. Portcove runs no bundled resource, demo or prerequisite installer.",
+        "The Linux x86-64 ZIP needs SDL2, SDL2_image, SDL2_mixer, zlib, glibc 2.35 and libstdc++ with GLIBCXX_3.4.30. Intel Mac requires macOS 10.15 or later and matching Intel SDL2 compatibility, SDL2_image, SDL2_mixer and libpng at the upstream /usr/local/opt paths.",
         "Keep a separate backup of the actual external fheroes2 profile, including files/save, settings and custom maps. Use a separately prepared copy for custom profile or resource locations. Real save compatibility across versions remains unverified."
       ]
     }

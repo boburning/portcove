@@ -89,7 +89,7 @@ jobs:
             echo 'available=true' >> "$GITHUB_OUTPUT"
           else
             echo 'available=false' >> "$GITHUB_OUTPUT"
-            echo 'Repair App is not configured; run `just aqua-integrity-update` on this branch.' >> "$GITHUB_STEP_SUMMARY"
+            echo "Repair App is not configured; run \`just aqua-integrity-update\` on this branch." >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.configuration.outputs.available == 'true'

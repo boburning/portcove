@@ -2450,7 +2450,7 @@ mod tests {
             );
             assert_eq!(
                 port.presentation.as_ref().unwrap().manual_setup.is_some(),
-                id == "sonic-3-and-knuckles-recomp",
+                matches!(id, "dkc3-recomp" | "sonic-3-and-knuckles-recomp"),
                 "{id}"
             );
             assert!(port.automated_tested_platforms.is_empty(), "{id}");

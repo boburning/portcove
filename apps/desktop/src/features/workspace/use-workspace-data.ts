@@ -17,6 +17,7 @@ import type {
   SourceRecord,
   DesktopEventPayloads,
   WorkspaceSnapshot,
+  WorkspaceSnapshotTransport,
 } from "../../types";
 import {
   ActivityRefreshScheduler,
@@ -86,6 +87,31 @@ function shareWorkspaceRead(previous: unknown, next: unknown): WorkspaceRead {
     ...shared,
     snapshot: { ...shared.snapshot, statuses: retained ? old.snapshot.statuses : statuses },
   };
+}
+
+/** Rebuilds a complete snapshot, reusing held catalog objects when unchanged. */
+export function restoreUnchangedCatalog(
+  transport: WorkspaceSnapshotTransport,
+  held: WorkspaceSnapshot | undefined,
+): WorkspaceSnapshot {
+  const {
+    catalog_unchanged: unchanged,
+    catalog,
+    listing_catalog: listingCatalog,
+    ...rest
+  } = transport;
+  if (unchanged) {
+    if (!held)
+      throw new Error("Portcove omitted an unchanged catalog that this window does not hold");
+    const { listing_catalog: listings } = held;
+    return listings === undefined
+      ? { ...rest, catalog: held.catalog }
+      : { ...rest, catalog: held.catalog, listing_catalog: listings };
+  }
+  if (!catalog) throw new Error("Portcove returned a workspace without its catalog");
+  return listingCatalog === undefined
+    ? { ...rest, catalog }
+    : { ...rest, catalog, listing_catalog: listingCatalog };
 }
 
 function workspaceDiagnosticInputsChanged(previous: WorkspaceSnapshot, next: WorkspaceSnapshot) {
@@ -264,8 +290,15 @@ export function usePortcoveData(libraryGeneration = 0) {
           };
         }
       }
-      const snapshot = await desktopApi.workspaceSnapshot(libraryGeneration);
+      // Offer the catalog digest this generation already holds; an unchanged
+      // catalog (about 7 MB) is then omitted and reused by reference.
+      const held = previous?.snapshot;
+      const transport = await desktopApi.workspaceSnapshot(
+        libraryGeneration,
+        held?.catalog_digest ?? null,
+      );
       signal.throwIfAborted();
+      const snapshot = restoreUnchangedCatalog(transport, held);
       return {
         snapshot,
         activityRequest,

@@ -15,8 +15,8 @@ component fixtures do not complete either production outcome.
 
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises Libultraship portable version 2,
-native portable versions 2–7, managed PS1 version 2, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–28. The inventory owner is
+native portable versions 2–9, managed PS1 version 2, N64 portable versions 2–4
+and staged-source portable versions 2–5, 8, 10–12 and 15–29. The inventory owner is
 `EngineTemplateCapability::current()` in
 [`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
 the version semantics and admission limits below remain part of each contract.
@@ -61,6 +61,10 @@ keep their meanings. Retained installations continue to use their creating
 definitions, so a new declaration does not retrofit historical manifests. This
 capability grants neither upstream Unicode support nor external-profile ownership
 or protected publication. See the [runtime path contract](CATALOG.md).
+
+Native portable version 9 consumes `external_profile_policy` for the reviewed
+Dune Dynasty and fheroes2 external profile checks. Both fresh and retained
+indexed entries must declare capability 9 when they use this field.
 
 Native portable version 8 consumes `release.linux_tar_xz` for an ordinary
 GitHub-backed Linux x86-64 managed native player. It requires a matching
@@ -359,6 +363,13 @@ CLI exits successfully after a valid check even when `compatible` is false;
 callers must inspect that value. Malformed requests use the normal error envelope.
 Neither successful negotiation nor a supported adapter establishes publisher
 trust, source admission, artifact integrity, or permission to install or launch.
+
+Staged-source version 29 admits sibling desktop ZIPs for a ready, original-bound
+GitHub archive with partitioned player data and a Windows path policy. Each
+platform needs explicit package and executable hints. Windows keeps its
+existing path checks. A reviewed Windows predecessor keeps its exact creating
+contract, archive and Windows executable hint. Sibling platform hints do not
+grant cross-platform adoption or build-specific progress compatibility.
 
 ## Decision and threat model
 

@@ -202,11 +202,27 @@ Use an available supported route under existing authorization. Report a missing
 operation precisely; tool names alone do not prove permission to execute it.
 
 The connector's REST surface may omit closing-issue relationships or Project
-fields. Use complete GraphQL coverage when available, or a direct GitHub UI
-observation paired with bracketing raw PR reads for the closing inventory.
-Issue bodies and REST issue reads cannot establish live Project fields. An
-unavailable or partial inventory remains unknown, with the exact missing
-observation recorded; do not silently substitute an empty array.
+fields. Use complete GraphQL coverage when available. Without GraphQL, the
+closing inventory can be reconstructed over REST. Its relationships are the
+closing keywords in the PR body; a keyword followed by any other reference-like
+text (markup, `GH-` shorthand, another URL form, a zero-padded number) refuses.
+The complete PR issue timeline
+(`GET /repos/{owner}/{repo}/issues/{n}/timeline?per_page=100&page=N`) must
+contain the head's `committed` event and no `connected` or `disconnected`
+event, because REST does not identify a manual Development link's counterpart.
+Completeness needs both the page sizes and the `Link` header: every page but the
+last is full and links the next, and the last is short and links none. Any such event, an unbound or partial timeline, or a PR
+change between the bracketing reads leaves the inventory unknown; use GraphQL or
+a direct GitHub UI observation paired with bracketing raw PR reads instead. The
+live merge helper falls back to this reconstruction only when GraphQL answers
+HTTP 403, including an exhausted rate limit; integrity failures and other
+errors never fall back. GitHub documents `connected` on pull request timelines,
+but not for a link from an issue in a repository the reader cannot see; the
+[closure contract](CONTRIBUTION-CONVENTIONS.md#review-and-merge) keeps that case
+out of REST delivery. Issue bodies and REST issue reads cannot
+establish live Project fields. An unavailable or partial inventory remains
+unknown, with the exact missing observation recorded; do not silently
+substitute an empty array.
 
 The existing delivery command has two offline operations for connector callers:
 
@@ -250,16 +266,16 @@ raw observations in one existing sixty-second window; validation also refuses
 evidence older than that window. Retain complete provider payloads rather than
 inventing success summaries.
 
-| Field                             | Required observation                                                                                                                                                                                                                                                        |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pull_before`, `pull_after`       | Raw PR reads bracketing collection, with stable source, target ref, state, preview, title, body and commit count.                                                                                                                                                           |
-| `target_before`, `target_after`   | Raw target-branch reads. Preparation matches the independently expected target; readback matches the actual merged commit. The PR's historical `base.sha` is not the live branch tip.                                                                                       |
-| `closing_before`, `closing_after` | Each supplies `observed_at`, `method` (`graphql` or `direct-ui-with-bracketing-rest`), `complete: true`, `number`, `head`, `title`, `body`, `total_count`, and unique `owner/repository#number` relationships. Both must match the raw PR and each other.                   |
-| `run_before`, `run_after`         | Preparation only: raw terminal workflow reads matching source, run, attempt and repository throughout collection.                                                                                                                                                           |
-| `preview`                         | Preparation only: raw provider Git commit object. Normally its parents/tree must match the current target/source and reviewed composition. A historical target is accepted only with actual local composition verification. This does not establish the actual CI checkout. |
-| `checks`, `statuses`, `jobs`      | Preparation only: complete unique-ID inventories with provider `total_count` and `check_runs`, `statuses`, or `jobs`; combined status also retains its `sha`. Collect every page and use the all-attempt job inventory for legitimate selective retry lineage.              |
-| `commits`                         | Preparation only: complete ordered candidate commit objects, preserving each full message and ending at the expected source.                                                                                                                                                |
-| `prepared`, `actual_commit`       | Readback only: the retained preparation output and the raw merged Git commit object. Parent, tree, message, PR and closing inventory must match the independently supplied expectations.                                                                                    |
+| Field                             | Required observation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pull_before`, `pull_after`       | Raw PR reads bracketing collection, with stable source, target ref, state, preview, title, body and commit count.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `target_before`, `target_after`   | Raw target-branch reads. Preparation matches the independently expected target; readback matches the actual merged commit. The PR's historical `base.sha` is not the live branch tip.                                                                                                                                                                                                                                                                                                                                                                               |
+| `closing_before`, `closing_after` | Each supplies `observed_at`, `method` (`graphql`, `direct-ui-with-bracketing-rest` or `rest-timeline`), `complete: true`, `number`, `head`, `title`, `body`, `total_count`, and unique `owner/repository#number` relationships. Both must match the raw PR and each other. `rest-timeline` also supplies `timeline_pages`: one `{ url, link, events }` per page, holding the exact `per_page=100&page=N` request URL, the raw `Link` header (or `null`) and the raw events. The helper derives the relationships from them and the body and refuses any difference. |
+| `run_before`, `run_after`         | Preparation only: raw terminal workflow reads matching source, run, attempt and repository throughout collection.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `preview`                         | Preparation only: raw provider Git commit object. Normally its parents/tree must match the current target/source and reviewed composition. A historical target is accepted only with actual local composition verification. This does not establish the actual CI checkout.                                                                                                                                                                                                                                                                                         |
+| `checks`, `statuses`, `jobs`      | Preparation only: complete unique-ID inventories with provider `total_count` and `check_runs`, `statuses`, or `jobs`; combined status also retains its `sha`. Collect every page and use the all-attempt job inventory for legitimate selective retry lineage.                                                                                                                                                                                                                                                                                                      |
+| `commits`                         | Preparation only: complete ordered candidate commit objects, preserving each full message and ending at the expected source.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `prepared`, `actual_commit`       | Readback only: the retained preparation output and the raw merged Git commit object. Parent, tree, message, PR and closing inventory must match the independently supplied expectations.                                                                                                                                                                                                                                                                                                                                                                            |
 
 Confirm actual independent review, owning acceptance, current repository rules,
 the authoritative CI workflow/path/event, and the tested CI checkout separately.
@@ -3314,8 +3330,13 @@ It refreshes a private copy of the working tree owned by the unprivileged
 domain and a neutral Git identity, and runs the command there with a minimal
 environment. It changes no fixture, policy or checkout permission. The command
 has no network or proxy access and shares installed dependencies and the browser
-cache read-only, so run Rust, cargo and networked commands directly; the
-repository-tool test that spawns `cargo` therefore fails under the wrapper.
+cache read-only. The identity cannot traverse `/root`, so the bootstrap moves
+rustup's home and the Cargo `bin` directory to root-owned `/opt/portcove-rust`,
+leaving symlinks at the original paths; the wrapper runs offline `cargo`
+commands from there with its own `CARGO_HOME` and cannot change the toolchain.
+Fixtures that run `corepack pnpm` need the pinned pnpm and its native binary, so
+the bootstrap fetches them once into the identity's own caches, giving it only a
+copy of the trusted CA bundle. Run builds and networked commands directly.
 
 Known cloud limits remain visible in `just doctor`:
 
@@ -3335,8 +3356,20 @@ Known cloud limits remain visible in `just doctor`:
   a run artifact. The owner gate is advisory like other workflows' gates, because
   a writer can dispatch a modified workflow from another branch; storing
   `PORTCOVE_ROADMAP_TOKEN` in an environment limited to `main` with required
-  reviewers makes it a hard boundary. GraphQL-based delivery reads still need a
-  local session; issues, pull requests, checks and the REST guarded merge work.
+  reviewers makes it a hard boundary. Guarded merges reconstruct closing
+  relationships over REST (see the connector delivery route above): the live
+  `pr-delivery.mts` helper falls back automatically, and connector callers
+  collect `rest-timeline` observations for `prepare-merge`/`verify-merge`. A PR
+  with a manual Development link still needs a GraphQL-capable session.
+- The session's HTTPS proxy supplies its GitHub credential, so a direct
+  connection fails with `401 Bad credentials`. Node's `fetch` ignores
+  `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1`, which a session cannot set on its
+  environment. Delivery helpers (`pr-delivery.mts`, `github-body.mts`) therefore
+  create their GitHub client with `environmentProxy: true`, which enables Node's
+  built-in proxy support when a proxy variable is present (`NO_PROXY` still
+  applies) and records `NODE_USE_ENV_PROXY=1` for the process. Release clients
+  never opt in, and release direct-transport guards refuse in a process that
+  has.
 - The daily discovery runner requires an interactive TTY and GraphQL; run it
   locally.
 - Windows targets and native Windows qualification remain hosted CI or

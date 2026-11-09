@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { Search } from "lucide-react";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
+import { normalizeGameSearchText } from "../search-text";
 
 export interface PaletteCommand {
   id: string;
@@ -13,6 +14,10 @@ export interface PaletteCommand {
   icon: LucideIcon;
   shortcut?: string;
   keywords?: string;
+  /** Listed only once the player types a query, so long game lists do not bury navigation. */
+  searchOnly?: boolean;
+  /** False when the description is generic and should not widen search matches. */
+  matchDescription?: boolean;
   disabled?: boolean;
   action: () => void;
 }
@@ -227,12 +232,13 @@ function OpenCommandPalette({
 }
 
 export function filterCommands(commands: PaletteCommand[], query: string) {
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return commands;
+  const terms = normalizeGameSearchText(query.trim()).split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return commands.filter((command) => !command.searchOnly);
   return commands.filter((command) => {
-    const haystack =
-      `${command.label} ${command.description} ${command.keywords ?? ""}`.toLowerCase();
-    return terms.every((term) => haystack.includes(term));
+    const searchable = normalizeGameSearchText(
+      `${command.label} ${command.matchDescription === false ? "" : command.description} ${command.keywords ?? ""}`,
+    );
+    return terms.every((term) => searchable.includes(term));
   });
 }
 

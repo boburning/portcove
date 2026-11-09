@@ -1,4 +1,8 @@
-import { capacityDigest } from "./release-capacity.mts";
+import {
+  inspectReleaseReviewWithdrawal,
+  matchesWithdrawnReviewRequest,
+} from "./release-review-withdrawal.mts";
+import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   classifyApplicationVersion,
@@ -284,6 +288,40 @@ export function validateReleaseReviewRequestTransition(
   const after = inspectReleaseReviewRequest(next.review_request);
   const oldDisposition = inspectReleaseReviewDisposition(previous.review_disposition);
   const disposition = inspectReleaseReviewDisposition(next.review_disposition);
+  const oldWithdrawal = inspectReleaseReviewWithdrawal(previous.review_withdrawal);
+  const withdrawal = inspectReleaseReviewWithdrawal(next.review_withdrawal);
+  if (capacityDigest(oldWithdrawal) !== capacityDigest(withdrawal)) {
+    if (
+      oldWithdrawal ||
+      !withdrawal ||
+      !before ||
+      next.review_request !== null ||
+      withdrawal.request_checkpoint !== checkpoint ||
+      !matchesWithdrawnReviewRequest(withdrawal, before) ||
+      previous.active_candidate !== null ||
+      !isRecord(previous.controller) ||
+      !isRecord(previous.controller.capacity_attempt) ||
+      previous.metadata_renewal != null ||
+      previous.catalog_publication != null
+    )
+      throw new Error("review withdrawal requires the exact paused request preimage");
+    const operation = inspectCapacityOperation(
+      previous.controller.capacity_attempt.operation ?? null,
+    );
+    if (operation && !["succeeded", "recovered"].includes(operation.outcome ?? ""))
+      throw new Error("review withdrawal cannot cross an unresolved release effect");
+    const expected = {
+      ...previous,
+      controller: { ...previous.controller, publication_paused: true },
+      review_request: null,
+      review_withdrawal: withdrawal,
+    };
+    if (capacityDigest(expected) !== capacityDigest(next))
+      throw new Error("review withdrawal cannot change release state or accounting");
+    return;
+  }
+  if (withdrawal && after?.source_commit === withdrawal.source_commit)
+    throw new Error("withdrawn application source cannot be requested again");
   if (
     capacityDigest(before) === capacityDigest(after) &&
     capacityDigest(oldDisposition) === capacityDigest(disposition)

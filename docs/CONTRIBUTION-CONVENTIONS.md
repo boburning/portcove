@@ -206,7 +206,14 @@ manual links, and checks the body, candidate commit messages and explicit squash
 message. The message JSON contains `title` and `body`; those checked values are
 submitted as the actual merge message and verified afterward. Body and linked
 issue changes matter even at an unchanged source SHA. Unknown inventory refuses
-delivery. An ambiguous mutation or changed post-merge state requires readback
+delivery. Without GraphQL the guard reconstructs the inventory over REST
+([connector delivery observations](DEVELOPMENT-TOOLS.md#connector-delivery-observations))
+and refuses any visible manual link. A manual link made from the sidebar of an
+issue in a repository the reader cannot see is not documented to appear on the
+PR's REST timeline, so REST cannot exclude it: link work through closing keywords
+and deliver a PR with any manual link from a GraphQL-capable session. On
+2026-11-09 all 221 issues GitHub reported as linked to a pull request here were
+keyword links, with no manual link events. An ambiguous mutation or changed post-merge state requires readback
 and reconciliation, never an automatic retry or reopening.
 
 These safeguards cover supported writers and guarded delivery. They do not

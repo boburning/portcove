@@ -434,6 +434,62 @@ describe("workspace refresh recovery", () => {
     expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
   });
 
+  it("offers the held catalog digest and reuses an unchanged catalog by reference", async () => {
+    const listings = {
+      format_version: 1,
+      listings: [
+        {
+          id: "listing-held",
+          name: "Held Listing",
+          summary: "An upstream project.",
+          project_url: "https://example.com/project",
+          platforms: [],
+          availability: "unknown" as const,
+        },
+      ],
+    };
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({
+      ...structuredClone(snapshot),
+      listing_catalog: listings,
+      catalog_digest: "digest-1",
+    });
+    await render();
+    const heldCatalog = data.catalog;
+    const heldListings = data.listingCatalog;
+    expect(heldListings?.listings[0]?.id).toBe("listing-held");
+    const {
+      catalog: _omitted,
+      listing_catalog: _omittedListings,
+      ...withoutCatalog
+    } = structuredClone(snapshot);
+    const fresh = {
+      ...withoutCatalog,
+      statuses: [{ ...snapshot.statuses[0]!, successful_launches: 42 }],
+      catalog_digest: "digest-1",
+      catalog_unchanged: true,
+    };
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(fresh);
+    await act(async () => data.refresh());
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, "digest-1");
+    expect(data.catalog).toBe(heldCatalog);
+    expect(data.listingCatalog).toBe(heldListings);
+    expect(data.statuses[0]?.successful_launches).toBe(42);
+
+    // A changed digest within the same generation delivers new documents.
+    const changed = structuredClone(snapshot);
+    changed.catalog.ports = [];
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({
+      ...changed,
+      catalog_digest: "digest-2",
+    });
+    await act(async () => data.refresh());
+    expect(desktopApi.workspaceSnapshot).toHaveBeenLastCalledWith(7, "digest-1");
+    expect(data.catalog).not.toBe(heldCatalog);
+    expect(data.catalog?.ports).toEqual([]);
+    expect(data.listingCatalog).toBeUndefined();
+  });
+
   it("accepts listing-only changes atomically without replacing strict catalog state", async () => {
     await render();
     const strictCatalog = data.catalog;
@@ -704,7 +760,7 @@ describe("workspace refresh recovery", () => {
     expect(data.catalog).toEqual(snapshot.catalog);
     expect(data.diagnosticRefreshing).toBe(true);
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
-    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, null);
     diagnostics.resolve(doctor);
     await act(async () => diagnostics.promise);
     expect(data.doctor).toEqual(doctor);
@@ -717,14 +773,14 @@ describe("workspace refresh recovery", () => {
       .mockReturnValueOnce(previous.promise)
       .mockResolvedValueOnce(current);
     await render();
-    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, null);
 
     await root.rerender(<Fixture generation={8} />);
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(8);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(8, null);
     expect(data.statuses).toEqual([]);
 
     previous.resolve(snapshot);
@@ -912,7 +968,7 @@ describe("workspace refresh recovery", () => {
       vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(current);
       await root.rerender(<Fixture generation={8} />);
       await act(nextBrowserTask);
-      expect(desktopApi.workspaceSnapshot).toHaveBeenLastCalledWith(8);
+      expect(desktopApi.workspaceSnapshot).toHaveBeenLastCalledWith(8, null);
       const currentStatuses = data.statuses;
       vi.mocked(desktopApi.workspaceSnapshot).mockClear();
       await act(async () => {
