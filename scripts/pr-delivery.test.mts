@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
+import { readClosingRelationships } from "./closure-intent.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import type {
   DeliveryPull,
@@ -1422,6 +1423,118 @@ void test("unchanged source head does not hide PR body or relationship changes",
         ).merge(7, head, required, emptyIntent, squashMessage),
       /changed before merge/,
     );
+  }
+});
+
+function restClosureResponder(timeline: unknown[][], body = "Related to #244.") {
+  const requests: string[] = [];
+  return {
+    requests,
+    respond({ method, endpoint }: DeliveryFixtureRequest) {
+      requests.push(`${method} ${endpoint.split("?")[0]}`);
+      if (endpoint === "graphql")
+        return Response.json(
+          { message: "GitHub GraphQL is not available from this session" },
+          { status: 403 },
+        );
+      if (endpoint === "repos/boburning/portcove/pulls/7")
+        return Response.json({ number: 7, title: "fix: safe delivery", body, head: { sha: head } });
+      const page =
+        /^repos\/boburning\/portcove\/issues\/7\/timeline\?per_page=100&page=(\d+)$/u.exec(
+          endpoint,
+        );
+      if (page) return Response.json(timeline[Number(page[1]) - 1] ?? []);
+      return undefined;
+    },
+  };
+}
+
+void test("REST closure reconstruction replaces refused GraphQL and fails closed on manual links", async () => {
+  const quiet = restClosureResponder([[{ event: "cross-referenced" }]]);
+  const observed = await readClosingRelationships(
+    await fixtureGitHub(quiet.respond),
+    "boburning/portcove",
+    7,
+  );
+  assert.equal(observed.source, "rest");
+  assert.deepEqual(observed.relationships, []);
+  assert.equal(observed.head, head);
+  assert.equal(
+    observed.fingerprint,
+    (
+      await readClosingRelationships(
+        await fixtureGitHub(() => Response.json(closingPage())),
+        "boburning/portcove",
+        7,
+      )
+    ).fingerprint,
+    "GraphQL and REST observations of the same pull request share one fingerprint",
+  );
+  assert.deepEqual(quiet.requests, [
+    "POST graphql",
+    "GET repos/boburning/portcove/pulls/7",
+    "GET repos/boburning/portcove/issues/7/timeline",
+    "GET repos/boburning/portcove/pulls/7",
+  ]);
+
+  const keyword = restClosureResponder([[]], "Closes #244 and fixes other/repo#3");
+  assert.deepEqual(
+    (await readClosingRelationships(await fixtureGitHub(keyword.respond), "boburning/portcove", 7))
+      .relationships,
+    ["boburning/portcove#244", "other/repo#3"],
+  );
+
+  for (const event of ["connected", "disconnected"]) {
+    const paged = restClosureResponder([
+      Array.from({ length: 100 }, () => ({ event: "commented" })),
+      [{ event }],
+    ]);
+    await assert.rejects(
+      async () =>
+        await readClosingRelationships(await fixtureGitHub(paged.respond), "boburning/portcove", 7),
+      /manual Development link is unknown over REST/,
+    );
+  }
+
+  const merged = restClosureResponder([[{ event: "connected" }]]);
+  const client = await deliveryFixture(
+    (request) =>
+      merged.respond(request) ?? assert.fail("Closure refusal must precede merge mutation"),
+  );
+  client.requiredCheckState = async () => ({
+    head,
+    pull: pull(),
+    contexts: requiredCheckContexts(successfulRuns(), [], required),
+  });
+  client.pullCommits = async () => [{ sha: head, commit: { message: "fix: scoped component" } }];
+  await assert.rejects(
+    async () => await client.merge(7, head, required, emptyIntent, squashMessage),
+    /manual Development link is unknown over REST/,
+  );
+  assert.equal(
+    merged.requests.some((request) => request.startsWith("PUT")),
+    false,
+  );
+});
+
+void test("GraphQL closure integrity failures never fall back to REST", async () => {
+  for (const respond of [
+    () => Response.json(closingPage({ headRefOid: "not-a-sha" })),
+    () => Response.json({ message: "unavailable" }, { status: 502 }),
+  ]) {
+    const requests: string[] = [];
+    await assert.rejects(
+      async () =>
+        await readClosingRelationships(
+          await fixtureGitHub((request) => {
+            requests.push(request.endpoint);
+            return respond();
+          }),
+          "boburning/portcove",
+          7,
+        ),
+    );
+    assert.ok(requests.length > 0 && requests.every((endpoint) => endpoint === "graphql"));
   }
 });
 

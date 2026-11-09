@@ -202,11 +202,19 @@ Use an available supported route under existing authorization. Report a missing
 operation precisely; tool names alone do not prove permission to execute it.
 
 The connector's REST surface may omit closing-issue relationships or Project
-fields. Use complete GraphQL coverage when available, or a direct GitHub UI
-observation paired with bracketing raw PR reads for the closing inventory.
-Issue bodies and REST issue reads cannot establish live Project fields. An
-unavailable or partial inventory remains unknown, with the exact missing
-observation recorded; do not silently substitute an empty array.
+fields. Use complete GraphQL coverage when available. Without GraphQL, the
+closing inventory can be reconstructed over REST: closing keywords in the PR
+body are its relationships, and the complete PR issue timeline
+(`GET /repos/{owner}/{repo}/issues/{n}/timeline?per_page=100`, every page until
+a short one) must contain no `connected` or `disconnected` event, because REST
+does not identify a manual Development link's counterpart. Any such event, or a
+partial timeline, leaves the inventory unknown; use GraphQL or a direct GitHub UI
+observation paired with bracketing raw PR reads instead. The live merge helper
+falls back to this reconstruction only when GraphQL is refused with HTTP 403;
+integrity failures never fall back. Issue bodies and REST issue reads cannot
+establish live Project fields. An unavailable or partial inventory remains
+unknown, with the exact missing observation recorded; do not silently
+substitute an empty array.
 
 The existing delivery command has two offline operations for connector callers:
 
@@ -250,16 +258,16 @@ raw observations in one existing sixty-second window; validation also refuses
 evidence older than that window. Retain complete provider payloads rather than
 inventing success summaries.
 
-| Field                             | Required observation                                                                                                                                                                                                                                                        |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pull_before`, `pull_after`       | Raw PR reads bracketing collection, with stable source, target ref, state, preview, title, body and commit count.                                                                                                                                                           |
-| `target_before`, `target_after`   | Raw target-branch reads. Preparation matches the independently expected target; readback matches the actual merged commit. The PR's historical `base.sha` is not the live branch tip.                                                                                       |
-| `closing_before`, `closing_after` | Each supplies `observed_at`, `method` (`graphql` or `direct-ui-with-bracketing-rest`), `complete: true`, `number`, `head`, `title`, `body`, `total_count`, and unique `owner/repository#number` relationships. Both must match the raw PR and each other.                   |
-| `run_before`, `run_after`         | Preparation only: raw terminal workflow reads matching source, run, attempt and repository throughout collection.                                                                                                                                                           |
-| `preview`                         | Preparation only: raw provider Git commit object. Normally its parents/tree must match the current target/source and reviewed composition. A historical target is accepted only with actual local composition verification. This does not establish the actual CI checkout. |
-| `checks`, `statuses`, `jobs`      | Preparation only: complete unique-ID inventories with provider `total_count` and `check_runs`, `statuses`, or `jobs`; combined status also retains its `sha`. Collect every page and use the all-attempt job inventory for legitimate selective retry lineage.              |
-| `commits`                         | Preparation only: complete ordered candidate commit objects, preserving each full message and ending at the expected source.                                                                                                                                                |
-| `prepared`, `actual_commit`       | Readback only: the retained preparation output and the raw merged Git commit object. Parent, tree, message, PR and closing inventory must match the independently supplied expectations.                                                                                    |
+| Field                             | Required observation                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pull_before`, `pull_after`       | Raw PR reads bracketing collection, with stable source, target ref, state, preview, title, body and commit count.                                                                                                                                                                                                                                                                                                                                  |
+| `target_before`, `target_after`   | Raw target-branch reads. Preparation matches the independently expected target; readback matches the actual merged commit. The PR's historical `base.sha` is not the live branch tip.                                                                                                                                                                                                                                                              |
+| `closing_before`, `closing_after` | Each supplies `observed_at`, `method` (`graphql`, `direct-ui-with-bracketing-rest` or `rest-timeline`), `complete: true`, `number`, `head`, `title`, `body`, `total_count`, and unique `owner/repository#number` relationships. Both must match the raw PR and each other. `rest-timeline` also supplies `timeline_pages`, the raw ordered timeline pages; the helper derives the relationships from them and the body and refuses any difference. |
+| `run_before`, `run_after`         | Preparation only: raw terminal workflow reads matching source, run, attempt and repository throughout collection.                                                                                                                                                                                                                                                                                                                                  |
+| `preview`                         | Preparation only: raw provider Git commit object. Normally its parents/tree must match the current target/source and reviewed composition. A historical target is accepted only with actual local composition verification. This does not establish the actual CI checkout.                                                                                                                                                                        |
+| `checks`, `statuses`, `jobs`      | Preparation only: complete unique-ID inventories with provider `total_count` and `check_runs`, `statuses`, or `jobs`; combined status also retains its `sha`. Collect every page and use the all-attempt job inventory for legitimate selective retry lineage.                                                                                                                                                                                     |
+| `commits`                         | Preparation only: complete ordered candidate commit objects, preserving each full message and ending at the expected source.                                                                                                                                                                                                                                                                                                                       |
+| `prepared`, `actual_commit`       | Readback only: the retained preparation output and the raw merged Git commit object. Parent, tree, message, PR and closing inventory must match the independently supplied expectations.                                                                                                                                                                                                                                                           |
 
 Confirm actual independent review, owning acceptance, current repository rules,
 the authoritative CI workflow/path/event, and the tested CI checkout separately.
@@ -3324,8 +3332,11 @@ Known cloud limits remain visible in `just doctor`:
   a run artifact. The owner gate is advisory like other workflows' gates, because
   a writer can dispatch a modified workflow from another branch; storing
   `PORTCOVE_ROADMAP_TOKEN` in an environment limited to `main` with required
-  reviewers makes it a hard boundary. GraphQL-based delivery reads still need a
-  local session; issues, pull requests, checks and the REST guarded merge work.
+  reviewers makes it a hard boundary. Guarded merges reconstruct closing
+  relationships over REST (see the connector delivery route above): collect
+  `rest-timeline` closing observations for `prepare-merge`/`verify-merge` and
+  merge through the connector. A PR with a manual Development link still needs a
+  GraphQL-capable session.
 - The daily discovery runner requires an interactive TTY and GraphQL; run it
   locally.
 - Windows targets and native Windows qualification remain hosted CI or

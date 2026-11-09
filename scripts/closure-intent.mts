@@ -1,4 +1,5 @@
 import type { GitHubRequestPolicy } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 
@@ -64,15 +65,128 @@ export function checkClosureIntent(
   return [...observed].sort();
 }
 
+interface ClosingApi {
+  request(options: {
+    method: "POST" | "GET";
+    url: string;
+    data?: unknown;
+    request: { portcove: GitHubRequestPolicy };
+  }): Promise<{ data: unknown }>;
+}
+
+function closingObservation(
+  binding: { head: string; title: string; body: string },
+  relationships: readonly string[],
+  source: "graphql" | "rest",
+) {
+  const observation = { ...binding, relationships: [...relationships].sort() };
+  return {
+    ...observation,
+    source,
+    fingerprint: createHash("sha256").update(JSON.stringify(observation)).digest("hex"),
+  };
+}
+
+/**
+ * Read the issues a pull request will close. GitHub's GraphQL inventory is the
+ * authority. When GraphQL itself is refused with HTTP 403 (for example a
+ * session whose network allows only REST), reconstruct the same set over REST,
+ * failing closed on anything REST cannot identify exactly. Integrity failures
+ * of either read never fall back.
+ */
 export async function readClosingRelationships(
-  api: {
-    request(options: {
-      method: "POST";
-      url: string;
-      data: unknown;
-      request: { portcove: GitHubRequestPolicy };
-    }): Promise<{ data: unknown }>;
-  },
+  api: ClosingApi,
+  repository: string,
+  number: number,
+) {
+  try {
+    return await readClosingRelationshipsGraphql(api, repository, number);
+  } catch (error) {
+    if (!(error instanceof GitHubApiError) || error.status !== 403) throw error;
+    return readClosingRelationshipsRest(api, repository, number);
+  }
+}
+
+const timelinePageLimit = 30;
+const timelinePageSize = 100;
+
+/**
+ * REST reconstruction from the PR body and its complete issue timeline: closing
+ * keywords in the body (the same grammar the candidate checks apply to commits
+ * and the squash message) are the relationships. Manual Development links
+ * appear only as connected/disconnected timeline events whose counterpart REST
+ * does not identify exactly, so any such event leaves the inventory unknown and
+ * refuses it. Pages are the raw `per_page=100` responses in order; only a short
+ * final page proves the timeline complete.
+ */
+export function restTimelineRelationships(body: string, repository: string, pages: unknown) {
+  if (
+    !Array.isArray(pages) ||
+    pages.length < 1 ||
+    pages.length > timelinePageLimit ||
+    !pages.every(
+      (page: unknown, index) =>
+        Array.isArray(page) &&
+        (index === pages.length - 1
+          ? page.length < timelinePageSize
+          : page.length === timelinePageSize),
+    )
+  )
+    throw new Error("Closing relationship timeline is incomplete or exceeds its bounded inventory");
+  for (const event of (pages as unknown[][]).flat()) {
+    if (!isRecord(event) || typeof event.event !== "string")
+      throw new Error("Closing relationship timeline is incomplete");
+    if (event.event === "connected" || event.event === "disconnected")
+      throw new Error(
+        "A manual Development link is unknown over REST; read closing relationships through GraphQL",
+      );
+  }
+  return closingReferences(body, repository);
+}
+
+/** Live REST reconstruction bracketed by unchanged pull request reads. */
+export async function readClosingRelationshipsRest(
+  api: ClosingApi,
+  repository: string,
+  number: number,
+) {
+  const readPull = async () => {
+    const { data: pull } = await api.request({
+      method: "GET",
+      url: `https://api.github.com/repos/${repository}/pulls/${number}`,
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
+    });
+    const head = isRecord(pull) && isRecord(pull.head) ? pull.head.sha : undefined;
+    if (
+      !isRecord(pull) ||
+      pull.number !== number ||
+      typeof head !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(head) ||
+      typeof pull.title !== "string" ||
+      !(typeof pull.body === "string" || pull.body === null)
+    )
+      throw new Error("Closing relationship inventory is incomplete");
+    return { head, title: pull.title, body: pull.body ?? "" };
+  };
+  const first = await readPull();
+  const pages: unknown[] = [];
+  for (let page = 1; page <= timelinePageLimit; page += 1) {
+    const { data: events } = await api.request({
+      method: "GET",
+      url: `https://api.github.com/repos/${repository}/issues/${number}/timeline?per_page=${timelinePageSize}&page=${page}`,
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
+    });
+    pages.push(events);
+    if (!Array.isArray(events) || events.length < timelinePageSize) break;
+  }
+  const relationships = restTimelineRelationships(first.body, repository, pages);
+  if (JSON.stringify(await readPull()) !== JSON.stringify(first))
+    throw new Error("Closing relationship inventory changed during pagination");
+  return closingObservation(first, relationships, "rest");
+}
+
+async function readClosingRelationshipsGraphql(
+  api: ClosingApi,
   repository: string,
   number: number,
 ) {
@@ -150,9 +264,5 @@ export async function readClosingRelationships(
     cursor = next;
   }
   if (!first || ids.size !== total) throw new Error("Closing relationship count is incomplete");
-  const observation = { ...first, relationships: [...targets].sort() };
-  return {
-    ...observation,
-    fingerprint: createHash("sha256").update(JSON.stringify(observation)).digest("hex"),
-  };
+  return closingObservation(first, [...targets], "graphql");
 }

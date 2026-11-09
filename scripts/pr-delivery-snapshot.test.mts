@@ -538,6 +538,59 @@ void test("complete direct closing observations never default missing relationsh
   );
 });
 
+void test("REST timeline closing observations are derived by the helper and fail closed", () => {
+  const rest = (closing: Record<string, unknown>, change: Record<string, unknown> = {}) => ({
+    ...closing,
+    method: "rest-timeline",
+    timeline_pages: [[{ event: "cross-referenced" }]],
+    ...change,
+  });
+  const snapshot = (change: Record<string, unknown> = {}) => {
+    const value = fixture();
+    return {
+      ...value,
+      closing_before: rest(value.closing_before, change),
+      closing_after: rest(value.closing_after, change),
+    };
+  };
+  const prepared = prepareMergeSnapshot(snapshot(), expected);
+  assert.deepEqual(prepared.closure_targets, [repository + "#123"]);
+  assert.equal(
+    prepared.closing_fingerprint,
+    prepareMergeSnapshot(fixture(), expected).closing_fingerprint,
+    "REST and directly observed inventories of the same candidate share one fingerprint",
+  );
+  assert.doesNotThrow(() =>
+    prepareMergeSnapshot(
+      snapshot({
+        timeline_pages: [Array.from({ length: 100 }, () => ({ event: "commented" })), []],
+      }),
+      expected,
+    ),
+  );
+  for (const [change, pattern] of [
+    [{ timeline_pages: [[{ event: "connected" }]] }, /manual Development link/],
+    [{ timeline_pages: [[], [{ event: "disconnected" }]] }, /incomplete/],
+    [
+      { timeline_pages: [Array.from({ length: 100 }, () => ({ event: "commented" }))] },
+      /incomplete/,
+    ],
+    [{ timeline_pages: undefined }, /incomplete/],
+    [{ timeline_pages: [["not an event"]] }, /incomplete/],
+    [{ relationships: [], total_count: 0 }, /differs from its raw REST timeline/],
+  ] as const)
+    assert.throws(() => prepareMergeSnapshot(snapshot(change), expected), pattern);
+  const value = fixture();
+  assert.throws(
+    () =>
+      prepareMergeSnapshot(
+        { ...value, closing_after: { ...value.closing_after, timeline_pages: [[]] } },
+        expected,
+      ),
+    /Only rest-timeline/,
+  );
+});
+
 void test("snapshot freshness covers start, completion, validation and both closing observations", () => {
   for (const change of [
     { started_at: "2026-10-22T19:58:59Z" },

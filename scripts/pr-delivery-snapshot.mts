@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
-import { checkClosureIntent } from "./closure-intent.mts";
+import { checkClosureIntent, restTimelineRelationships } from "./closure-intent.mts";
 import { commandFailure } from "./report-summary.mts";
 import type {
   DeliveryCheckRun,
@@ -457,7 +457,7 @@ function closing(
     item.title !== candidate.title ||
     item.body !== candidate.body ||
     typeof item.method !== "string" ||
-    !["graphql", "direct-ui-with-bracketing-rest"].includes(item.method) ||
+    !["graphql", "direct-ui-with-bracketing-rest", "rest-timeline"].includes(item.method) ||
     observed < interval.started ||
     observed > interval.completed ||
     !Array.isArray(item.relationships) ||
@@ -474,6 +474,13 @@ function closing(
     .sort();
   if (new Set(relationships).size !== relationships.length)
     throw new Error("Closing inventory contains duplicate relationships");
+  if (item.method === "rest-timeline") {
+    // The helper derives the REST inventory itself from the raw timeline pages.
+    const derived = restTimelineRelationships(candidate.body, repository, item.timeline_pages);
+    if (!same(derived, relationships))
+      throw new Error("Closing inventory differs from its raw REST timeline reconstruction");
+  } else if ("timeline_pages" in item)
+    throw new Error("Only rest-timeline closing inventories carry timeline pages");
   return { head: candidate.head.sha, title: candidate.title, body: candidate.body, relationships };
 }
 
