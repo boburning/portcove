@@ -42190,9 +42190,11 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
+      "external_profile_policy": "dune-dynasty-allegro-v1",
       "release": {
         "provider": "github",
         "repository": "gameflorist/dunedynasty",
@@ -42200,12 +42202,19 @@
           "windows-x86-64": [
             "dunedynasty-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dunedynasty-",
+            "-linux-x86-64.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "dunedynasty.exe"
+        ],
+        "linux-x86-64": [
+          "dunedynasty"
         ]
       },
       "persistent_paths": [],
@@ -42213,14 +42222,14 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Follow upstream’s FILELIST.TXT and place the original files in %APPDATA%/Dune Dynasty/data. Keep the managed game folder clear of original files and executable-side dunedynasty.cfg so the player uses the external profile. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The managed route covers Windows x86-64. Back up the external Dune Dynasty profile separately. Keep using an independent upstream copy for executable-side profiles and other packages. Real saves across versions remain unverified.",
+        "manual_preparation": "Follow upstream’s FILELIST.TXT. On Windows, place the original files in Dune Dynasty/data under your Windows roaming app-data folder, normally %APPDATA%. On Linux, place them in dunedynasty/data under your XDG data location, normally ~/.local/share. Settings and saves use the XDG config location, normally ~/.config/dunedynasty. Keep originals and dunedynasty.cfg outside the managed game folder. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The Linux x86-64 ZIP needs glibc 2.38, libstdc++ with GLIBCXX_3.4.32, and the upstream Allegro, ALSA, ENet, MAD and OpenGL libraries. Keep the packaged libs folder with the player. Back up the actual Dune Dynasty settings, saves and original data separately. Linux uses HOME to resolve relative XDG paths. Use an independent upstream copy for executable-side profiles. Real saves across versions remain unverified.",
         "original_game_title": "Dune II",
         "manual_setup": {
           "help_url": "https://github.com/gameflorist/dunedynasty/blob/v1.6.4/README.md#installation",
           "steps": [
             {
               "title": "Put your own European Dune II v1.07 PAKs in the personal data folder before Play",
-              "instruction": "Follow upstream’s FILELIST.TXT and place the original files in %APPDATA%/Dune Dynasty/data. Keep the managed game folder clear of original files and executable-side dunedynasty.cfg so the player uses the external profile."
+              "instruction": "Follow upstream’s FILELIST.TXT. On Windows, place the original files in Dune Dynasty/data under your Windows roaming app-data folder, normally %APPDATA%. On Linux, place them in dunedynasty/data under your XDG data location, normally ~/.local/share. Settings and saves use the XDG config location, normally ~/.config/dunedynasty. Keep originals and dunedynasty.cfg outside the managed game folder."
             },
             {
               "title": "Finish setup before registering a prepared copy",
@@ -42228,11 +42237,11 @@
             },
             {
               "title": "Set up an independent Linux ZIP or Flatpak",
-              "instruction": "Choose the regular x86-64 or ARM64 ZIP for your host, keep the complete extracted tree, start dunedynasty from its containing folder and use upstream’s Linux library requirements. The v1.6.4 regular ZIPs need glibc 2.38 and libstdc++ providing GLIBCXX_3.4.32. Copy your EU v1.07 PAKs into the working copy’s data folder or your personal Dune Dynasty data folder. For the Flatpak, install and start io.github.gameflorist.dunedynasty once to create its folders, then put the PAKs in ~/.var/app/io.github.gameflorist.dunedynasty/data/dunedynasty/data. Keep the sandbox profile and external backup separate from the regular ZIP."
+              "instruction": "Choose the regular x86-64 or ARM64 ZIP for your host, keep the complete extracted tree, start dunedynasty from its containing folder and use upstream’s Linux library requirements. The regular ZIPs need glibc 2.38 and libstdc++ providing GLIBCXX_3.4.32. Copy your EU v1.07 PAKs into the working copy’s data folder or your personal Dune Dynasty data folder. For the Flatpak, install and start io.github.gameflorist.dunedynasty once to create its folders, then put the PAKs in ~/.var/app/io.github.gameflorist.dunedynasty/data/dunedynasty/data. Keep the sandbox profile and external backup separate from the regular ZIP."
             },
             {
               "title": "Prepare the Mac app before opening it",
-              "instruction": "Choose the Intel or Apple Silicon ZIP from upstream. In Finder, use Show Package Contents and copy your EU v1.07 PAKs to Contents/Resources/data. The v1.6.4 bundle launcher checks for uppercase DUNE.PAK there before it starts the player. Keep the app intact and follow upstream’s first-open instructions under your Mac’s local policy. Back up the original files and the actual profile, normally ~/Library/Application Support/dunedynasty, before replacing the app. An existing bundle-side dunedynasty.cfg selects portable settings and saves."
+              "instruction": "Choose the Intel or Apple Silicon ZIP from upstream. In Finder, use Show Package Contents and copy your EU v1.07 PAKs to Contents/Resources/data. The bundle launcher checks for uppercase DUNE.PAK there before it starts the player. Keep the app intact and follow upstream’s first-open instructions under your Mac’s local policy. Back up the original files and the actual profile, normally ~/Library/Application Support/dunedynasty, before replacing the app. An existing bundle-side dunedynasty.cfg selects portable settings and saves."
             },
             {
               "title": "Select the prepared Windows player",
@@ -42244,8 +42253,9 @@
             "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
             "Do not create an executable-side config merely to register the game. Preserve that whole actual profile, its save directory, configuration, original data, custom campaigns/music and the old creating runtime before replacement. Original-format save reading is not a promise that every newer save works in an older engine.",
             "Linux and Mac screenshots and the save directory belong to the profile containing the active dunedynasty.cfg. On a regular Linux build, that is normally ~/.config/dunedynasty unless an executable-side config already selects a portable profile. Back up the actual config, save folder and original-data folder. The Flatpak has a separate sandbox profile.",
-            "Upstream and the player own the sibling runtimes and their profiles. Keep the actual data and configuration paths backed up, especially if your environment redirects HOME or the XDG paths.",
-            "The managed route covers Windows x86-64. Back up the external Dune Dynasty profile separately. Keep using an independent upstream copy for executable-side profiles and other packages. Real saves across versions remain unverified."
+            "Upstream and the player maintain independent copies and their profiles. Back up the actual data and configuration paths, especially if your environment redirects HOME or the XDG paths.",
+            "The Linux x86-64 ZIP needs glibc 2.38, libstdc++ with GLIBCXX_3.4.32, and the upstream Allegro, ALSA, ENet, MAD and OpenGL libraries. Keep the packaged libs folder with the player.",
+            "Back up the actual Dune Dynasty settings, saves and original data separately. Linux uses HOME to resolve relative XDG paths. Use an independent upstream copy for executable-side profiles. Real saves across versions remain unverified."
           ],
           "references": [
             {
@@ -43177,21 +43187,36 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
       ],
       "adapter": "native-portable",
+      "external_profile_policy": "fheroes2-v1",
       "release": {
         "provider": "github",
         "repository": "ihhub/fheroes2",
         "asset_hints": {
           "windows-x86-64": [
             "fheroes2_windows_x64_SDL2.zip"
+          ],
+          "linux-x86-64": [
+            "fheroes2_ubuntu_x86-64_SDL2.zip"
+          ],
+          "macos-x86-64": [
+            "fheroes2_macos_x86-64_SDL2.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "fheroes2.exe"
+        ],
+        "linux-x86-64": [
+          "fheroes2"
+        ],
+        "macos-x86-64": [
+          "fheroes2"
         ]
       },
       "persistent_paths": [],
@@ -43199,14 +43224,14 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Create %HOME%/.fheroes2 if HOME points to an absolute personal folder, or %APPDATA%/fheroes2 if HOME is unset and APPDATA points to an absolute personal folder. Use a separately prepared copy if neither applies. Copy ANIM, DATA, MAPS and MUSIC from your own supported Heroes of Might and Magic II installation when present. Keep the directories and original files together. Use the same Windows account and environment for setup and Play. Keep originals out of the managed game folder. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The Windows x64 ZIP may need the Microsoft Visual C++ x64 Redistributable linked by upstream. Portcove runs no bundled resource, demo or prerequisite installer. Keep a separate backup of the actual external fheroes2 profile, including files/save, settings and custom maps. Use a separately prepared copy for custom profile or resource locations. Real save compatibility across versions remains unverified.",
+        "manual_preparation": "Copy your own supported Heroes II ANIM, DATA, MAPS and MUSIC directories when present. Use HOME/.fheroes2 on Windows or Intel Mac, or APPDATA/fheroes2 on Windows when HOME is unset. On Linux, use XDG_DATA_HOME/fheroes2 or ~/.local/share/fheroes2. Use absolute personal profile locations outside the managed game folder and the same account and environment for setup and Play. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The Windows x64 ZIP may need the Microsoft Visual C++ x64 Redistributable linked by upstream. Portcove runs no bundled resource, demo or prerequisite installer. The Linux x86-64 ZIP needs SDL2, SDL2_image, SDL2_mixer, zlib, glibc 2.35 and libstdc++ with GLIBCXX_3.4.30. Intel Mac requires macOS 10.15 or later and matching Intel SDL2 compatibility, SDL2_image, SDL2_mixer and libpng at the upstream /usr/local/opt paths. Keep a separate backup of the actual external fheroes2 profile, including files/save, settings and custom maps. Use a separately prepared copy for custom profile or resource locations. Real save compatibility across versions remains unverified.",
         "original_game_title": "Heroes of Might and Magic II",
         "manual_setup": {
           "help_url": "https://github.com/ihhub/fheroes2/tree/2685c2188b541660f1ce261b554c3e92f79b1775",
           "steps": [
             {
               "title": "Copy your Heroes II resources to the personal fheroes2 folder before Play",
-              "instruction": "Create %HOME%/.fheroes2 if HOME points to an absolute personal folder, or %APPDATA%/fheroes2 if HOME is unset and APPDATA points to an absolute personal folder. Use a separately prepared copy if neither applies. Copy ANIM, DATA, MAPS and MUSIC from your own supported Heroes of Might and Magic II installation when present. Keep the directories and original files together. Use the same Windows account and environment for setup and Play. Keep originals out of the managed game folder."
+              "instruction": "Copy your own supported Heroes II ANIM, DATA, MAPS and MUSIC directories when present. Use HOME/.fheroes2 on Windows or Intel Mac, or APPDATA/fheroes2 on Windows when HOME is unset. On Linux, use XDG_DATA_HOME/fheroes2 or ~/.local/share/fheroes2. Use absolute personal profile locations outside the managed game folder and the same account and environment for setup and Play."
             },
             {
               "title": "Finish and back up the prepared Windows copy",
@@ -43214,7 +43239,7 @@
             },
             {
               "title": "Choose an independent Linux or Mac package",
-              "instruction": "For a separate Linux x86-64 or ARM64 ZIP, keep the complete archive contents in a permanent folder and use upstream’s extraction script or manually copy your own ANIM, DATA, MAPS and MUSIC when present. Start fheroes2 from its folder. The 1.1.17 Linux ZIPs need SDL2, SDL2_image, SDL2_mixer, zlib, glibc 2.35 and libstdc++ providing GLIBCXX_3.4.30. Flathub’s io.github.ihhub.Fheroes2 uses its own first-start import and sandbox profile. On Apple Silicon, use the native Homebrew or MacPorts route and upstream’s fheroes2-extract-resources tool. For the Intel Mac ZIP, follow upstream’s SDL library setup. The 1.1.17 binary needs macOS 10.15 or later and matching Intel SDL2 compatibility, SDL2_image, SDL2_mixer and libpng at its /usr/local/opt paths. Standalone Mac builds use ~/.fheroes2 with an ordinary HOME; source-built Mac app bundles use separate Library/Preferences and Library/Application Support profiles. Keep the actual profile and the package that created it."
+              "instruction": "For a separate Linux x86-64 or ARM64 ZIP, keep the complete archive contents in a permanent folder and use upstream’s extraction script or manually copy your own ANIM, DATA, MAPS and MUSIC when present. Start fheroes2 from its folder. The Linux ZIPs need SDL2, SDL2_image, SDL2_mixer, zlib, glibc 2.35 and libstdc++ providing GLIBCXX_3.4.30. Flathub’s io.github.ihhub.Fheroes2 uses its own first-start import and sandbox profile. On Apple Silicon, use the native Homebrew or MacPorts route and upstream’s fheroes2-extract-resources tool. For the Intel Mac ZIP, follow upstream’s SDL library setup. The Intel binary needs macOS 10.15 or later and matching Intel SDL2 compatibility, SDL2_image, SDL2_mixer and libpng at its /usr/local/opt paths. Standalone Mac builds use ~/.fheroes2 with an ordinary HOME; source-built Mac app bundles use separate Library/Preferences and Library/Application Support profiles. Keep the actual profile and the package that created it."
             },
             {
               "title": "Import your originals with the Android Toolset",
@@ -43230,6 +43255,7 @@
             "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
             "Back up the actual upstream profile before replacing the runtime. The Linux ZIP normally uses ~/.config/fheroes2 for settings and ~/.local/share/fheroes2 for data, including files/save and custom maps. If you set XDG_CONFIG_HOME or XDG_DATA_HOME, preserve those actual locations and use absolute paths outside the runtime folder. Flatpak, Mac and Android keep their own profiles.",
             "The Windows x64 ZIP may need the Microsoft Visual C++ x64 Redistributable linked by upstream. Portcove runs no bundled resource, demo or prerequisite installer.",
+            "The Linux x86-64 ZIP needs SDL2, SDL2_image, SDL2_mixer, zlib, glibc 2.35 and libstdc++ with GLIBCXX_3.4.30. Intel Mac requires macOS 10.15 or later and matching Intel SDL2 compatibility, SDL2_image, SDL2_mixer and libpng at the upstream /usr/local/opt paths.",
             "Keep a separate backup of the actual external fheroes2 profile, including files/save, settings and custom maps. Use a separately prepared copy for custom profile or resource locations. Real save compatibility across versions remains unverified."
           ],
           "references": [

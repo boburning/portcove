@@ -1,6 +1,5 @@
 //! Read-only recognition of closed shared write scopes. Never creates or owns them.
 use crate::runtime_path_policy::require_narrow_windows_path;
-#[cfg(any(windows, test))]
 use std::fs;
 use std::path::Path;
 
@@ -263,16 +262,7 @@ fn resolve(
 }
 
 #[cfg(windows)]
-fn resolve(
-    contract: PreparedSharedPreferencesContract,
-    runtime_root: &Path,
-    require_saves: bool,
-    save_identifier: &str,
-) -> Result<SharedPreferencesReview> {
-    if contract == PreparedSharedPreferencesContract::Smb1r11Windows {
-        return smb1r::resolve();
-    }
-    use crate::AcceptedSharedPreferencesBinding;
+pub(crate) fn roaming_directory() -> Result<PathBuf> {
     use std::{ffi::OsString, os::windows::ffi::OsStringExt};
     use windows_sys::Win32::UI::Shell::{CSIDL_APPDATA, SHGFP_TYPE_CURRENT, SHGetFolderPathW};
     let mut buffer = [0_u16; 260];
@@ -299,7 +289,21 @@ fn resolve(
     if end == 0 {
         return Err(PortcoveError::verification("empty roaming directory"));
     }
-    let raw = std::path::PathBuf::from(OsString::from_wide(&buffer[..end]));
+    Ok(PathBuf::from(OsString::from_wide(&buffer[..end])))
+}
+
+#[cfg(windows)]
+fn resolve(
+    contract: PreparedSharedPreferencesContract,
+    runtime_root: &Path,
+    require_saves: bool,
+    save_identifier: &str,
+) -> Result<SharedPreferencesReview> {
+    if contract == PreparedSharedPreferencesContract::Smb1r11Windows {
+        return smb1r::resolve();
+    }
+    use crate::AcceptedSharedPreferencesBinding;
+    let raw = roaming_directory()?;
     // This final-file bound is stricter than SDL's organization/application
     // directory bound and also leaves the terminating NUL inside MAX_PATH.
     require_narrow_windows_path(&raw, "\\gbrecompiled\\runtime\\runtime_prefs.ini")?;
@@ -341,7 +345,6 @@ fn resolve(
 
 /// Missing game-owned components are allowed. Every existing ancestor is checked
 /// without following a reparse leaf; the preference file must be single-link.
-#[cfg(any(windows, test))]
 fn check_path(path: &Path, directory: bool) -> Result<bool> {
     let mut present = false;
     for (index, candidate) in path.ancestors().enumerate() {
@@ -381,6 +384,48 @@ fn check_path(path: &Path, directory: bool) -> Result<bool> {
         }
     }
     Ok(present)
+}
+
+/// Inspect a bounded profile tree without following aliases or reading file
+/// contents. The caller may also validate its own existing entry contract.
+pub(crate) fn check_bounded_tree(
+    root: &Path,
+    label: &str,
+    mut check_entry: impl FnMut(&Path, bool) -> Result<()>,
+) -> Result<()> {
+    if !check_path(root, true)? {
+        return Ok(());
+    }
+    let mut pending = vec![(root.to_path_buf(), 0_usize)];
+    let mut entries = 0_usize;
+    while let Some((directory, depth)) = pending.pop() {
+        if depth >= 32 || !check_path(&directory, true)? {
+            return Err(PortcoveError::verification(format!(
+                "{label} changed or exceeds its metadata depth budget"
+            )));
+        }
+        for entry in fs::read_dir(&directory)? {
+            entries += 1;
+            if entries > 65_536 {
+                return Err(PortcoveError::verification(format!(
+                    "{label} exceeds its metadata entry budget"
+                )));
+            }
+            let entry = entry?;
+            let path = entry.path();
+            let directory = entry.file_type()?.is_dir();
+            check_entry(&path, directory)?;
+            if !check_path(&path, directory)? {
+                return Err(PortcoveError::verification(format!(
+                    "{label} changed during metadata inspection"
+                )));
+            }
+            if directory {
+                pending.push((path, depth + 1));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(windows)]
