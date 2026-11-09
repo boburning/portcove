@@ -209,10 +209,16 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
       ![
         "max_lanes,request_id,wall_seconds",
         "max_lanes,request_id,retry_stop_sha256,wall_seconds",
+        "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,request_id,retry_stop_sha256,wall_seconds",
       ].includes(Object.keys(partition).sort().join(",")) ||
       ("retry_stop_sha256" in partition &&
         (typeof partition.retry_stop_sha256 !== "string" ||
           !/^[a-f0-9]{64}$/u.test(partition.retry_stop_sha256))) ||
+      ("continuation_stop_sha256" in partition &&
+        (typeof partition.continuation_stop_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256) ||
+          typeof partition.continuation_prefix_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.continuation_prefix_sha256))) ||
       typeof partition.request_id !== "string" ||
       !/^[a-f0-9]{64}$/u.test(partition.request_id) ||
       typeof partition.max_lanes !== "number" ||
@@ -270,6 +276,11 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
             ...(typeof partition.retry_stop_sha256 === "string" && {
               retry_stop_sha256: partition.retry_stop_sha256,
             }),
+            ...(typeof partition.continuation_stop_sha256 === "string" &&
+              typeof partition.continuation_prefix_sha256 === "string" && {
+                continuation_stop_sha256: partition.continuation_stop_sha256,
+                continuation_prefix_sha256: partition.continuation_prefix_sha256,
+              }),
           },
         }
       : {}),
@@ -638,7 +649,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   );
   const requestDirectory = path.join(config.output_parent, `request-${request.request_id}`);
   const existingLocators: string[] = [];
-  for (let index = 0; index < (selected.purpose === "application" ? 4 : 3); index++) {
+  for (let index = 0; index < (selected.purpose === "application" ? 5 : 3); index++) {
     const directory = path.join(requestDirectory, `technical-${index}`);
     try {
       await lstat(path.join(directory, "expected-check.json"));
@@ -738,6 +749,30 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   // An original POST locator selects GET-only reconciliation even when the
   // provider has not yet exposed a matching Check. Never infer no remote effect.
   if (existingLocators.length) throw new Error("original Check POST requires readback; no repeat");
+  const resumePrefix =
+    partitionScope?.continuation_prefix_sha256 && partitionScope.continuation_stop_sha256
+      ? {
+          previous_attempt: path.join(requestDirectory, "technical-3"),
+          stop_sha256: partitionScope.continuation_stop_sha256,
+          manifest_path: path.join(
+            path.dirname(configurationPath),
+            "application-proposal-prefix.json",
+          ),
+          sha256: partitionScope.continuation_prefix_sha256,
+        }
+      : undefined;
+  if (resumePrefix) {
+    await requirePrivateOwnerPath(resumePrefix.manifest_path, true);
+    if (((await lstat(resumePrefix.manifest_path)).mode & 0o777) !== 0o600)
+      throw new Error("semantic continuation prefix manifest must use mode 0600");
+    const manifest = await readBoundedPublicBuildInputFile(
+      path.dirname(resumePrefix.manifest_path),
+      path.basename(resumePrefix.manifest_path),
+      256 * 1024,
+    );
+    if (digest(manifest) !== resumePrefix.sha256)
+      throw new Error("semantic continuation prefix differs from its setup appointment");
+  }
   const catalogRecovered =
     selected.purpose === "catalog"
       ? await recoverRemoteCoordinator(directory, namespace, { transport })
@@ -781,6 +816,9 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
           max_lanes: partitionScope.max_lanes,
           ...(partitionScope.retry_stop_sha256 && {
             retry_stop_sha256: partitionScope.retry_stop_sha256,
+          }),
+          ...(partitionScope.continuation_stop_sha256 && {
+            continuation_stop_sha256: partitionScope.continuation_stop_sha256,
           }),
         },
       );
@@ -875,6 +913,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
                 request: partitionRequest,
                 max_lanes: partitionScope.max_lanes,
                 deadline: partitionDeadline!,
+                ...(resumePrefix && { resume_prefix: resumePrefix }),
               },
             }
           : {}),

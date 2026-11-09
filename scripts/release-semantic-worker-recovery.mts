@@ -257,12 +257,17 @@ async function settleRetainedInvocation(
   return inspectSemanticTechnicalRecovery(isolation, properties);
 }
 
-/** A supplemental application attempt requires an appointed third stop digest.
+/** Each supplemental application attempt requires its appointed prior stop.
  * State loss, incomplete evidence and possible POST effects refuse replay. */
 export async function claimSemanticTechnicalAttempt(
   requestDirectory: string,
   systemctlSha256: string,
-  partition?: { request_id: string; max_lanes: number; retry_stop_sha256?: string },
+  partition?: {
+    request_id: string;
+    max_lanes: number;
+    retry_stop_sha256?: string;
+    continuation_stop_sha256?: string;
+  },
 ) {
   if (
     partition &&
@@ -272,11 +277,14 @@ export async function claimSemanticTechnicalAttempt(
       partition.max_lanes < 1 ||
       partition.max_lanes > 512 ||
       (partition.retry_stop_sha256 !== undefined &&
-        !/^[a-f0-9]{64}$/u.test(partition.retry_stop_sha256)))
+        !/^[a-f0-9]{64}$/u.test(partition.retry_stop_sha256)) ||
+      (partition.continuation_stop_sha256 !== undefined &&
+        (partition.retry_stop_sha256 === undefined ||
+          !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256))))
   )
     throw new Error("retained semantic partition scope differs");
   const entries = await readdir(requestDirectory);
-  const runs = entries.filter((name) => /^technical-[0-3]$/u.test(name)).sort();
+  const runs = entries.filter((name) => /^technical-[0-9]+$/u.test(name)).sort();
   const anchor = path.join(
     path.dirname(requestDirectory),
     `${path.basename(requestDirectory)}.attempts.jsonl`,
@@ -292,10 +300,11 @@ export async function claimSemanticTechnicalAttempt(
   }
   if (JSON.stringify(anchored) !== JSON.stringify(runs))
     throw new Error("semantic attempt custody missing or contradictory; no counter reset");
-  if (runs.length >= (partition?.retry_stop_sha256 ? 4 : 3))
-    throw new Error("semantic technical retry budget exhausted");
-  if (partition?.retry_stop_sha256 && runs.length !== 3)
-    throw new Error("supplemental application attempt requires three original claims");
+  const originalClaims = partition?.continuation_stop_sha256 ? 4 : 3;
+  const maximumClaims = partition?.retry_stop_sha256 ? originalClaims + 1 : 3;
+  if (runs.length >= maximumClaims) throw new Error("semantic technical retry budget exhausted");
+  if (partition?.retry_stop_sha256 && runs.length !== originalClaims)
+    throw new Error(`supplemental application attempt requires ${originalClaims} original claims`);
   if (runs.some((name, index) => name !== `technical-${index}`))
     throw new Error("semantic technical attempt custody has a gap");
   for (const name of runs) {
@@ -311,19 +320,19 @@ export async function claimSemanticTechnicalAttempt(
       "technical-stop.json",
       partition ? 1024 * 1024 : 128 * 1024,
     );
-    if (
-      name === "technical-2" &&
-      partition?.retry_stop_sha256 &&
-      createHash("sha256").update(stopBytes).digest("hex") !== partition.retry_stop_sha256
-    )
+    const appointedStop =
+      name === "technical-2"
+        ? partition?.retry_stop_sha256
+        : name === "technical-3"
+          ? partition?.continuation_stop_sha256
+          : undefined;
+    if (appointedStop && createHash("sha256").update(stopBytes).digest("hex") !== appointedStop)
       throw new Error("original supplemental application stop differs from its appointment");
     const stopped: unknown = JSON.parse(stopBytes.toString("utf8"));
     if (
       !isRecord(stopped) ||
       stopped.outcome !== "technical-failure" ||
-      (name === "technical-2" &&
-        partition?.retry_stop_sha256 &&
-        stopped.application_partition_request_id !== partition.request_id) ||
+      (appointedStop && stopped.application_partition_request_id !== partition?.request_id) ||
       !Array.isArray(stopped.invocations) ||
       (stopped.application_partition_request_id !== undefined &&
         stopped.application_partition_request_id !== partition?.request_id) ||
@@ -331,7 +340,7 @@ export async function claimSemanticTechnicalAttempt(
         (partition && stopped.application_partition_request_id ? 2 * (partition.max_lanes + 1) : 2)
     )
       throw new Error("previous technical attempt is live, incomplete or ambiguous");
-    if (name === "technical-2" && partition?.retry_stop_sha256) {
+    if (appointedStop || partition?.continuation_stop_sha256) {
       const retained = (await readdir(root)).filter((entry) => entry.startsWith("r-")).sort();
       const located = stopped.invocations
         .map((invocation: unknown) => {

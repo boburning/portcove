@@ -88,7 +88,7 @@ def decode_json(data):
         raise Refusal("invalid bounded UTF8 JSON") from error
 
 
-def read_regular(path, limit, owner=None):
+def read_regular(path, limit, owner=None, *, exact_size=True):
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     fd = os.open(path, flags)
     try:
@@ -108,6 +108,7 @@ def read_regular(path, limit, owner=None):
             require(total <= limit, "file grew beyond bound")
             chunks.append(chunk)
         after = os.fstat(fd)
+        require(not exact_size or total == before.st_size, "bounded read did not match observed file size")
         require(
             (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
             == (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns),
@@ -287,7 +288,7 @@ def runtime_directory(request, root):
         return root / "runtime"
     require(
         re.fullmatch(r"r-[A-Za-z0-9_-]+", root.name)
-        and re.fullmatch(r"technical-[0-3]", root.parent.name)
+        and re.fullmatch(r"technical-[0-4]", root.parent.name)
         and re.fullmatch(r"request-[a-f0-9]{64}", root.parent.parent.name)
         and not os.path.lexists(root / "runtime"),
         "shared runtime requires a fresh lane in the original review attempt",
@@ -1166,7 +1167,7 @@ def inside(mode):
         os.getcwd() == "/w" and os.environ.get("CODEX_HOME") == "/w/home/.codex",
         "fixed private entry environment differs",
     )
-    writable = inspect_mounts(read_regular("/proc/self/mountinfo", MIB).decode("ascii"))
+    writable = inspect_mounts(read_regular("/proc/self/mountinfo", MIB, exact_size=False).decode("ascii"))
     for name in ("home", "home/.codex", "home/.cache", "home/.config", "home/.local/share", "work", "tmp", "run"):
         Path("/w", name).mkdir(mode=0o700, parents=True, exist_ok=True)
     peer = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
@@ -1371,7 +1372,7 @@ def supervise(request):
                     and all(value != namespace_identity()[name] for name, value in actual.items()),
                     "actual private namespaces differ",
                 )
-                mount_bytes = read_regular(f"/proc/{pid}/mountinfo", MIB)
+                mount_bytes = read_regular(f"/proc/{pid}/mountinfo", MIB, exact_size=False)
                 require(
                     inspect_mounts(mount_bytes.decode("ascii")) == packet["writable_mounts"],
                     "actual writable mount inventory differs",
@@ -1474,7 +1475,11 @@ def supervise(request):
                     if section == "runtime" and owner is not None
                     else read_regular(root / name, 288 * MIB)
                 ).hexdigest()
-                require(observed_digest == digest, "frozen runtime/input changed during attempt")
+                # Only fixed names or a generic object category enter the refusal.
+                fixed = {"manifest.json", "instructions.txt", "reader-index.json",
+                         "reader-launch.json", "result-schema.json"}
+                member = name if section == "runtime" or filename in fixed else "inputs/object"
+                require(observed_digest == digest, f"frozen runtime/input changed during attempt: {member}")
             if request["mode"] == "codex" and result["failure"] is None:
                 require(
                     auth_refresh_allowed(result, auth_descriptors),

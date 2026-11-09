@@ -96,7 +96,7 @@ void test("persistent technical exclusion resumes pre-launch failure twice, reta
   await assert.rejects(claimSemanticTechnicalAttempt(another, "a".repeat(64)), /GET-only/);
 });
 
-void test("one supplemental application claim requires the exact third stop and preserves its anchor", async (t) => {
+void test("supplemental application claims require exact prior stops and preserve the original anchor", async (t) => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "semantic-supplemental-"));
   t.after(() => rm(parent, { recursive: true, force: true }));
   const requestId = "b".repeat(64);
@@ -121,6 +121,13 @@ void test("one supplemental application claim requires the exact third stop and 
     /stop differs/,
   );
   scope.retry_stop_sha256 = createHash("sha256").update(stop).digest("hex");
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      ...scope,
+      continuation_stop_sha256: "d".repeat(64),
+    }),
+    /requires 4 original claims/,
+  );
   const orphan = path.join(request, "technical-2", "r-unlisted");
   await mkdir(orphan);
   await assert.rejects(
@@ -136,6 +143,50 @@ void test("one supplemental application claim requires the exact third stop and 
   );
   await assert.rejects(
     claimSemanticTechnicalAttempt(request, "a".repeat(64), scope),
+    /budget exhausted/,
+  );
+
+  const continuationStop = stop + "\n";
+  const continuation = {
+    ...scope,
+    continuation_stop_sha256: createHash("sha256").update(continuationStop).digest("hex"),
+  };
+  const nextStop = path.join(next, "technical-stop.json");
+  await writeFile(nextStop, stop);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /stop differs/,
+  );
+  await writeFile(nextStop, continuationStop);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      ...continuation,
+      retry_stop_sha256: "d".repeat(64),
+    }),
+    /stop differs/,
+  );
+  await mkdir(path.join(next, "r-unlisted"));
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /inventory differs/,
+  );
+  await rm(path.join(next, "r-unlisted"), { recursive: true });
+  await writeFile(path.join(next, "expected-check.json"), "original");
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /GET-only/,
+  );
+  await rm(path.join(next, "expected-check.json"));
+  assert.equal(
+    path.basename(await claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation)),
+    "technical-4",
+  );
+  assert.equal(
+    await readFile(`${request}.attempts.jsonl`, "utf8"),
+    "technical-0\ntechnical-1\ntechnical-2\ntechnical-3\ntechnical-4\n",
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
     /budget exhausted/,
   );
 });
@@ -337,11 +388,27 @@ void test("worker setup excludes supplied outcomes/backends and separates the fi
     ).service,
     /TimeoutStartSec=172800/u,
   );
+  const continuation = {
+    ...partition,
+    retry_stop_sha256: "b".repeat(64),
+    continuation_stop_sha256: "c".repeat(64),
+    continuation_prefix_sha256: "d".repeat(64),
+  };
+  assert.deepEqual(
+    inspectSemanticWorkerConfiguration({ ...raw, application_partition: continuation })
+      .application_partition,
+    continuation,
+  );
   for (const invalid of [
     null,
     { ...partition, request_id: "latest" },
     { ...partition, max_lanes: 513 },
     { ...partition, wall_seconds: 259201 },
+    { ...partition, continuation_stop_sha256: "c".repeat(64) },
+    { ...partition, continuation_prefix_sha256: "d".repeat(64) },
+    { ...continuation, retry_stop_sha256: undefined },
+    { ...continuation, continuation_stop_sha256: 1 },
+    { ...continuation, continuation_prefix_sha256: "invalid" },
     { ...partition, decision: "accepted" },
   ])
     assert.throws(() =>
