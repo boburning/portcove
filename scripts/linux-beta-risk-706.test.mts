@@ -22,7 +22,7 @@ import {
 } from "./linux-beta-risk-706.mts";
 
 import { createHash } from "node:crypto";
-import { parseDependencyScan } from "./dependency-security.mts";
+import { parseDependencyScan, reviewedCargoDenyVersion } from "./dependency-security.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 
 const scannerPolicy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
@@ -292,7 +292,7 @@ function input() {
       sourceConfigSha256: approval.policySha256,
       sourceConfig: scannerPolicy,
       executionConfig: scannerPolicy,
-      toolVersion: "cargo-deny 0.20.2",
+      toolVersion: `cargo-deny ${reviewedCargoDenyVersion}`,
       scope: "workspace-default-all-targets-all-checks",
       stdout: "",
       stderr: output(),
@@ -751,7 +751,7 @@ void test("execution failure, wrong candidate, green/incomplete coverage and ext
       x.scan.configSha256 = "f".repeat(64);
     },
     (x) => {
-      x.scan.toolVersion = "cargo-deny 0.20.3";
+      x.scan.toolVersion = `cargo-deny ${reviewedCargoDenyVersion}-unreviewed`;
     },
     (x) => {
       x.scan.head = "e".repeat(40);

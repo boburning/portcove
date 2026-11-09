@@ -1406,8 +1406,13 @@ both checksum switches enabled. Duplicate keys, multiple documents, aliases,
 unknown tags and additional authority fields are refused; publisher-digest and
 checksum inventory verification remain separate and unchanged.
 
-When an Aqua-managed package version changes in `aqua.yaml`, run
-`just aqua-integrity-update` before validation. The fixed-purpose updater invokes
+When an Aqua-managed package version changes in `aqua.yaml`, or `.aqua-version`
+changes, run `just aqua-integrity-update` before validation. It first refreshes
+the `.config/tool-bootstrap.json` Aqua version, asset ids, sizes and SHA-256
+values from the publisher release for `.aqua-version`, refreshing only fields
+already recorded, so it needs no previously installed matching Aqua. The
+`--check` mode rejects a bootstrap identity that names another version. The
+fixed-purpose updater then invokes
 the pinned Aqua `update-checksum --prune` command against isolated staged copies,
 requires the exact maintained Windows, Linux, Intel macOS and Apple-silicon macOS
 asset inventory, and compares every generated package checksum with the matching
@@ -1426,6 +1431,41 @@ qualification group. Renovate does not independently advance the standard
 registry ref: if an actual tool update is unavailable in the pinned registry, or
 a compatibility, integrity, or security repair requires a registry change,
 advance that ref in the same reviewed change and run the integrity updater above.
+
+### Pin authority and Renovate proposals
+
+Each tool version has one canonical file that Renovate updates: `.node-version`,
+`package.json` `packageManager`, `rust-toolchain.toml` and
+`.github/quality-tools.json` (Rust quality tools and channel), `.aqua-version`,
+`aqua.yaml` and the reviewed `taiki-e/install-action` digest in CI. Consumers
+read those files rather than repeating versions. `node scripts/quality-tools.mts
+--validate` rejects a repeated quality-tool version in a governed consumer,
+including the cloud bootstrap.
+
+Bundled release code that cannot read repository files at runtime keeps a static
+copy only where `mirroredPins` in `scripts/quality-tools.mts` declares it. Each
+mirror has a Renovate regex manager for the same dependency, so the copy changes
+in the same proposal, and validation names any mirror that differs. Tests take
+versions from the manifest or the mirrored constant instead of literals, so a
+version-only proposal needs no test edits. Derived integrity data cannot come
+from Renovate itself. The `Renovate derived data repair` workflow runs on
+Renovate's own `aqua.yaml` or `.aqua-version` proposals. A read-only job refreshes
+the Aqua identity (`aqua-integrity.mts --update-bootstrap`), installs that pinned
+Aqua and regenerates `aqua-checksums.json` from publisher digests; because it runs
+the newly pinned, unreviewed Aqua, it never receives a write credential. A
+separate job runs no repository or Aqua code: it accepts exactly the two derived
+JSON files and pushes them with a dedicated GitHub App token, only if the branch
+still points at the regenerated head, so required CI runs on the repaired head.
+It ignores other authors, re-runs by others and its own pushes, and Renovate
+ignores its commit author (`gitIgnoredAuthors`). Until the App exists it changes nothing
+and its summary names `just aqua-integrity-update`, which the aqua-group proposal
+note also gives for manual repair.
+
+To enable it, the owner creates a GitHub App installed only on this repository
+with Contents read and write permission and no other permissions or events, saves
+its app ID as the repository variable `PORTCOVE_RENOVATE_REPAIR_APP_ID` and a
+private key as the secret `PORTCOVE_RENOVATE_REPAIR_APP_PRIVATE_KEY`. Branch
+protection that restricts pushes to `renovate/*` must allow that App.
 
 Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. Checkouts share an
 Aqua root when `.aqua-version`, `aqua.yaml`, `aqua-checksums.json` and the Aqua
@@ -1686,6 +1726,11 @@ Codex starts `run` with `tty:true` and keeps its returned session open through
 explicit `finish`; a noninteractive launch is refused before Git or API work.
 The runner retains provider-capacity probes and performs at most one semantic
 inventory reconciliation while preserving the original failure and retry limits.
+
+Claude Code discovers skills under `.claude/skills`. Each entry there mirrors one
+canonical skill's name and description and only routes to its `.agents/skills`
+file; `scripts/repository-skills.test.mts` requires the two sets to match. Change
+the canonical skill, then copy any changed trigger text to its pointer.
 
 The reusable Windows diagnostics skill is installed in the user's Codex skill
 directory and can be used outside Portcove. Keep a repository skill focused:
@@ -3212,6 +3257,86 @@ raw scanner status. `just audit` includes the scanner and development decision;
 no special risk flag is required. The known GLib error stays visible and remains
 a raw failed scan. Release expiry, tags, inventories and native source review
 belong exclusively to Linux release authorization; see [QUALITY](QUALITY.md).
+
+## Cloud agent sessions
+
+Disposable Linux x86_64 cloud containers, such as Claude Code cloud sessions,
+provision with `bash scripts/bootstrap-cloud-session.sh` from the checkout. It
+carries no versions of its own: Node comes from `.node-version` and the official
+`SHASUMS256.txt`, pnpm from `packageManager`, Rust from `rust-toolchain.toml`,
+required prebuilt Rust tools from `.github/quality-tools.json` checked against the
+install-action manifests at the digest CI reviews, Aqua from
+`.config/tool-bootstrap.json`, and remaining work from the existing bootstrap,
+browser and Linux desktop prerequisite commands. A cloud environment's setup
+script should only call it, so Renovate proposals never leave the environment
+behind. Each step reports separately, and the script exits 1 if any step failed;
+because the known limits below fail their steps, the setup script should report
+that status instead of stopping session start.
+
+A container starts with an empty `~/.portcove/resources` domain. When no
+`config.json` exists, the bootstrap runs the existing `retire-legacy-entrypoints`
+cutover, which verifies an empty domain before selecting coordinated admission.
+It never changes an existing configuration. Without it, every capacity-aware
+command waits for the full admission budget and then fails.
+
+The environment must allow `cdn.playwright.dev` and
+`playwright.download.prss.microsoft.com` for the pinned Chromium shell; package
+registries, `nodejs.org`, `raw.githubusercontent.com` and GitHub release downloads
+are otherwise sufficient. `browser:bootstrap` stops after a finite deadline and
+names those hosts instead of waiting silently. Browser tests honor an inherited
+`PLAYWRIGHT_BROWSERS_PATH`; an image that presets it to its own browsers must
+point it at the checkout's `work/browser-cache` in the environment settings, or
+browser projects look for a revision that the bootstrap did not install there.
+The bootstrap also installs the PowerShell version and SHA-256 pinned in
+`tools/containers/build/Dockerfile`, fetches complete Git history for a shallow
+clone, and builds `rscheck-cli` from the original archived crates in
+`vendor/rscheck`, which the installer verifies against its pinned checksums
+before any mirror is tried.
+
+Release and native fixtures deliberately refuse root, Node processes that trust
+an egress proxy's injected CA settings (`NODE_OPTIONS=--use-openssl-ca`,
+`NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`), inputs another user can write, and
+fixture commits altered by a global commit-signing configuration. Run offline
+Node and repository-tool validation as `bash scripts/cloud-test.sh <command>`.
+It refreshes a private copy of the working tree owned by the unprivileged
+`portcove-test` identity, which the bootstrap creates with its own resource
+domain and a neutral Git identity, and runs the command there with a minimal
+environment. It changes no fixture, policy or checkout permission. The command
+has no network or proxy access and shares installed dependencies and the browser
+cache read-only, so run Rust, cargo and networked commands directly; the
+repository-tool test that spawns `cargo` therefore fails under the wrapper.
+
+Known cloud limits remain visible in `just doctor`:
+
+- Ruff and actionlint need GitHub artifact attestation through the upstream
+  attestation API. Sessions whose GitHub access is limited to this repository
+  cannot reach that API, so Aqua refuses them; ShellCheck installs normally.
+  Checksum-only Aqua installation is not offered: their lint runs in hosted CI.
+  The bootstrap accepts only that exact refusal and reports it.
+- GitHub GraphQL is unavailable in Claude Code sessions. Dispatch
+  `roadmap-command.yml` through the REST workflow-dispatch API instead: it runs one
+  allowlisted `roadmap.mts` command from the reviewed default branch with the
+  Roadmap credential, for the repository owner only. Pass `command` and
+  `arguments` as a JSON array of strings, then read the run log. Reads and
+  single-item edits (`capture-port`, `capture-feature`, `normalize-port`,
+  `promote`, `set`, `move`) are allowed; bulk, structural and file-producing
+  commands and options stay local. Output files under `work/roadmap-*` are kept as
+  a run artifact. The owner gate is advisory like other workflows' gates, because
+  a writer can dispatch a modified workflow from another branch; storing
+  `PORTCOVE_ROADMAP_TOKEN` in an environment limited to `main` with required
+  reviewers makes it a hard boundary. GraphQL-based delivery reads still need a
+  local session; issues, pull requests, checks and the REST guarded merge work.
+- The daily discovery runner requires an interactive TTY and GraphQL; run it
+  locally.
+- Windows targets and native Windows qualification remain hosted CI or
+  Windows-host work; local feedback stays optional.
+
+The storage preflight's 20 GiB floor can be tight on a cloud disk allowance.
+Browser projects retain raw traces under `work/bt` even after passing runs, and a
+complete browser run can write over 10 GiB there. After confirming that the owning
+test process has exited and no failure evidence is needed, remove only that run's
+own `work/bt/run-*` directory. Set `PORTCOVE_MIN_FREE_GIB` on the environment from
+observed needs rather than deleting evidence.
 
 ## Shared local resources
 

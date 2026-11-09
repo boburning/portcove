@@ -156,6 +156,7 @@ export function isInformationalPath(file: string) {
     (/\.md$/u.test(file) &&
       !protectedPolicyDocuments.has(file) &&
       !file.startsWith(".agents/") &&
+      !file.startsWith(".claude/") &&
       !file.startsWith("docs/agents/") &&
       !releaseSecurityFiles.has(file)) ||
     /^docs\/media\/.+\.(?:png|jpe?g|webp|gif|svg)$/u.test(file)

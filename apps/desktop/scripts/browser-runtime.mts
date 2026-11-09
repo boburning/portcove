@@ -24,6 +24,9 @@ import {
 const desktop = fileURLToPath(new URL("../", import.meta.url));
 const root = path.resolve(desktop, "../..");
 const browserCache = path.join(root, "work", "browser-cache");
+// A finite installer deadline turns a blocked download host into a diagnosis.
+// Normal hosted installs take seconds; this bounds only the Playwright child.
+const browserInstallDeadlineMs = 10 * 60_000;
 const physicalCache = resolvePhysicalPath(browserCache);
 const physicalRoot = resolvePhysicalPath(root);
 const relativeCache = path.relative(physicalRoot, physicalCache);
@@ -115,9 +118,22 @@ async function bootstrapChromium() {
         "--only-shell",
         "chromium",
       ],
-      { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
+      {
+        cwd: desktop,
+        env: process.env,
+        stdio: "inherit",
+        windowsHide: true,
+        timeout: browserInstallDeadlineMs,
+        killSignal: "SIGTERM",
+      },
     ),
   );
+  if (result.error && "code" in result.error && result.error.code === "ETIMEDOUT") {
+    console.error(
+      `Chromium download did not finish within ${browserInstallDeadlineMs / 60_000} minutes. Playwright retries refused connections silently; confirm that this network allows cdn.playwright.dev and playwright.download.prss.microsoft.com, then rerun browser:bootstrap.`,
+    );
+    process.exit(124);
+  }
   if (result.status !== 0) process.exit(result.status ?? 1);
   const browser = await metrics.measureAsync("browser-bootstrap:launch", () =>
     chromium.launch({ headless: true }),

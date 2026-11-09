@@ -1,0 +1,71 @@
+name: Roadmap command
+run-name: Roadmap ${{ inputs.command }} / ${{ github.run_attempt }}
+
+# REST-dispatchable Project access for sessions without GitHub GraphQL. Only the
+# reviewed default-branch code runs, only for the repository owner, and only for
+# the allowlist in scripts/roadmap-dispatch.mts.
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "Allowlisted roadmap.mts command"
+        type: choice
+        options:
+          - check
+          - doctor
+          - next
+          - context
+          - history
+          - readiness
+          - candidate-scope
+          - capture-port
+          - capture-feature
+          - normalize-port
+          - promote
+          - set
+          - move
+        default: doctor
+      arguments:
+        description: 'JSON array of command arguments, for example ["--issue","211","--json"]'
+        type: string
+        default: "[]"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: roadmap-command
+  cancel-in-progress: false
+
+jobs:
+  run:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install trusted locked GitHub dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Run the allowlisted Roadmap command
+        run: node scripts/roadmap-dispatch.mts
+        env:
+          ROADMAP_COMMAND: ${{ inputs.command }}
+          ROADMAP_ARGUMENTS: ${{ inputs.arguments }}
+          GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: roadmap-command-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/roadmap-*/
+          if-no-files-found: ignore
+          retention-days: 30

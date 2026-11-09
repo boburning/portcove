@@ -7,7 +7,11 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { developmentSecurity, recordsDevelopmentPolicy } from "./dependency-security.mts";
+import {
+  developmentSecurity,
+  reviewedCargoDenyVersion,
+  recordsDevelopmentPolicy,
+} from "./dependency-security.mts";
 import { executeAudit } from "./audit.mts";
 
 function requiredFixture<T>(value: T | null | undefined): T {
@@ -48,7 +52,7 @@ function scan(diagnostics: FixtureDiagnostic[] = [finding]) {
     exitCode: diagnostics.some((d) => d.severity === "error") ? 1 : 0,
     scope: "workspace-default-all-targets-all-checks",
     unsoundAll: true,
-    toolVersion: "cargo-deny 0.20.2",
+    toolVersion: `cargo-deny ${reviewedCargoDenyVersion}`,
     configSha256: digest,
     sourceConfigSha256: digest,
     sourceConfig: policy,
@@ -92,7 +96,7 @@ void test("actual development CLI succeeds without approval/API and retains raw 
     `import cp from 'node:child_process'; import {syncBuiltinESMExports} from 'node:module';
     cp.execFileSync = (name,args) => {
       if(name==='git' && args.join(' ')==='rev-parse HEAD') return '${raw.head}';
-      if(name==='cargo' && args.join(' ')==='deny --version') return 'cargo-deny 0.20.2';
+      if(name==='cargo' && args.join(' ')==='deny --version') return 'cargo-deny ${reviewedCargoDenyVersion}';
       throw new Error('Unexpected external command: '+name);
     };
     cp.spawnSync = (name,args) => {

@@ -572,6 +572,9 @@ void test("every Renovate custom manager matches its committed authority", async
     ".github/workflows/release.yml",
     "tools/containers/build/Dockerfile",
     "scripts/ci-native-workflow.test.mts",
+    // Static release-code mirrors of manifest pins; quality-tools --validate owns equality.
+    "scripts/dependency-security.mts",
+    "scripts/release-compiler-evidence.mts",
   ];
 
   for (const [index, manager] of renovate.customManagers.entries()) {

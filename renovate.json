@@ -21,6 +21,7 @@
   "commitHourlyLimit": 0,
   "rangeStrategy": "bump",
   "rebaseWhen": "conflicted",
+  "gitIgnoredAuthors": ["renovate-derived-data@portcove.invalid"],
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 6am on monday"],
@@ -124,7 +125,10 @@
         "koalaman/shellcheck"
       ],
       "groupName": "aqua-toolchain",
-      "schedule": ["at any time"]
+      "schedule": ["at any time"],
+      "prBodyNotes": [
+        "Renovate updates versions only. The `Renovate derived data repair` workflow regenerates `aqua-checksums.json` and the `.config/tool-bootstrap.json` Aqua identity from publisher release digests and pushes them here when its GitHub App is configured; otherwise run `just aqua-integrity-update` on this branch and commit the result."
+      ]
     },
     {
       "description": "Change the Aqua registry authority only with a reviewed tool or integrity need",
@@ -215,8 +219,30 @@
     },
     {
       "customType": "regex",
+      "managerFilePatterns": ["/^scripts\\/dependency-security\\.mts$/"],
+      "matchStrings": [
+        "export const reviewedCargoDenyVersion = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\";"
+      ],
+      "depNameTemplate": "cargo-deny",
+      "datasourceTemplate": "crate",
+      "versioningTemplate": "cargo"
+    },
+    {
+      "customType": "regex",
       "managerFilePatterns": ["/^\\.github\\/quality-tools\\.json$/"],
       "matchStrings": ["\\\"channel\\\":\\s*\\\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\\\""],
+      "depNameTemplate": "rust",
+      "datasourceTemplate": "rust-version",
+      "versioningTemplate": "rust"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^scripts\\/release-compiler-evidence\\.mts$/"],
+      "matchStrings": [
+        "channel !== \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"",
+        "\"cargo (?<currentValue>\\d+\\.\\d+\\.\\d+) \"",
+        "\"rustc (?<currentValue>\\d+\\.\\d+\\.\\d+) \""
+      ],
       "depNameTemplate": "rust",
       "datasourceTemplate": "rust-version",
       "versioningTemplate": "rust"

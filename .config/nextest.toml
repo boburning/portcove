@@ -179,16 +179,30 @@ filter = 'package(portcove-core) & test(/^definition_repository::tests::publishe
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Windows passed this CLI contract in 16.358s to 30.006s across recent runs,
+# including 29.848s and 30.006s on main, and cut it at the default 30s in
+# 42553892092, 42564200212 and 42568048217. Give only this Windows case finite
+# 60s, matching its macOS allowance; keep assertions, product deadlines and
+# zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & binary(machine_contract) & test(/^retained_build_contract::retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_reference$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The complete compatible-runtime fixture in41893774776/a1 Windows2 took
 # 183.584s for MMX2 and122.389s/113.682s for the other two consumers.
 # These explicit predecessor-transition cases include the same populated
-# two-runtime path plus one journal interruption/recovery per case. Give this
-# exact Windows family finite300s; preserve all assertions, production deadlines,
+# two-runtime path plus one journal interruption/recovery per case. The family
+# had finite 300s; green main 42548736587 used 274.152s for super_metroid and
+# November 9 runs cut super_metroid and sonic at 300s with siblings near 287s.
+# Give this exact Windows family finite 600s, matching the compatible archive
+# progression allowance; preserve all assertions, production deadlines,
 # cleanup, workers and zero retries. This is harness calibration, not a speedup.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_/)'
-slow-timeout = { period = "5s", terminate-after = 60, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 120, grace-period = "0s" }
 success-output = "immediate"
 
 # R64 CI 41786426031/a1 Windows 7 retained a 30.039s cutoff after signed
@@ -1485,9 +1499,10 @@ slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 platform = 'x86_64-pc-windows-msvc'
 # CI40791990972/a1 Windows3 reopened recovery40.992s after start,
 # then completed staged activation14.637s later before its60.246s cutoff.
-# Retain every final launch/assertion with exact90s fixture headroom only.
+# Green main 42548736587 later used 82.164s of 90s and November 9 runs cut it
+# at 90s; retain every final launch/assertion with exact 180s fixture headroom.
 filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)'
-slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
 # CI40734477018/a1 reached preparation completion at27.579s, then launch

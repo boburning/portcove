@@ -16,6 +16,13 @@ const hash = (text: string | Uint8Array) =>
     .update(typeof text === "string" ? text.replaceAll("\r\n", "\n") : text)
     .digest("hex");
 const canonicalText = (value: string) => value.replaceAll("\r\n", "\n");
+
+/**
+ * The executed scanner must be the cargo-deny pinned in .github/quality-tools.json.
+ * This stays a static literal for bundled release controllers; Renovate updates it
+ * with the manifest and `quality-tools.mts --validate` rejects any difference.
+ */
+export const reviewedCargoDenyVersion = "0.20.2";
 function scanCommand(name: string, args: string[], cwd: string) {
   const result = execFileSync(name, args, {
     cwd,
@@ -187,7 +194,7 @@ export function developmentSecurity(scan: unknown, policy: string) {
     (scan.exitCode !== 0 && scan.exitCode !== 1) ||
     scan.unsoundAll !== true ||
     scan.scope !== "workspace-default-all-targets-all-checks" ||
-    scan.toolVersion !== "cargo-deny 0.20.2" ||
+    scan.toolVersion !== `cargo-deny ${reviewedCargoDenyVersion}` ||
     scan.configSha256 !== hash(policy) ||
     scan.sourceConfigSha256 !== hash(policy) ||
     hash(scan.executionConfig ?? "") !== hash(policy) ||

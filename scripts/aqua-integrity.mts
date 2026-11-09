@@ -3,7 +3,7 @@ import { isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { createGitHubClient } from "./github-client.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
-import { copyFile, mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAqua } from "./tool-cache.mts";
@@ -282,6 +282,92 @@ async function releaseMetadata(config: AquaConfig) {
   return Object.fromEntries(entries);
 }
 
+/**
+ * Derive the pinned Aqua executable identity from its publisher release. Only
+ * fields already recorded for a platform are refreshed, so the bootstrap shape
+ * stays reviewed while version, asset id, size and digest follow `.aqua-version`.
+ */
+export function deriveAquaBootstrap(bootstrap: unknown, version: string, release: unknown) {
+  if (
+    !isRecord(bootstrap) ||
+    !isRecord(bootstrap.aqua) ||
+    !isRecord(bootstrap.aqua.artifacts) ||
+    !/^v\d+\.\d+\.\d+$/u.test(version)
+  )
+    throw new Error("tool bootstrap must record an Aqua version and artifacts");
+  if (!isRecord(release) || release.tag_name !== version || !Array.isArray(release.assets))
+    throw new Error(`publisher release metadata is missing for aquaproj/aqua@${version}`);
+  const assets: unknown[] = release.assets;
+  const artifacts: Record<string, unknown> = {};
+  for (const [platform, recorded] of Object.entries(bootstrap.aqua.artifacts)) {
+    if (!isRecord(recorded) || typeof recorded.archive !== "string")
+      throw new Error(`tool bootstrap Aqua artifact is invalid: ${platform}`);
+    const matches = assets.filter((asset) => isRecord(asset) && asset.name === recorded.archive);
+    const asset = matches[0];
+    if (matches.length !== 1 || !isRecord(asset))
+      throw new Error(`publisher asset is missing or ambiguous: aquaproj/aqua/${recorded.archive}`);
+    const digest = asset.digest;
+    if (typeof digest !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(digest))
+      throw new Error(`publisher SHA-256 digest is missing for aquaproj/aqua/${recorded.archive}`);
+    const refreshed: Record<string, unknown> = { ...recorded };
+    if ("asset_id" in recorded) {
+      if (!Number.isSafeInteger(asset.id) || Number(asset.id) <= 0)
+        throw new Error(`publisher asset id is invalid for aquaproj/aqua/${recorded.archive}`);
+      refreshed.asset_id = asset.id;
+    }
+    if ("bytes" in recorded) {
+      if (!Number.isSafeInteger(asset.size) || Number(asset.size) <= 0)
+        throw new Error(`publisher asset size is invalid for aquaproj/aqua/${recorded.archive}`);
+      refreshed.bytes = asset.size;
+    }
+    refreshed.sha256 = digest.slice("sha256:".length).toUpperCase();
+    artifacts[platform] = refreshed;
+  }
+  return { ...bootstrap, aqua: { ...bootstrap.aqua, artifacts, version } };
+}
+
+async function aquaReleaseMetadata(version: string) {
+  const deadline = performance.now() + 120_000;
+  const client = await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      url.pathname === `/repos/aquaproj/aqua/releases/tags/${encodeURIComponent(version)}`,
+  });
+  const response = await client.request("GET /repos/{owner}/{repo}/releases/tags/{tag}", {
+    owner: "aquaproj",
+    repo: "aqua",
+    tag: version,
+    request: { portcove: { replay: "safe-read", attempts: 0 } },
+  });
+  return response.data;
+}
+
+async function updateBootstrap(version: string) {
+  const file = path.join(projectRoot, ".config", "tool-bootstrap.json");
+  const text = await readFile(file, "utf8");
+  const derived = deriveAquaBootstrap(
+    JSON.parse(text),
+    version,
+    await aquaReleaseMetadata(version),
+  );
+  const next = `${JSON.stringify(derived, null, 2)}\n`;
+  if (next === text) return false;
+  const promotion = `${file}.${process.pid}.tmp`;
+  try {
+    await writeFile(promotion, next, "utf8");
+    if ((await readFile(file, "utf8")) !== text)
+      throw new Error(
+        ".config/tool-bootstrap.json changed while Aqua identity repair was running; retry",
+      );
+    await rename(promotion, file);
+  } finally {
+    await rm(promotion, { force: true });
+  }
+  return true;
+}
+
 function stableNonReleaseEntries(ledger: AquaChecksumLedger) {
   return ledger.checksums
     .filter(({ id }) => !id.startsWith(releasePrefix))
@@ -323,6 +409,10 @@ async function loadCurrent(validateInventory = true) {
 async function update() {
   const current = await loadCurrent(false);
   const aquaVersion = (await readFile(path.join(projectRoot, ".aqua-version"), "utf8")).trim();
+  // The executable identity needs no installed Aqua, so a Renovate `.aqua-version`
+  // bump is repaired before the pinned executable is required below.
+  if (await updateBootstrap(aquaVersion))
+    console.log(`Updated .config/tool-bootstrap.json to Aqua ${aquaVersion} publisher identity.`);
   assertPinnedAquaVersion(aquaVersion);
 
   const workRoot = path.join(projectRoot, "work");
@@ -365,10 +455,29 @@ async function update() {
 }
 
 async function main(argv: string[]) {
-  if (argv.length !== 1 || !["--check", "--update"].includes(argv[0] ?? ""))
-    throw new Error("usage: aqua-integrity.mts --check|--update");
+  if (argv.length !== 1 || !["--check", "--update", "--update-bootstrap"].includes(argv[0] ?? ""))
+    throw new Error("usage: aqua-integrity.mts --check|--update|--update-bootstrap");
+  if (argv[0] === "--update-bootstrap") {
+    // Refresh only the Aqua executable identity, so automation can install the
+    // newly pinned Aqua before --update regenerates package checksums with it.
+    const aquaVersion = (await readFile(path.join(projectRoot, ".aqua-version"), "utf8")).trim();
+    console.log(
+      (await updateBootstrap(aquaVersion))
+        ? `Updated .config/tool-bootstrap.json to Aqua ${aquaVersion} publisher identity.`
+        : `.config/tool-bootstrap.json already records Aqua ${aquaVersion}.`,
+    );
+    return;
+  }
   if (argv[0] === "--check") {
     const current = await loadCurrent();
+    const aquaVersion = (await readFile(path.join(projectRoot, ".aqua-version"), "utf8")).trim();
+    const bootstrap: unknown = JSON.parse(
+      await readFile(path.join(projectRoot, ".config", "tool-bootstrap.json"), "utf8"),
+    );
+    if (!isRecord(bootstrap) || !isRecord(bootstrap.aqua) || bootstrap.aqua.version !== aquaVersion)
+      throw new Error(
+        `.config/tool-bootstrap.json does not record Aqua ${aquaVersion}; run just aqua-integrity-update`,
+      );
     console.log(
       `Aqua package versions and ${current.releaseEntries.length} required platform checksums are synchronized.`,
     );

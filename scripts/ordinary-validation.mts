@@ -2172,6 +2172,9 @@ for (const [file, tests] of [
     ],
   ],
   [".github/roadmap.json", roadmapContractTests],
+  ...[".github/workflows/roadmap-command.yml", "scripts/roadmap-dispatch.mts"].map(
+    (file): [string, string[]] => [file, ["scripts/roadmap.test.mts"]],
+  ),
   ...[
     ".github/workflows/roadmap-health.yml",
     ".github/workflows/roadmap-report.yml",
@@ -2305,6 +2308,15 @@ for (const file of [
     "scripts/release-controller-tools.test.mts",
     "scripts/quality-tools.test.mts",
   ]);
+explicitNodeTests.set(".github/workflows/renovate-derived-data.yml", [
+  ...(explicitNodeTests.get(".github/workflows/renovate-derived-data.yml") ?? []),
+  "scripts/quality-tools.test.mts",
+]);
+// The cloud bootstrap is a governed quality-tool consumer and pin reader.
+explicitNodeTests.set("scripts/bootstrap-cloud-session.sh", [
+  ...(explicitNodeTests.get("scripts/bootstrap-cloud-session.sh") ?? []),
+  "scripts/quality-tools.test.mts",
+]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
   "scripts/audit.test.mts",
@@ -2995,6 +3007,14 @@ function classifyOnePath(
   }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
+  // Archived rscheck crates are bytes for the qualification installer, which
+  // owns their checksums; changing one selects that installer's checks.
+  if (file.startsWith("vendor/rscheck/") && file.endsWith(".crate")) {
+    selection.scopes.add("tooling");
+    selection.pythonLint = true;
+    if (includeFileChecks) selection.pythonFiles.add("scripts/install-qualification-rscheck.py");
+    recognized = true;
+  }
   if (isVendoredRfdInput(file)) {
     selection.workspaceRust = true;
     selection.rustfmt = true;
@@ -3383,7 +3403,10 @@ function classifyOnePath(
     recognized = true;
   }
 
-  if (file.startsWith(".agents/skills/") && file.endsWith("/SKILL.md")) {
+  if (
+    (file.startsWith(".agents/skills/") || file.startsWith(".claude/skills/")) &&
+    file.endsWith("/SKILL.md")
+  ) {
     selection.scopes.add("tooling");
     addNodeTest(selection, "scripts/repository-skills.test.mts");
     recognized = true;

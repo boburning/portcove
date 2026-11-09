@@ -463,7 +463,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   assert.deepEqual(overrideFor(windowsReviewedArchiveTransitionFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsReviewedArchiveTransitionFilter,
-    "slow-timeout": { period: "5s", "terminate-after": 60, "grace-period": "0s" },
+    "slow-timeout": { period: "5s", "terminate-after": 120, "grace-period": "0s" },
     "success-output": "immediate",
   });
   const curatedInstalledWithdrawalFilter =
@@ -505,6 +505,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       filter:
         "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)",
       periods: 24,
+    },
+    {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
+        "package(portcove-cli) & binary(machine_contract) & test(/^retained_build_contract::retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_reference$/)",
+      periods: 12,
     },
     {
       platform: "x86_64-unknown-linux-gnu",
@@ -641,7 +647,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   assert.deepEqual(overrideFor(windowsRestoreSynchronizedFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsRestoreSynchronizedFilter,
-    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "slow-timeout": { period: "5s", "terminate-after": 36, "grace-period": "0s" },
     "success-output": "immediate",
   });
   const windowsIndexedRetentionFilter =
