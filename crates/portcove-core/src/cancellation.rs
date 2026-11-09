@@ -53,12 +53,31 @@ impl CancellationState {
 
 const CANCELLATION_INTERVAL: Duration = Duration::from_millis(50);
 
+/// Activities whose cancellation was requested from this process. A scope
+/// checks SQLite immediately when its id is here; requests from another
+/// process are still observed by the throttled check. No connection is held
+/// open, so the database file can still be renamed on Windows.
+static IN_PROCESS_REQUESTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+fn requested_in_process(id: &str) -> bool {
+    IN_PROCESS_REQUESTS.lock().map_or(true, |requests| {
+        requests.iter().any(|request| request == id)
+    })
+}
+
 pub(crate) struct CancellationScope {
     library: Library,
     id: String,
     _guard: PortOperationGuard,
     checked: Mutex<Option<Instant>>,
-    connection: Mutex<Option<rusqlite::Connection>>,
+}
+
+impl Drop for CancellationScope {
+    fn drop(&mut self) {
+        if let Ok(mut requests) = IN_PROCESS_REQUESTS.lock() {
+            requests.retain(|request| request != &self.id);
+        }
+    }
 }
 
 impl std::fmt::Debug for CancellationScope {
@@ -87,7 +106,6 @@ impl CancellationScope {
             id: activity.id.clone(),
             _guard: guard,
             checked: Mutex::new(None),
-            connection: Mutex::new(None),
         })
     }
 
@@ -104,11 +122,13 @@ impl CancellationScope {
             id: id.to_owned(),
             _guard: guard,
             checked: Mutex::new(None),
-            connection: Mutex::new(None),
         })
     }
 
     pub fn checkpoint(&self) -> Result<()> {
+        if requested_in_process(&self.id) {
+            return self.check_now();
+        }
         let mut checked = self
             .checked
             .lock()
@@ -121,25 +141,8 @@ impl CancellationScope {
         Ok(())
     }
 
-    /// Exact check on every call. Download loops call this twice per network
-    /// chunk, so the scope keeps one connection instead of opening a new one
-    /// (and re-applying PRAGMAs) each time; each statement still reads the
-    /// latest committed request.
     fn check_now(&self) -> Result<()> {
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| PortcoveError::state("cancellation connection lock poisoned"))?;
-        if connection.is_none() {
-            *connection = Some(database::connect(self.library.root())?);
-        }
-        let state = cancellation_state_on(
-            connection
-                .as_ref()
-                .expect("cancellation connection was opened"),
-            &self.id,
-        )?;
-        drop(connection);
+        let state = cancellation_state(&self.library, &self.id)?;
         if state.is_some_and(|state| state.phase == CancellationPhase::Preparing && state.requested)
         {
             return Err(cancelled(&self.id));
@@ -152,12 +155,16 @@ impl CancellationScope {
     }
 
     /// Only use with a read-only network future, never with a spawned mutation worker.
+    ///
+    /// Download loops call this once per network chunk. Entry and completion
+    /// share the throttled `checkpoint`, which still answers a request made in
+    /// this process immediately, instead of opening SQLite twice per chunk.
     pub async fn interruptible<T>(&self, future: impl Future<Output = Result<T>>) -> Result<T> {
-        self.check_now()?;
+        self.checkpoint()?;
         tokio::pin!(future);
         loop {
             tokio::select! {
-                result = &mut future => { self.check_now()?; return result; }
+                result = &mut future => { self.checkpoint()?; return result; }
                 _ = tokio::time::sleep(CANCELLATION_INTERVAL) => self.check_now()?,
             }
         }
@@ -240,6 +247,17 @@ impl PortcoveService {
             )
             .with_known_cause(crate::failure::KnownFailureCause::CancellationUnavailable)
             .detail("operation_id", operation_id));
+        }
+        if let Ok(mut requests) = IN_PROCESS_REQUESTS.lock()
+            && !requests.iter().any(|request| request == operation_id)
+        {
+            // A request for another process's activity has no local scope to
+            // clear it; keep the list bounded (missed hints fall back to the
+            // throttled SQLite check).
+            if requests.len() >= 256 {
+                requests.remove(0);
+            }
+            requests.push(operation_id.to_owned());
         }
         Ok(CancellationState {
             phase: CancellationPhase::Preparing,
