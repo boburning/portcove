@@ -915,6 +915,9 @@ rows. Recovery has a disclosed three-step manual-copy guide, then independently
 labeled Restore and Change library location actions. Preserve exact LTR-isolated paths and six
 current export content categories. Export success acknowledges metadata only;
 manual copy remains unverified until corresponding restore observations succeed.
+The export guide asks for a new filename. The system save dialog returns a path
+and may offer to replace a file. Core refuses collisions and Desktop directs the
+user to a fresh filename.
 Use existing reviewed backup/import controls and native restore consent. Do not
 introduce a progress bar, checkbox, success badge or automatic-copy implication
 for work the application did not perform.

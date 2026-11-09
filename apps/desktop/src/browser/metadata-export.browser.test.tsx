@@ -4,6 +4,7 @@ import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { desktopApi } from "../api";
 import { pickMetadataExportPath } from "../file-picker";
+import { failureReport } from "../test-fixtures";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 
@@ -96,3 +97,38 @@ for (const failure of ["picker", "export"] as const) {
     expect(exported).toHaveBeenCalledTimes(failure === "picker" ? 0 : 1);
   });
 }
+
+it("explains a refused existing destination and allows a new filename", async () => {
+  const existing = "C:\\owned\\metadata.json";
+  const fresh = "C:\\owned\\metadata-new.json";
+  vi.mocked(pickMetadataExportPath).mockResolvedValueOnce(existing).mockResolvedValueOnce(fresh);
+  const failure = failureReport();
+  const summary =
+    "Portcove kept the existing file. Choose a new filename to export library information.";
+  const exported = vi
+    .spyOn(desktopApi, "exportLibraryMetadata")
+    .mockRejectedValueOnce({
+      ...failure,
+      code: "state",
+      presentation: {
+        ...failure.presentation,
+        presentation_key: "metadata_export_exists",
+        summary,
+        mutation_state: "no_changes",
+      },
+    })
+    .mockResolvedValueOnce({ path: fresh, sha256: "a".repeat(64), size: 803 });
+  await openExport();
+  const action = page.getByRole("button", { name: "Export library information", exact: true });
+  await expect
+    .element(page.getByText(/Choose a new filename\. Portcove keeps existing files/))
+    .toBeVisible();
+  await action.click();
+  await expect.poll(() => document.body.textContent).toContain(summary);
+  expect(exported).toHaveBeenCalledExactlyOnceWith(existing);
+  await action.click();
+  await expect
+    .poll(() => document.body.textContent)
+    .toContain(`Library information exported to ${fresh}`);
+  expect(exported.mock.calls).toEqual([[existing], [fresh]]);
+});
