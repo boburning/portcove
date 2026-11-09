@@ -1336,8 +1336,8 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
     // Keep the upper-edge check on an unimplemented future reader.
-    entry["required_capabilities"][0]["minimum_version"] = json!(9);
-    entry["required_capabilities"][0]["maximum_version"] = json!(9);
+    entry["required_capabilities"][0]["minimum_version"] = json!(10);
+    entry["required_capabilities"][0]["maximum_version"] = json!(10);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }
 
