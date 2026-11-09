@@ -1586,7 +1586,7 @@ void test("tool acquisition retains the phase deadline before outputs and after 
 void test("stored controller tool ZIP metadata admits the fixed archive ceiling before transfer", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-zip-bound-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  assert.equal(controllerToolZipMaximumBytes, 336_674_816);
+  assert.equal(controllerToolZipMaximumBytes, 337_723_392);
   const f = fixture();
   const admitted: number[] = [];
   for (const bytes of [controllerToolZipMaximumBytes, controllerToolZipMaximumBytes + 1]) {
