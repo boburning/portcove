@@ -23,6 +23,8 @@ import { cn } from "cn";
 import { Notice } from "./ui/patterns";
 import type { useFavorites } from "../features/favorites/use-favorites";
 import {
+  memo,
+  useCallback,
   useState,
   useRef,
   useEffect,
@@ -31,6 +33,7 @@ import {
   type SetStateAction,
   type ReactNode,
 } from "react";
+import { useLatestCallback } from "../shared/use-latest-callback";
 import type { CollectionLayout } from "../features/browsing/use-collection-layout";
 import {
   ArrowRight,
@@ -225,7 +228,7 @@ function usePortBrowser({
   steamBatch,
   clearFilters,
   loading,
-  nativeSourceDrag = { active: false, pathCount: 0 },
+  nativeSourceDrag = idleNativeSourceDrag,
   collectionLayout = "covers",
   setCollectionLayout,
   collectionLayoutFailure,
@@ -283,7 +286,12 @@ function usePortBrowser({
       owner.closed = true;
     };
   }, []);
-  const restoreAfter = async (button: HTMLElement, action: () => Promise<boolean>) => {
+  // Card callbacks keep their identity across renders so memoized cards can skip
+  // unrelated workspace updates; each call still uses the latest owner handler.
+  const stableSelect = useLatestCallback(onSelect);
+  const stableContinue = useLatestCallback(onContinue);
+  const stableTask = useLatestCallback(onTask);
+  const restoreAfter = useCallback(async (button: HTMLElement, action: () => Promise<boolean>) => {
     const owner = browserOwner.current;
     const ownedFocus = document.activeElement === button;
     const accepted = await action();
@@ -301,10 +309,13 @@ function usePortBrowser({
         browserRoot.current?.querySelector<HTMLButtonElement>("[data-focusable]:not([disabled])")
       )?.focus();
     });
-  };
-  const onFavoriteToggle = (portId: string, button: HTMLElement) => {
-    if (favorites) void restoreAfter(button, () => favorites.toggle(portId));
-  };
+  }, []);
+  const onFavoriteToggle = useCallback(
+    (portId: string, button: HTMLElement) => {
+      if (favorites) void restoreAfter(button, () => favorites.toggle(portId));
+    },
+    [favorites, restoreAfter],
+  );
   const { composedLibrary, unresolvedReadiness, candidates, readinessCount, declaredCandidates } =
     resolveLibraryFilters({
       view,
@@ -394,9 +405,9 @@ function usePortBrowser({
     catalogSort,
     setCatalogSort,
     setFilter,
-    onSelect,
-    onContinue,
-    onTask,
+    onSelect: stableSelect,
+    onContinue: onContinue ? stableContinue : undefined,
+    onTask: onTask ? stableTask : undefined,
     onBrowseCatalog,
     onConnectGameFiles,
     steamBatch,
@@ -1030,7 +1041,10 @@ type PortCardProps = {
   view: "library";
 };
 
-function PortCard({
+const idleNativeSourceDrag: NativeSourceDragState = { active: false, pathCount: 0 };
+
+/** Memoized: a grid re-renders only cards whose port, status or shared inputs changed. */
+const PortCard = memo(function PortCard({
   organization,
   restoreAfter,
   layout,
@@ -1117,7 +1131,7 @@ function PortCard({
       }}
     />
   );
-}
+});
 
 function LibraryEntry({
   port,
