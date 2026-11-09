@@ -72,8 +72,14 @@ async fn native_linux_tar_xz_managed_lifecycle_preserves_declared_and_unclaimed_
     let provider = Arc::new(Provider(Mutex::new(first_release.clone())));
     let mut service = PortcoveService::with_provider(library, provider.clone()).unwrap();
     let catalog = Catalog::from_json(
-        &serde_json::json!({"schema_version":1,"ports":[service.catalog.port(PORT).unwrap()]})
-            .to_string(),
+        &serde_json::json!({
+            "schema_version": 3,
+            "source_catalog": {
+                "evidence": [], "identities": [], "contracts": [], "validators": []
+            },
+            "ports": [service.catalog.port(PORT).unwrap()]
+        })
+        .to_string(),
     )
     .unwrap();
     service.replace_catalog_for_test(catalog);
