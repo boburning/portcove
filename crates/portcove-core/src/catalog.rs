@@ -11,7 +11,8 @@ use crate::{
 
 mod listings;
 
-const EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
+// A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
+static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 
 /// Inert declaration checks only; neither trust nor artifact/runtime acceptance.
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]

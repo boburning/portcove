@@ -4,7 +4,8 @@ use super::*;
 use crate::{CatalogListingDocument, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
 
-const EMBEDDED_LISTINGS: &str = include_str!("../../catalog/listings.json");
+// A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
+static EMBEDDED_LISTINGS: &str = include_str!("../../catalog/listings.json");
 const MAX_LISTING_BYTES: usize = 8 * 1024 * 1024;
 
 // Keep the directory extras separate from platforms supplied by its embedded
