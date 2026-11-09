@@ -1449,11 +1449,15 @@ in the same proposal, and validation names any mirror that differs. Tests take
 versions from the manifest or the mirrored constant instead of literals, so a
 version-only proposal needs no test edits. Derived integrity data cannot come
 from Renovate itself. The `Renovate derived data repair` workflow runs on
-Renovate's own `aqua.yaml` or `.aqua-version` proposals: it refreshes the Aqua
-identity (`aqua-integrity.mts --update-bootstrap`), installs that pinned Aqua,
-regenerates `aqua-checksums.json` from publisher digests and pushes the result
-with a dedicated GitHub App token, so required CI runs on the repaired head. It
-ignores other authors and its own pushes. Until the App exists it changes nothing
+Renovate's own `aqua.yaml` or `.aqua-version` proposals. A read-only job refreshes
+the Aqua identity (`aqua-integrity.mts --update-bootstrap`), installs that pinned
+Aqua and regenerates `aqua-checksums.json` from publisher digests; because it runs
+the newly pinned, unreviewed Aqua, it never receives a write credential. A
+separate job runs no repository or Aqua code: it accepts exactly the two derived
+JSON files and pushes them with a dedicated GitHub App token, only if the branch
+still points at the regenerated head, so required CI runs on the repaired head.
+It ignores other authors, re-runs by others and its own pushes, and Renovate
+ignores its commit author (`gitIgnoredAuthors`). Until the App exists it changes nothing
 and its summary names `just aqua-integrity-update`, which the aqua-group proposal
 note also gives for manual repair.
 
@@ -3316,7 +3320,11 @@ Known cloud limits remain visible in `just doctor`:
   `arguments` as a JSON array of strings, then read the run log. Reads and
   single-item edits (`capture-port`, `capture-feature`, `normalize-port`,
   `promote`, `set`, `move`) are allowed; bulk, structural and file-producing
-  commands and options stay local. GraphQL-based delivery reads still need a
+  commands and options stay local. Output files under `work/roadmap-*` are kept as
+  a run artifact. The owner gate is advisory like other workflows' gates, because
+  a writer can dispatch a modified workflow from another branch; storing
+  `PORTCOVE_ROADMAP_TOKEN` in an environment limited to `main` with required
+  reviewers makes it a hard boundary. GraphQL-based delivery reads still need a
   local session; issues, pull requests, checks and the REST guarded merge work.
 - The daily discovery runner requires an interactive TTY and GraphQL; run it
   locally.

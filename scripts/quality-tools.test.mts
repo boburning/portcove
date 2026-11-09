@@ -941,39 +941,126 @@ void test("mirrored release pins must match the manifest and cannot silently dis
   }
 });
 
-void test("Renovate derived-data repair runs only for Renovate and pushes only with its App token", async () => {
+void test("Renovate derived-data repair keeps its write token away from regenerated code", async () => {
   const text = await readFile(
     new URL("../.github/workflows/renovate-derived-data.yml", import.meta.url),
     "utf8",
   );
   const workflow: unknown = (await import("yaml")).parse(text);
-  assert.ok(isRecord(workflow) && isRecord(workflow.jobs) && isRecord(workflow.jobs.repair));
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs));
   assert.deepEqual(workflow.permissions, { contents: "read" });
-  const repair = workflow.jobs.repair;
+  const { regenerate, publish } = workflow.jobs;
+  assert.ok(isRecord(regenerate) && isRecord(publish));
   for (const guard of [
     "github.event.pull_request.head.repo.full_name == github.repository",
     "startsWith(github.head_ref, 'renovate/')",
     "github.event.pull_request.user.login == 'renovate[bot]'",
     "github.actor == 'renovate[bot]'",
+    "github.triggering_actor == 'renovate[bot]'",
   ])
-    assert.ok(typeof repair.if === "string" && repair.if.includes(guard), guard);
-  assert.ok(Array.isArray(repair.steps));
-  const steps = repair.steps.filter(isRecord);
-  const commands = steps.map((step) => (typeof step.run === "string" ? step.run : ""));
-  assert.ok(commands.some((run) => run.includes("aqua-integrity.mts --update-bootstrap")));
-  assert.ok(commands.some((run) => run.includes("aqua-integrity.mts --update")));
+    assert.ok(typeof regenerate.if === "string" && regenerate.if.includes(guard), guard);
+  const steps = (job: Record<string, unknown>) =>
+    (Array.isArray(job.steps) ? job.steps : []).filter(isRecord);
+  const runs = (job: Record<string, unknown>) =>
+    steps(job).map((step) => (typeof step.run === "string" ? step.run : ""));
+
+  // The regenerate job executes the newly pinned Aqua, so it holds no write credential.
+  const regenerateText = JSON.stringify(regenerate);
+  assert.doesNotMatch(regenerateText, /secrets\.|create-github-app-token|steps\.app/u);
+  for (const step of steps(regenerate))
+    if (typeof step.uses === "string" && step.uses.startsWith("actions/checkout@")) {
+      assert.ok(isRecord(step.with));
+      assert.equal(step.with["persist-credentials"], false);
+      assert.equal(step.with.ref, "${{ github.event.pull_request.head.sha }}");
+    }
+  const regenerateRuns = runs(regenerate);
+  const position = (matches: (run: string) => boolean) => regenerateRuns.findIndex(matches);
+  const identity = position((run) => run.includes("aqua-integrity.mts --update-bootstrap"));
+  const install = position((run) => run.includes("bootstrap-ci-aqua-linux.sh"));
+  const checksums = position((run) => /aqua-integrity\.mts --update$/mu.test(run.trim()));
   assert.ok(
-    commands.indexOf(commands.find((run) => run.includes("--update-bootstrap")) ?? "") <
-      commands.indexOf(commands.find((run) => run.includes("bootstrap-ci-aqua-linux.sh")) ?? ""),
-    "the pinned Aqua identity is refreshed before installing Aqua",
+    identity >= 0 && identity < install && install < checksums,
+    "identity, install, checksums",
   );
-  for (const step of steps.slice(1))
-    assert.equal(step.if, "steps.configuration.outputs.available == 'true'");
-  const checkout = steps.find(
-    (step) => typeof step.uses === "string" && step.uses.startsWith("actions/checkout@"),
+
+  // The publish job runs no repository, package or Aqua code with the App token.
+  const publishRuns = runs(publish).join("\n");
+  assert.doesNotMatch(
+    publishRuns,
+    /(?:^|[;&|(]|\bthen|\bdo)\s*(?:node|pnpm|npm|npx|aqua|just|bash|sh|\.\/scripts)\b/mu,
+    "the publish job invokes no repository, package or Aqua code",
   );
-  assert.ok(isRecord(checkout?.with));
-  assert.equal(checkout.with.token, "${{ steps.app.outputs.token }}");
-  for (const run of commands)
+  assert.match(publishRuns, /--force-with-lease="refs\/heads\/\$HEAD_REF:\$HEAD_SHA"/u);
+  for (const step of steps(publish))
+    if (typeof step.uses === "string" && step.uses.startsWith("actions/checkout@")) {
+      assert.ok(isRecord(step.with));
+      assert.equal(step.with["persist-credentials"], false);
+      assert.equal(step.with.token, undefined);
+    }
+  for (const run of [...regenerateRuns, ...runs(publish)])
     assert.doesNotMatch(run, /\$\{\{/u, "untrusted values reach scripts only through env");
+});
+
+void test("cloud bootstrap accepts only the exact Ruff and actionlint attestation refusal", () => {
+  const esc = "\u001b";
+  const install = (name: string, error = "verify GitHub Artifact Attestations") =>
+    `Nov  9 01:13:15.068 ${esc}[91mERR${esc}[0m install the package ${esc}[2mpackage_name=${esc}[0m${name} ${esc}[2merror=${esc}[0m"verify the asset: ${error}"`;
+  const summary = `${esc}[91mERR${esc}[0m aqua failed program=aqua error="install packages: it failed to install some packages"`;
+  const gh =
+    "Error: HTTP 403: GitHub access to this repository is not enabled for this session. (https://api.github.com/repos/astral-sh/ruff/attestations/sha256:00)";
+  const warning = `${esc}[93mWRN${esc}[0m execute gh attestation verify package_name=astral-sh/ruff error="exit status 1"`;
+  const cases: [string, string[], boolean][] = [
+    [
+      "real refusal",
+      [warning, gh, install("astral-sh/ruff"), install("rhysd/actionlint"), summary],
+      true,
+    ],
+    [
+      "sigstore roots blocked",
+      [
+        "error creating Sigstore verifier: no valid Sigstore verifiers could be initialized",
+        install("rhysd/actionlint"),
+        summary,
+      ],
+      true,
+    ],
+    ["other package", [install("astral-sh/ruff"), install("koalaman/shellcheck"), summary], false],
+    ["lookalike package", [install("astral-sh/ruff-evil"), summary], false],
+    ["other cause", [install("astral-sh/ruff", "checksum mismatch"), summary], false],
+    [
+      "extra error",
+      [
+        install("astral-sh/ruff"),
+        `${esc}[91mERR${esc}[0m create a link package_name=foo/bar`,
+        summary,
+      ],
+      false,
+    ],
+    [
+      "logfmt error",
+      [install("astral-sh/ruff"), 'level=error msg="download failed"', summary],
+      false,
+    ],
+    ["no install line", [gh, summary], false],
+  ];
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-aqua-log-"));
+  try {
+    for (const [label, lines, accepted] of cases) {
+      const log = path.join(directory, `${label.replaceAll(" ", "-")}.log`);
+      writeFileSync(log, `${lines.join("\n")}\n`);
+      const result = spawnSync(
+        "bash",
+        [
+          "-c",
+          'source scripts/bootstrap-cloud-session.sh && aqua_failure_is_attestation_only "$1"',
+          "test",
+          log,
+        ],
+        { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8" },
+      );
+      assert.equal(result.status === 0, accepted, `${label}: ${result.stderr}`);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

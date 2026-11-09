@@ -4,6 +4,34 @@
 # an environment setup script only calls this file and never carries its own pins.
 set -euo pipefail
 
+# Known cloud limit: Ruff and actionlint require GitHub artifact attestation from
+# their upstream repositories, which a session scoped to this repository cannot
+# read. Succeed only when every error-level line of an Aqua log belongs to that
+# exact refusal for those two packages; any other error keeps the step failed.
+aqua_failure_is_attestation_only() {
+  local log=$1 line seen=false tools='(astral-sh/ruff|rhysd/actionlint)'
+  while IFS= read -r line; do
+    line="$(sed -E 's/\x1b\[[0-9;]*m//g' <<<"$line")"
+    if [[ "$line" =~ (^|[[:space:]])ERR[[:space:]] || "$line" =~ level=error || "$line" =~ ^[[:space:]]*[Ee]rror[[:space:]:] ]]; then
+      if [[ "$line" =~ ERR[[:space:]]install\ the\ package[[:space:]].*package_name=${tools}[[:space:]].*GitHub\ Artifact\ Attestations ]]; then
+        seen=true
+      elif [[ "$line" =~ ERR[[:space:]]aqua\ failed[[:space:]].*error=\"install\ packages:\ it\ failed\ to\ install\ some\ packages\" ]]; then
+        :
+      elif [[ "$line" =~ ^[[:space:]]*Error:\ HTTP\ 403:.*https://api\.github\.com/repos/${tools}/attestations/ ]]; then
+        :
+      elif [[ "$line" =~ ^[[:space:]]*error\ creating\ Sigstore\ verifier: ]]; then
+        :
+      else
+        return 1
+      fi
+    fi
+  done < "$log"
+  $seen
+}
+
+# Sourcing defines the helper above without running host setup.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
+
 usage() {
   cat <<'HELP'
 Usage: bash scripts/bootstrap-cloud-session.sh [--skip-browser] [--skip-desktop] [--help]
@@ -222,16 +250,7 @@ install_aqua() {
     hash -r
   fi
   if bash scripts/bootstrap-quality-tools.sh 2>&1 | tee "$scratch/aqua.log"; then return 0; fi
-  # Known cloud limit: Ruff and actionlint require GitHub artifact attestation
-  # from their upstream repositories, which a session scoped to this repository
-  # cannot read. Accept only that exact failure; their lint runs in hosted CI.
-  local failed
-  failed="$(grep -E 'ERR.*install the package' "$scratch/aqua.log" |
-    grep -oE 'package_name=[^ ]+' | sed 's/^package_name=//; s/\x1b\[[0-9;]*m//g' | sort -u)"
-  if [[ -n "$failed" ]] &&
-    ! grep -qvxE 'astral-sh/ruff|rhysd/actionlint' <<<"$failed" &&
-    [[ "$(grep -cE 'ERR.*install the package' "$scratch/aqua.log")" == \
-      "$(grep -E 'ERR.*install the package' "$scratch/aqua.log" | grep -c 'GitHub Artifact Attestations')" ]]; then
+  if aqua_failure_is_attestation_only "$scratch/aqua.log"; then
     printf 'Ruff and actionlint are unavailable here: their GitHub artifact attestation is not\n'
     printf 'readable from this session. Their lint runs in hosted CI; other Aqua tools are ready.\n'
     return 0

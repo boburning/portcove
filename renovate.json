@@ -21,6 +21,7 @@
   "commitHourlyLimit": 0,
   "rangeStrategy": "bump",
   "rebaseWhen": "conflicted",
+  "gitIgnoredAuthors": ["renovate-derived-data@portcove.invalid"],
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 6am on monday"],

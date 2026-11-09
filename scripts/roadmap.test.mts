@@ -196,6 +196,8 @@ void test("hosted Roadmap dispatch runs only allowlisted commands with parsed ar
     "the dispatch choices must equal the reviewed allowlist",
   );
   assert.match(workflow, /github\.actor == github\.repository_owner/u);
+  assert.match(workflow, /github\.triggering_actor == github\.repository_owner/u);
+  assert.match(workflow, /path: work\/roadmap-\*\//u);
   assert.match(workflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/u);
   assert.match(workflow, /ROADMAP_ARGUMENTS: \$\{\{ inputs\.arguments \}\}/u);
   for (const [, run] of workflow.matchAll(/^\s+run: (.+)$/gmu))
