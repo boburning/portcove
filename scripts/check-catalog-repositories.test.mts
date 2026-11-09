@@ -942,7 +942,6 @@ const release = {
   prerelease: false,
   created_at: "2026-09-22T03:40:00Z",
   published_at: "2026-09-22T03:42:21Z",
-  assets: [{ name: "Game-1.8.3-windows-x64.zip" }],
 };
 const asset = {
   id: 580473673,
@@ -954,13 +953,14 @@ const asset = {
   created_at: "2026-09-22T03:41:00Z",
   updated_at: "2026-09-22T03:42:00Z",
 };
+const embeddedRelease = { ...release, assets: [asset] };
 
 function fakeRead(overrides: Record<string, unknown> = {}) {
   const endpoints: string[] = [];
   const responses: Record<string, unknown> = {
     [`/repos/${repository}`]: { id: 1348026644, full_name: repository, archived: false },
-    [`/repos/${repository}/releases?per_page=30`]: [release],
-    [`/repos/${repository}/releases/tags/v1.8.3`]: release,
+    [`/repos/${repository}/releases?per_page=30`]: [embeddedRelease],
+    [`/repos/${repository}/releases/tags/v1.8.3`]: embeddedRelease,
     [`/repos/${repository}/releases/393440319/assets?per_page=100`]: [asset],
     ...overrides,
   };
@@ -1007,7 +1007,7 @@ void test("pin evidence uses the observer's facts and hashes at the current name
   assert.deepEqual(result.releases[0]?.asset_names, ["Game-1.8.3-windows-x64.zip"]);
   assert.equal(result.releases_may_be_partial, false);
   assert.ok(result.pin);
-  const { assets: _assets, ...releaseFacts } = release;
+  const releaseFacts = release;
   assert.deepEqual(result.pin.release, releaseFacts);
   assert.equal(result.pin.release_facts_sha256, observationHash(releaseFacts));
   const [pinned] = result.pin.assets;
@@ -1018,9 +1018,9 @@ void test("pin evidence uses the observer's facts and hashes at the current name
   assert.equal(digest, observationHash(facts));
   assert.deepEqual(endpoints, [
     `/repos/${repository}`,
-    `/repos/${repository}/releases?per_page=30`,
     `/repos/${repository}/releases/tags/v1.8.3`,
     `/repos/${repository}/releases/393440319/assets?per_page=100`,
+    `/repos/${repository}/releases?per_page=30`,
   ]);
   assert.match(renderEvidenceSummary(report), /580473673, 8247843 B/u);
 });
@@ -1045,7 +1045,22 @@ void test("inconsistent provider facts fail that request without hiding the othe
     ],
     [
       "different tag",
-      { [`/repos/${repository}/releases/tags/v1.8.3`]: { ...release, tag_name: "v1.8.4" } },
+      {
+        [`/repos/${repository}/releases/tags/v1.8.3`]: { ...embeddedRelease, tag_name: "v1.8.4" },
+      },
+    ],
+    [
+      "draft release",
+      { [`/repos/${repository}/releases/tags/v1.8.3`]: { ...embeddedRelease, draft: true } },
+    ],
+    [
+      "embedded collection differs",
+      {
+        [`/repos/${repository}/releases/tags/v1.8.3`]: {
+          ...embeddedRelease,
+          assets: [{ ...asset, size: 1 }],
+        },
+      },
     ],
     [
       "possibly capped assets",
@@ -1071,4 +1086,17 @@ void test("inconsistent provider facts fail that request without hiding the othe
     assert.equal(report.results[1]?.ok, true, name);
     assert.match(renderEvidenceSummary(report), /failed:/u, name);
   }
+});
+
+void test("a failed release sample keeps the pin evidence", async () => {
+  const { read } = fakeRead({ [`/repos/${repository}/releases?per_page=30`]: "too large" });
+  const report = await relocationEvidenceReport(
+    parseEvidenceRequests(`${repository}@v1.8.3`),
+    read,
+  );
+  const [result] = report.results;
+  assert.ok(result?.ok);
+  assert.equal(result.pin?.assets[0]?.id, 580473673);
+  assert.equal(result.releases.length, 0);
+  assert.match(result.releases_error ?? "", /invalid release collection/u);
 });

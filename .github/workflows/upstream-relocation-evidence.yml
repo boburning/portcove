@@ -21,7 +21,10 @@ concurrency:
 
 jobs:
   evidence:
-    if: github.repository == 'boburning/portcove' && github.actor == 'boburning'
+    if: >-
+      github.repository == 'boburning/portcove' &&
+      github.actor == 'boburning' &&
+      github.triggering_actor == 'boburning'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -39,18 +42,20 @@ jobs:
       - name: Read bounded provider metadata
         timeout-minutes: 2
         run: >-
+          mkdir -p work/relocation-evidence &&
           node scripts/upstream-relocation-evidence.mts
           --requests "$REQUESTS"
-          --output "$RUNNER_TEMP/relocation-evidence.json"
+          --output work/relocation-evidence/report.json
           --summary "$GITHUB_STEP_SUMMARY"
         env:
           REQUESTS: ${{ inputs.requests }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Retain evidence report
-        if: ${{ !cancelled() && hashFiles(format('{0}/relocation-evidence.json', runner.temp)) != '' }}
+        # hashFiles only sees the workspace, so the report is written under work/.
+        if: ${{ !cancelled() && hashFiles('work/relocation-evidence/report.json') != '' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: upstream-relocation-evidence
-          path: ${{ runner.temp }}/relocation-evidence.json
+          path: work/relocation-evidence/report.json
           if-no-files-found: error
           retention-days: 30

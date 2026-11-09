@@ -1866,6 +1866,9 @@ for (const [file, tests] of [
   ["scripts/listing-upstream-observation.mts", upstreamHealthContractTests],
   ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
+  // Relocation tools keep their contract tests in the repository-health suite.
+  ["scripts/upstream-relocation-candidates.mts", ["scripts/check-catalog-repositories.test.mts"]],
+  ["scripts/upstream-relocation-evidence.mts", ["scripts/check-catalog-repositories.test.mts"]],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
   [
     "scripts/upstream-health-plan.mts",
@@ -2388,6 +2391,7 @@ for (const file of [
   ]);
 
 const workflowTests = new Map([
+  ["upstream-relocation-evidence.yml", ["scripts/check-catalog-repositories.test.mts"]],
   [
     "hosted-native-continuity.yml",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],

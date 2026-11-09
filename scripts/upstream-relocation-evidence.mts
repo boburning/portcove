@@ -80,46 +80,84 @@ function assetNames(release: Record<string, unknown>) {
     .filter((name): name is string => name !== null);
 }
 
+/**
+ * Pin evidence applies the observer's declared-pin collection checks, so the
+ * report never shows facts the pin validator would reject.
+ */
+async function pinEvidence(
+  request: EvidenceRequest & { tag: string },
+  repository: string,
+  read: MetadataRead,
+) {
+  const release = await read(
+    `/repos/${request.repository}/releases/tags/${encodeURIComponent(request.tag)}`,
+  );
+  const fact = releaseFact(release);
+  if (fact.tag_name !== request.tag || fact.draft)
+    throw new Error("release tag differs from the request or is a draft");
+  const assets = await read(`/repos/${request.repository}/releases/${fact.id}/assets?per_page=100`);
+  if (
+    !Array.isArray(assets) ||
+    assets.length === 0 ||
+    assets.length >= 100 ||
+    !isRecord(release) ||
+    !Array.isArray(release.assets) ||
+    release.assets.length !== assets.length
+  )
+    throw new Error("asset collection is empty, capped or incomplete");
+  const config = { repository };
+  const facts = assets.map((asset: unknown) => assetFact(asset, config, request.tag));
+  const embedded = release.assets.map((asset: unknown) => assetFact(asset, config, request.tag));
+  const byId = (left: { id: number }, right: { id: number }) => left.id - right.id;
+  if (
+    new Set(facts.map((asset) => asset.id)).size !== facts.length ||
+    observationHash(facts.toSorted(byId)) !== observationHash(embedded.toSorted(byId))
+  )
+    throw new Error("asset collections differ or repeat an identity");
+  return {
+    release: fact,
+    release_facts_sha256: observationHash(fact),
+    assets: facts
+      .map((asset) => ({ ...asset, asset_facts_sha256: observationHash(asset) }))
+      .toSorted(byId),
+  };
+}
+
 /** Collect evidence for one request. Every read is a fixed metadata endpoint. */
 export async function relocationEvidence(request: EvidenceRequest, read: MetadataRead) {
   const repository = repositoryIdentity(await read(`/repos/${request.repository}`));
-  const listed = await read(`/repos/${request.repository}/releases?per_page=${releasePage}`);
-  if (!Array.isArray(listed)) throw new Error("invalid release collection");
-  const releases = listed.map((value: unknown) => {
-    const fact = releaseFact(value);
-    return { ...fact, asset_names: isRecord(value) ? assetNames(value) : null };
-  });
-  let pin = null;
-  if (request.tag !== null) {
-    const release = await read(
-      `/repos/${request.repository}/releases/tags/${encodeURIComponent(request.tag)}`,
-    );
-    const fact = releaseFact(release);
-    if (fact.tag_name !== request.tag) throw new Error("release tag differs from the request");
-    const assets = await read(
-      `/repos/${request.repository}/releases/${fact.id}/assets?per_page=100`,
-    );
-    if (!Array.isArray(assets) || assets.length >= 100)
-      throw new Error("asset collection is not an array or may be capped");
-    const config = { repository: repository.full_name };
-    pin = {
-      release: fact,
-      release_facts_sha256: observationHash(fact),
-      assets: assets
-        .map((asset: unknown) => {
-          const facts = assetFact(asset, config, request.tag ?? "");
-          return { ...facts, asset_facts_sha256: observationHash(facts) };
-        })
-        .toSorted((left, right) => left.id - right.id),
+  // The pin is read before the bounded sample, so a large sample cannot hide it.
+  const pin =
+    request.tag === null
+      ? null
+      : await pinEvidence({ ...request, tag: request.tag }, repository.full_name, read);
+  let sample;
+  try {
+    const listed = await read(`/repos/${request.repository}/releases?per_page=${releasePage}`);
+    if (!Array.isArray(listed)) throw new Error("invalid release collection");
+    const releases = listed.map((value: unknown) => ({
+      ...releaseFact(value),
+      asset_names: isRecord(value) ? assetNames(value) : null,
+    }));
+    // The first release page is a bounded sample, never a complete history.
+    sample = {
+      releases_sampled: releases.length,
+      releases_may_be_partial: releases.length === releasePage,
+      releases,
+      releases_error: null,
+    };
+  } catch (error) {
+    sample = {
+      releases_sampled: 0,
+      releases_may_be_partial: true,
+      releases: [],
+      releases_error: errorMessage(error).slice(0, 300),
     };
   }
   return {
     request: `${request.repository}${request.tag === null ? "" : `@${request.tag}`}`,
     repository,
-    // The first release page is a bounded sample, never a complete history.
-    releases_sampled: releases.length,
-    releases_may_be_partial: releases.length === releasePage,
-    releases,
+    ...sample,
     pin,
   };
 }
@@ -162,7 +200,9 @@ export function renderEvidenceSummary(
   ];
   for (const result of report.results) {
     if (!result.ok) {
-      lines.push(`| \`${result.request}\` | failed: ${result.error.replaceAll("|", "/")} | | |`);
+      lines.push(
+        `| \`${result.request}\` | failed: ${result.error.replaceAll(/[|\r\n]/gu, " ")} | | |`,
+      );
       continue;
     }
     const pin = result.pin
