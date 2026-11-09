@@ -170,6 +170,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 28,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 29,
+        });
         supported
     }
 }
@@ -656,7 +660,7 @@ mod tests {
         let catalog = crate::Catalog::embedded().unwrap();
         for (id, minimum) in [
             ("sonic-3-and-knuckles-recomp", 26),
-            ("super-metroid-recomp", 28),
+            ("super-metroid-recomp", 29),
             ("mega-man-x2-snes-recomp", 28),
             ("sonic-the-hedgehog-recomp", 28),
         ] {
@@ -734,7 +738,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(4));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 29, 29)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 30, 30)).unwrap();
         assert!(!future.compatible);
     }
 

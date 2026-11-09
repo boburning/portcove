@@ -15,7 +15,39 @@
       "game_slug": "donkey-kong-country-3-dixie-kong-s-double-trouble",
       "match_kind": "underlying-game"
     },
-    "issue_number": 723
+    "issue_number": 723,
+    "platforms": ["macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/elliotttate/DKC3Recomp/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the setup for your system",
+          "instruction": "On Windows, select your own headerless North American English/French DKC3 ROM in Portcove and review the Windows installation. On Apple Silicon, use the upstream Mac app and its launcher."
+        },
+        {
+          "title": "Open the upstream Mac app",
+          "instruction": "On an Apple Silicon Mac with macOS 26 or later, download the official Mac arm64 ZIP from DKC3Recomp Releases. Extract it in Finder and keep DKC3Recomp.app intact in a permanent folder. Open the app directly. The reviewed alpha bundle is ad-hoc signed."
+        },
+        {
+          "title": "Select your original ROM",
+          "instruction": "In the app’s launcher, select your own unmodified headerless North American English/French Donkey Kong Country 3 ROM. Keep that file in place. The launcher uses the original at its selected location."
+        },
+        {
+          "title": "Keep your Mac profile before updating",
+          "instruction": "Quit the app and back up ~/Library/Application Support/Flat2VR/DKC3Recomp, including its saves folder, before replacing the app yourself. If you set DKC3_USER_DIR or use DKC3_PORTABLE, back up the actual selected location. Keep build-specific states with the app version that created them."
+        }
+      ],
+      "warnings": [
+        "The Mac app is an upstream-managed alpha. Use its own launcher and keep its profile separate from the Windows setup."
+      ],
+      "references": [
+        {
+          "title": "Reviewed Mac package",
+          "instruction": "The v0.0.6 release reuses the exact v0.0.4 Mac bundle. See https://github.com/elliotttate/DKC3Recomp/releases/tag/v0.0.6 for the publisher’s package and platform notes."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

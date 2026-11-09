@@ -26500,6 +26500,35 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified.",
         "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose the setup for your system",
+              "instruction": "On Windows, select your own headerless North American English/French DKC3 ROM in Portcove and review the Windows installation. On Apple Silicon, use the upstream Mac app and its launcher."
+            },
+            {
+              "title": "Open the upstream Mac app",
+              "instruction": "On an Apple Silicon Mac with macOS 26 or later, download the official Mac arm64 ZIP from DKC3Recomp Releases. Extract it in Finder and keep DKC3Recomp.app intact in a permanent folder. Open the app directly. The reviewed alpha bundle is ad-hoc signed."
+            },
+            {
+              "title": "Select your original ROM",
+              "instruction": "In the app’s launcher, select your own unmodified headerless North American English/French Donkey Kong Country 3 ROM. Keep that file in place. The launcher uses the original at its selected location."
+            },
+            {
+              "title": "Keep your Mac profile before updating",
+              "instruction": "Quit the app and back up ~/Library/Application Support/Flat2VR/DKC3Recomp, including its saves folder, before replacing the app yourself. If you set DKC3_USER_DIR or use DKC3_PORTABLE, back up the actual selected location. Keep build-specific states with the app version that created them."
+            }
+          ],
+          "warnings": [
+            "The Mac app is an upstream-managed alpha. Use its own launcher and keep its profile separate from the Windows setup."
+          ],
+          "references": [
+            {
+              "title": "Reviewed Mac package",
+              "instruction": "The v0.0.6 release reuses the exact v0.0.4 Mac bundle. See https://github.com/elliotttate/DKC3Recomp/releases/tag/v0.0.6 for the publisher’s package and platform notes."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 1094,
           "cover_id": 94883,
@@ -29543,14 +29572,17 @@
     {
       "id": "super-metroid-recomp",
       "name": "Super Metroid Recompiled",
-      "summary": "Native Super Metroid recompilation with an exact original and pinned Windows runtime.",
+      "summary": "Play Super Metroid Recompiled with your own exact original on Windows, Linux or Mac.",
       "project_url": "https://github.com/mstan/SuperMetroidRecomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -29562,6 +29594,18 @@
           "windows-x86-64": [
             "supermetroid-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "supermetroid-",
+            "-linux-x64.zip"
+          ],
+          "macos-x86-64": [
+            "supermetroid-",
+            "-macos-x64.zip"
+          ],
+          "macos-aarch64": [
+            "supermetroid-",
+            "-macos-arm64.zip"
           ]
         }
       },
@@ -29569,6 +29613,15 @@
       "executable_hints": {
         "windows-x86-64": [
           "SuperMetroidSNESRecomp.exe"
+        ],
+        "linux-x86-64": [
+          "SuperMetroidSNESRecomp"
+        ],
+        "macos-x86-64": [
+          "SuperMetroidSNESRecomp"
+        ],
+        "macos-aarch64": [
+          "SuperMetroidSNESRecomp"
         ]
       },
       "runtime_source_filename": "game.sfc",
@@ -29621,7 +29674,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. The managed route selects compatible official Windows packages, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. The installation folder needs basic Latin characters and a short path. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can fall back to %TEMP%/SuperMetroidSNESRecomp/logs outside managed backup/removal. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included.",
+        "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. The managed route selects the compatible official ZIP for Windows x86-64, Linux x86-64, or Intel or Apple Silicon Mac, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. On Windows choose a short installation path with basic Latin characters. The reviewed Linux package needs glibc 2.34, GLIBCXX_3.4.29 and system OpenGL. The reviewed Mac packages need macOS 15 because their bundled libraries set that floor. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can place diagnostic logs outside managed backup and removal. Keep the runtime writable and preserve any fallback logs separately. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included.",
         "original_game_title": "Super Metroid",
         "manual_setup": {
           "steps": [

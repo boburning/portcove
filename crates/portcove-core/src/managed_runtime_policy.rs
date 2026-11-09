@@ -69,29 +69,33 @@ pub(crate) fn validate_release_rules(port: &PortDefinition) -> Result<()> {
         return Ok(());
     }
     if !requires_provider_resolution(port)
-        || port.platforms != [Platform::WindowsX86_64]
+        || (port.platforms != [Platform::WindowsX86_64]
+            && !crate::runtime_path_policy::has_staged_sibling_platforms(port))
         || !crate::definition_acquisition::valid_github_repository(&port.release.repository)
         || !port.release.direct.is_empty()
         || !port.release.curated.is_empty()
         || !port.release.managed_build.is_empty()
         || !port.release.user_prepared.is_empty()
-        || port
-            .release
-            .asset_hints
-            .get(&Platform::WindowsX86_64)
-            .is_none_or(|hints| hints.is_empty() || hints.iter().any(|hint| hint.trim().is_empty()))
+        || port.platforms.iter().any(|platform| {
+            port.release.asset_hints.get(platform).is_none_or(|hints| {
+                hints.is_empty() || hints.iter().any(|hint| hint.trim().is_empty())
+            })
+        })
     {
         return Err(PortcoveError::verification(
-            "runtime policy requires reviewed direct facts or reusable Windows GitHub package rules",
+            "runtime policy requires reviewed direct facts or reusable GitHub package rules for every platform",
         ));
     }
-    validate_executable(port)
+    for &platform in &port.platforms {
+        validate_executable(port, platform)?;
+    }
+    Ok(())
 }
 
-fn validate_executable(port: &PortDefinition) -> Result<()> {
+fn validate_executable(port: &PortDefinition, platform: Platform) -> Result<()> {
     let hints = port
         .executable_hints
-        .get(&Platform::WindowsX86_64)
+        .get(&platform)
         .ok_or_else(|| PortcoveError::verification("runtime policy has no reviewed executable"))?;
     let [executable] = hints.as_slice() else {
         return Err(PortcoveError::verification(
@@ -99,7 +103,7 @@ fn validate_executable(port: &PortDefinition) -> Result<()> {
         ));
     };
     crate::archive::validate_relative_path(executable, false)?;
-    if !executable.to_ascii_lowercase().ends_with(".exe") {
+    if platform == Platform::WindowsX86_64 && !executable.to_ascii_lowercase().ends_with(".exe") {
         return Err(PortcoveError::verification(
             "runtime policy requires a native Windows executable",
         ));
@@ -140,7 +144,7 @@ pub(crate) fn artifact(port: &PortDefinition) -> Result<(&str, ArtifactIdentity)
     let name =
         name.ok_or_else(|| PortcoveError::verification("runtime policy artifact name is missing"))?;
     crate::archive::validate_relative_path(name, false)?;
-    validate_executable(port)?;
+    validate_executable(port, Platform::WindowsX86_64)?;
     Ok((
         &release.version,
         ArtifactIdentity {
@@ -161,15 +165,19 @@ pub(crate) fn require_artifact(
         validate_release_rules(port)?;
         crate::archive::validate_relative_path(&actual.asset_name, false)?;
         let name = actual.asset_name.to_ascii_lowercase();
-        if platform != Some(Platform::WindowsX86_64)
-            || version.trim().is_empty()
+        let hints = platform
+            .filter(|platform| port.platforms.contains(platform))
+            .and_then(|platform| port.release.asset_hints.get(&platform));
+        if version.trim().is_empty()
             || actual.size == 0
             || actual.sha256.len() != 64
             || !actual.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
             || !name.ends_with(".zip")
-            || port.release.asset_hints[&Platform::WindowsX86_64]
-                .iter()
-                .any(|hint| !name.contains(&hint.to_ascii_lowercase()))
+            || hints.is_none_or(|hints| {
+                hints
+                    .iter()
+                    .any(|hint| !name.contains(&hint.to_ascii_lowercase()))
+            })
         {
             return Err(PortcoveError::verification(
                 "runtime policy artifact does not match its retained package rules",
@@ -196,6 +204,32 @@ pub(crate) fn require_artifact(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn staged_sibling_artifacts_follow_the_retained_platform_rules() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("super-metroid-recomp").unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "supermetroid-0.4.4-linux-x64.zip".into(),
+            size: 14_938_225,
+            sha256: "4a7f0116c42460c4b0e9643225a2b27a3ff4d58ad3fd41cce49e59703b5f73a8".into(),
+        };
+        require_artifact(port, "v0.4.4", &artifact, Some(Platform::LinuxX86_64)).unwrap();
+        for platform in [
+            None,
+            Some(Platform::WindowsX86_64),
+            Some(Platform::MacosX86_64),
+            Some(Platform::MacosAarch64),
+        ] {
+            assert!(require_artifact(port, "v0.4.4", &artifact, platform).is_err());
+        }
+        let mut invalid = port.clone();
+        invalid.release.asset_hints.remove(&Platform::MacosAarch64);
+        assert!(validate_release_rules(&invalid).is_err());
+        invalid = port.clone();
+        invalid.archive_data_compatibility_v1 = None;
+        assert!(crate::runtime_path_policy::validate(&invalid).is_err());
+    }
 
     #[test]
     fn managed_acquisition_holds_follow_catalog_data_without_port_specific_code() {
