@@ -3380,12 +3380,17 @@ Known cloud limits remain visible in `just doctor`:
   acceptance remains the separate `portcove-desktop-verification` route. Local
   feedback stays optional.
 
-The storage preflight's 20 GiB floor can be tight on a cloud disk allowance.
-Browser projects retain raw traces under `work/bt` even after passing runs, and a
-complete browser run can write over 10 GiB there. After confirming that the owning
-test process has exited and no failure evidence is needed, remove only that run's
-own `work/bt/run-*` directory. Set `PORTCOVE_MIN_FREE_GIB` on the environment from
-observed needs rather than deleting evidence.
+The storage preflight's 20 GiB default floor matches a cold build: on
+2026-11-09 a cloud `cargo test --workspace --locked --no-run` from an empty
+`target` used about 18 GB of a roughly 26 GB allowance. Once `target` exists,
+the default would refuse every later incremental run, so the Portcove cloud
+environment sets `PORTCOVE_MIN_FREE_GIB=6`: a cold build still starts, and
+incremental work continues until about 6 GiB remain. Browser projects retain raw
+traces under `work/bt` even after passing runs, and a complete browser run can
+write over 10 GiB there. After confirming that the owning test process has
+exited and no failure evidence is needed, remove only that run's own
+`work/bt/run-*` directory, or remove `target` when its build is no longer
+needed, rather than lowering the floor further or deleting evidence.
 
 ## Shared local resources
 
