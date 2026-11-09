@@ -1447,7 +1447,7 @@ void test("tool manifest retains the aggregate and per-file byte limits on both 
         (total, file) => total + file.bytes,
         0,
       ),
-      336_592_896,
+      337_641_472,
     );
     files[2]!.bytes++;
     assert.throws(
