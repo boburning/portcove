@@ -1552,7 +1552,7 @@ void test("retained Release verifier fixes its command and rejects unscoped argu
   assert.equal(calls, 1);
 });
 
-void test("live clients honor the standard proxy environment once, like gh and git", () => {
+void test("opted-in live clients honor the standard proxy environment once, like gh and git", () => {
   const enabled: NodeJS.ProcessEnv[] = [];
   const enable = (environment: NodeJS.ProcessEnv) => enabled.push(environment);
   assert.equal(honorEnvironmentProxy({}, enable), false, "no proxy variables change nothing");
@@ -1561,10 +1561,42 @@ void test("live clients honor the standard proxy environment once, like gh and g
     false,
     "Node already honors the proxy",
   );
+  assert.equal(
+    honorEnvironmentProxy({ HTTPS_PROXY: "http://127.0.0.1:9" }, null),
+    false,
+    "a Node without runtime proxy support stays direct",
+  );
   assert.equal(enabled.length, 0);
-  const environment = { https_proxy: "http://127.0.0.1:9", NO_PROXY: "localhost" };
+  const environment: NodeJS.ProcessEnv = {
+    https_proxy: "http://127.0.0.1:9",
+    NO_PROXY: "localhost",
+  };
   assert.equal(honorEnvironmentProxy(environment, enable), true);
   assert.deepEqual(enabled, [environment], "NO_PROXY travels with the proxy environment");
-  assert.equal(honorEnvironmentProxy(environment, enable), false, "enabled only once");
-  assert.equal(enabled.length, 1);
+  assert.equal(environment.NODE_USE_ENV_PROXY, "1", "the process records proxied transport");
+  assert.equal(honorEnvironmentProxy({ https_proxy: "http://127.0.0.1:9" }, enable), false);
+  assert.equal(enabled.length, 1, "enabled only once");
+});
+
+void test("only opted-in live clients proxy, and release direct-transport guards then refuse", () => {
+  const program = `
+    import { createGitHubClient } from ${JSON.stringify(new URL("./github-client.mts", import.meta.url).href)};
+    import { assertTrustedDirectNode } from ${JSON.stringify(new URL("./release-direct-node-transport.mts", import.meta.url).href)};
+    const report = () => { try { assertTrustedDirectNode("probe"); return "direct"; } catch { return "refused"; } };
+    const client = { credential: { kind: "anonymous" }, deadline: performance.now() + 10000 };
+    await createGitHubClient(client);
+    const before = report();
+    await createGitHubClient({ ...client, environmentProxy: true });
+    console.log(JSON.stringify([before, report(), process.env.NODE_USE_ENV_PROXY ?? null]));
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", program], {
+    encoding: "utf8",
+    env: { PATH: process.env.PATH, HTTPS_PROXY: "http://127.0.0.1:9", NO_PROXY: "" },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout.trim().split("\n").at(-1) ?? "null"), [
+    "direct",
+    "refused",
+    "1",
+  ]);
 });

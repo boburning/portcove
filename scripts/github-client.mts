@@ -65,6 +65,13 @@ export interface GitHubClientOptions {
   headers?: Readonly<Record<string, string>>;
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
+  /**
+   * Route a live client through the standard proxy environment, as gh and git
+   * do. Only non-release helpers opt in: it marks the process with
+   * NODE_USE_ENV_PROXY, so release direct-transport guards in the same process
+   * refuse rather than run proxied.
+   */
+  environmentProxy?: boolean;
   now?: () => number;
   wallNow?: () => number;
   requestTimeoutMs?: number;
@@ -128,22 +135,28 @@ let environmentProxyHonored = false;
  * Node's fetch ignores HTTPS_PROXY/HTTP_PROXY unless NODE_USE_ENV_PROXY is set,
  * while gh, git and curl honor them. Where a proxy is the network route (for
  * example a cloud session whose proxy supplies the GitHub credential), a direct
- * connection fails authentication, so live clients opt in to Node's built-in
- * proxy support, which also applies NO_PROXY. Without proxy variables nothing
- * changes; TLS verification is unchanged.
+ * connection fails authentication, so opted-in live clients enable Node's
+ * built-in proxy support, which also applies NO_PROXY, and record that as
+ * NODE_USE_ENV_PROXY=1 for the process. Without proxy variables, or on a Node
+ * without runtime proxy support, nothing changes; TLS verification is unchanged.
  */
 export function honorEnvironmentProxy(
   environment: NodeJS.ProcessEnv = process.env,
-  enable: (environment: NodeJS.ProcessEnv) => unknown = (proxyEnvironment) =>
-    http.setGlobalProxyFromEnv(proxyEnvironment),
+  enable:
+    | ((environment: NodeJS.ProcessEnv) => unknown)
+    | null = typeof http.setGlobalProxyFromEnv === "function"
+    ? (proxyEnvironment) => http.setGlobalProxyFromEnv(proxyEnvironment)
+    : null,
 ) {
-  if (environmentProxyHonored) return false;
   if (
+    environmentProxyHonored ||
+    !enable ||
     environment.NODE_USE_ENV_PROXY === "1" ||
     !["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"].some((name) => environment[name])
   )
     return false;
   enable(environment);
+  environment.NODE_USE_ENV_PROXY = "1";
   environmentProxyHonored = true;
   return true;
 }
@@ -207,7 +220,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
   const base = new URL(options.baseUrl ?? "https://api.github.com");
   if (base.username || base.password || base.protocol !== "https:")
     throw new GitHubApiError("invalid_configuration", "Invalid GitHub API origin");
-  if (!options.fetch) honorEnvironmentProxy();
+  if (options.environmentProxy && !options.fetch) honorEnvironmentProxy();
   // Offline commands share this module without installing the live transport.
   const { Octokit } = await import("@octokit/core");
   const remaining = Math.ceil(options.deadline - now());

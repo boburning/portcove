@@ -3348,9 +3348,12 @@ Known cloud limits remain visible in `just doctor`:
 - The session's HTTPS proxy supplies its GitHub credential, so a direct
   connection fails with `401 Bad credentials`. Node's `fetch` ignores
   `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1`, which a session cannot set on its
-  environment, so the shared GitHub client enables Node's built-in proxy support
-  whenever a proxy variable is present (`NO_PROXY` still applies). A script that
-  reaches GitHub without that client needs the same treatment.
+  environment. Delivery helpers (`pr-delivery.mts`, `github-body.mts`) therefore
+  create their GitHub client with `environmentProxy: true`, which enables Node's
+  built-in proxy support when a proxy variable is present (`NO_PROXY` still
+  applies) and records `NODE_USE_ENV_PROXY=1` for the process. Release clients
+  never opt in, and release direct-transport guards refuse in a process that
+  has.
 - The daily discovery runner requires an interactive TTY and GraphQL; run it
   locally.
 - Windows targets and native Windows qualification remain hosted CI or
