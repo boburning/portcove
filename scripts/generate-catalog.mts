@@ -36,7 +36,6 @@ interface Difference {
 type ProposalChecks = Record<"accepted" | "input" | "output", ProposalReceipt>;
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
-const sourcePath = join(catalogRoot, catalogSourceNames.operational);
 const outputPath = join(catalogRoot, "catalog.json");
 const listingsPath = join(catalogRoot, catalogSourceNames.listings);
 const enrollmentPath = join(catalogRoot, "route-enrollment.generated.json");
@@ -649,7 +648,6 @@ if (preparing) {
       readFileSync(routeTestPaths.retained, "utf8") !== retainedTests ||
       readFileSync(enrollmentPath, "utf8") !== enrollmentOutput ||
       readFileSync(outputPath, "utf8") !== output ||
-      readFileSync(sourcePath, "utf8") !== output ||
       readFileSync(listingsPath, "utf8") !== listingsOutput
     ) {
       throw new Error("embedded catalog is stale; run node scripts/generate-catalog.mts");
@@ -661,7 +659,6 @@ if (preparing) {
     writeFileSync(routeTestPaths.managed, routeTests.managed);
     writeFileSync(routeTestPaths.retained, retainedTests);
     writeFileSync(enrollmentPath, enrollmentOutput);
-    writeFileSync(sourcePath, output);
     writeFileSync(outputPath, output);
     writeFileSync(listingsPath, listingsOutput);
   }

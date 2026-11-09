@@ -816,6 +816,11 @@ shared source tables, generated projections and independent compatibility fixtur
 from the Git index. It shares the generator's authoring projection and
 independent compatibility expectations, preserves partial staging, and never
 regenerates or stages files. Unrelated commits skip this optional local check.
+`node scripts/catalog-staged-check.mts --resolve-conflicts` is the separate,
+explicit repair for merge or rebase conflicts in generated catalog aggregates: when
+only generated aggregates are unmerged it runs `generate-catalog.mts` and stages
+every generated output, and it refuses, changing nothing, while an authored source
+or any other path is still conflicted or if regeneration fails.
 
 Existing foreign hook managers are preserved by the installer. To replace an
 old Portcove Husky hook, inspect `git config --show-origin --get core.hooksPath`,

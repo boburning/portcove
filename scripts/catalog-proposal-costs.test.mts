@@ -166,7 +166,7 @@ function fixture(
     );
   const accepted = Buffer.from(JSON.stringify(catalog));
   const input = Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`);
-  const source = join(catalogs, "catalog-current-authoring.json");
+  const source = join(catalogs, "catalog-fixture-input.json");
   writeFileSync(source, accepted);
   writeFileSync(join(catalogs, "catalog.json"), accepted);
   writeFileSync(

@@ -556,11 +556,9 @@ export function selectWorkspaceRustImpact(
   // Preserve the explicitly maintained public artwork consumer, rather than inventing a dependency graph.
   if (
     plan.changed_files.some((file) =>
-      [
-        "crates/portcove-core/src/artwork.rs",
-        "crates/portcove-core/catalog/catalog.json",
-        "crates/portcove-core/catalog/catalog-current-authoring.json",
-      ].includes(file),
+      ["crates/portcove-core/src/artwork.rs", "crates/portcove-core/catalog/catalog.json"].includes(
+        file,
+      ),
     ) &&
     !selected.some(
       (group) => group.packageName === "portcove-cli" && group.filter === "package(=portcove-cli)",
