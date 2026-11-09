@@ -53,6 +53,16 @@ Catalog generation, catalog invariants, prepared guide lifecycle and CLI
 presentation checks still apply. Changes to route facts, guide structure,
 enrollment or other inputs use ordinary affected-input selection.
 
+Ordinary catalog changes are meant to be data-only. On pull requests, the CI plan
+job runs `scripts/catalog-rust-edit-report.mts` over the plan's complete changed-file
+list and, when port data under `crates/portcove-core/catalog/ports/` or `catalog.json`
+changes together with Rust sources under `crates/`, emits an advisory notice and step
+summary naming the production and test files. Test files are recognized by path, so an
+inline test module in a production file counts as production. The report is a
+heuristic: it never fails the job, selects no validation and is not a merge
+prerequisite. A new route shape or contract legitimately needs Rust; otherwise the
+named files show a test or code path that still keys on a specific port.
+
 ### Review scope
 
 Independent non-writing review is required for substantive behavior and higher
