@@ -246,6 +246,12 @@ export async function runCatalogUpstreams(
   if (!Number.isSafeInteger(handoffByteLimit) || handoffByteLimit <= 0)
     throw new ObservationFailure("budget", "Checkpoint, summary and handoff envelopes unavailable");
   const artifactByteLimit = handoffByteLimit + summaryByteLimit + observerSnapshotLimit;
+  // One source file keeps the standalone envelope: prepare-port reads each listing
+  // observation handoff with a sixteen-MiB bound, and the aggregate may be larger.
+  const sourceHandoffByteLimit = Math.min(
+    handoffByteLimit,
+    config.budget.total_bytes - summaryByteLimit - observerSnapshotLimit,
+  );
   const handoff = runtime.handoff ?? {
     directory: path.join(root, "work/upstream-observer-handoff", randomUUID()),
     sizes: new Map<string, number>(),
@@ -437,7 +443,7 @@ export async function runCatalogUpstreams(
           protected_publication: "not-authorized",
         };
         const bytes = Buffer.byteLength(JSON.stringify(report));
-        if (bytes > handoffByteLimit)
+        if (bytes > sourceHandoffByteLimit)
           throw new ObservationFailure(
             "handoff-size",
             "Provider source handoff exceeds the physical byte envelope; complete checkpoint retained",
@@ -518,7 +524,7 @@ export async function runCatalogUpstreams(
             execution: report.execution,
           });
         const bytes = Buffer.byteLength(JSON.stringify(report));
-        if (bytes > handoffByteLimit)
+        if (bytes > sourceHandoffByteLimit)
           throw new ObservationFailure(
             "handoff-size",
             "A single source handoff exceeds the physical response envelope; retain its complete provider/Core checkpoint. A reviewed framed handoff capability is required before this scope can be exported.",
@@ -723,12 +729,20 @@ export async function runCatalogOpportunity(
         },
       },
     );
+    // Report the envelope the batches actually enforced, not a recomputed value.
+    const batchSummary: unknown = result.summary;
+    const artifactByteLimit =
+      typeof batchSummary === "object" &&
+      batchSummary !== null &&
+      "artifact_byte_limit" in batchSummary &&
+      typeof batchSummary.artifact_byte_limit === "number"
+        ? batchSummary.artifact_byte_limit
+        : null;
     let summary: unknown = {
       ...result.report,
       bounded_batches: result.batches,
       artifact_bytes: handoff.bytes,
-      artifact_byte_limit:
-        hostedHandoffByteLimit + config.budget.response_bytes + observerSnapshotLimit,
+      artifact_byte_limit: artifactByteLimit,
     };
     if (Buffer.byteLength(JSON.stringify(summary)) > config.budget.response_bytes)
       summary = {

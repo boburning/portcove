@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   runCatalogUpstreams,
   runCatalogOpportunity,
+  hostedHandoffByteLimit,
   retireObserverConfigurations,
 } from "./observe-catalog-upstreams.mts";
 import {
@@ -2678,6 +2679,11 @@ void test("hosted opportunity preserves one aggregate handoff and refuses change
     )
   ).reduce((sum, bytes) => sum + bytes.length, 0);
   assert.equal((result.summary as { artifact_bytes: number }).artifact_bytes, actualBytes);
+  // The hosted path wires its own aggregate handoff envelope into the summary.
+  assert.equal(
+    (result.summary as { artifact_byte_limit: number }).artifact_byte_limit,
+    hostedHandoffByteLimit + h.options.config.budget.response_bytes + observerSnapshotLimit,
+  );
   h.advanceClock(7 * 3600000);
   runtime.deadline = h.options.now!() + 500000;
   let changed = false;

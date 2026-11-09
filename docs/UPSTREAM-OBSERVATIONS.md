@@ -287,8 +287,10 @@ byte budget, with four MiB reserved for the summary and one-day artifact retenti
 The hosted path reserves four MiB of that same sixteen-MiB output envelope for a
 complete inert recovery snapshot, in addition to the existing four-MiB summary
 reserve. Standalone source handoffs use the remaining eight MiB across all batches.
-A hosted opportunity gives source handoffs thirty-two MiB, proportionate to its
-forty-minute window; nothing in the repository reads this one-day artifact back. The
+A hosted opportunity gives source handoffs thirty-two MiB in aggregate,
+proportionate to its forty-minute window; each source file keeps the eight-MiB
+standalone bound, within the sixteen-MiB per-file limit of the manual
+`prepare-port.mts --listing-observations` consumer. The
 snapshot contains the catalog scheduler and its referenced per-source checkpoints;
 it excludes reports, locks, temporary files and executables. Production format 4
 streams source checkpoint JSON records through one Brotli compressor, preserving
@@ -657,9 +659,9 @@ Changed contracts discard incompatible reuse; corrupt or future evidence fails
 closed. An interrupted process can resume accepted locations without resetting
 numeric identity baselines. A PR cannot write trusted history.
 
-The forty-five-minute hosted job limit applies. A deadline anchored at the first
-job step allows up to forty minutes for preparation and automatic bounded collector
-batches, leaving five minutes for history/artifact retention and cleanup. Observed main run
+The ten-minute hosted deadline remains. A deadline anchored at the first job step
+allows up to nine minutes for preparation and automatic bounded collector batches,
+leaving one minute for history/artifact retention and cleanup. Observed main run
 40462280230 used roughly twelve seconds for preparation and two seconds for
 retention. The separate RetComM check retains at most two sequential 15-second
 request deadlines per title (titles run concurrently); selected IDs accumulate
