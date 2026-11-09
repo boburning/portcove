@@ -62,6 +62,12 @@ definitions, so a new declaration does not retrofit historical manifests. This
 capability grants neither upstream Unicode support nor external-profile ownership
 or protected publication. See the [runtime path contract](CATALOG.md).
 
+Native portable version 11 consumes the `openrct2-mac-v1` external profile
+policy and the official universal OpenRCT2 bundle. New and retained entries
+using that policy require version 11. It checks the real account’s external
+profile only for the Mac routes. Windows and Linux creating definitions
+keep their existing behavior.
+
 Native portable version 10 adds official sibling packages to verified native
 original-file definitions that keep a Windows temporary directory inside their
 private profile. Fresh and retained indexed entries declaring that combination

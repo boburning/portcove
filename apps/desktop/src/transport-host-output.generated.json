@@ -13779,7 +13779,8 @@
         "description": "Closed upstream profile resolution for managed portable players.",
         "enum": [
           "dune-dynasty-allegro-v1",
-          "fheroes2-v1"
+          "fheroes2-v1",
+          "openrct2-mac-v1"
         ],
         "type": "string"
       },

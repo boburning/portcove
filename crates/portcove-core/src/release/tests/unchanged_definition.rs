@@ -42,6 +42,58 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn openrct2_both_mac_architectures_follow_the_official_universal_bundle() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("openrct2-openrct2").unwrap();
+    let archive = "OpenRCT2-v0.5.7-macos-universal.zip";
+    let sha256 = "fd71e17c8ee5e8bd5887e2b1e269d7bdd0c7cee056997cdc6b55813ed395fed3";
+    let mut observed = asset(archive, None);
+    observed["size"] = serde_json::json!(115_868_444_u64);
+    observed["digest"] = serde_json::json!(format!("sha256:{sha256}"));
+    let current = release(
+        "v0.5.7",
+        vec![
+            observed,
+            asset("OpenRCT2-v0.5.7-windows-portable-x64.zip", Some('a')),
+            asset("OpenRCT2-v0.5.7-Linux-bookworm-x86_64.tar.gz", Some('b')),
+        ],
+    );
+    let successor_name = "OpenRCT2-v0.5.8-macos-universal.zip";
+    let successor = release(
+        "v0.5.8",
+        vec![
+            asset(successor_name, Some('c')),
+            asset("OpenRCT2-v0.5.8-macos-arm64.zip", Some('d')),
+            asset("OpenRCT2-v0.5.8-macos-universal.dmg", Some('e')),
+        ],
+    );
+    for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(&current)),
+            metadata(),
+            releases(std::slice::from_ref(&successor)),
+        ]);
+        let old = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(old.asset.name, archive);
+        assert_eq!(old.asset.size, 115_868_444);
+        assert_eq!(old.asset.sha256, sha256);
+        let next = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(next.asset.name, successor_name);
+        assert_eq!(next.asset.sha256, "c".repeat(64));
+        server.join().unwrap();
+    }
+}
+
+#[tokio::test]
 async fn native10_original_sibling_assets_follow_stable_successors() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (record, ids, routes, tag) in [
