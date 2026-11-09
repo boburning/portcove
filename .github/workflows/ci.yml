@@ -1171,7 +1171,7 @@ jobs:
 
   rust:
     timeout-minutes: 15
-    if: always()
+    if: ${{ !cancelled() }}
     needs:
       [
         classify,
@@ -1286,7 +1286,7 @@ jobs:
 
   rust-quality:
     timeout-minutes: 15
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [classify, provenance, prose_checks, fast_rust_quality, rust_quality_full]
     runs-on: ubuntu-latest
     steps:
@@ -1414,7 +1414,7 @@ jobs:
 
   frontend:
     timeout-minutes: 15
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [classify, prose_checks, fast_frontend, frontend_full]
     runs-on: ubuntu-latest
     steps:
@@ -1480,7 +1480,7 @@ jobs:
 
   catalog:
     timeout-minutes: 15
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [classify, prose_checks, fast_catalog, windows_helpers, catalog_full]
     runs-on: ubuntu-latest
     steps:
@@ -1528,7 +1528,7 @@ jobs:
 
   dependency-review:
     timeout-minutes: 15
-    if: github.event_name == 'pull_request' && always()
+    if: github.event_name == 'pull_request' && !cancelled()
     needs: [classify, prose_checks, fast_dependency_review, dependency_review_full]
     runs-on: ubuntu-latest
     steps:
