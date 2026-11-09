@@ -1,0 +1,54 @@
+name: Mirror Roadmap queue for repository-scoped readers
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: roadmap-queue-mirror
+      cancel-in-progress: false
+    env:
+      PROJECT_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.PROJECT_TOKEN != ''
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        if: env.PROJECT_TOKEN != ''
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: env.PROJECT_TOKEN != ''
+        with:
+          node-version-file: .node-version
+      - name: Install trusted locked dependencies
+        if: env.PROJECT_TOKEN != ''
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Derive the Public beta queue from the live Project
+        if: env.PROJECT_TOKEN != ''
+        run: |
+          mkdir -p work/roadmap-queue-mirror
+          # Exit 1 means NOT READY, which is the expected content; the renderer rejects any other output.
+          node scripts/roadmap.mts readiness --release "Public beta" > work/roadmap-queue-mirror/readiness.md || [ $? -eq 1 ]
+          node scripts/roadmap-queue-mirror.mts render work/roadmap-queue-mirror/readiness.md work/roadmap-queue-mirror/body.md
+        env:
+          GH_TOKEN: ${{ env.PROJECT_TOKEN }}
+      - name: Publish the read-only projection
+        if: env.PROJECT_TOKEN != ''
+        run: node scripts/roadmap-queue-mirror.mts publish work/roadmap-queue-mirror/body.md
+        env:
+          GH_TOKEN: ${{ github.token }}

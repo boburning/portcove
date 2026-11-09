@@ -3812,6 +3812,14 @@
       "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
+      "file": "scripts/roadmap-queue-mirror.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9731],
+        ["roadmap-check", 231]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
+    },
+    {
       "file": "scripts/roadmap-publish.test.mts",
       "memberships": [
         ["catalog-full-2", 9730],

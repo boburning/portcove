@@ -508,6 +508,17 @@ acceptance; PR totals are supporting activity, not a release forecast. Reuse the
 existing cadence and receipts, with no mandatory daily census, new reporting
 service or recurring automation. Instructions alone do not prove adoption.
 
+## Queue mirror for repository-scoped readers
+
+Readers limited to repository REST (for example cloud agent sessions) cannot read
+Project fields. The `Mirror Roadmap queue` workflow runs `readiness --release
+"Public beta"` with the Project credential and overwrites one bot comment on
+[#2414](https://github.com/boburning/portcove/issues/2414) marked
+`portcove-roadmap-queue-mirror`. It is a derived, read-only projection: not an
+authority, ledger or reservation. Use it to find candidates, then refresh Project
+state before pickup and final merge. A missing, stale or truncated mirror is
+UNKNOWN, not empty.
+
 ## Pickup, consumption and execution upkeep
 
 ### Issue authoring and consolidated diagnostics
