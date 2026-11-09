@@ -11,17 +11,9 @@
     "definition_sha256": "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4",
     "template": "n64-recomp-portable",
     "repository_id": 803577244,
-    "artifact_hosts": [
-      "github.com",
-      "release-assets.githubusercontent.com"
-    ],
+    "artifact_hosts": ["github.com", "release-assets.githubusercontent.com"],
     "max_redirects": 1,
-    "operations": [
-      "install",
-      "update",
-      "prepare",
-      "launch"
-    ],
+    "operations": ["install", "update", "prepare", "launch"],
     "scoped_launch_checks": 1,
     "curated_acquisition_checks": 1
   }
