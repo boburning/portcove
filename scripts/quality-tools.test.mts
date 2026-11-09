@@ -1125,3 +1125,43 @@ void test("cloud bootstrap shares a directory by symlink and converges or refuse
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+void test("cloud bootstrap links only the tools the pinned Node distribution ships", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-node-tools-"));
+  try {
+    const destination = path.join(directory, "node");
+    const bin = path.join(directory, "link");
+    mkdirSync(path.join(destination, "bin"), { recursive: true });
+    mkdirSync(bin);
+    for (const tool of ["node", "npm", "npx"]) {
+      writeFileSync(path.join(destination, "bin", tool), "");
+    }
+    // The environment's own corepack, as an image with an older Node provides it.
+    const imageCorepack = path.join(directory, "image-corepack");
+    writeFileSync(imageCorepack, "");
+    symlinkSync(imageCorepack, path.join(bin, "corepack"));
+
+    const result = spawnSync(
+      "bash",
+      [
+        "-c",
+        'source scripts/bootstrap-cloud-session.sh && link_node_tools "$1" "$2"',
+        "test",
+        destination,
+        bin,
+      ],
+      { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    for (const tool of ["node", "npm", "npx"]) {
+      assert.equal(readlinkSync(path.join(bin, tool)), path.join(destination, "bin", tool));
+    }
+    assert.equal(
+      readlinkSync(path.join(bin, "corepack")),
+      imageCorepack,
+      "a tool the pinned distribution lacks is never replaced by a dangling link",
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
