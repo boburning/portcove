@@ -1,3 +1,5 @@
+import { loadQualityManifest } from "./quality-tools.mts";
+import { reviewedCargoDenyVersion } from "./dependency-security.mts";
 import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -20,6 +22,9 @@ import {
 } from "./release-compiler-evidence.mts";
 import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
+
+// Release evidence pins the manifest Rust channel; quality-tools --validate keeps them equal.
+const pinnedRust = (await loadQualityManifest()).rust.channel;
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const roles = [
   "node",
@@ -82,11 +87,11 @@ async function fixture(t: test.TestContext) {
       input_members: publicInputs.compiler_inputs.find((item) => item.platform === platform)!
         .members,
       rust_toolchain: {
-        channel: "1.99.1",
+        channel: pinnedRust,
         cargo,
         rustc: nativePath.join(root, "tools/rustc"),
-        cargo_version: "cargo 1.99.1 (inert fixture)",
-        rustc_version: "rustc 1.99.1 (inert fixture)",
+        cargo_version: `cargo ${pinnedRust} (inert fixture)`,
+        rustc_version: `rustc ${pinnedRust} (inert fixture)`,
       },
       node: { version: `v${controllerNodeVersion}` },
       tauri: {
@@ -586,7 +591,7 @@ void test("existing bounded ZIP and attestation path carries same-job raw scanne
     exitCode: 1,
     unsoundAll: true,
     scope: "workspace-default-all-targets-all-checks",
-    toolVersion: "cargo-deny 0.20.2",
+    toolVersion: `cargo-deny ${reviewedCargoDenyVersion}`,
     sourceConfig: policy,
     executionConfig: policy,
     configSha256: policyHash,

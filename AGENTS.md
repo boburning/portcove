@@ -89,6 +89,7 @@ complete-diff plan for surrounding contracts before choosing bespoke test filter
 | Definition/catalog signing        | [Signed catalog](docs/SIGNED-CATALOG.md); [definition delivery](docs/DEFINITION-DELIVERY.md)                   |
 | CLI/integrations                  | [CLI](docs/CLI.md); [integration author](docs/INTEGRATION-AUTHOR.md)                                           |
 | Storage/cleanup                   | [Development storage](docs/DEVELOPMENT-STORAGE.md)                                                             |
+| Cloud agent session setup         | [Cloud agent sessions](docs/DEVELOPMENT-TOOLS.md#cloud-agent-sessions)                                         |
 
 ## Test-timeout calibration
 

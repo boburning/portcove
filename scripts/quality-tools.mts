@@ -7,13 +7,56 @@ import { fileURLToPath } from "node:url";
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const manifestPath = path.join(projectRoot, ".github", "quality-tools.json");
+const ciWorkflowPath = path.join(projectRoot, ".github", "workflows", "ci.yml");
 const governedConsumers = [
   ".github/workflows/ci.yml",
   ".github/workflows/deep-quality.yml",
   ".github/workflows/release.yml",
+  "scripts/bootstrap-cloud-session.sh",
   "scripts/bootstrap-quality-tools.ps1",
   "scripts/bootstrap-quality-tools.sh",
 ];
+
+/**
+ * Bundled release code keeps a few static copies of manifest pins. Renovate
+ * updates each copy in the same proposal (see renovate.json), and validation
+ * rejects any copy that differs, so a partial bump cannot merge silently.
+ */
+export const mirroredPins = [
+  {
+    file: "scripts/dependency-security.mts",
+    pattern: /export const reviewedCargoDenyVersion = "(\d+\.\d+\.\d+)";/gu,
+    pin: (manifest: QualityManifest) => toolById(manifest, "cargo-deny").version,
+    label: "cargo-deny",
+  },
+  {
+    file: "scripts/release-compiler-evidence.mts",
+    pattern: /(?:channel !== "|"cargo |"rustc )(\d+\.\d+\.\d+)[" ]/gu,
+    pin: (manifest: QualityManifest) => manifest.rust.channel,
+    label: "Rust channel",
+  },
+] as const;
+
+export function findMirroredPinDrift(
+  manifest: QualityManifest,
+  files: Readonly<Record<string, string>>,
+) {
+  const findings: string[] = [];
+  for (const mirror of mirroredPins) {
+    const expected = mirror.pin(manifest);
+    const observed = [...(files[mirror.file] ?? "").matchAll(mirror.pattern)].map(
+      (match) => match[1],
+    );
+    if (!observed.length)
+      findings.push(`${mirror.file} no longer records the ${mirror.label} mirror`);
+    for (const version of observed)
+      if (version !== expected)
+        findings.push(
+          `${mirror.file} records ${mirror.label} ${String(version)}; .github/quality-tools.json pins ${expected}`,
+        );
+  }
+  return findings;
+}
 
 export interface QualityTool {
   id: string;
@@ -142,6 +185,82 @@ export function githubOutputs(manifest: QualityManifest) {
   };
 }
 
+/** The reviewed install-action revision is the CI-owned source of prebuilt checksums. */
+export function installActionDigest(workflow: string) {
+  const digests = new Set(
+    [...workflow.matchAll(/taiki-e\/install-action@([0-9a-f]{40})\b/g)].map((match) => match[1]),
+  );
+  if (digests.size !== 1)
+    throw new Error(
+      `Expected one reviewed taiki-e/install-action digest in .github/workflows/ci.yml; found ${digests.size}.`,
+    );
+  return [...digests][0] as string;
+}
+
+export interface PrebuiltInstall {
+  id: string;
+  version: string;
+  url: string;
+  sha256: string;
+  member: string;
+  command: string;
+}
+
+/**
+ * Resolve required prebuilt tools to the exact artifact CI installs. The
+ * install-action manifest at the reviewed digest supplies URL and checksum, so
+ * a Renovate version bump needs no second hand-maintained checksum table.
+ */
+export function prebuiltInstallPlan(
+  manifest: QualityManifest,
+  installManifests: Readonly<Record<string, unknown>>,
+  platforms: readonly string[],
+): PrebuiltInstall[] {
+  return manifest.tools
+    .filter((tool) => tool.tier === "required" && tool.ci_install === "prebuilt")
+    .map((tool) => {
+      const source = installManifests[tool.crate];
+      const release = isRecord(source) ? source[tool.version] : undefined;
+      const template = isRecord(source) ? source.template : undefined;
+      if (!isRecord(release) || !isRecord(template))
+        throw new Error(
+          `The reviewed install-action manifest has no ${tool.crate} ${tool.version} release. Update taiki-e/install-action or the quality-tool pin together.`,
+        );
+      const platform = platforms.find((name) => isRecord(release[name]));
+      const artifact = platform ? release[platform] : undefined;
+      const shape = platform ? template[platform] : undefined;
+      if (!platform || !isRecord(artifact) || !isRecord(shape))
+        throw new Error(
+          `The reviewed install-action manifest has no ${tool.crate} ${tool.version} artifact for ${platforms.join(" or ")}.`,
+        );
+      const expand = (value: unknown) =>
+        typeof value === "string" ? value.replaceAll("${version}", tool.version) : undefined;
+      const url = expand(artifact.url) ?? expand(shape.url);
+      const member = expand(artifact.bin) ?? expand(shape.bin) ?? tool.crate;
+      const sha256 = artifact.hash;
+      if (
+        !url?.startsWith("https://github.com/") ||
+        !/\.tar\.gz$/u.test(url) ||
+        /[\s"'\\]/u.test(url) ||
+        typeof sha256 !== "string" ||
+        !/^[0-9a-f]{64}$/u.test(sha256) ||
+        !/^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/u.test(member) ||
+        member.split("/").includes("..")
+      )
+        throw new Error(
+          `The reviewed install-action manifest entry for ${tool.crate} ${tool.version} on ${platform} is not a checksummed GitHub release archive.`,
+        );
+      return {
+        id: tool.id,
+        version: tool.version,
+        url,
+        sha256,
+        member,
+        command: tool.command.join(" "),
+      };
+    });
+}
+
 export async function loadQualityManifest() {
   const manifest: unknown = JSON.parse(await readFile(manifestPath, "utf8"));
   validateQualityManifest(manifest);
@@ -158,6 +277,16 @@ async function validateConsumers(manifest: QualityManifest) {
   if (findings.length)
     throw new Error(
       `Quality tool pins must come from .github/quality-tools.json. Remove the duplicate consumer pins:\n${findings.join("\n")}`,
+    );
+  const mirrors = await Promise.all(
+    mirroredPins.map(
+      async ({ file }) => [file, await readFile(path.join(projectRoot, file), "utf8")] as const,
+    ),
+  );
+  const drift = findMirroredPinDrift(manifest, Object.fromEntries(mirrors));
+  if (drift.length)
+    throw new Error(
+      `Mirrored pins differ from .github/quality-tools.json. Update them in the same change:\n${drift.join("\n")}`,
     );
   const toolchain = await readFile(path.join(projectRoot, "rust-toolchain.toml"), "utf8");
   const configuredRust = toolchain.match(/^channel\s*=\s*"([^"]+)"/m)?.[1];
@@ -207,7 +336,7 @@ function verifyTool(tool: QualityTool) {
 
 async function main(argv: string[]) {
   if (argv.length === 1 && argv[0] === "--help") {
-    console.log(`Usage: node scripts/quality-tools.mts --validate|--github-output|--specs TIER|--version ID|--verify ID|--help
+    console.log(`Usage: node scripts/quality-tools.mts --validate|--github-output|--specs TIER|--version ID|--verify ID|--install-action-digest|--prebuilt-plan DIR|--help
 
 Read the repository's pinned Rust quality-tool manifest and validate its consumers.
 This command does not install tools.
@@ -218,6 +347,12 @@ Options (choose one):
   --specs TIER     Print crate|version|command records for required or deep tools.
   --version ID     Print the pinned version for an exact tool id.
   --verify ID      Run the tool's version command and require the pinned version.
+  --install-action-digest
+                   Print the reviewed taiki-e/install-action commit used by CI.
+  --prebuilt-plan DIR
+                   Print id|version|url|sha256|member|command for required prebuilt
+                   Linux x86_64 tools from install-action manifests saved in DIR
+                   as <crate>.json at that commit.
   --help           Show this help without reading configuration or running a tool.
 
 Tool ids and tiers are defined in .github/quality-tools.json.
@@ -255,8 +390,30 @@ Example:
     console.log(verifyTool(toolById(manifest, argv[1] ?? "")));
     return;
   }
+  if (mode === "--install-action-digest" && argv.length === 1) {
+    console.log(installActionDigest(await readFile(ciWorkflowPath, "utf8")));
+    return;
+  }
+  if (mode === "--prebuilt-plan" && argv.length === 2) {
+    const directory = path.resolve(argv[1] ?? "");
+    const installManifests: Record<string, unknown> = {};
+    for (const tool of manifest.tools.filter(
+      (candidate) => candidate.tier === "required" && candidate.ci_install === "prebuilt",
+    ))
+      installManifests[tool.crate] = JSON.parse(
+        await readFile(path.join(directory, `${tool.crate}.json`), "utf8"),
+      );
+    for (const entry of prebuiltInstallPlan(manifest, installManifests, [
+      "x86_64_linux_musl",
+      "x86_64_linux_gnu",
+    ]))
+      console.log(
+        [entry.id, entry.version, entry.url, entry.sha256, entry.member, entry.command].join("|"),
+      );
+    return;
+  }
   throw new Error(
-    "Usage: node scripts/quality-tools.mts --validate|--github-output|--specs TIER|--version ID|--verify ID. Run with --help for an example.",
+    "Usage: node scripts/quality-tools.mts --validate|--github-output|--specs TIER|--version ID|--verify ID|--install-action-digest|--prebuilt-plan DIR. Run with --help for an example.",
   );
 }
 

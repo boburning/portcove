@@ -1,3 +1,4 @@
+import { reviewedCargoDenyVersion } from "./dependency-security.mts";
 import { catalogQualificationSummary } from "./roadmap-qualification.mts";
 import { validateApproval706 } from "./linux-beta-risk-706.mts";
 import assert from "node:assert/strict";
@@ -567,7 +568,7 @@ void test("snapshot output is confined to docs/releases", () => {
           sourceConfigSha256: policy.policySha256,
           sourceConfig: readFileSync(new URL("../deny.toml", import.meta.url), "utf8"),
           executionConfig: readFileSync(new URL("../deny.toml", import.meta.url), "utf8"),
-          toolVersion: "cargo-deny 0.20.2",
+          toolVersion: `cargo-deny ${reviewedCargoDenyVersion}`,
           scope: "workspace-default-all-targets-all-checks",
           stdout: "",
           stderr: [diagnostic, { type: "summary", fields: summary }]

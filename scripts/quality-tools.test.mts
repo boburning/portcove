@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import {
@@ -15,8 +16,17 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { findStaleConsumerPins, githubOutputs, validateQualityManifest } from "./quality-tools.mts";
 import {
+  findStaleConsumerPins,
+  githubOutputs,
+  findMirroredPinDrift,
+  installActionDigest,
+  mirroredPins,
+  prebuiltInstallPlan,
+  validateQualityManifest,
+} from "./quality-tools.mts";
+import {
+  deriveAquaBootstrap,
   parseAquaConfig,
   parseReleaseChecksumId,
   requireStableNonReleaseEntries,
@@ -230,11 +240,19 @@ install_tool 'fixture-tool|1.2.3|fixture-tool --version'
 
 void test("quality manifest owns exact unique Rust pins and workflow outputs", () => {
   assert.doesNotThrow(() => validateQualityManifest(manifest));
+  // Tool order and membership are the contract; versions follow the manifest so
+  // a Renovate version bump needs no test edit.
+  const spec = (id: string) => {
+    const tool = manifest.tools.find((candidate) => candidate.id === id);
+    assert.ok(tool, `quality manifest must pin ${id}`);
+    return `${tool.crate}@${tool.version}`;
+  };
   assert.deepEqual(githubOutputs(manifest), {
-    required_prebuilt: "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-nextest@0.9.100",
-    required_all:
-      "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,rscheck-cli@0.1.0,cargo-nextest@0.9.100",
-    rscheck_spec: "rscheck-cli@0.1.0",
+    required_prebuilt: ["just", "cargo-shear", "cargo-deny", "cargo-nextest"].map(spec).join(","),
+    required_all: ["just", "cargo-shear", "cargo-deny", "rscheck-cli", "cargo-nextest"]
+      .map(spec)
+      .join(","),
+    rscheck_spec: spec("rscheck-cli"),
   });
 });
 
@@ -780,4 +798,145 @@ void test("Aqua configuration accepts semantic YAML formatting and rejects unsup
       ),
     /duplicates/u,
   );
+});
+
+void test("cloud prebuilt tools resolve from the CI-reviewed install-action manifest", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const digest = installActionDigest(workflow);
+  assert.match(digest, /^[0-9a-f]{40}$/u);
+  assert.throws(
+    () => installActionDigest(`${workflow}\nuses: taiki-e/install-action@${"0".repeat(40)}\n`),
+    /one reviewed/u,
+  );
+  const prebuilt = manifest.tools.filter(
+    (tool) => tool.tier === "required" && tool.ci_install === "prebuilt",
+  );
+  const sha = (seed: string) => createHash("sha256").update(seed).digest("hex");
+  const manifests = Object.fromEntries(
+    prebuilt.map((tool) => [
+      tool.crate,
+      {
+        template: {
+          x86_64_linux_musl: {
+            url: `https://github.com/example/${tool.crate}/releases/download/\${version}/${tool.crate}.tar.gz`,
+            ...(tool.crate === "cargo-deny" ? { bin: "nested-${version}/cargo-deny" } : {}),
+          },
+        },
+        [tool.version]: { x86_64_linux_musl: { hash: sha(tool.crate) } },
+      },
+    ]),
+  );
+  const plan = prebuiltInstallPlan(manifest, manifests, ["x86_64_linux_musl"]);
+  assert.deepEqual(
+    plan.map(({ id, version }) => `${id}@${version}`),
+    prebuilt.map((tool) => `${tool.id}@${tool.version}`),
+  );
+  for (const entry of plan) {
+    assert.ok(entry.url.includes(`/download/${entry.version}/`));
+    assert.equal(entry.sha256, sha(entry.id));
+  }
+  const deny = plan.find((entry) => entry.id === "cargo-deny");
+  assert.ok(deny, "cargo-deny must remain a required prebuilt tool for this fixture");
+  assert.equal(deny.member, `nested-${deny.version}/cargo-deny`);
+
+  const first = prebuilt[0]!;
+  const withoutRelease = { ...manifests, [first.crate]: { template: {} } };
+  assert.throws(
+    () => prebuiltInstallPlan(manifest, withoutRelease, ["x86_64_linux_musl"]),
+    /no .* release/u,
+  );
+  for (const unsafe of [
+    { url: "http://github.com/a.tar.gz" },
+    { url: "https://example.com/a.tar.gz" },
+    { url: "https://github.com/a.zip" },
+    { url: "https://github.com/a.tar.gz", bin: "../escape" },
+  ]) {
+    const entry = {
+      template: { x86_64_linux_musl: unsafe },
+      [first.version]: manifests[first.crate]![first.version],
+    };
+    assert.throws(
+      () =>
+        prebuiltInstallPlan(manifest, { ...manifests, [first.crate]: entry }, [
+          "x86_64_linux_musl",
+        ]),
+      /checksummed GitHub release archive/u,
+    );
+  }
+  const weak = {
+    ...manifests[first.crate],
+    [first.version]: { x86_64_linux_musl: { hash: "abc" } },
+  };
+  assert.throws(
+    () =>
+      prebuiltInstallPlan(manifest, { ...manifests, [first.crate]: weak }, ["x86_64_linux_musl"]),
+    /checksummed/u,
+  );
+});
+
+void test("Aqua bootstrap identity is derived from the publisher release for .aqua-version", async () => {
+  const bootstrap: unknown = JSON.parse(
+    await readFile(new URL("../.config/tool-bootstrap.json", import.meta.url), "utf8"),
+  );
+  assert.ok(isRecord(bootstrap) && isRecord(bootstrap.aqua) && isRecord(bootstrap.aqua.artifacts));
+  const version = String(bootstrap.aqua.version);
+  const asRelease = (tag: string, artifacts: Record<string, unknown>) => ({
+    tag_name: tag,
+    assets: Object.values(artifacts).map((artifact, index) => {
+      assert.ok(isRecord(artifact));
+      return {
+        name: artifact.archive,
+        id: artifact.asset_id ?? 1000 + index,
+        size: artifact.bytes ?? 2000 + index,
+        digest: `sha256:${String(artifact.sha256).toLowerCase()}`,
+      };
+    }),
+  });
+  assert.deepEqual(
+    deriveAquaBootstrap(bootstrap, version, asRelease(version, bootstrap.aqua.artifacts)),
+    bootstrap,
+    "current publisher identity must reproduce the reviewed bootstrap exactly",
+  );
+  const next = "v99.0.0";
+  const bumped = asRelease(next, bootstrap.aqua.artifacts);
+  for (const asset of bumped.assets) {
+    asset.id = Number(asset.id) + 1;
+    asset.size = Number(asset.size) + 1;
+    asset.digest = `sha256:${"a".repeat(64)}`;
+  }
+  const derived = deriveAquaBootstrap(bootstrap, next, bumped);
+  assert.equal(derived.aqua.version, next);
+  const reviewed: Record<string, unknown> = bootstrap.aqua.artifacts;
+  for (const [platform, artifact] of Object.entries(derived.aqua.artifacts)) {
+    const recorded: unknown = reviewed[platform];
+    assert.ok(isRecord(artifact) && isRecord(recorded));
+    assert.deepEqual(Object.keys(artifact).sort(), Object.keys(recorded).sort());
+    assert.equal(artifact.sha256, "A".repeat(64));
+    if ("bytes" in recorded) assert.equal(artifact.bytes, Number(recorded.bytes) + 1);
+  }
+  assert.throws(() => deriveAquaBootstrap(bootstrap, next, asRelease(version, {})), /missing/u);
+  const missingDigest = asRelease(next, bootstrap.aqua.artifacts);
+  missingDigest.assets[0]!.digest = "";
+  assert.throws(() => deriveAquaBootstrap(bootstrap, next, missingDigest), /digest is missing/u);
+  const duplicate = asRelease(next, bootstrap.aqua.artifacts);
+  duplicate.assets.push(duplicate.assets[0]!);
+  assert.throws(() => deriveAquaBootstrap(bootstrap, next, duplicate), /ambiguous/u);
+});
+
+void test("mirrored release pins must match the manifest and cannot silently disappear", async () => {
+  const files = Object.fromEntries(
+    await Promise.all(
+      mirroredPins.map(
+        async ({ file }) =>
+          [file, await readFile(new URL(`../${file}`, import.meta.url), "utf8")] as const,
+      ),
+    ),
+  );
+  assert.deepEqual(findMirroredPinDrift(manifest, files), []);
+  for (const { file } of mirroredPins) {
+    const missing = { ...files, [file]: "" };
+    assert.match(findMirroredPinDrift(manifest, missing).join("\n"), /no longer records/u);
+    const stale = { ...files, [file]: files[file]!.replace(/\d+\.\d+\.\d+/gu, "0.0.1") };
+    assert.match(findMirroredPinDrift(manifest, stale).join("\n"), /records .* 0\.0\.1;/u);
+  }
 });

@@ -2305,6 +2305,11 @@ for (const file of [
     "scripts/release-controller-tools.test.mts",
     "scripts/quality-tools.test.mts",
   ]);
+// The cloud bootstrap is a governed quality-tool consumer and pin reader.
+explicitNodeTests.set("scripts/bootstrap-cloud-session.sh", [
+  ...(explicitNodeTests.get("scripts/bootstrap-cloud-session.sh") ?? []),
+  "scripts/quality-tools.test.mts",
+]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
   "scripts/audit.test.mts",
@@ -3383,7 +3388,10 @@ function classifyOnePath(
     recognized = true;
   }
 
-  if (file.startsWith(".agents/skills/") && file.endsWith("/SKILL.md")) {
+  if (
+    (file.startsWith(".agents/skills/") || file.startsWith(".claude/skills/")) &&
+    file.endsWith("/SKILL.md")
+  ) {
     selection.scopes.add("tooling");
     addNodeTest(selection, "scripts/repository-skills.test.mts");
     recognized = true;
