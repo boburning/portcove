@@ -251,8 +251,9 @@ Cheap source-consumer contracts run before selected compilation/runtime work.
 The maintained native compatibility source inventory selects its declaration
 contract locally and in hosted ordinary coverage; those source bytes also
 invalidate its reusable local result. Pure CLI argument/help tests have higher
-nextest priority while retaining the existing CLI resource reservation and all
-selected tests. This changes feedback order, not coverage or merge requirements.
+nextest priority and, with the CLI presentation unit tests, run outside the serial
+CLI lifecycle group; all selected tests still run. This changes feedback order,
+not coverage or merge requirements.
 Use the existing complete-diff plan to identify these consumers when choosing
 focused feedback; a hand-written feature filter may omit them.
 
@@ -261,8 +262,12 @@ nextest archive distributed across balanced workers. The current complete and
 selected inventories determine coverage; historical duration hints determine
 only scheduling. The required Rust result includes the archive producer, every
 selected partition and the parallel live transport check. Hosted workers use
-four test slots while local runs retain two; exclusive tests reserve the active
-profile's entire slot count. See [CI timing diagnostics](DEVELOPMENT-TOOLS.md#ci-timing-diagnostics)
+four test slots while local runs retain two. Exact cases that conflict with any
+concurrent disk or process work reserve the active profile's entire slot count;
+contending lifecycle families (CLI lifecycle, Core output relocation, catalog
+update, definition repository, activity diagnostics, database and cancellation)
+each run one case at a time in a serial nextest test group beside unrelated
+tests. See [CI timing diagnostics](DEVELOPMENT-TOOLS.md#ci-timing-diagnostics)
 for provenance checks and measurement boundaries. This changes ordinary test
 scheduling without replacing qualification coverage.
 
@@ -288,13 +293,31 @@ gate or permission to omit checks. Fixtures prove decisions, not minutes saved.
 
 Agents may diagnose, increase and persist proportionate finite test-harness,
 fixture, command, supervisor and CI execution budgets without another approval.
-Retain original failures, assertions, cleanup, zero automatic test retries,
+Retain original failures, assertions, cleanup, the retry policy below,
 heavyweight reservations and finite hang detection. Coordinate nested budgets
 so inner failure and cleanup finish before the outer limit. Record the old/new
 limits, rationale and result. More execution time alone is not a permission question.
 This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
+
+The strict default nextest profile, used by local runs and qualification,
+allows zero automatic test retries. By explicit owner decision (November 2026),
+the ordinary hosted Windows partition profile `hosted-windows` allows one
+automatic retry. A case that fails both attempts fails the partition with its
+original failure; a case that passes only on retry is reported as flaky in the
+nextest summary, the retained JUnit report and the shared Rust outcome records
+(`nextest_attempt` and the inventory's `flaky` list). A flaky pass is evidence
+of nondeterminism to diagnose, not a causal repair. Other runners, watchers and
+qualification routes retain zero automatic retries.
+
+The November 2026 nextest calibration raised the default whole-case harness
+cutoff from 30 seconds (5s × 6) to 120 seconds (15s × 8), still with no grace
+period. It removed the 146 per-case and per-family overrides whose budgets
+were at or below 120 seconds, since each now receives at least its former
+limit; the 15 exact overrides above 120 seconds keep their budgets and order.
+Product deadlines, assertions and cleanup are unchanged; a pass under the
+larger budget proves completion under that budget.
 
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to
