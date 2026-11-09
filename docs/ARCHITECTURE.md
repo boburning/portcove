@@ -519,12 +519,14 @@ explicit `main` target through one function that shares the invoke gate's label.
 Each event has one consumer, in the main window, and none is a global event.
 Targeting is a second layer, not the boundary: the frontend's default listeners
 use Tauri's `Any` target and still receive every event, so the fixture windows
-are kept from receiving operation details by never being granted event listening
-in the capability, which the test above enforces. The transport contract check
+are kept from receiving operation details by never being granted event listening:
+the capability that grants it names only `main`, and the test above pins that
+window scoping and refuses any widening key. The transport contract check
 requires that targeted call to be the only direct emit call in the host, so no
 producer can broadcast around it. The `Any`-target behavior is Tauri's own
 (`match_any_or_filter` in its event listener) and is not re-tested here: a host
-test using Tauri's mock runtime aborts the Windows test binary at load.
+test using Tauri's mock runtime failed to load in the hosted Windows run
+(`0xc0000139`) and was removed.
 
 The optional native compatibility feature can create unprivileged secondary
 and loopback-origin windows for boundary qualification. Its remote test window
