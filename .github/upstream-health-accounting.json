@@ -601,19 +601,6 @@
   ],
   "original_conditions": [
     {
-      "port_id": "mortal-kombat-4-recompiled",
-      "port_contract_sha256": "15521f7c3979c51ed98fa6169445b4148738c2b261dd971f2253bf092ff8d414",
-      "provider": "github",
-      "repository": "Alexbeav/mortal-kombat-4-recomp",
-      "operation": "observe-availability",
-      "http_status": 301,
-      "reason": "provider-redirect",
-      "redirect_repository_id": 1352192597,
-      "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
-      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review.",
-      "role": "project"
-    },
-    {
       "port_id": "alexbeav-ape-escape-recomp",
       "port_contract_sha256": "e01b0e4420e27fa86ea256a45ec3a8a014444ff7a091ba138dab03b99a285fcf",
       "provider": "github",
