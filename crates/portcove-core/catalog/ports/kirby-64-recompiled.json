@@ -29,7 +29,17 @@
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/Kirby64Ret/Kirby64Recomp#readme"
+      "help_url": "https://github.com/Kirby64Ret/Kirby64Recomp/blob/480ed7e2a3160087bbe5f680f08e601eef7a4d69/README.md",
+      "references": [
+        {
+          "title": "Keep the original with the completed player",
+          "instruction": "The pinned source instructions use a recursive checkout, Clang 21 and make. Select build/Kirby64Recompiled from your prepared copy with a working folder containing your own NK4E.z64. The source expects the US ROM identity with xxHash3 0xD992BD1EBD3F8756."
+        },
+        {
+          "title": "Keep the profile used by this copy",
+          "instruction": "Preserve saves/NK4E.us.bin and the general.json, graphics.json, controls.json and sound.json files under the effective Kirby64Recompiled profile. On Linux this is normally ~/.config/Kirby64Recompiled. An APP_FOLDER_PATH override or portable.txt changes the location. Back up the full effective folder with the player closed."
+        }
+      ]
     }
   }
 }

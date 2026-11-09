@@ -29,7 +29,13 @@
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/sp00nznet/advancewars#readme"
+      "help_url": "https://github.com/sp00nznet/advancewars/blob/cb3facb53b6be32e4fc37e04d849ff4dddbab05f/README.md",
+      "references": [
+        {
+          "title": "Keep the save next to the selected ROM",
+          "instruction": "Use your own Advance Wars USA Rev 1 ROM with SHA-1 15053499d5b3f49128a941d7f2d84876f5424d0c. The player derives the Flash save path from its ROM argument. With game/aw.gba this is game/aw.sav. Close the game and preserve both files and the creating runtime before replacing it. Keep locally generated game code private."
+        }
+      ]
     }
   }
 }

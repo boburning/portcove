@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Prepare upstream or keep an existing game build",
-          "instruction": "Follow the native build guide with your own Star Wars: Rogue Squadron USA v1.0 original and required RT64/toolchain preparation. The documented Windows player is RogueSquadron64Recomp.exe. Place rogue_squadron.z64, rogue_squadron.v64 or rogue_squadron.n64 in the launch working directory for the upstream import, and preserve roguesq_input.json beside the player. Register that game output, not N64Recomp/RSPRecomp. Steam relay has separate optional SDK/runtime requirements. A macOS cross-build that cannot render is not a qualified playable runtime."
+          "instruction": "Use a privately built player from the pinned upstream instructions with your own Star Wars: Rogue Squadron USA v1.0 original. Supply rogue_squadron.z64, rogue_squadron.v64 or rogue_squadron.n64 for the upstream import. Keep the build tools and optional Steam relay separate from the game program."
         },
         {
           "title": "Keep your files and update through upstream",
@@ -29,7 +29,25 @@
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp#readme"
+      "help_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/bee164655638263b7a748236bdeab411e9394afe/docs/guides/building-all-platforms.md",
+      "references": [
+        {
+          "title": "Build the desktop player for your system",
+          "instruction": "Follow the pinned upstream build instructions for Windows or Linux. Use your own USA v1.0 ROM with normalized xxHash3 0x6B66A44153594DEA. For a direct build, select the completed RogueSquadron64Recomp player and use the prepared working folder. The game imports the ROM and keeps its profile in that folder."
+        },
+        {
+          "title": "Find the profile for a Linux package you built",
+          "instruction": "The upstream AppImage uses ~/.local/share/RogueSquadron64Recomp by default, with RS64_DATA_DIR as an override. The Flatpak uses ~/.var/app/io.github.MikeSemicolonD.RogueSquadron64Recomp/data. Keep the effective folder and launch the complete package using its own setup instructions."
+        },
+        {
+          "title": "Keep desktop and Mac profiles separate",
+          "instruction": "Preserve saves/rs64.n64.us.1.0.bin, the imported ROM, settings, mods and logs. The upstream Mac cross-build targets Intel and Apple silicon with Metal. An app bundle uses the SDL RogueSquadron64Recomp folder under Application Support when available and copies bundled mods there. Use the effective folder and preserve custom mods before changing builds. Native Mac startup remains unverified."
+        },
+        {
+          "title": "Build and import on Android",
+          "instruction": "Run the upstream Windows Debug build first to generate the Android build inputs, then use the Gradle instructions with NDK 29.0.14206865. The ARM64 app requires Android 9 or later with Vulkan 1.1. Select your own ROM with the app’s file picker. The app validates and imports it. Preserve the effective com.rs64recomp.app files folder and its saves, mods and roguesq_touch.json. The app can fall back to internal storage."
+        }
+      ]
     }
   }
 }
