@@ -5871,19 +5871,28 @@ impl PortcoveService {
         platform: Platform,
     ) -> Result<PortDefinition> {
         let retained = self.installed_port(install)?;
+        self.checked_installed_mutability_port(install, &retained, platform)
+    }
+
+    fn checked_installed_mutability_port(
+        &self,
+        install: &InstallRecord,
+        retained: &PortDefinition,
+        platform: Platform,
+    ) -> Result<PortDefinition> {
         // New declarations cannot enroll populated generated output from an older runtime.
         if retained.adapter == AdapterKind::GeneratedCache {
-            return Ok(retained);
+            return Ok(retained.clone());
         }
         let current = match self.catalog.port(&install.port_id) {
             Ok(current) => current,
-            Err(_) if shipwright_windows_cwd_persistence(&retained, install, platform) => &retained,
-            Err(_) => return Ok(retained),
+            Err(_) if shipwright_windows_cwd_persistence(retained, install, platform) => retained,
+            Err(_) => return Ok(retained.clone()),
         };
         crate::installed_mutability::checked_port(
             &Installer::new(self.library.clone())?,
             install,
-            &retained,
+            retained,
             current,
             platform,
         )
@@ -5909,7 +5918,18 @@ impl PortcoveService {
 
     pub(crate) fn installed_catalog(&self, install: &InstallRecord) -> Result<Catalog> {
         self.managed_install_root(&install.port_id, &install.path)?;
-        match Installer::new(self.library.clone())?.retained_catalog(install)? {
+        self.installed_catalog_or_fallback(
+            install,
+            Installer::new(self.library.clone())?.retained_catalog(install)?,
+        )
+    }
+
+    fn installed_catalog_or_fallback(
+        &self,
+        install: &InstallRecord,
+        retained: Option<Catalog>,
+    ) -> Result<Catalog> {
+        match retained {
             Some(catalog) => Ok(catalog),
             None => {
                 if self.catalog.port(&install.port_id).is_ok_and(|current| {
@@ -5932,14 +5952,19 @@ impl PortcoveService {
         &self,
         install: &InstallRecord,
     ) -> Result<PersistenceContract> {
-        let retained_catalog = Installer::new(self.library.clone())?.retained_catalog(install)?;
-        let retained = self.installed_port(install)?;
+        self.managed_install_root(&install.port_id, &install.path)?;
+        let metadata =
+            Installer::new(self.library.clone())?.retained_persistence_metadata(install)?;
+        let has_retained_catalog = metadata.catalog.is_some();
+        let catalog = self.installed_catalog_or_fallback(install, metadata.catalog)?;
+        let retained = catalog.port(&install.port_id)?;
         if retained.adapter == AdapterKind::GeneratedCache {
             self.require_portable_runtime_unchanged(install)?;
         }
-        let mut port = self.installed_mutability_port(install)?;
-        if crate::persistence::requires_restore_receipt(&retained)
-            && (retained_catalog.is_none()
+        let mut port =
+            self.checked_installed_mutability_port(install, retained, Platform::current()?)?;
+        if crate::persistence::requires_restore_receipt(retained)
+            && (!has_retained_catalog
                 || retained.persistent_paths != port.persistent_paths
                 || retained.persistent_file_patterns != port.persistent_file_patterns)
         {
@@ -5948,12 +5973,11 @@ impl PortcoveService {
             )
             .detail("install_id", &install.id)
             .detail("directory", install.path.display().to_string())
-            .detail("retained_paths", if retained_catalog.is_some() { serde_json::to_string(&retained.persistent_paths)? } else { "unknown (no retained contract)".into() })
+            .detail("retained_paths", if has_retained_catalog { serde_json::to_string(&retained.persistent_paths)? } else { "unknown (no retained contract)".into() })
             .detail("proposed_paths", serde_json::to_string(&port.persistent_paths)?)
             .with_known_cause(crate::failure::KnownFailureCause::PortableDataContractChanged));
         }
-        let legacy = Installer::new(self.library.clone())?.retained_preparation_mode(install)?
-            == Some(crate::PreparationMode::Ghostship200Legacy);
+        let legacy = metadata.preparation_mode == Some(crate::PreparationMode::Ghostship200Legacy);
         let writes_directly = if legacy {
             // This interpretation is retained separately from catalog facts.
             // The pinned Windows runtime ignores SHIP_HOME and uses its CWD.
@@ -5985,7 +6009,7 @@ impl PortcoveService {
         } else {
             writes_directly_to_user_root(&port)
         };
-        if let Some(admitted) = Installer::new(self.library.clone())?.archive_data_port(install)? {
+        if let Some(admitted) = metadata.admitted_port {
             self.library
                 .require_no_archive_data_transition(&install.port_id)?;
             psx_mod_data::require_admitted_receipt(install)?;
