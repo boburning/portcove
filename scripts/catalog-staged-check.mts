@@ -13,7 +13,6 @@ import { errorMessage } from "./runtime-values.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 export const catalogCoherenceInputs = [
-  "catalog-current-authoring.json",
   "catalog.json",
   "catalog-schema1-fixture.json",
   "catalog-legacy-additions-fixture.json",
@@ -21,6 +20,70 @@ export const catalogCoherenceInputs = [
   "listings.json",
 ].map((name) => `crates/portcove-core/catalog/${name}`);
 export const catalogPortSourcePrefix = "crates/portcove-core/catalog/ports/";
+/** Every committed file that `generate-catalog.mts` writes; none is an authoring source. */
+export const generatedCatalogAggregates = [
+  "crates/portcove-core/catalog/catalog.json",
+  "crates/portcove-core/catalog/listings.json",
+  "crates/portcove-core/catalog/route-enrollment.generated.json",
+  "crates/portcove-core/src/testdata/accepted-route-expectations.generated.json",
+  "crates/portcove-core/src/testdata/managed-route-tests.generated.rs",
+  "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
+  "crates/portcove-core/src/testdata/retained-prepared-tests.generated.rs",
+] as const;
+
+function runGit(cwd: string, args: readonly string[]) {
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    windowsHide: true,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`git ${args[0]} failed: ${result.stderr.trim()}`);
+  return result.stdout;
+}
+
+function regenerateCatalog(cwd: string) {
+  const result = spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL("./generate-catalog.mts", import.meta.url))],
+    { cwd, encoding: "utf8", windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0)
+    throw new Error(
+      `Catalog regeneration failed; aggregates stay unmerged. ${result.stderr.trim()}`.trim(),
+    );
+}
+
+/**
+ * Resolve merge/rebase conflicts in generated catalog aggregates deterministically
+ * from the authored sources. Source conflicts are never resolved here: they need
+ * review, and the aggregates cannot be derived from conflicted sources.
+ */
+export function resolveCatalogAggregateConflicts(
+  cwd = root,
+  regenerate: (cwd: string) => void = regenerateCatalog,
+) {
+  const unmerged = [
+    ...new Set(
+      runGit(cwd, ["ls-files", "--unmerged", "-z"])
+        .split("\0")
+        .filter(Boolean)
+        .map((entry) => entry.slice(entry.indexOf("\t") + 1)),
+    ),
+  ];
+  if (!unmerged.length) return { resolved: [] as string[] };
+  const aggregates: readonly string[] = generatedCatalogAggregates;
+  const sources = unmerged.filter((file) => !aggregates.includes(file));
+  if (sources.length)
+    throw new Error(
+      `Resolve and stage these conflicted paths first, then rerun: ${sources.join(", ")}`,
+    );
+  regenerate(cwd);
+  runGit(cwd, ["add", "--", ...generatedCatalogAggregates]);
+  return { resolved: unmerged };
+}
 
 export function checkStagedCatalog(cwd = root) {
   const git = (...args: string[]) => {
@@ -88,9 +151,8 @@ export function checkStagedCatalog(cwd = root) {
     if (!blob) throw new Error("Required indexed catalog input is missing");
     return contents.get(blob);
   });
-  const [authoring, embedded, legacy, additions, shared, listings] = inputs;
+  const [embedded, legacy, additions, shared, listings] = inputs;
   if (
-    authoring === undefined ||
     embedded === undefined ||
     legacy === undefined ||
     additions === undefined ||
@@ -98,7 +160,7 @@ export function checkStagedCatalog(cwd = root) {
     listings === undefined
   )
     throw new Error("Incomplete indexed catalog inputs");
-  const current = checkedCurrentCatalog(JSON.parse(authoring));
+  const current = checkedCurrentCatalog(JSON.parse(embedded));
   const records = [...blobs.entries()]
     .filter(([file]) => file.startsWith(catalogPortSourcePrefix))
     .map(([file, blob]) => {
@@ -110,16 +172,14 @@ export function checkStagedCatalog(cwd = root) {
       return checkedAuthoredPort(parseCatalogSource(content), name.slice(0, -5));
     });
   const assembled = assembleCatalogRecords(parseCatalogSource(shared), records);
-  if (serializeCurrentCatalog(assembled.catalog) !== authoring)
+  if (serializeCurrentCatalog(assembled.catalog) !== embedded)
     throw new Error(
-      "Indexed authoring projection is stale; generate and stage matching source records",
+      "Indexed embedded catalog is stale; generate and stage matching source records",
     );
   if (`${JSON.stringify(assembled.directory, null, 2)}\n` !== listings)
     throw new Error(
       "Indexed listing projection is stale; generate and stage matching listing bytes",
     );
-  if (serializeCurrentCatalog(current) !== embedded)
-    throw new Error("Indexed embedded catalog is stale; generate and stage matching catalog bytes");
   const compatibility = reviewCompatibilityFixture(
     current,
     JSON.parse(legacy),
@@ -133,9 +193,17 @@ export function checkStagedCatalog(cwd = root) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    if (process.argv.slice(2).join(" ") !== "--staged")
-      throw new Error("usage: catalog-staged-check.mts --staged");
-    if (checkStagedCatalog().checked) console.log("Indexed catalog coherence: matched");
+    const mode = process.argv.slice(2).join(" ");
+    if (mode === "--resolve-conflicts") {
+      const { resolved } = resolveCatalogAggregateConflicts();
+      console.log(
+        resolved.length
+          ? `Regenerated and staged conflicted aggregates: ${resolved.join(", ")}`
+          : "No conflicted catalog aggregates",
+      );
+    } else if (mode !== "--staged")
+      throw new Error("usage: catalog-staged-check.mts --staged | --resolve-conflicts");
+    else if (checkStagedCatalog().checked) console.log("Indexed catalog coherence: matched");
   } catch (error) {
     console.error(errorMessage(error));
     process.exitCode = 1;

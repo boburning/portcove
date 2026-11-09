@@ -27,7 +27,6 @@ export function readGuideCopyBlob(pathname: string) {
 
 const root = "crates/portcove-core/catalog/";
 const aggregates = new Map([
-  [`${root}catalog-current-authoring.json`, "ports"],
   [`${root}catalog.json`, "ports"],
   [`${root}listings.json`, "listings"],
 ]);

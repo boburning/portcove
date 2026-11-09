@@ -7,6 +7,10 @@ import { isRecord } from "./runtime-values.mts";
 import { readFile, mkdtemp, rm } from "node:fs/promises";
 import test from "node:test";
 import { discoverCiPlan, qualificationMatrices, writeGithubOutputs } from "./select-ci-plan.mts";
+import {
+  runtimeDiagnosticsSource,
+  runtimeDiagnosticsSourceFiles,
+} from "./runtime-diagnostics-source.mts";
 import { parseDocument } from "yaml";
 
 import os from "node:os";
@@ -119,13 +123,12 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   assert.equal(diagnosticCommands.length, 3);
   for (const command of diagnosticCommands) {
     assert.match(command, /--locked -p portcove-(?:diagnostics|cli|core)/u);
-    assert.match(
-      command,
-      /--test-threads=1 --success-output immediate --failure-output immediate 2>&1 \| tee/u,
-    );
+    // Nextest test groups serialize the contending CLI lifecycle cases; a
+    // global single slot would also serialize independent diagnostics cases.
+    assert.match(command, / --success-output immediate --failure-output immediate 2>&1 \| tee/u);
     assert.doesNotMatch(
       command,
-      /--guard-command|cargo test|--workspace|--nocapture|continue-on-error/u,
+      /--test-threads|--guard-command|cargo test|--workspace|--nocapture|continue-on-error/u,
     );
   }
   assert.ok(
@@ -181,7 +184,12 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   for (const lane of [fastRustTests, fastRustQuality]) {
     assert.match(lane, /checked-git\.mts rev-parse HEAD/u);
     assert.match(lane, /rustc --version --verbose/u);
-    assert.match(lane, /source_sha256:hashes/u);
+    // Both lanes record one shared source manifest instead of inline copies.
+    assert.equal(lane.match(/node scripts\/runtime-diagnostics-source\.mts/gu)?.length, 1);
+    assert.doesNotMatch(lane, /source_sha256|crypto\.createHash/u);
+  }
+  assert.equal(new Set(runtimeDiagnosticsSourceFiles).size, runtimeDiagnosticsSourceFiles.length);
+  {
     for (const source of [
       "crates/portcove-diagnostics/src/lib.rs",
       "crates/portcove-diagnostics/src/sessions.rs",
@@ -201,7 +209,9 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
       "crates/portcove-core/src/tool_process.rs",
       "crates/portcove-cli/tests/runtime_diagnostics.rs",
     ])
-      assert.ok(lane.includes(source), source);
+      assert.ok(runtimeDiagnosticsSourceFiles.includes(source), source);
+  }
+  for (const lane of [fastRustTests, fastRustQuality]) {
     assert.match(lane, /name: runtime-diagnostics-(?:windows|linux)-/u);
     assert.match(lane, /path:\s*(?:\|\s*)?work\/runtime-diagnostics\/(?:windows|linux)\//u);
   }
@@ -418,4 +428,29 @@ void test("Rust documentation coverage and pinned runners remain connected", asy
   assert.doesNotMatch(rustQuality, /cargo nextest run/);
   assert.match(workflow, /CARGO_PROFILE_TEST_DEBUG: line-tables-only/);
   assert.match(workflow, /CARGO_PROFILE_DEV_DEBUG: line-tables-only/);
+});
+
+void test("the shared runtime diagnostics source manifest keeps its existing format", () => {
+  const root = new URL("../", import.meta.url).pathname;
+  const manifest = runtimeDiagnosticsSource(process.platform === "win32" ? root.slice(1) : root, {
+    PORTCOVE_DIAGNOSTICS_SOURCE_REVISION: "a".repeat(40),
+    RUNNER_OS: "Linux",
+    RUNNER_ARCH: "X64",
+    GITHUB_RUN_ID: "1",
+    GITHUB_RUN_ATTEMPT: "2",
+  });
+  assert.deepEqual(Object.keys(manifest), [
+    "format_version",
+    "source_revision",
+    "runner_os",
+    "runner_arch",
+    "run_id",
+    "run_attempt",
+    "source_sha256",
+  ]);
+  assert.equal(manifest.format_version, 1);
+  assert.equal(manifest.source_revision, "a".repeat(40));
+  assert.deepEqual(Object.keys(manifest.source_sha256), [...runtimeDiagnosticsSourceFiles]);
+  for (const digest of Object.values(manifest.source_sha256))
+    assert.match(digest, /^[a-f0-9]{64}$/u);
 });

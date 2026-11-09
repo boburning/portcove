@@ -7,7 +7,8 @@ New installation, generation, compilation and toolchain acquisition are retired.
 
 The five admitted port snapshots are copied from
 `crates/portcove-core/catalog/catalog-current-authoring.json` at
-`1ef87e082d8520a0fa727f750f06fe7b9349b373`. Display metadata is excluded from
+`1ef87e082d8520a0fa727f750f06fe7b9349b373` (that identical copy of `catalog.json`
+has since been removed; the revision still resolves). Display metadata is excluded from
 execution comparison; source, release, executable, launch and ownership facts
 remain strict. Do not regenerate these snapshots from the new current catalog.
 

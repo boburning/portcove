@@ -78,7 +78,6 @@ export interface AuthoredPort extends Record<string, unknown> {
 export const catalogSourceNames = {
   shared: "catalog-shared.json",
   ports: "ports",
-  operational: "catalog-current-authoring.json",
   embedded: "catalog.json",
   listings: "listings.json",
 } as const;

@@ -208,12 +208,18 @@ submitted as the actual merge message and verified afterward. Body and linked
 issue changes matter even at an unchanged source SHA. Unknown inventory refuses
 delivery. Without GraphQL the guard reconstructs the inventory over REST
 ([connector delivery observations](DEVELOPMENT-TOOLS.md#connector-delivery-observations))
-and refuses any visible manual link. A manual link made from the sidebar of an
-issue in a repository the reader cannot see is not documented to appear on the
-PR's REST timeline, so REST cannot exclude it: link work through closing keywords
-and deliver a PR with any manual link from a GraphQL-capable session. On
-2026-11-09 all 221 issues GitHub reported as linked to a pull request here were
-keyword links, with no manual link events. An ambiguous mutation or changed post-merge state requires readback
+and refuses any visible manual link. It also requires a successful
+`closing-inventory` check run for this pull request on its exact head: a
+trusted `pull_request_target` workflow that reads GitHub's GraphQL inventory
+and fails on any relationship the body's closing keywords do not name or that
+the inventory's count shows is hidden from the workflow token. Whether that
+count includes issues in repositories the token cannot read is not documented
+by GitHub, so a manual link to such an issue remains UNKNOWN to REST. A manual
+link added, or a body changed by a workflow token, after the check last ran can
+also escape it. Link work through closing keywords and deliver a PR with any
+manual link from a GraphQL-capable session. On 2026-11-09 all 221 issues GitHub
+reported as linked to a pull request here were keyword links, with no manual
+link events. An ambiguous mutation or changed post-merge state requires readback
 and reconciliation, never an automatic retry or reopening.
 
 These safeguards cover supported writers and guarded delivery. They do not

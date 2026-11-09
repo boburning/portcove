@@ -2623,6 +2623,9 @@ impl PortcoveService {
                 None,
             ),
             Some(previous) => {
+                // Availability is a preview: execution re-verifies every byte
+                // under the port lock, so unchanged files may reuse digests.
+                let _preview = crate::adapter::preview_digest::PreviewScope::enter();
                 match self.rollback_target(&status.port_id, previous, status.active.as_ref(), false)
                 {
                     Ok(_) => (
@@ -5080,7 +5083,12 @@ impl PortcoveService {
                             &|| operation.checkpoint(),
                         )?;
                     }
-                    crate::native_temp::recheck(retained_port, &spec)?;
+                    crate::native_temp::recheck(
+                        retained_port,
+                        Platform::current()?,
+                        &spec,
+                        &|| operation.checkpoint(),
+                    )?;
                     self.require_installed_shared_preferences(install)?;
                     if retained_port.managed_shared_preferences.is_some()
                         && (spec.arguments != retained_port.launch_arguments

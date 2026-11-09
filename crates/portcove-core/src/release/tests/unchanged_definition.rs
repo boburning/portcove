@@ -42,6 +42,110 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn native10_original_sibling_assets_follow_stable_successors() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (record, ids, routes, tag) in [
+        (
+            include_str!("../../testdata/bstone-release-selection-2026-10-29.json"),
+            [
+                "blake-stone-aliens-of-gold-bstone",
+                "blake-stone-planet-strike-bstone",
+            ],
+            &[
+                (Platform::LinuxX86_64, "bstone-1.3.4+e65a6b40-Linux.zip"),
+                (Platform::MacosX86_64, "bstone-1.3.4+e65a6b40-Darwin.zip"),
+            ][..],
+            "v1.3.5",
+        ),
+        (
+            include_str!("../../testdata/devilution-release-selection-2026-10-29.json"),
+            ["diablo-devilutionx", "diablo-hellfire-devilutionx"],
+            &[(Platform::LinuxX86_64, "devilutionx-linux-x86_64.appimage")][..],
+            "1.5.6",
+        ),
+    ] {
+        let captured: serde_json::Value = serde_json::from_str(record).unwrap();
+        let observed = &captured["release"];
+        let mut next = observed.clone();
+        next["tag_name"] = serde_json::json!(tag);
+        for row in next["assets"].as_array_mut().unwrap() {
+            let name = row["name"]
+                .as_str()
+                .unwrap()
+                .replace("1.3.4+e65a6b40", "1.3.5+01234567");
+            *row = asset(&name, Some('c'));
+        }
+        for id in ids {
+            let port = catalog.port(id).unwrap();
+            for &(platform, name) in routes {
+                let selected = observed["assets"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|row| row["name"] == name)
+                    .unwrap();
+                let (root, _, server) = serve_http(vec![
+                    metadata(),
+                    releases(std::slice::from_ref(observed)),
+                    metadata(),
+                    releases(std::slice::from_ref(&next)),
+                ]);
+                let current = GithubReleaseProvider::with_api_root(root.clone())
+                    .unwrap()
+                    .resolve(port, ReleaseChannel::Stable, platform)
+                    .await
+                    .unwrap();
+                assert_eq!(current.asset.name, name);
+                assert_eq!(current.asset.size, selected["size"].as_u64().unwrap());
+                assert_eq!(
+                    format!("sha256:{}", current.asset.sha256),
+                    selected["digest"]
+                );
+                let successor = GithubReleaseProvider::with_api_root(root)
+                    .unwrap()
+                    .resolve(port, ReleaseChannel::Stable, platform)
+                    .await
+                    .unwrap();
+                assert_eq!(successor.version, tag);
+                assert_eq!(
+                    successor.asset.name,
+                    name.replace("1.3.4+e65a6b40", "1.3.5+01234567")
+                );
+                assert_eq!(successor.asset.sha256, "c".repeat(64));
+                server.join().unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn native10_appimage_selector_refuses_archive_fallback_and_legacy_routes() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("diablo-devilutionx").unwrap().clone();
+    let platform = Platform::LinuxX86_64;
+    let assets = serde_json::from_value::<Vec<GithubAsset>>(serde_json::json!([
+        asset("devilutionx-linux-x86_64.tar.gz", Some('d')),
+        asset(
+            "devilutionx-linux-x86_64.appimage.unreviewed.appimage",
+            Some('d')
+        ),
+    ]))
+    .unwrap();
+    assert_eq!(
+        choose_asset(&port, platform, &assets).unwrap_err().code,
+        crate::ErrorCode::NotFound
+    );
+    let appimage = serde_json::from_value::<GithubAsset>(asset(
+        "devilutionx-linux-x86_64.appimage",
+        Some('d'),
+    ))
+    .unwrap();
+    assert!(choose_asset(&port, platform, std::slice::from_ref(&appimage)).is_ok());
+    port.windows_temp_directory = None;
+    assert!(choose_asset(&port, platform, std::slice::from_ref(&appimage)).is_err());
+}
+
+#[tokio::test]
 async fn bstone_definitions_keep_win64_identity_and_refuse_unqualified_metadata() {
     let catalog = crate::Catalog::embedded().unwrap();
     let captured: serde_json::Value = serde_json::from_str(include_str!(

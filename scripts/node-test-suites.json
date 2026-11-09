@@ -444,6 +444,13 @@
       ]
     },
     {
+      "file": "scripts/catalog-rust-edit-report.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8913],
+        ["repository-tools-2", 3913]
+      ]
+    },
+    {
       "file": "scripts/package-player-observation.test.mts",
       "memberships": [
         ["catalog-full-2", 8912],

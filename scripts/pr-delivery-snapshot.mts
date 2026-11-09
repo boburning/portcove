@@ -5,7 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
-import { checkClosureIntent, restTimelineRelationships } from "./closure-intent.mts";
+import {
+  checkClosureIntent,
+  restTimelineRelationships,
+  validateClosingInventoryEvidence,
+} from "./closure-intent.mts";
 import { commandFailure } from "./report-summary.mts";
 import type {
   DeliveryCheckRun,
@@ -483,8 +487,16 @@ function closing(
     );
     if (!same(derived, relationships))
       throw new Error("Closing inventory differs from its raw REST timeline reconstruction");
-  } else if ("timeline_pages" in item)
-    throw new Error("Only rest-timeline closing inventories carry timeline pages");
+    validateClosingInventoryEvidence(
+      item.inventory_checks,
+      item.inventory_runs,
+      candidate.head.sha,
+      candidate.number,
+    );
+  } else if ("timeline_pages" in item || "inventory_checks" in item || "inventory_runs" in item)
+    throw new Error(
+      "Only rest-timeline closing inventories carry timeline pages or inventory evidence",
+    );
   return { head: candidate.head.sha, title: candidate.title, body: candidate.body, relationships };
 }
 

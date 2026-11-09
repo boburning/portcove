@@ -1,0 +1,45 @@
+name: Closing inventory
+
+# Sessions without GitHub GraphQL reconstruct a pull request's closing
+# relationships from its body keywords over REST. This trusted default-branch
+# check reads GitHub's own GraphQL inventory and fails on any manual link the
+# body does not name or any relationship hidden from the workflow token. The
+# REST reconstruction accepts only a successful pull_request_target run of this
+# file on the exact head.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: closing-inventory-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    name: closing-inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the trusted base contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install trusted locked metadata dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Compare GitHub's closing inventory with the body keywords
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/closing-inventory.mts

@@ -266,6 +266,16 @@ and a required Linux TAR.XZ asset hint. That route accepts only matching TAR.XZ
 players and uses the same bounded reader as downloaded setup. Independent
 definitions require NativePortable capability 8 for this declaration.
 
+Native portable capability 10 supports official sibling packages on an
+original-bound Native6 definition with `windows_temp_directory`. Every platform
+keeps the same verified original-file mapping and private profile namespace.
+Core reserves, creates and rechecks that namespace on the selected host.
+Only Windows applies the relative-path policy and sets the child’s
+`TEMP` and `TMP`. Sibling launches use the definition’s fixed arguments.
+An x86-64 Linux sibling may select one complete standalone AppImage by its
+exact asset basename and executable hint. It uses the existing AppImage
+installation path and the same retained original and profile checks.
+
 The `external_profile_policy` declaration requires NativePortable capability 9.
 It checks the effective profile selected by the final managed game environment
 before the player starts. The reviewed Dune Dynasty policy follows Allegro's
@@ -2353,12 +2363,22 @@ or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifie
 provider access terms, not a permissive copyright license.
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
-`catalog-current-authoring.json`, the embedded `catalog.json`, and `listings.json`.
-All three are generated outputs, and `--check` refuses a stale projection.
+the embedded `catalog.json` and `listings.json`, plus the generated route-enrollment
+and test-data projections. All are generated outputs, and `--check` refuses a stale
+projection. There is no separate committed authoring copy of `catalog.json`: it
+duplicated the embedded catalog byte for byte, and keeping it doubled every
+catalog conflict. Fixtures that need an editable aggregate copy `catalog.json`
+into scratch space.
 Filename/ID disagreement, duplicate IDs or JSON keys and a second shared port authority are
 refused. The migrated records retain their established order; new records sort
 by stable ID. Unknown retained operational metadata and ordered arrays remain
-unchanged. Reassemble after a rebase; do not hand-merge the generated aggregates.
+unchanged. Never hand-merge the generated aggregates. After a rebase or merge,
+resolve and stage any conflicted authored sources (`ports/`, `catalog-shared.json`),
+then run `node scripts/catalog-staged-check.mts --resolve-conflicts`: it regenerates
+every aggregate from those sources and stages the result, and refuses while any other
+path is still unmerged. A Git merge driver cannot replace this step, because a driver
+sees one file at a time before the merged sources exist and is ignored by hosted merges.
+`generate-catalog.mts --check` stays the required consistency gate.
 Core owns the temporary
 schema-1 compatibility projection required by the existing matcher and rejects
 any conflicting projection supplied by catalog input. The deterministic

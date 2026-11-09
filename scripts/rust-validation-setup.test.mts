@@ -422,11 +422,21 @@ void test("release, rehearsal and deep audit Rust callers preserve repository pi
     assert.ok(Array.isArray(owner.steps) && owner.steps.indexOf(shim) < owner.steps.indexOf(cache));
   }
 
+  // Pull request and feature-branch runs restore caches but never save them.
+  const mainSave = "save-if: ${{ github.ref == 'refs/heads/main' }}\n";
   for (const [file, name, cacheSetting] of [
-    ["release.yml", "validate", undefined],
-    ["linux-package-ownership-rehearsal.yml", "build", "key: linux-package-ownership-rehearsal"],
-    ["updater-artifact-rehearsal.yml", "packages", "key: updater-artifact-rehearsal"],
-    ["deep-quality.yml", "audit", "shared-key: deep-quality-ubuntu-22.04"],
+    [
+      "release.yml",
+      "validate",
+      "save-if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}",
+    ],
+    [
+      "linux-package-ownership-rehearsal.yml",
+      "build",
+      `${mainSave}key: linux-package-ownership-rehearsal`,
+    ],
+    ["updater-artifact-rehearsal.yml", "packages", `${mainSave}key: updater-artifact-rehearsal`],
+    ["deep-quality.yml", "audit", `${mainSave}shared-key: deep-quality-ubuntu-22.04`],
   ] as const) {
     await t.test(`${file} ${name}`, async () => {
       const source = await readWorkflow(new URL(`../.github/workflows/${file}`, import.meta.url));

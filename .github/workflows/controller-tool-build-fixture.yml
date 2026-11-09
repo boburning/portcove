@@ -3,9 +3,15 @@ on:
   pull_request:
     paths:
       - .github/workflows/controller-tool-build-fixture.yml
+      - scripts/release-controller-tool*.mts
+      - scripts/release-controller-job-bootstrap.mts
+      - scripts/release-controller-diagnostics.mts
+      - scripts/release-control-step-bridge.mts
+      - scripts/release-semantic-*.mts
       - scripts/release-*.mts
       - scripts/semantic-review-linux-supervisor*.py
       - scripts/semantic-review-linux-supervisor.test.mts
+      - scripts/release-controller-wake.mts
       - scripts/application-release-private.mts
       - scripts/application-release-budget*.mts
       - scripts/application-release-run.mts
@@ -15,6 +21,7 @@ on:
       - .github/workflows/application-release.yml
       - .github/workflows/application-release-private.yml
       - scripts/controller-node-runtime.mts
+      - scripts/release-input-protections.mts
       - scripts/production-controller-admission.mts
       - scripts/assembler-job-identity.mts
       - scripts/github-*.mts
@@ -32,6 +39,7 @@ on:
       - scripts/native-qualification-account.cs.txt
       - scripts/native-qualification-account-registry.ps1
       - scripts/fixtures/native-account-gui-probe.ps1
+      - scripts/release-connected-fixture.test.mts
       - scripts/fixtures/tuf-worker-fixture.mts
       - scripts/fixtures/trusted-assembly-fixture.mts
       - scripts/reconstruct-application-update-records.mts
@@ -63,6 +71,7 @@ on:
       - scripts/release-controller-diagnostics.mts
       - scripts/release-control-step-bridge.mts
       - scripts/release-semantic-*.mts
+      - scripts/release-*.mts
       - scripts/semantic-review-linux-supervisor*.py
       - scripts/semantic-review-linux-supervisor.test.mts
       - scripts/release-controller-wake.mts
@@ -76,7 +85,9 @@ on:
       - .github/workflows/application-release-private.yml
       - scripts/controller-node-runtime.mts
       - scripts/release-input-protections.mts
+      - scripts/production-controller-admission.mts
       - scripts/assembler-job-identity.mts
+      - scripts/github-*.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
       - scripts/prepare-hosted-windows-runtime.ps1
@@ -97,6 +108,9 @@ on:
       - scripts/reconstruct-application-update-records.mts
       - scripts/updater-artifact-inventory.mts
       - apps/desktop/scripts/prepare-release-version.mts
+      - scripts/resource-*.mts
+      - scripts/run-rust-tests.mts
+      - scripts/heavy-rust-test-lock.mts
       - crates/portcove-release-tools/**
       - crates/portcove-cli/**
       - crates/portcove-core/**
@@ -111,6 +125,11 @@ on:
       - pnpm-workspace.yaml
       - pnpm-lock.yaml
       - .node-version
+# Superseded pull request runs are cancelled; every other run has its own
+# group, so pushes and dispatches always finish.
+concurrency:
+  group: controller-tool-build-fixture-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:

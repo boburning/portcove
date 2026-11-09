@@ -60,7 +60,29 @@ pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
 }
 
 pub(crate) fn requires_provider_resolution_on(port: &PortDefinition, platform: Platform) -> bool {
-    port.release.requires_tar_xz(platform) || requires_provider_resolution(port)
+    port.release.requires_tar_xz(platform)
+        || crate::release::native_original_appimage(port, platform).is_some()
+        || requires_provider_resolution(port)
+}
+
+pub(crate) fn require_native_original_artifact(
+    port: &PortDefinition,
+    platform: Platform,
+    asset_name: &str,
+) -> Result<()> {
+    if !crate::native_temp::has_sibling_platforms(port) {
+        return Ok(());
+    }
+    let appimage = asset_name.to_ascii_lowercase().ends_with(".appimage");
+    let expected = crate::release::native_original_appimage(port, platform);
+    if (appimage || expected.is_some())
+        && expected.is_none_or(|name| !name.eq_ignore_ascii_case(asset_name))
+    {
+        return Err(PortcoveError::verification(
+            "managed native original AppImage differs from its retained Linux asset declaration",
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn validate_release_rules(port: &PortDefinition) -> Result<()> {

@@ -714,7 +714,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.external_profile_policy.is_some() {
+        let version = if crate::native_temp::has_sibling_platforms(port) {
+            10
+        } else if port.external_profile_policy.is_some() {
             9
         } else if port.release.linux_tar_xz {
             8
@@ -1368,9 +1370,38 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
     // Keep the upper-edge check on an unimplemented future reader.
-    entry["required_capabilities"][0]["minimum_version"] = json!(10);
-    entry["required_capabilities"][0]["maximum_version"] = json!(10);
+    entry["required_capabilities"][0]["minimum_version"] = json!(11);
+    entry["required_capabilities"][0]["maximum_version"] = json!(11);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn native_original_siblings_require_native10_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in [
+        "blake-stone-aliens-of-gold-bstone",
+        "blake-stone-planet-strike-bstone",
+        "diablo-devilutionx",
+        "diablo-hellfire-devilutionx",
+    ] {
+        let port = catalog.port(id).unwrap();
+        assert!(crate::native_temp::has_sibling_platforms(port));
+        let mut entry = entry_for_port(port);
+        entry["required_capabilities"][0]["maximum_version"] = json!(10);
+        for minimum in [9, 10] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            let fresh = inspect(&entry);
+            let retained = index(&bytes, id).inspect_retained_entry("official", id, &bytes);
+            for result in [fresh, retained] {
+                if minimum < 10 {
+                    assert!(result.unwrap_err().message.contains("version 10"));
+                } else {
+                    assert!(result.unwrap().capabilities().compatible);
+                }
+            }
+        }
+    }
 }
 
 #[test]

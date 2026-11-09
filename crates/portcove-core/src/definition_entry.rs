@@ -168,6 +168,15 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if crate::native_temp::has_sibling_platforms(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 10
+            })
+        {
+            return Err(PortcoveError::verification(
+                "native original-file siblings with Windows temporary data require capability version 10",
+            ));
+        }
         if port.external_profile_policy.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable" && requirement.minimum_version >= 9

@@ -1508,6 +1508,19 @@ async fn launch_port(
     Ok(result)
 }
 
+/// Launch failures surface within seconds, so observe quickly at first and then
+/// back off while a game keeps running instead of reading SQLite four times a
+/// second for the whole play session.
+fn launch_observation_interval(since_last_launch: Duration) -> Duration {
+    if since_last_launch < Duration::from_secs(10) {
+        Duration::from_millis(250)
+    } else if since_last_launch < Duration::from_secs(60) {
+        Duration::from_secs(1)
+    } else {
+        Duration::from_secs(2)
+    }
+}
+
 fn observe_launch_completion(
     app: &tauri::AppHandle,
     state: &DesktopState,
@@ -1522,14 +1535,29 @@ fn observe_launch_completion(
         let app = app.clone();
         thread::spawn(move || {
             let mut pending = Vec::<(Library, String)>::new();
+            let mut last_observation = std::time::Instant::now();
             loop {
-                match receiver.recv_timeout(Duration::from_millis(250)) {
-                    Ok(observation) => pending.push(observation),
-                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
-                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) if pending.is_empty() => {
-                        break;
+                if pending.is_empty() {
+                    // Nothing to observe: wait for the next launch instead of polling.
+                    match receiver.recv() {
+                        Ok(observation) => {
+                            pending.push(observation);
+                            last_observation = std::time::Instant::now();
+                        }
+                        Err(std::sync::mpsc::RecvError) => break,
                     }
-                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {}
+                } else {
+                    let interval = launch_observation_interval(last_observation.elapsed());
+                    match receiver.recv_timeout(interval) {
+                        Ok(observation) => {
+                            pending.push(observation);
+                            last_observation = std::time::Instant::now();
+                        }
+                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                            thread::sleep(interval);
+                        }
+                    }
                 }
                 while let Ok(observation) = receiver.try_recv() {
                     pending.push(observation);

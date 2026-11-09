@@ -1832,6 +1832,7 @@ for (const [file, tests] of [
     "scripts/pr-delivery-snapshot.mts",
     ["scripts/pr-delivery.test.mts", "scripts/pr-delivery-snapshot.test.mts"],
   ],
+  ["scripts/closing-inventory.mts", ["scripts/pr-delivery.test.mts"]],
   ...[
     "scripts/release-hosted-native-windows-diagnostic-source.mts",
     "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
@@ -1943,7 +1944,6 @@ for (const [file, tests] of [
     ],
   ],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
-  ["crates/portcove-core/catalog/catalog-current-authoring.json", catalogGeneratorContractTests],
   [
     "crates/portcove-core/catalog/catalog-schema1-fixture.json",
     ["scripts/migrate-catalog-schema2.test.mts"],
@@ -2432,6 +2432,7 @@ const workflowTests = new Map([
     ["scripts/updater-artifact-inventory.test.mts", "scripts/release-payload-signing.test.mts"],
   ],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
+  ["closing-inventory.yml", ["scripts/pr-delivery.test.mts"]],
 ]);
 
 for (const file of [
