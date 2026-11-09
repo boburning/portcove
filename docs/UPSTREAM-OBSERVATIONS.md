@@ -265,6 +265,20 @@ reviewed catalog change, and qualification, holds and accepted bytes do not
 transfer by themselves. The same command accepts `--repository OWNER/NAME` for
 manual use.
 
+The owner-dispatched `Upstream relocation evidence` workflow
+(`scripts/upstream-relocation-evidence.mts`) gathers the provider facts a reviewed
+rename needs. It takes up to eight current names, each `OWNER/NAME` or
+`OWNER/NAME@TAG`. For each one it reads the repository identity and the first page
+of releases with their asset names. For a named tag it also reads that release and
+its complete asset collection, with release and asset facts and hashes produced
+by the observer's own fact functions. A reviewer can compare a reviewed pin's
+numeric release and asset identities, size and digest at the new name, and see the
+exact facts a rebinding would record. Redirects are refused, nothing is
+downloaded, the job has read-only repository permission, and the JSON report is
+retained as a run artifact. The evidence grants no lineage, relocation, selector,
+acquisition or accounting authority; any rebinding remains a reviewed accounting
+change.
+
 The forty-five-minute hosted job establishes a forty-minute observation deadline
 before checkout and build, reserving the final five minutes for checkpoint and
 artifact publication. Accepted page, validation or Core progress can automatically
