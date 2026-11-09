@@ -11873,6 +11873,12 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2876,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -11899,10 +11905,6 @@
         ],
         "help_url": "https://github.com/ripleyXLR8/atlantis-native/blob/44ad4d0f9c1ccd449c6d895ee6a7bf4f798d3df7/README.md"
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "unknown"
     },
     {
@@ -27016,6 +27018,12 @@
       "project_url": "https://github.com/1nputs/gunstars",
       "setup_url": "https://github.com/1nputs/gunstars",
       "issue_number": 2580,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -27038,10 +27046,6 @@
         ],
         "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "unknown"
     },
     {
@@ -29489,6 +29493,11 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2583,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -29515,9 +29524,6 @@
         ],
         "help_url": "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/11e9430b67d788b73f7a57d22166e8b500c23dab/README.md"
       },
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown"
     },
     {
