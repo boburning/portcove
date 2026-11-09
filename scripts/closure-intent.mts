@@ -113,10 +113,11 @@ const timelinePageSize = 100;
 const closingKeyword =
   /(?<![A-Za-z0-9])(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)(?![A-Za-z0-9])/giu;
 // Text after a closing keyword that GitHub might read as a reference although
-// the exact grammar did not: a reference token, optionally behind markup, in GH-
-// shorthand, another URL form, an entity, or zero-padded or spaced form.
+// the exact grammar did not: a reference token, optionally behind markup, colons,
+// quotes, HTML tags or invisible separators, in GH- shorthand, another URL form,
+// an entity, a fullwidth sign, or zero-padded or spaced form.
 const referenceLike =
-  /^\s*:?[\s*_~`[(<]*(?:#|&#|gh-\d|https?:\/\/|www\.|[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\s*#)/iu;
+  /^(?:<[^>]*>|[\s:*_~`[(<"'\u200b-\u200d\u2060\ufeff])*(?:[#\uff03]|&#|gh-\d|https?:\/\/|www\.|[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\s*#)/iu;
 
 const exactReferenceAt =
   /^(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s*:?\s*(?:<?https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/(?:issues|pull)\/[1-9]\d*|(?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#[1-9]\d*)\b/iu;

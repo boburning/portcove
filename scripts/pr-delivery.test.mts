@@ -1523,6 +1523,12 @@ void test("REST closure reconstruction replaces refused GraphQL and fails closed
     [[[committedHead]], { body: "Fixes GH-244, closes #3" }, /cannot interpret exactly/],
     [[[committedHead]], { body: "_Fixes #244_" }, /cannot interpret exactly/],
     [[[committedHead]], { body: "Fixes &#35;244" }, /cannot interpret exactly/],
+    [[[committedHead]], { body: "**Fixes**: #244" }, /cannot interpret exactly/],
+    [[[committedHead]], { body: "_Fixes_: #244" }, /cannot interpret exactly/],
+    [[[committedHead]], { body: 'Fixes <a href="x">#244</a>' }, /cannot interpret exactly/],
+    [[[committedHead]], { body: 'Fixes "#244"' }, /cannot interpret exactly/],
+    [[[committedHead]], { body: "Fixes \uff03244" }, /cannot interpret exactly/],
+    [[[committedHead]], { body: "Fixes\u200b#244" }, /cannot interpret exactly/],
     [[[committedHead]], { pulls: [{}, { body: "Closes #9" }] }, /changed during pagination/],
   ] as const)
     await assert.rejects(
