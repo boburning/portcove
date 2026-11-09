@@ -303,7 +303,6 @@ fn require_no_library_handoff(
     if initialization.as_ref().err().is_some_and(|error| {
         error.details.contains_key("transfer_in_progress")
             || error.details.contains_key("library_switch_in_progress")
-            || error.details.contains_key(LIBRARY_INITIALIZING)
     }) {
         return Err(PortcoveError::conflict("a library handoff is already in progress").into());
     }
@@ -2950,7 +2949,14 @@ fn initialize_desktop_in_background(
         report_application_update_qualification_stage("desktop initialization");
     }
     let prepared = prepare(&initialization_result);
-    publication.value = Some(initialization_result);
+    // A failure here exits the app; never show Workspace for that instant.
+    publication.value = Some(match &prepared {
+        Ok(()) => initialization_result,
+        Err(error) => Err(PortcoveError::state(format!(
+            "Portcove could not finish opening the library: {error}"
+        ))
+        .into()),
+    });
     drop(publication);
     prepared
 }
