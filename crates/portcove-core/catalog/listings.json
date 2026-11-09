@@ -3628,7 +3628,7 @@
     {
       "id": "super-metroid-recomp",
       "name": "Super Metroid Recompiled",
-      "summary": "Native Super Metroid recompilation with an exact original and pinned Windows runtime.",
+      "summary": "Play Super Metroid Recompiled with your own exact original on Windows, Linux or Mac.",
       "project_url": "https://github.com/mstan/SuperMetroidRecomp",
       "original_game_title": "Super Metroid",
       "issue_number": 164,
@@ -3673,7 +3673,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {

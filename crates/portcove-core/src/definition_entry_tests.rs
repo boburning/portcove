@@ -295,8 +295,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(29);
-        entry["required_capabilities"][0]["maximum_version"] = json!(29);
+        entry["required_capabilities"][0]["minimum_version"] = json!(30);
+        entry["required_capabilities"][0]["maximum_version"] = json!(30);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -488,6 +488,38 @@ fn entry_for_port(port: &crate::PortDefinition) -> Value {
         "port": port, "source_contracts": [], "execution_contract": contract,
         "persistence_contract": contract, "artifact_bindings": [], "evidence_references": []
     })
+}
+
+#[test]
+fn staged_sibling_packages_require_version_29_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("super-metroid-recomp").unwrap();
+    assert!(crate::runtime_path_policy::has_staged_sibling_platforms(
+        port
+    ));
+    let mut entry = entry_for_port(port);
+    let requirement = &mut entry["required_capabilities"][0];
+    requirement["minimum_version"] = json!(28);
+    requirement["maximum_version"] = json!(29);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap_err().message.contains("version 29"));
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 29")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(29);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
 }
 
 fn target(bytes: &[u8]) -> String {
