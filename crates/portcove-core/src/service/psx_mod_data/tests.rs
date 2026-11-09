@@ -363,18 +363,26 @@ mod lifecycle {
     const ID: &str = "psx-mod-data-fixture";
 
     fn fixture() -> (tempfile::TempDir, PortcoveService, Catalog) {
+        fixture_with_paths(&["saves", "mods", "settings.toml"])
+    }
+
+    fn fixture_with_paths(paths: &[&str]) -> (tempfile::TempDir, PortcoveService, Catalog) {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        let catalog = Catalog::from_json(&serde_json::json!({
-            "schema_version":1,"ports":[{
-                "id":ID,"name":"PSX mod fixture","summary":"Inert storage fixture",
-                "project_url":"https://example.invalid/psx-fixture","support_tier":"beta",
-                "channels":["stable"],"platforms":["windows-x86-64"],
-                "adapter":"psx-recomp-managed","release":{"repository":"fixture/psx"},
-                "executable_hints":{"windows-x86-64":["fixture.exe"]},
-                "runtime_subdirectory":"build-portcove","persistent_paths":["saves","mods","settings.toml"]
-            }]
-        }).to_string()).unwrap();
+        let catalog = Catalog::from_json(
+            &serde_json::json!({
+                "schema_version":1,"ports":[{
+                    "id":ID,"name":"PSX mod fixture","summary":"Inert storage fixture",
+                    "project_url":"https://example.invalid/psx-fixture","support_tier":"beta",
+                    "channels":["stable"],"platforms":["windows-x86-64"],
+                    "adapter":"psx-recomp-managed","release":{"repository":"fixture/psx"},
+                    "executable_hints":{"windows-x86-64":["fixture.exe"]},
+                    "runtime_subdirectory":"build-portcove","persistent_paths":paths
+                }]
+            })
+            .to_string(),
+        )
+        .unwrap();
         let mut service = PortcoveService::new(library).unwrap();
         service.replace_catalog_for_test(catalog.clone());
         (temporary, service, catalog)
@@ -386,6 +394,17 @@ mod lifecycle {
         version: &str,
         active: bool,
         custom: Option<&Path>,
+    ) -> InstallRecord {
+        register_with_bundle(service, catalog, version, active, custom, None)
+    }
+
+    fn register_with_bundle(
+        service: &PortcoveService,
+        catalog: &Catalog,
+        version: &str,
+        active: bool,
+        custom: Option<&Path>,
+        bundled: Option<&[u8]>,
     ) -> InstallRecord {
         let library = &service.library;
         let id = Uuid::new_v4().to_string();
@@ -408,6 +427,9 @@ mod lifecycle {
             "build-portcove/fixture.exe",
             b"inert storage fixture, never executed",
         );
+        if let Some(bundled) = bundled {
+            write(&root, "build-portcove/mods/bundled/default.toml", bundled);
+        }
         // Production Installer records the canonical published path. A raw
         // Windows path is a different key from its output-root claim spelling.
         let root = fs::canonicalize(root).unwrap();
@@ -671,6 +693,80 @@ mod lifecycle {
         assert_eq!(
             fs::read(old.path.join("build-portcove/mods/state.toml")).unwrap(),
             b"version = '1.0'"
+        );
+    }
+
+    #[test]
+    fn split_mod_paths_keep_each_versions_bundle_and_carry_player_data() {
+        let (_temporary, service, catalog) = fixture_with_paths(&[
+            "saves",
+            "mods/installed",
+            "mods/packages",
+            "mods/.staging",
+            "mods/state.toml",
+            "mods/state.toml.tmp",
+        ]);
+        let old = register_with_bundle(&service, &catalog, "v1", true, None, Some(b"old bundle"));
+        let new = register_with_bundle(&service, &catalog, "v2", false, None, Some(b"new bundle"));
+        let old_runtime = old.path.join("build-portcove");
+        let new_runtime = new.path.join("build-portcove");
+        let canonical = service.library.user_dir(ID);
+
+        write(
+            &old_runtime,
+            "mods/installed/player/1.0/manifest.toml",
+            b"user mod",
+        );
+        write(&old_runtime, "mods/state.toml", b"old selection");
+        write(&old_runtime, "saves/player.mcd", b"saved before update");
+        assert_eq!(service.activate_staged(ID).unwrap().id, new.id);
+        assert_eq!(
+            fs::read(new_runtime.join("mods/installed/player/1.0/manifest.toml")).unwrap(),
+            b"user mod"
+        );
+        assert_eq!(
+            fs::read(new_runtime.join("mods/bundled/default.toml")).unwrap(),
+            b"new bundle"
+        );
+        assert!(!canonical.join("mods/bundled").exists());
+        let backup = service.create_backup(ID).unwrap();
+        assert!(
+            backup
+                .path
+                .join("data/mods/installed/player/1.0/manifest.toml")
+                .is_file()
+        );
+        assert!(!backup.path.join("data/mods/bundled").exists());
+
+        write(&new.path, LAUNCH_MARKER, b"1");
+        fs::remove_dir_all(new_runtime.join("mods/installed/player")).unwrap();
+        write(&new_runtime, "mods/state.toml", b"new selection");
+        write(&new_runtime, "saves/player.mcd", b"latest save");
+        service.rollback(ID).unwrap();
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
+        assert!(!old_runtime.join("mods/installed/player").exists());
+        assert_eq!(
+            fs::read(old_runtime.join("mods/state.toml")).unwrap(),
+            b"new selection"
+        );
+        assert_eq!(
+            fs::read(old_runtime.join("saves/player.mcd")).unwrap(),
+            b"latest save"
+        );
+        assert_eq!(
+            fs::read(old_runtime.join("mods/bundled/default.toml")).unwrap(),
+            b"old bundle"
+        );
+        assert!(!canonical.join("mods/bundled").exists());
+        assert!(service.verify(ID).unwrap().valid);
+        write(&old_runtime, "mods/bundled/default.toml", b"changed bundle");
+        let verification = service.verify(ID).unwrap();
+        assert!(!verification.valid);
+        assert!(
+            verification
+                .failures
+                .iter()
+                .any(|failure| failure.contains("default.toml"))
         );
     }
 
