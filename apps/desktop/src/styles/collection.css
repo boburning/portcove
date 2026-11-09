@@ -336,8 +336,13 @@
   .collection-row .collection-state {
     padding-inline-start: 0;
   }
-  .collection-row .library-entry-footer .collection-state {
-    flex: 1 1 auto;
+  @container collection (width > 48em) {
+    .collection-row .library-entry-footer {
+      flex-wrap: nowrap;
+    }
+    .collection-row .library-entry-footer .collection-state {
+      flex: 1 1 auto;
+    }
   }
   .collection-row .library-entry-chips {
     position: relative;
@@ -363,7 +368,6 @@
   .collection-row .library-entry-footer {
     grid-column: 2;
     grid-row: 1;
-    flex-wrap: nowrap;
     align-items: center;
     min-inline-size: 0;
     min-block-size: 0;
@@ -498,7 +502,7 @@
   }
   .collection-cover .collection-title {
     min-block-size: 2.9em;
-    margin-block-start: 0;
+    margin-block-start: 0.625rem;
     font-weight: 580;
   }
   /* Covers reserve the same subtitle height so every row of cards shares one rhythm. */
@@ -530,7 +534,7 @@
     }
   }
   .collection-cover .collection-caption {
-    padding-block-start: 0.625rem;
+    padding-block-start: 0.875rem;
   }
   @media (height <= 800px) and (width >= 761px) {
     .collection-covers:not(.discover-grid) {
