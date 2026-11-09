@@ -42,6 +42,78 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn recomp_appimages_select_the_direct_linux_asset_and_compatible_successor() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, name, tag, size, sha256) in [
+        (
+            "thatguymcd-glover-r",
+            "Glover-R",
+            "v1.0.1",
+            18_987_512_u64,
+            "765325f48cbe2fc4646a638faf75d971c7f122980b08b6bdedb148a8513296ca",
+        ),
+        (
+            "rocket-robot-on-wheels-rocket-r",
+            "Rocket-R",
+            "v.1.0.1",
+            21_637_624_u64,
+            "82048c0d7a8ab5555ea5f663cde7cec1563f799913ed390b12d0f6e35d9618ee",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let platform = Platform::LinuxX86_64;
+        let current_name = format!("{name}-1.0.1-Linux-x86_64.AppImage");
+        let next_name = format!("{name}-1.0.2-Linux-x86_64.AppImage");
+        let mut observed = asset(&current_name, None);
+        observed["size"] = serde_json::json!(size);
+        observed["digest"] = serde_json::json!(format!("sha256:{sha256}"));
+        let current = release(tag, vec![observed]);
+        let wrong = [
+            format!("{name}-1.0.2-Linux-aarch64.AppImage"),
+            format!("{name}-1.0.2-Linux-x86_64-SteamDeck.AppImage"),
+            format!("{name}-1.0.2-Linux-x86_64-Portable.tar.gz"),
+            format!("{name}-debug-1.0.2-Linux-x86_64.AppImage"),
+        ];
+        let mut next_assets = vec![asset(&next_name, Some('a'))];
+        next_assets.extend(wrong.iter().map(|name| asset(name, Some('b'))));
+        let next = release("v1.0.2", next_assets);
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(&[current]),
+            metadata(),
+            releases(&[next]),
+        ]);
+        let observed = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(observed.asset.name, current_name);
+        assert_eq!(observed.asset.size, size);
+        assert_eq!(observed.asset.sha256, sha256);
+        let successor = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(successor.asset.name, next_name);
+        assert_eq!(successor.asset.sha256, "a".repeat(64));
+        assert!(crate::managed_runtime_policy::requires_provider_resolution_on(port, platform));
+        for name in wrong {
+            assert!(
+                crate::managed_runtime_policy::require_native_appimage_artifact(
+                    port, platform, &name
+                )
+                .is_err()
+            );
+        }
+        crate::managed_runtime_policy::require_native_appimage_artifact(port, platform, &next_name)
+            .unwrap();
+        server.join().unwrap();
+    }
+}
+
+#[tokio::test]
 async fn openrct2_both_mac_architectures_follow_the_official_universal_bundle() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("openrct2-openrct2").unwrap();

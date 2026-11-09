@@ -5067,12 +5067,12 @@ impl PortcoveService {
                     let retained_catalog = self.installed_catalog(install)?;
                     let retained_port = retained_catalog.port(&install.port_id)?;
                     let platform = Platform::current()?;
-                    if let Some(policy) = crate::native_external_profile::launch_policy(
+                    let profile_policy = crate::native_external_profile::launch_policy(
                         retained_port,
                         self.catalog.port(&install.port_id).ok(),
                     )
-                    .filter(|&policy| crate::native_external_profile::applies_to(policy, platform))
-                    {
+                    .filter(|&policy| crate::native_external_profile::applies_to(policy, platform));
+                    if let Some(policy) = profile_policy {
                         if !arguments.is_empty() {
                             return Err(PortcoveError::usage(
                                 "managed external profiles require the ordinary launch without extra arguments",
@@ -5132,6 +5132,10 @@ impl PortcoveService {
                             install,
                         )?,
                     )?;
+                    #[cfg(target_os = "linux")]
+                    if profile_policy == Some(crate::ExternalProfilePolicy::RecompAppimageV1) {
+                        crate::native_external_profile::reserve_recomp_appimage_fallback(&spec)?;
+                    }
                 }
                 Ok(match command.spawn() {
                     Ok(child) => child,

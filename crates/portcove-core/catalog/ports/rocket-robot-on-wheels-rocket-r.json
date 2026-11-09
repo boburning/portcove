@@ -7,7 +7,7 @@
     "project_url": "https://github.com/ThatGuyMcd/Rocket-R",
     "issue_number": 1449,
     "availability": "packages",
-    "setup_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/d64e42a1e364c867d9ff100637d90fd8e27e5ac8/README.md",
+    "setup_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/main/README.md",
     "artwork": {
       "game_id": 2644,
       "cover_id": 473896,
@@ -16,7 +16,7 @@
       "game_slug": "rocket-robot-on-wheels",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/ThatGuyMcd/Rocket-R/releases/tag/v.1.0.1",
+    "release_url": "https://github.com/ThatGuyMcd/Rocket-R/releases",
     "manual_setup": {
       "steps": [
         {
@@ -29,15 +29,15 @@
         },
         {
           "title": "Choose the Linux package for your system",
-          "instruction": "On x64 or ARM64 Linux, make the matching AppImage executable and open it. The packaged game needs glibc 2.35, GLIBCXX 3.4.30 and a working Vulkan driver. If you use a Portable archive, unpack the whole folder and run Launch-Rocket-R.sh. On Steam Deck, unpack the separate x64 Steam Deck archive and run START-ROCKET-R.sh from its folder. It launches the included AppDir directly."
+          "instruction": "Portcove manages the direct x86-64 AppImage. It needs working AppImage and FUSE support, glibc 2.35, GLIBCXX 3.4.30 and a Vulkan driver. For an external Linux copy, choose the matching x86-64 or ARM64 AppImage or follow the upstream Portable archive instructions. Steam Deck has a separate package and START-ROCKET-R.sh. You maintain those external copies."
         },
         {
           "title": "Open Rocket-R on Android",
-          "instruction": "Install the ARM64 APK on Android 7 or later on a device with the required Vulkan 1.2 features. Open Rocket-R and choose your matching US ROM. The app keeps a private ROM copy and its saves and settings. Back up what you can access before clearing app storage or uninstalling. The upstream Android build is experimental, and some devices may fail to start it."
+          "instruction": "Install the upstream ARM64 APK on Android 7 or later on a device with the required Vulkan 1.2 features. Choose your own matching US ROM in the app and keep the original separately. The app stores a private ROM copy and its own saves, settings and mod profiles. Preserve app data before clearing storage, uninstalling or changing packages. You update this Android installation yourself."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/d64e42a1e364c867d9ff100637d90fd8e27e5ac8/README.md",
+      "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/main/README.md",
       "references": [
         {
           "title": "Check your original game file",
@@ -49,32 +49,31 @@
         }
       ]
     },
-    "original_game_title": "Rocket: Robot on Wheels",
-    "platforms": ["linux-x86-64"],
-    "download_asset_hints": {
-      "linux-x86-64": ["Rocket-R-", "-Linux-x86_64.AppImage"]
-    }
+    "original_game_title": "Rocket: Robot on Wheels"
   },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "ThatGuyMcd/Rocket-R",
       "asset_hints": {
-        "windows-x86-64": ["rocket-r-", "-windows-x64.zip"]
+        "windows-x86-64": ["rocket-r-", "-windows-x64.zip"],
+        "linux-x86-64": ["rocket-r-", "-linux-x86_64.appimage"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["Rocket-R.exe"]
+      "windows-x86-64": ["Rocket-R.exe"],
+      "linux-x86-64": ["Rocket-R.AppImage"]
     },
     "persistent_paths": ["rocket-r-data"],
+    "external_profile_policy": "recomp-appimage-v1",
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player. Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Rocket-R. Keep a separate backup of the actual profile before changing versions; older versions may not read newer saves. Portcove preserves only the declared rocket-r-data in-folder fallback for its managed Windows copy. Its external profile is outside Portcove backup and runtime rollback; rollback does not rewind saves. Keep each release’s own bundled engine/mod resources together, and keep custom --config or developer paths backed up separately. Existing external copies retain their files and runtime update owner."
+      "manual_preparation": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player. Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Rocket-R. Keep a separate backup of the actual profile before changing versions; older versions may not read newer saves. Portcove preserves only the declared rocket-r-data in-folder fallback for its managed Windows copy. Its external profile is outside Portcove backup and runtime rollback; rollback does not rewind saves. Keep each release’s own bundled engine/mod resources together, and keep custom --config or developer paths backed up separately. Existing external copies retain their files and runtime update owner. Managed Linux uses the direct x86-64 AppImage. Keep the Linux profile under $XDG_CONFIG_HOME/rocket-r or ~/.config/rocket-r outside the runtime and backed up separately. Use a separate copy for an adjacent AppImage profile or a custom launch."
     }
   }
 }

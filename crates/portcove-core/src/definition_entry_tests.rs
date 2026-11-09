@@ -52,6 +52,29 @@ fn openrct2_mac_bundle_requires_native11_for_fresh_and_retained_reads() {
 }
 
 #[test]
+fn recomp_appimage_entries_require_native12_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in ["thatguymcd-glover-r", "rocket-robot-on-wheels-rocket-r"] {
+        let port = catalog.port(id).unwrap();
+        let mut entry = entry_for_port(port);
+        entry["required_capabilities"][0]["maximum_version"] = json!(12);
+        for minimum in [11, 12] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            let fresh = inspect(&entry);
+            let retained = index(&bytes, id).inspect_retained_entry("official", id, &bytes);
+            for result in [fresh, retained] {
+                if minimum == 11 {
+                    assert!(result.unwrap_err().message.contains("version 12"));
+                } else {
+                    assert!(result.unwrap().capabilities().compatible);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn managed_external_profiles_require_version_9_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("dune-ii-dune-dynasty").unwrap();
@@ -1393,8 +1416,8 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
     // Keep the upper-edge check on an unimplemented future reader.
-    entry["required_capabilities"][0]["minimum_version"] = json!(12);
-    entry["required_capabilities"][0]["maximum_version"] = json!(12);
+    entry["required_capabilities"][0]["minimum_version"] = json!(13);
+    entry["required_capabilities"][0]["maximum_version"] = json!(13);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }
 

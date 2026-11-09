@@ -959,7 +959,7 @@ impl Installer {
                 "managed TAR.XZ requires the matching retained Linux native release declaration",
             ));
         }
-        crate::managed_runtime_policy::require_native_original_artifact(
+        crate::managed_runtime_policy::require_native_appimage_artifact(
             port,
             request.qualification.platform,
             &request.release.asset.name,
@@ -3188,7 +3188,7 @@ fn write_manifest(
         ));
     }
     let catalog = retained_contract.catalog(port_id)?;
-    crate::managed_runtime_policy::require_native_original_artifact(
+    crate::managed_runtime_policy::require_native_appimage_artifact(
         catalog.port(port_id)?,
         qualification.platform,
         &artifact.asset_name,
@@ -3649,7 +3649,7 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
-        crate::managed_runtime_policy::require_native_original_artifact(
+        crate::managed_runtime_policy::require_native_appimage_artifact(
             catalog.port(&install.port_id)?,
             manifest
                 .platform
@@ -5449,16 +5449,40 @@ mod tests {
                 .port("dkr-r")
                 .unwrap()
                 .clone();
+        check_standalone_appimage_versions(
+            &temporary.path().join("dkr"),
+            &port,
+            "DKR-R",
+            "DKR-R-1.0.4-Linux-x86_64.AppImage",
+            ["1.0.4", "1.0.5"],
+        );
+        let catalog = crate::Catalog::embedded().unwrap();
+        check_standalone_appimage_versions(
+            &temporary.path().join("rocket"),
+            catalog.port("rocket-robot-on-wheels-rocket-r").unwrap(),
+            "Rocket-R",
+            "Rocket-R.AppImage",
+            ["1.0.1", "1.0.2"],
+        );
+    }
+
+    fn check_standalone_appimage_versions(
+        temporary: &Path,
+        port: &crate::PortDefinition,
+        name: &str,
+        declared: &str,
+        versions: [&str; 2],
+    ) {
         let qualification =
-            crate::test_fixture::retained_qualification(&port, Platform::LinuxX86_64).unwrap();
-        let declared = Path::new("DKR-R-1.0.4-Linux-x86_64.AppImage");
-        for version in ["1.0.4", "1.0.5"] {
-            let root = temporary.path().join(version);
+            crate::test_fixture::retained_qualification(port, Platform::LinuxX86_64).unwrap();
+        let declared = Path::new(declared);
+        for version in versions {
+            let root = temporary.join(version);
             fs::create_dir_all(&root).unwrap();
-            let source = temporary.path().join(format!("{version}.download"));
+            let source = temporary.join(format!("{version}.download"));
             fs::write(&source, version).unwrap();
             let artifact = ArtifactIdentity {
-                asset_name: format!("DKR-R-{version}-Linux-x86_64.AppImage"),
+                asset_name: format!("{name}-{version}-Linux-x86_64.AppImage"),
                 sha256: hex::encode(Sha256::digest(version)),
                 size: version.len() as u64,
             };
@@ -5472,7 +5496,7 @@ mod tests {
             }
             assert_eq!(fs::read(root.join(declared)).unwrap(), version.as_bytes());
             let (_, selected, _) =
-                write_manifest(version, "dkr-r", version, &artifact, &qualification, &root)
+                write_manifest(version, &port.id, version, &artifact, &qualification, &root)
                     .unwrap();
             assert_eq!(selected, declared);
             let manifest: InstallManifest =

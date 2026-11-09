@@ -68,6 +68,12 @@ using that policy require version 11. It checks the real account’s external
 profile only for the Mac routes. Windows and Linux creating definitions
 keep their existing behavior.
 
+Native portable version 12 consumes `recomp-appimage-v1` for the reviewed
+direct Linux x86-64 AppImage layout. Fresh and retained entries require
+version 12. Linux acquisition binds the provider artifact and launch checks
+the effective external profile and AppImage mount and log paths. The same
+definition retains its existing Windows executable and data fallback.
+
 Native portable version 10 adds official sibling packages to verified native
 original-file definitions that keep a Windows temporary directory inside their
 private profile. Fresh and retained indexed entries declaring that combination
