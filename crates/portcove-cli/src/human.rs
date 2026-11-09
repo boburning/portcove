@@ -277,7 +277,10 @@ pub(crate) fn auth_status(status: &GithubAuthStatus) -> String {
                 "anonymous".into()
             }
         ),
-        format!("Credential source: {source}"),
+        match status.environment_variable.as_deref() {
+            Some(name) => format!("Credential source: {source} ({})", clean(name)),
+            None => format!("Credential source: {source}"),
+        },
         format!(
             "Device login: {}",
             if status.device_login_available {
@@ -3072,6 +3075,7 @@ mod tests {
         );
         let status = portcove_core::GithubAuthStatus {
             source: portcove_core::GithubAuthSource::Anonymous,
+            environment_variable: None,
             authenticated: false,
             login: None,
             rate_limit: Some(portcove_core::GithubRateLimit {

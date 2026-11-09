@@ -490,7 +490,8 @@ grant; a reused textual repository name is not continuity of authority.
 ## Acquisition decision
 
 The runtime accepts an upstream expected SHA-256, reviewed direct-manifest
-provenance, or an admitted schema-4 GitHub curated acquisition record. Read-only
+provenance, or a GitHub curated acquisition record admitted under authenticated
+policy schema 4. Read-only
 API observations distinguish missing API digests from published checksum assets.
 Calculating a digest during download supplies an observed value. It becomes
 an expected value for subsequent acquisition only through the applicable
