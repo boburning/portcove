@@ -232,8 +232,8 @@ collection and validation (twice the per-collection page allowance plus four
 requests, within the per-operation request budget) rather than an equal split of
 the remaining capacity across every pending source, which rounded each turn down
 to a single request and completed almost nothing. Sources beyond the remaining
-capacity wait for a later batch in rotation order; an early configured turn keeps
-its half-capacity cap. Unknown quota uses
+capacity wait for a later batch in rotation order; early configured or
+scheduled-priority turns keep their existing page-allowance and half-capacity cap. Unknown quota uses
 the existing finite request envelope; it is not assumed available. Quantum/runtime
 exhaustion has no provider retry clock. Actual depletion and provider retry
 responses defer the shared provider until its reset. A budget-limited source with
