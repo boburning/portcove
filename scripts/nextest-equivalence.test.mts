@@ -211,6 +211,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     ],
     [
       "x86_64-pc-windows-msvc",
+      "package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)",
+      180,
+    ],
+    [
+      "x86_64-pc-windows-msvc",
       "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",
       180,
     ],

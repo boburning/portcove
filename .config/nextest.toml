@@ -108,6 +108,15 @@ filter = 'package(portcove-core) & test(/^catalog::tests::upstream_maintenance_s
 slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
+# CI 42687446229 hosted Windows: main completed this 349-port maintenance
+# matrix in 84.5s; beside the regrouped partition it exceeded 120s twice
+# (Linux timing is unchanged at 104s). Give only this Windows case 180s.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40753693620/a1 cut eight of nine full ReflectionHLE progressions at30s
 # (one reached reviewed restore/removal29.98s). The generated-cache matrix
 # uses main's separately delivered exact-case calibration and phase output.
