@@ -221,8 +221,10 @@ but not for a link from an issue in a repository the reader cannot see, so the
 reconstruction also requires the latest `closing-inventory` check run on the
 exact head (`GET /repos/{owner}/{repo}/commits/{head}/check-runs?check_name=closing-inventory&filter=all&per_page=100`)
 to have succeeded, from the GitHub Actions app, in a completed
-`pull_request_target` run of `.github/workflows/closing-inventory.yml`
+`pull_request_target` run of `.github/workflows/closing-inventory.yml` whose
+`pull_requests` lists exactly this pull request
 (`GET /repos/{owner}/{repo}/actions/runs?check_suite_id={suite}&per_page=1`);
+fork pull requests list none and refuse;
 see the [closure contract](CONTRIBUTION-CONVENTIONS.md#review-and-merge). Issue bodies and REST issue reads cannot
 establish live Project fields. An unavailable or partial inventory remains
 unknown, with the exact missing observation recorded; do not silently

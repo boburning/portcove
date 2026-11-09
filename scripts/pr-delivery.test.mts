@@ -4,7 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
-import { closingInventoryFindings, readClosingRelationships } from "./closure-intent.mts";
+import {
+  closingInventoryCheckName,
+  closingInventoryFindings,
+  closingInventoryWorkflowPath,
+  readClosingRelationships,
+} from "./closure-intent.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import type {
   DeliveryPull,
@@ -1459,6 +1464,7 @@ function inventoryRun(overrides: Record<string, unknown> = {}) {
         event: "pull_request_target",
         status: "completed",
         conclusion: "success",
+        pull_requests: [{ number: 7 }],
         ...overrides,
       },
     ],
@@ -1578,6 +1584,15 @@ void test("REST closure reconstruction replaces refused GraphQL and fails closed
     ],
     [{ runs: inventoryRun({ check_suite_id: 92 }) }, /trusted default-branch workflow/],
     [{ runs: { total_count: 0, workflow_runs: [] } }, /trusted default-branch workflow/],
+    [
+      { runs: inventoryRun({ pull_requests: [{ number: 8 }] }) },
+      /did not run for this pull request/,
+    ],
+    [{ runs: inventoryRun({ pull_requests: [] }) }, /did not run for this pull request/],
+    [
+      { runs: inventoryRun({ pull_requests: [{ number: 7 }, { number: 8 }] }) },
+      /did not run for this pull request/,
+    ],
   ] as const)
     await assert.rejects(
       async () => await read(restClosureResponder([[committedHead]], { inventory })),
@@ -2392,4 +2407,30 @@ void test("the hosted closing inventory reports only links the body does not nam
     [],
     "a keyword GitHub does not link only makes REST stricter",
   );
+});
+
+void test("the closing-inventory workflow is the trusted check the REST path accepts", () => {
+  const workflow = readFileSync(
+    fileURLToPath(new URL(`../${closingInventoryWorkflowPath}`, import.meta.url)),
+    "utf8",
+  );
+  assert.deepEqual(
+    workflow
+      .match(/^ {2}pull_request_target:\s+types:\s+\[([^\]]*)\]/m)?.[1]
+      ?.split(",")
+      .map((value) => value.trim()),
+    ["opened", "edited", "synchronize", "reopened", "ready_for_review"],
+  );
+  assert.doesNotMatch(workflow, /^ {2}(?:pull_request|push|workflow_dispatch):/m);
+  assert.match(
+    workflow,
+    /^permissions:\r?\n {2}contents: read\r?\n {2}issues: read\r?\n {2}pull-requests: read$/m,
+  );
+  assert.match(workflow, new RegExp(`^ {4}name: ${closingInventoryCheckName}$`, "m"));
+  assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
+  assert.match(workflow, /persist-credentials: false/);
+  const install = workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts");
+  assert.ok(install > 0 && workflow.indexOf("GH_TOKEN:") > install);
+  assert.doesNotMatch(workflow.slice(0, install), /GH_TOKEN:|GITHUB_TOKEN:/u);
+  assert.match(workflow, /run: node scripts\/closing-inventory\.mts$/m);
 });

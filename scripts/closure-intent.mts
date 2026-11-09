@@ -265,6 +265,7 @@ export function validateClosingInventoryEvidence(
   checks: unknown,
   workflowRuns: unknown,
   head: string,
+  number: number,
 ) {
   const latest = latestClosingInventoryCheck(checks, head);
   const runs: unknown = isRecord(workflowRuns) ? workflowRuns.workflow_runs : undefined;
@@ -280,10 +281,21 @@ export function validateClosingInventoryEvidence(
     run.conclusion !== "success"
   )
     throw new Error("The closing-inventory check is not from the trusted default-branch workflow");
+  // A run proves only the pull request it ran for; another PR at the same head
+  // (or a fork, whose run lists none) cannot vouch for this one.
+  const pulls: unknown = run.pull_requests;
+  const entries: readonly unknown[] = Array.isArray(pulls) ? pulls : [];
+  if (entries.length !== 1 || !isRecord(entries[0]) || entries[0].number !== number)
+    throw new Error("The closing-inventory check did not run for this pull request");
   return latest;
 }
 
-async function readClosingInventoryEvidence(api: ClosingApi, repository: string, head: string) {
+async function readClosingInventoryEvidence(
+  api: ClosingApi,
+  repository: string,
+  head: string,
+  number: number,
+) {
   const { data: checks } = await api.request({
     method: "GET",
     url: `https://api.github.com/repos/${repository}/commits/${head}/check-runs?check_name=${closingInventoryCheckName}&filter=all&per_page=100`,
@@ -295,7 +307,7 @@ async function readClosingInventoryEvidence(api: ClosingApi, repository: string,
     url: `https://api.github.com/repos/${repository}/actions/runs?check_suite_id=${suite}&per_page=1`,
     request: { portcove: { replay: "safe-read", attempts: 0 } },
   });
-  return validateClosingInventoryEvidence(checks, workflowRuns, head);
+  return validateClosingInventoryEvidence(checks, workflowRuns, head, number);
 }
 
 /** Live REST reconstruction bracketed by unchanged pull request reads. */
@@ -336,7 +348,7 @@ export async function readClosingRelationshipsRest(
     if (nextTimelinePage(link, number) === null) break;
   }
   const relationships = restTimelineRelationships({ number, ...first }, repository, pages);
-  await readClosingInventoryEvidence(api, repository, first.head);
+  await readClosingInventoryEvidence(api, repository, first.head, number);
   if (JSON.stringify(await readPull()) !== JSON.stringify(first))
     throw new Error("Closing relationship inventory changed during pagination");
   return closingObservation(first, relationships, "rest");

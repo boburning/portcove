@@ -581,6 +581,7 @@ void test("REST timeline closing observations are derived by the helper and fail
             event: "pull_request_target",
             status: "completed",
             conclusion: "success",
+            pull_requests: [{ number: 7 }],
           },
         ],
       },

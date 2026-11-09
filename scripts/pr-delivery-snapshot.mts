@@ -491,6 +491,7 @@ function closing(
       item.inventory_checks,
       item.inventory_runs,
       candidate.head.sha,
+      candidate.number,
     );
   } else if ("timeline_pages" in item || "inventory_checks" in item || "inventory_runs" in item)
     throw new Error(
