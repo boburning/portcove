@@ -59,6 +59,10 @@ pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
             || port.archive_data_compatibility_v1.is_some())
 }
 
+pub(crate) fn requires_provider_resolution_on(port: &PortDefinition, platform: Platform) -> bool {
+    port.release.requires_tar_xz(platform) || requires_provider_resolution(port)
+}
+
 pub(crate) fn validate_release_rules(port: &PortDefinition) -> Result<()> {
     if port.release.provider == crate::ReleaseSource::DirectManifest {
         artifact(port)?;

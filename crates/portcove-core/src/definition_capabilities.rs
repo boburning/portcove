@@ -322,6 +322,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn native8_linux_tar_xz_excludes_older_readers_without_retiring_native7() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 8
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 8, 8), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 8, 8))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 7, 7))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
     fn native7_ascii_paths_exclude_older_readers_and_preserve_versions1_through6() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -500,7 +525,7 @@ mod tests {
                 .compatible
         );
         assert!(
-            !check_definition_capabilities(&request("native-portable", 8, 8))
+            !check_definition_capabilities(&request("native-portable", 9, 9))
                 .unwrap()
                 .compatible
         );

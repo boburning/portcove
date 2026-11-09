@@ -69,11 +69,36 @@ async fn native_linux_tar_xz_managed_lifecycle_preserves_declared_and_unclaimed_
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let (first_release, first_server) = release("1.0.0");
-    let provider = Arc::new(Provider(Mutex::new(first_release)));
+    let provider = Arc::new(Provider(Mutex::new(first_release.clone())));
     let mut service = PortcoveService::with_provider(library, provider.clone()).unwrap();
-    service.replace_catalog_for_test(Catalog::embedded().unwrap());
+    let catalog = Catalog::from_json(
+        &serde_json::json!({"schema_version":1,"ports":[service.catalog.port(PORT).unwrap()]})
+            .to_string(),
+    )
+    .unwrap();
+    service.replace_catalog_for_test(catalog);
+    let review = service.plan_game_install(PORT).await.unwrap();
+    let stale = service
+        .authorize_game_install(PORT, &review.plan_sha256)
+        .await
+        .unwrap();
+    provider.0.lock().unwrap().version = "0.9.0".into();
+    assert_eq!(
+        service
+            .apply_game_install(PORT, &stale.token, |_| {})
+            .await
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    *provider.0.lock().unwrap() = first_release;
+    let review = service.plan_game_install(PORT).await.unwrap();
+    let authorization = service
+        .authorize_game_install(PORT, &review.plan_sha256)
+        .await
+        .unwrap();
     let first = service
-        .install(PORT, None, None, None, true, |_| {})
+        .apply_game_install(PORT, &authorization.token, |_| {})
         .await
         .unwrap();
     first_server.join().unwrap();
@@ -98,11 +123,25 @@ async fn native_linux_tar_xz_managed_lifecycle_preserves_declared_and_unclaimed_
 
     let (second_release, second_server) = release("2.0.0");
     *provider.0.lock().unwrap() = second_release;
-    let second = service
-        .update(PORT, None, None, true, |_| {})
+    let review = service.plan_game_update_acquisition(PORT).await.unwrap();
+    let authorization = service
+        .authorize_game_update_acquisition(PORT, &review.plan_sha256)
+        .await
+        .unwrap();
+    service
+        .acquire_game_update(PORT, &authorization.token, |_| {})
         .await
         .unwrap();
     second_server.join().unwrap();
+    let review = service.plan_game_update(PORT, true).await.unwrap();
+    let authorization = service
+        .authorize_game_update(PORT, true, &review.plan_sha256)
+        .await
+        .unwrap();
+    let second = service
+        .apply_game_update(PORT, true, &authorization.token, |_| {})
+        .await
+        .unwrap();
     assert_ne!(first.artifact.sha256, second.artifact.sha256);
     let second_program = second.path.join(&second.selected_executable);
     assert_eq!(

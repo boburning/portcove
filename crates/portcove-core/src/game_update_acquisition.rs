@@ -259,9 +259,12 @@ impl PortcoveService {
             &self.catalog,
             &port.id,
         )?;
-        if scope.is_some() || crate::managed_runtime_policy::requires_provider_resolution(port) {
+        let platform = Platform::current()?;
+        if scope.is_some()
+            || crate::managed_runtime_policy::requires_provider_resolution_on(port, platform)
+        {
             let resolution = operation
-                .interruptible(self.resolve_release(port, release.channel, Platform::current()?))
+                .interruptible(self.resolve_release(port, release.channel, platform))
                 .await?;
             if resolution.release != *release {
                 return Err(PortcoveError::conflict(

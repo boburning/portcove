@@ -2046,6 +2046,10 @@ export interface ReleaseSpec {
     "windows-x86-64"?: DirectReleaseSpec;
   };
   /**
+   * Native8: select the checked TAR.XZ player archive on Linux x86-64.
+   */
+  linux_tar_xz?: boolean;
+  /**
    * Core-owned fixed original-driven recipes, distinct from downloaded executables.
    */
   managed_build?: {

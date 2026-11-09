@@ -155,7 +155,7 @@ impl InstallQualification {
         if let Some(contract) = &self.retained_contract {
             let catalog = contract.catalog(contract.port_id())?;
             let port = catalog.port(contract.port_id())?;
-            if crate::managed_runtime_policy::requires_provider_resolution(port) {
+            if crate::managed_runtime_policy::requires_provider_resolution_on(port, self.platform) {
                 resolution.require_selection(port, self.platform, resolution.release.channel)?;
             }
         }
@@ -971,7 +971,10 @@ impl Installer {
                 "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
             ));
         }
-        if requires_tar_xz || crate::managed_runtime_policy::requires_provider_resolution(port) {
+        if crate::managed_runtime_policy::requires_provider_resolution_on(
+            port,
+            request.qualification.platform,
+        ) {
             request.qualification.acquisition.as_ref().ok_or_else(|| {
                 PortcoveError::verification("dynamic runtime policy requires an exact provider resolution before acquisition")
             })?.require_selection(port, request.qualification.platform, request.release.channel)?;
