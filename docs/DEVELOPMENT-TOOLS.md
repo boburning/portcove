@@ -3279,14 +3279,16 @@ before any mirror is tried.
 
 Release and native fixtures deliberately refuse root, Node processes that trust
 an egress proxy's injected CA settings (`NODE_OPTIONS=--use-openssl-ca`,
-`NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`), and fixture commits altered by a global
-commit-signing configuration. Run offline validation as
-`bash scripts/cloud-test.sh <command>`: it uses the unprivileged `portcove-test`
-identity that the bootstrap creates, with a minimal environment and a neutral Git
-identity, and changes no fixture or policy. Run networked commands directly,
-because the wrapper drops the proxy CA settings. The identity reaches this
-disposable checkout through ACLs, so the few native custody fixtures that refuse
-writable or foreign-owned inputs still fail under it; hosted CI owns them.
+`NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`), inputs another user can write, and
+fixture commits altered by a global commit-signing configuration. Run offline
+Node and repository-tool validation as `bash scripts/cloud-test.sh <command>`.
+It refreshes a private copy of the working tree owned by the unprivileged
+`portcove-test` identity, which the bootstrap creates with its own resource
+domain and a neutral Git identity, and runs the command there with a minimal
+environment. It changes no fixture, policy or checkout permission. The command
+has no network or proxy access and shares installed dependencies and the browser
+cache read-only, so run Rust, cargo and networked commands directly; the
+repository-tool test that spawns `cargo` therefore fails under the wrapper.
 
 Known cloud limits remain visible in `just doctor`:
 

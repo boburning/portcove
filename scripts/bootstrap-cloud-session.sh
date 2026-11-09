@@ -24,7 +24,7 @@ Provision a disposable Linux x86_64 cloud session for Portcove development:
   desktop    Linux desktop build prerequisites through apt
   powershell tools/containers/build/Dockerfile PowerShell version and SHA-256
   history    complete Git history when the clone is shallow
-  test-user  an unprivileged identity for scripts/cloud-test.sh
+  test-user  an unprivileged identity and resource domain for scripts/cloud-test.sh
 
 Existing exact versions are reused. A failed step is reported and the
 remaining steps continue; the exit status is 1 when any step failed. An
@@ -261,25 +261,19 @@ complete_history() {
 }
 
 # Release and native fixtures deliberately refuse root and inherited proxy TLS
-# settings. scripts/cloud-test.sh runs commands as this ordinary identity with a
-# minimal environment; the ACL grants it this disposable checkout only.
+# settings. scripts/cloud-test.sh runs offline commands as this ordinary
+# identity in its own copy of the checkout, so no permission here changes.
 create_test_user() {
-  local user=portcove-test toolchain
-  command -v setfacl >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq acl
+  local user=portcove-test
   id "$user" >/dev/null 2>&1 || useradd --create-home --shell /bin/bash "$user"
-  # Traverse-only access to root's home plus read access to the shared Rust
-  # toolchain; the identity keeps its own CARGO_HOME for registry writes.
-  for toolchain in "${RUSTUP_HOME:-$HOME/.rustup}" "${CARGO_HOME:-$HOME/.cargo}/bin"; do
-    setfacl -m "u:$user:x" "$HOME"
-    [[ "$(dirname "$toolchain")" == "$HOME" ]] || setfacl -m "u:$user:x" "$(dirname "$toolchain")"
-    setfacl -R -m "u:$user:rX" "$toolchain"
-  done
-  printf '[user]\n\tname = Portcove Fixture\n\temail = fixture@example.invalid\n[safe]\n\tdirectory = %s\n' \
-    "$project_root" > "/home/$user/.gitconfig"
+  printf '[user]\n\tname = Portcove Fixture\n\temail = fixture@example.invalid\n' \
+    > "/home/$user/.gitconfig"
   chown "$user:" "/home/$user/.gitconfig"
-  setfacl -m "u:$user:rX" "$(dirname "$project_root")"
-  setfacl -R -m "u:$user:rwX" -m "d:u:$user:rwX" "$project_root"
-  setfacl -R -m "u:$user:rX" -m "d:u:$user:rX" "$project_root/.git"
+  # The identity has its own resource domain; give it the same first-use cutover.
+  if [[ ! -e "/home/$user/.portcove/resources/config.json" ]]; then
+    runuser -u "$user" -- env -i PATH="$PATH" HOME="/home/$user" \
+      node "$project_root/scripts/resource-command.mts" retire-legacy-entrypoints
+  fi
 }
 
 step node install_node

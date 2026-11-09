@@ -30,10 +30,13 @@ def checked_source(work, name, version, checksum):
     )
     # The repository copy is only another origin of bytes: the pinned checksum
     # below still decides, and a mismatch falls back to the mirrors.
-    if vendored.is_file() and not vendored.is_symlink() and vendored.stat().st_size <= 131072:
-        archive.write_bytes(vendored.read_bytes())
-        if hashlib.sha256(archive.read_bytes()).hexdigest() != checksum:
-            archive.unlink()
+    try:
+        if vendored.is_file() and not vendored.is_symlink() and vendored.stat().st_size <= 131072:
+            archive.write_bytes(vendored.read_bytes())
+            if hashlib.sha256(archive.read_bytes()).hexdigest() != checksum:
+                archive.unlink()
+    except OSError:
+        archive.unlink(missing_ok=True)
     if not archive.exists():
         for url in urls:
             result = subprocess.run(

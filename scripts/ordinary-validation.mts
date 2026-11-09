@@ -3000,6 +3000,14 @@ function classifyOnePath(
   }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
+  // Archived rscheck crates are bytes for the qualification installer, which
+  // owns their checksums; changing one selects that installer's checks.
+  if (file.startsWith("vendor/rscheck/") && file.endsWith(".crate")) {
+    selection.scopes.add("tooling");
+    selection.pythonLint = true;
+    if (includeFileChecks) selection.pythonFiles.add("scripts/install-qualification-rscheck.py");
+    recognized = true;
+  }
   if (isVendoredRfdInput(file)) {
     selection.workspaceRust = true;
     selection.rustfmt = true;
