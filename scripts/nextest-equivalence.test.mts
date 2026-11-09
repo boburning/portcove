@@ -293,6 +293,10 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       .filter((value) => value["threads-required"] !== undefined)
       .map((value) => [value.filter, value["threads-required"]]),
     [
+      [
+        "package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)",
+        "num-test-threads",
+      ],
       [capacityFilter, "num-test-threads"],
       [
         "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_.*_during_copy_/)",
