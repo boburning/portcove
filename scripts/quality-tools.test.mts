@@ -940,3 +940,40 @@ void test("mirrored release pins must match the manifest and cannot silently dis
     assert.match(findMirroredPinDrift(manifest, stale).join("\n"), /records .* 0\.0\.1;/u);
   }
 });
+
+void test("Renovate derived-data repair runs only for Renovate and pushes only with its App token", async () => {
+  const text = await readFile(
+    new URL("../.github/workflows/renovate-derived-data.yml", import.meta.url),
+    "utf8",
+  );
+  const workflow: unknown = (await import("yaml")).parse(text);
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs) && isRecord(workflow.jobs.repair));
+  assert.deepEqual(workflow.permissions, { contents: "read" });
+  const repair = workflow.jobs.repair;
+  for (const guard of [
+    "github.event.pull_request.head.repo.full_name == github.repository",
+    "startsWith(github.head_ref, 'renovate/')",
+    "github.event.pull_request.user.login == 'renovate[bot]'",
+    "github.actor == 'renovate[bot]'",
+  ])
+    assert.ok(typeof repair.if === "string" && repair.if.includes(guard), guard);
+  assert.ok(Array.isArray(repair.steps));
+  const steps = repair.steps.filter(isRecord);
+  const commands = steps.map((step) => (typeof step.run === "string" ? step.run : ""));
+  assert.ok(commands.some((run) => run.includes("aqua-integrity.mts --update-bootstrap")));
+  assert.ok(commands.some((run) => run.includes("aqua-integrity.mts --update")));
+  assert.ok(
+    commands.indexOf(commands.find((run) => run.includes("--update-bootstrap")) ?? "") <
+      commands.indexOf(commands.find((run) => run.includes("bootstrap-ci-aqua-linux.sh")) ?? ""),
+    "the pinned Aqua identity is refreshed before installing Aqua",
+  );
+  for (const step of steps.slice(1))
+    assert.equal(step.if, "steps.configuration.outputs.available == 'true'");
+  const checkout = steps.find(
+    (step) => typeof step.uses === "string" && step.uses.startsWith("actions/checkout@"),
+  );
+  assert.ok(isRecord(checkout?.with));
+  assert.equal(checkout.with.token, "${{ steps.app.outputs.token }}");
+  for (const run of commands)
+    assert.doesNotMatch(run, /\$\{\{/u, "untrusted values reach scripts only through env");
+});

@@ -1448,8 +1448,20 @@ mirror has a Renovate regex manager for the same dependency, so the copy changes
 in the same proposal, and validation names any mirror that differs. Tests take
 versions from the manifest or the mirrored constant instead of literals, so a
 version-only proposal needs no test edits. Derived integrity data cannot come
-from Renovate: aqua-group proposals carry a note to run `just aqua-integrity-update`
-on the branch, which regenerates it from publisher digests.
+from Renovate itself. The `Renovate derived data repair` workflow runs on
+Renovate's own `aqua.yaml` or `.aqua-version` proposals: it refreshes the Aqua
+identity (`aqua-integrity.mts --update-bootstrap`), installs that pinned Aqua,
+regenerates `aqua-checksums.json` from publisher digests and pushes the result
+with a dedicated GitHub App token, so required CI runs on the repaired head. It
+ignores other authors and its own pushes. Until the App exists it changes nothing
+and its summary names `just aqua-integrity-update`, which the aqua-group proposal
+note also gives for manual repair.
+
+To enable it, the owner creates a GitHub App installed only on this repository
+with Contents read and write permission and no other permissions or events, saves
+its app ID as the repository variable `PORTCOVE_RENOVATE_REPAIR_APP_ID` and a
+private key as the secret `PORTCOVE_RENOVATE_REPAIR_APP_PRIVATE_KEY`. Branch
+protection that restricts pushes to `renovate/*` must allow that App.
 
 Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. Checkouts share an
 Aqua root when `.aqua-version`, `aqua.yaml`, `aqua-checksums.json` and the Aqua
@@ -3295,11 +3307,17 @@ Known cloud limits remain visible in `just doctor`:
 - Ruff and actionlint need GitHub artifact attestation through the upstream
   attestation API. Sessions whose GitHub access is limited to this repository
   cannot reach that API, so Aqua refuses them; ShellCheck installs normally.
-  Checksum-only Aqua installation is not offered. Their lint runs in hosted CI.
-- GitHub GraphQL is unavailable in Claude Code sessions, so Project field writes,
-  `roadmap.mts` mutations and GraphQL-based delivery reads need a local session or
-  a hosted workflow. Dispatch `roadmap-health.yml` through REST for scoped Project
-  checks. Issues, pull requests, checks and the REST guarded merge work.
+  Checksum-only Aqua installation is not offered: their lint runs in hosted CI.
+  The bootstrap accepts only that exact refusal and reports it.
+- GitHub GraphQL is unavailable in Claude Code sessions. Dispatch
+  `roadmap-command.yml` through the REST workflow-dispatch API instead: it runs one
+  allowlisted `roadmap.mts` command from the reviewed default branch with the
+  Roadmap credential, for the repository owner only. Pass `command` and
+  `arguments` as a JSON array of strings, then read the run log. Reads and
+  single-item edits (`capture-port`, `capture-feature`, `normalize-port`,
+  `promote`, `set`, `move`) are allowed; bulk, structural and file-producing
+  commands and options stay local. GraphQL-based delivery reads still need a
+  local session; issues, pull requests, checks and the REST guarded merge work.
 - The daily discovery runner requires an interactive TTY and GraphQL; run it
   locally.
 - Windows targets and native Windows qualification remain hosted CI or

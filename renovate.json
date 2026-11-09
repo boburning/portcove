@@ -126,7 +126,7 @@
       "groupName": "aqua-toolchain",
       "schedule": ["at any time"],
       "prBodyNotes": [
-        "Renovate updates versions only. Before merge, run `just aqua-integrity-update` on this branch: it regenerates `aqua-checksums.json` and the `.config/tool-bootstrap.json` Aqua identity from publisher release digests, then commit the result."
+        "Renovate updates versions only. The `Renovate derived data repair` workflow regenerates `aqua-checksums.json` and the `.config/tool-bootstrap.json` Aqua identity from publisher release digests and pushes them here when its GitHub App is configured; otherwise run `just aqua-integrity-update` on this branch and commit the result."
       ]
     },
     {

@@ -2172,6 +2172,9 @@ for (const [file, tests] of [
     ],
   ],
   [".github/roadmap.json", roadmapContractTests],
+  ...[".github/workflows/roadmap-command.yml", "scripts/roadmap-dispatch.mts"].map(
+    (file): [string, string[]] => [file, ["scripts/roadmap.test.mts"]],
+  ),
   ...[
     ".github/workflows/roadmap-health.yml",
     ".github/workflows/roadmap-report.yml",
@@ -2305,6 +2308,10 @@ for (const file of [
     "scripts/release-controller-tools.test.mts",
     "scripts/quality-tools.test.mts",
   ]);
+explicitNodeTests.set(".github/workflows/renovate-derived-data.yml", [
+  ...(explicitNodeTests.get(".github/workflows/renovate-derived-data.yml") ?? []),
+  "scripts/quality-tools.test.mts",
+]);
 // The cloud bootstrap is a governed quality-tool consumer and pin reader.
 explicitNodeTests.set("scripts/bootstrap-cloud-session.sh", [
   ...(explicitNodeTests.get("scripts/bootstrap-cloud-session.sh") ?? []),

@@ -221,7 +221,22 @@ install_aqua() {
     install -m 0755 "$scratch/aqua" "$(link_dir)/aqua"
     hash -r
   fi
-  bash scripts/bootstrap-quality-tools.sh
+  if bash scripts/bootstrap-quality-tools.sh 2>&1 | tee "$scratch/aqua.log"; then return 0; fi
+  # Known cloud limit: Ruff and actionlint require GitHub artifact attestation
+  # from their upstream repositories, which a session scoped to this repository
+  # cannot read. Accept only that exact failure; their lint runs in hosted CI.
+  local failed
+  failed="$(grep -E 'ERR.*install the package' "$scratch/aqua.log" |
+    grep -oE 'package_name=[^ ]+' | sed 's/^package_name=//; s/\x1b\[[0-9;]*m//g' | sort -u)"
+  if [[ -n "$failed" ]] &&
+    ! grep -qvxE 'astral-sh/ruff|rhysd/actionlint' <<<"$failed" &&
+    [[ "$(grep -cE 'ERR.*install the package' "$scratch/aqua.log")" == \
+      "$(grep -E 'ERR.*install the package' "$scratch/aqua.log" | grep -c 'GitHub Artifact Attestations')" ]]; then
+    printf 'Ruff and actionlint are unavailable here: their GitHub artifact attestation is not\n'
+    printf 'readable from this session. Their lint runs in hosted CI; other Aqua tools are ready.\n'
+    return 0
+  fi
+  return 1
 }
 
 install_browser() {

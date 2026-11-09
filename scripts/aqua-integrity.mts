@@ -455,8 +455,19 @@ async function update() {
 }
 
 async function main(argv: string[]) {
-  if (argv.length !== 1 || !["--check", "--update"].includes(argv[0] ?? ""))
-    throw new Error("usage: aqua-integrity.mts --check|--update");
+  if (argv.length !== 1 || !["--check", "--update", "--update-bootstrap"].includes(argv[0] ?? ""))
+    throw new Error("usage: aqua-integrity.mts --check|--update|--update-bootstrap");
+  if (argv[0] === "--update-bootstrap") {
+    // Refresh only the Aqua executable identity, so automation can install the
+    // newly pinned Aqua before --update regenerates package checksums with it.
+    const aquaVersion = (await readFile(path.join(projectRoot, ".aqua-version"), "utf8")).trim();
+    console.log(
+      (await updateBootstrap(aquaVersion))
+        ? `Updated .config/tool-bootstrap.json to Aqua ${aquaVersion} publisher identity.`
+        : `.config/tool-bootstrap.json already records Aqua ${aquaVersion}.`,
+    );
+    return;
+  }
   if (argv[0] === "--check") {
     const current = await loadCurrent();
     const aquaVersion = (await readFile(path.join(projectRoot, ".aqua-version"), "utf8")).trim();

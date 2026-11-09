@@ -1,0 +1,96 @@
+name: Renovate derived data repair
+run-name: Renovate derived data / ${{ github.head_ref }}
+
+# Renovate updates Aqua versions only. This regenerates the derived integrity
+# data from publisher digests with the reviewed updater and pushes it with a
+# dedicated GitHub App token, so required CI runs on the repaired head. Without
+# the App configuration it reports the command to run and changes nothing.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - aqua.yaml
+      - .aqua-version
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renovate-derived-data-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'renovate/') && github.event.pull_request.user.login == 'renovate[bot]' && github.actor == 'renovate[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Identify repair App configuration without exposing the credential
+        id: configuration
+        env:
+          APP_ID: ${{ vars.PORTCOVE_RENOVATE_REPAIR_APP_ID }}
+          APP_KEY: ${{ secrets.PORTCOVE_RENOVATE_REPAIR_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -n "$APP_ID" && -n "$APP_KEY" ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo 'Repair App is not configured; run `just aqua-integrity-update` on this branch.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - id: app
+        if: steps.configuration.outputs.available == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.PORTCOVE_RENOVATE_REPAIR_APP_ID }}
+          private-key: ${{ secrets.PORTCOVE_RENOVATE_REPAIR_APP_PRIVATE_KEY }}
+          owner: boburning
+          repositories: portcove
+          permission-contents: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.configuration.outputs.available == 'true'
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ steps.app.outputs.token }}
+          persist-credentials: true
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        if: steps.configuration.outputs.available == 'true'
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.configuration.outputs.available == 'true'
+        with:
+          node-version-file: .node-version
+      - name: Install trusted locked GitHub dependencies
+        if: steps.configuration.outputs.available == 'true'
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Refresh the pinned Aqua executable identity
+        if: steps.configuration.outputs.available == 'true'
+        run: node scripts/aqua-integrity.mts --update-bootstrap
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Install the pinned Aqua
+        if: steps.configuration.outputs.available == 'true'
+        run: bash scripts/bootstrap-ci-aqua-linux.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Regenerate Aqua package checksums from publisher digests
+        if: steps.configuration.outputs.available == 'true'
+        run: node scripts/aqua-integrity.mts --update
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Push regenerated derived data
+        if: steps.configuration.outputs.available == 'true'
+        env:
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if git diff --quiet -- aqua-checksums.json .config/tool-bootstrap.json; then
+            echo 'Derived Aqua data already matches the pinned versions.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
+          git add -- aqua-checksums.json .config/tool-bootstrap.json
+          git commit -m "build(deps): regenerate Aqua derived integrity data"
+          git push origin "HEAD:refs/heads/${HEAD_REF}"
+          echo 'Pushed regenerated Aqua derived data.' >> "$GITHUB_STEP_SUMMARY"
