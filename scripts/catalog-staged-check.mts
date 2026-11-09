@@ -9,7 +9,6 @@ import {
   checkedAuthoredPort,
   parseCatalogSource,
 } from "./catalog-authoring.mts";
-import { runCheckedGit } from "./checked-git.mts";
 import { errorMessage } from "./runtime-values.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -31,6 +30,18 @@ export const generatedCatalogAggregates = [
   "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
   "crates/portcove-core/src/testdata/retained-prepared-tests.generated.rs",
 ] as const;
+
+function runGit(cwd: string, args: readonly string[]) {
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    windowsHide: true,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`git ${args[0]} failed: ${result.stderr.trim()}`);
+  return result.stdout;
+}
 
 function regenerateCatalog(cwd: string) {
   const result = spawnSync(
@@ -56,7 +67,7 @@ export function resolveCatalogAggregateConflicts(
 ) {
   const unmerged = [
     ...new Set(
-      runCheckedGit(["ls-files", "--unmerged", "-z"], { cwd, maxBuffer: 8 * 1024 * 1024 })
+      runGit(cwd, ["ls-files", "--unmerged", "-z"])
         .split("\0")
         .filter(Boolean)
         .map((entry) => entry.slice(entry.indexOf("\t") + 1)),
@@ -70,7 +81,7 @@ export function resolveCatalogAggregateConflicts(
       `Resolve and stage these conflicted paths first, then rerun: ${sources.join(", ")}`,
     );
   regenerate(cwd);
-  runCheckedGit(["add", "--", ...generatedCatalogAggregates], { cwd });
+  runGit(cwd, ["add", "--", ...generatedCatalogAggregates]);
   return { resolved: unmerged };
 }
 
