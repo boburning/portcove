@@ -2563,8 +2563,8 @@ onboarding specifies actual repository/artifact authority and reauthorization
 conditions, not a broad domain popularity rule. The authorized
 [#315](https://github.com/boburning/portcove/issues/315) policy allows an
 independently reviewed catalog-curated exact hash for an attributable release.
-Core implements this route for admitted schema-4 GitHub definitions with
-protected accepted-byte records and exact upstream identity. Other provider
+Core implements this route for GitHub definitions with protected accepted-byte
+records and exact upstream identity under authenticated policy schema 4. Other provider
 routes retain their existing expected-digest and provenance requirements.
 The protected production canary and repeated eligible progression remain open
 under #315. See [Acquisition decision](DEFINITION-DELIVERY.md#acquisition-decision)
