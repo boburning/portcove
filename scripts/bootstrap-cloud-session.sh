@@ -53,6 +53,18 @@ share_directory() {
   ln -s -- "$target" "$source"
 }
 
+# Link only the tools the pinned Node distribution ships. Node 25 and later no
+# longer bundle corepack; linking it anyway replaced the image's working copy
+# with a dangling symlink, which failed the test-pnpm step. A tool the pinned
+# tarball lacks keeps whatever the environment already provides.
+link_node_tools() {
+  local destination=$1 bin=$2 tool
+  for tool in node npm npx corepack; do
+    [[ -e "$destination/bin/$tool" ]] || continue
+    ln -sfn "$destination/bin/$tool" "$bin/$tool"
+  done
+}
+
 # Sourcing defines the helpers above without running host setup.
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
 
@@ -161,7 +173,7 @@ install_node() {
   mkdir -p "$destination"
   tar -xJf "$scratch/$archive" -C "$destination" --strip-components=1
   bin="$(link_dir)"
-  for tool in node npm npx corepack; do ln -sfn "$destination/bin/$tool" "$bin/$tool"; done
+  link_node_tools "$destination" "$bin"
   hash -r
   [[ "$(node --version)" == "v$pin" ]]
 }
