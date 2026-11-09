@@ -15862,6 +15862,11 @@ fn main() {
     fn status_distinguishes_an_unreadable_registered_source() {
         use std::os::unix::fs::PermissionsExt;
 
+        // SAFETY: geteuid takes no arguments and reads only the effective user ID.
+        if unsafe { libc::geteuid() } == 0 {
+            return;
+        }
+
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_zelda_install(&library, "v1", true);
