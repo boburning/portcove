@@ -111,7 +111,8 @@ export function LibraryRecovery({
           <p>
             Keep the export with the content copy from this same library state. Metadata records
             installed versions, saved file locations and settings. It contains no game content,
-            saves, backups or credentials.
+            saves, backups or credentials. Choose a new filename. Portcove keeps existing files even
+            if the system save dialog offers to replace them.
           </p>
           <Button
             variant="outline"
