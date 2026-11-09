@@ -15,7 +15,29 @@
       "game_slug": "vyruz-destruction-of-the-untel-empire",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2623
+    "issue_number": 2623,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Select the original Vyruz data",
+          "instruction": "Keep your own vz-data.rsc in a writable original-game folder outside the engine. Intro.avi in the same folder is optional. The original and this player can both write vzconf.txt, session and vz.sco there. Back up that whole folder before starting."
+        },
+        {
+          "title": "Start the Linux player",
+          "instruction": "The v1.1.0 Linux x86-64 tar.gz contains Vyruz. Use a Vulkan driver and loader, glibc 2.38 or later, and libstdc++ with GLIBCXX_3.4.31. The picker uses zenity or kdialog. You can pass the original archive or folder to the upstream executable if the picker is unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep your original folder and effective user profile. A runtime backup cannot restore files stored in those external folders."
+      ],
+      "references": [
+        {
+          "title": "Find the remembered setup",
+          "instruction": "On Linux the normal profile is $XDG_DATA_HOME/OpenVyruz or ~/.local/share/OpenVyruz. On Windows it is %APPDATA%/OpenVyruz. The game remembers the data path in game-folder.txt. If it cannot locate a user home it can write OpenVyruz relative to its working directory."
+        }
+      ],
+      "help_url": "https://github.com/Solessfir/OpenVyruz/blob/50531e25bc669c540ec462cb479dd3399803605b/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -32,23 +54,25 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "Solessfir/OpenVyruz",
       "asset_hints": {
-        "windows-x86-64": ["-windows-x64.zip"]
+        "windows-x86-64": ["-windows-x64.zip"],
+        "linux-x86-64": ["-linux-x64.tar.gz"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["Vyruz.exe"]
+      "windows-x86-64": ["Vyruz.exe"],
+      "linux-x86-64": ["Vyruz"]
     },
     "persistent_paths": ["OpenVyruz"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Use your own vz-data.rsc outside the engine directory; Intro.avi beside it supplies the optional original intro. The normal in-process folder picker selects that game folder and remembers it in game-folder.txt under AppData/OpenVyruz. Do not select a data folder inside the managed engine: the upstream player writes vzconf.txt, session/ and vz.sco into the selected original-game folder and can share or overwrite settings, saves and scores with the original. Preserve that complete writable folder and compatible old runtime before the first start or any change; source format compatibility is not an observed save roundtrip. Normal remembered paths and co-op data use the external user directory. If APPDATA is unavailable, the selected Windows source falls back to an OpenVyruz directory relative to the creating working directory; Core conservatively preserves this declared local directory, including unknown files. External profiles, originals, custom paths and any configured data roots remain outside Core backup/rollback/removal. Core replaces only the official Windows x64 engine. Existing registrations retain upstream replacement ownership. Vulkan/graphics, intro decoding, co-op/network, actual gameplay and real-save behavior remain unqualified; no original import, archive conversion or upstream helper is performed."
+      "manual_preparation": "Use your own vz-data.rsc outside the engine directory; Intro.avi beside it supplies the optional original intro. The normal in-process folder picker selects that game folder and remembers it in game-folder.txt under AppData/OpenVyruz on Windows, or $XDG_DATA_HOME/OpenVyruz or ~/.local/share/OpenVyruz on Linux. Do not select a data folder inside the managed engine: the upstream player writes vzconf.txt, session/ and vz.sco into the selected original-game folder and can share or overwrite settings, saves and scores with the original. Preserve that complete writable folder and compatible old runtime before the first start or any change; source format compatibility is not an observed save roundtrip. Normal remembered paths and co-op data use the external user directory. If the Windows AppData or Linux user data home cannot be found, the player falls back to an OpenVyruz directory relative to the creating working directory; Core conservatively preserves this declared local directory, including unknown files. External profiles, originals, custom paths and any configured data roots remain outside Core backup/rollback/removal. Core replaces the official engine on Windows x64 and Linux x86-64. Linux requires Vulkan, glibc 2.38 or later and libstdc++ with GLIBCXX_3.4.31. Its picker uses zenity or kdialog. Existing registrations retain upstream replacement ownership. Vulkan/graphics, intro decoding, co-op/network, actual gameplay and real-save behavior remain unqualified; no original import, archive conversion or upstream helper is performed."
     }
   }
 }

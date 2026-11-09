@@ -37560,7 +37560,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -37568,12 +37569,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "atlantis-native-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "atlantis-native-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "atlantis-native.exe"
+        ],
+        "linux-x86-64": [
+          "atlantis-native"
         ]
       },
       "persistent_paths": [
@@ -37583,8 +37590,34 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On Play, use the upstream in-process library and original-data picker with your own supported Atlantis: The Lost Tales copy: the edition-matched atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original tree and supported language/build together; GOG and supported CD editions are alternatives, not interchangeable executables. Upstream can prepare your own discs/images; no game content is downloaded by this engine operation. This offer is Atlantis I only. Normal logs, games.txt, per-build players/checkpoints/settings live under the current account’s AppData/atlantis-native; when that location is unavailable the dedicated atlantis-native-data directory is relative to the creating runtime. Core preserves that declared local directory; it does not import or back up the shared external profile or originals. Preserve all actual original/profile roots and the compatible creating engine before changes. Normal start remains in one process; adding a second engine copy does not isolate shared profiles.",
+        "manual_preparation": "On Play, use the upstream in-process library and original-data picker with your own supported Atlantis: The Lost Tales copy: the edition-matched atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original tree and supported language/build together; GOG and supported CD editions are alternatives, not interchangeable executables. Upstream can prepare your own discs/images; no game content is downloaded by this engine operation. This offer is Atlantis I only. Normal logs, games.txt, per-build players/checkpoints/settings live under the current account’s AppData/atlantis-native on Windows or XDG data home on Linux; when that location is unavailable the dedicated atlantis-native-data directory is relative to the creating runtime. Core preserves that declared local directory; it does not import or back up the shared external profile or originals. Preserve all actual original/profile roots and the compatible creating engine before changes. Normal start remains in one process; adding a second engine copy does not isolate shared profiles. The Linux x86-64 player requires glibc 2.35 or later and ALSA.",
         "original_game_title": "Atlantis: The Lost Tales",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your edition of Atlantis",
+              "instruction": "In Atlantis Native, add your own Atlantis: The Lost Tales edition with matching atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original folder. Use the upstream edition table for the exact language and build."
+            },
+            {
+              "title": "Start the Linux desktop player",
+              "instruction": "Extract the matching v0.6.0 Linux tar.gz and open atlantis-native. Both the x86-64 and ARM64 builds need glibc 2.35 or later and ALSA. On Windows 11 ARM, choose the Windows ARM64 ZIP and keep its folder together. Maintain the ARM builds through upstream."
+            }
+          ],
+          "warnings": [
+            "Preserve the original data and whole effective profile, including games.txt, settings and the edition-specific checkpoint directory. The player shares this profile between copies on the same account."
+          ],
+          "references": [
+            {
+              "title": "Open the matching Mac app",
+              "instruction": "Choose the Intel or Apple silicon v0.6.0 DMG, copy Atlantis Native.app out of it and open it on macOS 11 or later. Keep ~/Library/Application Support/atlantis-native. On Linux the profile normally uses $XDG_DATA_HOME/atlantis-native or ~/.local/share/atlantis-native."
+            },
+            {
+              "title": "Set up the PortMaster edition",
+              "instruction": "On a compatible ARM64 PortMaster device, unpack the v0.6.0 PortMaster ZIP into ports and put your original first-game files in ports/atlantisnative/gamedata. Use the firmware menu to launch it. Keep the port folder, its saves directory and any ATLANTIS_SAVES override. This build needs the firmware SDL2 and glibc 2.31 or later."
+            }
+          ],
+          "help_url": "https://github.com/ripleyXLR8/atlantis-native/blob/44ad4d0f9c1ccd449c6d895ee6a7bf4f798d3df7/README.md"
+        },
         "artwork": {
           "game_id": 2209,
           "cover_id": 471922,
@@ -42395,7 +42428,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -42403,12 +42437,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "atomic-bomberman-modern-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "atomic-bomberman-modern-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "atomic.exe"
+        ],
+        "linux-x86-64": [
+          "atomic"
         ]
       },
       "persistent_paths": [
@@ -42418,8 +42458,30 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Start the normal atomic.exe player, not the companion atomic_server.exe dedicated server. No original game files are required for the code-generated free asset set. An OpenGL 3.3 graphics driver is required. Optional original Atomic Bomberman (1997) data and --import-assets preparation remain upstream/player-owned; do not treat an engine install as permission to acquire that content. The normal writable SDL profile for atomic-bomberman-modern/atomic holds options.ini, schemes, anims.lst and imported/generated assets under the current account’s AppData; copies share it and Core does not back it up, migrate or delete it. If preference lookup fails, free assets fall back to free-assets beside the creating player; Core retains this declared local directory, including unknown/custom files during its maintenance. Upstream rewrites its known generated files when the free-assets version changes; its free-assets.txt marker is internal, not a Core completion or save-compatibility certificate. Failed profile lookup disables normal settings persistence and can send editor scheme saves to a drive-root /name.sch path outside the engine. Stop editor saving and repair the profile upstream if that occurs; preserve any actual external outputs. This managed offer requires the normal writable profile, does not sandbox the player and does not claim free-assets captures every fault output. Preserve the whole creating runtime, all effective profiles, custom files and originals before changes. No actual game, editor, import or network behavior is qualified.",
+        "manual_preparation": "Start atomic.exe on Windows or atomic on Linux. The dedicated server is a separate program. No original game files are required for the code-generated free asset set. An OpenGL 3.3 graphics driver is required. The Linux x86-64 package needs glibc 2.38 or later and libstdc++ with GLIBCXX_3.4.31. Optional original Atomic Bomberman (1997) data and --import-assets preparation remain upstream/player-owned; do not treat an engine install as permission to acquire that content. The normal writable SDL profile for atomic-bomberman-modern/atomic holds options.ini, schemes, anims.lst and imported/generated assets under the current account’s AppData on Windows or data home on Linux; copies share it and Core does not back it up, migrate or delete it. If preference lookup fails, free assets fall back to free-assets beside the creating player; Core retains this declared local directory, including unknown/custom files during its maintenance. Upstream rewrites its known generated files when the free-assets version changes; its free-assets.txt marker is internal, not a Core completion or save-compatibility certificate. Failed profile lookup disables normal settings persistence and can send editor scheme saves to a root-relative /name.sch path outside the engine. Stop editor saving and repair the profile upstream if that occurs; preserve any actual external outputs. This managed offer requires the normal writable profile, does not sandbox the player and does not claim free-assets captures every fault output. Preserve the whole creating runtime, all effective profiles, custom files and originals before changes. No actual game, editor, import or network behavior is qualified.",
         "original_game_title": "Atomic Bomberman",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the Atomic Bomberman player",
+              "instruction": "Use atomic.exe from the v1.0 modern Windows x64 ZIP or atomic from the modern Linux x86-64 tar.gz. Choose the player package. The dedicated server is a separate program. The player can generate free assets without original files."
+            },
+            {
+              "title": "Check Linux graphics and libraries",
+              "instruction": "Use an OpenGL 3.3 driver, glibc 2.38 or later, and libstdc++ with GLIBCXX_3.4.31. SDL3 is built into this Linux package."
+            }
+          ],
+          "warnings": [
+            "Keep the whole effective SDL profile, imported assets and custom files before updating. A second copy normally shares the same user profile."
+          ],
+          "references": [
+            {
+              "title": "Use original assets if desired",
+              "instruction": "Follow upstream to import from your own copy of Atomic Bomberman. Preserve the original files and the SDL profile, normally ~/.local/share/atomic-bomberman-modern/atomic on Linux or %APPDATA%/atomic-bomberman-modern/atomic on Windows. Free assets can fall back to the player working directory when the profile is unavailable."
+            }
+          ],
+          "help_url": "https://github.com/elraro/atomic-bomberman/blob/47b4c806778c9e476e44da2d2ebf5d38184e2104/README.md"
+        },
         "artwork": {
           "game_id": 18153,
           "cover_id": 430461,
@@ -42877,7 +42939,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -42885,12 +42948,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "gunstar.exe"
+        ],
+        "linux-x86-64": [
+          "gunstar"
         ]
       },
       "persistent_paths": [
@@ -42903,8 +42972,30 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "On Play, use the upstream in-process file browser to select your own Gunstar Heroes USA 1 MiB cartridge dump, or retain an established --rom argument. The selected engine checks size and CRC32 B813CF0D for compatibility; that is not Core cryptographic source authentication. Core does not acquire, copy or import the ROM. Keep it outside the engine directory and preserve it separately. The normal Windows player gunstar.exe keeps settings.ini, states (including slots/autosave and previews), screenshots and videos relative to its executable working directory; Core preserves these declared default paths across its engine maintenance. User-configured state/capture paths can point elsewhere and remain external, outside Core backup/removal. Retain every actual override location and compatible old runtime before changes; restore does not promise backward state compatibility. macOS Finder profile behavior is a separate unoffered platform. Normal local play is offered; multiplayer/replay/GIF/gameplay claims remain upstream-only. Existing external registrations keep their own replacement owner.",
-        "original_game_title": "Gunstar Heroes"
+        "manual_preparation": "On Play, use the upstream in-process file browser to select your own Gunstar Heroes USA 1 MiB cartridge dump, or retain an established --rom argument. The selected engine checks size and CRC32 B813CF0D for compatibility; that is not Core cryptographic source authentication. Core does not acquire, copy or import the ROM. Keep it outside the engine directory and preserve it separately. The Windows player gunstar.exe and Linux player gunstar keeps settings.ini, states (including slots/autosave and previews), screenshots and videos relative to its executable working directory; Core preserves these declared default paths across its engine maintenance. User-configured state/capture paths can point elsewhere and remain external, outside Core backup/removal. Retain every actual override location and compatible old runtime before changes; restore does not promise backward state compatibility. The Linux package needs SDL2 and glibc 2.28 or later. Mac setup is player-managed. Normal local play is offered; multiplayer/replay/GIF/gameplay claims remain upstream-only. Existing external registrations keep their own replacement owner.",
+        "original_game_title": "Gunstar Heroes",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original cartridge dump",
+              "instruction": "On first Play, select your own 1 MiB USA Gunstar Heroes cartridge dump in the file browser. Keep the ROM outside the player folder."
+            },
+            {
+              "title": "Start the Windows or Linux player",
+              "instruction": "The v0.2.2 Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
+            }
+          ],
+          "warnings": [
+            "Back up settings.ini, states, screenshots, videos and any custom destinations with the game closed. On Windows and Linux these paths default to the player working directory. Keep your original ROM and the compatible old player separately."
+          ],
+          "references": [
+            {
+              "title": "Open the universal Mac app",
+              "instruction": "Unzip the v0.2.2 macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
+            }
+          ],
+          "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+        }
       }
     },
     {
@@ -43935,6 +44026,32 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use your own complete original Jagged Alliance 2 installation and matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty or Russian Gold. Keep the originals outside this engine package. Run the bundled ja2-launcher.exe upstream once to set JA2 Data Directory and localization, then use normal ja2.exe for Play. Alternatively let ja2.exe create ja2.json, close it, and configure game_dir and the supported localization upstream before Play. Missing configuration is not successful setup. The selected Windows source prefers the existing AppData/JA2 profile; if absent it retains an existing Documents/JA2 profile, otherwise it chooses AppData/JA2. The older README names only Documents/JA2. Preserve the actual selected home, ja2.json, SavedGames, mods and custom save_game_dir overrides; diagnostic logs use the account temporary directory. These external shared locations are not isolated by another engine copy and Core does not back them up, migrate or delete them. Core replaces only the official MSVC x64 portable engine and its packaged assets/dependencies, not the original game or optional original-game data. Keep the complete compatible old runtime and every effective profile/original/custom root before changes. Original SFI code, later contributions and bundled libraries retain distinct terms; public engine downloads do not grant original-game rights. No title, launcher, actual-save or backward-format qualification is claimed.",
         "original_game_title": "Jagged Alliance 2",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Keep a clean original installation",
+              "instruction": "Use your own unmodified Jagged Alliance 2 installation with its Data folder. In the launcher set JA2 Data Directory and Game Version. For Russian releases, use RUSSIAN for BUKA Agonia Vlasty or RUSSIAN_GOLD for Gold."
+            },
+            {
+              "title": "Choose the Linux AppImage for your processor",
+              "instruction": "The v0.22.1 x86-64 AppImage opens the upstream launcher. The aarch64 and armhf AppImages start ja2 directly. For the direct entry, configure game_dir in ~/.ja2/ja2.json and use -resversion with your localization if needed. The armhf runtime uses libfuse.so.2. Keep the x86-64 launcher open until its game exits."
+            }
+          ],
+          "warnings": [
+            "Back up the whole effective profile and any custom save folder. On Linux and Mac the default is ~/.ja2. On Windows the player prefers AppData/JA2 and reuses Documents/JA2 when it is the existing profile."
+          ],
+          "references": [
+            {
+              "title": "Open the Apple silicon Mac app",
+              "instruction": "Mount the v0.22.1 DMG and copy JA2 Stracciatella.app out of it. Both the launcher and player in this build need Apple silicon and macOS 15 or later. Start the app to configure your original data and localization."
+            },
+            {
+              "title": "Configure the Android APK",
+              "instruction": "Use the v0.22.1 APK on a compatible device that allows its storage access. In the Data tab choose your original game folder and version, then choose a separate Save Game Directory if needed. Keep the originals and your effective save location before replacing the app. This APK uses io.github.ja2stracciatella and targets Android API 26."
+            }
+          ],
+          "help_url": "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/11e9430b67d788b73f7a57d22166e8b500c23dab/README.md"
+        },
         "artwork": {
           "game_id": 9,
           "cover_id": 104633,
@@ -50005,6 +50122,32 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "On Play, keep the normal in-process setup picker and select your own complete X-Wing Alliance GOG/Steam installation. Preserve the complete original data and package resources, shaders and DLLs. Native 64-bit engine replacement is separate from original-game patch/mod preparation. Multiplayer is not implemented by the selected upstream; no network or mod compatibility is promised. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXWA; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered.",
         "original_game_title": "Star Wars: X-Wing Alliance",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original game data",
+              "instruction": "Select your complete installed X-Wing Alliance folder. For a raw CD copy, use the upstream instructions to merge the contents of ALLIANCE into the game root first."
+            },
+            {
+              "title": "Start the Linux player",
+              "instruction": "Extract the upstream v0.0.17 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXWA. Run OpenXWA with glibc 2.35 or later, the GCC 12 runtime or newer, and a Vulkan driver."
+            }
+          ],
+          "warnings": [
+            "Back up the entire effective profile, all original game folders, and the working player before updating. If the profile cannot be opened, check the working directory for pilots, settings and other files."
+          ],
+          "references": [
+            {
+              "title": "Open the Apple silicon Mac app",
+              "instruction": "Mount the upstream v0.0.17 macos-arm64-release.dmg and copy OpenXWA.app out of it. Use Apple silicon, macOS 13 or later and Metal. Keep the app bundle intact and maintain this copy outside Portcove."
+            },
+            {
+              "title": "Keep your settings and pilots",
+              "instruction": "The normal SDL profile is TotallyOpen/OpenXWA under the Linux data home or Mac Application Support. Keep the whole profile with the player closed."
+            }
+          ],
+          "help_url": "https://github.com/elyosh/OpenXWA/blob/9ff0e22109264629288401726589f4c1a901bc73/README.md"
+        },
         "artwork": {
           "game_id": 169,
           "cover_id": 106711,
@@ -50050,6 +50193,36 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "On Play, keep the normal in-process setup picker. Select your own complete 1994 Collector’s CD-ROM and/or 1998 Windows X-Wing installation; 1998 uses the main folder containing X-Wing Data, IVFiles and MUSIC. Combining 1994 menus/music and 1998 flight assets is optional. The separate 1993/B-Wing mode still needs 1994 or 1998 menus; it is not a substitute for either required supported installation. Built-in AdLib/OPL3 is available: optional MT-32/SC-55 ROMs and SoundFonts are not mandatory inputs. Keep all package resources, shaders and DLLs intact. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXW; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered.",
         "original_game_title": "Star Wars: X-Wing",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original game data",
+              "instruction": "Select your complete original 1994 and/or 1998 installations when prompted. For 1998, choose the root containing X-Wing Data, IVFiles and MUSIC. If you have both editions, the upstream recommended configuration combines them."
+            },
+            {
+              "title": "Start the Linux player",
+              "instruction": "Extract the upstream v0.0.3 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.29, and a Vulkan driver."
+            }
+          ],
+          "warnings": [
+            "Back up the entire effective profile, all original game folders, and the working player before updating. If the profile cannot be opened, check the working directory for pilots, settings and other files."
+          ],
+          "references": [
+            {
+              "title": "Use the optional 1993 flight mode",
+              "instruction": "An extracted original 1993 installation with B-Wing can supply flight graphics and missions. Keep an installed 1994 or 1998 edition for its menus and cutscenes."
+            },
+            {
+              "title": "Open the Apple silicon Mac app",
+              "instruction": "Mount the upstream v0.0.3 macos-arm64-release.dmg and copy OpenXW.app out of it. Use Apple silicon, macOS 13 or later and Metal. Keep the app bundle intact and maintain this copy outside Portcove."
+            },
+            {
+              "title": "Keep your settings and pilots",
+              "instruction": "The normal SDL profile is TotallyOpen/OpenXW under the Linux data home or Mac Application Support. Keep the whole profile with the player closed."
+            }
+          ],
+          "help_url": "https://github.com/elyosh/OpenXW/blob/6ab86085a8285eb8dd12637c2bb81164dc234ff4/README.md"
+        },
         "artwork": {
           "game_id": 168,
           "cover_id": 128843,
@@ -50094,7 +50267,33 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "On Play, keep the normal in-process setup picker and select your own complete X-Wing vs. TIE Fighter installation with its BalanceOfPower subfolder. Balance of Power is required by this implementation; the base game alone is not the offered tuple. Keep the full original root, package resources, DLLs, shaders and established control/music choices. Optional explicit setup/import arguments are upstream tools, not forced on each start. Multiplayer and save compatibility have not been qualified here. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXvT; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered.",
-        "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power"
+        "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original game data",
+              "instruction": "Select your complete X-Wing vs. TIE Fighter installation root containing BalanceOfPower. The base game by itself is insufficient."
+            },
+            {
+              "title": "Start the Linux player",
+              "instruction": "Extract the upstream v0.0.5 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
+            }
+          ],
+          "warnings": [
+            "Back up the entire effective profile, all original game folders, and the working player before updating. If the profile cannot be opened, check the working directory for pilots, settings and other files."
+          ],
+          "references": [
+            {
+              "title": "Open the Apple silicon Mac app",
+              "instruction": "Mount the upstream v0.0.5 macos-arm64-release.dmg and copy OpenXvT.app out of it. Use Apple silicon, macOS 13 or later and Metal. Keep the app bundle intact and maintain this copy outside Portcove."
+            },
+            {
+              "title": "Keep your settings and pilots",
+              "instruction": "The normal SDL profile is TotallyOpen/OpenXvT under the Linux data home or Mac Application Support. Keep the whole profile with the player closed."
+            }
+          ],
+          "help_url": "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md"
+        }
       }
     },
     {
@@ -52317,7 +52516,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -52325,12 +52525,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "Vyruz.exe"
+        ],
+        "linux-x86-64": [
+          "Vyruz"
         ]
       },
       "persistent_paths": [
@@ -52340,8 +52546,30 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own vz-data.rsc outside the engine directory; Intro.avi beside it supplies the optional original intro. The normal in-process folder picker selects that game folder and remembers it in game-folder.txt under AppData/OpenVyruz. Do not select a data folder inside the managed engine: the upstream player writes vzconf.txt, session/ and vz.sco into the selected original-game folder and can share or overwrite settings, saves and scores with the original. Preserve that complete writable folder and compatible old runtime before the first start or any change; source format compatibility is not an observed save roundtrip. Normal remembered paths and co-op data use the external user directory. If APPDATA is unavailable, the selected Windows source falls back to an OpenVyruz directory relative to the creating working directory; Core conservatively preserves this declared local directory, including unknown files. External profiles, originals, custom paths and any configured data roots remain outside Core backup/rollback/removal. Core replaces only the official Windows x64 engine. Existing registrations retain upstream replacement ownership. Vulkan/graphics, intro decoding, co-op/network, actual gameplay and real-save behavior remain unqualified; no original import, archive conversion or upstream helper is performed.",
+        "manual_preparation": "Use your own vz-data.rsc outside the engine directory; Intro.avi beside it supplies the optional original intro. The normal in-process folder picker selects that game folder and remembers it in game-folder.txt under AppData/OpenVyruz on Windows, or $XDG_DATA_HOME/OpenVyruz or ~/.local/share/OpenVyruz on Linux. Do not select a data folder inside the managed engine: the upstream player writes vzconf.txt, session/ and vz.sco into the selected original-game folder and can share or overwrite settings, saves and scores with the original. Preserve that complete writable folder and compatible old runtime before the first start or any change; source format compatibility is not an observed save roundtrip. Normal remembered paths and co-op data use the external user directory. If the Windows AppData or Linux user data home cannot be found, the player falls back to an OpenVyruz directory relative to the creating working directory; Core conservatively preserves this declared local directory, including unknown files. External profiles, originals, custom paths and any configured data roots remain outside Core backup/rollback/removal. Core replaces the official engine on Windows x64 and Linux x86-64. Linux requires Vulkan, glibc 2.38 or later and libstdc++ with GLIBCXX_3.4.31. Its picker uses zenity or kdialog. Existing registrations retain upstream replacement ownership. Vulkan/graphics, intro decoding, co-op/network, actual gameplay and real-save behavior remain unqualified; no original import, archive conversion or upstream helper is performed.",
         "original_game_title": "Vyruz: Destruction of the Untel Empire",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select the original Vyruz data",
+              "instruction": "Keep your own vz-data.rsc in a writable original-game folder outside the engine. Intro.avi in the same folder is optional. The original and this player can both write vzconf.txt, session and vz.sco there. Back up that whole folder before starting."
+            },
+            {
+              "title": "Start the Linux player",
+              "instruction": "The v1.1.0 Linux x86-64 tar.gz contains Vyruz. Use a Vulkan driver and loader, glibc 2.38 or later, and libstdc++ with GLIBCXX_3.4.31. The picker uses zenity or kdialog. You can pass the original archive or folder to the upstream executable if the picker is unavailable."
+            }
+          ],
+          "warnings": [
+            "Keep your original folder and effective user profile. A runtime backup cannot restore files stored in those external folders."
+          ],
+          "references": [
+            {
+              "title": "Find the remembered setup",
+              "instruction": "On Linux the normal profile is $XDG_DATA_HOME/OpenVyruz or ~/.local/share/OpenVyruz. On Windows it is %APPDATA%/OpenVyruz. The game remembers the data path in game-folder.txt. If it cannot locate a user home it can write OpenVyruz relative to its working directory."
+            }
+          ],
+          "help_url": "https://github.com/Solessfir/OpenVyruz/blob/50531e25bc669c540ec462cb479dd3399803605b/README.md"
+        },
         "artwork": {
           "game_id": 112224,
           "cover_id": 382135,

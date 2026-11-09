@@ -2312,6 +2312,73 @@ impl ManagedPsxArchiveExpectation {
 }
 
 #[tokio::test]
+async fn portable_engine_linux_siblings_select_player_archives() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let cases = [
+        (
+            "gunstar-heroes-gunstars",
+            "v0.2.2",
+            "gunstars-0.2.2-linux-x64.tar.gz",
+            "gunstars-0.2.2-windows-x64.zip",
+            "gunstars-0.2.2-macos-universal.zip",
+            "gunstar",
+        ),
+        (
+            "vyruz-destruction-of-the-untel-empire-openvyruz",
+            "v1.1.0",
+            "OpenVyruz-v1.1.0-linux-x64.tar.gz",
+            "OpenVyruz-v1.1.0-windows-x64.zip",
+            "SHA256SUMS.txt",
+            "Vyruz",
+        ),
+        (
+            "elraro-atomic-bomberman",
+            "v1.0",
+            "atomic-bomberman-modern-linux-x86_64.tar.gz",
+            "atomic-bomberman-modern-windows-x64.zip",
+            "atomic-bomberman-server-linux-x86_64.tar.gz",
+            "atomic",
+        ),
+        (
+            "atlantis-the-lost-tales-atlantis-native",
+            "v0.6.0",
+            "atlantis-native-linux-x64.tar.gz",
+            "atlantis-native-windows-x64.zip",
+            "atlantis-native-linux-arm64.tar.gz",
+            "atlantis-native",
+        ),
+    ];
+    for (id, tag, linux, windows, other, executable) in cases {
+        let port = catalog.port(id).unwrap();
+        assert_eq!(port.adapter, crate::AdapterKind::NativePortable, "{id}");
+        assert_eq!(port.executable_hints[&Platform::LinuxX86_64], [executable]);
+        let observed = [release(
+            tag,
+            vec![
+                asset(other, Some('a')),
+                asset(windows, Some('b')),
+                asset(linux, Some('c')),
+            ],
+        )];
+        for (platform, name) in [
+            (Platform::LinuxX86_64, linux),
+            (Platform::WindowsX86_64, windows),
+        ] {
+            let (root, requests, server) = serve_http(vec![metadata(), releases(&observed)]);
+            let selected = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap();
+            assert_eq!(selected.version, tag, "{id} on {platform:?}");
+            assert_eq!(selected.asset.name, name, "{id} on {platform:?}");
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2, "{id}");
+        }
+    }
+}
+
+#[tokio::test]
 async fn windows_archive_selection_advances_from_shared_release_inventories() {
     #[derive(serde::Deserialize)]
     struct Case {
