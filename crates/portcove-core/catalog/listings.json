@@ -5161,7 +5161,9 @@
       "issue_number": 430,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp#readme",
@@ -5208,6 +5210,14 @@
         "linux-x86-64": [
           "apocalypse-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "apocalypse-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "apocalypse-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -5664,7 +5674,9 @@
       "issue_number": 437,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp#readme",
@@ -5711,6 +5723,14 @@
         "linux-x86-64": [
           "colony-wars-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "colony-wars-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "colony-wars-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -5798,7 +5818,9 @@
       "issue_number": 439,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp#readme",
@@ -5845,6 +5867,14 @@
         "linux-x86-64": [
           "crash-bandicoot-3-warped-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "crash-bandicoot-3-warped-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "crash-bandicoot-3-warped-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6374,7 +6404,9 @@
       "issue_number": 447,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp#readme",
@@ -6421,6 +6453,14 @@
         "linux-x86-64": [
           "fear-effect-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "fear-effect-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "fear-effect-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6433,7 +6473,9 @@
       "issue_number": 448,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp#readme",
@@ -6480,6 +6522,14 @@
         "linux-x86-64": [
           "fighting-force-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "fighting-force-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "fighting-force-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6492,7 +6542,9 @@
       "issue_number": 450,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp#readme",
@@ -6539,6 +6591,14 @@
         "linux-x86-64": [
           "final-fantasy-ix-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "final-fantasy-ix-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "final-fantasy-ix-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6551,7 +6611,9 @@
       "issue_number": 449,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp#readme",
@@ -6598,6 +6660,14 @@
         "linux-x86-64": [
           "final-fantasy-viii-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "final-fantasy-viii-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "final-fantasy-viii-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6685,7 +6755,9 @@
       "issue_number": 452,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp#readme",
@@ -6732,6 +6804,14 @@
         "linux-x86-64": [
           "g-police-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "g-police-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "g-police-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6897,7 +6977,9 @@
       "issue_number": 451,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp#readme",
@@ -6944,6 +7026,14 @@
         "linux-x86-64": [
           "ghost-in-the-shell-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "ghost-in-the-shell-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "ghost-in-the-shell-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7101,7 +7191,9 @@
       "issue_number": 457,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp#readme",
@@ -7148,6 +7240,14 @@
         "linux-x86-64": [
           "jackie-chan-stuntmaster-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "jackie-chan-stuntmaster-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "jackie-chan-stuntmaster-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7602,7 +7702,9 @@
       "issue_number": 460,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp#readme",
@@ -7649,6 +7751,14 @@
         "linux-x86-64": [
           "martian-gothic-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "martian-gothic-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "martian-gothic-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7772,7 +7882,9 @@
       "issue_number": 461,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp#readme",
@@ -7819,6 +7931,14 @@
         "linux-x86-64": [
           "medievil-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "medievil-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "medievil-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8040,7 +8160,9 @@
       "issue_number": 466,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp#readme",
@@ -8087,6 +8209,14 @@
         "linux-x86-64": [
           "metal-gear-solid-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "metal-gear-solid-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "metal-gear-solid-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8099,7 +8229,9 @@
       "issue_number": 469,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp#readme",
@@ -8146,6 +8278,14 @@
         "linux-x86-64": [
           "metal-slug-x-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "metal-slug-x-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "metal-slug-x-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8303,7 +8443,9 @@
       "issue_number": 467,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp#readme",
@@ -8350,6 +8492,14 @@
         "linux-x86-64": [
           "monster-rancher-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "monster-rancher-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "monster-rancher-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8362,7 +8512,9 @@
       "issue_number": 468,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp#readme",
@@ -8409,6 +8561,14 @@
         "linux-x86-64": [
           "mortal-kombat-trilogy-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "mortal-kombat-trilogy-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "mortal-kombat-trilogy-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8636,7 +8796,9 @@
       "issue_number": 473,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp#readme",
@@ -8683,6 +8845,14 @@
         "linux-x86-64": [
           "Parasite-Eve-Recompiled-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "Parasite-Eve-Recompiled-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Parasite-Eve-Recompiled-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8695,7 +8865,9 @@
       "issue_number": 470,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp#readme",
@@ -8742,6 +8914,14 @@
         "linux-x86-64": [
           "pro-pinball-timeshock-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "pro-pinball-timeshock-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "pro-pinball-timeshock-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8754,7 +8934,9 @@
       "issue_number": 474,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp#readme",
@@ -8801,6 +8983,14 @@
         "linux-x86-64": [
           "quake-ii-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "quake-ii-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "quake-ii-recomp-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8813,7 +9003,9 @@
       "issue_number": 471,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp#readme",
@@ -8860,6 +9052,14 @@
         "linux-x86-64": [
           "r-type-delta-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "r-type-delta-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "r-type-delta-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8872,7 +9072,9 @@
       "issue_number": 477,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp#readme",
@@ -8919,6 +9121,14 @@
         "linux-x86-64": [
           "resident-evil-3-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "resident-evil-3-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "resident-evil-3-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9156,7 +9366,9 @@
       "issue_number": 478,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp#readme",
@@ -9203,6 +9415,14 @@
         "linux-x86-64": [
           "silent-bomber-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "silent-bomber-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "silent-bomber-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9290,7 +9510,9 @@
       "issue_number": 476,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp#readme",
@@ -9337,6 +9559,14 @@
         "linux-x86-64": [
           "spider-man-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "spider-man-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "spider-man-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9420,7 +9650,9 @@
       "issue_number": 480,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp#readme",
@@ -9467,6 +9699,14 @@
         "linux-x86-64": [
           "star-wars-episode-i-the-phantom-menace-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "star-wars-episode-i-the-phantom-menace-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "star-wars-episode-i-the-phantom-menace-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9554,7 +9794,9 @@
       "issue_number": 481,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp#readme",
@@ -9601,6 +9843,14 @@
         "linux-x86-64": [
           "suikoden-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "suikoden-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "suikoden-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9903,7 +10153,9 @@
       "issue_number": 482,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp#readme",
@@ -9950,6 +10202,14 @@
         "linux-x86-64": [
           "the-fifth-element-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "the-fifth-element-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "the-fifth-element-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10096,7 +10356,9 @@
       "issue_number": 486,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp#readme",
@@ -10143,6 +10405,14 @@
         "linux-x86-64": [
           "threads-of-fate-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "threads-of-fate-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "threads-of-fate-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10155,7 +10425,9 @@
       "issue_number": 490,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp#readme",
@@ -10202,6 +10474,14 @@
         "linux-x86-64": [
           "tokyo-highway-battle-",
           "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "tokyo-highway-battle-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "tokyo-highway-battle-",
+          "-macos-arm64.zip"
         ]
       },
       "recommended_download_channel": "stable"

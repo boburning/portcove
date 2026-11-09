@@ -6,7 +6,7 @@
     "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp",
     "issue_number": 461,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp#readme",
     "artwork": {
@@ -44,7 +44,9 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases",
     "download_asset_hints": {
       "windows-x86-64": ["medievil-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["medievil-recomp-", "-linux-x64.zip"]
+      "linux-x86-64": ["medievil-recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["medievil-recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["medievil-recomp-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable"
   }
