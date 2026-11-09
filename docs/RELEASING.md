@@ -299,6 +299,11 @@ still requires the direct capture and rereads retained lane evidence. A lane
 report, an imported transcript, or a byte-coverage receipt grants no authority.
 The ordinary worker window and catalog/default reader paths apply without the
 exact application appointment.
+Qualified synthesis uses a bounded larger instruction envelope so its retained
+lane findings can reach the final reviewer intact. One supplemental application
+attempt requires a source-bound appointment for the exact third stop digest and
+settled readback of every original invocation. It preserves the original
+attempt anchor and possible Check effects still require GET-only reconciliation.
 
 The prepared capacity configuration reader uses `portcove-release-pause` /
 `capacity.json`, verified raw Git objects and two exact-ref reads, with mandatory

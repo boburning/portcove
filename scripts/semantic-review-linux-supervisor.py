@@ -260,7 +260,7 @@ def inspect_model_catalog(data):
     return data
 
 
-def read_frozen_input(file, relative):
+def read_frozen_input(file, relative, qualified_application=False):
     if relative == f"objects/{RETAINED_EVIDENCE_OID}.data":
         data = read_regular(file, RETAINED_EVIDENCE_BYTES)
         git_identity = hashlib.sha1(f"blob {len(data)}\0".encode("ascii"), usedforsecurity=False)
@@ -273,7 +273,9 @@ def read_frozen_input(file, relative):
         )
         return data
     limit = 288 * MIB if relative == "reader-index.json" else 16 * MIB
-    if relative in ("instructions.txt", "result-schema.json"):
+    if relative == "instructions.txt":
+        limit = MIB if qualified_application else 64 * 1024
+    if relative == "result-schema.json":
         limit = 64 * 1024
     if relative == "reader-launch.json":
         limit = 4096
@@ -285,7 +287,7 @@ def runtime_directory(request, root):
         return root / "runtime"
     require(
         re.fullmatch(r"r-[A-Za-z0-9_-]+", root.name)
-        and re.fullmatch(r"technical-[0-2]", root.parent.name)
+        and re.fullmatch(r"technical-[0-3]", root.parent.name)
         and re.fullmatch(r"request-[a-f0-9]{64}", root.parent.parent.name)
         and not os.path.lexists(root / "runtime"),
         "shared runtime requires a fresh lane in the original review attempt",
@@ -335,7 +337,7 @@ def inspect_files(request):
             file = Path(directory) / name
             relative = file.relative_to(root / "inputs").as_posix()
             require(relative in request["inputs_sha256"], "unmanifested input refused")
-            data = read_frozen_input(file, relative)
+            data = read_frozen_input(file, relative, owner is not None)
             total += len(data)
             if relative.startswith("objects/"):
                 raw_total += len(data)

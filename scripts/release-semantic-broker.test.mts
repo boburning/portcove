@@ -1653,6 +1653,19 @@ void test("frozen source collection binds actual Git blobs, publication and comp
     () => inspector.inspectLane(0, laneEvents(0, undefined, undefined, "{}")),
     /observation differs/,
   );
+  const retained = "x".repeat(2099);
+  assert.equal(
+    inspector.inspectLane(
+      0,
+      laneEvents(0, undefined, {
+        schema_version: 1,
+        lane: 0,
+        plan_sha256,
+        findings: retained,
+      }),
+    ).findings,
+    retained,
+  );
   assert.throws(
     () =>
       inspector.inspectLane(
@@ -1661,10 +1674,10 @@ void test("frozen source collection binds actual Git blobs, publication and comp
           schema_version: 1,
           lane: 0,
           plan_sha256,
-          findings: "x".repeat(2049),
+          findings: "x".repeat(2400),
         }),
       ),
-    /does not bind the exact lane/,
+    /exceeds the retained report envelope/,
   );
   assert.throws(() => requireDirectSemanticCapture(unionReceipt as never), /imported/);
   await assert.rejects(requireDirectSemanticProposalCapture(findings[0]), /imported/);
