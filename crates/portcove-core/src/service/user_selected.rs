@@ -1338,7 +1338,7 @@ mod tests {
 
     #[test]
     fn opentie_prepared_player_route_1975() {
-        assert_listing_only_player_route("star-wars-tie-fighter-opentie", Some(false));
+        assert_listing_only_player_route("star-wars-tie-fighter-opentie", Some(true));
     }
 
     #[test]

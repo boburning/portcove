@@ -34,6 +34,15 @@ filter = 'package(portcove-core) & test(/^definition_repository::tests::publishe
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
+# Installed revocation reached fresh acquisition after 45.626s in
+# 42560483784/1, then timed out at 60.069s. It also timed out in
+# 42543962269/1 and passed the selective retry at 50.891s.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 42459489642/1 fast rust-quality reached launch at 83.538s before
 # the 90.026s limit. The unchanged fixture passed on attempt 2.
 [[profile.default.overrides]]
@@ -124,6 +133,15 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)'
 slow-timeout = { period = "5s", terminate-after = 84, grace-period = "0s" }
+success-output = "immediate"
+
+# This exact populated Sonic fixture hit 300.825s in 42554188709/1
+# and 300.903s in 42560483784/1. The selective retry of the former
+# passed at 149.159s. Preserve its finite limit and original assertions.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_sonic_populated_install$/)'
+slow-timeout = { period = "5s", terminate-after = 72, grace-period = "0s" }
 success-output = "immediate"
 
 # Windows 5 on 42512432572/1 reached 30.036s in this prepared revocation
