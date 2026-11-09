@@ -127,7 +127,8 @@ function negativeReceipt(
 void test("paused safety withdrawal clears only the exact request and refuses its reuse", async (t) => {
   const f = await fixture(t);
   const state = { ...f.input, review_request: f.request };
-  assert.ok(isRecord(state.controller));
+  const controller = f.input.controller;
+  assert.ok(isRecord(controller));
   const saved = await checkpointReleaseOpportunity(f.repository, f.first.checkpoint, state);
   const withdrawal = {
     schema_version: 1,
@@ -141,12 +142,12 @@ void test("paused safety withdrawal clears only the exact request and refuses it
   };
   const next = {
     ...state,
-    controller: { ...state.controller, publication_paused: true },
+    controller: { ...controller, publication_paused: true },
     review_request: null,
     review_withdrawal: withdrawal,
   };
   for (const changed of [
-    { ...next, controller: state.controller },
+    { ...next, controller: controller },
     { ...next, opportunity: null },
     { ...next, review_withdrawal: { ...withdrawal, request_checkpoint: f.first.checkpoint } },
     { ...next, review_withdrawal: { ...withdrawal, authority: "semantic-review" } },
@@ -156,6 +157,12 @@ void test("paused safety withdrawal clears only the exact request and refuses it
       /withdrawal|cannot erase an existing semantic opportunity/,
     );
   }
+  const emptyRepository = path.join(f.directory, "fresh.git");
+  execFileSync("git", ["init", "--bare", "--quiet", emptyRepository], { timeout: 10000 });
+  await assert.rejects(
+    checkpointReleaseOpportunity(emptyRepository, null, next),
+    /first coordinator/,
+  );
   const retired = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, next);
   const recovered = await recoverReleaseOpportunity(f.repository, retired.checkpoint);
   assert.deepEqual(recovered.input, next);
@@ -167,7 +174,7 @@ void test("paused safety withdrawal clears only the exact request and refuses it
     source_tree: f.request.source_tree,
     change_set_sha256: f.request.change_set_sha256,
     before_checkpoint: retired.checkpoint,
-    requested_at: String(next.now),
+    requested_at: String(f.input.now),
   });
   await assert.rejects(
     checkpointReleaseOpportunity(f.repository, retired.checkpoint, {
@@ -183,6 +190,22 @@ void test("paused safety withdrawal clears only the exact request and refuses it
     }),
     /withdrawal/,
   );
+  const successor = createReleaseReviewRequest({
+    base_commit: f.request.base_commit,
+    base_version: f.request.base_version,
+    source_commit: "e".repeat(40),
+    source_tree: "f".repeat(40),
+    change_set_sha256: "e".repeat(64),
+    before_checkpoint: retired.checkpoint,
+    requested_at: String(f.input.now),
+  });
+  const followup = await checkpointReleaseOpportunity(f.repository, retired.checkpoint, {
+    ...next,
+    review_request: successor,
+  });
+  const accepted = await recoverReleaseOpportunity(f.repository, followup.checkpoint);
+  assert.deepEqual(accepted.input.review_withdrawal, withdrawal);
+  assert.deepEqual(accepted.input.review_request, successor);
 });
 
 void test(
