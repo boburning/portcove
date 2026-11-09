@@ -545,7 +545,7 @@ mod tests {
                 .compatible
         );
         assert!(
-            !check_definition_capabilities(&request("native-portable", 12, 12))
+            !check_definition_capabilities(&request("native-portable", u32::MAX, u32::MAX))
                 .unwrap()
                 .compatible
         );
