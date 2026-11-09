@@ -1104,9 +1104,24 @@ export async function advanceCatalogObservations(
             Math.floor(available / (2 * earlyTurnCount)),
           )
         : 0;
+      // Dividing capacity across every pending source can round each turn down to
+      // a single request, so no source ever completes (#4779: ~1,300 pending sources
+      // against ~250 requests per batch). Give each admitted source a turn large
+      // enough to finish a typical collection and validation; sources beyond the
+      // remaining capacity wait for a later batch in durable rotation order. An
+      // early configured turn keeps its existing half-capacity cap.
+      const minimumTurn = Math.min(
+        template.budget.requests,
+        2 * template.budget.pages_per_collection + 4,
+      );
       const quantum = Math.max(
         1,
-        Math.min(template.budget.requests, Math.max(fairShare, collectionShare)),
+        Math.min(
+          template.budget.requests,
+          earlyCollection
+            ? Math.max(fairShare, collectionShare)
+            : Math.max(fairShare, Math.min(minimumTurn, available)),
+        ),
       );
       const selectAssetReleases = async (headers: ProviderObservation) => {
         if (
