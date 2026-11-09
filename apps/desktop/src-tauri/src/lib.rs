@@ -297,6 +297,9 @@ fn is_startup_pending(initialization: &DesktopResult<ReadyDesktopState>) -> bool
 fn require_no_library_handoff(
     initialization: &DesktopResult<ReadyDesktopState>,
 ) -> DesktopResult<()> {
+    if is_startup_pending(initialization) {
+        return Err(PortcoveError::conflict("Portcove is still opening the library").into());
+    }
     if initialization.as_ref().err().is_some_and(|error| {
         error.details.contains_key("transfer_in_progress")
             || error.details.contains_key("library_switch_in_progress")
@@ -2843,12 +2846,13 @@ pub fn run() -> std::process::ExitCode {
             std::thread::Builder::new()
                 .name("portcove-startup".into())
                 .spawn(move || {
-                    initialize_desktop_in_background(
+                    let prepared = initialize_desktop_in_background(
                         &startup_initialization,
                         startup_preferences,
                         configured_root,
+                        |initialization| prepare_desktop_startup(&handle, initialization),
                     );
-                    if let Err(error) = finish_desktop_startup(&handle) {
+                    if let Err(error) = prepared.and_then(|()| finish_desktop_startup(&handle)) {
                         tracing::error!(
                             component = "startup",
                             phase = "after_initialization",
@@ -2879,13 +2883,44 @@ pub fn run() -> std::process::ExitCode {
     std::process::ExitCode::SUCCESS
 }
 
-/// Opens the selected library on the startup worker and publishes the result
-/// unless a later selection already replaced the startup placeholder.
+type StartupResult = Result<(), Box<dyn std::error::Error>>;
+
+/// Opens the selected library on the startup worker, runs `prepare` while the
+/// placeholder still holds every library command back, and then publishes the
+/// result unless a later selection already replaced the placeholder. A panic
+/// still publishes a failure, so `get_bootstrap_status` always settles.
 fn initialize_desktop_in_background(
     initialization: &std::sync::Mutex<DesktopResult<ReadyDesktopState>>,
     preferences: DesktopResult<HostPreferenceStore>,
     configured_root: Option<PathBuf>,
-) {
+    prepare: impl FnOnce(&DesktopResult<ReadyDesktopState>) -> StartupResult,
+) -> StartupResult {
+    struct Publication<'a> {
+        initialization: &'a std::sync::Mutex<DesktopResult<ReadyDesktopState>>,
+        value: Option<DesktopResult<ReadyDesktopState>>,
+    }
+    impl Drop for Publication<'_> {
+        fn drop(&mut self) {
+            let value = self.value.take().unwrap_or_else(|| {
+                Err(PortcoveError::state("Portcove could not finish opening the library").into())
+            });
+            match self.initialization.lock() {
+                Ok(mut current) if is_startup_pending(&current) => *current = value,
+                Ok(_) => {}
+                Err(_) => tracing::error!(
+                    component = "startup",
+                    phase = "publish",
+                    success = false,
+                    message = "desktop state lock was poisoned"
+                ),
+            }
+            STARTUP_SETTLED.notify_waiters();
+        }
+    }
+    let mut publication = Publication {
+        initialization,
+        value: None,
+    };
     tracing::info!(
         operation_id = "desktop-startup",
         phase = "start",
@@ -2914,27 +2949,25 @@ fn initialize_desktop_in_background(
     if initialization_result.is_ok() {
         report_application_update_qualification_stage("desktop initialization");
     }
-    match initialization.lock() {
-        Ok(mut current) if is_startup_pending(&current) => *current = initialization_result,
-        Ok(_) => {}
-        Err(_) => tracing::error!(
-            component = "startup",
-            phase = "publish",
-            success = false,
-            message = "desktop state lock was poisoned"
-        ),
-    }
-    STARTUP_SETTLED.notify_waiters();
+    let prepared = prepare(&initialization_result);
+    publication.value = Some(initialization_result);
+    drop(publication);
+    prepared
 }
 
-/// Work that previously ran in Tauri setup after initialization: observe
-/// launches left running, reconcile application updates and start checks.
-fn finish_desktop_startup(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+/// Work that ran in Tauri setup before any command could be served: observe
+/// launches left running and reconcile a pending application update. It runs
+/// before the library is published, so no frontend read or update command can
+/// race the apply journal or a library switch.
+fn prepare_desktop_startup(
+    app: &tauri::AppHandle,
+    initialization: &DesktopResult<ReadyDesktopState>,
+) -> StartupResult {
     #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     report_application_update_qualification_stage("Tauri setup");
-    let state = app.state::<DesktopState>();
-    match ready(&state) {
+    match initialization {
         Ok(ready_state) => {
+            let state = app.state::<DesktopState>();
             for session in ready_state.library.launch_sessions()? {
                 observe_launch_completion(
                     app,
@@ -2955,6 +2988,11 @@ fn finish_desktop_startup(app: &tauri::AppHandle) -> Result<(), Box<dyn std::err
         #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
         Err(_) => {}
     }
+    Ok(())
+}
+
+/// After publication: the qualification exit and automatic update checks.
+fn finish_desktop_startup(app: &tauri::AppHandle) -> StartupResult {
     #[cfg(feature = "application-update-qualification")]
     if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
         == Some(std::ffi::OsStr::new("after-reconciliation"))
@@ -3902,12 +3940,23 @@ mod tests {
                 !waiting.is_finished(),
                 "status answered before startup settled"
             );
+            let preparing_state = worker_state.clone();
             std::thread::spawn(move || {
                 initialize_desktop_in_background(
                     &worker_state.initialization,
                     worker_state.preferences.clone(),
                     Some(library),
-                );
+                    |initialization| {
+                        // Post-initialization work runs before publication.
+                        assert!(initialization.is_ok());
+                        assert!(is_startup_pending(
+                            &preparing_state.initialization.lock().unwrap()
+                        ));
+                        assert!(service(&preparing_state).is_err());
+                        Ok(())
+                    },
+                )
+                .unwrap();
             })
             .join()
             .unwrap();
@@ -3932,8 +3981,36 @@ mod tests {
             &state.initialization,
             state.preferences.clone(),
             Some(temporary.path().join("startup")),
-        );
+            |_| Ok(()),
+        )
+        .unwrap();
         assert_eq!(bootstrap_status(&state).library_root, Some(chosen_root));
+    }
+
+    #[test]
+    fn a_panicking_startup_worker_still_settles_bootstrap() {
+        let temporary = tempfile::tempdir().unwrap();
+        let state = pending_state(temporary.path().join("preferences.json"));
+        let worker_state = state.clone();
+        let library = temporary.path().join("library");
+        let panicked = std::thread::spawn(move || {
+            initialize_desktop_in_background(
+                &worker_state.initialization,
+                worker_state.preferences.clone(),
+                Some(library),
+                |_| panic!("simulated startup panic"),
+            )
+            .is_ok()
+        })
+        .join();
+        assert!(panicked.is_err());
+        let status = bootstrap_status(&state);
+        assert!(!status.ready);
+        assert!(!is_startup_pending(&state.initialization.lock().unwrap()));
+        assert_eq!(
+            status.error.unwrap().message,
+            "Portcove could not finish opening the library"
+        );
     }
 
     #[test]
