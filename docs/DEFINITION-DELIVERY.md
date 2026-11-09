@@ -524,8 +524,8 @@ authorized inputs, with enforceable workflow separation and exact-input
 validation. Routine candidates within established authority do not need a
 separate owner stamp. The policy decision accepts no particular artifact and
 does not provision credentials or change current protections; existing source,
-acquisition, ownership, consent and operation guards remain in force until the
-route is implemented and afterward.
+acquisition, ownership, consent and operation guards apply through protected
+rollout and subsequent operation.
 
 ## Delivery, compatibility and retention
 

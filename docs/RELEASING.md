@@ -24,12 +24,14 @@ has [explicit producer and consumer requirements](QUALITY.md#staged-audit-receip
 Its selection does not qualify actual candidate bytes or authorize publication.
 The `full` and historical `initial-beta-win-linux` paths retain their broader
 obligations. The Windows-first profile does not use the [#706 Linux disposition](releases/2026-10-14-linux-beta-risk-706.md).
-Its original ordinary Linux scope and separate
-[initial-proof amendment](https://github.com/boburning/portcove/issues/706#issuecomment-6325645712)
-retain their distinct exposure limits and the same expiry, November 14, 2026
-at 23:59 America/New_York (`2026-11-15T04:59:00Z`). Keep Linux publication
-held without an applicable disposition. Ordinary development continues under
-the separate scanner policy while #706 tracks actual remediation.
+The original ordinary Linux x86-64 GNU scope permits one publication.
+The separate [initial-proof amendment](https://github.com/boburning/portcove/issues/706#issuecomment-6325645712)
+permits up to three total irreversible Linux public exposures only for its
+exact `initial-public-proof-three-total-v1` inputs and appointed controller.
+Both expire November 14, 2026 at 23:59 America/New_York
+(`2026-11-15T04:59:00Z`). Keep affected Linux candidates held while the finding
+remains unless they have an applicable disposition. Ordinary development
+continues under the separate scanner policy while #706 tracks remediation.
 
 ### Preflight
 
@@ -128,17 +130,19 @@ and authenticated public bytes are separate evidence.
   exact `portcove-release-pause` branch tip and verify the tip stayed stable
   during the read. Use authenticated public metadata and package readback to
   determine what clients can actually consume.
-- **Pause and resume.** The existing owner-controlled publication pause is the
-  control for new publication. Use its guarded owner update with the current
-  preimage and verify the resulting ref and value. Keep the admitted request,
-  allocation and attempts intact. Before resuming, verify the live appointment,
-  protection, freshness, candidate or renewal basis, and authority for the
-  exact operation. Eligible work continues through the appointed controller.
+- **Pause and resume.** Use the existing
+  [owner-controlled pause](qualification/slice4-production-authorization-packet-2026-10-18.md#recommended-input-authorities-decision-d1).
+  The owner sets `publication_paused` to `true` to pause or `false` to resume
+  against the current preimage, then verifies the resulting ref and value.
+  Keep the admitted request, allocation and attempts intact. Before resuming,
+  verify the live appointment, protection, freshness, candidate or renewal
+  basis, and authority for the exact operation. Eligible work continues
+  through the appointed controller.
 - **Recover.** Reconcile the retained request and its last settled checkpoint
-  with current Release, Pages and serving-byte readback. Use the existing
-  [checkpoint recovery](#bounded-remote-checkpoint-recovery) or the
-  operation-specific continuation referenced on #534. Preserve unknown effects
-  and their evidence until readback settles them.
+  with current Release, Pages and serving-byte readback. The existing
+  [checkpoint recovery](#bounded-remote-checkpoint-recovery) supports snapshot
+  inspection and export. Follow the operation-specific continuation on #534
+  for live recovery. Preserve unknown effects until readback settles them.
 
 ### November 4, 2026 rehearsal record
 
