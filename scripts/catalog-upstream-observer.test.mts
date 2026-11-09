@@ -1468,6 +1468,57 @@ void test("listing-only provider exceptions are reported without failing the job
   assert.equal(result.notify_exception, false);
 });
 
+void test("scheduled priority and promoted listing exceptions still fail the job once", async () => {
+  const h = harness();
+  const listing = {
+    id: "listing-gone",
+    name: "Listing gone",
+    summary: "Descriptive listing",
+    project_url: "https://github.com/listing-owner/gone",
+  };
+  const input = { ...h.input, listings: [listing] };
+  const fetch = h.options.fetch!;
+  const options = {
+    ...h.options,
+    fetch: async (url: string, init: Parameters<typeof fetch>[1]) =>
+      url.includes("/listing-owner/gone")
+        ? new Response(JSON.stringify({ message: "Not Found" }), {
+            status: 404,
+            headers: { "content-type": "application/json" },
+          })
+        : fetch(url, init),
+  };
+  const key = catalogObservationSources(input).sources.find(
+    (source) => source.repository === "listing-owner/gone",
+  )!.key;
+  const priority = await advanceCatalogObservations(input, null, {
+    ...options,
+    scheduledPrioritySources: new Set([key]),
+    prioritizeConfigured: true,
+  });
+  assert.equal(priority.notify_exception, true);
+
+  const quiet = await advanceCatalogObservations(input, null, options);
+  assert.equal(quiet.notify_exception, false);
+  const promoted = {
+    ...input,
+    ports: [
+      ...input.ports,
+      { id: "listing-gone", channels: ["stable"], release: { repository: "listing-owner/gone" } },
+    ],
+  };
+  h.tick();
+  const state = structuredClone(quiet.checkpoint);
+  for (const progress of Object.values(state.sources)) progress.next_due_at = null;
+  const managed = await advanceCatalogObservations(promoted, state, {
+    ...options,
+    definitionHash: (portId: string) =>
+      observationHash(promoted.ports.find((port) => port.id === portId)),
+  });
+  assert.ok(managed.report.failures.some((failure) => failure.repository === "listing-owner/gone"));
+  assert.equal(managed.notify_exception, true);
+});
+
 void test("provider reset headers do not turn fair quantum exhaustion into provider backoff", async () => {
   const h = harness(2);
   h.setQuota(100);

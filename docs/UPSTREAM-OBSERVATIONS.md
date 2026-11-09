@@ -25,9 +25,12 @@ Invalid optional health evidence is preserved and falls back to a fresh primary
 lookup; conflicting trusted identities remain held.
 
 The `Configured upstream observer` workflow requests observations hourly at
-minute 17 UTC. Hosted scheduling can be delayed or skipped; this is
-a requested cadence, not a delivery guarantee. The configured baseline retains
-its cadence and twelve-hour freshness bound. Catalog sources use durable fair
+minute 31 UTC, away from the daily 09:23 upstream-health run and the :17 and :43
+schedules that share the repository token. A run uses about 750 requests of the
+observed hourly installation allowance of about 5,000 within its nine-minute
+window. Hosted scheduling can be delayed or skipped; this is a requested
+cadence, not a delivery guarantee. The configured baseline keeps its twelve-hour
+freshness bound and receives a turn in every opportunity. Catalog sources use durable fair
 turns, activity observations and staleness to admit work within the same job.
 Unknown activity uses the existing cadence; measured change intervals may defer
 quieter sources only inside the freshness margin. Manual dispatch remains
@@ -224,11 +227,13 @@ the existing finite request envelope; it is not assumed available. Quantum/runti
 exhaustion has no provider retry clock. Actual depletion and provider retry
 responses defer the shared provider until its reset. A budget-limited source with
 progress can receive another turn automatically while capacity remains. A failure
-isolates its source. A new non-budget exception on a source that serves a managed
-port fails the job once; continuing exceptions and normal continuation remain
-visible without repeated notifications. Listing-only exceptions are recorded in
-the report and checkpoint without failing the job, because they cannot change
-what players install.
+isolates its source. A new non-budget exception fails the job once when its source
+serves a managed port, is the configured baseline, or is a scheduled priority
+scope; continuing exceptions and normal continuation remain visible without
+repeated notifications. Other listing-only exceptions are recorded in the report
+and checkpoint without failing the job, because they cannot change what players
+install. They use a separate exception key, so a listing that later gains a
+managed port still reports its unresolved rule once.
 
 The existing ten-minute hosted job establishes a nine-minute observation deadline
 before checkout and build, reserving the final minute for checkpoint and artifact

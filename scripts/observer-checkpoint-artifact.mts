@@ -709,7 +709,7 @@ type RecoveryOptions = {
 
 /** Complete ordered prefix through the retention boundary, not an all-history
  * inventory. Keep the existing hundred-record ceiling without eagerly fetching
- * a hundred large GitHub run records for a six-hour scheduled consumer. */
+ * a hundred large GitHub run records for an hourly scheduled consumer. */
 async function scheduledRunWindow(
   read: (route: string) => Promise<unknown>,
   currentRun: number,
