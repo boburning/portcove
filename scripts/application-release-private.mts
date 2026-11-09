@@ -23,6 +23,7 @@ import {
 import {
   applicationReleaseTrust,
   applicationSourcePacketMaximumBytes,
+  applicationReleaseMaximumMinutes,
   inspectApplicationSpendingAppointment,
   inspectApplicationReleaseExecution,
   verifyApplicationReleaseTrust,
@@ -332,7 +333,10 @@ async function guard(
     sha256(await readFile(".github/workflows/application-release.yml")),
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
-  const spending = inspectApplicationSpendingAppointment(process.env);
+  const spending = inspectApplicationSpendingAppointment(
+    process.env,
+    applicationReleaseMaximumMinutes(source.purpose, source.execution_path ?? "ordinary"),
+  );
   markStage?.("pause-read");
   const pause = await readPublicationPauseWithSdk(applicationWorkerControlOptions());
   assert.equal(pause.publication_paused, false, "publication paused");
@@ -401,13 +405,19 @@ async function guard(
       current.ref === retainedR56FeedRecovery.next_ref &&
       source.purpose === "metadata-renewal" &&
       source.execution_path === "metadata-recovery";
+    const preparingApplication =
+      source.purpose === "application-release" && source.execution_path === undefined;
     assertProtectionWriteWindow = () => {
       markStage?.("protection-policy");
       const actualDigest = requireApplicationReleaseProtectionDigest(
         receipt.observation,
         source.purpose === "metadata-bootstrap",
         Date.now(),
-        recoveryFeedHandoff ? "pages-feed-recovery" : "standard",
+        preparingApplication && phase === "payload"
+          ? "application-payload"
+          : preparingApplication || recoveryFeedHandoff
+            ? "hosted-write"
+            : "standard",
       );
       markStage?.("protection-digest");
       assert.equal(actualDigest, expectedDigest);
@@ -3133,6 +3143,7 @@ async function payload() {
       invoke(["--version"]).toString().trim(),
       `tauri-cli ${fixedReleaseToolDependencies().tauri}`,
     );
+    assertProtectionWriteWindow();
     invoke([
       "signer",
       "sign",

@@ -106,6 +106,15 @@ attested prepared assets. The final job rechecks the live cohort, draft asset
 identities, pause and protection before publishing the immutable Release.
 Draft asset removal still requires its own fresh protection observation.
 
+Ordinary prepare reserves 157 minutes within an exact 160-minute spending
+appointment. Its source job has five minutes for qualification and comparison,
+and its seven isolated observers each have three minutes for collection and
+artifact handoff. The observed protection inventory still has to match at the
+write boundary. The handoff lasts at most 150 seconds for ordinary writes and
+240 seconds for payload signing, including verification of the unsigned package
+and native evidence. A fresh check immediately precedes the Tauri signing call.
+The account $0 Stop policy and other execution paths keep their existing limits.
+
 The first ordinary executable publication of a newly appointed controller uses
 the complete authenticated predecessor read from feed preparation. Under the
 shared publication concurrency group, the final guard checks the exact public

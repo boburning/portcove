@@ -25,6 +25,7 @@ import type { ApplicationBudgetContext } from "./application-release-run.mts";
 import {
   inspectApplicationReleaseExecution,
   applicationReleaseBudgetMinutes,
+  applicationReleaseMaximumMinutes,
   applicationReleaseRemainingMinutes,
 } from "./application-release-policy.mts";
 
@@ -54,6 +55,7 @@ export function inspectApplicationJobBudget(
   purpose: unknown = "application-release",
   executionPath: unknown = "ordinary",
 ) {
+  const maximumMinutes = applicationReleaseMaximumMinutes(purpose, executionPath);
   const ceilings = applicationReleaseBudgetMinutes(purpose);
   const remainingCeilings = applicationReleaseRemainingMinutes(purpose, executionPath);
   assert.match(source, /^[a-f0-9]{40}$/u);
@@ -140,8 +142,8 @@ export function inspectApplicationJobBudget(
         .reduce((sum, [, minutes]) => sum + minutes, 0)
     : 0;
   assert.ok(
-    actual + remaining * 60000 <= 140 * 60000,
-    "actual execution plus remaining declared tail exceeds application140",
+    actual + remaining * 60000 <= maximumMinutes * 60000,
+    `actual execution plus remaining declared tail exceeds application${maximumMinutes}`,
   );
   return {
     actual_milliseconds: actual,
@@ -156,7 +158,7 @@ export function inspectApplicationJobBudget(
         completed_at: entry.value.completed_at,
         conclusion: entry.value.conclusion,
       })),
-    maximum_minutes: 140,
+    maximum_minutes: maximumMinutes,
     headroom: "unknown",
     reservation: false,
     paid_fallback: false,
@@ -704,6 +706,7 @@ export async function readApplicationJobBudget(
   budgetContext?: ApplicationBudgetContext,
 ) {
   applicationReleaseRemainingMinutes(purpose, executionPath);
+  const maximumMinutes = applicationReleaseMaximumMinutes(purpose, executionPath);
   const execution = inspectApplicationReleaseExecution(process.env);
   const opportunity = process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY ?? "";
   const provider = await createApplicationBudgetProvider();
@@ -975,8 +978,8 @@ export async function readApplicationJobBudget(
     evidence.push({ run_id: String(run.id), ...result });
   }
   assert.ok(
-    actual + remaining * 60000 <= 140 * 60000,
-    "all actual opportunity executions plus remaining tail exceed application140",
+    actual + remaining * 60000 <= maximumMinutes * 60000,
+    `all actual opportunity executions plus remaining tail exceed application${maximumMinutes}`,
   );
   if (recoveryObservations) {
     const identity = (rows: readonly Record<string, unknown>[]) =>
@@ -1000,7 +1003,7 @@ export async function readApplicationJobBudget(
     attempts,
     opportunities,
     ...(retainedDiagnostics.length ? { retained_diagnostics: retainedDiagnostics } : {}),
-    maximum_minutes: 140,
+    maximum_minutes: maximumMinutes,
     headroom: "unknown",
     reservation: false,
     paid_fallback: false,

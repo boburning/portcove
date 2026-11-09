@@ -167,7 +167,8 @@ void test("bootstrap charges its draft preparation without extending the reserva
     true,
     "metadata-bootstrap",
   );
-  assert.equal(app.remaining_declared_minutes, 140);
+  assert.equal(app.remaining_declared_minutes, 157);
+  assert.equal(app.maximum_minutes, 160);
   assert.equal(bootstrap.remaining_declared_minutes, 59);
   for (const name of [
     "package / package",

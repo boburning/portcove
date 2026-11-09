@@ -95,6 +95,7 @@ import {
 import {
   inspectApplicationReleaseExecution,
   applicationSourcePacketMaximumBytes,
+  applicationReleaseMaximumMinutes,
   inspectApplicationSpendingAppointment,
   verifyApplicationReleaseTrust,
 } from "./application-release-policy.mts";
@@ -323,7 +324,13 @@ async function beforeSourceRecord() {
     "true",
     "native production authority remains held",
   );
-  inspectApplicationSpendingAppointment(process.env);
+  inspectApplicationSpendingAppointment(
+    process.env,
+    applicationReleaseMaximumMinutes(
+      process.argv[2] === "prepare" ? "application-release" : undefined,
+      "ordinary",
+    ),
+  );
   assert.equal(
     sha256(await readFile(".github/workflows/application-release.yml")),
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
@@ -400,8 +407,9 @@ async function prepare() {
   });
   if (process.env.PORTCOVE_WAKE_RUN_ID) {
     assert.match(process.env.PORTCOVE_WAKE_RUN_ID, /^[1-9][0-9]{0,15}$/u);
-    assert.equal(process.env.PORTCOVE_QUALIFICATION_ATTEMPT, String(qualification.attempt));
   }
+  if (process.env.PORTCOVE_WAKE_RUN_ID || process.env.PORTCOVE_QUALIFICATION_ATTEMPT)
+    assert.equal(process.env.PORTCOVE_QUALIFICATION_ATTEMPT, String(qualification.attempt));
   const selected = await readApplicationSemanticSelection(run.head_sha);
   assert.ok(selected.opportunity.meaningful && !selected.opportunity.documentation_only);
   if (process.env.PORTCOVE_WAKE_RUN_ID) {

@@ -554,17 +554,26 @@ void test("bootstrap appointment binds protection and refs across observer princ
   assert.throws(() => requireApplicationReleaseProtectionDigest(owner, false, now + 78_627));
   for (const age of [78_627, 150_000]) {
     assert.equal(
-      requireApplicationReleaseProtectionDigest(owner, false, now + age, "pages-feed-recovery"),
+      requireApplicationReleaseProtectionDigest(owner, false, now + age, "hosted-write"),
       owner.inventory_sha256,
     );
   }
   for (const age of [-1, 150_001]) {
     assert.throws(() =>
-      requireApplicationReleaseProtectionDigest(owner, false, now + age, "pages-feed-recovery"),
+      requireApplicationReleaseProtectionDigest(owner, false, now + age, "hosted-write"),
     );
   }
+  assert.throws(() => requireApplicationReleaseProtectionDigest(owner, true, now, "hosted-write"));
+  assert.equal(
+    requireApplicationReleaseProtectionDigest(owner, false, now + 240_000, "application-payload"),
+    owner.inventory_sha256,
+  );
+  for (const age of [-1, 240_001])
+    assert.throws(() =>
+      requireApplicationReleaseProtectionDigest(owner, false, now + age, "application-payload"),
+    );
   assert.throws(() =>
-    requireApplicationReleaseProtectionDigest(owner, true, now, "pages-feed-recovery"),
+    requireApplicationReleaseProtectionDigest(owner, true, now, "application-payload"),
   );
 });
 

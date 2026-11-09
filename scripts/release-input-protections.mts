@@ -782,13 +782,17 @@ export function requireApplicationReleaseProtectionDigest(
   raw: unknown,
   bootstrap: boolean,
   now = Date.now(),
-  handoff: "standard" | "pages-feed-recovery" = "standard",
+  handoff: "standard" | "hosted-write" | "application-payload" = "standard",
 ) {
-  // The isolated Pages observer hands off across hosted environment admission,
-  // artifact upload and attested tool setup. Other phases retain one minute.
+  // Hosted writes include environment admission, artifact upload, and attested tool setup.
+  // Payload signing also transfers and verifies the unsigned package and native evidence.
   if (handoff !== "standard" && bootstrap) throw new Error("bootstrap protection handoff differs");
   const maximumAge =
-    handoff === "pages-feed-recovery" ? 150_000 : inputProtectionFreshnessMilliseconds;
+    handoff === "application-payload"
+      ? 240_000
+      : handoff === "hosted-write"
+        ? 150_000
+        : inputProtectionFreshnessMilliseconds;
   const policy = requireObservedImmutabilityPolicy(raw, now, maximumAge);
   if (!bootstrap) return policy.inventory_sha256;
   return protectionFingerprint(bootstrapProtectionInventory(raw));
