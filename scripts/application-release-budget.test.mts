@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   inspectApplicationJobBudget,
+  assertRetainedR56FeedBudget,
   readApplicationOpportunityRuns,
   applicationNativeJobMinutes,
   readApplicationJobBudget,
@@ -19,6 +20,8 @@ import {
   failedBootstrapRecovery,
   retainedServedRenewal,
   retainedServedRenewalFeed,
+  retainedR55Renewal,
+  retainedR56FeedRecovery,
 } from "./application-release-run.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
@@ -284,7 +287,7 @@ void test("metadata recovery reserves only the existing feed tail and cannot exe
     "metadata-renewal",
     "metadata-recovery",
   );
-  assert.equal(recovery.remaining_declared_minutes, 38);
+  assert.equal(recovery.remaining_declared_minutes, 40);
   assert.equal(recovery.maximum_minutes, 140);
   for (const name of [
     "context / execute",
@@ -664,7 +667,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
     false,
   );
   assert.equal(recovered.budget.actual_milliseconds, 1800000);
-  assert.equal(recovered.budget.remaining_declared_minutes, 38);
+  assert.equal(recovered.budget.remaining_declared_minutes, 40);
   assert.equal(recovered.budget.attempts, 2);
   pause = releaseControlInputsFixture(undefined, undefined, undefined, false);
   pause.faults.value = "pause-drift";
@@ -1458,5 +1461,44 @@ void test("budgeted bootstrap binds every successor to complete failed history w
       retryRuns.map((row) => (row.id === failedRun.id ? { ...row, conclusion: "success" } : row)),
     ),
     false,
+  );
+});
+
+void test("r57 charges both original attempts and refuses any foreign or changed feed job", () => {
+  const r55 = { actual_milliseconds: 561_000, feed_executions: [] };
+  const r56 = {
+    actual_milliseconds: 936_000,
+    feed_executions: [
+      {
+        job_id: retainedR56FeedRecovery.feed_job_id,
+        attempt: 1,
+        started_at: "2026-11-09T07:20:44Z",
+        completed_at: "2026-11-09T07:21:56Z",
+        conclusion: "failure",
+      },
+    ],
+  };
+  assertRetainedR56FeedBudget(retainedR55Renewal.original_run_id, r55);
+  assertRetainedR56FeedBudget(retainedR56FeedRecovery.run_id, r56);
+  assert.equal(
+    retainedR56FeedRecovery.prior_charges_milliseconds +
+      r55.actual_milliseconds +
+      r56.actual_milliseconds +
+      40 * 60_000,
+    6_377_000,
+  );
+  assert.throws(() => assertRetainedR56FeedBudget("123456", r56), /unappointed/u);
+  assert.throws(() => assertRetainedR56FeedBudget(retainedR55Renewal.original_run_id, r56));
+  assert.throws(() =>
+    assertRetainedR56FeedBudget(retainedR56FeedRecovery.run_id, {
+      ...r56,
+      actual_milliseconds: 0,
+    }),
+  );
+  assert.throws(() =>
+    assertRetainedR56FeedBudget(retainedR56FeedRecovery.run_id, {
+      ...r56,
+      feed_executions: [{ ...r56.feed_executions[0]!, job_id: 123 }],
+    }),
   );
 });

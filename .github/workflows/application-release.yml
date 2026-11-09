@@ -1176,7 +1176,7 @@ jobs:
     with:
       operation: observe
       phase: feed
-      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
+      timeout_minutes: ${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || inputs.mode == 'recover-metadata' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && 3 || 1 }}
       opportunity: ${{ inputs.opportunity }}
       source_artifact: ${{ needs.source.outputs.artifact }}
       source_attempt: ${{ needs.source.outputs.source_attempt }}

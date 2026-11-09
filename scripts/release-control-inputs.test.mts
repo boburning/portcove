@@ -550,7 +550,22 @@ void test("bootstrap appointment binds protection and refs across observer princ
       now,
     ),
   );
-  assert.throws(() => requireApplicationReleaseProtectionDigest(owner, true, now + 60001));
+  assert.throws(() => requireApplicationReleaseProtectionDigest(owner, true, now + 60_001));
+  assert.throws(() => requireApplicationReleaseProtectionDigest(owner, false, now + 78_627));
+  for (const age of [78_627, 150_000]) {
+    assert.equal(
+      requireApplicationReleaseProtectionDigest(owner, false, now + age, "pages-feed-recovery"),
+      owner.inventory_sha256,
+    );
+  }
+  for (const age of [-1, 150_001]) {
+    assert.throws(() =>
+      requireApplicationReleaseProtectionDigest(owner, false, now + age, "pages-feed-recovery"),
+    );
+  }
+  assert.throws(() =>
+    requireApplicationReleaseProtectionDigest(owner, true, now, "pages-feed-recovery"),
+  );
 });
 
 void test("writer policy requires fresh exact per-ref principals and unbypassable immutable ref rules", () => {

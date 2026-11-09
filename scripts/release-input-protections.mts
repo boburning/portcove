@@ -747,6 +747,10 @@ function requireInputPolicy(
 /** Interpret only an already authenticated isolated observer's fresh setting.
  * A publisher never receives the observer's Administration credential. */
 export function requireReleaseImmutabilityPolicy(raw: unknown, now = Date.now()) {
+  return requireObservedImmutabilityPolicy(raw, now, inputProtectionFreshnessMilliseconds);
+}
+
+function requireObservedImmutabilityPolicy(raw: unknown, now: number, maximumAge: number) {
   if (
     !isRecord(raw) ||
     raw.schema_version !== 1 ||
@@ -755,7 +759,7 @@ export function requireReleaseImmutabilityPolicy(raw: unknown, now = Date.now())
     typeof raw.observed_at !== "string" ||
     !Number.isFinite(Date.parse(raw.observed_at)) ||
     now - Date.parse(raw.observed_at) < 0 ||
-    now - Date.parse(raw.observed_at) > inputProtectionFreshnessMilliseconds ||
+    now - Date.parse(raw.observed_at) > maximumAge ||
     !isRecord(raw.inventory) ||
     !isRecord(raw.inventory.immutable_releases) ||
     Object.keys(raw.inventory.immutable_releases).sort().join(",") !==
@@ -778,8 +782,14 @@ export function requireApplicationReleaseProtectionDigest(
   raw: unknown,
   bootstrap: boolean,
   now = Date.now(),
+  handoff: "standard" | "pages-feed-recovery" = "standard",
 ) {
-  const policy = requireReleaseImmutabilityPolicy(raw, now);
+  // The isolated Pages observer hands off across hosted environment admission,
+  // artifact upload and attested tool setup. Other phases retain one minute.
+  if (handoff !== "standard" && bootstrap) throw new Error("bootstrap protection handoff differs");
+  const maximumAge =
+    handoff === "pages-feed-recovery" ? 150_000 : inputProtectionFreshnessMilliseconds;
+  const policy = requireObservedImmutabilityPolicy(raw, now, maximumAge);
   if (!bootstrap) return policy.inventory_sha256;
   return protectionFingerprint(bootstrapProtectionInventory(raw));
 }

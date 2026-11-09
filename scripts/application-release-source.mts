@@ -40,6 +40,7 @@ import {
   retainedServedRenewal,
   retainedServedRenewalFeed,
   retainedR55Renewal,
+  retainedR56FeedRecovery,
   immutableApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
   registerApplicationBudgetRun,
@@ -1048,7 +1049,36 @@ async function recoverImmutableMetadataFeed() {
     notes && notes.custody.opportunity === opportunity && notes.custody.preparation === null,
   );
   const expected = { release_id: Number(release.id), custody: notes.custody };
+  const recovery = retainedR56FeedRecovery;
+  const recoverR56 = execution.ref === recovery.next_ref;
+  if (recoverR56) {
+    assert.equal(execution.run_attempt, 1);
+    assert.equal(opportunity, retainedR55Renewal.opportunity);
+    assert.equal(expected.release_id, retainedR55Renewal.release_id);
+    assert.ok(typeof release.body === "string");
+    assert.equal(sha256(Buffer.from(release.body)), recovery.notes_sha256);
+  }
   const prior = await readApplicationImmutableMetadata(expected, scratch);
+  if (recoverR56) {
+    assert.deepEqual(prior.receipt.producer, {
+      id: recovery.run_id,
+      control_commit: recovery.control_commit,
+      control_ref: retainedR55Renewal.next_ref,
+    });
+    assert.equal(prior.receipt.producer_attempt, 1);
+    assert.equal(prior.receipt.site.generation, recovery.generation);
+    assert.ok(isRecord(prior.metadata));
+    assert.equal(prior.metadata.context_sha256, recovery.context_sha256);
+    assert.equal(prior.assets.length, Object.keys(recovery.assets).length);
+    for (const [name, expectedAsset] of Object.entries(recovery.assets))
+      assert.deepEqual(
+        prior.assets.find((asset) => asset.name === name),
+        {
+          name,
+          ...expectedAsset,
+        },
+      );
+  }
   assert.ok(isRecord(prior.metadata) && prior.metadata.purpose === "metadata-renewal");
   if (execution.ref === retainedServedRenewalFeed.next_ref) {
     const appointed = retainedServedRenewalFeed;
@@ -1184,7 +1214,11 @@ async function prepareCompiler() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const command = process.argv[2];
-  if (process.env.GITHUB_REF === retainedServedRenewalFeed.next_ref)
+  if (
+    [retainedServedRenewalFeed.next_ref, retainedR56FeedRecovery.next_ref].some(
+      (ref) => process.env.GITHUB_REF === ref,
+    )
+  )
     assert.equal(
       command,
       "recover-metadata",

@@ -426,6 +426,62 @@ export const retainedR55Renewal = {
   next_ref: "refs/tags/portcove-production-controller-windows-20261109r56",
 } as const;
 
+/** One feed-only continuation after the exact r56 worker refused before any native request. */
+export const retainedR56FeedRecovery = {
+  next_ref: "refs/tags/portcove-production-controller-windows-20261109r57",
+  notes_sha256: "20dd98ab47b9f84abaef8d2a2c4a388903f62b2148dc2df4bf7667a974019279",
+  generation: "fa46b99d77acb7bcbd09a699884522cf6afec098692202e13ebd0b627827fada",
+  run_id: "42577153790",
+  control_commit: "54b124475a390a6813ab90b33b571711da54c626",
+  feed_job_id: 129032224061,
+  failed_admission_id: 7649194655,
+  failed_admission_status_id: 21744739875,
+  serving_admission_id: 7633039169,
+  serving_admission_status_id: 21690428342,
+  pages_artifact_id: 13655854560,
+  evidence_artifact_id: 13655769705,
+  evidence_archive_bytes: 420,
+  evidence_archive_sha256: "1e9af0fbc0f8becc0ce7ad21c743dca0023909c9f62fd84240a34517bc639ffd",
+  evidence_sha256: "219625254c406bb26cbcf4a45790a911dc6e1459e5ee20b574f40c23635faf55",
+  context_sha256: "bbbc31225e330a3592af408685e8cdee695691c65da686922467f63816a0f22c",
+  prior_charges_milliseconds: 2_480_000,
+  assets: {
+    "application-site.zip": {
+      id: 726586807,
+      bytes: 22254,
+      sha256: "b32256c7ae103a0570a9ee33d37180a1cec3c2e00723282372c7a759b7d7737a",
+    },
+    "application-metadata.json": {
+      id: 726587012,
+      bytes: 7096,
+      sha256: "5862401fabf26f4f98bd53cd763091d7ba8a28661ba2b56b177599f70b49cdf5",
+    },
+  },
+} as const;
+
+export function requireRetainedR56PreNativeEvidence(raw: unknown) {
+  const prior = retainedR56FeedRecovery;
+  assert.deepEqual(
+    raw,
+    {
+      schema_version: 1,
+      intent: {
+        repository_id: 1354613114,
+        site_url: "https://boburning.github.io/portcove/",
+        generation: prior.generation,
+        run_id: prior.run_id,
+        run_attempt: 1,
+        artifact_id: prior.pages_artifact_id,
+        build_version: prior.control_commit,
+      },
+      stage: "protection-policy",
+      prior_effect: null,
+      requests: [],
+    },
+    "r56 has no qualified pre-native evidence",
+  );
+}
+
 /** One feed-only continuation of the exact r43 signed renewal. */
 export const retainedServedRenewalFeed = {
   next_ref: "refs/tags/portcove-production-controller-windows-20261105r44",

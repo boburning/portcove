@@ -221,7 +221,7 @@ void test("bootstrap and renewal observer jobs reserve setup and upload time aro
     assert.equal(
       workflow.getIn(["jobs", job, "with", "timeout_minutes"]),
       job === "protection_feed"
-        ? `\${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || ${renewalModes}) && 3 || 1 }}`
+        ? `\${{ (inputs.mode == 'bootstrap' || inputs.mode == 'recover-bootstrap' || inputs.mode == 'recover-metadata' || ${renewalModes}) && 3 || 1 }}`
         : `\${{ (inputs.mode == 'bootstrap' || ${renewalModes}) && 3 || 1 }}`,
     );
   }
@@ -258,6 +258,7 @@ void test("initial immutable bootstrap recovery reserves only its longer feed an
   const draft = applicationReleaseRemainingMinutes("metadata-renewal", "metadata-draft-recovery");
   assert.equal(draft.publication_prepare, 3);
   assert.equal(draft["protection_publication / execute"], 1);
+  assert.equal(draft["protection_feed / execute"], 3);
   assert.equal(draft.publication, 2);
   assert.equal(Object.hasOwn(draft, "context / execute"), false);
   assert.equal(Object.hasOwn(draft, "timestamp / execute"), false);
