@@ -489,10 +489,12 @@ grant; a reused textual repository name is not continuity of authority.
 
 ## Acquisition decision
 
-The current runtime accepts an upstream expected SHA-256 or existing reviewed
-direct-manifest provenance. Read-only API observations distinguish missing API
-digests from published checksum assets; neither is inferred from a same-download
-hash. The minimum [#246](https://github.com/boburning/portcove/issues/246)
+The runtime accepts an upstream expected SHA-256, reviewed direct-manifest
+provenance, or an admitted schema-4 GitHub curated acquisition record. Read-only
+API observations distinguish missing API digests from published checksum assets.
+Calculating a digest during download supplies an observed value. It becomes
+an expected value for subsequent acquisition only through the applicable
+acceptance path. The minimum [#246](https://github.com/boburning/portcove/issues/246)
 publication proof is independent of curated acquisition and uses an existing
 accepted route. A verified cache may be reused only against its retained
 accepted expected identity. Wrong bytes, ambiguous sidecars, missing provenance
@@ -504,21 +506,26 @@ an exact artifact from an attributable upstream release may be accepted without
 a separately published publisher checksum after the acquisition route receives
 independent review under protected catalog authority. The accepted record must
 bind upstream/host, release, asset, platform, size, SHA-256, acquisition evidence
-and acceptance provenance. A catalog-curated hash proves integrity against
-accepted bytes; it is not a publisher signature or authentication claim. A new
-release identity may enter normal protected acceptance. Different bytes under
-the same accepted identity require investigation, not silent repinning.
+and acceptance provenance. A catalog-curated hash verifies integrity against
+the accepted bytes. When an upstream signature or attestation is available and
+used, check the expected publisher or build identity and the claims binding the
+artifact. Authentic software can still be harmful. Installation, execution and
+redistribution each require their applicable authority. A new release identity
+may enter normal protected acceptance. Different bytes under the same accepted
+identity require investigation and must stay held.
 
-The #315 implementation must preserve withdrawal/revocation, verified-cache,
-recovery and permitted retained-version behavior. Proposal-producing runners
+The Core verifier, GitHub provider integration, accepted record and scoped
+transition handling are implemented. The #315 production canary, verified cache
+reuse, scoped refusals and recovery, and repeated eligible progression still
+need evidence through the protected route. Proposal-producing runners
 cannot approve their own authority changes or hold signing credentials.
 Protected publisher automation may sign or publish only exact independently
 authorized inputs, with enforceable workflow separation and exact-input
 validation. Routine candidates within established authority do not need a
 separate owner stamp. The policy decision accepts no particular artifact and
 does not provision credentials or change current protections; existing source,
-acquisition, ownership, consent and operation guards remain in force until the
-route is implemented and afterward.
+acquisition, ownership, consent and operation guards apply through protected
+rollout and subsequent operation.
 
 ## Delivery, compatibility and retention
 
