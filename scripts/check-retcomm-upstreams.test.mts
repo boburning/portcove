@@ -672,3 +672,88 @@ void test("RetComM local manifests preserve platform precedence and refuse malfo
     await rm(root, { recursive: true, force: true });
   }
 });
+
+void test("RetComM lag behind a reviewed same-identity relocation is reported, not failed", async () => {
+  const { copyFile } = await import("node:fs/promises");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-lineage-"));
+  try {
+    await mkdir(path.join(root, "scripts"));
+    const portsDirectory = path.join(root, "crates/portcove-core/catalog/ports");
+    await mkdir(portsDirectory, { recursive: true });
+    const checker = path.join(root, "scripts/check-retcomm-upstreams.mts");
+    await copyFile(new URL("./check-retcomm-upstreams.mts", import.meta.url), checker);
+    await copyFile(
+      new URL("./runtime-values.mts", import.meta.url),
+      path.join(root, "scripts/runtime-values.mts"),
+    );
+    await writeFile(
+      path.join(root, "crates/portcove-core/catalog/catalog.json"),
+      JSON.stringify({
+        ports: [
+          { id: "fixture", adapter: "psx-recomp-managed", release: { repository: "new-org/game" } },
+        ],
+      }),
+    );
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify({ fixture: "fixture-title" }),
+    );
+    const upstream = path.join(root, "upstream");
+    await mkdir(path.join(upstream, "titles/psx"), { recursive: true });
+    await writeFile(
+      path.join(upstream, "titles/psx/fixture-title.json"),
+      JSON.stringify({ release: { github: "Old-Owner/game" } }),
+    );
+    const preload = path.join(root, "deny-network.mjs");
+    await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
+    const run = () =>
+      spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, checker], {
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, RETCOMM_CATALOG_DIR: upstream },
+      });
+    const endpoint = (projectUrl: string, id = "42") => ({
+      project_url: projectUrl,
+      repository: { host: "github.com", id },
+    });
+    const decision = (overrides: Record<string, unknown> = {}) => ({
+      from: endpoint("https://github.com/Old-Owner/game"),
+      to: endpoint("https://github.com/new-org/game"),
+      relationship: "relocation",
+      outcome: "accepted",
+      review: { reference: "https://example.invalid/review", decision_sha256: "a".repeat(64) },
+      ...overrides,
+    });
+    const writeLineage = (decisions: unknown[]) =>
+      writeFile(
+        path.join(portsDirectory, "fixture.json"),
+        JSON.stringify({ upstream_lineage: { format_version: 1, decisions } }),
+      );
+
+    const unreviewed = run();
+    assert.equal(unreviewed.status, 1, "a mismatch without authoring lineage must fail");
+    assert.match(unreviewed.stderr, /Portcove uses new-org\/game, RetComM uses Old-Owner\/game/);
+
+    await writeLineage([decision()]);
+    const accepted = run();
+    assert.equal(accepted.status, 0, accepted.stderr);
+    assert.match(accepted.stdout, /RetComM lags reviewed relocation: fixture/);
+    assert.doesNotMatch(accepted.stderr, /NETWORK_FORBIDDEN/);
+
+    for (const [name, overrides] of [
+      ["different identity", { to: endpoint("https://github.com/new-org/game", "43") }],
+      ["rejected outcome", { outcome: "rejected" }],
+      ["unreviewed decision", { review: undefined }],
+      ["unrelated former path", { from: endpoint("https://github.com/someone/game") }],
+      ["non-relocation", { relationship: "fork" }],
+    ] as const) {
+      await writeLineage([decision(overrides)]);
+      const refused = run();
+      assert.equal(refused.status, 1, name);
+      assert.match(refused.stderr, /RetComM uses Old-Owner\/game/, name);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

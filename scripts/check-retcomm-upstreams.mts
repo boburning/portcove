@@ -264,6 +264,53 @@ async function loadRetcommTitle(titleId: string): Promise<unknown> {
   throw new Error(`RetComM catalog returned 404 for ${titleId}`);
 }
 
+const portsDirectory = new URL("../crates/portcove-core/catalog/ports/", import.meta.url);
+const githubProjectUrl = (repository: string) => `https://github.com/${repository}`.toLowerCase();
+
+/**
+ * RetComM may keep a former repository path after Portcove reviewed and
+ * accepted a relocation. That lag is not drift only when the port's authoring
+ * lineage records an accepted, reviewed relocation from exactly RetComM's path
+ * to exactly Portcove's path with an unchanged provider repository identity.
+ * The required catalog gate validates the lineage digest; this audit grants no
+ * lineage authority and treats a missing authoring file as no lineage.
+ */
+async function acceptedRelocation(portId: string, retcomm: string, portcove: unknown) {
+  if (typeof portcove !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(portId)) return false;
+  let authoring: unknown;
+  try {
+    authoring = JSON.parse(await readFile(new URL(`${portId}.json`, portsDirectory), "utf8"));
+  } catch (error) {
+    if (errorCode(error) === "ENOENT") return false;
+    throw error;
+  }
+  const lineage = isRecord(authoring) ? authoring.upstream_lineage : undefined;
+  if (!isRecord(lineage) || !Array.isArray(lineage.decisions)) return false;
+  const repositoryId = (endpoint: unknown) =>
+    isRecord(endpoint) &&
+    isRecord(endpoint.repository) &&
+    endpoint.repository.host === "github.com" &&
+    typeof endpoint.repository.id === "string"
+      ? endpoint.repository.id
+      : null;
+  const projectUrl = (endpoint: unknown) =>
+    isRecord(endpoint) && typeof endpoint.project_url === "string"
+      ? endpoint.project_url.toLowerCase()
+      : null;
+  return lineage.decisions.some(
+    (decision: unknown) =>
+      isRecord(decision) &&
+      decision.relationship === "relocation" &&
+      decision.outcome === "accepted" &&
+      isRecord(decision.review) &&
+      typeof decision.review.decision_sha256 === "string" &&
+      projectUrl(decision.from) === githubProjectUrl(retcomm) &&
+      projectUrl(decision.to) === githubProjectUrl(portcove) &&
+      repositoryId(decision.from) !== null &&
+      repositoryId(decision.from) === repositoryId(decision.to),
+  );
+}
+
 if (!offline) {
   await Promise.all(
     Object.entries(mappings).map(async ([portId, titleId]) => {
@@ -296,6 +343,12 @@ if (!offline) {
           );
         }
         if (port.release.repository !== releaseRepository) {
+          if (await acceptedRelocation(portId, releaseRepository, port.release.repository)) {
+            console.log(
+              `RetComM lags reviewed relocation: ${portId} uses ${String(port.release.repository)}; RetComM still lists ${releaseRepository}, the accepted lineage's former path for the same repository identity.`,
+            );
+            return;
+          }
           failures.push(
             `${portId}: Portcove uses ${String(port.release.repository)}, RetComM uses ${releaseRepository}`,
           );
