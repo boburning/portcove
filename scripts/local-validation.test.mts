@@ -1701,22 +1701,7 @@ void test("archive renames and deletions keep active formatter ownership precise
   assert.deepEqual(ids(deletion.plan), ["diff-check", "node-tests"]);
 });
 
-void test("current and historical catalog authorities select their generator contracts", () => {
-  const current = planFor([
-    "crates/portcove-core/catalog/catalog-current-authoring.json",
-  ]).selection;
-  assert.deepEqual([...current.nodeTests].sort(), [
-    "scripts/catalog-artwork-backoff.test.mts",
-    "scripts/catalog-artwork-batches.test.mts",
-    "scripts/catalog-artwork-dispatch.test.mts",
-    "scripts/catalog-artwork-lifecycle.test.mts",
-    "scripts/catalog-artwork-provider.test.mts",
-    "scripts/catalog-proposal-comparison.test.mts",
-    "scripts/catalog-proposal-costs.test.mts",
-    "scripts/catalog-source-authoring.test.mts",
-    "scripts/generate-catalog.test.mts",
-  ]);
-
+void test("the embedded catalog and historical fixtures select their generator contracts", () => {
   const embedded = planFor(["crates/portcove-core/catalog/catalog.json"]).selection;
   assert.deepEqual([...embedded.nodeTests].sort(), [
     "scripts/catalog-artwork-backoff.test.mts",
@@ -3493,7 +3478,6 @@ void test("catalog generator families retain shared inputs and narrow authoring 
     "scripts/maintainer-config.mts",
     "scripts/runtime-values.mts",
     "scripts/fixtures/catalog-generator-fixtures.mts",
-    "crates/portcove-core/catalog/catalog-current-authoring.json",
     "crates/portcove-core/catalog/catalog-schema1-fixture.json",
     "crates/portcove-core/catalog/catalog-schema2-migration-fixture.json",
     "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",

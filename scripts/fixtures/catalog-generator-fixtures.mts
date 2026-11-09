@@ -110,8 +110,10 @@ export function isolatedGenerator() {
   }
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(catalogs, { recursive: true });
+  // The committed aggregate is a generated output. Fixtures edit a scratch copy of it
+  // and explode that into source records; production never reads an aggregate as source.
+  copyFileSync(join(catalogRoot, "catalog.json"), join(catalogs, "catalog-fixture-input.json"));
   for (const name of [
-    "catalog-current-authoring.json",
     "catalog-schema2-migration-fixture.json",
     "catalog-schema1-fixture.json",
     "catalog-legacy-additions-fixture.json",
@@ -141,7 +143,7 @@ export function isolatedGenerator() {
 
 function syncFixtureSource(catalogs: string) {
   const input = fixtureCatalog(
-    fixtureJson(readFileSync(join(catalogs, "catalog-current-authoring.json"))),
+    fixtureJson(readFileSync(join(catalogs, "catalog-fixture-input.json"))),
   );
   const shared: Record<string, unknown> = structuredClone(input);
   delete shared.ports;
@@ -168,7 +170,7 @@ export function proposalDecoderFixture(
 ) {
   const fixture = isolatedGenerator();
   if (editInput) {
-    const path = join(fixture.catalogs, "catalog-current-authoring.json");
+    const path = join(fixture.catalogs, "catalog-fixture-input.json");
     const input = fixtureCatalog(fixtureJson(readFileSync(path)));
     editInput(input, fixture.catalogs);
     writeFileSync(path, JSON.stringify(input));
@@ -241,7 +243,7 @@ export function proposalDecoderFixture(
       pathToFileURL(preload).href,
       "scripts/generate-catalog.mts",
       mode,
-      join(fixture.catalogs, "catalog-current-authoring.json"),
+      join(fixture.catalogs, "catalog-fixture-input.json"),
       "--validator-cli",
       cli,
       "--output-dir",

@@ -2342,12 +2342,22 @@ or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifie
 provider access terms, not a permissive copyright license.
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
-`catalog-current-authoring.json`, the embedded `catalog.json`, and `listings.json`.
-All three are generated outputs, and `--check` refuses a stale projection.
+the embedded `catalog.json` and `listings.json`, plus the generated route-enrollment
+and test-data projections. All are generated outputs, and `--check` refuses a stale
+projection. There is no separate committed authoring copy of `catalog.json`: it
+duplicated the embedded catalog byte for byte, and keeping it doubled every
+catalog conflict. Fixtures that need an editable aggregate copy `catalog.json`
+into scratch space.
 Filename/ID disagreement, duplicate IDs or JSON keys and a second shared port authority are
 refused. The migrated records retain their established order; new records sort
 by stable ID. Unknown retained operational metadata and ordered arrays remain
-unchanged. Reassemble after a rebase; do not hand-merge the generated aggregates.
+unchanged. Never hand-merge the generated aggregates. After a rebase or merge,
+resolve and stage any conflicted authored sources (`ports/`, `catalog-shared.json`),
+then run `node scripts/catalog-staged-check.mts --resolve-conflicts`: it regenerates
+every aggregate from those sources and stages the result, and refuses while any other
+path is still unmerged. A Git merge driver cannot replace this step, because a driver
+sees one file at a time before the merged sources exist and is ignored by hosted merges.
+`generate-catalog.mts --check` stays the required consistency gate.
 Core owns the temporary
 schema-1 compatibility projection required by the existing matcher and rejects
 any conflicting projection supplied by catalog input. The deterministic
