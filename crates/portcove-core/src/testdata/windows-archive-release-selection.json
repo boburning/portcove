@@ -867,7 +867,8 @@
         "track_sha256": null,
         "generated_executable": "Armored_Core_Project_Phantasma.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-azure-dreams-recomp": {
@@ -887,7 +888,8 @@
         "track_sha256": null,
         "generated_executable": "Azure_Dreams.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-bushido-blade-2-recomp": {
@@ -907,7 +909,8 @@
         "track_sha256": null,
         "generated_executable": "Bushido_Blade_2.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-colony-wars-red-sun-recomp": {
@@ -927,7 +930,8 @@
         "track_sha256": null,
         "generated_executable": "Colony_Wars_Red_Sun.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-digimon-world-2-recomp": {
@@ -947,7 +951,8 @@
         "track_sha256": null,
         "generated_executable": "Digimon_World_2.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-dragon-ball-z-ultimate-battle-22-recomp": {
@@ -967,7 +972,8 @@
         "track_sha256": null,
         "generated_executable": "Dragon_Ball_Z_Ultimate_Battle_22.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-future-cop-lapd-recomp": {
@@ -987,7 +993,8 @@
         "track_sha256": null,
         "generated_executable": "Future_Cop_LAPD.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-g-police-weapons-of-justice-recomp": {
@@ -1007,7 +1014,8 @@
         "track_sha256": null,
         "generated_executable": "G_Police_Weapons_of_Justice.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-incredible-crisis-recomp": {
@@ -1027,7 +1035,8 @@
         "track_sha256": null,
         "generated_executable": "Incredible_Crisis.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-jade-cocoon-recomp": {
@@ -1047,7 +1056,8 @@
         "track_sha256": null,
         "generated_executable": "Jade_Cocoon_Story_of_the_Tamamayu.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-kartia-recomp": {
@@ -1061,7 +1071,8 @@
         "track_sha256": null,
         "generated_executable": "Kartia_The_Word_of_Fate.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-mega-man-legends-2-recomp": {
@@ -1081,7 +1092,8 @@
         "track_sha256": null,
         "generated_executable": "Mega_Man_Legends_2.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-misadventures-of-tron-bonne-recomp": {
@@ -1101,7 +1113,8 @@
         "track_sha256": null,
         "generated_executable": "The_Misadventures_of_Tron_Bonne.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-nightmare-creatures-ii-recomp": {
@@ -1121,7 +1134,8 @@
         "track_sha256": null,
         "generated_executable": "Nightmare_Creatures_II.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-rival-schools-evolution-recomp": {
@@ -1141,7 +1155,8 @@
         "track_sha256": null,
         "generated_executable": "Rival_Schools_Evolution_Disc.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-rival-schools-recomp": {
@@ -1161,7 +1176,8 @@
         "track_sha256": null,
         "generated_executable": "Rival_Schools_United_by_Fate.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-rollcage-stage-ii-recomp": {
@@ -1181,7 +1197,8 @@
         "track_sha256": null,
         "generated_executable": "Rollcage_Stage_II.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-spider-man-2-enter-electro-recomp": {
@@ -1201,7 +1218,9 @@
         "track_sha256": null,
         "generated_executable": "Spider_Man_2_Enter_Electro.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true,
+        "revision": "Rev 1"
       }
     },
     "alexbeav-suikoden-ii-recomp": {
@@ -1221,7 +1240,8 @@
         "track_sha256": null,
         "generated_executable": "Suikoden_II.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-tail-concerto-recomp": {
@@ -1241,7 +1261,8 @@
         "track_sha256": null,
         "generated_executable": "Tail_Concerto.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-team-buddies-recomp": {
@@ -1261,7 +1282,8 @@
         "track_sha256": null,
         "generated_executable": "Team_Buddies.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-wild-arms-recomp": {
@@ -1278,7 +1300,8 @@
         "track_sha256": null,
         "generated_executable": "Wild_Arms.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     }
   },

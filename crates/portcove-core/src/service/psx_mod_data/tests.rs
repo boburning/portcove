@@ -758,6 +758,36 @@ mod lifecycle {
             b"old bundle"
         );
         assert!(!canonical.join("mods/bundled").exists());
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let authorization = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .restore_backup(ID, &backup.id, &authorization.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(old_runtime.join("mods/installed/player/1.0/manifest.toml")).unwrap(),
+            b"user mod"
+        );
+        assert_eq!(
+            fs::read(old_runtime.join("saves/player.mcd")).unwrap(),
+            b"saved before update"
+        );
+        assert_eq!(
+            fs::read(old_runtime.join("mods/bundled/default.toml")).unwrap(),
+            b"old bundle"
+        );
+        assert_eq!(
+            fs::read(new_runtime.join("mods/bundled/default.toml")).unwrap(),
+            b"new bundle"
+        );
         assert!(service.verify(ID).unwrap().valid);
         write(&old_runtime, "mods/bundled/default.toml", b"changed bundle");
         let verification = service.verify(ID).unwrap();
