@@ -61,7 +61,7 @@ it("retains the selected game and search through details, navigation and closing
   await expect
     .element(page.getByRole("button", { name: "Review setup for Harbor Adventure" }))
     .toBeVisible();
-  await page.getByRole("button", { name: "Back to library", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await expect.element(page.getByRole("button", { name: "Add games", exact: true })).toHaveFocus();
   await page.getByRole("button", { name: "Add games", exact: true }).click();
   await expect
@@ -130,7 +130,7 @@ it.each([320, 240])("returns to the actual document reading position at %spx", a
   expect(top).toBeGreaterThan(0);
   await origin.click();
   await expect.element(page.getByRole("heading", { name: "Add games", level: 1 })).toHaveFocus();
-  await page.getByRole("button", { name: "Back to library", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await expect.element(origin).toHaveFocus();
   expect(Math.abs(document.scrollingElement!.scrollTop - top)).toBeLessThanOrEqual(2);
   expect(origin.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight + 1);

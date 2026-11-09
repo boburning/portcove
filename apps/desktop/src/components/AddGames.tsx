@@ -7,7 +7,7 @@ import { RegisteredSourceSetup } from "./RegisteredSourceSetup";
 import type { Perform } from "../features/operations/use-operation-state";
 import { Button } from "./ui/button";
 import { SearchChoice } from "./ui/combobox";
-import { ArrowLeft, ArrowRight, FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
+import { ArrowRight, FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
 import { Icon } from "./ui";
 import { ArtworkImage } from "./Artwork";
 
@@ -27,7 +27,6 @@ export function AddGames({
   onCopyInstallation,
   setupSource,
   setSetupSource,
-  close,
 }: {
   active: boolean;
   generation: number;
@@ -63,10 +62,6 @@ export function AddGames({
       aria-label="Add games workspace"
       className="add-games max-w-[66rem] min-w-0 wrap-anywhere"
     >
-      <Button variant="ghost" size="sm" className="add-games-back" onClick={close}>
-        <Icon glyph={ArrowLeft} size="sm" />
-        Back to library
-      </Button>
       <p className="add-games-intro">
         Start with a game, a folder of original files, or an installation you already have. Portcove
         checks what is supported before you confirm any changes.

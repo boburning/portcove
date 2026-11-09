@@ -188,7 +188,7 @@ it("leaves preparation, visits another entry, and revisits the original task wit
   );
   await page
     .getByRole("button", {
-      name: "View details for Harbor Adventure Harbor Adventure",
+      name: "View details for Harbor Adventure",
       exact: true,
     })
     .click();
@@ -201,7 +201,7 @@ it("leaves preparation, visits another entry, and revisits the original task wit
   await page.getByRole("button", { name: /^Library/ }).click();
   await page
     .getByRole("button", {
-      name: "View details for Orchard Quest Orchard Quest",
+      name: "View details for Orchard Quest",
       exact: true,
     })
     .click();

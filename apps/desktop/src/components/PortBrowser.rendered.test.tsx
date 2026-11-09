@@ -385,7 +385,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain(`aria-label="View details for ${port.name} ${port.name}"`);
+    expect(html).toContain(`aria-label="View details for ${port.name}"`);
     expect(html).not.toContain(">Details</button>");
     expect(html).toContain(`aria-label="More actions for ${port.name}"`);
     expect(html).toContain('data-slot="button"');

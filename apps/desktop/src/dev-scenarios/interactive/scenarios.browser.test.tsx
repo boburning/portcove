@@ -111,7 +111,7 @@ it("gives every disposable detail route five real tabs and binds external Play t
 
 it("opens actual game details, returns to Library and resets the selected journey", async () => {
   await mount("library");
-  await click("View details for Harbor Adventure Harbor Adventure");
+  await click("View details for Harbor Adventure");
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).not.toBeNull();
   await click("Back to Library");
@@ -123,7 +123,7 @@ it("opens actual game details, returns to Library and resets the selected journe
 
 it("keeps the optional folder editor and artwork behind disclosures without losing a draft", async () => {
   await mount("library");
-  await click("View details for Harbor Adventure Harbor Adventure");
+  await click("View details for Harbor Adventure");
   const folder = page.getByText("Folder for a future install", { exact: true });
   const input = page.getByRole("textbox", { name: "Folder for future installs", exact: true });
   await expect.element(input).not.toBeInTheDocument();
@@ -164,7 +164,7 @@ it("shows different installed and selected update channels separately", async ()
   snapshot.statuses[0]!.channel = "beta";
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   await mount("library");
-  await click("View details for Harbor Adventure Harbor Adventure");
+  await click("View details for Harbor Adventure");
   const facts = document.querySelector('[aria-label="Installation and release versions"]')!;
   expect(facts.querySelector(".detail-version-context")?.textContent).toContain(
     "Selected channel for future checks:",
@@ -433,7 +433,7 @@ it.each(["game", "bios"] as const)(
     };
     vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
     await mount("setup");
-    await click("View details for Harbor Adventure Harbor Adventure");
+    await click("View details for Harbor Adventure");
     const inspect = vi
       .spyOn(desktopApi, "inspectSourceIntake")
       .mockRejectedValue(new Error("Check fixture"));
@@ -455,7 +455,7 @@ it.each(["game", "bios"] as const)(
 
 it("reviews preparation, preserves progress until cancellation, and shows controlled failure", async () => {
   await mount("setup");
-  await click("View details for Harbor Adventure Harbor Adventure");
+  await click("View details for Harbor Adventure");
   await click("Review setup");
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain("fixture/owned.iso");
   await click("Prepare game data");
@@ -476,12 +476,12 @@ it("reviews preparation, preserves progress until cancellation, and shows contro
 
 it("revisits the original running task after browsing another game and records its exact completion", async () => {
   await mount("activity");
-  await click("View details for Harbor Adventure Harbor Adventure");
+  await click("View details for Harbor Adventure");
   await click("Review setup");
   await click("Prepare game data");
   const retained = await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1);
   await click("Back to Library");
-  await click("View details for Orchard Quest Orchard Quest");
+  await click("View details for Orchard Quest");
   await click("Back to Library");
   await navigateTo("Activity");
   const row = () => document.querySelector('[data-activity-id="fixture-preparation"]');

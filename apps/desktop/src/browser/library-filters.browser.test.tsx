@@ -335,7 +335,7 @@ it.each(["dark", "light"])(
       ).toBe(true);
     }
     await captureParityState("library-selected-filter-chips");
-    await userEvent.click(button("View details for Linux game Linux game"));
+    await userEvent.click(button("View details for Linux game"));
     await userEvent.click(button("Back to library"));
     await expectReadinessLabel("Readiness Ready (1)");
     await userEvent.click(button("Switch section"));
@@ -490,7 +490,7 @@ it("retains specific attention with independent Library readiness, zero counts a
     .toHaveAttribute("aria-checked", "true");
   await closeFilters();
   await chooseReadiness("Needs attention (1)");
-  await userEvent.click(button("View details for Both game Both game"));
+  await userEvent.click(button("View details for Both game"));
   await userEvent.click(button("Back to library"));
   await expect
     .element(button("Remove Installation attention: Missing game files filter"))
@@ -521,7 +521,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await closeFilters();
   await expectReadinessLabel("Readiness Ready (1)");
   await expectReadinessOption("Needs attention (0)");
-  await userEvent.click(button("View details for Windows game Windows game"));
+  await userEvent.click(button("View details for Windows game"));
   await userEvent.click(button("Back to library"));
   await openAdvancedFilters("Filters (1)");
   await userEvent.click(await filterChoice("Available at last check (1)"));

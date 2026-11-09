@@ -96,8 +96,9 @@ export function ArtworkFrame({
       ) : (
         <span className={styles.initials}>{fallback?.initials ?? "PC"}</span>
       )}
+      {image && <img className={styles.backdrop} src={image} alt="" decoding="async" />}
       {!identityArtwork && notice && (
-        <small className="artwork-image-note absolute inset-x-0 bottom-0 bg-pc-scrim p-2 text-[length:var(--text-2xs)] leading-tight text-[var(--color-art-text)]">
+        <small className="artwork-image-note absolute inset-x-0 bottom-0 z-2 bg-pc-scrim p-2 text-[length:var(--text-2xs)] leading-tight text-[var(--color-art-text)]">
           {notice}
         </small>
       )}
