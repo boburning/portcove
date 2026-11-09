@@ -532,7 +532,7 @@ void test("deep audit evidence retains audit status without privilege changes", 
   assert.equal(bundle.with["if-no-files-found"], "error");
 });
 
-void test("ordinary controller tool rebuilds cover Windows driver and bootstrap protection changes", async () => {
+void test("controller fixtures cover Windows driver, semantic worker, and bootstrap protection changes", async () => {
   const workflow = await readWorkflow(
     new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
   );
@@ -547,12 +547,19 @@ void test("ordinary controller tool rebuilds cover Windows driver and bootstrap 
       "scripts/windows-webview-driver-policy.psm1",
       "scripts/bounded-zip.mts",
       "scripts/application-release-private.mts",
+      "scripts/semantic-review-linux-supervisor*.py",
+      "scripts/semantic-review-linux-supervisor.test.mts",
     ])
       assert.ok(section.paths.includes(file), `${trigger}/${file}`);
     assert.ok(
       section.paths.includes("scripts/release-input-protections.mts") ||
         section.paths.includes("scripts/release-*.mts"),
       `${trigger}/scripts/release-input-protections.mts`,
+    );
+    assert.ok(
+      section.paths.includes("scripts/release-semantic-*.mts") ||
+        section.paths.includes("scripts/release-*.mts"),
+      `${trigger}/scripts/release-semantic-worker.mts`,
     );
   }
 });
