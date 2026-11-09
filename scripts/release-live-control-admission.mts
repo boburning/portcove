@@ -801,6 +801,23 @@ async function authenticateControlSource(
         }),
       };
     },
+    async readSdkWithdrawal(sourceCommit: string) {
+      const { options, maintenance, verifyProducer } = await readCoordinatorMaintenance(
+        2 * 1024 ** 2,
+      );
+      if (!maintenance.pause.publication_paused)
+        throw new Error("application review withdrawal requires the closed publication pause");
+      const checks = await readIndependentSemanticCheckInventoryWithSdk(
+        options,
+        config,
+        sourceCommit,
+      );
+      if (checks.records.length !== 0)
+        throw new Error("application review withdrawal refuses a source with independent Checks");
+      await checks.assertUnchanged();
+      await verifyProducer();
+      return maintenance;
+    },
     async readSdkDisposition(request: unknown) {
       const { options, maintenance, verifyProducer } = await readCoordinatorMaintenance(
         2 * 1024 ** 2,

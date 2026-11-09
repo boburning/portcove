@@ -1,3 +1,4 @@
+import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Closed fixed-DAG locator serialization. Every result is inert routing data;
  * existing consumers independently authenticate artifacts, jobs and authority. */
@@ -137,6 +138,7 @@ export function prepareFixedControllerConfiguration(input: {
   needs: unknown;
   admission_configuration: unknown;
   appointed_qualified_application?: unknown;
+  appointed_review_withdrawal?: unknown;
   native_locators?: unknown;
   payload_public_key_sha256?: unknown;
 }) {
@@ -203,10 +205,16 @@ export function prepareFixedControllerConfiguration(input: {
     !(typeof operation === "string" && operation.startsWith("catalog-"))
   )
     throw new Error("catalog cannot select application operation");
-  if (Object.hasOwn(admission, "qualified_application"))
+  if (
+    Object.hasOwn(admission, "qualified_application") ||
+    Object.hasOwn(admission, "review_withdrawal")
+  )
     throw new Error("qualified neutral selection is not accepted from coordinator configuration");
-  if (Object.hasOwn(input, "appointed_qualified_application")) {
+  const hasWithdrawal = Object.hasOwn(input, "appointed_review_withdrawal");
+  const hasQualification = Object.hasOwn(input, "appointed_qualified_application");
+  if (hasWithdrawal || hasQualification) {
     if (
+      (hasWithdrawal && hasQualification) ||
       purpose !== "application" ||
       operation !== "coordinator" ||
       admission.schema_version !== 3 ||
@@ -218,6 +226,15 @@ export function prepareFixedControllerConfiguration(input: {
       throw new Error(
         "qualified neutral selection requires the fixed Windows application coordinator",
       );
+    if (hasWithdrawal) {
+      const withdrawal = inspectReleaseReviewWithdrawal(input.appointed_review_withdrawal);
+      if (!withdrawal) throw new Error("appointed review withdrawal absent");
+      return {
+        remote_configuration: { schema_version: 1, namespace: admission.namespace },
+        tools,
+        review_withdrawal: withdrawal,
+      };
+    }
     return {
       remote_configuration: { schema_version: 1, namespace: admission.namespace },
       tools,

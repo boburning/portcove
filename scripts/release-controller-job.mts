@@ -102,6 +102,9 @@ export async function configureFixedControllerJob(rawRole: unknown) {
     },
     needs,
     admission_configuration: admission,
+    ...(role === "coordinator" && selected.review_withdrawal
+      ? { appointed_review_withdrawal: selected.review_withdrawal }
+      : {}),
     ...(selected.qualified_application
       ? { appointed_qualified_application: selected.qualified_application }
       : {}),

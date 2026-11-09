@@ -1,3 +1,4 @@
+import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 import { inspectPublicBuildConfiguration } from "./release-public-build-binding-contract.mts";
 import { createHash } from "node:crypto";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
@@ -459,6 +460,7 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
               : []),
             ...(Object.hasOwn(value, "linux_risk_profile") ? ["linux_risk_profile"] : []),
             ...(Object.hasOwn(value, "qualified_application") ? ["qualified_application"] : []),
+            ...(Object.hasOwn(value, "review_withdrawal") ? ["review_withdrawal"] : []),
           ]
         : ["catalog"]),
     ]
@@ -485,6 +487,12 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
     const qualified = Object.hasOwn(value, "qualified_application")
       ? inspectQualifiedApplicationReview(value.qualified_application)
       : undefined;
+    const withdrawal = inspectReleaseReviewWithdrawal(value.review_withdrawal);
+    if (
+      Object.hasOwn(value, "review_withdrawal") &&
+      (!withdrawal || qualified || value.release_profile !== "initial-beta-windows-x86_64-v1")
+    )
+      throw new Error("review withdrawal requires a separate appointed Windows coordinator");
     if (qualified && value.release_profile !== "initial-beta-windows-x86_64-v1")
       throw new Error(
         "qualified neutral selection requires appointed Windows application authority",
@@ -513,6 +521,7 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
           }),
       hosted_native: inspectSelectedHostedNative(value.hosted_native, value.release_profile),
       ...(qualified ? { qualified_application: qualified } : {}),
+      ...(withdrawal ? { review_withdrawal: withdrawal } : {}),
       ...(value.linux_risk_profile === undefined
         ? {}
         : {
@@ -593,6 +602,10 @@ function boundInputRoles(
     const observer = selected.configuration.journal.apps.protection_observer;
     return {
       classification_transport: "fixed-job" as const,
+      ...(selected.configuration.purpose === "application" &&
+      selected.configuration.review_withdrawal
+        ? { review_withdrawal: true as const }
+        : {}),
       storage_journal:
         selected.configuration.journal.apps.storage_writer === undefined
           ? undefined
@@ -650,9 +663,11 @@ export function requireFixedControllerJobSourceConfiguration(
       ).namespace;
   const qualified =
     appointed?.purpose === "application" ? appointed.qualified_application : undefined;
+  const withdrawal = appointed?.purpose === "application" ? appointed.review_withdrawal : undefined;
   return Object.freeze({
     purpose,
     namespace,
+    ...(withdrawal ? { review_withdrawal: Object.freeze(withdrawal) } : {}),
     ...(qualified ? { qualified_application: Object.freeze(qualified) } : {}),
     actor_id: source.actor_id,
     authority_configuration_sha256: source.authority_configuration_sha256!,

@@ -1,3 +1,4 @@
+import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 import { inspectCatalogReviewDisposition } from "./release-catalog-review-disposition.mts";
 import {
   inspectCatalogReviewRequest,
@@ -26,7 +27,6 @@ import { inspectCandidateStageEvidence } from "./release-candidate-progress-cont
 import {
   inspectReleaseReviewRequest,
   inspectReleaseReviewDisposition,
-  inspectReleaseReviewWithdrawal,
 } from "./release-review-request.mts";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
@@ -565,7 +565,7 @@ export function planReleaseOpportunity(input: unknown) {
   const reviewRequest = inspectReleaseReviewRequest(input.review_request);
   const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
   const reviewWithdrawal = inspectReleaseReviewWithdrawal(input.review_withdrawal);
-  if (reviewWithdrawal && reviewRequest?.source_commit === reviewWithdrawal.request.source_commit)
+  if (reviewWithdrawal && reviewRequest?.source_commit === reviewWithdrawal.source_commit)
     throw new Error("withdrawn application source cannot be requested again");
   const metadataRenewal =
     input.metadata_renewal === undefined || input.metadata_renewal === null
@@ -776,7 +776,7 @@ export function planReleaseOpportunity(input: unknown) {
       .digest("hex"),
   };
 
-  if (reviewWithdrawal?.request.source_commit === opportunity.source_commit)
+  if (reviewWithdrawal?.source_commit === opportunity.source_commit)
     return plan("pause", "application source was withdrawn for safety", authority);
 
   if (

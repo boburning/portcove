@@ -132,7 +132,9 @@ void test("paused safety withdrawal clears only the exact request and refuses it
   const withdrawal = {
     schema_version: 1,
     kind: "application-review-safety-withdrawal",
-    request: f.request,
+    request_id: f.request.request_id,
+    source_commit: f.request.source_commit,
+    source_tree: f.request.source_tree,
     request_checkpoint: saved.checkpoint,
     approval_sha256: "1".repeat(64),
     technical_stop_sha256: "2".repeat(64),
