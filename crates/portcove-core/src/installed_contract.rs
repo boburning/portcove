@@ -17,7 +17,7 @@ use crate::{Catalog, DefinitionSelectionIdentity, PortcoveError, Result};
 // holds one entry per installed port in a large library without retaining
 // multi-megabyte legacy catalog strings.
 static DECODED_CATALOGS: Mutex<Vec<(u32, [u8; 32], Catalog)>> = Mutex::new(Vec::new());
-const DECODED_CATALOG_CAPACITY: usize = 64;
+const DECODED_CATALOG_CAPACITY: usize = 32;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

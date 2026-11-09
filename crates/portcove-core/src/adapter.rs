@@ -2093,7 +2093,7 @@ pub(crate) mod preview_digest {
         time::SystemTime,
     };
 
-    const CAPACITY: usize = 200_000;
+    const CAPACITY: usize = 50_000;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub(crate) struct Fingerprint {
@@ -2102,6 +2102,10 @@ pub(crate) mod preview_digest {
         created: Option<SystemTime>,
         #[cfg(unix)]
         identity: (u64, u64, i64, i64),
+        /// Volume serial, file index and change time: a same-size copy that
+        /// preserves LastWriteTime (and tunnels CreationTime) still differs.
+        #[cfg(windows)]
+        identity: (u32, u64, i64),
     }
 
     impl Fingerprint {
@@ -2124,7 +2128,40 @@ pub(crate) mod preview_digest {
                         metadata.ctime_nsec(),
                     )
                 },
+                #[cfg(windows)]
+                identity: windows_identity(file)?,
             })
+        }
+    }
+
+    #[cfg(windows)]
+    fn windows_identity(file: &File) -> Option<(u32, u64, i64)> {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            BY_HANDLE_FILE_INFORMATION, FILE_BASIC_INFO, FileBasicInfo, GetFileInformationByHandle,
+            GetFileInformationByHandleEx,
+        };
+        let handle = file.as_raw_handle();
+        // SAFETY: the handle belongs to `file` for the duration of both calls,
+        // and each output buffer has the exact size the API is given.
+        unsafe {
+            let mut information: BY_HANDLE_FILE_INFORMATION = std::mem::zeroed();
+            if GetFileInformationByHandle(handle as _, &mut information) == 0 {
+                return None;
+            }
+            let mut basic: FILE_BASIC_INFO = std::mem::zeroed();
+            if GetFileInformationByHandleEx(
+                handle as _,
+                FileBasicInfo,
+                std::ptr::from_mut(&mut basic).cast(),
+                std::mem::size_of::<FILE_BASIC_INFO>() as u32,
+            ) == 0
+            {
+                return None;
+            }
+            let index = (u64::from(information.nFileIndexHigh) << 32)
+                | u64::from(information.nFileIndexLow);
+            Some((information.dwVolumeSerialNumber, index, basic.ChangeTime))
         }
     }
 
@@ -2136,14 +2173,18 @@ pub(crate) mod preview_digest {
     }
 
     /// Enables digest reuse on this thread until dropped.
+    /// Not `Send`: the scope must stay on the thread whose verification it
+    /// relaxes, so it can never be moved onto other work across an `.await`.
     pub(crate) struct PreviewScope {
         previous: bool,
+        _thread_bound: std::marker::PhantomData<*const ()>,
     }
 
     impl PreviewScope {
         pub(crate) fn enter() -> Self {
             Self {
                 previous: ACTIVE.with(|active| active.replace(true)),
+                _thread_bound: std::marker::PhantomData,
             }
         }
     }

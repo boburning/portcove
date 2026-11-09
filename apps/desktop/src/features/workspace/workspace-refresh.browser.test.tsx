@@ -381,6 +381,26 @@ describe("workspace refresh recovery", () => {
     expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledWith(7);
   });
 
+  it("runs one deferred discovery after a change hidden by this window's own writes", async () => {
+    await render();
+    await act(async () => data.refreshAfterMutation());
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true).mockResolvedValue(false);
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
+
+    // No further local writes: the next quiet probe covers an external commit
+    // that the observer reported together with the local one.
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledOnce();
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledWith(7);
+
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledOnce();
+  });
+
   it("uses a quiet focus hint only for cheap detection and activity reads", async () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockClear();
