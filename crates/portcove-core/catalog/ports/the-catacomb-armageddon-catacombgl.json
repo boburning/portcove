@@ -23,7 +23,7 @@
         },
         {
           "title": "Set up the Linux x86-64 player",
-          "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --armageddon after the original folder is recognized."
+          "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --armageddon after the original folder is recognized."
         },
         {
           "title": "Keep upstream update ownership",

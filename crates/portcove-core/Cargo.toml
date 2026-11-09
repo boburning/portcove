@@ -41,6 +41,7 @@ icu_casemap.workspace = true
 icu_properties.workspace = true
 image.workspace = true
 keyring.workspace = true
+lzma-turbo.workspace = true
 octocrab.workspace = true
 reqwest.workspace = true
 rusqlite.workspace = true

@@ -1,0 +1,59 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+    "name": "TimeSplitters 2 — Destinity13 native Linux recompilation",
+    "original_game_title": "TimeSplitters 2",
+    "summary": "Prepare a native Linux player from your own USA PlayStation 2 disc image.",
+    "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+    "issue_number": 4759,
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/releases/tag/v0.9.9",
+    "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md",
+    "download_block_reason": "Portcove downloads are paused while the bundled compiler and first-start recovery are being reviewed. These steps cover an upstream copy you already trust and are permitted to use.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your original USA PlayStation 2 disc",
+          "instruction": "Use an ISO from your own TimeSplitters 2 USA disc, SLUS-20314. Setup checks SHA-1 01f074637a0328dd8e4ae62ac7564548e56ee126 for SLUS_203.14 inside the ISO. This check covers the game executable inside the disc."
+        },
+        {
+          "title": "Keep the Linux x86-64 package together",
+          "instruction": "Extract TS2-Recomp-0.9.9-linux-x86_64.tar.xz into a writable folder. Use Python 3 and keep its tools, compiler and gs libraries together. The included graphics bridge requires glibc 2.34 or newer, libstdc++ with GLIBCXX_3.4.30 and the X11, udev, D-Bus, curl and zlib host libraries."
+        },
+        {
+          "title": "Finish the upstream build",
+          "instruction": "Run TS2-Recomp.sh from its extracted folder and choose your ISO. Wait for both compilation passes and local graphics preparation. The launcher starts the resulting build/ts2/ps2EntryRunner_spiel with its data and library paths. If setup fails, check build/einrichten.log before retrying."
+        }
+      ],
+      "warnings": [
+        "Keep the disc image, extracted game files and generated game code private. Retain the complete working copy before unpacking a newer release.",
+        "Use this route with a copy you already trust and are permitted to use. Maintain the package and generated player through upstream."
+      ],
+      "references": [
+        {
+          "title": "Keep saves and settings",
+          "instruction": "Back up build/spielstand and the whole ts2-recomp folder under XDG_CONFIG_HOME, normally ~/.config/ts2-recomp. Keep your original ISO and the working folder that contains disc/inhalt, the generated build and any custom data."
+        },
+        {
+          "title": "Use the upstream Steam Deck launcher",
+          "instruction": "Follow the upstream Steam Deck guide to complete the same build in Desktop Mode, then add TS2-SteamDeck.sh as a non-Steam game. Steam Deck behavior is documented by the upstream maintainer."
+        }
+      ],
+      "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+    "origin": {
+      "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1449120748"
+      }
+    },
+    "decisions": []
+  }
+}

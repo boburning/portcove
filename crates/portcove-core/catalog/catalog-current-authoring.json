@@ -39073,7 +39073,7 @@
             },
             {
               "title": "Set up the Linux x86-64 player",
-              "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --descent after the original folder is recognized."
+              "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --descent after the original folder is recognized."
             },
             {
               "title": "Keep upstream update ownership",
@@ -41004,7 +41004,7 @@
           "references": [
             {
               "title": "Prepare DevilutionX on Linux",
-              "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. If you choose the x86-64 tar.xz, extract it yourself, keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Diablo in the upstream game mode if Hellfire data are also present."
+              "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. For the official v1.5.5 x86-64 tar.xz, use Portcove Download to extract into a new setup folder or unpack it yourself. Keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Diablo in the upstream game mode if Hellfire data are also present."
             },
             {
               "title": "Prepare DevilutionX on Mac",
@@ -41139,7 +41139,7 @@
           "references": [
             {
               "title": "Prepare DevilutionX on Linux",
-              "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. If you choose the x86-64 tar.xz, extract it yourself, keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal."
+              "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. For the official v1.5.5 x86-64 tar.xz, use Portcove Download to extract into a new setup folder or unpack it yourself. Keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal."
             },
             {
               "title": "Prepare DevilutionX on Mac",
@@ -50130,7 +50130,7 @@
             },
             {
               "title": "Start the Linux player",
-              "instruction": "Extract the upstream v0.0.17 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXWA. Run OpenXWA with glibc 2.35 or later, the GCC 12 runtime or newer, and a Vulkan driver."
+              "instruction": "Choose the official v0.0.17 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXWA. Run OpenXWA with glibc 2.35 or later, the GCC 12 runtime or newer, and a Vulkan driver."
             }
           ],
           "warnings": [
@@ -50201,7 +50201,7 @@
             },
             {
               "title": "Start the Linux player",
-              "instruction": "Extract the upstream v0.0.3 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.29, and a Vulkan driver."
+              "instruction": "Choose the official v0.0.3 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.29, and a Vulkan driver."
             }
           ],
           "warnings": [
@@ -50276,7 +50276,7 @@
             },
             {
               "title": "Start the Linux player",
-              "instruction": "Extract the upstream v0.0.5 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
+              "instruction": "Choose the official v0.0.5 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
             }
           ],
           "warnings": [
@@ -51192,7 +51192,7 @@
             },
             {
               "title": "Set up the Linux x86-64 player",
-              "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --abyss after the original folder is recognized. Use --abyss_sw13 for the separate shareware v1.13 data."
+              "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --abyss after the original folder is recognized. Use --abyss_sw13 for the separate shareware v1.13 data."
             },
             {
               "title": "Keep upstream update ownership",
@@ -51472,7 +51472,7 @@
             },
             {
               "title": "Set up the Linux x86-64 player",
-              "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --apocalypse after the original folder is recognized."
+              "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --apocalypse after the original folder is recognized."
             },
             {
               "title": "Keep upstream update ownership",
@@ -51736,7 +51736,7 @@
             },
             {
               "title": "Set up the Linux x86-64 player",
-              "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --armageddon after the original folder is recognized."
+              "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --armageddon after the original folder is recognized."
             },
             {
               "title": "Keep upstream update ownership",

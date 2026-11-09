@@ -15215,7 +15215,7 @@
           },
           {
             "title": "Set up the Linux x86-64 player",
-            "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --descent after the original folder is recognized."
+            "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --descent after the original folder is recognized."
           },
           {
             "title": "Keep upstream update ownership",
@@ -19454,6 +19454,52 @@
       "release_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions/workflows/ci.yml"
     },
     {
+      "id": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+      "name": "TimeSplitters 2 — Destinity13 native Linux recompilation",
+      "original_game_title": "TimeSplitters 2",
+      "summary": "Prepare a native Linux player from your own USA PlayStation 2 disc image.",
+      "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+      "issue_number": 4759,
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/releases/tag/v0.9.9",
+      "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md",
+      "download_block_reason": "Portcove downloads are paused while the bundled compiler and first-start recovery are being reviewed. These steps cover an upstream copy you already trust and are permitted to use.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original USA PlayStation 2 disc",
+            "instruction": "Use an ISO from your own TimeSplitters 2 USA disc, SLUS-20314. Setup checks SHA-1 01f074637a0328dd8e4ae62ac7564548e56ee126 for SLUS_203.14 inside the ISO. This check covers the game executable inside the disc."
+          },
+          {
+            "title": "Keep the Linux x86-64 package together",
+            "instruction": "Extract TS2-Recomp-0.9.9-linux-x86_64.tar.xz into a writable folder. Use Python 3 and keep its tools, compiler and gs libraries together. The included graphics bridge requires glibc 2.34 or newer, libstdc++ with GLIBCXX_3.4.30 and the X11, udev, D-Bus, curl and zlib host libraries."
+          },
+          {
+            "title": "Finish the upstream build",
+            "instruction": "Run TS2-Recomp.sh from its extracted folder and choose your ISO. Wait for both compilation passes and local graphics preparation. The launcher starts the resulting build/ts2/ps2EntryRunner_spiel with its data and library paths. If setup fails, check build/einrichten.log before retrying."
+          }
+        ],
+        "warnings": [
+          "Keep the disc image, extracted game files and generated game code private. Retain the complete working copy before unpacking a newer release.",
+          "Use this route with a copy you already trust and are permitted to use. Maintain the package and generated player through upstream."
+        ],
+        "references": [
+          {
+            "title": "Keep saves and settings",
+            "instruction": "Back up build/spielstand and the whole ts2-recomp folder under XDG_CONFIG_HOME, normally ~/.config/ts2-recomp. Keep your original ISO and the working folder that contains disc/inhalt, the generated build and any custom data."
+          },
+          {
+            "title": "Use the upstream Steam Deck launcher",
+            "instruction": "Follow the upstream Steam Deck guide to complete the same build in Desktop Mode, then add TS2-SteamDeck.sh as a non-Steam game. Steam Deck behavior is documented by the upstream maintainer."
+          }
+        ],
+        "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md"
+      }
+    },
+    {
       "id": "dethrace-labs-dethrace",
       "name": "Carmageddon / Dethrace (dethrace-labs)",
       "summary": "Explore Carmageddon / Dethrace (dethrace-labs) and follow the upstream project for requirements, downloads and setup.",
@@ -19567,7 +19613,7 @@
         "references": [
           {
             "title": "Prepare DevilutionX on Linux",
-            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. If you choose the x86-64 tar.xz, extract it yourself, keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Diablo in the upstream game mode if Hellfire data are also present."
+            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. For the official v1.5.5 x86-64 tar.xz, use Portcove Download to extract into a new setup folder or unpack it yourself. Keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Diablo in the upstream game mode if Hellfire data are also present."
           },
           {
             "title": "Prepare DevilutionX on Mac",
@@ -19647,7 +19693,7 @@
         "references": [
           {
             "title": "Prepare DevilutionX on Linux",
-            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. If you choose the x86-64 tar.xz, extract it yourself, keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal."
+            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. For the official v1.5.5 x86-64 tar.xz, use Portcove Download to extract into a new setup folder or unpack it yourself. Keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal."
           },
           {
             "title": "Prepare DevilutionX on Mac",
@@ -49156,12 +49202,13 @@
     {
       "id": "star-wars-tie-fighter-opentie",
       "name": "Star Wars: TIE Fighter / OpenTIE",
-      "summary": "Explore Star Wars: TIE Fighter / OpenTIE and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare a permitted OpenTIE copy with your own TIE95 or TIE98 game data.",
       "project_url": "https://github.com/elyosh/OpenTIE",
       "issue_number": 1975,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/elyosh/OpenTIE",
+      "download_block_reason": "Portcove downloads are paused while the selected package permissions are being reviewed. The guide covers a copy you are already permitted to use.",
       "artwork": {
         "game_id": 166,
         "cover_id": 106709,
@@ -49175,7 +49222,7 @@
         "steps": [
           {
             "title": "Prepare the complete upstream Windows copy",
-            "instruction": "Use an already permitted v0.0.7 Windows OpenTIE copy with all supplied resources, shaders and runtime libraries. Select OpenTIE.exe, not the installer, development tools or a different TIE Fighter project. The GPL-3.0 engine terms do not license original commercial game data, third-party components or optional instrument ROMs. Keep the whole creating copy; no new package or original was acquired or tested by Portcove."
+            "instruction": "Use an already permitted v0.0.7 Windows OpenTIE copy with all supplied resources, shaders and runtime libraries. Select OpenTIE.exe, not the installer, development tools or a different TIE Fighter project. The GPL-3.0 engine terms do not license original commercial game data, third-party components or optional instrument ROMs. Keep the whole creating Windows copy."
           },
           {
             "title": "Finish original-data and pilot setup upstream",
@@ -49197,6 +49244,12 @@
         "warnings": [
           "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
           "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+        ],
+        "references": [
+          {
+            "title": "Prepare a permitted Linux or Mac copy",
+            "instruction": "For Linux x86-64, use the official v0.0.7 TAR.XZ, keep the complete folder and run OpenTIE with Vulkan, glibc 2.35 or newer and libstdc++ with GLIBCXX_3.4.29. For Apple silicon, copy OpenTIE.app out of the official v0.0.7 ARM64 DMG and use macOS 13 or newer with Metal. Use a copy you are already permitted to use. Follow the same TIE95 or TIE98 original-data setup, preserve the actual TotallyOpen/OpenTIE profile, and maintain each copy upstream."
+          }
         ]
       }
     },
@@ -49224,7 +49277,7 @@
           },
           {
             "title": "Start the Linux player",
-            "instruction": "Extract the upstream v0.0.17 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXWA. Run OpenXWA with glibc 2.35 or later, the GCC 12 runtime or newer, and a Vulkan driver."
+            "instruction": "Choose the official v0.0.17 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXWA. Run OpenXWA with glibc 2.35 or later, the GCC 12 runtime or newer, and a Vulkan driver."
           }
         ],
         "warnings": [
@@ -49243,9 +49296,20 @@
         "help_url": "https://github.com/elyosh/OpenXWA/blob/9ff0e22109264629288401726589f4c1a901bc73/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "availability": "packages",
+      "release_url": "https://github.com/elyosh/OpenXWA/releases/tag/v0.0.17",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "-linux-x86_64-release.tar.xz"
+        ],
+        "macos-aarch64": [
+          "-macos-arm64-release.dmg"
+        ]
+      }
     },
     {
       "id": "star-wars-x-wing-openxw",
@@ -49271,7 +49335,7 @@
           },
           {
             "title": "Start the Linux player",
-            "instruction": "Extract the upstream v0.0.3 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.29, and a Vulkan driver."
+            "instruction": "Choose the official v0.0.3 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.29, and a Vulkan driver."
           }
         ],
         "warnings": [
@@ -49294,9 +49358,20 @@
         "help_url": "https://github.com/elyosh/OpenXW/blob/6ab86085a8285eb8dd12637c2bb81164dc234ff4/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "availability": "packages",
+      "release_url": "https://github.com/elyosh/OpenXW/releases/tag/v0.0.3",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "-linux-x86_64-release.tar.xz"
+        ],
+        "macos-aarch64": [
+          "-macos-arm64-release.dmg"
+        ]
+      }
     },
     {
       "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
@@ -49314,7 +49389,7 @@
           },
           {
             "title": "Start the Linux player",
-            "instruction": "Extract the upstream v0.0.5 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
+            "instruction": "Choose the official v0.0.5 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
           }
         ],
         "warnings": [
@@ -49333,9 +49408,20 @@
         "help_url": "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "availability": "packages",
+      "release_url": "https://github.com/elyosh/OpenXvT/releases/tag/v0.0.5",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "-linux-x86_64-release.tar.xz"
+        ],
+        "macos-aarch64": [
+          "-macos-arm64-release.dmg"
+        ]
+      }
     },
     {
       "id": "starlancer-openreliant",
@@ -52200,7 +52286,7 @@
           },
           {
             "title": "Set up the Linux x86-64 player",
-            "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --abyss after the original folder is recognized. Use --abyss_sw13 for the separate shareware v1.13 data."
+            "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --abyss after the original folder is recognized. Use --abyss_sw13 for the separate shareware v1.13 data."
           },
           {
             "title": "Keep upstream update ownership",
@@ -52313,7 +52399,7 @@
           },
           {
             "title": "Set up the Linux x86-64 player",
-            "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --apocalypse after the original folder is recognized."
+            "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --apocalypse after the original folder is recognized."
           },
           {
             "title": "Keep upstream update ownership",
@@ -52418,7 +52504,7 @@
           },
           {
             "title": "Set up the Linux x86-64 player",
-            "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --armageddon after the original folder is recognized."
+            "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --armageddon after the original folder is recognized."
           },
           {
             "title": "Keep upstream update ownership",

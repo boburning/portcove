@@ -16,7 +16,7 @@
         },
         {
           "title": "Start the Linux player",
-          "instruction": "Extract the upstream v0.0.5 linux-x86_64-release.tar.xz yourself. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
+          "instruction": "Choose the official v0.0.5 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
         }
       ],
       "warnings": [
@@ -33,6 +33,13 @@
         }
       ],
       "help_url": "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md"
+    },
+    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/elyosh/OpenXvT/releases/tag/v0.0.5",
+    "download_asset_hints": {
+      "linux-x86-64": ["-linux-x86_64-release.tar.xz"],
+      "macos-aarch64": ["-macos-arm64-release.dmg"]
     }
   },
   "upstream_lineage": {
