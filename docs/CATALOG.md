@@ -1393,8 +1393,10 @@ clients remains with #246.
 An integration may also record `reviewed_package_layouts`, one bounded fingerprint
 per platform, so a release that matches the selector but changes shape is held
 without a maintainer edit. The fingerprint lists the lowercase top-level directory
-names and every executable, launcher and updater file name (`.exe`, `.appimage`,
-`.bat`, `.cmd`, `.ps1`, `.sh`, or an executable mode bit on non-Windows packages).
+names and the package-relative path of every program or script (`.exe`, `.appimage`,
+`.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or an executable mode bit
+on non-Windows packages), so a moved or duplicated launcher is drift. Libraries such as
+DLLs are not fingerprinted.
 One wrapper directory beside nothing else, such as a versioned folder name, is
 looked through. Core compares the extracted staging tree to the fingerprint after
 extraction and before any activation. An unchanged layout proceeds as an ordinary

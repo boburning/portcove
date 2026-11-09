@@ -177,7 +177,9 @@ async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
         refusal.message
     );
     assert!(
-        refusal.message.contains("Your current copy is unchanged"),
+        refusal
+            .message
+            .contains("Nothing on your computer was changed"),
         "{}",
         refusal.message
     );

@@ -42,9 +42,9 @@ pub(crate) fn observe(root: &Path, platform: Platform) -> Result<ReviewedPackage
         }
     }
     let mut executables = BTreeSet::new();
-    let mut pending: Vec<PathBuf> = vec![root];
+    let mut pending: Vec<(PathBuf, String)> = vec![(root, String::new())];
     let mut inspected = 0_usize;
-    while let Some(directory) = pending.pop() {
+    while let Some((directory, prefix)) = pending.pop() {
         for entry in fs::read_dir(&directory)? {
             let entry = entry?;
             inspected += 1;
@@ -54,10 +54,13 @@ pub(crate) fn observe(root: &Path, platform: Platform) -> Result<ReviewedPackage
                 ));
             }
             let file_type = entry.file_type()?;
+            let relative = format!("{prefix}{}", lowercase_name(&entry.file_name()));
             if file_type.is_dir() {
-                pending.push(entry.path());
+                pending.push((entry.path(), format!("{relative}/")));
             } else if file_type.is_file() && is_executable(&entry, platform)? {
-                executables.insert(lowercase_name(&entry.file_name()));
+                // Location matters: a launcher moved into a subfolder or a second
+                // program with the same name is a different layout.
+                executables.insert(relative);
             }
         }
     }
@@ -93,7 +96,7 @@ fn is_executable(entry: &fs::DirEntry, platform: Platform) -> Result<bool> {
         .and_then(|extension| extension.to_str());
     if matches!(
         extension,
-        Some("exe" | "appimage" | "bat" | "cmd" | "ps1" | "sh")
+        Some("exe" | "appimage" | "bat" | "cmd" | "ps1" | "sh" | "msi" | "jar" | "vbs" | "lnk")
     ) {
         return Ok(true);
     }
@@ -156,7 +159,7 @@ impl LayoutDrift {
             }
         }
         format!(
-            "This update changed how its package is laid out ({}). Portcove is holding it for review instead of installing it. Your current copy is unchanged.",
+            "Portcove did not install this version because its files changed in a way Portcove has not reviewed yet ({}). Nothing on your computer was changed. Check again after Portcove's next update.",
             changes.join("; ")
         )
     }
@@ -243,7 +246,7 @@ mod tests {
         assert!(reason.contains("new programs: launcher.exe"), "{reason}");
         assert!(reason.contains("new folders: runtime"), "{reason}");
         assert!(
-            reason.contains("Your current copy is unchanged"),
+            reason.contains("Nothing on your computer was changed"),
             "{reason}"
         );
     }
@@ -256,6 +259,47 @@ mod tests {
         let drift = compare(&reviewed(), &observed).unwrap();
         assert_eq!(drift.added_executables, ["game2.exe"]);
         assert_eq!(drift.removed_executables, ["game.exe"]);
+    }
+
+    #[test]
+    fn a_moved_or_duplicated_program_is_drift_even_with_an_unchanged_name() {
+        let reviewed = reviewed();
+        let duplicated = package(
+            Some("game-1.1"),
+            &[
+                "Game.exe",
+                "tools/Game.exe",
+                "data/level.dat",
+                "lib/helper.dll",
+            ],
+        );
+        let observed = observe(duplicated.path(), Platform::WindowsX86_64).unwrap();
+        let drift = compare(&reviewed, &observed).unwrap();
+        assert_eq!(drift.added_executables, ["tools/game.exe"]);
+        let moved = package(
+            Some("game-1.1"),
+            &["bin/Game.exe", "data/level.dat", "lib/helper.dll"],
+        );
+        let observed = observe(moved.path(), Platform::WindowsX86_64).unwrap();
+        let drift = compare(&reviewed, &observed).unwrap();
+        assert_eq!(drift.added_executables, ["bin/game.exe"]);
+        assert_eq!(drift.removed_executables, ["game.exe"]);
+    }
+
+    #[test]
+    fn installers_scripts_and_shortcuts_count_but_libraries_do_not() {
+        let mut files = REVIEWED_FILES.to_vec();
+        files.extend(["lib/other.dll", "lib/other.so"]);
+        let libraries = package(Some("game-1.1"), &files);
+        let observed = observe(libraries.path(), Platform::WindowsX86_64).unwrap();
+        assert_eq!(compare(&reviewed(), &observed), None);
+        for extra in ["Setup.msi", "tool.jar", "run.vbs", "Game.lnk"] {
+            let mut files = REVIEWED_FILES.to_vec();
+            files.push(extra);
+            let drifted = package(Some("game-1.1"), &files);
+            let observed = observe(drifted.path(), Platform::WindowsX86_64).unwrap();
+            assert!(compare(&reviewed(), &observed).is_some(), "{extra}");
+        }
     }
 
     #[test]

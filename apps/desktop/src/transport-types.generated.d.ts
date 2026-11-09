@@ -2160,10 +2160,12 @@ export interface UserPreparedRuntimeSpec {
 }
 /**
  * The parts of an extracted package whose change signals changed runtime
- * behavior: its top-level directories and every executable, launcher and
- * updater. A single wrapper directory (for example a versioned folder name) is
- * looked through. Names are compared case-insensitively. Plain data files,
- * documentation and libraries may change between ordinary releases.
+ * behavior: its top-level directories and every program or script (`.exe`,
+ * `.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or
+ * an executable mode bit on non-Windows packages). A single wrapper directory
+ * (for example a versioned folder name) is looked through. Names and paths are
+ * compared case-insensitively. Plain data files, documentation and libraries
+ * (including DLLs) are not fingerprinted and may change between releases.
  */
 export interface ReviewedPackageLayout {
   /**
@@ -2171,8 +2173,8 @@ export interface ReviewedPackageLayout {
    */
   directories: string[];
   /**
-   * Lowercase file names of every executable, launcher and updater at any
-   * depth, sorted.
+   * Lowercase package-relative paths (with `/`) of every program or script at
+   * any depth, sorted.
    */
   executables: string[];
 }

@@ -5907,7 +5907,7 @@
       },
       "ReviewedPackageLayout": {
         "additionalProperties": false,
-        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every executable, launcher and\nupdater. A single wrapper directory (for example a versioned folder name) is\nlooked through. Names are compared case-insensitively. Plain data files,\ndocumentation and libraries may change between ordinary releases.",
+        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
         "properties": {
           "directories": {
             "description": "Lowercase top-level directory names of the package root, sorted.",
@@ -5917,7 +5917,7 @@
             "type": "array"
           },
           "executables": {
-            "description": "Lowercase file names of every executable, launcher and updater at any\ndepth, sorted.",
+            "description": "Lowercase package-relative paths (with `/`) of every program or script at\nany depth, sorted.",
             "items": {
               "type": "string"
             },
@@ -27954,7 +27954,7 @@
       },
       "ReviewedPackageLayout": {
         "additionalProperties": false,
-        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every executable, launcher and\nupdater. A single wrapper directory (for example a versioned folder name) is\nlooked through. Names are compared case-insensitively. Plain data files,\ndocumentation and libraries may change between ordinary releases.",
+        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
         "properties": {
           "directories": {
             "description": "Lowercase top-level directory names of the package root, sorted.",
@@ -27964,7 +27964,7 @@
             "type": "array"
           },
           "executables": {
-            "description": "Lowercase file names of every executable, launcher and updater at any\ndepth, sorted.",
+            "description": "Lowercase package-relative paths (with `/`) of every program or script at\nany depth, sorted.",
             "items": {
               "type": "string"
             },
@@ -38293,7 +38293,7 @@
       },
       "ReviewedPackageLayout": {
         "additionalProperties": false,
-        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every executable, launcher and\nupdater. A single wrapper directory (for example a versioned folder name) is\nlooked through. Names are compared case-insensitively. Plain data files,\ndocumentation and libraries may change between ordinary releases.",
+        "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
         "properties": {
           "directories": {
             "description": "Lowercase top-level directory names of the package root, sorted.",
@@ -38303,7 +38303,7 @@
             "type": "array"
           },
           "executables": {
-            "description": "Lowercase file names of every executable, launcher and updater at any\ndepth, sorted.",
+            "description": "Lowercase package-relative paths (with `/`) of every program or script at\nany depth, sorted.",
             "items": {
               "type": "string"
             },
