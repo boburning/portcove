@@ -136,6 +136,7 @@ export function parseNextestOutcomes(
     {
       identity: string;
       outcome: "passed" | "failed";
+      nextest_attempt: number;
       duration_ms: number;
       failure: string | null;
       failure_truncated: boolean;
@@ -226,8 +227,15 @@ export function parseNextestOutcomes(
         error("Nextest case result has no active discovered binary");
         continue;
       }
-      const entry = active.binary.cases.get(event.name);
-      if (!entry) {
+      // With retries, pinned nextest names the final attempt's terminal event
+      // `name#N` (N >= 2); its start event keeps the plain discovered name.
+      const retried =
+        (event.event === "ok" || event.event === "failed") && !active.binary.cases.has(event.name)
+          ? /^(.+)#([2-9]|[1-9][0-9]+)$/u.exec(event.name)
+          : null;
+      const attempt = retried ? Number(retried[2]) : 1;
+      const entry = active.binary.cases.get(retried ? retried[1]! : event.name);
+      if (!entry || attempt > 16) {
         error("Unexpected nextest test identity");
         continue;
       }
@@ -280,6 +288,7 @@ export function parseNextestOutcomes(
       outcomes.set(entry.identity, {
         identity: entry.identity,
         outcome: event.event === "ok" ? "passed" : "failed",
+        nextest_attempt: attempt,
         duration_ms: event.exec_time * 1000,
         failure: failure?.slice(0, 16_384) ?? null,
         failure_truncated: (failure?.length ?? 0) > 16_384,
@@ -324,6 +333,11 @@ export function parseNextestOutcomes(
       "selected nextest listing; complete workspace discovery remains with the caller",
     selected: [...selection.selected].sort(),
     executed: [...outcomes.values()],
+    // Passed only after an automatic retry: reported, never silently clean.
+    flaky: [...outcomes.values()]
+      .filter((entry) => entry.outcome === "passed" && entry.nextest_attempt > 1)
+      .map((entry) => entry.identity)
+      .sort(),
     ignored: [...ignored].sort(),
     ignored_reason: "native ignored classification; declaration text unavailable",
     missing,
@@ -417,6 +431,14 @@ export function runNextestWithOutcomes(
   publish(
     `Rust test execution inventory: ${JSON.stringify({ ...context, ...observation, executed: observation.executed.map((entry) => entry.identity), native_status: result.status ?? null, process_error: result.error ? errorMessage(result.error) : null })}`,
   );
+  if (observation.flaky.length)
+    try {
+      process.stderr.write(
+        `[rust-outcomes] ${observation.flaky.length} flaky case(s) passed only on retry: ${observation.flaky.slice(0, 32).join(", ")}\n`,
+      );
+    } catch {
+      /* Flaky identities remain in the retained execution inventory. */
+    }
   if (reporting.failure !== null) {
     try {
       process.stderr.write(`[rust-outcomes] reporting incomplete: ${reporting.failure}\n`);

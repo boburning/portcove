@@ -941,9 +941,11 @@ plan, compiler, nextest version, input digests and archive digest, then check th
 complete and selected inventories after remapping the extracted binaries. A
 missing or mismatched artifact or test inventory fails visibly.
 
-The `hosted-windows` profile uses four test slots; local execution retains two.
-Tests that previously reserved every slot still reserve every slot through
-`num-test-threads`. Live transport validation runs alongside the archive producer
+The `hosted-windows` profile uses four test slots and one automatic retry;
+local execution retains two slots and zero retries. Only exact cases that
+conflict with any concurrent disk or process work reserve every slot through
+`num-test-threads`; contending lifecycle families run one case at a time in
+serial nextest test groups. Live transport validation runs alongside the archive producer
 and workers. Its CLI and headless exporters share one explicit build and run from
 Cargo's executable artifacts; native Desktop parity retains its separate feature
 build. The required `rust` result waits for the build, all workers and transport
@@ -965,7 +967,8 @@ transport build/run phases must be included when assessing total feedback time.
 Retain queue delay, cache state and summed runner time separately from elapsed
 critical-path time. The complete Rust feedback goal of less than ten minutes is
 a measurement target, not a new timeout or permission to omit coverage. Existing
-finite CI envelopes and zero automatic test retries remain in force.
+finite CI envelopes remain in force; the retry policy is owned by
+[timeout calibration](QUALITY.md#autonomous-test-timeout-calibration).
 
 The remaining full-workspace native/Intel and Windows workspace-other qualification
 jobs use `scripts/qualification-nextest.mts` with their original package scope,
@@ -1047,8 +1050,10 @@ available declaration text; start records and repeated suite chunks do not
 count as executions. A successful native exit with missing, duplicate,
 contradictory or malformed results fails the join. An original failing status
 or process error remains primary. Native JSON is bounded to32MiB and selections
-to16,384 cases. Existing profiles, worker limits, deadlines, reservations and
-zero retries remain unchanged. Generic manual nextest commands retain their
+to16,384 cases. With the hosted profile's single retry, pinned nextest names
+a retried case's final terminal event `name#N`; the join binds it to the plain
+discovered identity, records `nextest_attempt`, lists passes after retry under
+`flaky` and prints them to stderr. Generic manual nextest commands retain their
 separate native reporting; these selected-caller records do not claim that route.
 
 The always-selected Node contract quartet retains decision and environment-isolation
@@ -1335,7 +1340,13 @@ Frontend setup uses the pinned package-manager declaration and frozen lockfile;
 Core setup selects the existing Rust pin/components and cargo-nextest only.
 Daily keeps existing Aqua checksum/attestation and Cargo cache boundaries.
 
-The Linux package-ownership rehearsal gives its packaging-prerequisite APT install
+On pull requests, the Linux package-ownership rehearsal's cheap selection job
+skips the DEB/RPM build when only dependency manifests or lockfiles changed and
+their packaging closure did not: the `@tauri-apps/*` npm graph, and the Cargo.lock
+entries of the Desktop crate, Tauri, its WebView/window/dialog crates and the
+GTK/WebKit stack. Any other changed path, a new lockfile format or a parse failure
+keeps the rehearsal. A newer pull request revision cancels a superseded run.
+The rehearsal gives its packaging-prerequisite APT install
 a finite 600-second budget within a 30-minute step. The longer step covers the
 existing bounded index/mirror fallback and cleanup; an interrupted install still
 refuses a retry. Package/runtime assertions and the 45-minute build-job limit

@@ -212,6 +212,35 @@ void test("captured failed nextest outcomes retain identity, duration and origin
   assert.equal(result.executed[0]!.failure_truncated, false);
 });
 
+void test("a retried terminal outcome joins its discovered identity and reports a flaky pass", () => {
+  // Pinned 0.9.100 with retries keeps the plain start name and suffixes the
+  // final attempt's terminal event with `#N`.
+  const retried = (name: "passed" | "failing", suffix: string) =>
+    records(name).map((event) =>
+      event.type === "test" && (event.event === "ok" || event.event === "failed")
+        ? { ...event, name: `${String(event.name)}${suffix}` }
+        : event,
+    );
+  const flaky = parseNextestOutcomes(encode(retried("passed", "#2")), selected());
+  assert.equal(flaky.complete, true, flaky.errors.join("; "));
+  assert.equal(flaky.executed[0]!.identity, identity("passed"));
+  assert.equal(flaky.executed[0]!.nextest_attempt, 2);
+  assert.deepEqual(flaky.flaky, [identity("passed")]);
+  const clean = parseNextestOutcomes(fixture("passed.jsonl"), selected());
+  assert.equal(clean.executed[0]!.nextest_attempt, 1);
+  assert.deepEqual(clean.flaky, []);
+  const exhausted = parseNextestOutcomes(encode(retried("failing", "#2")), selected("failing"));
+  assert.equal(exhausted.complete, true, exhausted.errors.join("; "));
+  assert.equal(exhausted.executed[0]!.outcome, "failed");
+  assert.deepEqual(exhausted.flaky, []);
+  for (const suffix of ["#1", "#0", "#02", "#x", "#17"])
+    assert.equal(
+      parseNextestOutcomes(encode(retried("passed", suffix)), selected()).complete,
+      false,
+      suffix,
+    );
+});
+
 void test("pinned timeout-shaped failures retain a bounded native reason without inventing panic output", () => {
   const events = records("failing");
   const timeout = events.find((event) => event.type === "test" && event.event === "failed")!;

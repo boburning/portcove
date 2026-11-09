@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "./api";
 import type { DesktopArtworkThumbnail } from "./api";
-import { ArtworkCache } from "./artwork-cache";
+import {
+  ArtworkCache,
+  maximumConcurrentArtworkReads,
+  maximumInactiveArtworkEntries,
+  maximumInactiveArtworkImageLength,
+} from "./artwork-cache";
 import { artworkState } from "./test-fixtures";
 import type { ArtworkState, CatalogMediaAsset } from "./types";
 
@@ -90,12 +95,14 @@ describe("disposable artwork display cache", () => {
     const leave = cache.subscribeMedia("sample", visible, () => {});
     cache.loadMedia("sample", visible, () => true);
     await vi.waitFor(() => expect(cache.readMedia("sample", visible).loading).toBe(false));
-    for (let index = 0; index < 40; index++) {
+    for (let index = 0; index < maximumInactiveArtworkEntries + 8; index++) {
       const image = catalogImage(`image-${index}`);
       cache.loadMedia("sample", image, () => true);
-      await vi.waitFor(() => expect(cache.readMedia("sample", image).loading).toBe(false));
+      await new Promise((resolve) => setTimeout(resolve));
+      expect(cache.readMedia("sample", image).loading).toBe(false);
     }
     expect(cache.readMedia("sample", catalogImage("image-0")).media).toBeUndefined();
+    expect(cache.readMedia("sample", catalogImage("image-8")).image).toBeDefined();
     expect(cache.readMedia("sample", visible).image).toBeDefined();
     leave();
     expect(cache.readMedia("sample", visible).media).toBeUndefined();
@@ -467,20 +474,28 @@ describe("disposable artwork display cache", () => {
           : new Promise((resolve) => finish.set(port, resolve)),
       );
     const cache = new ArtworkCache(7);
+    const count = maximumInactiveArtworkEntries + 48;
+    const firstRetained = `port-${count - maximumInactiveArtworkEntries}`;
     await Promise.all(
-      Array.from({ length: 80 }, (_, index) => cache.load(`port-${index}`, "cover")),
+      Array.from({ length: count }, (_, index) => cache.load(`port-${index}`, "cover")),
     );
     expect(thumbnails).toHaveBeenCalledTimes(2);
-    expect(cache.read("port-47", "cover").state).toBeUndefined();
-    expect(cache.read("port-48", "cover").state).toBeDefined();
+    expect(
+      cache.read(`port-${count - maximumInactiveArtworkEntries - 1}`, "cover").state,
+    ).toBeUndefined();
+    expect(cache.read(firstRetained, "cover").state).toBeDefined();
     finish.get("port-0")?.(mappedThumbnail());
-    await vi.waitFor(() => expect(finish.has("port-48")).toBe(true));
-    expect(thumbnails.mock.calls.map(([port]) => port)).toEqual(["port-0", "port-1", "port-48"]);
+    await vi.waitFor(() => expect(finish.has(firstRetained)).toBe(true));
+    expect(thumbnails.mock.calls.map(([port]) => port)).toEqual([
+      "port-0",
+      "port-1",
+      firstRetained,
+    ]);
     completeRemaining = true;
     finish.get("port-1")?.(mappedThumbnail());
-    finish.get("port-48")?.(mappedThumbnail());
-    await vi.waitFor(() => expect(cache.read("port-79", "cover").loading).toBe(false));
-    expect(thumbnails).toHaveBeenCalledTimes(34);
+    finish.get(firstRetained)?.(mappedThumbnail());
+    await vi.waitFor(() => expect(cache.read(`port-${count - 1}`, "cover").loading).toBe(false));
+    expect(thumbnails).toHaveBeenCalledTimes(maximumInactiveArtworkEntries + 2);
   });
 
   it("updates a queued cover's interest when a new view revisits the cached entry", async () => {
@@ -711,15 +726,125 @@ describe("disposable artwork display cache", () => {
       .spyOn(desktopApi, "artwork")
       .mockImplementation(async (port, slot) => artworkState(port, slot));
     const cache = new ArtworkCache(1);
+    const retained = maximumInactiveArtworkEntries;
     await Promise.all(
-      Array.from({ length: 80 }, (_, index) =>
+      Array.from({ length: retained + 48 }, (_, index) =>
         cache.load(`port-${index}`, "cover", false, () => index >= 48),
       ),
     );
-    expect(read).toHaveBeenCalledTimes(32);
+    expect(read).toHaveBeenCalledTimes(retained);
     await cache.load("last", "cover");
     expect(cache.read("port-48", "cover").state).toBeUndefined();
+    expect(cache.read("port-49", "cover").state?.choice.port_id).toBe("port-49");
     expect(cache.read("last", "cover").state?.choice.port_id).toBe("last");
+  });
+
+  it("overlaps a bounded number of local reads for different ports", async () => {
+    let active = 0,
+      maximum = 0;
+    const releases: (() => void)[] = [];
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => {
+      maximum = Math.max(maximum, ++active);
+      await new Promise<void>((resolve) => releases.push(resolve));
+      active--;
+      return artworkState(port, slot);
+    });
+    const cache = new ArtworkCache(1);
+    const loads = Array.from({ length: maximumConcurrentArtworkReads * 2 }, (_, index) =>
+      cache.load(`port-${index}`, "cover"),
+    );
+    await vi.waitFor(() => expect(releases).toHaveLength(maximumConcurrentArtworkReads));
+    while (releases.length) {
+      releases.shift()!();
+      await new Promise((resolve) => setTimeout(resolve));
+    }
+    await Promise.all(loads);
+    expect(maximum).toBe(maximumConcurrentArtworkReads);
+    expect(cache.read("port-7", "cover").state?.choice.port_id).toBe("port-7");
+  });
+
+  it("keeps local thumbnail decoding serial while choice reads overlap", async () => {
+    let readsActive = 0,
+      readMaximum = 0,
+      thumbnailsActive = 0,
+      thumbnailMaximum = 0;
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => {
+      readMaximum = Math.max(readMaximum, ++readsActive);
+      await new Promise((resolve) => setTimeout(resolve));
+      readsActive--;
+      return artworkState(port, slot, 1, true);
+    });
+    vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async () => {
+      thumbnailMaximum = Math.max(thumbnailMaximum, ++thumbnailsActive);
+      await new Promise((resolve) => setTimeout(resolve));
+      thumbnailsActive--;
+      return { asset_sha256: "a".repeat(64), choice_revision: 1, png_base64: "iVBORw==" };
+    });
+    const cache = new ArtworkCache(1);
+    await Promise.all(
+      Array.from({ length: maximumConcurrentArtworkReads * 2 }, (_, index) =>
+        cache.load(`port-${index}`, "cover"),
+      ),
+    );
+    expect(readMaximum).toBeGreaterThan(1);
+    expect(thumbnailMaximum).toBe(1);
+    expect(cache.read("port-7", "cover").image).toBeDefined();
+  });
+
+  it("runs a mutation alone after earlier reads and before later ones", async () => {
+    const order: string[] = [];
+    const releases: (() => void)[] = [];
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => {
+      order.push(`read:${port}`);
+      await new Promise<void>((resolve) => releases.push(resolve));
+      order.push(`read-done:${port}`);
+      return artworkState(port, slot);
+    });
+    vi.spyOn(desktopApi, "resetArtwork").mockImplementation(async (port, slot, revision) => {
+      order.push(`change:${port}`);
+      return artworkState(port, slot, revision + 1);
+    });
+    const cache = new ArtworkCache(1);
+    const before = [cache.load("a", "cover"), cache.load("b", "cover")];
+    const change = cache.change("c", "cover", 0, null, () => true);
+    const after = cache.load("d", "cover");
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    expect(order).toEqual(["read:a", "read:b"]);
+    releases.shift()!();
+    releases.shift()!();
+    await Promise.all([...before, change]);
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    releases.shift()!();
+    await after;
+    expect(order).toEqual([
+      "read:a",
+      "read:b",
+      "read-done:a",
+      "read-done:b",
+      "change:c",
+      "read:d",
+      "read-done:d",
+    ]);
+  });
+
+  it("evicts inactive previews by retained image size as well as count", async () => {
+    const large = "A".repeat(4 * Math.ceil((1024 * 1024) / 3) - 4) + "AA==";
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) =>
+      artworkState(port, slot, 1, true),
+    );
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png_base64: large,
+    });
+    const cache = new ArtworkCache(1);
+    const imageLength = `data:image/png;base64,${large}`.length;
+    const fit = Math.floor(maximumInactiveArtworkImageLength / imageLength);
+    expect(fit).toBeLessThan(maximumInactiveArtworkEntries);
+    for (let index = 0; index <= fit; index++) await cache.load(`port-${index}`, "cover");
+    expect(cache.read("port-0", "cover").state).toBeUndefined();
+    expect(cache.read("port-1", "cover").image).toBeDefined();
+    expect(cache.read(`port-${fit}`, "cover").image).toBeDefined();
   });
 
   it("does not evict an on-screen cover as other catalog entries load", async () => {
@@ -729,7 +854,8 @@ describe("disposable artwork display cache", () => {
     const cache = new ArtworkCache(1);
     const leave = cache.subscribe("visible", "cover", () => {});
     await cache.load("visible", "cover");
-    for (let index = 0; index < 40; index++) await cache.load(`other-${index}`, "cover");
+    for (let index = 0; index < maximumInactiveArtworkEntries + 8; index++)
+      await cache.load(`other-${index}`, "cover");
     expect(cache.read("visible", "cover").state?.choice.port_id).toBe("visible");
     leave();
     expect(cache.read("visible", "cover").state).toBeUndefined();

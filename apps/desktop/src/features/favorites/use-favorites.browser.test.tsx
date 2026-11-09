@@ -43,6 +43,15 @@ it("reads durable IDs on mount/restart and acknowledges only a successful choice
   expect([...state.ids!]).toEqual(["absent-port"]);
   expect(desktopApi.favoritePorts).toHaveBeenCalledTimes(1);
 });
+it("keeps one value identity across unrelated renders for memoized cards", async () => {
+  await root.rerender(<Fixture />);
+  const settled = state;
+  await root.rerender(<Fixture />);
+  expect(state).toBe(settled);
+  await act(async () => state.toggle("new-port"));
+  expect(state).not.toBe(settled);
+  expect(state.ids?.has("new-port")).toBe(true);
+});
 it("preserves confirmed choices on failed writes and reconciles with a retry read", async () => {
   await root.rerender(<Fixture />);
   vi.mocked(desktopApi.setPortFavorite).mockRejectedValueOnce(new Error("disk full"));

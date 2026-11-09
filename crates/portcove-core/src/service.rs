@@ -2623,6 +2623,9 @@ impl PortcoveService {
                 None,
             ),
             Some(previous) => {
+                // Availability is a preview: execution re-verifies every byte
+                // under the port lock, so unchanged files may reuse digests.
+                let _preview = crate::adapter::preview_digest::PreviewScope::enter();
                 match self.rollback_target(&status.port_id, previous, status.active.as_ref(), false)
                 {
                     Ok(_) => (

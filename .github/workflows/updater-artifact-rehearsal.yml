@@ -70,6 +70,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           key: updater-artifact-rehearsal
       - name: Install Linux packaging prerequisites
         if: runner.os == 'Linux'
@@ -325,6 +326,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           key: retained-linux-reboot-helper-d295
           workspaces: work/updater-linux-reboot-helper-source -> ../../target/updater-reboot-helper
       - name: Install existing helper build prerequisites

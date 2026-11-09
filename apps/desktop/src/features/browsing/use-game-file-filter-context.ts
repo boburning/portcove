@@ -1,5 +1,5 @@
 import { useGameFileObservation } from "./use-game-file-observation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type {
   CatalogDocument,
   SourceRecord,
@@ -33,15 +33,12 @@ export function useGameFileFilterContext({
     platform: "windows-x86-64",
     channel: "stable",
   });
-  const key = JSON.stringify([
-    catalog,
-    sources,
-    statuses,
-    browsing?.workspace_binding_sha256,
-    generation,
-    libraryKey,
-    selection,
-  ]);
+  const binding = browsing?.workspace_binding_sha256;
+  // Content identity, serialized only when an input reference changes rather than per render.
+  const key = useMemo(
+    () => JSON.stringify([catalog, sources, statuses, binding, generation, libraryKey, selection]),
+    [catalog, sources, statuses, binding, generation, libraryKey, selection],
+  );
   const observation = useGameFileObservation({
     contextKey: key,
     generation,

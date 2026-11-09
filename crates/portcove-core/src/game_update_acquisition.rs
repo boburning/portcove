@@ -494,15 +494,28 @@ pub(crate) fn copy_archive(
     asset: &crate::ReleaseAsset,
     operation: &OperationCoordinator,
 ) -> Result<()> {
-    verify_archive(source, asset, operation)?;
+    use sha2::{Digest, Sha256};
+    // The source shape checks match `verify_archive`; its digest is computed
+    // over the exact bytes copied instead of in a separate full read. The
+    // installer hashes the private destination again before any use, so that
+    // remains the binding check of what was written.
+    refuse_symlink_ancestors(source)?;
+    let metadata = fs::symlink_metadata(source)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(PortcoveError::verification(
+            "acquired archive is not a regular file",
+        ));
+    }
+    crate::archive::validate_download_size(metadata.len(), asset.size)?;
     refuse_symlink_ancestors(destination)?;
     let mut input = fs::File::open(source)?;
     let mut output = OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(destination)?;
+    let mut digest = Sha256::new();
     let mut bytes = 0_u64;
-    let mut buffer = [0; 64 * 1024];
+    let mut buffer = vec![0; 1024 * 1024];
     loop {
         operation.checkpoint()?;
         let count = input.read(&mut buffer)?;
@@ -511,11 +524,19 @@ pub(crate) fn copy_archive(
         }
         bytes = bytes.saturating_add(count as u64);
         crate::archive::validate_download_progress(bytes, asset.size)?;
+        digest.update(&buffer[..count]);
         output.write_all(&buffer[..count])?;
     }
+    crate::archive::validate_download_size(bytes, asset.size)?;
+    if !hex::encode(digest.finalize()).eq_ignore_ascii_case(&asset.sha256) {
+        drop(output);
+        let _ = fs::remove_file(destination);
+        return Err(PortcoveError::verification(
+            "acquired archive failed expected SHA-256 verification",
+        ));
+    }
     output.sync_all()?;
-    drop(output);
-    verify_archive(destination, asset, operation)
+    Ok(())
 }
 
 fn validate_private_files(library: &Library, record: &AcquisitionOperation) -> Result<()> {

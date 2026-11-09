@@ -4,7 +4,8 @@ use super::*;
 use crate::{CatalogListingDocument, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
 
-const EMBEDDED_LISTINGS: &str = include_str!("../../catalog/listings.json");
+// A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
+static EMBEDDED_LISTINGS: &str = include_str!("../../catalog/listings.json");
 const MAX_LISTING_BYTES: usize = 8 * 1024 * 1024;
 
 // Keep the directory extras separate from platforms supplied by its embedded
@@ -699,16 +700,27 @@ impl Catalog {
     }
 
     pub(crate) fn with_embedded_listings(self) -> Result<Self> {
-        let mut document = CatalogListingDocument::from_json(EMBEDDED_LISTINGS)?;
+        // Strict duplicate-key parsing plus validation of the bundled directory
+        // is a fixed cost; reuse the validated document and project onto a clone.
+        static EMBEDDED_DOCUMENT: LazyLock<Option<CatalogListingDocument>> =
+            LazyLock::new(|| CatalogListingDocument::from_json(EMBEDDED_LISTINGS).ok());
+        let mut document = match EMBEDDED_DOCUMENT.as_ref() {
+            Some(document) => document.clone(),
+            None => CatalogListingDocument::from_json(EMBEDDED_LISTINGS)?,
+        };
         let embedded_managed = EMBEDDED_MANAGED_PLATFORMS
             .as_ref()
             .map_err(|error| PortcoveError::usage(format!("bundled catalog platforms: {error}")))?;
+        // Index the first listing per id once instead of scanning per port.
+        let mut positions = std::collections::HashMap::with_capacity(document.listings.len());
+        for (index, listing) in document.listings.iter().enumerate() {
+            positions.entry(listing.id.clone()).or_insert(index);
+        }
         for port in self.ports() {
             let projected = PortListing::from(port);
-            if let Some(listing) = document
-                .listings
-                .iter_mut()
-                .find(|listing| listing.id == port.id)
+            if let Some(listing) = positions
+                .get(&port.id)
+                .map(|&index| &mut document.listings[index])
             {
                 // Existing signed-catalog presentation corrections must keep
                 // reaching their current consumers. Preserve only the directory

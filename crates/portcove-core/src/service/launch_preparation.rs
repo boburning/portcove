@@ -68,8 +68,13 @@ impl PortcoveService {
         self.managed_install_root(&port.id, &active.path)?;
         crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
-        let executable =
-            Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
+        // This early pass only refuses a launch before player data moves. The
+        // pre-spawn `verify_critical` in `prepare_launch_for_install` re-hashes
+        // every byte after restoration, so unchanged files may reuse digests.
+        let executable = {
+            let _preview = crate::adapter::preview_digest::PreviewScope::enter();
+            Installer::new(self.library.clone())?.verify_critical(active, &qualification)?
+        };
         crate::runtime_path_policy::check_executable(port, Platform::current()?, &executable)?;
         checkpoint()?;
         let source = if let Some(path) = source_override {

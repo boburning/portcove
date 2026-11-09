@@ -468,7 +468,8 @@ const fn is_false(value: &bool) -> bool {
 #[derive(Clone)]
 pub struct Installer {
     library: Library,
-    client: reqwest::Client,
+    /// Built on first download; most installers only verify or read manifests.
+    client: std::sync::OnceLock<reqwest::Client>,
     network_bounds: (Duration, Duration),
     faults: Arc<dyn LifecycleFaultInjector>,
     #[cfg(test)]
@@ -543,10 +544,9 @@ pub(crate) fn default_download_client() -> Result<reqwest::Client> {
 
 impl Installer {
     pub fn new(library: Library) -> Result<Self> {
-        let client = default_download_client()?;
         Ok(Self {
             library,
-            client,
+            client: std::sync::OnceLock::new(),
             network_bounds: (DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT),
             faults: Arc::new(NoLifecycleFaults),
             #[cfg(test)]
@@ -564,7 +564,7 @@ impl Installer {
     ) -> Result<Self> {
         Ok(Self {
             library,
-            client: download_client(connect_timeout, read_idle_timeout)?,
+            client: std::sync::OnceLock::from(download_client(connect_timeout, read_idle_timeout)?),
             network_bounds: (connect_timeout, read_idle_timeout),
             faults: Arc::new(NoLifecycleFaults),
             archive_worker_test_hook: None,
@@ -1639,7 +1639,13 @@ impl Installer {
                     .build()
                     .map_err(|error| PortcoveError::network(error.to_string()))?
             }
-            None => self.client.clone(),
+            None => match self.client.get() {
+                Some(client) => client.clone(),
+                None => {
+                    let client = download_client(self.network_bounds.0, self.network_bounds.1)?;
+                    self.client.get_or_init(|| client).clone()
+                }
+            },
         };
         Self::download_with_client(&client, asset, destination, operation, emit).await
     }
@@ -1673,7 +1679,12 @@ impl Installer {
             .or(Some(asset.size))
             .filter(|value| *value > 0);
         let mut stream = response.bytes_stream();
-        let mut file = tokio::fs::File::create(destination).await?;
+        // Network chunks are small; batch them so each write is not its own
+        // blocking-pool dispatch. `flush` below drains the buffer and the file.
+        let mut file = tokio::io::BufWriter::with_capacity(
+            1024 * 1024,
+            tokio::fs::File::create(destination).await?,
+        );
         let mut completed = 0_u64;
         let transfer_result: Result<()> = async {
             let mut reported = 0_u64;
@@ -1946,15 +1957,16 @@ impl Installer {
                     .mutable_file_patterns
                     .iter()
                     .any(|pattern| pattern.matches(&relative))
-                || manifest.mutable_paths.iter().any(|mutable| {
-                    relative == *mutable || relative.starts_with(&format!("{mutable}/"))
-                })
+                || manifest
+                    .mutable_paths
+                    .iter()
+                    .any(|mutable| relative_is_within(&relative, mutable))
             {
                 continue;
             }
             if current_mutable_paths
                 .iter()
-                .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
+                .any(|mutable| relative_is_within(&relative, mutable))
                 || (graphics_exports
                     && Path::new(&relative)
                         .starts_with(crate::managed_shared_preferences::GRAPHICS_EXPORTS))
@@ -2073,7 +2085,9 @@ impl Installer {
             &manifest,
             crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse,
         )?;
-        if full_immutable_integrity(&manifest, install, qualification.strict_staged_source)? {
+        let full_integrity =
+            full_immutable_integrity(&manifest, install, qualification.strict_staged_source)?;
+        if full_integrity {
             let report = self.verify_managed(install, qualification)?;
             if !report.valid {
                 return Err(PortcoveError::verification(format!(
@@ -2089,13 +2103,15 @@ impl Installer {
         let mut failures = Vec::new();
         failures.extend(mutable_file_pattern_failures(&install.path, &manifest)?);
         if let Some(root) = &manifest.runtime_root {
+            let critical = manifest
+                .files
+                .iter()
+                .filter(|file| file.critical)
+                .map(|file| file.path.as_str())
+                .collect::<std::collections::HashSet<_>>();
             for path in walk_files(&install.path.join(root))? {
                 let relative = manifest_relative(&install.path, &path)?;
-                if !manifest
-                    .files
-                    .iter()
-                    .any(|file| file.path == relative && file.critical)
-                {
+                if !critical.contains(relative.as_str()) {
                     failures.push(format!("unexpected runtime file: {relative}"));
                 }
             }
@@ -2127,7 +2143,7 @@ impl Installer {
             }
             if current_mutable
                 .iter()
-                .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
+                .any(|mutable| relative_is_within(&relative, mutable))
             {
                 refuse_symlink_path_within(&install.path, &candidate, "current mutable path")?;
                 let file_type = entry.file_type()?;
@@ -2146,6 +2162,9 @@ impl Installer {
                 failures.push(format!("unexpected launch-sensitive file: {relative}"));
             }
         }
+        // After the full-tree pass above, critical members whose identity
+        // metadata is unchanged reuse the digest that pass just computed.
+        let same_call = full_integrity.then(crate::adapter::preview_digest::PreviewScope::enter);
         for file in &manifest.files {
             let candidate = manifest_member(&install.path, &file.path)?;
             let adjacent_to_executable = candidate.parent() == executable.parent();
@@ -2182,6 +2201,7 @@ impl Installer {
                 failures.push(format!("permissions changed: {}", file.path));
             }
         }
+        drop(same_call);
         if !failures.is_empty() {
             return Err(PortcoveError::verification(format!(
                 "critical install integrity failed for {}",
@@ -3968,6 +3988,13 @@ fn manifest_relative(root: &Path, path: &Path) -> Result<String> {
         ));
     }
     Ok(value.replace('\\', "/"))
+}
+
+/// `relative` equals `root` or lies beneath it, without allocating a prefix.
+fn relative_is_within(relative: &str, root: &str) -> bool {
+    relative
+        .strip_prefix(root)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
 }
 
 fn full_immutable_integrity(
