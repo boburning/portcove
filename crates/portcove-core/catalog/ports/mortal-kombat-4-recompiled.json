@@ -18,6 +18,70 @@
     },
     "issue_number": 82
   },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mortal-kombat-4-ps1",
+    "origin": {
+      "project_url": "https://github.com/Alexbeav/mortal-kombat-4-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1352192597"
+      }
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/Alexbeav/mortal-kombat-4-recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1352192597"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1352192597"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The former path returns HTTP 301 to numeric repository ID 1352192597, and the current organization path resolves to that same provider identity, so the repository moved rather than being recreated. Every commit after the initial scaffold is authored by the same maintainer, including September 2026 commits that adopt the alexbeavs-ps1-ports organization's shared manifest workflow and its 'Alexbeav's PS1 Recomps' banner.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1352192597",
+            "note": "The former and current paths resolve to this one repository identity; the current canonical name is alexbeavs-ps1-ports/mortal-kombat-4-recomp."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
+            "note": "Earlier reviewed health accounting recorded the former path's HTTP 301 to repository ID 1352192597; it records only the numeric redirect target and leaves continuity unverified."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp/blob/e1892e2a9034cb5753081ae0a0c2596d76cedac4/README.md",
+            "note": "Commit e1892e2a by the same maintainer adds the organization-hosted 'Alexbeav's PS1 Recomps' banner; the README release badges still name the former path."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp/commit/8bcf2eaf12e23a7a620e75edc77ddd62634310cc",
+            "note": "The same maintainer adopts the alexbeavs-ps1-ports organization's shared psx-contracts manifest workflow."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/boburning/portcove/actions/runs/42664975992",
+            "note": "Observer relocation candidates reported the 301 target ID and current name without following the redirect."
+          }
+        ],
+        "reconsider_when": "Reassess if either path resolves to a different provider identity or attributable contradictory continuity evidence appears.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/82#issuecomment-6749459167",
+          "decision_sha256": "6d5e291cb014c7cf47918600be20ae7e5cfd64fa4c1035aea96970ba3bf24189"
+        }
+      }
+    ]
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
