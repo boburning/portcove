@@ -23,7 +23,13 @@ The implemented `initial-beta-windows-x86_64-v1` reusable qualification profile
 has [explicit producer and consumer requirements](QUALITY.md#staged-audit-receipts).
 Its selection does not qualify actual candidate bytes or authorize publication.
 The `full` and historical `initial-beta-win-linux` paths retain their broader
-obligations.
+obligations. The Windows-first profile does not use the [#706 Linux disposition](releases/2026-10-14-linux-beta-risk-706.md).
+Its original ordinary Linux scope and separate
+[initial-proof amendment](https://github.com/boburning/portcove/issues/706#issuecomment-6325645712)
+retain their distinct exposure limits and the same expiry, November 14, 2026
+at 23:59 America/New_York (`2026-11-15T04:59:00Z`). Keep Linux publication
+held without an applicable disposition. Ordinary development continues under
+the separate scanner policy while #706 tracks actual remediation.
 
 ### Preflight
 
@@ -113,6 +119,26 @@ Pages deploy action handles native create, observation and cancellation, but
 exposes no hook between obtaining OIDC and issuing create. The bounded Pages
 API call retains that guard point. Native deployment identity, Actions admission
 and authenticated public bytes are separate evidence.
+
+### Operate the protected path
+
+- **Inspect.** Start at [#534](https://github.com/boburning/portcove/issues/534)
+  for the current appointment, active request and retained attempt. Match the
+  source, run and attempt to GitHub Actions. Read `publication.json` at the
+  exact `portcove-release-pause` branch tip and verify the tip stayed stable
+  during the read. Use authenticated public metadata and package readback to
+  determine what clients can actually consume.
+- **Pause and resume.** The existing owner-controlled publication pause is the
+  control for new publication. Use its guarded owner update with the current
+  preimage and verify the resulting ref and value. Keep the admitted request,
+  allocation and attempts intact. Before resuming, verify the live appointment,
+  protection, freshness, candidate or renewal basis, and authority for the
+  exact operation. Eligible work continues through the appointed controller.
+- **Recover.** Reconcile the retained request and its last settled checkpoint
+  with current Release, Pages and serving-byte readback. Use the existing
+  [checkpoint recovery](#bounded-remote-checkpoint-recovery) or the
+  operation-specific continuation referenced on #534. Preserve unknown effects
+  and their evidence until readback settles them.
 
 ### November 4, 2026 rehearsal record
 
