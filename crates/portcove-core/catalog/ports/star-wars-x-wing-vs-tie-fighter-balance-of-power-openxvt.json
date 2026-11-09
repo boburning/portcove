@@ -7,7 +7,40 @@
     "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
     "project_url": "https://github.com/elyosh/OpenXvT",
     "setup_url": "https://github.com/elyosh/OpenXvT",
-    "issue_number": 2899
+    "issue_number": 2899,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your original game data",
+          "instruction": "Select your complete X-Wing vs. TIE Fighter installation root containing BalanceOfPower. The base game by itself is insufficient."
+        },
+        {
+          "title": "Start the Linux player",
+          "instruction": "Choose the official v0.0.5 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
+        }
+      ],
+      "warnings": [
+        "Back up the entire effective profile, all original game folders, and the working player before updating. If the profile cannot be opened, check the working directory for pilots, settings and other files."
+      ],
+      "references": [
+        {
+          "title": "Open the Apple silicon Mac app",
+          "instruction": "Mount the upstream v0.0.5 macos-arm64-release.dmg and copy OpenXvT.app out of it. Use Apple silicon, macOS 13 or later and Metal. Keep the app bundle intact and maintain this copy outside Portcove."
+        },
+        {
+          "title": "Keep your settings and pilots",
+          "instruction": "The normal SDL profile is TotallyOpen/OpenXvT under the Linux data home or Mac Application Support. Keep the whole profile with the player closed."
+        }
+      ],
+      "help_url": "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md"
+    },
+    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/elyosh/OpenXvT/releases/tag/v0.0.5",
+    "download_asset_hints": {
+      "linux-x86-64": ["-linux-x86_64-release.tar.xz"],
+      "macos-aarch64": ["-macos-arm64-release.dmg"]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

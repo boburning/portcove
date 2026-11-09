@@ -345,8 +345,14 @@ void test("scheduled observation keeps the configured cadence, read-only authori
     new URL("../.github/workflows/configured-upstream-observer.yml", import.meta.url),
     "utf8",
   );
-  const cadence = `17 */${config.cadence_hours} * * *`;
-  assert.ok(workflow.includes(`cron: '${cadence}'`) || workflow.includes(`cron: "${cadence}"`));
+  // Hourly opportunities admit due sources at minute 31, away from the 09:23
+  // upstream-health run and the :17 and :43 schedules sharing the token. The
+  // opportunity interval must not exceed the configured source cadence.
+  const schedule = workflow.match(/cron: ["']([^"']+)["']/u)?.[1];
+  assert.equal(schedule, "31 * * * *");
+  const hours = schedule.split(" ")[1]!;
+  const intervalHours = hours === "*" ? 1 : Number(hours.replace(/^\*\//u, ""));
+  assert.ok(Number.isInteger(intervalHours) && intervalHours <= config.cadence_hours);
   assert.match(workflow, /permissions:\s+contents: read/);
   assert.doesNotMatch(
     workflow,

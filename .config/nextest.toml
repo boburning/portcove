@@ -34,6 +34,15 @@ filter = 'package(portcove-core) & test(/^definition_repository::tests::publishe
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
+# Installed revocation reached fresh acquisition after 45.626s in
+# 42560483784/1, then timed out at 60.069s. It also timed out in
+# 42543962269/1 and passed the selective retry at 50.891s.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 42459489642/1 fast rust-quality reached launch at 83.538s before
 # the 90.026s limit. The unchanged fixture passed on attempt 2.
 [[profile.default.overrides]]
@@ -124,6 +133,15 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)'
 slow-timeout = { period = "5s", terminate-after = 84, grace-period = "0s" }
+success-output = "immediate"
+
+# This exact populated Sonic fixture hit 300.825s in 42554188709/1
+# and 300.903s in 42560483784/1. The selective retry of the former
+# passed at 149.159s. Preserve its finite limit and original assertions.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_sonic_populated_install$/)'
+slow-timeout = { period = "5s", terminate-after = 72, grace-period = "0s" }
 success-output = "immediate"
 
 # Windows 5 on 42512432572/1 reached 30.036s in this prepared revocation
@@ -952,6 +970,7 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::manag
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
+
 # CI41914595618/a1 Windows7 retained a90.327s harness cutoff in SDLPal's
 # complete lifecycle. This case additionally exercises consented restore and
 # safety backup over six declared data probes. Give only this exact Windows
@@ -971,6 +990,19 @@ success-output = "immediate"
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & (test(/^service::native_portable::tests::native_engine_adoption_2565$/) | test(/^install::tests::regaiden_retained_graphics_exports_survive_backup_and_rollback$/))'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
+# Generated complete lifecycle cases (managed_native_declared_*,
+# native_engine_adoption_*) now exceed the 90s family room on hosted Windows:
+# main CI 42532358570/1 shard 3 timed out Elasota and adoption 2568 at about
+# 90.3s, and PR CI 42533044761/1 shard 8 timed out RustMania at 90.324s while
+# Body Harvest passed at 89.233s. Give the generated family the finite 120s
+# room already used by its Dune and Toy Story cases. Assertions, product/child
+# deadlines, cleanup, two workers and zero retries stay unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::(managed_native_declared_|native_engine_adoption_)/)'
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
@@ -1649,3 +1681,15 @@ platform = 'cfg(target_os = "macos")'
 filter = 'package(portcove-core) & (test(=psx::tests::managed_builder_generation_observes_active_cancellation) | test(=psx::tests::managed_builder_rebuild_observes_active_cancellation))'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 success-output = "immediate"
+
+# Hosted Windows runners now report about 100 slow portcove-core cases per
+# shard, and 30s defaults expire mid-run: PR CI 42535335622/1 timed out artwork
+# recovery at 30.052s (retry published at 26.104s) and curated revocation
+# recovery at 30.046s, which passed at 29.332s on main CI 42532358570/1.
+# Give remaining Windows portcove-core cases finite 60s room. Exact overrides
+# above match first and keep their own budgets; other platforms keep 30s.
+# Assertions, product deadlines, cleanup, two workers and zero retries are unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }

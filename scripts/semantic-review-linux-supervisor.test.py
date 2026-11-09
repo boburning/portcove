@@ -38,6 +38,22 @@ def request():
 
 
 class SupervisorContract(unittest.TestCase):
+    def test_only_qualified_application_instructions_get_synthesis_bound(self):
+        with tempfile.TemporaryDirectory() as directory:
+            instructions = Path(directory) / "instructions.txt"
+            instructions.write_bytes(b"x" * (512 * 1024))
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.read_frozen_input(instructions, "instructions.txt")
+            self.assertEqual(
+                len(supervisor.read_frozen_input(instructions, "instructions.txt", True)),
+                512 * 1024,
+            )
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.read_frozen_input(instructions, "result-schema.json", True)
+            instructions.write_bytes(b"x" * (supervisor.MIB + 1))
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.read_frozen_input(instructions, "instructions.txt", True)
+
     def test_only_exact_retained_evidence_can_exceed_the_ordinary_input_bound(self):
         retained = Path(__file__).resolve().parent.parent / (
             "docs/qualification/non-switch-ecosystem-reconciliation-2026-10-25.json"

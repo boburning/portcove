@@ -775,8 +775,34 @@ pub struct PortDefinition {
     pub setup_output_paths: Vec<String>,
     #[serde(default)]
     pub upstream_status: UpstreamStatus,
+    /// Catalog-owned containment for a managed route whose current upstream
+    /// release still matches its selector but changed reviewed behavior.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_acquisition_hold: Option<ManagedAcquisitionHold>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub presentation: Option<PortPresentation>,
+}
+
+/// Holds fresh managed acquisition and adoption for one route. Installed copies
+/// keep their retained definition; only the listed reviewed artifacts may still
+/// be activated or recovered.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedAcquisitionHold {
+    /// Player-facing explanation for refused Install and Update.
+    pub reason: String,
+    /// Player-facing explanation for a refused staged activation.
+    pub activation_reason: String,
+    /// Exact reviewed artifacts whose activation remains permitted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reviewed_artifacts: Vec<ReviewedHoldArtifact>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedHoldArtifact {
+    pub version: String,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

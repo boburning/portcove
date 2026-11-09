@@ -3,10 +3,11 @@
   "listing": {
     "id": "alexbeav-misadventures-of-tron-bonne-recomp",
     "name": "The Misadventures of Tron Bonne / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "original_game_title": "The Misadventures of Tron Bonne",
+    "summary": "Build a native The Misadventures of Tron Bonne player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp",
     "issue_number": 1602,
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp#readme",
     "artwork": {
@@ -20,34 +21,31 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Unpack the setup kit",
-          "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+          "title": "Use the exact original files",
+          "instruction": "Use your own Misadventures of Tron Bonne, The (Europe) disc (SLES-02795) with all 2 tracks and your own retail SCPH-5552 BIOS."
         },
         {
-          "title": "Install the build tools",
-          "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+          "title": "Set up the managed Windows or Linux player",
+          "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
         },
         {
-          "title": "Supply the matching original files",
-          "instruction": "Use your own European The Misadventures of Tron Bonne disc (SLES-02795) with all 2 tracks present. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+          "title": "Prepare a separate Mac copy",
+          "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
         },
         {
-          "title": "Build and add the player",
-          "instruction": "From the kit folder, run The_Misadventures_of_Tron_Bonne (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/The_Misadventures_of_Tron_Bonne (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+          "title": "Build and add the completed Mac player",
+          "instruction": "Run The_Misadventures_of_Tron_Bonne from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/The_Misadventures_of_Tron_Bonne as the player and build-release as its start folder."
         }
       ],
       "warnings": [
-        "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+        "Portcove checks the first data track and track count. Keep the complete disc intact.",
+        "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
       ],
       "help_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/tag/v0.1.0",
       "references": [
         {
-          "title": "Linux and Mac compatibility",
-          "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-        },
-        {
-          "title": "Updates and backups",
-          "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+          "title": "Keep the original files and your data",
+          "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
         }
       ]
     },
@@ -59,5 +57,89 @@
       "windows-x86-64": ["misadventuresoftronbonne-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["misadventuresoftronbonne-", "-windows-x64.zip"],
+        "linux-x86-64": ["misadventuresoftronbonne-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-misadventures-of-tron-bonne-recomp-europe-psx",
+    "executable_hints": {
+      "windows-x86-64": ["The_Misadventures_of_Tron_Bonne.exe"],
+      "linux-x86-64": ["The_Misadventures_of_Tron_Bonne"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-misadventures-of-tron-bonne-recomp-europe-psx",
+          "label": "Misadventures of Tron Bonne, The (Europe) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-5552-bios",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select your own Misadventures of Tron Bonne, The (Europe) complete CHD (SLES-02795, 2 tracks) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+    },
+    "bios_source_profile": "psx-scph-5552-bios"
   }
 }

@@ -2242,7 +2242,9 @@ async fn export_library_metadata(
 ) -> DesktopResult<LibraryMetadataFile> {
     let state = state.inner().clone();
     blocking_service(state, move |service| {
-        service.write_library_metadata(&path).map_err(Into::into)
+        service
+            .write_library_metadata_from_picker(&path)
+            .map_err(Into::into)
     })
     .await
 }

@@ -10,6 +10,9 @@ use flate2::read::GzDecoder;
 use crate::{PortcoveError, Result};
 
 pub(crate) mod sevenz;
+mod xz;
+#[cfg(test)]
+pub(crate) use xz::tests::fixture as xz_fixture;
 
 const MAX_COMPRESSED_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_EXPANDED_BYTES: u64 = 16 * 1024 * 1024 * 1024;
@@ -22,6 +25,7 @@ const MAX_COMPRESSION_RATIO: u64 = 200;
 const TAR_BLOCK_BYTES: u64 = 512;
 const MAX_TAR_EXTENSION_BYTES: u64 = 64 * 1024;
 const MAX_TAR_METADATA_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_TAR_XZ_TRAILER_BYTES: u64 = 20 * TAR_BLOCK_BYTES;
 const MAX_TAR_RAW_HEADERS: usize = MAX_ENTRIES * 6;
 const MAX_TAR_FORMAT_OVERHEAD_BYTES: u64 =
     (MAX_ENTRIES as u64) * 6 * TAR_BLOCK_BYTES + 2 * TAR_BLOCK_BYTES;
@@ -118,8 +122,14 @@ pub(crate) fn extract_archive_with_checkpoint(
     }
 }
 
-/// Generic downloaded setup owns the additive format capability. Managed
-/// extraction retains its existing formats until catalog reader fencing exists.
+pub(crate) fn can_extract_download_archive(asset_name: &str) -> bool {
+    let name = asset_name.to_ascii_lowercase();
+    [".zip", ".tar.gz", ".tgz", ".7z", ".tar.xz"]
+        .iter()
+        .any(|extension| name.ends_with(extension))
+}
+
+/// The extra formats belong to explicit player-owned setup.
 pub(crate) fn extract_download_archive_with_checkpoint(
     source: &Path,
     destination: &Path,
@@ -127,10 +137,21 @@ pub(crate) fn extract_download_archive_with_checkpoint(
     expected_compressed_size: u64,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    if asset_name.to_ascii_lowercase().ends_with(".7z") {
+    let name = asset_name.to_ascii_lowercase();
+    if name.ends_with(".7z") {
         checkpoint()?;
         let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
         sevenz::extract(source, destination, compressed_size, checkpoint)
+    } else if name.ends_with(".tar.xz") {
+        checkpoint()?;
+        let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
+        extract_tar(
+            || xz::open(source, compressed_size, checkpoint),
+            destination,
+            compressed_size,
+            true,
+            checkpoint,
+        )
     } else {
         extract_archive_with_checkpoint(
             source,
@@ -387,23 +408,60 @@ fn extract_tar_gz(
     compressed_size: u64,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    let decoded_limit = MAX_EXPANDED_BYTES
-        .checked_add(MAX_TAR_FORMAT_OVERHEAD_BYTES)
-        .expect("archive limits fit in u64");
-    let reader = CheckpointReader::new(
-        GzDecoder::new(File::open(source)?),
-        decoded_limit,
+    extract_tar(
+        || Ok(GzDecoder::new(File::open(source)?)),
+        destination,
+        compressed_size,
+        false,
         checkpoint,
-    );
-    preflight_raw_tar(reader, compressed_size, checkpoint)?;
+    )
+}
 
-    checkpoint()?;
-    let reader = CheckpointReader::new(
-        GzDecoder::new(File::open(source)?),
-        decoded_limit,
-        checkpoint,
-    );
-    let mut archive = tar::Archive::new(reader);
+fn extract_tar<R: Read>(
+    open: impl Fn() -> Result<R>,
+    destination: &Path,
+    compressed_size: u64,
+    verify_stream_end: bool,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    let decoded_limit = MAX_EXPANDED_BYTES + MAX_TAR_FORMAT_OVERHEAD_BYTES;
+    let open_checked = || -> Result<_> {
+        checkpoint()?;
+        Ok(CheckpointReader::new(open()?, decoded_limit, checkpoint))
+    };
+    let mut reader = open_checked()?;
+    preflight_raw_tar(&mut reader, compressed_size, checkpoint)?;
+    if verify_stream_end {
+        let mut padding = [0_u8; ARCHIVE_IO_CHUNK_BYTES];
+        let mut padding_bytes = 0_u64;
+        loop {
+            let read = reader.read(&mut padding).map_err(|error| {
+                map_tar_error("invalid TAR.XZ stream ending", error, checkpoint)
+            })?;
+            if read == 0 {
+                break;
+            }
+            if padding[..read].iter().any(|&byte| byte != 0) {
+                return Err(PortcoveError::verification(
+                    "TAR.XZ contains data after the TAR end marker",
+                ));
+            }
+            padding_bytes += read as u64;
+            if padding_bytes > MAX_TAR_XZ_TRAILER_BYTES {
+                return Err(PortcoveError::verification(
+                    "TAR.XZ zero padding exceeds its limit",
+                ));
+            }
+        }
+        if padding_bytes < TAR_BLOCK_BYTES || !padding_bytes.is_multiple_of(TAR_BLOCK_BYTES) {
+            return Err(PortcoveError::verification(
+                "TAR.XZ is missing its complete TAR end marker",
+            ));
+        }
+    }
+    drop(reader);
+
+    let mut archive = tar::Archive::new(open_checked()?);
     let mut collisions = CollisionSet::default();
     let mut plans = Vec::new();
     let mut expanded_size = 0_u64;
@@ -446,25 +504,37 @@ fn extract_tar_gz(
         });
     }
     validate_plan(destination, &plans, compressed_size)?;
+    drop(archive);
 
-    checkpoint()?;
-    let reader = CheckpointReader::new(
-        GzDecoder::new(File::open(source)?),
-        decoded_limit,
-        checkpoint,
-    );
+    write_tar_entries(open_checked()?, destination, &plans, checkpoint)
+}
+
+fn write_tar_entries(
+    reader: impl Read,
+    destination: &Path,
+    plans: &[EntryPlan],
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     let mut archive = tar::Archive::new(reader);
-    for (entry, plan) in archive
+    let mut entries = archive
         .entries()
-        .map_err(|error| map_tar_error("invalid TAR", error, checkpoint))?
-        .zip(plans.iter())
-    {
+        .map_err(|error| map_tar_error("invalid TAR", error, checkpoint))?;
+    for plan in plans {
         checkpoint()?;
-        let mut entry =
-            entry.map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
+        let mut entry = entries
+            .next()
+            .ok_or_else(|| PortcoveError::verification("TAR has fewer entries than planned"))?
+            .map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
         write_entry(destination, plan, &mut entry, checkpoint)?;
     }
-    Ok(())
+    checkpoint()?;
+    match entries.next() {
+        None => Ok(()),
+        Some(Ok(_)) => Err(PortcoveError::verification(
+            "TAR has more entries than planned",
+        )),
+        Some(Err(error)) => Err(map_tar_error("invalid TAR entry", error, checkpoint)),
+    }
 }
 
 fn preflight_raw_tar(
@@ -894,7 +964,6 @@ mod tests {
         fs::metadata(path).unwrap().permissions().mode() & 0o7777
     }
 
-    #[cfg(unix)]
     fn write_tar_gz(path: &Path, entries: &[(&str, &[u8], u32)]) {
         let encoder = flate2::write::GzEncoder::new(
             File::create(path).unwrap(),
@@ -912,6 +981,85 @@ mod tests {
                 .unwrap();
         }
         builder.into_inner().unwrap().finish().unwrap();
+    }
+
+    #[test]
+    fn tar_write_pass_rejects_missing_and_surplus_entries() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("package.tar.gz");
+        let plans = [EntryPlan {
+            relative: "first.bin".into(),
+            directory: false,
+            executable: false,
+            size: 5,
+        }];
+        let destination = temporary.path().join("output");
+        fs::create_dir(&destination).unwrap();
+
+        write_tar_gz(&source, &[]);
+        let error = write_tar_entries(
+            GzDecoder::new(File::open(&source).unwrap()),
+            &destination,
+            &plans,
+            &|| Ok(()),
+        )
+        .unwrap_err();
+        assert_eq!(error.message, "TAR has fewer entries than planned");
+        assert!(!destination.join("first.bin").exists());
+
+        write_tar_gz(
+            &source,
+            &[
+                ("first.bin", b"first", 0o644),
+                ("extra.bin", b"extra", 0o644),
+            ],
+        );
+        let error = write_tar_entries(
+            GzDecoder::new(File::open(&source).unwrap()),
+            &destination,
+            &plans,
+            &|| Ok(()),
+        )
+        .unwrap_err();
+        assert_eq!(error.message, "TAR has more entries than planned");
+        assert_eq!(fs::read(destination.join("first.bin")).unwrap(), b"first");
+        assert!(!destination.join("extra.bin").exists());
+    }
+
+    #[test]
+    fn tar_write_pass_propagates_a_trailing_enumeration_error() {
+        let temporary = tempdir().unwrap();
+        let error = write_tar_entries(&b"incomplete header"[..], temporary.path(), &[], &|| Ok(()))
+            .unwrap_err();
+        assert!(error.message.starts_with("invalid TAR entry:"));
+    }
+
+    #[test]
+    fn tar_extracts_a_complete_archive() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("package.tar.gz");
+        let destination = temporary.path().join("output");
+        fs::create_dir(&destination).unwrap();
+        write_tar_gz(
+            &source,
+            &[
+                ("first.bin", b"first", 0o644),
+                ("nested/second.bin", b"second", 0o644),
+            ],
+        );
+
+        extract_archive(
+            &source,
+            &destination,
+            "package.tar.gz",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap();
+        assert_eq!(fs::read(destination.join("first.bin")).unwrap(), b"first");
+        assert_eq!(
+            fs::read(destination.join("nested/second.bin")).unwrap(),
+            b"second"
+        );
     }
 
     #[cfg(unix)]

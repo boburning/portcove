@@ -121,7 +121,7 @@ export async function reviewFrozenCoordinatorRequest(
   await configuration.guard();
   let accepted: Awaited<ReturnType<typeof runSemanticRuntime>>;
   try {
-    accepted = await runSemanticRuntime(bundle, configuration.runtime);
+    accepted = await runSemanticRuntime(bundle, configuration.runtime, proposalCapture);
   } catch (error) {
     // This accepts only an actual settled structured negative runtime result.
     // Startup/auth/parse/teardown failures have no such private provenance and

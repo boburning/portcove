@@ -18,7 +18,7 @@ use crate::{
     library::HttpCacheEntry,
     release::{
         PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, ProviderNetworkBounds,
-        ReleaseSelectionCacheKey, bounded_response_bytes, paginated_url,
+        RELEASE_CACHE_MAX_ENTRIES, ReleaseSelectionCacheKey, bounded_response_bytes, paginated_url,
     },
 };
 
@@ -38,8 +38,6 @@ struct CachedRelease {
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
-// Mirrors the GitHub cache: the current catalog has 200 selector slots.
-const RELEASE_CACHE_MAX_ENTRIES: usize = 256;
 const PROVIDER_PAGE_SIZE: usize = 100;
 const GITLAB_MAX_RELEASE_PAGES: usize = 10;
 const GITLAB_MAX_PACKAGE_PAGES: usize = 10;

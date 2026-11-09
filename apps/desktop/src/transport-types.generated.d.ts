@@ -1780,6 +1780,11 @@ export interface PortDefinition {
     [k: string]: string;
   };
   launch_from_install_root: boolean;
+  /**
+   * Catalog-owned containment for a managed route whose current upstream
+   * release still matches its selector but changed reviewed behavior.
+   */
+  managed_acquisition_hold?: ManagedAcquisitionHold | null;
   managed_initialization?: ManagedInitialization | null;
   managed_shared_preferences?: PreparedSharedPreferencesContract | null;
   /**
@@ -1909,6 +1914,29 @@ export interface GameSettingsRelease {
   evidence_urls: string[];
   platform: Platform;
   source_commit: string;
+  version: string;
+}
+/**
+ * Holds fresh managed acquisition and adoption for one route. Installed copies
+ * keep their retained definition; only the listed reviewed artifacts may still
+ * be activated or recovered.
+ */
+export interface ManagedAcquisitionHold {
+  /**
+   * Player-facing explanation for a refused staged activation.
+   */
+  activation_reason: string;
+  /**
+   * Player-facing explanation for refused Install and Update.
+   */
+  reason: string;
+  /**
+   * Exact reviewed artifacts whose activation remains permitted.
+   */
+  reviewed_artifacts?: ReviewedHoldArtifact[];
+}
+export interface ReviewedHoldArtifact {
+  sha256: string;
   version: string;
 }
 /**
@@ -3319,6 +3347,7 @@ export interface OutputGhostshipRecoveryResult {
 export interface GithubAuthStatus {
   authenticated: boolean;
   device_login_available: boolean;
+  environment_variable?: string | null;
   login: string | null;
   rate_limit: GithubRateLimit | null;
   source: GithubAuthSource;

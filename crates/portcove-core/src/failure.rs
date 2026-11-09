@@ -126,6 +126,7 @@ pub(crate) enum KnownFailureCause {
         directory: std::path::PathBuf,
     },
     DestinationCapacity,
+    MetadataExportExists,
     ArchiveLimit,
     UnicodePath,
     RuntimePathRequirement,
@@ -267,6 +268,10 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::MetadataExportExists => (
+                "metadata_export_exists",
+                "Portcove kept the existing file. Choose a new filename to export library information.",
+            ),
             Self::DestinationCapacity => (
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",

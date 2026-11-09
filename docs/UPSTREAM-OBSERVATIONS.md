@@ -24,10 +24,14 @@ stand in for complete release headers, candidate assets, Core eligibility or byt
 Invalid optional health evidence is preserved and falls back to a fresh primary
 lookup; conflicting trusted identities remain held.
 
-The `Configured upstream observer` workflow requests observations at 00:17,
-06:17, 12:17 and 18:17 UTC. Hosted scheduling can be delayed or skipped; this is
-a requested cadence, not a delivery guarantee. The configured baseline retains
-its cadence and twelve-hour freshness bound. Catalog sources use durable fair
+The `Configured upstream observer` workflow requests observations hourly at
+minute 31 UTC, away from the daily 09:23 upstream-health run and the :17 and :43
+schedules that share the repository token. Scheduled run 42484849060 on
+2026-11-08 used 744 requests and reported 4,026 remaining, so its observed hourly
+allowance was about 5,000. This is dated evidence, not a guaranteed limit; the
+nine-minute window and existing reserve still bound each run. Hosted scheduling can be delayed or skipped; this is a requested
+cadence, not a delivery guarantee. The configured baseline keeps its twelve-hour
+freshness bound and receives a turn in every opportunity. Catalog sources use durable fair
 turns, activity observations and staleness to admit work within the same job.
 Unknown activity uses the existing cadence; measured change intervals may defer
 quieter sources only inside the freshness margin. Manual dispatch remains
@@ -213,14 +217,24 @@ without repeating completed Core calls. Provider and Core clocks are never
 manufactured by a later resume.
 
 Request admission uses received provider capacity with a five-percent reserve,
-observed request cost and remaining runtime. Eligible sources without a recorded
-turn go first, then the least recently attempted sources. Unknown quota uses
+observed request cost and remaining runtime. Sources serving at least one managed
+port go before listing-only sources while they have no recorded exception,
+because their releases can change what players install. Within each group,
+eligible sources without a recorded turn go first, then the least recently
+attempted sources. A completed managed source leaves the pending set until it is
+due again, and a managed source with a recorded exception rejoins ordinary
+rotation, so listing-only sources still receive turns. Unknown quota uses
 the existing finite request envelope; it is not assumed available. Quantum/runtime
 exhaustion has no provider retry clock. Actual depletion and provider retry
 responses defer the shared provider until its reset. A budget-limited source with
 progress can receive another turn automatically while capacity remains. A failure
-isolates its source. New non-budget exceptions fail the job once; continuing
-exceptions and normal continuation remain visible without repeated notifications.
+isolates its source. A new non-budget exception fails the job once when its source
+serves a managed port, is the configured baseline, or is a scheduled priority
+scope; continuing exceptions and normal continuation remain visible without
+repeated notifications. Other listing-only exceptions are recorded in the report
+and checkpoint without failing the job, because they cannot change what players
+install. They use a separate exception key, so a listing that later gains a
+managed port still reports its unresolved rule once.
 
 The existing ten-minute hosted job establishes a nine-minute observation deadline
 before checkout and build, reserving the final minute for checkpoint and artifact

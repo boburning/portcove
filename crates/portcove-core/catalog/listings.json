@@ -2257,6 +2257,14 @@
             "instruction": "For an already permitted 1.1.1 Android ARM64 copy on Android 11 or later, allow All files access for its chosen data folder. Use Install under Pikmin with your own matching ISO or GCM. The default folder is OpenNectar in shared storage. Pikmin 2 uses its own disc and setup."
           },
           {
+            "title": "Android ARM64 1.2 data folder",
+            "instruction": "For an already permitted 1.2 copy, use Android 10 or newer and OpenGL ES 3.0. On Android 10 grant the storage permission. On Android 11 or newer use Allow access to all files. Confirm the writable OpenNectar data folder, then choose Install under Pikmin and select your own matching ISO or GCM in the system picker."
+          },
+          {
+            "title": "Build an already permitted Mac copy",
+            "instruction": "With an already permitted 1.2 source checkout, use Xcode Command Line Tools, CMake and a Mac with OpenGL 4.1. Follow scripts/build-macos.sh. It builds both Pikmin regions and also builds a separate Pikmin 2 player. Start build/pikmin1/bin/nectar-launcher, choose Install under Pikmin and select your matching disc and a writable destination."
+          },
+          {
             "title": "Keep the creating installation and data",
             "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only."
           }
@@ -2265,7 +2273,13 @@
           "Use only a copy and bundled components you are already permitted to use. The upstream CC0 notice excludes Nintendo and other third-party material, and the package includes a separate Pikmin 2 runtime. An attributable grant for that bundled game code or a separately qualified package is needed before fresh acquisition can be offered.",
           "Keep the player-managed folder outside Portcove's managed installation. Preserve the creating installation and profile. The existing managed Windows acquisition hold remains in place."
         ],
-        "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/dc92d469517aaf899c4a6be849936e274a9c7303/README.md"
+        "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/f4633bf50099789047a3c70e62c86caf3cbaf38c/README.md",
+        "references": [
+          {
+            "title": "Keep the Mac and Android data you actually use",
+            "instruction": "On Mac keep the selected installation, its saves and the active settings folder. The launcher defaults to pikmin-native under XDG_DATA_HOME, or ~/.local/share/pikmin-native. On Android preserve the actual chosen OpenNectar folder and export the memory cards before replacing the copy. The card export covers only the cards."
+          }
+        ]
       },
       "availability": "unknown"
     },
@@ -2386,12 +2400,17 @@
         "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
         "warnings": [
           "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup.",
-          "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable."
+          "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable.",
+          "The experimental Linux package includes translated game routines and separately sourced artwork. Follow the upstream notices and use only a copy and components you are already permitted to use."
         ],
         "steps": [
           {
             "title": "Use the complete Windows package",
-            "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core. Linux experimental AppImage packages have different storage and upstream installation instructions; the Windows contract does not establish their managed support or native qualification."
+            "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core."
+          },
+          {
+            "title": "Run a permitted experimental Linux copy",
+            "instruction": "For an already permitted v1.4.9 Linux x64 copy, keep the official AppImage in a writable folder and make it executable. Use a Vulkan driver, glibc 2.35 or newer, and libstdc++ with GLIBCXX_3.4.30. Open the AppImage and choose Select Game ROM with your own Road Rash 64 USA v1.0 original, then Start Game. Follow the included Linux help if your system needs a FUSE fallback."
           },
           {
             "title": "Keep optional setup with the game",
@@ -2406,6 +2425,10 @@
           {
             "title": "Preserve optional Road Rash imports before replacement",
             "instruction": "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
+          },
+          {
+            "title": "Back up the Linux profile and adjacent files",
+            "instruction": "Close the game and importer. Keep ~/.config/RoadRash64Recompiled or the profile you selected through APP_FOLDER_PATH, plus music and race-packs beside the writable AppImage. For an already working normal AppImage launch, select the AppImage and its containing folder when adding it to Portcove."
           },
           {
             "title": "Keep your current copy while changing routes",
@@ -5128,7 +5151,7 @@
         ],
         "warnings": [
           "Portcove has not verified native setup, gameplay or save compatibility for this kit.",
-          "Portcove has not verified disc changes during gameplay."
+          "The v0.1.0 kit can assign the discs during setup. Its game configuration says switching discs during play is unimplemented."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/releases/tag/v0.1.0",
         "references": [
@@ -5166,7 +5189,8 @@
     {
       "id": "alexbeav-armored-core-project-phantasma-recomp",
       "name": "Armored Core: Project Phantasma / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Armored Core: Project Phantasma",
+      "summary": "Build a native Armored Core: Project Phantasma player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp",
       "issue_number": 1586,
       "platforms": [
@@ -5188,34 +5212,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Armored Core - Project Phantasma (USA) disc (SLUS-00670) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Armored Core: Project Phantasma disc (SLUS-00670) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Armored_Core_Project_Phantasma (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Armored_Core_Project_Phantasma (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Armored_Core_Project_Phantasma from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Armored_Core_Project_Phantasma as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -5243,7 +5264,8 @@
     {
       "id": "alexbeav-azure-dreams-recomp",
       "name": "Azure Dreams / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Azure Dreams",
+      "summary": "Build a native Azure Dreams player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp",
       "issue_number": 1587,
       "platforms": [
@@ -5265,34 +5287,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Azure Dreams (USA) disc (SLUS-00614) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Azure Dreams disc (SLUS-00614) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Azure_Dreams (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Azure_Dreams (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Azure_Dreams from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Azure_Dreams as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -5390,7 +5409,8 @@
     {
       "id": "alexbeav-bushido-blade-2-recomp",
       "name": "Bushido Blade 2 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Bushido Blade 2",
+      "summary": "Build a native Bushido Blade 2 player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp",
       "issue_number": 1588,
       "platforms": [
@@ -5412,34 +5432,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Bushido Blade 2 (USA) disc (SLUS-00663) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Bushido Blade 2 disc (SLUS-00663) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Bushido_Blade_2 (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Bushido_Blade_2 (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Bushido_Blade_2 from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Bushido_Blade_2 as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -5597,7 +5614,8 @@
     {
       "id": "alexbeav-colony-wars-red-sun-recomp",
       "name": "Colony Wars: Red Sun / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Colony Wars: Red Sun",
+      "summary": "Build a native Colony Wars: Red Sun player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp",
       "issue_number": 1589,
       "platforms": [
@@ -5619,34 +5637,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Colony Wars - Red Sun (USA) disc (SLUS-00866) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Colony Wars: Red Sun disc (SLUS-00866) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Colony_Wars_Red_Sun (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Colony_Wars_Red_Sun (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Colony_Wars_Red_Sun from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Colony_Wars_Red_Sun as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -5912,6 +5927,7 @@
           }
         ],
         "warnings": [
+          "Use the retail European disc for this kit. A prerelease disc shares its first data track and 12-track count.",
           "Portcove has not verified native setup, gameplay or save compatibility for this kit."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/releases/tag/v0.1.0",
@@ -6021,7 +6037,8 @@
     {
       "id": "alexbeav-digimon-world-2-recomp",
       "name": "Digimon World 2 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Digimon World 2",
+      "summary": "Build a native Digimon World 2 player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp",
       "issue_number": 1592,
       "platforms": [
@@ -6043,34 +6060,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Digimon World 2 (USA) disc (SLUS-01193) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Digimon World 2 disc (SLUS-01193) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Digimon_World_2 (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Digimon_World_2 (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Digimon_World_2 from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Digimon_World_2 as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -6098,7 +6112,8 @@
     {
       "id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp",
       "name": "Dragon Ball Z: Ultimate Battle 22 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Dragon Ball Z: Ultimate Battle 22",
+      "summary": "Build a native Dragon Ball Z: Ultimate Battle 22 player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp",
       "issue_number": 1593,
       "platforms": [
@@ -6120,34 +6135,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Dragon Ball Z - Ultimate Battle 22 (Europe) disc (SLES-03736) with its single data track and your own retail SCPH-5552 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own European Dragon Ball Z: Ultimate Battle 22 disc (SLES-03736) with its single data track intact. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Dragon_Ball_Z_Ultimate_Battle_22 (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Dragon_Ball_Z_Ultimate_Battle_22 (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Dragon_Ball_Z_Ultimate_Battle_22 from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Dragon_Ball_Z_Ultimate_Battle_22 as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -6215,7 +6227,7 @@
         ],
         "warnings": [
           "Portcove has not verified native setup, gameplay or save compatibility for this kit.",
-          "Portcove has not verified disc changes during gameplay."
+          "The v0.1.0 kit can assign the discs during setup. Its game configuration says switching discs during play is unimplemented."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/releases/tag/v0.1.0",
         "references": [
@@ -6489,7 +6501,8 @@
     {
       "id": "alexbeav-future-cop-lapd-recomp",
       "name": "Future Cop: L.A.P.D. / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Future Cop: L.A.P.D.",
+      "summary": "Build a native Future Cop: L.A.P.D. player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp",
       "issue_number": 1595,
       "platforms": [
@@ -6511,34 +6524,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Future Cop - L.A.P.D. (Europe) (En,Fr) disc (SLES-01449) with its single data track and your own retail SCPH-5552 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own European Future Cop: L.A.P.D. disc (SLES-01449) with its single data track intact. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Future_Cop_LAPD (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Future_Cop_LAPD (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Future_Cop_LAPD from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Future_Cop_LAPD as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -6625,7 +6635,8 @@
     {
       "id": "alexbeav-g-police-weapons-of-justice-recomp",
       "name": "G-Police: Weapons of Justice / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "G-Police: Weapons of Justice",
+      "summary": "Build a native G-Police: Weapons of Justice player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp",
       "issue_number": 1596,
       "platforms": [
@@ -6647,34 +6658,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own G-Police - Weapons of Justice (USA) disc (SLUS-00798) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA G-Police: Weapons of Justice disc (SLUS-00798) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run G_Police_Weapons_of_Justice (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/G_Police_Weapons_of_Justice (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run G_Police_Weapons_of_Justice from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/G_Police_Weapons_of_Justice as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -6742,7 +6750,7 @@
         ],
         "warnings": [
           "Portcove has not verified native setup, gameplay or save compatibility for this kit.",
-          "Portcove has not verified disc changes during gameplay."
+          "The v0.1.0 kit can assign the discs during setup. Its game configuration says switching discs during play is unimplemented."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp/releases/tag/v0.1.0",
         "references": [
@@ -6909,7 +6917,8 @@
     {
       "id": "alexbeav-incredible-crisis-recomp",
       "name": "Incredible Crisis / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Incredible Crisis",
+      "summary": "Build a native Incredible Crisis player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp",
       "issue_number": 1598,
       "platforms": [
@@ -6931,34 +6940,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Incredible Crisis (USA) disc (SLUS-01225) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Incredible Crisis disc (SLUS-01225) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Incredible_Crisis (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Incredible_Crisis (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Incredible_Crisis from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Incredible_Crisis as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -7045,7 +7051,8 @@
     {
       "id": "alexbeav-jade-cocoon-recomp",
       "name": "Jade Cocoon: Story of the Tamamayu / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Jade Cocoon: Story of the Tamamayu",
+      "summary": "Build a native Jade Cocoon: Story of the Tamamayu player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp",
       "issue_number": 1599,
       "platforms": [
@@ -7067,34 +7074,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Jade Cocoon - Story of the Tamamayu (USA) disc (SLUS-00854) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Jade Cocoon: Story of the Tamamayu disc (SLUS-00854) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Jade_Cocoon_Story_of_the_Tamamayu (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Jade_Cocoon_Story_of_the_Tamamayu (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Jade_Cocoon_Story_of_the_Tamamayu from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Jade_Cocoon_Story_of_the_Tamamayu as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -7122,7 +7126,8 @@
     {
       "id": "alexbeav-kartia-recomp",
       "name": "Kartia: The Word of Fate / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Kartia: The Word of Fate",
+      "summary": "Build a native Kartia: The Word of Fate player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp",
       "issue_number": 1600,
       "platforms": [
@@ -7144,34 +7149,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Kartia - The Word of Fate (USA) disc (SLUS-00631) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Kartia: The Word of Fate disc (SLUS-00631) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Kartia_The_Word_of_Fate (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Kartia_The_Word_of_Fate (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Kartia_The_Word_of_Fate from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Kartia_The_Word_of_Fate as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -7720,7 +7722,8 @@
     {
       "id": "alexbeav-mega-man-legends-2-recomp",
       "name": "Mega Man Legends 2 / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Mega Man Legends 2",
+      "summary": "Build a native Mega Man Legends 2 player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp",
       "issue_number": 1601,
       "platforms": [
@@ -7742,34 +7745,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Mega Man Legends 2 (Europe) disc (SLES-03556) with all 2 tracks and your own retail SCPH-5552 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own European Mega Man Legends 2 disc (SLES-03556) with all 2 tracks present. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Mega_Man_Legends_2 (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Mega_Man_Legends_2 (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Mega_Man_Legends_2 from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Mega_Man_Legends_2 as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -8049,7 +8049,8 @@
     {
       "id": "alexbeav-misadventures-of-tron-bonne-recomp",
       "name": "The Misadventures of Tron Bonne / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "The Misadventures of Tron Bonne",
+      "summary": "Build a native The Misadventures of Tron Bonne player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp",
       "issue_number": 1602,
       "platforms": [
@@ -8071,34 +8072,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Misadventures of Tron Bonne, The (Europe) disc (SLES-02795) with all 2 tracks and your own retail SCPH-5552 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own European The Misadventures of Tron Bonne disc (SLES-02795) with all 2 tracks present. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run The_Misadventures_of_Tron_Bonne (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/The_Misadventures_of_Tron_Bonne (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run The_Misadventures_of_Tron_Bonne from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/The_Misadventures_of_Tron_Bonne as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -8314,7 +8312,8 @@
     {
       "id": "alexbeav-nightmare-creatures-ii-recomp",
       "name": "Nightmare Creatures II / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Nightmare Creatures II",
+      "summary": "Build a native Nightmare Creatures II player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp",
       "issue_number": 1603,
       "platforms": [
@@ -8336,34 +8335,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Nightmare Creatures II (USA) disc (SLUS-01112) with all 2 tracks and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Nightmare Creatures II disc (SLUS-01112) with all 2 tracks present. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Nightmare_Creatures_II (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Nightmare_Creatures_II (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Nightmare_Creatures_II from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Nightmare_Creatures_II as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -8826,7 +8822,8 @@
     {
       "id": "alexbeav-rival-schools-evolution-recomp",
       "name": "Rival Schools: Evolution Disc / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Rival Schools: United by Fate",
+      "summary": "Build a native Rival Schools: Evolution Disc player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp",
       "issue_number": 1604,
       "platforms": [
@@ -8848,34 +8845,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Rival Schools - United by Fate (USA) (Disc 2) (Evolution Disc) disc (SLUS-00771) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use the USA Evolution Disc (Disc 2, SLUS-00771) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Rival_Schools_Evolution_Disc (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Rival_Schools_Evolution_Disc (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Rival_Schools_Evolution_Disc from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Rival_Schools_Evolution_Disc as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -8903,7 +8897,8 @@
     {
       "id": "alexbeav-rival-schools-recomp",
       "name": "Rival Schools: United by Fate / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Rival Schools: United by Fate",
+      "summary": "Build a native Rival Schools: United by Fate player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp",
       "issue_number": 1605,
       "platforms": [
@@ -8925,34 +8920,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Rival Schools - United by Fate (USA) (Disc 1) (Arcade Disc) disc (SLUS-00681) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use the USA Arcade Disc (Disc 1, SLUS-00681) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Rival_Schools_United_by_Fate (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Rival_Schools_United_by_Fate (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Rival_Schools_United_by_Fate from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Rival_Schools_United_by_Fate as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -8980,7 +8972,8 @@
     {
       "id": "alexbeav-rollcage-stage-ii-recomp",
       "name": "Rollcage Stage II / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Rollcage Stage II",
+      "summary": "Build a native Rollcage Stage II player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp",
       "issue_number": 1606,
       "platforms": [
@@ -9002,34 +8995,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Rollcage Stage II (USA) disc (SLUS-00867) with all 13 tracks and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Rollcage Stage II disc (SLUS-00867) with all 13 tracks present. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Rollcage_Stage_II (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Rollcage_Stage_II (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Rollcage_Stage_II from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Rollcage_Stage_II as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -9116,7 +9106,8 @@
     {
       "id": "alexbeav-spider-man-2-enter-electro-recomp",
       "name": "Spider-Man 2: Enter Electro / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Spider-Man 2: Enter Electro",
+      "summary": "Build a native Spider-Man 2: Enter Electro player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp",
       "issue_number": 1607,
       "platforms": [
@@ -9138,34 +9129,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Spider-Man 2 - Enter - Electro (USA) (Rev 1) disc (SLUS-01378) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Rev 1 Spider-Man 2: Enter Electro disc (SLUS-01378) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Spider_Man_2_Enter_Electro (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Spider_Man_2_Enter_Electro (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Spider_Man_2_Enter_Electro from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Spider_Man_2_Enter_Electro as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -9382,7 +9370,8 @@
     {
       "id": "alexbeav-suikoden-ii-recomp",
       "name": "Suikoden II / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Suikoden II",
+      "summary": "Build a native Suikoden II player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp",
       "issue_number": 1608,
       "platforms": [
@@ -9404,34 +9393,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Suikoden II (USA) disc (SLUS-00958) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Suikoden II disc (SLUS-00958) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Suikoden_II (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Suikoden_II (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Suikoden_II from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Suikoden_II as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -9588,7 +9574,8 @@
     {
       "id": "alexbeav-tail-concerto-recomp",
       "name": "Tail Concerto / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Tail Concerto",
+      "summary": "Build a native Tail Concerto player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp",
       "issue_number": 1609,
       "platforms": [
@@ -9610,34 +9597,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Tail Concerto (USA) disc (SLUS-00660) with all 2 tracks and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Tail Concerto disc (SLUS-00660) with all 2 tracks present. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Tail_Concerto (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Tail_Concerto (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Tail_Concerto from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Tail_Concerto as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -9665,7 +9649,8 @@
     {
       "id": "alexbeav-team-buddies-recomp",
       "name": "Team Buddies / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Team Buddies",
+      "summary": "Build a native Team Buddies player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp",
       "issue_number": 1610,
       "platforms": [
@@ -9687,34 +9672,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Team Buddies (Europe) (En,Es,It) disc (SCES-02986) with its single data track and your own retail SCPH-5552 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own European Team Buddies disc (SCES-02986) with its single data track intact. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Team_Buddies (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Team_Buddies (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Team_Buddies from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Team_Buddies as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -10553,26 +10535,35 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
+            "title": "Unpack the v0.1.1 setup kit",
+            "instruction": "Extract the complete ZIP for your system into a writable folder. Choose the Intel or Apple silicon ZIP that matches your Mac."
+          },
+          {
+            "title": "Install the build tools",
+            "instruction": "On Windows, install Python 3. The upstream wizard downloads the build-tool pack on first rebuild. On Linux and Mac, put CMake, Ninja, Python 3 and a native C/C++ compiler on PATH."
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Use your own Vib-Ribbon (Europe) disc (SCES-02873) and the SCPH-5502 or SCPH-5552 European BIOS image specified by the kit. Keep the CUE and every referenced track together if using a CUE/BIN copy. Follow the original-file instructions included with the kit you downloaded."
+            "instruction": "Select your own Vib-Ribbon (Europe) (En,Fr,De,Es,It).cue (SCES-02873) with all 8 referenced BIN tracks. The v0.1.1 setup wizard requires CUE and BIN files. Supply your own 524,288-byte European BIOS matching SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Build and add the completed player",
+            "instruction": "Run Vib_Ribbon_Recompiled from the kit folder, with .exe on Windows. Choose Generate & rebuild. Select the completed player under build-release in Portcove and use build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Use the exact BIOS file for this kit. Its README labels that European profile SCPH-5502/5552. The Vib-Ribbon disc remains specific to this release.",
+          "Portcove has not verified native setup, gameplay or save compatibility."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp#readme",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/tag/v0.1.1",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Linux and Mac compatibility",
+            "instruction": "The Linux setup host needs glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26 and OpenGL. The Mac setup host and its bundled generators declare macOS 11 or newer."
+          },
+          {
+            "title": "Keep your working copy and data",
+            "instruction": "Close the player before replacing the kit. Keep the working folder, original disc and BIOS, and back up the saves, settings and mods you use. Setup, replacement and backups belong to you and the upstream kit."
           }
         ]
       },
@@ -10671,7 +10662,8 @@
     {
       "id": "alexbeav-wild-arms-recomp",
       "name": "Wild Arms / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "original_game_title": "Wild Arms",
+      "summary": "Build a native Wild Arms player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp",
       "issue_number": 1611,
       "platforms": [
@@ -10693,34 +10685,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Unpack the setup kit",
-            "instruction": "Choose the official v0.1.0 ZIP for your system and extract it to a writable folder. Choose the Intel or Apple silicon archive that matches your Mac."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Wild Arms (USA) disc (SCUS-94608) with its single data track and your own retail SCPH-1001 BIOS."
           },
           {
-            "title": "Install the build tools",
-            "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player with its registered toolchain. Choose Play after the build finishes."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Use your own USA Wild Arms disc (SCUS-94608) with its single data track intact. Supply your own retail SCPH-1001 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Extract the official v0.1.0 ZIP for Intel or Apple silicon. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host and bundled generators require macOS 11 or newer."
           },
           {
-            "title": "Build and add the player",
-            "instruction": "From the kit folder, run Wild_Arms (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Wild_Arms (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Wild_Arms from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Wild_Arms as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases/tag/v0.1.0",
         "references": [
           {
-            "title": "Linux and Mac compatibility",
-            "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
@@ -10850,26 +10839,35 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux or macOS, use native CMake, Ninja, Python 3 and a C/C++ compiler. On a Mac, choose the ZIP for Apple Silicon or Intel and follow its README-SETUP.txt."
+            "title": "Unpack the v0.1.1 setup kit",
+            "instruction": "Extract the complete ZIP for your system into a writable folder. Choose the Intel or Apple silicon ZIP that matches your Mac."
+          },
+          {
+            "title": "Install the build tools",
+            "instruction": "On Windows, install Python 3. The upstream wizard downloads the build-tool pack on first rebuild. On Linux and Mac, put CMake, Ninja, Python 3 and a native C/C++ compiler on PATH."
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Use your own Wipeout XL (USA) disc (SCUS-94351) and the SCPH-5502 or SCPH-5552 European BIOS image specified by the kit. Keep the CUE and every referenced track together if using a CUE/BIN copy. Follow the original-file instructions included with the kit you downloaded."
+            "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.1 setup wizard requires CUE and BIN files. Supply your own 524,288-byte European BIOS matching SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Build and add the completed player",
+            "instruction": "Run Wipeout_XL_Recompiled from the kit folder, with .exe on Windows. Choose Generate & rebuild. Select the completed player under build-release in Portcove and use build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Use the exact BIOS file for this kit. Its README labels that European profile SCPH-5502/5552. The Wipeout XL disc remains specific to this release.",
+          "Portcove has not verified native setup, gameplay or save compatibility."
         ],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp#readme",
+        "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/tag/v0.1.1",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Linux and Mac compatibility",
+            "instruction": "The Linux setup host needs glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26 and OpenGL. The Mac setup host and its bundled generators declare macOS 11 or newer."
+          },
+          {
+            "title": "Keep your working copy and data",
+            "instruction": "Close the player before replacing the kit. Keep the working folder, original disc and BIOS, and back up the saves, settings and mods you use. Setup, replacement and backups belong to you and the upstream kit."
           }
         ]
       },
@@ -11869,8 +11867,35 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2876,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your edition of Atlantis",
+            "instruction": "In Atlantis Native, add your own Atlantis: The Lost Tales edition with matching atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original folder. Use the upstream edition table for the exact language and build."
+          },
+          {
+            "title": "Start the Linux desktop player",
+            "instruction": "Extract the matching v0.6.0 Linux tar.gz and open atlantis-native. Both the x86-64 and ARM64 builds need glibc 2.35 or later and ALSA. On Windows 11 ARM, choose the Windows ARM64 ZIP and keep its folder together. Maintain the ARM builds through upstream."
+          }
+        ],
+        "warnings": [
+          "Preserve the original data and whole effective profile, including games.txt, settings and the edition-specific checkpoint directory. The player shares this profile between copies on the same account."
+        ],
+        "references": [
+          {
+            "title": "Open the matching Mac app",
+            "instruction": "Choose the Intel or Apple silicon v0.6.0 DMG, copy Atlantis Native.app out of it and open it on macOS 11 or later. Keep ~/Library/Application Support/atlantis-native. On Linux the profile normally uses $XDG_DATA_HOME/atlantis-native or ~/.local/share/atlantis-native."
+          },
+          {
+            "title": "Set up the PortMaster edition",
+            "instruction": "On a compatible ARM64 PortMaster device, unpack the v0.6.0 PortMaster ZIP into ports and put your original first-game files in ports/atlantisnative/gamedata. Use the firmware menu to launch it. Keep the port folder, its saves directory and any ATLANTIS_SAVES override. This build needs the firmware SDL2 and glibc 2.31 or later."
+          }
+        ],
+        "help_url": "https://github.com/ripleyXLR8/atlantis-native/blob/44ad4d0f9c1ccd449c6d895ee6a7bf4f798d3df7/README.md"
+      },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },
@@ -15190,7 +15215,7 @@
           },
           {
             "title": "Set up the Linux x86-64 player",
-            "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --descent after the original folder is recognized."
+            "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --descent after the original folder is recognized."
           },
           {
             "title": "Keep upstream update ownership",
@@ -19429,6 +19454,52 @@
       "release_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions/workflows/ci.yml"
     },
     {
+      "id": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+      "name": "TimeSplitters 2 — Destinity13 native Linux recompilation",
+      "original_game_title": "TimeSplitters 2",
+      "summary": "Prepare a native Linux player from your own USA PlayStation 2 disc image.",
+      "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+      "issue_number": 4759,
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/releases/tag/v0.9.9",
+      "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md",
+      "download_block_reason": "Portcove downloads are paused while the bundled compiler and first-start recovery are being reviewed. These steps cover an upstream copy you already trust and are permitted to use.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original USA PlayStation 2 disc",
+            "instruction": "Use an ISO from your own TimeSplitters 2 USA disc, SLUS-20314. Setup checks SHA-1 01f074637a0328dd8e4ae62ac7564548e56ee126 for SLUS_203.14 inside the ISO. This check covers the game executable inside the disc."
+          },
+          {
+            "title": "Keep the Linux x86-64 package together",
+            "instruction": "Extract TS2-Recomp-0.9.9-linux-x86_64.tar.xz into a writable folder. Use Python 3 and keep its tools, compiler and gs libraries together. The included graphics bridge requires glibc 2.34 or newer, libstdc++ with GLIBCXX_3.4.30 and the X11, udev, D-Bus, curl and zlib host libraries."
+          },
+          {
+            "title": "Finish the upstream build",
+            "instruction": "Run TS2-Recomp.sh from its extracted folder and choose your ISO. Wait for both compilation passes and local graphics preparation. The launcher starts the resulting build/ts2/ps2EntryRunner_spiel with its data and library paths. If setup fails, check build/einrichten.log before retrying."
+          }
+        ],
+        "warnings": [
+          "Keep the disc image, extracted game files and generated game code private. Retain the complete working copy before unpacking a newer release.",
+          "Use this route with a copy you already trust and are permitted to use. Maintain the package and generated player through upstream."
+        ],
+        "references": [
+          {
+            "title": "Keep saves and settings",
+            "instruction": "Back up build/spielstand and the whole ts2-recomp folder under XDG_CONFIG_HOME, normally ~/.config/ts2-recomp. Keep your original ISO and the working folder that contains disc/inhalt, the generated build and any custom data."
+          },
+          {
+            "title": "Use the upstream Steam Deck launcher",
+            "instruction": "Follow the upstream Steam Deck guide to complete the same build in Desktop Mode, then add TS2-SteamDeck.sh as a non-Steam game. Steam Deck behavior is documented by the upstream maintainer."
+          }
+        ],
+        "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md"
+      }
+    },
+    {
       "id": "dethrace-labs-dethrace",
       "name": "Carmageddon / Dethrace (dethrace-labs)",
       "summary": "Explore Carmageddon / Dethrace (dethrace-labs) and follow the upstream project for requirements, downloads and setup.",
@@ -19542,7 +19613,7 @@
         "references": [
           {
             "title": "Prepare DevilutionX on Linux",
-            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. If you choose the x86-64 tar.xz, extract it yourself, keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Diablo in the upstream game mode if Hellfire data are also present."
+            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. For the official v1.5.5 x86-64 tar.xz, use Portcove Download to extract into a new setup folder or unpack it yourself. Keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Diablo in the upstream game mode if Hellfire data are also present."
           },
           {
             "title": "Prepare DevilutionX on Mac",
@@ -19622,7 +19693,7 @@
         "references": [
           {
             "title": "Prepare DevilutionX on Linux",
-            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. If you choose the x86-64 tar.xz, extract it yourself, keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal."
+            "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. For the official v1.5.5 x86-64 tar.xz, use Portcove Download to extract into a new setup folder or unpack it yourself. Keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal."
           },
           {
             "title": "Prepare DevilutionX on Mac",
@@ -22296,6 +22367,58 @@
       "release_url": "https://github.com/Edwin2929/sma3-recomp-android./releases"
     },
     {
+      "id": "egg-of-time-chrono-trigger-nds",
+      "name": "Chrono Trigger (Nintendo DS) — Egg of Time",
+      "original_game_title": "Chrono Trigger",
+      "summary": "Build a native Chrono Trigger player from your own Nintendo DS cartridge dump using Egg of Time.",
+      "project_url": "https://github.com/power-pudu/egg-of-time",
+      "issue_number": 3740,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/power-pudu/egg-of-time/releases/tag/v1.1.0",
+      "setup_url": "https://github.com/power-pudu/egg-of-time/blob/022434b1e7f309673a11c226e0cccf13b2140226/README.md",
+      "download_block_reason": "Portcove downloads are paused while the first-start build tools and recovery are being reviewed. The guide covers a copy you already trust and are permitted to use.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original Nintendo DS game",
+            "instruction": "Use an unmodified .nds dump from your own cartridge. The accepted SHA-1 values are USA (YQUE) 11f9e8204e484eab42181b210c9f214584be75bf, Europe (YQUP) a6c69d789a6f2e31b27fba950423bea3c2f30a37, and Japan (YQUJ) afc91a3f1f6c1bd02845b76416239e4dabfae19f."
+          },
+          {
+            "title": "Start the Windows x64 package",
+            "instruction": "Extract EggOfTime-v1.1.0-windows-x64.zip into a writable folder and open Egg of Time.exe. The package includes the tools for the first-start build."
+          },
+          {
+            "title": "Start the Linux x64 package",
+            "instruction": "Use glibc 2.35 or newer, Python 3, a C compiler and libcurl. For the file picker, use xdg-desktop-portal or zenity. Extract EggOfTime-v1.1.0-linux-x64.tar.gz and run ./\"Egg of Time\" from its folder, or make the separate EggOfTime-v1.1.0-x86_64.AppImage executable and open it."
+          },
+          {
+            "title": "Let Egg of Time build your game",
+            "instruction": "Choose the .nds file when asked and wait for the local build to finish. The launcher copies the original to rom/CT.nds. If the build fails, open game/build.log in the same data location."
+          }
+        ],
+        "warnings": [
+          "Use these steps with a copy you already trust and are permitted to use. Follow your operating system’s security prompts.",
+          "Keep your ROM, extracted assets, generated game code and saves private. Close Egg of Time and wait for any build to finish before replacing the package or copying its data.",
+          "The upstream macOS runtime compiles from source. Upstream lists a full Mac game build as untested."
+        ],
+        "help_url": "https://github.com/power-pudu/egg-of-time/blob/022434b1e7f309673a11c226e0cccf13b2140226/README.md",
+        "references": [
+          {
+            "title": "Find the data for your package",
+            "instruction": "For the Windows ZIP and Linux tarball, data stays beside the player. For the AppImage, keep EggOfTime under XDG_DATA_HOME or ~/.local/share/EggOfTime by default. Back up rom/CT.sav, rom/CT.state, eggoftime.ini, controls.ini and your mods before an update or a ROM region change."
+          },
+          {
+            "title": "Find the experimental Mac source instructions",
+            "instruction": "Use Building from source in the upstream guide. It lists CMake 3.25+, Ninja, a C11 compiler, Python with Capstone, SDL3, FFmpeg, system libcurl and ds-decomp 0.12.1. Follow the region-specific extraction and build instructions with your own original."
+          }
+        ]
+      }
+    },
+    {
       "id": "einhander-einhander-recompiled",
       "name": "Einhänder / Einhander-Recompiled",
       "summary": "Prepare your own USA Einhänder disc with the upstream setup kit and use the completed player.",
@@ -22658,8 +22781,31 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2756,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Start the Atomic Bomberman player",
+            "instruction": "Use atomic.exe from the v1.0 modern Windows x64 ZIP or atomic from the modern Linux x86-64 tar.gz. Choose the player package. The dedicated server is a separate program. The player can generate free assets without original files."
+          },
+          {
+            "title": "Check Linux graphics and libraries",
+            "instruction": "Use an OpenGL 3.3 driver, glibc 2.38 or later, and libstdc++ with GLIBCXX_3.4.31. SDL3 is built into this Linux package."
+          }
+        ],
+        "warnings": [
+          "Keep the whole effective SDL profile, imported assets and custom files before updating. A second copy normally shares the same user profile."
+        ],
+        "references": [
+          {
+            "title": "Use original assets if desired",
+            "instruction": "Follow upstream to import from your own copy of Atomic Bomberman. Preserve the original files and the SDL profile, normally ~/.local/share/atomic-bomberman-modern/atomic on Linux or %APPDATA%/atomic-bomberman-modern/atomic on Windows. Free assets can fall back to the player working directory when the profile is unavailable."
+          }
+        ],
+        "help_url": "https://github.com/elraro/atomic-bomberman/blob/47b4c806778c9e476e44da2d2ebf5d38184e2104/README.md"
+      },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },
@@ -25582,18 +25728,22 @@
       "release_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases",
       "download_block_reason": "Fresh package acquisition is held while the linked inherited n64decomp/007 code has no attributable grant: the upstream NOTICE excludes it from the port-layer MIT license. Reconsider after an attributable grant or an explicitly reviewed operation basis covers that exact linked code; a published archive or owned original alone does not settle it.",
       "manual_setup": {
-        "help_url": "https://github.com/jkdansereau/goldeneye-pc-port#readme",
+        "help_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
         "warnings": [
           "The upstream importer has 99 backup names and can overwrite its last slot when full."
         ],
         "steps": [
           {
-            "title": "Check the exact upstream permission condition",
-            "instruction": "New downloads of Windows v0.5.0 are paused because the upstream NOTICE excludes inherited src/, include/ and assets/ from its MIT licence, and the build uses that code. An attributable permission grant or reviewed basis for acquiring that exact package is still needed. Checking your original files or whether the executable runs does not resolve this separate permission requirement."
+            "title": "Check the permission for your exact copy",
+            "instruction": "Fresh Windows and Linux v0.5.0 acquisition remains held. The package NOTICE excludes inherited decompilation code and assets from the MIT grant. Resume acquisition when permission for the exact package is established."
           },
           {
-            "title": "Keep a permitted existing copy together",
-            "instruction": "If you already have a copy you are permitted to use, keep its complete matching runtime and your own required NTSC-U USA big-endian original. The reviewed player is ge007.x86_64.exe; select its containing folder as working directory, save launch details and choose Play deliberately. The game performs its own asset preparation. These instructions do not grant permission to acquire, register or execute a copy, and Portcove does not certify successful upstream conversion or gameplay."
+            "title": "Prepare your original in a permitted copy",
+            "instruction": "Keep the complete v0.5.0 folder. Place your own matching USA NTSC-U big-endian ROM at data/ge007.ntsc-final.z64. Run the upstream player in that folder to prepare its local assets before adding it."
+          },
+          {
+            "title": "Use the matching native player",
+            "instruction": "Choose ge007.x86_64.exe on Windows or ge007.x86_64 on Linux, and use its containing folder as the start folder. The Linux x64 kit uses glibc 2.29 or newer, system zlib and OpenGL, and its adjacent SDL2 library. Save your details in Portcove, then choose Play."
           }
         ],
         "references": [
@@ -26851,8 +27001,31 @@
       "project_url": "https://github.com/1nputs/gunstars",
       "setup_url": "https://github.com/1nputs/gunstars",
       "issue_number": 2580,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original cartridge dump",
+            "instruction": "On first Play, select your own 1 MiB USA Gunstar Heroes cartridge dump in the file browser. Keep the ROM outside the player folder."
+          },
+          {
+            "title": "Start the Windows or Linux player",
+            "instruction": "The v0.2.2 Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
+          }
+        ],
+        "warnings": [
+          "Back up settings.ini, states, screenshots, videos and any custom destinations with the game closed. On Windows and Linux these paths default to the player working directory. Keep your original ROM and the compatible old player separately."
+        ],
+        "references": [
+          {
+            "title": "Open the universal Mac app",
+            "instruction": "Unzip the v0.2.2 macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
+          }
+        ],
+        "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+      },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },
@@ -28941,8 +29114,12 @@
             "instruction": "Use your own Europe English/German revision 0 ROM, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Extract the complete ZIP into a writable folder. Run iss2000.exe on Windows or launch.sh on Linux, then select the supported original in the upstream picker. Use a Vulkan-capable GPU. The Linux package requires GLIBC 2.38 and GLIBCXX 3.4.32 or newer."
+            "title": "Start the Windows x64 package",
+            "instruction": "Extract ISS2000-Windows-0.7.1.zip into a writable folder and run iss2000.exe. Use a Vulkan-capable GPU and select your supported original when asked."
+          },
+          {
+            "title": "Start the Linux x64 package",
+            "instruction": "Extract ISS2000-Linux-0.7.1.zip into a writable folder and run ./launch.sh there. It loads the adjacent lib/ files and appends diagnostics to data/runtime.log. Use Vulkan, glibc 2.38 and libstdc++ with GLIBCXX 3.4.32 or newer. Select your supported original when asked."
           }
         ],
         "warnings": [
@@ -28951,8 +29128,8 @@
         "help_url": "https://github.com/djultra64/ISS2000",
         "references": [
           {
-            "title": "Keep your original and saves",
-            "instruction": "The upstream player keeps its imported original, settings and saves under data/ beside the executable. Keep your original separately and back up the data folder before replacing the package."
+            "title": "Keep the portable data folder",
+            "instruction": "The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
           }
         ]
       },
@@ -29297,6 +29474,32 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2583,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep a clean original installation",
+            "instruction": "Use your own unmodified Jagged Alliance 2 installation with its Data folder. In the launcher set JA2 Data Directory and Game Version. For Russian releases, use RUSSIAN for BUKA Agonia Vlasty or RUSSIAN_GOLD for Gold."
+          },
+          {
+            "title": "Choose the Linux AppImage for your processor",
+            "instruction": "The v0.22.1 x86-64 AppImage opens the upstream launcher. The aarch64 and armhf AppImages start ja2 directly. For the direct entry, configure game_dir in ~/.ja2/ja2.json and use -resversion with your localization if needed. The armhf runtime uses libfuse.so.2. Keep the x86-64 launcher open until its game exits."
+          }
+        ],
+        "warnings": [
+          "Back up the whole effective profile and any custom save folder. On Linux and Mac the default is ~/.ja2. On Windows the player prefers AppData/JA2 and reuses Documents/JA2 when it is the existing profile."
+        ],
+        "references": [
+          {
+            "title": "Open the Apple silicon Mac app",
+            "instruction": "Mount the v0.22.1 DMG and copy JA2 Stracciatella.app out of it. Both the launcher and player in this build need Apple silicon and macOS 15 or later. Start the app to configure your original data and localization."
+          },
+          {
+            "title": "Configure the Android APK",
+            "instruction": "Use the v0.22.1 APK on a compatible device that allows its storage access. In the Data tab choose your original game folder and version, then choose a separate Save Game Directory if needed. Keep the originals and your effective save location before replacing the app. This APK uses io.github.ja2stracciatella and targets Android API 26."
+          }
+        ],
+        "help_url": "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/11e9430b67d788b73f7a57d22166e8b500c23dab/README.md"
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -29535,8 +29738,8 @@
             "instruction": "Use your own USA z64 ROM, SHA-1 493ced9008dbe932d6e91179b68e8630cf23a023."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Extract the complete portable archive to a writable folder, then open JetForceGeminiRecompiled.exe on Windows or JetForceGeminiRecompiled on Linux. Select your original ROM in the launcher. Keep the executable with its bundled assets."
+            "title": "Start the complete portable package",
+            "instruction": "Extract the v1.3.2 portable archive into a writable folder. On Windows 10 or 11 with Direct3D 12, open JetForceGeminiRecompiled.exe. For the Linux x64 tarball and AppImage, use glibc 2.35 or newer, Vulkan and system FreeType and D-Bus libraries. For the tarball, open JetForceGeminiRecompiled from the extracted folder. Choose your own ROM in the launcher."
           },
           {
             "title": "Use the prepared Linux copy",
@@ -29554,7 +29757,11 @@
         "references": [
           {
             "title": "Choose the Linux package and keep its data",
-            "instruction": "The portable tarball keeps data in its own folder. The optional AppImage stores data in ~/.local/share/JetForceGeminiRecompiled. For Steam Deck, follow the upstream guide and start the AppImage through Steam for its controller handling."
+            "instruction": "The portable tarball keeps data beside its executable. The AppImage runs from a writable copy in JFG_GAME_DIR, or in JetForceGeminiRecompiled under XDG_DATA_HOME (default ~/.local/share). Keep saves, settings, mods and texture_packs in the folder you actually use. For Steam Deck, start the AppImage through Steam."
+          },
+          {
+            "title": "Replace a Linux 1.2.x copy",
+            "instruction": "Use the current upstream release page for the first update after the repository rename. Keep a backup of your portable folder or AppImage data before replacing it. The 1.3.2 release fixes an upstream Linux crash when selecting a save after restart."
           },
           {
             "title": "Registration ownership and removal",
@@ -46901,7 +47108,8 @@
           }
         ],
         "warnings": [
-          "Upstream marks the Linux and Steam Deck routes untested. Portcove has not observed native setup or gameplay."
+          "Upstream marks the Linux and Steam Deck routes untested. Portcove has not observed native setup or gameplay.",
+          "The Android app disables Android backup. Clearing its data or uninstalling can remove its imported ROM and separate Japanese and English saves. Keep your external original and update io.github.wootbeer.snprecomp with the same package identity and signer."
         ],
         "help_url": "https://github.com/wootbeer/snprecomp",
         "references": [
@@ -46910,8 +47118,8 @@
             "instruction": "Keep the installed snprecomp profile and your original files before replacing the package. On Linux, the default profile is ~/.config/snprecomp. The portable.txt mode stores data with the application. Japanese and English profiles have separate saves."
           },
           {
-            "title": "Upstream Android setup",
-            "instruction": "The upstream ARM64 APK is separate from the desktop packages. It needs Android 9 or newer and Vulkan descriptor indexing. Follow the upstream release guide, then use its system file picker. The app copies your ROM into its own storage. Keep your external original and app data, and update only with the same package identity and signer. Portcove does not install or update this APK."
+            "title": "Set up the separate Android ARM64 app",
+            "instruction": "Use SnPRecompiled-0.2.11-android.apk from the upstream release on Android 9 or newer. It needs a Vulkan driver with descriptor indexing. Open the app and choose Load ROM to select your original with the system picker. The app copies it into its own storage."
           },
           {
             "title": "Registration ownership and removal",
@@ -48937,7 +49145,29 @@
         "game_slug": "star-wars-shadows-of-the-empire",
         "match_kind": "underlying-game"
       },
-      "download_block_reason": "Current source has an MIT project grant, but the canonical selected-package texture permission/provenance condition remains unresolved. The older reviewed package contained reconstructed stock texture references; a new tag, source license or checksum alone does not establish the current package content basis. Fresh acquisition resumes after exact selected-package content and applicable permission are reviewed, or an asset-clean publication resolves that condition."
+      "download_block_reason": "The exact 0.9.7 Windows and experimental Linux packages include two texture packs. The MIT project grant excludes game-derived and third-party media. Fresh acquisition remains held pending permission for the bundled content or a reviewed asset-clean package.",
+      "manual_setup": {
+        "help_url": "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.7",
+        "steps": [
+          {
+            "title": "Keep your permitted Windows copy together",
+            "instruction": "For an already permitted 0.9.7 Windows copy, keep its program and companion files together. Put your own USA Rev 2 original beside Shadows of the Empire.exe as sote.us.v1.2.z64. Verify upstream launch in that folder, then select the executable and its containing folder in Portcove. Save the details before choosing Play."
+          },
+          {
+            "title": "Check the experimental Linux requirements",
+            "instruction": "Keep the permitted Linux x64 kit on a Linux filesystem. Put your matching USA Rev 2 ROM in that folder as sote.us.v1.2.z64, then run ./Play.sh from the folder. Keep its bundled libraries beside the launcher. The game needs glibc 2.43 or newer, libstdc++ with GLIBCXX_3.4.32, and Vulkan. The publisher’s Linux run reached early gameplay and later showed solid-blue output."
+          }
+        ],
+        "references": [
+          {
+            "title": "Preserve the working copy and player data",
+            "instruction": "Before changing kits, keep saves, settings, custom texture packs and your own optional PC movies, voices and music. The upstream Windows release defaults to Vulkan on first launch and then remembers your renderer choice."
+          }
+        ],
+        "warnings": [
+          "The release’s MIT grant applies to eligible project code. Use a copy and bundled components you are already permitted to use. Fresh package acquisition remains held."
+        ]
+      }
     },
     {
       "id": "star-wars-the-clone-wars-pc-gtteancum-star-wars-the-clone-wars-xbox",
@@ -48972,12 +49202,13 @@
     {
       "id": "star-wars-tie-fighter-opentie",
       "name": "Star Wars: TIE Fighter / OpenTIE",
-      "summary": "Explore Star Wars: TIE Fighter / OpenTIE and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare a permitted OpenTIE copy with your own TIE95 or TIE98 game data.",
       "project_url": "https://github.com/elyosh/OpenTIE",
       "issue_number": 1975,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/elyosh/OpenTIE",
+      "download_block_reason": "Portcove downloads are paused while the selected package permissions are being reviewed. The guide covers a copy you are already permitted to use.",
       "artwork": {
         "game_id": 166,
         "cover_id": 106709,
@@ -48991,7 +49222,7 @@
         "steps": [
           {
             "title": "Prepare the complete upstream Windows copy",
-            "instruction": "Use an already permitted v0.0.7 Windows OpenTIE copy with all supplied resources, shaders and runtime libraries. Select OpenTIE.exe, not the installer, development tools or a different TIE Fighter project. The GPL-3.0 engine terms do not license original commercial game data, third-party components or optional instrument ROMs. Keep the whole creating copy; no new package or original was acquired or tested by Portcove."
+            "instruction": "Use an already permitted v0.0.7 Windows OpenTIE copy with all supplied resources, shaders and runtime libraries. Select OpenTIE.exe, not the installer, development tools or a different TIE Fighter project. The GPL-3.0 engine terms do not license original commercial game data, third-party components or optional instrument ROMs. Keep the whole creating Windows copy."
           },
           {
             "title": "Finish original-data and pilot setup upstream",
@@ -49013,6 +49244,12 @@
         "warnings": [
           "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
           "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+        ],
+        "references": [
+          {
+            "title": "Prepare a permitted Linux or Mac copy",
+            "instruction": "For Linux x86-64, use the official v0.0.7 TAR.XZ, keep the complete folder and run OpenTIE with Vulkan, glibc 2.35 or newer and libstdc++ with GLIBCXX_3.4.29. For Apple silicon, copy OpenTIE.app out of the official v0.0.7 ARM64 DMG and use macOS 13 or newer with Metal. Use a copy you are already permitted to use. Follow the same TIE95 or TIE98 original-data setup, preserve the actual TotallyOpen/OpenTIE profile, and maintain each copy upstream."
+          }
         ]
       }
     },
@@ -49032,10 +49269,47 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2898,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original game data",
+            "instruction": "Select your complete installed X-Wing Alliance folder. For a raw CD copy, use the upstream instructions to merge the contents of ALLIANCE into the game root first."
+          },
+          {
+            "title": "Start the Linux player",
+            "instruction": "Choose the official v0.0.17 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXWA. Run OpenXWA with glibc 2.35 or later, the GCC 12 runtime or newer, and a Vulkan driver."
+          }
+        ],
+        "warnings": [
+          "Back up the entire effective profile, all original game folders, and the working player before updating. If the profile cannot be opened, check the working directory for pilots, settings and other files."
+        ],
+        "references": [
+          {
+            "title": "Open the Apple silicon Mac app",
+            "instruction": "Mount the upstream v0.0.17 macos-arm64-release.dmg and copy OpenXWA.app out of it. Use Apple silicon, macOS 13 or later and Metal. Keep the app bundle intact and maintain this copy outside Portcove."
+          },
+          {
+            "title": "Keep your settings and pilots",
+            "instruction": "The normal SDL profile is TotallyOpen/OpenXWA under the Linux data home or Mac Application Support. Keep the whole profile with the player closed."
+          }
+        ],
+        "help_url": "https://github.com/elyosh/OpenXWA/blob/9ff0e22109264629288401726589f4c1a901bc73/README.md"
+      },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "availability": "packages",
+      "release_url": "https://github.com/elyosh/OpenXWA/releases/tag/v0.0.17",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "-linux-x86_64-release.tar.xz"
+        ],
+        "macos-aarch64": [
+          "-macos-arm64-release.dmg"
+        ]
+      }
     },
     {
       "id": "star-wars-x-wing-openxw",
@@ -49053,10 +49327,51 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2896,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original game data",
+            "instruction": "Select your complete original 1994 and/or 1998 installations when prompted. For 1998, choose the root containing X-Wing Data, IVFiles and MUSIC. If you have both editions, the upstream recommended configuration combines them."
+          },
+          {
+            "title": "Start the Linux player",
+            "instruction": "Choose the official v0.0.3 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXW. Run OpenXW with glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.29, and a Vulkan driver."
+          }
+        ],
+        "warnings": [
+          "Back up the entire effective profile, all original game folders, and the working player before updating. If the profile cannot be opened, check the working directory for pilots, settings and other files."
+        ],
+        "references": [
+          {
+            "title": "Use the optional 1993 flight mode",
+            "instruction": "An extracted original 1993 installation with B-Wing can supply flight graphics and missions. Keep an installed 1994 or 1998 edition for its menus and cutscenes."
+          },
+          {
+            "title": "Open the Apple silicon Mac app",
+            "instruction": "Mount the upstream v0.0.3 macos-arm64-release.dmg and copy OpenXW.app out of it. Use Apple silicon, macOS 13 or later and Metal. Keep the app bundle intact and maintain this copy outside Portcove."
+          },
+          {
+            "title": "Keep your settings and pilots",
+            "instruction": "The normal SDL profile is TotallyOpen/OpenXW under the Linux data home or Mac Application Support. Keep the whole profile with the player closed."
+          }
+        ],
+        "help_url": "https://github.com/elyosh/OpenXW/blob/6ab86085a8285eb8dd12637c2bb81164dc234ff4/README.md"
+      },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "availability": "packages",
+      "release_url": "https://github.com/elyosh/OpenXW/releases/tag/v0.0.3",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "-linux-x86_64-release.tar.xz"
+        ],
+        "macos-aarch64": [
+          "-macos-arm64-release.dmg"
+        ]
+      }
     },
     {
       "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
@@ -49066,10 +49381,47 @@
       "project_url": "https://github.com/elyosh/OpenXvT",
       "setup_url": "https://github.com/elyosh/OpenXvT",
       "issue_number": 2899,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original game data",
+            "instruction": "Select your complete X-Wing vs. TIE Fighter installation root containing BalanceOfPower. The base game by itself is insufficient."
+          },
+          {
+            "title": "Start the Linux player",
+            "instruction": "Choose the official v0.0.5 linux-x86_64-release.tar.xz. Extract it into a folder you manage. Portcove Download can unpack it into a new setup folder. Keep the resources, shaders and lib folder beside OpenXvT. Use glibc 2.35 or later, libstdc++ with GLIBCXX_3.4.22, libcurl.so.4 with CURL_OPENSSL_4, and a Vulkan driver."
+          }
+        ],
+        "warnings": [
+          "Back up the entire effective profile, all original game folders, and the working player before updating. If the profile cannot be opened, check the working directory for pilots, settings and other files."
+        ],
+        "references": [
+          {
+            "title": "Open the Apple silicon Mac app",
+            "instruction": "Mount the upstream v0.0.5 macos-arm64-release.dmg and copy OpenXvT.app out of it. Use Apple silicon, macOS 13 or later and Metal. Keep the app bundle intact and maintain this copy outside Portcove."
+          },
+          {
+            "title": "Keep your settings and pilots",
+            "instruction": "The normal SDL profile is TotallyOpen/OpenXvT under the Linux data home or Mac Application Support. Keep the whole profile with the player closed."
+          }
+        ],
+        "help_url": "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md"
+      },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "availability": "packages",
+      "release_url": "https://github.com/elyosh/OpenXvT/releases/tag/v0.0.5",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "-linux-x86_64-release.tar.xz"
+        ],
+        "macos-aarch64": [
+          "-macos-arm64-release.dmg"
+        ]
+      }
     },
     {
       "id": "starlancer-openreliant",
@@ -51934,7 +52286,7 @@
           },
           {
             "title": "Set up the Linux x86-64 player",
-            "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --abyss after the original folder is recognized. Use --abyss_sw13 for the separate shareware v1.13 data."
+            "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --abyss after the original folder is recognized. Use --abyss_sw13 for the separate shareware v1.13 data."
           },
           {
             "title": "Keep upstream update ownership",
@@ -52047,7 +52399,7 @@
           },
           {
             "title": "Set up the Linux x86-64 player",
-            "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --apocalypse after the original folder is recognized."
+            "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --apocalypse after the original folder is recognized."
           },
           {
             "title": "Keep upstream update ownership",
@@ -52152,7 +52504,7 @@
           },
           {
             "title": "Set up the Linux x86-64 player",
-            "instruction": "Choose Preview and download the official Linux tar.xz. Unpack it with your system archive tool. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --armageddon after the original folder is recognized."
+            "instruction": "Choose Preview and download the official Linux tar.xz. Use Portcove Download to extract it into a new setup folder, or unpack it yourself. The current package needs SDL2, OpenGL, glibc 2.38 and libstdc++ with GLIBCXX_3.4.32. Open the CatacombGL executable, then use its folder picker to recognize your original game. Register that executable and its containing folder. Leave arguments empty for the picker, or use --armageddon after the original folder is recognized."
           },
           {
             "title": "Keep upstream update ownership",
@@ -57475,8 +57827,31 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2623,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select the original Vyruz data",
+            "instruction": "Keep your own vz-data.rsc in a writable original-game folder outside the engine. Intro.avi in the same folder is optional. The original and this player can both write vzconf.txt, session and vz.sco there. Back up that whole folder before starting."
+          },
+          {
+            "title": "Start the Linux player",
+            "instruction": "The v1.1.0 Linux x86-64 tar.gz contains Vyruz. Use a Vulkan driver and loader, glibc 2.38 or later, and libstdc++ with GLIBCXX_3.4.31. The picker uses zenity or kdialog. You can pass the original archive or folder to the upstream executable if the picker is unavailable."
+          }
+        ],
+        "warnings": [
+          "Keep your original folder and effective user profile. A runtime backup cannot restore files stored in those external folders."
+        ],
+        "references": [
+          {
+            "title": "Find the remembered setup",
+            "instruction": "On Linux the normal profile is $XDG_DATA_HOME/OpenVyruz or ~/.local/share/OpenVyruz. On Windows it is %APPDATA%/OpenVyruz. The game remembers the data path in game-folder.txt. If it cannot locate a user home it can write OpenVyruz relative to its working directory."
+          }
+        ],
+        "help_url": "https://github.com/Solessfir/OpenVyruz/blob/50531e25bc669c540ec462cb479dd3399803605b/README.md"
+      },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "unknown"
     },

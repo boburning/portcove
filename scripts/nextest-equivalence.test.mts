@@ -425,12 +425,15 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   });
   const windowsMmx2PopulatedTransitionFilter =
     "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)";
+  const windowsSonicPopulatedTransitionFilter =
+    "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_sonic_populated_install$/)";
   const windowsPreparedRevocationFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_revocation_preserves_evidence$/)";
   const windowsPublishedRevocationFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_revocation_preserves_payload$/)";
   for (const [filter, periods] of [
     [windowsMmx2PopulatedTransitionFilter, 84],
+    [windowsSonicPopulatedTransitionFilter, 72],
     [windowsPreparedRevocationFilter, 12],
     [windowsPublishedRevocationFilter, 12],
   ] as const) {
@@ -443,12 +446,16 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   }
   const windowsReviewedArchiveTransitionFilter =
     "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_/)";
-  assert.ok(
-    overrides.indexOf(overrideFor(windowsMmx2PopulatedTransitionFilter, "x86_64-pc-windows-msvc")) <
-      overrides.indexOf(
-        overrideFor(windowsReviewedArchiveTransitionFilter, "x86_64-pc-windows-msvc"),
-      ),
-  );
+  for (const filter of [
+    windowsMmx2PopulatedTransitionFilter,
+    windowsSonicPopulatedTransitionFilter,
+  ])
+    assert.ok(
+      overrides.indexOf(overrideFor(filter, "x86_64-pc-windows-msvc")) <
+        overrides.indexOf(
+          overrideFor(windowsReviewedArchiveTransitionFilter, "x86_64-pc-windows-msvc"),
+        ),
+    );
   assert.deepEqual(overrideFor(windowsReviewedArchiveTransitionFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsReviewedArchiveTransitionFilter,
@@ -457,7 +464,20 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   });
   const curatedInstalledWithdrawalFilter =
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))";
+  const windowsInstalledRevocationFilter =
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/)";
+  assert.ok(
+    overrides.indexOf(overrideFor(windowsInstalledRevocationFilter, "x86_64-pc-windows-msvc")) <
+      overrides.indexOf(overrideFor(curatedInstalledWithdrawalFilter, "x86_64-pc-windows-msvc")),
+  );
   const currentFullBaselineBudgets = [
+    { platform: "x86_64-pc-windows-msvc", filter: windowsInstalledRevocationFilter, periods: 18 },
+    {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
+        "package(portcove-core) & test(/^service::native_portable::tests::(managed_native_declared_|native_engine_adoption_)/)",
+      periods: 24,
+    },
     {
       platform: "x86_64-pc-windows-msvc",
       filter:
@@ -610,6 +630,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       "slow-timeout": { period: "5s", "terminate-after": periods, "grace-period": "0s" },
       "success-output": "immediate",
     });
+  // Remaining hosted Windows portcove-core cases share one finite 60s room.
+  assert.deepEqual(overrideFor("package(portcove-core)", "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: "package(portcove-core)",
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+  });
   const historicalByteOnlyBackupFilter =
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)";
   const windowsRestoreSynchronizedFilter =
@@ -977,6 +1003,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsWholeMatrixFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsReviewedArchiveTransitionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsMmx2PopulatedTransitionFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsSonicPopulatedTransitionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparedRevocationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedRevocationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },

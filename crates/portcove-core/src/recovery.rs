@@ -155,7 +155,10 @@ pub(crate) fn recover_published_install(
                 .as_ref()
                 .is_some_and(|active| active.id == install.id)
             {
-                crate::managed_runtime_policy::require_managed_activation_available(&install)?;
+                crate::managed_runtime_policy::require_managed_activation_available(
+                    service.catalog(),
+                    &install,
+                )?;
                 service.recover_managed_route_publication(&install, expected)?;
             } else if status.external_runtime.is_some() {
                 return Err(PortcoveError::conflict(
@@ -169,7 +172,10 @@ pub(crate) fn recover_published_install(
                 .active
                 .is_some_and(|active| active.id == install.id);
             if operation.activate && !already_active {
-                crate::managed_runtime_policy::require_managed_activation_available(&install)?;
+                crate::managed_runtime_policy::require_managed_activation_available(
+                    service.catalog(),
+                    &install,
+                )?;
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
@@ -768,7 +774,10 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
-            crate::managed_runtime_policy::require_managed_activation_available(&install)?;
+            crate::managed_runtime_policy::require_managed_activation_available(
+                service.catalog(),
+                &install,
+            )?;
             service.require_ghostship_install_data_compatibility(
                 &install,
                 status.active.as_ref().map(|active| active.version.as_str()),

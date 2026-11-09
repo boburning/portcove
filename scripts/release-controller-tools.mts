@@ -8,9 +8,9 @@ import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-c
 import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
-// Hosted Linux crossed 320 MiB, with up to about 443 KiB difference
+// Hosted Linux reached 336,714,973 bytes, with up to about 443 KiB difference
 // between ordinary and protected builds of the same source.
-export const controllerToolExpandedMaximumBytes = 321 * 1024 ** 2;
+export const controllerToolExpandedMaximumBytes = 322 * 1024 ** 2;
 const controllerToolManifestMaximumBytes = 64 * 1024;
 // Protected uploads use ZIP Store. The 41-member r31 archive had 6,686
 // framing bytes. Reserve a finite 16 KiB for the closed member inventory.

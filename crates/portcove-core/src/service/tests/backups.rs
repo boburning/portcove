@@ -2362,6 +2362,11 @@ fn backup_inventory_isolates_every_damaged_entry_and_allows_new_backups() {
 fn unreadable_backup_manifest_is_reported_without_hiding_other_backups() {
     use std::os::unix::fs::PermissionsExt;
 
+    // SAFETY: geteuid takes no arguments and reads only the effective user ID.
+    if unsafe { libc::geteuid() } == 0 {
+        return;
+    }
+
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let user_root = library.user_dir("zelda64-recomp");

@@ -152,11 +152,11 @@ complete its upstream setup or establish a playable installation.
 Core re-reads the selected release/asset and binds the review to the destination.
 A supplied checksum must match. Without an upstream checksum the observed
 download hash is recorded with that limitation. Generic setup download supports
-bounded ZIP, tar.gz and 7z extraction under the existing traversal, symlink,
-collision and expansion limits. The 7z route accepts supported codecs only;
-encrypted archives, unsupported methods, links and special entries are refused.
-CRC failure or cancellation cannot publish a completed extraction. This does not
-add 7z to every managed adapter or support arbitrary self-extracting executables.
+bounded ZIP, tar.gz, tar.xz and 7z extraction under the existing traversal, link,
+collision and expansion limits. TAR.XZ accepts one unpadded stream of plain
+LZMA2 blocks with CRC32 or CRC64. The 7z route accepts its supported codecs.
+Corruption, unsupported framing or cancellation stops extraction before a
+completed setup is published. Managed installation uses its own archive rules.
 See [Core's acquisition and extraction boundary](ARCHITECTURE.md#discovery-listings-and-user-owned-setup).
 Publication creates a fresh child folder outside the entire Library root and managed output
 locations, with atomic refusal to replace an existing destination.
@@ -670,7 +670,7 @@ portcove --json auth logout
 `auth logout` removes that saved credential; it cannot remove an
 environment-provided token.
 
-Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-process environment and avoid interactive auth commands. `auth status` reports only the credential source, GitHub login, and rate-limit headers; it never returns the token.
+Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-process environment and avoid interactive auth commands. `auth status` reports the credential source, the selected variable name for an environment token, the GitHub login, and rate-limit headers. The token value stays private.
 
 Authentication does not bypass original game-file, artifact, source or operation checks.
 

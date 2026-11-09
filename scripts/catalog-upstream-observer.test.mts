@@ -1,4 +1,5 @@
 import type { ProviderObservation } from "./upstream-observer.mts";
+import { ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubApiError } from "./github-operation.mts";
@@ -983,6 +984,65 @@ void test("a resumed opportunity gives untouched sources a turn before retrying 
   assert.ok(resumed.report.requests <= 2);
 });
 
+void test("untouched managed sources are admitted before listing-only sources", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: ["alpha", "beta", "gamma"].map((name) => ({
+      id: `listing-${name}`,
+      name: `Listing ${name}`,
+      summary: "Descriptive listing",
+      project_url: `https://github.com/listing-owner/${name}`,
+    })),
+  };
+  const sources = catalogObservationSources(input).sources;
+  const managed = sources.filter((source) => source.ports.some((port) => port.kind !== "listing"));
+  const listingOnly = sources.filter((source) =>
+    source.ports.every((port) => port.kind === "listing"),
+  );
+  assert.ok(managed.length > 0 && listingOnly.length === 3);
+  const result = await advanceCatalogObservations(input, null, h.options);
+  const order = result.report.attempted_source_keys;
+  const lastManaged = Math.max(...managed.map((source) => order.indexOf(source.key)));
+  const listingPositions = listingOnly
+    .map((source) => order.indexOf(source.key))
+    .filter((position) => position !== -1);
+  assert.ok(managed.every((source) => order.includes(source.key)));
+  assert.ok(listingPositions.every((position) => position > lastManaged));
+});
+
+void test("failing managed sources rejoin ordinary rotation instead of starving listings", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [
+      {
+        id: "listing-only",
+        name: "Listing only",
+        summary: "Descriptive listing",
+        project_url: "https://github.com/listing-owner/only",
+      },
+    ],
+  };
+  const sources = catalogObservationSources(input).sources;
+  const listing = sources.find((source) => source.ports.every((port) => port.kind === "listing"));
+  assert.ok(listing);
+  const first = await advanceCatalogObservations(input, null, {
+    ...h.options,
+    excludedSources: new Set([listing.key]),
+  });
+  const state = structuredClone(first.checkpoint);
+  for (const progress of Object.values(state.sources)) {
+    progress.exception_key = "f".repeat(64);
+    progress.completed_at = null;
+    progress.next_due_at = null;
+    progress.attempted_sequence = state.sequence;
+  }
+  h.tick();
+  const next = await advanceCatalogObservations(input, state, h.options);
+  assert.equal(next.report.attempted_source_keys[0], listing.key);
+});
+
 void test("the configured source gets an early bounded turn without starving untouched sources", async () => {
   const h = harness(2);
   const sources = catalogObservationSources(h.input).sources.sort((a, b) =>
@@ -1379,6 +1439,92 @@ void test("new provider exceptions notify once and failed refresh retains every 
   assert.ok(shared[2].report.exception);
   const repeated = await advanceCatalogObservations(changed, failed.checkpoint, h.options);
   assert.equal(repeated.notify_exception, false);
+});
+
+void test("listing-only provider exceptions are reported without failing the job", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [
+      {
+        id: "listing-gone",
+        name: "Listing gone",
+        summary: "Descriptive listing",
+        project_url: "https://github.com/listing-owner/gone",
+      },
+    ],
+  };
+  const fetch = h.options.fetch!;
+  const result = await advanceCatalogObservations(input, null, {
+    ...h.options,
+    fetch: async (url, init) =>
+      url.includes("/listing-owner/gone")
+        ? new Response(JSON.stringify({ message: "Not Found" }), {
+            status: 404,
+            headers: { "content-type": "application/json" },
+          })
+        : fetch(url, init),
+  });
+  assert.ok(result.report.failures.some((failure) => failure.repository === "listing-owner/gone"));
+  assert.equal(result.notify_exception, false);
+});
+
+void test("scheduled priority and promoted listing exceptions still fail the job once", async () => {
+  const h = harness();
+  const listing = {
+    id: "listing-gone",
+    name: "Listing gone",
+    summary: "Descriptive listing",
+    project_url: "https://github.com/listing-owner/gone",
+  };
+  const input = { ...h.input, listings: [listing] };
+  const fetch = h.options.fetch!;
+  const repositoryId = h.options.repositoryId;
+  const options = {
+    ...h.options,
+    // A deleted repository fails its identity lookup before release collection.
+    repositoryId: async (...args: Parameters<typeof repositoryId>) => {
+      if (args[0].repository === "listing-owner/gone")
+        throw new ObservationFailure("provider-status", "provider returned HTTP 404");
+      return repositoryId(...args);
+    },
+    fetch: async (url: string, init: Parameters<typeof fetch>[1]) =>
+      url.includes("/listing-owner/gone")
+        ? new Response(JSON.stringify({ message: "Not Found" }), {
+            status: 404,
+            headers: { "content-type": "application/json" },
+          })
+        : fetch(url, init),
+  };
+  const key = catalogObservationSources(input).sources.find(
+    (source) => source.repository === "listing-owner/gone",
+  )!.key;
+  const priority = await advanceCatalogObservations(input, null, {
+    ...options,
+    scheduledPrioritySources: new Set([key]),
+    prioritizeConfigured: true,
+  });
+  assert.equal(priority.notify_exception, true);
+
+  const quiet = await advanceCatalogObservations(input, null, options);
+  assert.equal(quiet.notify_exception, false);
+  const promoted = {
+    ...input,
+    ports: [
+      ...input.ports,
+      { id: "listing-gone", channels: ["stable"], release: { repository: "listing-owner/gone" } },
+    ],
+  };
+  h.tick();
+  const state = structuredClone(quiet.checkpoint);
+  for (const progress of Object.values(state.sources)) progress.next_due_at = null;
+  const managed = await advanceCatalogObservations(promoted, state, {
+    ...options,
+    definitionHash: (portId: string) =>
+      observationHash(promoted.ports.find((port) => port.id === portId)),
+  });
+  assert.ok(managed.report.failures.some((failure) => failure.repository === "listing-owner/gone"));
+  assert.equal(managed.notify_exception, true);
 });
 
 void test("provider reset headers do not turn fair quantum exhaustion into provider backoff", async () => {

@@ -84,6 +84,7 @@ pub struct GithubReleaseProvider {
 struct GithubCredential {
     token: Option<String>,
     source: GithubAuthSource,
+    environment_variable: Option<&'static str>,
     intent: u64,
 }
 
@@ -148,9 +149,11 @@ struct ResolvedGithub {
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
-// The embedded beta catalog currently has 200 platform/channel selector slots.
-// One complete inventory therefore fits with headroom for successor definitions.
-const RELEASE_CACHE_MAX_ENTRIES: usize = 256;
+// One complete bulk check must fit in the selector cache, or later items evict
+// earlier ones and repeat provider reads within the same TTL. The embedded
+// catalog test below keeps every platform's provider selector slots within
+// half of this bound, so catalog growth fails CI before it degrades caching.
+pub(crate) const RELEASE_CACHE_MAX_ENTRIES: usize = 1024;
 pub(crate) const PROVIDER_JSON_MAX_BYTES: usize = 4 * 1024 * 1024;
 const CHECKSUM_MAX_BYTES: usize = 1024 * 1024;
 const CHECKSUM_MAX_SIDECARS: usize = 8;
@@ -198,6 +201,7 @@ impl GithubReleaseProvider {
             Some(GithubCredential {
                 token: None,
                 source: GithubAuthSource::Anonymous,
+                environment_variable: None,
                 intent: 0,
             }),
             origin != "https://api.github.com",
@@ -360,6 +364,7 @@ impl GithubReleaseProvider {
             Some(GithubCredential {
                 token: None,
                 source: GithubAuthSource::Anonymous,
+                environment_variable: None,
                 intent: 0,
             }),
             true,
@@ -515,6 +520,7 @@ impl GithubReleaseProvider {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         credential.token = token;
         credential.source = source;
+        credential.environment_variable = None;
     }
 
     fn begin_auth_intent(&self) -> u64 {
@@ -559,9 +565,10 @@ impl GithubReleaseProvider {
         if credential.intent != intent {
             return Err(obsolete_auth_intent());
         }
-        let replacement = commit()?;
-        credential.token = replacement.token;
-        credential.source = replacement.source;
+        *credential = GithubCredential {
+            intent,
+            ..commit()?
+        };
         Ok(())
     }
 
@@ -737,12 +744,16 @@ impl GithubReleaseProvider {
     pub fn auth_status(
         &self,
     ) -> impl std::future::Future<Output = Result<GithubAuthStatus>> + Send + 'static + use<> {
-        let (source, token) = {
+        let (source, environment_variable, token) = {
             let credential = self
                 .credential
                 .read()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            (credential.source, credential.token.clone())
+            (
+                credential.source,
+                credential.environment_variable.map(str::to_owned),
+                credential.token.clone(),
+            )
         };
         let authenticated = token.is_some();
         let url = if authenticated {
@@ -761,6 +772,7 @@ impl GithubReleaseProvider {
             if status == StatusCode::UNAUTHORIZED && authenticated {
                 return Ok(GithubAuthStatus {
                     source,
+                    environment_variable,
                     authenticated: false,
                     login: None,
                     rate_limit,
@@ -781,6 +793,7 @@ impl GithubReleaseProvider {
             };
             Ok(GithubAuthStatus {
                 source,
+                environment_variable,
                 authenticated,
                 login,
                 rate_limit,
@@ -1451,10 +1464,11 @@ fn same_origin(left: &str, right: &str) -> bool {
 }
 
 fn load_credential() -> GithubCredential {
-    if let Some(token) = environment_token() {
+    if let Some((name, token)) = environment_token() {
         return GithubCredential {
             token: Some(token),
             source: GithubAuthSource::Environment,
+            environment_variable: Some(name),
             intent: 0,
         };
     }
@@ -1462,11 +1476,13 @@ fn load_credential() -> GithubCredential {
         Ok(Some(token)) => GithubCredential {
             token: Some(token),
             source: GithubAuthSource::CredentialStore,
+            environment_variable: None,
             intent: 0,
         },
         Ok(None) | Err(_) => GithubCredential {
             token: None,
             source: GithubAuthSource::Anonymous,
+            environment_variable: None,
             intent: 0,
         },
     }
@@ -2005,6 +2021,7 @@ mod tests {
             Some(GithubCredential {
                 token: None,
                 source: GithubAuthSource::Anonymous,
+                environment_variable: None,
                 intent: 0,
             }),
             true,
@@ -2178,6 +2195,7 @@ mod tests {
                 Ok(GithubCredential {
                     token: Some("token-a".into()),
                     source: GithubAuthSource::CredentialStore,
+                    environment_variable: None,
                     intent: 0,
                 })
             })
@@ -2190,6 +2208,7 @@ mod tests {
                 Ok(GithubCredential {
                     token: None,
                     source: GithubAuthSource::Anonymous,
+                    environment_variable: None,
                     intent: 0,
                 })
             })
@@ -2202,6 +2221,7 @@ mod tests {
                 Ok(GithubCredential {
                     token: Some("token-b".into()),
                     source: GithubAuthSource::CredentialStore,
+                    environment_variable: None,
                     intent: 0,
                 })
             })
@@ -2286,6 +2306,7 @@ mod tests {
                     Ok(GithubCredential {
                         token: Some("token-a".into()),
                         source: GithubAuthSource::CredentialStore,
+                        environment_variable: None,
                         intent: 0,
                     })
                 })
@@ -2298,6 +2319,7 @@ mod tests {
                 Ok(GithubCredential {
                     token: Some("token-b".into()),
                     source: GithubAuthSource::CredentialStore,
+                    environment_variable: None,
                     intent: 0,
                 })
             })
@@ -2355,6 +2377,7 @@ mod tests {
                 Ok(GithubCredential {
                     token: None,
                     source: GithubAuthSource::Anonymous,
+                    environment_variable: None,
                     intent: 0,
                 })
             })
@@ -2559,6 +2582,34 @@ mod tests {
         );
     }
 
+    #[test]
+    fn release_cache_holds_every_embedded_selector_slot_with_headroom() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        for platform in [
+            Platform::WindowsX86_64,
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+            Platform::MacosAarch64,
+        ] {
+            let slots: usize = catalog
+                .ports()
+                .iter()
+                .filter(|port| {
+                    matches!(
+                        port.release.provider,
+                        crate::ReleaseSource::Github | crate::ReleaseSource::Gitlab
+                    ) && !port.release.repository.is_empty()
+                        && port.platforms.contains(&platform)
+                })
+                .map(|port| port.channels.len())
+                .sum();
+            assert!(
+                slots * 2 <= RELEASE_CACHE_MAX_ENTRIES,
+                "{platform:?} has {slots} provider selector slots; raise RELEASE_CACHE_MAX_ENTRIES"
+            );
+        }
+    }
+
     fn ok_json(body: &str, extra_headers: &str) -> String {
         format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n{extra_headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -2645,11 +2696,24 @@ mod tests {
             let provider =
                 GithubReleaseProvider::with_api_root(format!("http://{address}")).unwrap();
             provider.set_credential(Some("rejected-test-token".into()), source);
+            let environment_variable =
+                (source == GithubAuthSource::Environment).then_some("GH_TOKEN");
+            provider.credential.write().unwrap().environment_variable = environment_variable;
             let result = provider.auth_status().await;
             server.join().unwrap();
             if response_code == 401 {
                 let status = result.unwrap();
                 assert_eq!(status.source, source);
+                assert_eq!(status.environment_variable.as_deref(), environment_variable);
+                let serialized = serde_json::to_value(&status).unwrap();
+                if let Some(name) = environment_variable {
+                    assert_eq!(serialized["source"], "environment");
+                    assert_eq!(serialized["environment_variable"], name);
+                } else {
+                    assert_eq!(serialized["source"], "credential_store");
+                    assert!(serialized.get("environment_variable").is_none());
+                }
+                assert!(!serialized.to_string().contains("rejected-test-token"));
                 assert!(!status.authenticated);
                 assert!(status.login.is_none());
                 assert!(status.device_login_available);

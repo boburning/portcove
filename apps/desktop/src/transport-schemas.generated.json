@@ -4822,6 +4822,32 @@
         ],
         "type": "string"
       },
+      "ManagedAcquisitionHold": {
+        "additionalProperties": false,
+        "description": "Holds fresh managed acquisition and adoption for one route. Installed copies\nkeep their retained definition; only the listed reviewed artifacts may still\nbe activated or recovered.",
+        "properties": {
+          "activation_reason": {
+            "description": "Player-facing explanation for a refused staged activation.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Player-facing explanation for refused Install and Update.",
+            "type": "string"
+          },
+          "reviewed_artifacts": {
+            "description": "Exact reviewed artifacts whose activation remains permitted.",
+            "items": {
+              "$ref": "#/$defs/ReviewedHoldArtifact"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "reason",
+          "activation_reason"
+        ],
+        "type": "object"
+      },
       "ManagedInitialization": {
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
@@ -5077,6 +5103,17 @@
           "launch_from_install_root": {
             "default": false,
             "type": "boolean"
+          },
+          "managed_acquisition_hold": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManagedAcquisitionHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Catalog-owned containment for a managed route whose current upstream\nrelease still matches its selector but changed reviewed behavior."
           },
           "managed_initialization": {
             "anyOf": [
@@ -5807,6 +5844,22 @@
           "asset_hints",
           "direct",
           "user_prepared"
+        ],
+        "type": "object"
+      },
+      "ReviewedHoldArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "sha256"
         ],
         "type": "object"
       },
@@ -16580,6 +16633,12 @@
       "device_login_available": {
         "type": "boolean"
       },
+      "environment_variable": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "login": {
         "type": [
           "string",
@@ -16660,6 +16719,12 @@
           },
           "device_login_available": {
             "type": "boolean"
+          },
+          "environment_variable": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "login": {
             "type": [
@@ -27344,6 +27409,32 @@
         ],
         "type": "string"
       },
+      "ManagedAcquisitionHold": {
+        "additionalProperties": false,
+        "description": "Holds fresh managed acquisition and adoption for one route. Installed copies\nkeep their retained definition; only the listed reviewed artifacts may still\nbe activated or recovered.",
+        "properties": {
+          "activation_reason": {
+            "description": "Player-facing explanation for a refused staged activation.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Player-facing explanation for refused Install and Update.",
+            "type": "string"
+          },
+          "reviewed_artifacts": {
+            "description": "Exact reviewed artifacts whose activation remains permitted.",
+            "items": {
+              "$ref": "#/$defs/ReviewedHoldArtifact"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "reason",
+          "activation_reason"
+        ],
+        "type": "object"
+      },
       "ManagedInitialization": {
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
@@ -27766,6 +27857,22 @@
         ],
         "type": "object"
       },
+      "ReviewedHoldArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
@@ -28135,6 +28242,17 @@
       "launch_from_install_root": {
         "default": false,
         "type": "boolean"
+      },
+      "managed_acquisition_hold": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ManagedAcquisitionHold"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Catalog-owned containment for a managed route whose current upstream\nrelease still matches its selector but changed reviewed behavior."
       },
       "managed_initialization": {
         "anyOf": [
@@ -36956,6 +37074,32 @@
         ],
         "type": "string"
       },
+      "ManagedAcquisitionHold": {
+        "additionalProperties": false,
+        "description": "Holds fresh managed acquisition and adoption for one route. Installed copies\nkeep their retained definition; only the listed reviewed artifacts may still\nbe activated or recovered.",
+        "properties": {
+          "activation_reason": {
+            "description": "Player-facing explanation for a refused staged activation.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Player-facing explanation for refused Install and Update.",
+            "type": "string"
+          },
+          "reviewed_artifacts": {
+            "description": "Exact reviewed artifacts whose activation remains permitted.",
+            "items": {
+              "$ref": "#/$defs/ReviewedHoldArtifact"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "reason",
+          "activation_reason"
+        ],
+        "type": "object"
+      },
       "ManagedInitialization": {
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
@@ -37211,6 +37355,17 @@
           "launch_from_install_root": {
             "default": false,
             "type": "boolean"
+          },
+          "managed_acquisition_hold": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManagedAcquisitionHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Catalog-owned containment for a managed route whose current upstream\nrelease still matches its selector but changed reviewed behavior."
           },
           "managed_initialization": {
             "anyOf": [
@@ -37941,6 +38096,22 @@
           "asset_hints",
           "direct",
           "user_prepared"
+        ],
+        "type": "object"
+      },
+      "ReviewedHoldArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "sha256"
         ],
         "type": "object"
       },

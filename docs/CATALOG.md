@@ -340,11 +340,11 @@ suitability check still rejects known foreign processors, platforms, supporting
 files and equally plausible variants. The existing channel and artifact-integrity
 rules remain in force. A missing digest can allow an explicitly unverified
 non-owning download, but cannot authenticate a managed installation.
-Generic downloaded setup offers optional checked ZIP, tar.gz/tgz and bounded
-7z extraction into a new user-owned folder. Supported 7z codecs and resource
-limits are owned by [the archive boundary](ARCHITECTURE.md#discovery-listings-and-user-owned-setup).
-This extraction support does not admit 7z to managed native package selection;
-that route still requires its own reader-capability and per-title fitting work.
+Generic downloaded setup offers optional checked ZIP, tar.gz/tgz, tar.xz and
+bounded 7z extraction into a new user-owned folder. The
+[archive boundary](ARCHITECTURE.md#discovery-listings-and-user-owned-setup) owns
+the supported codecs, framing and resource limits. Managed package selection
+retains its separate reader-capability and per-title admission rules.
 
 Review the actual linked or vendored components and their attributable grants,
 including packaged fonts. A parent's license, a published archive or resemblance
@@ -562,7 +562,7 @@ Official release discovery may replace changing direct manifests when the same
 reviewed package, executable and preparation rules apply. Native archives do not
 replace this richer integration. Platform commitments remain independently scoped.
 
-The upstream framework stages bundled mod packages into the same
+Older upstream framework versions stage bundled mod packages into the same
 `mods/packages/<id>/<version>` tree used for player imports. For a retained
 contract declaring `mods`, Core preserves complete destination-only packages and
 adds complete absent versions through private, same-filesystem staging and atomic
@@ -584,7 +584,14 @@ runtime data remains intact; failed collection is not a completed backup or
 recovery. Normal collection still mirrors deliberate package removals and ordinary
 root-state changes. Only the retained `packages` layout has package semantics;
 arbitrary historical `bundled` or `installed` folders are not reclassified.
-Supporting newer split-root SDK layouts remains a separate compatibility decision.
+
+For a reviewed split layout, declare the exact player paths
+`mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
+`mods/state.toml.tmp`. The runtime build stages its own `mods/bundled` files
+and any bundled README. Those files belong to the verified runtime version.
+Core carries declared player paths through normal retained collection, restore
+and rollback. Upstream owns any legacy package migration within those paths.
+The existing whole-tree contract continues to apply to older definitions.
 
 PS1 installs publish inactive and run player-data preflight before activation.
 Older interrupted install journals use the same order; an already committed
@@ -1349,6 +1356,20 @@ successor-specific integrity evidence. Ordinary observed release changes do not
 add a mandatory maintainer review or full gameplay campaign. Changed setup,
 executable/data coordinates, ownership or package handling can require a reviewed
 rule change; existing transition and recovery guards still apply.
+
+When an upstream release still matches a managed route's selector but changes
+reviewed setup, replacement or data behavior, contain it with the integration's
+`managed_acquisition_hold` instead of port-specific Core code. Its `reason`
+refuses fresh Install, Update, catalog download and managed adoption before any
+provider contact. Its `activation_reason` refuses activation and recovery of a
+staged or interrupted package unless that package's version and SHA-256 match one
+of the `reviewed_artifacts`. Installed copies keep their retained definition and
+existing Play, backup and removal checks. Remove the hold only after reviewing
+the changed upstream behavior on the canonical port issue. A selected independent
+definition may reword or narrow an existing hold but cannot remove it or add a
+reviewed artifact. Because the catalog is currently embedded, the hold reaches
+players with the next application release; independent delivery to unchanged
+clients remains with #246.
 
 The reusable managed TFE, GB shared-preferences and version-local credentials
 policies support reviewed GitHub package rules as well as exact direct manifests.
@@ -2549,9 +2570,12 @@ onboarding specifies actual repository/artifact authority and reauthorization
 conditions, not a broad domain popularity rule. The authorized
 [#315](https://github.com/boburning/portcove/issues/315) policy allows an
 independently reviewed catalog-curated exact hash for an attributable release.
-That authority is not yet implemented: hosted providers still require their
-current published digest or checksum sidecar, and an arbitrary same-download
-hash is never a substitute.
+Core implements this route for GitHub definitions with protected accepted-byte
+records and exact upstream identity under authenticated policy schema 4. Other provider
+routes retain their existing expected-digest and provenance requirements.
+The protected production canary and repeated eligible progression remain open
+under #315. See [Acquisition decision](DEFINITION-DELIVERY.md#acquisition-decision)
+for the separate integrity, publisher identity and operation checks.
 
 Local/community definitions use the same validator, explicit namespaced origin,
 conflict handling and scoped trust. Partial management may permit install/launch

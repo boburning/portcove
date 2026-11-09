@@ -38,7 +38,7 @@
       ],
       "warnings": [
         "Portcove has not verified native setup, gameplay or save compatibility for this kit.",
-        "Portcove has not verified disc changes during gameplay."
+        "The v0.1.0 kit can assign the discs during setup. Its game configuration says switching discs during play is unimplemented."
       ],
       "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/releases/tag/v0.1.0",
       "references": [

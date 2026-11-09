@@ -200,6 +200,7 @@ mod tests {
             setup_marker: None,
             setup_output_paths: vec![],
             upstream_status: UpstreamStatus::Retired,
+            managed_acquisition_hold: None,
             presentation: None,
         };
         let release =
