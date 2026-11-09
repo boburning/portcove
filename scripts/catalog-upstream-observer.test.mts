@@ -1,4 +1,5 @@
 import type { ProviderObservation } from "./upstream-observer.mts";
+import { ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubApiError } from "./github-operation.mts";
@@ -1478,8 +1479,15 @@ void test("scheduled priority and promoted listing exceptions still fail the job
   };
   const input = { ...h.input, listings: [listing] };
   const fetch = h.options.fetch!;
+  const repositoryId = h.options.repositoryId;
   const options = {
     ...h.options,
+    // A deleted repository fails its identity lookup before release collection.
+    repositoryId: async (...args: Parameters<typeof repositoryId>) => {
+      if (args[0].repository === "listing-owner/gone")
+        throw new ObservationFailure("provider-status", "provider returned HTTP 404");
+      return repositoryId(...args);
+    },
     fetch: async (url: string, init: Parameters<typeof fetch>[1]) =>
       url.includes("/listing-owner/gone")
         ? new Response(JSON.stringify({ message: "Not Found" }), {

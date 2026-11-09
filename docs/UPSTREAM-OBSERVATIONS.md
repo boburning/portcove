@@ -26,9 +26,10 @@ lookup; conflicting trusted identities remain held.
 
 The `Configured upstream observer` workflow requests observations hourly at
 minute 31 UTC, away from the daily 09:23 upstream-health run and the :17 and :43
-schedules that share the repository token. A run uses about 750 requests of the
-observed hourly installation allowance of about 5,000 within its nine-minute
-window. Hosted scheduling can be delayed or skipped; this is a requested
+schedules that share the repository token. Scheduled run 42484849060 on
+2026-11-08 used 744 requests and reported 4,026 remaining, so its observed hourly
+allowance was about 5,000. This is dated evidence, not a guaranteed limit; the
+nine-minute window and existing reserve still bound each run. Hosted scheduling can be delayed or skipped; this is a requested
 cadence, not a delivery guarantee. The configured baseline keeps its twelve-hour
 freshness bound and receives a turn in every opportunity. Catalog sources use durable fair
 turns, activity observations and staleness to admit work within the same job.
