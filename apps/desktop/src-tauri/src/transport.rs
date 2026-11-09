@@ -128,6 +128,19 @@ mod tests {
             DESKTOP_EVENT_LIBRARY_CHANGED,
             DESKTOP_EVENT_OPERATION,
         ];
+        // The generated transport schema is the one event inventory; this list may not drift.
+        let mut declared: Vec<String> =
+            crate::desktop_contract::export_transport_schemas()["events"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect();
+        declared.sort();
+        let mut tested: Vec<String> = EVENTS.iter().map(|event| (*event).to_owned()).collect();
+        tested.sort();
+        assert_eq!(tested, declared);
+
         let app = mock_builder().build(mock_context(noop_assets())).unwrap();
         let handle = app.handle();
         let listen = |label: &str| {
