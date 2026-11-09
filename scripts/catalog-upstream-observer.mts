@@ -518,6 +518,20 @@ export async function advanceCatalogObservations(
   let operationBytes = 0;
   let unknownSizeResponses = 0;
   let notifyException = false;
+  // Only exceptions that can affect what players install, or the configured and
+  // scheduled acceptance scopes that feed definition delivery, fail the job. A
+  // listing-only source's exception stays in the report and its checkpoint.
+  const notifiesOnException = (source: ObservableSource) =>
+    source.ports.some((port) => port.kind !== "listing") ||
+    options.scheduledPrioritySources?.has(source.key) === true ||
+    (source.repository === template.repository &&
+      source.ports.some((port) => port.id === template.port_id));
+  // A non-notifying exception uses its own key namespace, so a listing that later
+  // gains a managed port still reports the same unresolved rule once.
+  const exceptionKey = (source: ObservableSource, rule: string) =>
+    notifiesOnException(source)
+      ? observationHash({ source: source.key, rule })
+      : observationHash({ source: source.key, rule, notification: "report-only" });
   let requestStartedAt = now();
   let sampledCostMs = 0;
   let sampledRequests = 0;
@@ -918,10 +932,11 @@ export async function advanceCatalogObservations(
         completed.push(source.key);
       } catch (error) {
         const rule = error instanceof ObservationFailure ? error.rule : "provider-operation-failed";
-        const key = observationHash({ source: source.key, rule });
+        const key = exceptionKey(source, rule);
         if (
           progress.exception_key !== key &&
-          !["budget", "cancelled", "provider-quota"].includes(rule)
+          !["budget", "cancelled", "provider-quota"].includes(rule) &&
+          notifiesOnException(source)
         )
           notifyException = true;
         progress.exception_key = key;
@@ -1209,7 +1224,8 @@ export async function advanceCatalogObservations(
           pending.push(source);
         if (
           result.notify_exception &&
-          !["budget", "cancelled"].includes(result.report.exception.rule)
+          !["budget", "cancelled"].includes(result.report.exception.rule) &&
+          notifiesOnException(source)
         )
           notifyException = true;
         progress.exception_key = result.report.exception.key;
@@ -1300,8 +1316,12 @@ export async function advanceCatalogObservations(
         state.provider_retry_at = error.retryAt;
       }
       const rule = error instanceof ObservationFailure ? error.rule : "source-operation-failed";
-      const key = observationHash({ source: source.key, rule });
-      if (progress.exception_key !== key && !["budget", "cancelled"].includes(rule))
+      const key = exceptionKey(source, rule);
+      if (
+        progress.exception_key !== key &&
+        !["budget", "cancelled"].includes(rule) &&
+        notifiesOnException(source)
+      )
         notifyException = true;
       progress.exception_key = key;
       failures.push({
