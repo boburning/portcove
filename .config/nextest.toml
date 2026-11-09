@@ -253,6 +253,15 @@ test-group = 'core-output-relocation'
 filter = 'package(portcove-core) & test(catalog_update::tests::)'
 test-group = 'core-catalog-update'
 
+# CI 42677599212 Windows: these curated-cache copy races must reach their copy
+# latch within 15s. Beside unrelated tests in the definition-repository serial
+# group they missed it; on main the whole family held every slot. Keep only
+# these latch cases exclusive.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_.*_during_copy_/)'
+test-group = '@global'
+threads-required = "num-test-threads"
+
 # Signed-definition repository cases install ordinary artifacts and repeatedly
 # admit complete authenticated snapshots.
 [[profile.default.overrides]]

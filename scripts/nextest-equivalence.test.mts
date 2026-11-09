@@ -290,6 +290,10 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     [
       [capacityFilter, "num-test-threads"],
       [
+        "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_.*_during_copy_/)",
+        "num-test-threads",
+      ],
+      [
         "package(portcove-core) & test(import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library)",
         "num-test-threads",
       ],
