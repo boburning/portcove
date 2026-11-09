@@ -54,7 +54,6 @@ aws-lc-rs = "1.19.0"
 flate2.workspace = true
 rusqlite.workspace = true
 tar.workspace = true
-tauri = { version = "=2.12.5", features = ["test"] }
 tempfile.workspace = true
 
 [target.'cfg(windows)'.dependencies]

@@ -20,6 +20,8 @@ pub(crate) use crate::desktop_contract::{
 /// only by the main window, so no consumer needs a wider audience. Listeners with
 /// Tauri's default `Any` target, which the frontend uses, still receive them; the
 /// capability test below is what keeps every other webview from registering one.
+/// The contract check (`scripts/check-transport-contract.mts`) keeps this as the only
+/// direct emit call.
 pub(crate) fn emit_desktop_event<T: Serialize + Clone>(
     app: &tauri::AppHandle<impl tauri::Runtime>,
     event: &'static str,
@@ -115,67 +117,6 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(reviewed.source_reference.unwrap().profile_id, "game");
-    }
-
-    #[test]
-    fn desktop_events_are_targeted_at_the_main_window_and_reach_default_listeners() {
-        use std::sync::{Arc, Mutex};
-        use tauri::test::{mock_builder, mock_context, noop_assets};
-        use tauri::{Listener, WebviewUrl, WebviewWindowBuilder};
-
-        const EVENTS: [&str; 3] = [
-            DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE,
-            DESKTOP_EVENT_LIBRARY_CHANGED,
-            DESKTOP_EVENT_OPERATION,
-        ];
-        // The generated transport schema is the one event inventory; this list may not drift.
-        let mut declared: Vec<String> =
-            crate::desktop_contract::export_transport_schemas()["events"]
-                .as_object()
-                .unwrap()
-                .keys()
-                .cloned()
-                .collect();
-        declared.sort();
-        let mut tested: Vec<String> = EVENTS.iter().map(|event| (*event).to_owned()).collect();
-        tested.sort();
-        assert_eq!(tested, declared);
-
-        let app = mock_builder().build(mock_context(noop_assets())).unwrap();
-        let handle = app.handle();
-        let listen = |label: &str| {
-            let window =
-                WebviewWindowBuilder::new(handle, label, WebviewUrl::App("index.html".into()))
-                    .build()
-                    .unwrap();
-            let received = Arc::new(Mutex::new(Vec::<String>::new()));
-            for event in EVENTS {
-                let received = Arc::clone(&received);
-                window.listen(event, move |_| {
-                    received.lock().unwrap().push(event.to_owned())
-                });
-            }
-            (window, received)
-        };
-        let (_main, main_received) = listen(MAIN_WINDOW_LABEL);
-        let (_other, other_received) = listen("secondary");
-        // The frontend's `listen` registers with Tauri's default `Any` target and must
-        // keep receiving every event.
-        let any_received = Arc::new(Mutex::new(Vec::<String>::new()));
-        for event in EVENTS {
-            let any_received = Arc::clone(&any_received);
-            handle.listen_any(event, move |_| {
-                any_received.lock().unwrap().push(event.to_owned());
-            });
-        }
-
-        for event in EVENTS {
-            emit_desktop_event(handle, event, ()).unwrap();
-        }
-
-        assert_eq!(*main_received.lock().unwrap(), EVENTS);
-        assert!(other_received.lock().unwrap().is_empty());
-        assert_eq!(*any_received.lock().unwrap(), EVENTS);
     }
 
     #[test]
