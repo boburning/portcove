@@ -1447,7 +1447,7 @@ void test("tool manifest retains the aggregate and per-file byte limits on both 
         (total, file) => total + file.bytes,
         0,
       ),
-      337_641_472,
+      338_690_048,
     );
     files[2]!.bytes++;
     assert.throws(
@@ -1586,7 +1586,7 @@ void test("tool acquisition retains the phase deadline before outputs and after 
 void test("stored controller tool ZIP metadata admits the fixed archive ceiling before transfer", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-zip-bound-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  assert.equal(controllerToolZipMaximumBytes, 337_723_392);
+  assert.equal(controllerToolZipMaximumBytes, 338_771_968);
   const f = fixture();
   const admitted: number[] = [];
   for (const bytes of [controllerToolZipMaximumBytes, controllerToolZipMaximumBytes + 1]) {

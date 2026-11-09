@@ -24,6 +24,7 @@ const requestRefusals = new Set([
   "unauthorized reader operation",
   "reader path absent from frozen snapshot",
   "reader page absent from frozen partition",
+  "reader page outside frozen assignment",
   "path is not in the frozen net delta",
   "unsupported frozen-reader transport metadata",
   "unauthorized reader protocol operation",

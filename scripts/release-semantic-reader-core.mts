@@ -14,6 +14,9 @@ const pageBytes = 16 * 1024;
 export const semanticReaderTextPageBytes = 8192;
 const partitionKind = "semantic-reader-partition-v1";
 const partitionPrefix = Buffer.from(`{"kind":"${partitionKind}"`);
+const ordinalPartitionKind = "semantic-reader-partition-ordinal-v1";
+const ordinalPartitionPrefix = Buffer.from(`{"kind":"${ordinalPartitionKind}"`);
+const partitionPageLimit = 1024;
 const searchLifetimeBytes = 256 * 1024 * 1024;
 
 /** A child may read only the payload pinned by its trusted parent's fixed argv.
@@ -360,16 +363,29 @@ function semanticPageKey(tool: unknown, args: Record<string, unknown>) {
   return JSON.stringify([tool, args.snapshot, args.path, args.offset, args.length]);
 }
 
+export function isAssignedSemanticPageCall(tool: unknown, args: unknown): args is { page: number } {
+  return (
+    tool === "read_page" &&
+    isRecord(args) &&
+    Object.keys(args).join(",") === "page" &&
+    typeof args.page === "number" &&
+    Number.isSafeInteger(args.page) &&
+    args.page >= 1 &&
+    args.page <= partitionPageLimit
+  );
+}
+
 export function materializeSemanticReaderPartition(
   bundle: FrozenSemanticSnapshot,
   pages: ReadonlyArray<{ tool: string; arguments: Record<string, unknown> }>,
+  addressing: "path" | "ordinal" = "path",
 ) {
-  if (!pages.length || pages.length > 1024)
+  if (!pages.length || pages.length > partitionPageLimit)
     throw new Error("reader partition page count exceeds bound");
   const read = createSemanticSnapshotReader(bundle);
   const bytes = Buffer.from(
     JSON.stringify({
-      kind: partitionKind,
+      kind: addressing === "ordinal" ? ordinalPartitionKind : partitionKind,
       pages: pages.map(({ tool, arguments: args }) => {
         if (tool !== "read" && tool !== "read_text")
           throw new Error("reader partition requires exact pages");
@@ -383,7 +399,8 @@ export function materializeSemanticReaderPartition(
 
 export function createMaterializedSemanticReaderRpc(bytes: Buffer, expectedSha256: string) {
   // Keep ordinary snapshots on the existing full inventory validation path.
-  if (!bytes.subarray(0, partitionPrefix.length).equals(partitionPrefix))
+  const ordinal = bytes.subarray(0, ordinalPartitionPrefix.length).equals(ordinalPartitionPrefix);
+  if (!ordinal && !bytes.subarray(0, partitionPrefix.length).equals(partitionPrefix))
     return createSemanticSnapshotRpc(inspectSemanticReaderIndex(bytes, expectedSha256));
   if (
     bytes.length > 8 * 1024 * 1024 ||
@@ -393,10 +410,10 @@ export function createMaterializedSemanticReaderRpc(bytes: Buffer, expectedSha25
   const index: unknown = JSON.parse(bytes.toString("utf8"));
   if (
     !isRecord(index) ||
-    index.kind !== partitionKind ||
+    index.kind !== (ordinal ? ordinalPartitionKind : partitionKind) ||
     !Array.isArray(index.pages) ||
     !index.pages.length ||
-    index.pages.length > 1024
+    index.pages.length > partitionPageLimit
   )
     throw new Error("materialized reader partition invalid");
   const responses = new Map<string, unknown>();
@@ -412,6 +429,21 @@ export function createMaterializedSemanticReaderRpc(bytes: Buffer, expectedSha25
     const key = semanticPageKey(page.tool, page.arguments);
     if (responses.has(key)) throw new Error("materialized reader partition repeats a page");
     responses.set(key, page.response);
+  }
+  if (ordinal) {
+    // Insertion order is the trusted parent's assigned page order. Do not
+    // accept a path or offset supplied by the reviewer on this route.
+    const pages = [...responses.values()];
+    return createSemanticReaderRpc(
+      (tool, args) => {
+        if (tool !== "read_page") throw new Error("unauthorized reader operation");
+        if (!isAssignedSemanticPageCall(tool, args) || args.page > pages.length)
+          throw new Error("reader page outside frozen assignment");
+        return pages[args.page - 1];
+      },
+      ["read_page"],
+      pages.length,
+    );
   }
   return createSemanticReaderRpc(
     (tool, args) => {
@@ -433,7 +465,8 @@ export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
 
 function createSemanticReaderRpc(
   read: ReturnType<typeof createSemanticSnapshotReader>,
-  tools: ReadonlyArray<(typeof semanticReaderTools)[number]>,
+  tools: ReadonlyArray<(typeof semanticReaderTools)[number] | "read_page">,
+  assignedPages?: number,
 ) {
   let initialized = false,
     messages = 0,
@@ -472,48 +505,54 @@ function createSemanticReaderRpc(
             type: "object",
             additionalProperties: false,
             properties:
-              name === "net_diff"
-                ? { path: { type: "string", maxLength: 4096 } }
-                : {
-                    snapshot: {
-                      type: "string",
-                      enum:
-                        name === "read" || name === "read_text"
-                          ? [
-                              "baseline",
-                              "source",
-                              "published",
-                              "catalog",
-                              "catalog_prior",
-                              "manifest",
-                            ]
-                          : ["baseline", "source", "published", "catalog", "catalog_prior"],
+              name === "read_page"
+                ? { page: { type: "integer", minimum: 1, maximum: assignedPages } }
+                : name === "net_diff"
+                  ? { path: { type: "string", maxLength: 4096 } }
+                  : {
+                      snapshot: {
+                        type: "string",
+                        enum:
+                          name === "read" || name === "read_text"
+                            ? [
+                                "baseline",
+                                "source",
+                                "published",
+                                "catalog",
+                                "catalog_prior",
+                                "manifest",
+                              ]
+                            : ["baseline", "source", "published", "catalog", "catalog_prior"],
+                      },
+                      ...(name === "search"
+                        ? { literal: { type: "string", minLength: 1, maxLength: 256 } }
+                        : {
+                            offset: { type: "integer", minimum: 0 },
+                            ...(name === "read" || name === "read_text"
+                              ? {
+                                  path: { type: "string", maxLength: 4096 },
+                                  length: {
+                                    type: "integer",
+                                    minimum: 1,
+                                    maximum:
+                                      name === "read_text"
+                                        ? semanticReaderTextPageBytes
+                                        : pageBytes,
+                                  },
+                                }
+                              : {}),
+                          }),
                     },
-                    ...(name === "search"
-                      ? { literal: { type: "string", minLength: 1, maxLength: 256 } }
-                      : {
-                          offset: { type: "integer", minimum: 0 },
-                          ...(name === "read" || name === "read_text"
-                            ? {
-                                path: { type: "string", maxLength: 4096 },
-                                length: {
-                                  type: "integer",
-                                  minimum: 1,
-                                  maximum:
-                                    name === "read_text" ? semanticReaderTextPageBytes : pageBytes,
-                                },
-                              }
-                            : {}),
-                        }),
-                  },
             required:
-              name === "net_diff"
-                ? ["path"]
-                : name === "list"
-                  ? ["snapshot", "offset"]
-                  : name === "read" || name === "read_text"
-                    ? ["snapshot", "path", "offset", "length"]
-                    : ["snapshot", "literal"],
+              name === "read_page"
+                ? ["page"]
+                : name === "net_diff"
+                  ? ["path"]
+                  : name === "list"
+                    ? ["snapshot", "offset"]
+                    : name === "read" || name === "read_text"
+                      ? ["snapshot", "path", "offset", "length"]
+                      : ["snapshot", "literal"],
           },
           annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
         })),

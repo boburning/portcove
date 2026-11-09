@@ -267,6 +267,7 @@ export async function claimSemanticTechnicalAttempt(
     max_lanes: number;
     retry_stop_sha256?: string;
     continuation_stop_sha256?: string;
+    next_stop_sha256?: string;
   },
 ) {
   if (
@@ -280,7 +281,10 @@ export async function claimSemanticTechnicalAttempt(
         !/^[a-f0-9]{64}$/u.test(partition.retry_stop_sha256)) ||
       (partition.continuation_stop_sha256 !== undefined &&
         (partition.retry_stop_sha256 === undefined ||
-          !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256))))
+          !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256))) ||
+      (partition.next_stop_sha256 !== undefined &&
+        (partition.continuation_stop_sha256 === undefined ||
+          !/^[a-f0-9]{64}$/u.test(partition.next_stop_sha256))))
   )
     throw new Error("retained semantic partition scope differs");
   const entries = await readdir(requestDirectory);
@@ -300,7 +304,11 @@ export async function claimSemanticTechnicalAttempt(
   }
   if (JSON.stringify(anchored) !== JSON.stringify(runs))
     throw new Error("semantic attempt custody missing or contradictory; no counter reset");
-  const originalClaims = partition?.continuation_stop_sha256 ? 4 : 3;
+  const originalClaims = partition?.next_stop_sha256
+    ? 5
+    : partition?.continuation_stop_sha256
+      ? 4
+      : 3;
   const maximumClaims = partition?.retry_stop_sha256 ? originalClaims + 1 : 3;
   if (runs.length >= maximumClaims) throw new Error("semantic technical retry budget exhausted");
   if (partition?.retry_stop_sha256 && runs.length !== originalClaims)
@@ -325,7 +333,9 @@ export async function claimSemanticTechnicalAttempt(
         ? partition?.retry_stop_sha256
         : name === "technical-3"
           ? partition?.continuation_stop_sha256
-          : undefined;
+          : name === "technical-4"
+            ? partition?.next_stop_sha256
+            : undefined;
     if (appointedStop && createHash("sha256").update(stopBytes).digest("hex") !== appointedStop)
       throw new Error("original supplemental application stop differs from its appointment");
     const stopped: unknown = JSON.parse(stopBytes.toString("utf8"));
