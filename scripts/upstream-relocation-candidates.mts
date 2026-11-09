@@ -151,17 +151,26 @@ export function retainedRepositoryIds(checkpoint: unknown): Map<string, number> 
   return ids;
 }
 
-/** Repositories whose latest observer failure is a moved (301) or missing (404) identity. */
-export function relocationRepositoriesFromReport(report: unknown): string[] {
-  const failures = isRecord(report) && Array.isArray(report.failures) ? report.failures : [];
+/**
+ * Repositories whose latest observer failure may be a move or removal. A first
+ * identity lookup reports HTTP 301/404 directly, but a source with a retained
+ * identity fails in its release listing, where a refused redirect surfaces as a
+ * generic transport failure. Both are probed; a transient error simply
+ * classifies as `not-moved` or `unknown`.
+ */
+const candidateRules = new Set(["repository-unavailable", "provider-transport", "transport"]);
+
+export function relocationRepositoriesFromReport(report: unknown): string[] | null {
+  if (!isRecord(report) || !Array.isArray(report.failures)) return null;
+  const failures = report.failures;
   const repositories = new Set<string>();
   for (const failure of failures) {
     if (
       isRecord(failure) &&
       typeof failure.repository === "string" &&
       repositoryPattern.test(failure.repository) &&
-      typeof failure.details === "string" &&
-      (/\bHTTP 301\b/u.test(failure.details) || failure.rule === "repository-unavailable")
+      typeof failure.rule === "string" &&
+      candidateRules.has(failure.rule)
     )
       repositories.add(failure.repository);
   }
@@ -193,10 +202,16 @@ export async function relocationCandidates(
   if (repositories.length === 0 || repositories.length > 64)
     throw new Error("Name between 1 and 64 repositories");
   const candidates: RelocationCandidate[] = [];
-  for (const repository of repositories)
-    candidates.push(
-      await relocationCandidate(repository, retained.get(repository.toLowerCase()) ?? null, read),
-    );
+  for (const repository of repositories) {
+    const retainedId = retained.get(repository.toLowerCase()) ?? null;
+    try {
+      candidates.push(await relocationCandidate(repository, retainedId, read));
+    } catch (error) {
+      if (!repositoryPattern.test(repository)) throw error;
+      // A bounded read failure leaves this repository unassessed, not the run.
+      candidates.push(candidate(repository, "unknown", { retained_repository_id: retainedId }));
+    }
+  }
   return {
     format: 1,
     authority: "proposal-only",
@@ -209,6 +224,7 @@ async function main(args: string[]) {
   const repositories: string[] = [];
   let checkpointPath: string | null = null;
   let summaryPath: string | null = null;
+  let coverageUnknown = false;
   for (let index = 0; index < args.length; index++) {
     const flag = args[index];
     const value = args[index + 1];
@@ -220,16 +236,28 @@ async function main(args: string[]) {
         "usage: upstream-relocation-candidates.mts (--repository OWNER/NAME | --report PATH) [...] [--checkpoint PATH] [--summary PATH]",
       );
     if (flag === "--repository") repositories.push(value);
-    else if (flag === "--report")
-      repositories.push(
-        ...relocationRepositoriesFromReport(JSON.parse(await readFile(value, "utf8"))),
-      );
-    else if (flag === "--checkpoint") checkpointPath = value;
+    else if (flag === "--report") {
+      const selected = relocationRepositoriesFromReport(JSON.parse(await readFile(value, "utf8")));
+      if (selected === null) coverageUnknown = true;
+      else repositories.push(...selected);
+    } else if (flag === "--checkpoint") checkpointPath = value;
     else summaryPath = value;
     index++;
   }
   if (repositories.length === 0) {
-    console.log(JSON.stringify({ format: 1, authority: "proposal-only", candidates: [] }));
+    console.log(
+      JSON.stringify({
+        format: 1,
+        authority: "proposal-only",
+        coverage_unknown: coverageUnknown,
+        candidates: [],
+      }),
+    );
+    if (summaryPath && coverageUnknown)
+      await appendFile(
+        summaryPath,
+        "### Upstream relocation candidates (proposal only)\n\nCoverage unknown: the run summary has no failure list, so no candidates were assessed.\n",
+      );
     return;
   }
   const retained = checkpointPath

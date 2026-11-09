@@ -71,19 +71,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Chameleon JP, the unchanged-client #246 acceptance scope.
           PORTCOVE_OBSERVER_SCHEDULED_PRIORITY_SOURCE: df91a1c7d9af20e76a6ff5dda131dcd6d7d70c601361ebbfbee37a9a292618cd
-      - name: Propose relocations for moved or missing upstream repositories
-        # Read-only proposals for the run summary; never affects the job result.
-        if: ${{ !cancelled() && steps.observe.outputs.catalog_handoff_directory != '' }}
-        continue-on-error: true
-        timeout-minutes: 2
-        run: >-
-          node scripts/upstream-relocation-candidates.mts
-          --report "$HANDOFF/summary.json"
-          --checkpoint work/upstream-observer/catalog/checkpoint.json
-          --summary "$GITHUB_STEP_SUMMARY"
-        env:
-          HANDOFF: ${{ steps.observe.outputs.catalog_handoff_directory }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Export bounded checkpoint recovery snapshot
         id: checkpoint
         if: ${{ !cancelled() && hashFiles('work/upstream-observer/catalog/checkpoint.json') != '' }}
@@ -121,3 +108,18 @@ jobs:
           path: ${{ steps.observe.outputs.catalog_handoff_directory }}
           if-no-files-found: warn
           retention-days: 1
+
+      - name: Propose relocations for moved or missing upstream repositories
+        # Read-only proposals for the run summary, after every retention step, so it
+        # never uses the checkpoint/artifact reserve or affects the job result.
+        if: ${{ !cancelled() && steps.observe.outputs.catalog_handoff_directory != '' }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: >-
+          node scripts/upstream-relocation-candidates.mts
+          --report "$HANDOFF/summary.json"
+          --checkpoint work/upstream-observer/catalog/checkpoint.json
+          --summary "$GITHUB_STEP_SUMMARY"
+        env:
+          HANDOFF: ${{ steps.observe.outputs.catalog_handoff_directory }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

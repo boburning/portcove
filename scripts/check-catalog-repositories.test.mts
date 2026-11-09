@@ -810,6 +810,22 @@ void test("relocation candidates classify moved repositories without following r
   assert.ok(!reads.includes("/repositories/22"));
   assert.equal(reads.filter((r) => r.startsWith("/repositories/")).length, 2);
   await assert.rejects(relocationCandidates(["not a repo"], retained, read), /Invalid repository/);
+  // One failing lookup leaves only that repository unassessed.
+  const partial = await relocationCandidates(
+    ["old/steady", "old/throws"],
+    retained,
+    async (endpoint) => {
+      if (endpoint === "/repos/old/throws") throw new Error("rate limited");
+      return read(endpoint);
+    },
+  );
+  assert.deepEqual(
+    partial.candidates.map((c) => [c.repository, c.status]),
+    [
+      ["old/steady", "not-moved"],
+      ["old/throws", "unknown"],
+    ],
+  );
   await assert.rejects(relocationCandidates([], retained, read), /between 1 and 64/);
 });
 
@@ -818,10 +834,18 @@ void test("relocation candidates read moved and missing identities from an obser
     await import("./upstream-relocation-candidates.mts");
   const report = {
     failures: [
+      // Real observer texts: a first identity lookup, and a retained source whose
+      // release listing refused the redirect as a generic transport failure.
       {
         repository: "b/moved",
         rule: "provider-transport",
-        details: "Primary repository identity returned HTTP 301; preserve the declared source",
+        details:
+          "Primary repository identity returned HTTP 301; preserve the declared source and reconcile its current primary-provider availability.",
+      },
+      {
+        repository: "e/renamed",
+        rule: "transport",
+        details: "provider transport failed within its retry budget",
       },
       {
         repository: "a/gone",
@@ -841,8 +865,14 @@ void test("relocation candidates read moved and missing identities from an obser
       { repository: "b/moved", rule: "provider-transport", details: "returned HTTP 301" },
     ],
   };
-  assert.deepEqual(relocationRepositoriesFromReport(report), ["a/gone", "b/moved"]);
-  assert.deepEqual(relocationRepositoriesFromReport({ coverage: "partial" }), []);
+  assert.deepEqual(relocationRepositoriesFromReport(report), [
+    "a/gone",
+    "b/moved",
+    "d/transport",
+    "e/renamed",
+  ]);
+  // A compact summary without a failure list is unassessed, not empty.
+  assert.equal(relocationRepositoriesFromReport({ coverage: "partial" }), null);
   const summary = renderRelocationSummary({
     format: 1,
     authority: "proposal-only",
