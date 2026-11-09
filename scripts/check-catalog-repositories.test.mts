@@ -738,3 +738,192 @@ void test(
     assert.equal(published, 0);
   },
 );
+
+void test("relocation candidates classify moved repositories without following redirects", async () => {
+  const { relocationCandidates, retainedRepositoryIds } =
+    await import("./upstream-relocation-candidates.mts");
+  const reads: string[] = [];
+  const moved = (id: number) => ({
+    status: 301,
+    data: { message: "Moved Permanently", url: `https://api.github.com/repositories/${id}` },
+  });
+  const responses: Record<string, { status: number; data: unknown }> = {
+    "/repos/old/renamed": moved(11),
+    "/repositories/11": {
+      status: 200,
+      data: { id: 11, full_name: "new/renamed", archived: false },
+    },
+    "/repos/old/elsewhere": moved(22),
+    "/repos/old/unbound": moved(33),
+    "/repositories/33": { status: 200, data: { id: 33, full_name: "new/unbound", archived: true } },
+    "/repos/old/gone": { status: 404, data: null },
+    "/repos/old/reused": { status: 200, data: { id: 99 } },
+    "/repos/old/steady": { status: 200, data: { id: 44 } },
+    "/repos/old/odd": {
+      status: 301,
+      data: { message: "Moved Permanently", url: "https://x.example/1" },
+    },
+  };
+  const read = async (endpoint: string) => {
+    reads.push(endpoint);
+    const response = responses[endpoint];
+    assert.ok(response, `unexpected read ${endpoint}`);
+    return response;
+  };
+  const retained = retainedRepositoryIds({
+    sources: {
+      a: { repository: "Old/Renamed", repository_id: 11 },
+      b: { repository: "old/elsewhere", repository_id: 5 },
+      c: { repository: "old/reused", repository_id: 7 },
+      d: { repository: "old/steady", repository_id: 44 },
+      e: { provider: "gitlab", repository: "old/unbound", repository_id: 33 },
+    },
+  });
+  const result = await relocationCandidates(
+    [
+      "old/renamed",
+      "old/elsewhere",
+      "old/unbound",
+      "old/gone",
+      "old/reused",
+      "old/steady",
+      "old/odd",
+    ],
+    retained,
+    read,
+  );
+  assert.equal(result.authority, "proposal-only");
+  assert.equal(result.redirects_followed, false);
+  assert.deepEqual(
+    result.candidates.map((c) => [c.repository, c.status, c.current_full_name]),
+    [
+      ["old/renamed", "same-repository-renamed", "new/renamed"],
+      ["old/elsewhere", "different-repository", null],
+      ["old/unbound", "identity-unbound", "new/unbound"],
+      ["old/gone", "unavailable", null],
+      ["old/reused", "name-reused", null],
+      ["old/steady", "not-moved", null],
+      ["old/odd", "unknown", null],
+    ],
+  );
+  // A mismatched redirect target is never looked up; only bounded identity reads occur.
+  assert.ok(!reads.includes("/repositories/22"));
+  assert.equal(reads.filter((r) => r.startsWith("/repositories/")).length, 2);
+  await assert.rejects(relocationCandidates(["not a repo"], retained, read), /Invalid repository/);
+  // One failing lookup leaves only that repository unassessed.
+  const partial = await relocationCandidates(
+    ["old/steady", "old/throws"],
+    retained,
+    async (endpoint) => {
+      if (endpoint === "/repos/old/throws") throw new Error("rate limited");
+      return read(endpoint);
+    },
+  );
+  assert.deepEqual(
+    partial.candidates.map((c) => [c.repository, c.status]),
+    [
+      ["old/steady", "not-moved"],
+      ["old/throws", "unknown"],
+    ],
+  );
+  await assert.rejects(relocationCandidates([], retained, read), /between 1 and 64/);
+});
+
+void test("relocation candidates read moved and missing identities from an observer report", async () => {
+  const { relocationRepositoriesFromReport, renderRelocationSummary, githubSourceKeys } =
+    await import("./upstream-relocation-candidates.mts");
+  const report = {
+    failures: [
+      // Real observer texts: a first identity lookup, and a retained source whose
+      // release listing refused the redirect as a generic transport failure.
+      {
+        source: "s-b",
+        repository: "b/moved",
+        rule: "provider-transport",
+        details:
+          "Primary repository identity returned HTTP 301; preserve the declared source and reconcile its current primary-provider availability.",
+      },
+      {
+        source: "s-e",
+        repository: "e/renamed",
+        rule: "transport",
+        details: "provider transport failed within its retry budget",
+      },
+      {
+        source: "s-a",
+        repository: "a/gone",
+        rule: "repository-unavailable",
+        details: "Primary repository identity returned HTTP 404",
+      },
+      {
+        source: "s-c",
+        repository: "c/budget",
+        rule: "budget",
+        details: "provider response byte or time budget exhausted",
+      },
+      {
+        source: "s-d",
+        repository: "d/transport",
+        rule: "provider-transport",
+        details: "Primary repository identity returned HTTP 502",
+      },
+      {
+        source: "s-b",
+        repository: "b/moved",
+        rule: "provider-transport",
+        details: "returned HTTP 301",
+      },
+    ],
+  };
+  const github = new Set(["s-a", "s-b", "s-c", "s-d", "s-e"]);
+  assert.deepEqual(relocationRepositoriesFromReport(report, github), [
+    "a/gone",
+    "b/moved",
+    "d/transport",
+    "e/renamed",
+  ]);
+  // A compact summary without a failure list is unassessed, not empty.
+  assert.equal(relocationRepositoriesFromReport({ coverage: "partial" }, github), null);
+  // GitLab and unknown sources share rule names but are never probed on GitHub.
+  assert.deepEqual(
+    relocationRepositoriesFromReport(
+      {
+        failures: [
+          {
+            source: "gitlab",
+            repository: "sonicdcer/ExtremeGRecomp",
+            rule: "provider-transport",
+            details: "x",
+          },
+          { source: "missing", repository: "x/y", rule: "transport", details: "x" },
+        ],
+      },
+      githubSourceKeys({
+        sources: {
+          gitlab: { provider: "gitlab", repository: "sonicdcer/ExtremeGRecomp" },
+          "s-a": { repository: "a/gone" },
+        },
+      }),
+    ),
+    [],
+  );
+  const summary = renderRelocationSummary({
+    format: 1,
+    authority: "proposal-only",
+    redirects_followed: false,
+    candidates: [
+      {
+        repository: "b/moved",
+        status: "same-repository-renamed",
+        http_status: 301,
+        redirect_repository_id: 1,
+        retained_repository_id: 1,
+        current_full_name: "b/renamed",
+        current_archived: false,
+        next_step: "Review the rename.",
+      },
+    ],
+  });
+  assert.match(summary, /proposal only/);
+  assert.match(summary, /`b\/moved` \| same-repository-renamed \| `b\/renamed`/);
+});
