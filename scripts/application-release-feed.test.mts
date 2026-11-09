@@ -16,7 +16,11 @@ import { serializeSiteTar } from "./release-site-deployment.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { sha256 } from "./application-release-io.mts";
 import { readReleaseNotesWithSdk } from "./release-publication-inventory.mts";
-import { inspectApplicationRunCustody } from "./application-release-run.mts";
+import {
+  inspectApplicationRunCustody,
+  retainedR55Renewal,
+  retainedR56FeedRecovery,
+} from "./application-release-run.mts";
 
 void test("prior discovery joins actual feed to one immutable native cohort and holds newer pending publication", async (t) => {
   const control = "a".repeat(40),
@@ -112,7 +116,7 @@ void test("prior discovery joins actual feed to one immutable native cohort and 
         return structuredClone(releases);
       },
     };
-    return { release, releases, tagObject, transport };
+    return { release, releases, tagObject, transport, responses };
   };
   const positive = await discoverPublishedApplicationCohort(fixture().transport);
   assert.equal(positive.release_id, 50);
@@ -211,6 +215,74 @@ void test("prior discovery joins actual feed to one immutable native cohort and 
     mutate(negative);
     await assert.rejects(() => discoverPublishedApplicationCohort(negative.transport));
   }
+  const r57 = fixture();
+  const failed = retainedR56FeedRecovery;
+  const formerRef = retainedR55Renewal.next_ref;
+  const r56 = {
+    id: failed.failed_admission_id,
+    sha: failed.control_commit,
+    ref: formerRef.slice("refs/tags/".length),
+    environment: "github-pages",
+  };
+  const r44 = { ...(r57.responses["deployments/10"] as object), id: failed.serving_admission_id };
+  const r44Statuses = r57.responses["deployments/10/statuses?per_page=1"] as object[];
+  r57.responses["deployments?environment=github-pages&per_page=1"] = [r56];
+  r57.responses["deployments?environment=github-pages&per_page=2"] = [r56, r44];
+  r57.responses[`deployments/${r44.id}`] = r44;
+  r57.responses[`deployments/${r44.id}/statuses?per_page=1`] = [
+    { ...r44Statuses[0], id: failed.serving_admission_status_id },
+  ];
+  const failedStatusRoute = `deployments/${r56.id}/statuses?per_page=1`;
+  const failedStatus = {
+    id: failed.failed_admission_status_id,
+    state: "failure",
+    environment: "github-pages",
+    log_url: `https://github.com/boburning/portcove/actions/runs/${failed.run_id}/job/${failed.feed_job_id}`,
+  };
+  r57.responses[failedStatusRoute] = [failedStatus];
+  const retained = inspectApplicationRunCustody({
+    ...custody,
+    opportunity: retainedR55Renewal.opportunity,
+    runs: [{ id: failed.run_id, control_commit: failed.control_commit, control_ref: formerRef }],
+  });
+  const retainedRelease = {
+    ...r57.release,
+    id: retainedR55Renewal.release_id,
+    tag_name: `portcove-production-candidate-${retained.opportunity}`,
+    published_at: "2026-11-04T11:59:30Z",
+    body: notes(retained),
+  };
+  r57.releases.push(retainedRelease);
+  const exclusion = { release_id: retainedRelease.id, custody: retained };
+  await assert.rejects(() => discoverPublishedApplicationCohort(r57.transport, exclusion));
+  await assert.rejects(() =>
+    discoverPublishedApplicationCohort(r57.transport, { ...exclusion, release_id: 123 }, true),
+  );
+  assert.equal(
+    (await discoverPublishedApplicationCohort(r57.transport, exclusion, true)).release_id,
+    50,
+  );
+  for (const driftAt of [2, 3]) {
+    let reads = 0;
+    await assert.rejects(
+      () =>
+        discoverPublishedApplicationCohort(
+          {
+            ...r57.transport,
+            async read(route) {
+              const response = await r57.transport.read(route);
+              if (route.endsWith(failedStatusRoute) && ++reads === driftAt)
+                return { ...response, body: [{ ...failedStatus, id: failedStatus.id + 1 }] };
+              return response;
+            },
+          },
+          exclusion,
+          true,
+        ),
+      /r56 pre-native failed Pages admission changed/u,
+    );
+  }
+
   const recovering = fixture();
   const pendingCustody = inspectApplicationRunCustody({
     ...custody,

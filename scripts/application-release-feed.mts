@@ -25,6 +25,8 @@ import {
   createApplicationReleaseMetadataReader,
   immutableApplicationBootstrap,
   recoveredApplicationBootstrap,
+  retainedR55Renewal,
+  retainedR56FeedRecovery,
 } from "./application-release-run.mts";
 import type { ApplicationRunCustody } from "./application-release-run.mts";
 import type { ApplicationReleaseReference } from "./application-release-run.mts";
@@ -60,6 +62,7 @@ export async function discoverPublishedApplicationCohort(
     releaseNotes: () => Promise<Record<string, unknown>[]>;
   },
   pending?: PendingCohort | readonly PendingCohort[],
+  recoverR56Feed = false,
 ) {
   const exclusions: readonly PendingCohort[] = structuredClone(
     pending === undefined ? [] : "release_id" in pending ? [pending] : pending,
@@ -68,8 +71,28 @@ export async function discoverPublishedApplicationCohort(
     exclusions.length <= 3 &&
       new Set(exclusions.map((value) => value.release_id)).size === exclusions.length,
   );
-  const state = await readApplicationPagesStateAsync(transport.read);
-  const execution = await readApplicationPagesExecution(transport.read, state);
+  if (recoverR56Feed) {
+    assert.equal(exclusions.length, 1);
+    assert.equal(exclusions[0]?.release_id, retainedR55Renewal.release_id);
+    assert.equal(exclusions[0]?.custody.opportunity, retainedR55Renewal.opportunity);
+    assert.ok(
+      exclusions[0]?.custody.runs.some(
+        (run) =>
+          run.id === retainedR56FeedRecovery.run_id &&
+          run.control_commit === retainedR56FeedRecovery.control_commit &&
+          run.control_ref === retainedR55Renewal.next_ref,
+      ),
+    );
+  }
+  const readServing = () =>
+    readApplicationPagesStateAsync(transport.read, undefined, false, recoverR56Feed);
+  const state = await readServing();
+  const execution = await readApplicationPagesExecution(
+    transport.read,
+    state,
+    undefined,
+    recoverR56Feed,
+  );
   const cohorts = (await transport.releaseNotes()).flatMap((release) => {
     const notes = readApplicationRunNotes(release.body ?? "");
     const nativeTag = /^portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(
@@ -143,11 +166,7 @@ export async function discoverPublishedApplicationCohort(
   // ambiguous tag chains require separate qualification rather than guessing.
   assert.equal(response.body.object.type, "commit");
   assert.equal(response.body.object.sha, expectedCommit);
-  assert.deepEqual(
-    await readApplicationPagesStateAsync(transport.read),
-    state,
-    "prior Pages actor changed during cohort discovery",
-  );
+  assert.deepEqual(await readServing(), state, "prior Pages actor changed during cohort discovery");
   assert.ok(
     typeof selected.release.id === "number" &&
       Number.isSafeInteger(selected.release.id) &&
@@ -164,6 +183,7 @@ export async function discoverPublishedApplicationCohort(
 
 export async function discoverActualPublishedApplicationCohort(
   pending?: PendingCohort | readonly PendingCohort[],
+  recoverR56Feed = false,
 ) {
   const token = fixedReleaseReaderToken();
   const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
@@ -175,6 +195,7 @@ export async function discoverActualPublishedApplicationCohort(
       releaseNotes: () => readReleaseNotesWithSdk({ token, deadline, guard }),
     },
     pending,
+    recoverR56Feed,
   );
 }
 
@@ -833,14 +854,16 @@ export async function readApplicationPriorPublication(
   scratch: string,
   pending?: Parameters<typeof discoverPublishedApplicationCohort>[1],
   intent?: "renew-served-metadata",
+  recoverR56Feed = false,
 ) {
-  const discovered = await discoverActualPublishedApplicationCohort(pending);
+  const discovered = await discoverActualPublishedApplicationCohort(pending, recoverR56Feed);
   const transport = await applicationMetadataTransport(discovered, scratch);
   const prior = await readImmutableApplicationMetadata(
     discovered,
     {
       ...transport,
-      readPages: () => readActualApplicationPagesState(transport.deadline),
+      readPages: () =>
+        readActualApplicationPagesState(transport.deadline, undefined, false, recoverR56Feed),
     },
     intent,
   );

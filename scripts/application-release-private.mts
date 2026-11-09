@@ -1899,6 +1899,25 @@ async function writeFeedInput(
   await applicationOutput("feed_directory", output);
 }
 
+async function verifyRetainedR56FeedArtifact() {
+  const prior = retainedR56FeedRecovery;
+  const evidence = path.resolve("work/previous-r56-feed-effect");
+  const archive = await receiveApplicationData(evidence, {
+    id: prior.evidence_artifact_id,
+    name: `application-site-publication-${prior.run_id}-1`,
+    source: prior.control_commit,
+    run_id: prior.run_id,
+    files: ["pages-evidence.json"],
+    maximum_file_bytes: 4096,
+    maximum_archive_bytes: prior.evidence_archive_bytes,
+  });
+  assert.equal(archive.bytes, prior.evidence_archive_bytes);
+  assert.equal(archive.sha256, prior.evidence_archive_sha256);
+  const file = path.join(evidence, "pages-evidence.json");
+  assert.equal((await applicationFileIdentity(file)).sha256, prior.evidence_sha256);
+  requireRetainedR56PreNativeEvidence(await readApplicationJson(file, 4096));
+}
+
 async function prepareBootstrapFeed() {
   // All metadata modes re-fetch the immutable Release in key-free staging.
   const source = await readApplicationJson(path.join(sourceDirectory, "source.json"));
@@ -1906,6 +1925,13 @@ async function prepareBootstrapFeed() {
   await guard(source, false);
   const current = execution();
   const recoverInitialBootstrap = source.execution_path === "bootstrap-recovery";
+  const recoverR56 = current.ref === retainedR56FeedRecovery.next_ref;
+  if (recoverR56) {
+    assert.equal(source.execution_path, "metadata-recovery");
+    await verifyRetainedR56FeedArtifact();
+  }
+  const readServing = () =>
+    readActualApplicationPagesState(undefined, undefined, false, recoverR56);
   const attempt =
     source.purpose === "metadata-bootstrap" && !recoverInitialBootstrap
       ? Number(process.env.PORTCOVE_PUBLICATION_INPUT_ATTEMPT)
@@ -1964,7 +1990,7 @@ async function prepareBootstrapFeed() {
   }
   if (source.purpose === "metadata-renewal") {
     await authenticateApplicationPublicRepository(input.files, input.publication, verifier);
-    const before = await readActualApplicationPagesState();
+    const before = await readServing();
     try {
       assertBootstrapPagesActor(
         before,
@@ -1972,7 +1998,7 @@ async function prepareBootstrapFeed() {
         inspectApplicationRunCustody(source.run_custody.custody).runs,
       );
       await readPublicApplicationSite(input.site);
-      assert.deepEqual(await readActualApplicationPagesState(), before);
+      assert.deepEqual(await readServing(), before);
     } catch {
       const lineageDirectory = path.join(verifier, "pending-lineage");
       await mkdir(lineageDirectory);
@@ -1991,6 +2017,7 @@ async function prepareBootstrapFeed() {
         verifier,
         lineage,
         source.renewal_parent === undefined ? "renew-served-metadata" : undefined,
+        recoverR56,
       );
       const basis = inspectApplicationRenewalSource(source);
       assert.equal(prior.receipt.site.generation, basis.site_generation);
@@ -2007,7 +2034,7 @@ async function prepareBootstrapFeed() {
         prior.receipt.publication,
       );
       await readPublicApplicationSite(prior.receipt.site);
-      assert.deepEqual(await readActualApplicationPagesState(), discovered.state);
+      assert.deepEqual(await readServing(), discovered.state);
       await writeApplicationJson(path.join(directory, "prior-site.json"), {
         schema_version: 1,
         authority: "none",
@@ -2120,19 +2147,23 @@ async function preflightBootstrapSite() {
           site.generation,
         )
       : undefined;
+  const recoverR56 = current.ref === retainedR56FeedRecovery.next_ref;
+  if (recoverR56) {
+    const prior = retainedR56FeedRecovery;
+    assert.equal(source.execution_path, "metadata-recovery");
+    assert.equal(site.generation, prior.generation);
+    const file = path.resolve("work/previous-r56-feed-effect/pages-evidence.json");
+    assert.equal((await applicationFileIdentity(file)).sha256, prior.evidence_sha256);
+    requireRetainedR56PreNativeEvidence(await readApplicationJson(file, 4096));
+  }
+  const readServing = () =>
+    readActualApplicationPagesState(undefined, undefined, recoverInitialBootstrap, recoverR56);
   let preimage;
   try {
-    const before = await readActualApplicationPagesState(
-      undefined,
-      undefined,
-      recoverInitialBootstrap,
-    );
+    const before = await readServing();
     if (!recoverInitialBootstrap) assertBootstrapPagesActor(before, site.generation, custody.runs);
     await readPublicApplicationSite(site);
-    assert.deepEqual(
-      await readActualApplicationPagesState(undefined, undefined, recoverInitialBootstrap),
-      before,
-    );
+    assert.deepEqual(await readServing(), before);
     preimage = { kind: recoverInitialBootstrap ? "recovery-visible" : "desired", provider: before };
   } catch {
     if (hasPrior) {
@@ -2140,10 +2171,10 @@ async function preflightBootstrapSite() {
       assert.ok(isRecord(prior) && isRecord(prior.site) && isRecord(prior.provider));
       assert.equal(prior.site.generation, site.previous_generation);
       const previous = inspectSiteGeneration(prior.site, site.previous_generation!);
-      assert.deepEqual(await readActualApplicationPagesState(), prior.provider);
+      assert.deepEqual(await readServing(), prior.provider);
       await readPublicApplicationSite(previous);
       assert.deepEqual(
-        await readActualApplicationPagesState(),
+        await readServing(),
         prior.provider,
         "prior site actor changed during ordinary preflight",
       );
@@ -2168,28 +2199,7 @@ async function preflightBootstrapSite() {
       preimage = { kind: "initial", provider };
     }
   }
-  const recoverR56 = current.ref === retainedR56FeedRecovery.next_ref;
-  if (recoverR56) {
-    const prior = retainedR56FeedRecovery;
-    assert.equal(source.execution_path, "metadata-recovery");
-    assert.equal(site.generation, prior.generation);
-    assert.equal(preimage.kind, "prior");
-    const evidence = path.resolve("work/previous-r56-feed-effect");
-    const archive = await receiveApplicationData(evidence, {
-      id: prior.evidence_artifact_id,
-      name: `application-site-publication-${prior.run_id}-1`,
-      source: prior.control_commit,
-      run_id: prior.run_id,
-      files: ["pages-evidence.json"],
-      maximum_file_bytes: 4096,
-      maximum_archive_bytes: prior.evidence_archive_bytes,
-    });
-    assert.equal(archive.bytes, prior.evidence_archive_bytes);
-    assert.equal(archive.sha256, prior.evidence_archive_sha256);
-    const file = path.join(evidence, "pages-evidence.json");
-    assert.equal((await applicationFileIdentity(file)).sha256, prior.evidence_sha256);
-    requireRetainedR56PreNativeEvidence(await readApplicationJson(file, 4096));
-  }
+  if (recoverR56) assert.equal(preimage.kind, "prior");
   const admissionBudget = await guard(source, false);
   const firstControllerBuild =
     hasPrior &&
@@ -2470,6 +2480,7 @@ async function deployBootstrapSite(readOnly = false) {
         ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
       },
       recoverInitialBootstrap,
+      recoverR56,
     );
     assert.ok(admission_id !== undefined);
     assert.deepEqual(serving, preimage.provider, "public deployment changed after preflight");
