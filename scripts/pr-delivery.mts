@@ -356,7 +356,7 @@ export class PullRequestDeliveryClient {
             ))) &&
         options.allowRequest?.(method, url) !== false,
     };
-    const sdk = await createGitHubClient(scope);
+    const sdk = await createGitHubClient({ ...scope, environmentProxy: true });
     const client = new PullRequestDeliveryClient(sdk, scope);
     if (observationRequired) client.observationDeadline = 0;
     return client;
