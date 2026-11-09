@@ -124,6 +124,65 @@ function negativeReceipt(
   return createReleaseReviewDispositionReceipt(observed, checkpoint, previous);
 }
 
+void test("paused safety withdrawal clears only the exact request and refuses its reuse", async (t) => {
+  const f = await fixture(t);
+  const state = { ...f.input, review_request: f.request };
+  assert.ok(isRecord(state.controller));
+  const saved = await checkpointReleaseOpportunity(f.repository, f.first.checkpoint, state);
+  const withdrawal = {
+    schema_version: 1,
+    kind: "application-review-safety-withdrawal",
+    request: f.request,
+    request_checkpoint: saved.checkpoint,
+    approval_sha256: "1".repeat(64),
+    technical_stop_sha256: "2".repeat(64),
+  };
+  const next = {
+    ...state,
+    controller: { ...state.controller, publication_paused: true },
+    review_request: null,
+    review_withdrawal: withdrawal,
+  };
+  for (const changed of [
+    { ...next, controller: state.controller },
+    { ...next, opportunity: null },
+    { ...next, review_withdrawal: { ...withdrawal, request_checkpoint: f.first.checkpoint } },
+    { ...next, review_withdrawal: { ...withdrawal, authority: "semantic-review" } },
+  ]) {
+    await assert.rejects(
+      checkpointReleaseOpportunity(f.repository, saved.checkpoint, changed),
+      /withdrawal|cannot erase an existing semantic opportunity/,
+    );
+  }
+  const retired = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, next);
+  const recovered = await recoverReleaseOpportunity(f.repository, retired.checkpoint);
+  assert.deepEqual(recovered.input, next);
+  assert.equal(recovered.plan.action, "pause");
+  const repeated = createReleaseReviewRequest({
+    base_commit: f.request.base_commit,
+    base_version: f.request.base_version,
+    source_commit: f.request.source_commit,
+    source_tree: f.request.source_tree,
+    change_set_sha256: f.request.change_set_sha256,
+    before_checkpoint: retired.checkpoint,
+    requested_at: String(next.now),
+  });
+  await assert.rejects(
+    checkpointReleaseOpportunity(f.repository, retired.checkpoint, {
+      ...next,
+      review_request: repeated,
+    }),
+    /withdrawn application source/,
+  );
+  await assert.rejects(
+    checkpointReleaseOpportunity(f.repository, retired.checkpoint, {
+      ...next,
+      review_withdrawal: null,
+    }),
+    /withdrawal/,
+  );
+});
+
 void test(
   "negative Check custody retires only exact request, preserves opportunity, and bounds changed-source repairs in portable journal",
   { timeout: 90000 },

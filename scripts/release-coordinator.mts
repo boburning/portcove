@@ -26,6 +26,7 @@ import { inspectCandidateStageEvidence } from "./release-candidate-progress-cont
 import {
   inspectReleaseReviewRequest,
   inspectReleaseReviewDisposition,
+  inspectReleaseReviewWithdrawal,
 } from "./release-review-request.mts";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
@@ -504,6 +505,7 @@ export function planReleaseOpportunity(input: unknown) {
       "metadata_bootstrap",
       "review_request",
       "review_disposition",
+      "review_withdrawal",
       "catalog_publication",
       "catalog_initialization",
       "catalog_review_request",
@@ -530,7 +532,8 @@ export function planReleaseOpportunity(input: unknown) {
     Object.hasOwn(input, "metadata_renewal") ||
     Object.hasOwn(input, "metadata_bootstrap") ||
     Object.hasOwn(input, "review_request") ||
-    Object.hasOwn(input, "review_disposition");
+    Object.hasOwn(input, "review_disposition") ||
+    Object.hasOwn(input, "review_withdrawal");
   if (
     hasMetadata &&
     (input.schema_version !== 2 ||
@@ -561,6 +564,9 @@ export function planReleaseOpportunity(input: unknown) {
   );
   const reviewRequest = inspectReleaseReviewRequest(input.review_request);
   const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
+  const reviewWithdrawal = inspectReleaseReviewWithdrawal(input.review_withdrawal);
+  if (reviewWithdrawal && reviewRequest?.source_commit === reviewWithdrawal.request.source_commit)
+    throw new Error("withdrawn application source cannot be requested again");
   const metadataRenewal =
     input.metadata_renewal === undefined || input.metadata_renewal === null
       ? null
@@ -687,7 +693,7 @@ export function planReleaseOpportunity(input: unknown) {
   }
   if (input.opportunity === null) {
     if (
-      (!metadataBootstrap && !publishedSite && !catalogInitialization) ||
+      (!metadataBootstrap && !publishedSite && !catalogInitialization && !reviewWithdrawal) ||
       active ||
       publication.reserved_versions.length !== 0
     )
@@ -769,6 +775,9 @@ export function planReleaseOpportunity(input: unknown) {
       .update(JSON.stringify(stable(opportunity.classification)))
       .digest("hex"),
   };
+
+  if (reviewWithdrawal?.request.source_commit === opportunity.source_commit)
+    return plan("pause", "application source was withdrawn for safety", authority);
 
   if (
     controller.capacity &&

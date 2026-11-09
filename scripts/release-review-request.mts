@@ -1,4 +1,4 @@
-import { capacityDigest } from "./release-capacity.mts";
+import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   classifyApplicationVersion,
@@ -275,6 +275,30 @@ export function advanceReleaseReviewRecovery(
   return { ...previous, substantive_repairs: previous.substantive_repairs + 1 };
 }
 
+/** Journal evidence of a safety withdrawal, separate from any App Check.
+ * The protected writer must authenticate the approval, pause and terminal evidence. */
+export function inspectReleaseReviewWithdrawal(raw: unknown) {
+  if (raw == null) return null;
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !==
+      "approval_sha256,kind,request,request_checkpoint,schema_version,technical_stop_sha256" ||
+    raw.schema_version !== 1 ||
+    raw.kind !== "application-review-safety-withdrawal"
+  )
+    throw new Error("application review withdrawal shape differs");
+  const request = inspectReleaseReviewRequest(raw.request);
+  if (!request) throw new Error("application review withdrawal has no exact request");
+  return {
+    schema_version: 1,
+    kind: raw.kind,
+    request,
+    request_checkpoint: sha(raw.request_checkpoint, 40),
+    approval_sha256: sha(raw.approval_sha256, 64),
+    technical_stop_sha256: sha(raw.technical_stop_sha256, 64),
+  };
+}
+
 export function validateReleaseReviewRequestTransition(
   previous: Record<string, unknown>,
   next: Record<string, unknown>,
@@ -284,6 +308,40 @@ export function validateReleaseReviewRequestTransition(
   const after = inspectReleaseReviewRequest(next.review_request);
   const oldDisposition = inspectReleaseReviewDisposition(previous.review_disposition);
   const disposition = inspectReleaseReviewDisposition(next.review_disposition);
+  const oldWithdrawal = inspectReleaseReviewWithdrawal(previous.review_withdrawal);
+  const withdrawal = inspectReleaseReviewWithdrawal(next.review_withdrawal);
+  if (capacityDigest(oldWithdrawal) !== capacityDigest(withdrawal)) {
+    if (
+      oldWithdrawal ||
+      !withdrawal ||
+      !before ||
+      next.review_request !== null ||
+      withdrawal.request_checkpoint !== checkpoint ||
+      capacityDigest(withdrawal.request) !== capacityDigest(before) ||
+      previous.active_candidate !== null ||
+      !isRecord(previous.controller) ||
+      !isRecord(previous.controller.capacity_attempt) ||
+      previous.metadata_renewal != null ||
+      previous.catalog_publication != null
+    )
+      throw new Error("review withdrawal requires the exact paused request preimage");
+    const operation = inspectCapacityOperation(
+      previous.controller.capacity_attempt.operation ?? null,
+    );
+    if (operation && !["succeeded", "recovered"].includes(operation.outcome ?? ""))
+      throw new Error("review withdrawal cannot cross an unresolved release effect");
+    const expected = {
+      ...previous,
+      controller: { ...previous.controller, publication_paused: true },
+      review_request: null,
+      review_withdrawal: withdrawal,
+    };
+    if (capacityDigest(expected) !== capacityDigest(next))
+      throw new Error("review withdrawal cannot change release state or accounting");
+    return;
+  }
+  if (withdrawal && after?.source_commit === withdrawal.request.source_commit)
+    throw new Error("withdrawn application source cannot be requested again");
   if (
     capacityDigest(before) === capacityDigest(after) &&
     capacityDigest(oldDisposition) === capacityDigest(disposition)
