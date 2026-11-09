@@ -163,20 +163,6 @@ filter = 'package(portcove-core) & test(/^definition_repository::tests::publishe
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
-# The complete compatible-runtime fixture in41893774776/a1 Windows2 took
-# 183.584s for MMX2 and122.389s/113.682s for the other two consumers.
-# November 9 Windows runs repeated three fixture cutoffs on main 42552844184
-# and PR 42558931323 (both attempts) with no assertion failure. Green main
-# 42548736587 passed them in 49.666s of 60s and 82.164s of 90s. Give the exact
-# Windows revocation case finite 120s here, before its shared 60s filter; the
-# restore case's own exact override below allows 180s. Keep every assertion,
-# product deadline, worker setting, cleanup and zero retries.
-[[profile.default.overrides]]
-platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/)'
-slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
-success-output = "immediate"
-
 # Windows passed this CLI contract in 16.358s to 30.006s across recent runs,
 # including 29.848s and 30.006s on main, and cut it at the default 30s in
 # 42553892092, 42564200212 and 42568048217. Give only this Windows case finite
@@ -188,6 +174,8 @@ filter = 'package(portcove-cli) & binary(machine_contract) & test(/^retained_bui
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# The complete compatible-runtime fixture in41893774776/a1 Windows2 took
+# 183.584s for MMX2 and122.389s/113.682s for the other two consumers.
 # These explicit predecessor-transition cases include the same populated
 # two-runtime path plus one journal interruption/recovery per case. The family
 # had finite 300s; green main 42548736587 used 274.152s for super_metroid and
