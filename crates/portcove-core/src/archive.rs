@@ -453,18 +453,35 @@ fn extract_tar_gz(
         decoded_limit,
         checkpoint,
     );
+    write_tar_entries(reader, destination, &plans, checkpoint)
+}
+
+fn write_tar_entries(
+    reader: impl Read,
+    destination: &Path,
+    plans: &[EntryPlan],
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     let mut archive = tar::Archive::new(reader);
-    for (entry, plan) in archive
+    let mut entries = archive
         .entries()
-        .map_err(|error| map_tar_error("invalid TAR", error, checkpoint))?
-        .zip(plans.iter())
-    {
+        .map_err(|error| map_tar_error("invalid TAR", error, checkpoint))?;
+    for plan in plans {
         checkpoint()?;
-        let mut entry =
-            entry.map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
+        let mut entry = entries
+            .next()
+            .ok_or_else(|| PortcoveError::verification("TAR has fewer entries than planned"))?
+            .map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
         write_entry(destination, plan, &mut entry, checkpoint)?;
     }
-    Ok(())
+    checkpoint()?;
+    match entries.next() {
+        None => Ok(()),
+        Some(Ok(_)) => Err(PortcoveError::verification(
+            "TAR has more entries than planned",
+        )),
+        Some(Err(error)) => Err(map_tar_error("invalid TAR entry", error, checkpoint)),
+    }
 }
 
 fn preflight_raw_tar(
@@ -894,7 +911,6 @@ mod tests {
         fs::metadata(path).unwrap().permissions().mode() & 0o7777
     }
 
-    #[cfg(unix)]
     fn write_tar_gz(path: &Path, entries: &[(&str, &[u8], u32)]) {
         let encoder = flate2::write::GzEncoder::new(
             File::create(path).unwrap(),
@@ -912,6 +928,85 @@ mod tests {
                 .unwrap();
         }
         builder.into_inner().unwrap().finish().unwrap();
+    }
+
+    #[test]
+    fn tar_write_pass_rejects_missing_and_surplus_entries() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("package.tar.gz");
+        let plans = [EntryPlan {
+            relative: "first.bin".into(),
+            directory: false,
+            executable: false,
+            size: 5,
+        }];
+        let destination = temporary.path().join("output");
+        fs::create_dir(&destination).unwrap();
+
+        write_tar_gz(&source, &[]);
+        let error = write_tar_entries(
+            GzDecoder::new(File::open(&source).unwrap()),
+            &destination,
+            &plans,
+            &|| Ok(()),
+        )
+        .unwrap_err();
+        assert_eq!(error.message, "TAR has fewer entries than planned");
+        assert!(!destination.join("first.bin").exists());
+
+        write_tar_gz(
+            &source,
+            &[
+                ("first.bin", b"first", 0o644),
+                ("extra.bin", b"extra", 0o644),
+            ],
+        );
+        let error = write_tar_entries(
+            GzDecoder::new(File::open(&source).unwrap()),
+            &destination,
+            &plans,
+            &|| Ok(()),
+        )
+        .unwrap_err();
+        assert_eq!(error.message, "TAR has more entries than planned");
+        assert_eq!(fs::read(destination.join("first.bin")).unwrap(), b"first");
+        assert!(!destination.join("extra.bin").exists());
+    }
+
+    #[test]
+    fn tar_write_pass_propagates_a_trailing_enumeration_error() {
+        let temporary = tempdir().unwrap();
+        let error = write_tar_entries(&b"incomplete header"[..], temporary.path(), &[], &|| Ok(()))
+            .unwrap_err();
+        assert!(error.message.starts_with("invalid TAR entry:"));
+    }
+
+    #[test]
+    fn tar_extracts_a_complete_archive() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("package.tar.gz");
+        let destination = temporary.path().join("output");
+        fs::create_dir(&destination).unwrap();
+        write_tar_gz(
+            &source,
+            &[
+                ("first.bin", b"first", 0o644),
+                ("nested/second.bin", b"second", 0o644),
+            ],
+        );
+
+        extract_archive(
+            &source,
+            &destination,
+            "package.tar.gz",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap();
+        assert_eq!(fs::read(destination.join("first.bin")).unwrap(), b"first");
+        assert_eq!(
+            fs::read(destination.join("nested/second.bin")).unwrap(),
+            b"second"
+        );
     }
 
     #[cfg(unix)]
