@@ -17,13 +17,16 @@ pub(crate) fn is_portcove_metadata(path: &Path) -> bool {
 
 pub(crate) fn refuse_symlink_ancestors(path: &Path) -> Result<()> {
     for candidate in path.ancestors() {
-        if std::fs::symlink_metadata(candidate)
-            .is_ok_and(|metadata| metadata.file_type().is_symlink())
-        {
-            return Err(PortcoveError::conflict(format!(
-                "refusing to synchronize through a symlink: {}",
-                candidate.display()
-            )));
+        match std::fs::symlink_metadata(candidate) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(PortcoveError::conflict(format!(
+                    "refusing to synchronize through a symlink: {}",
+                    candidate.display()
+                )));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
         }
     }
     Ok(())
@@ -123,6 +126,30 @@ pub(crate) fn unicode(path: &Path, role: &str) -> Result<String> {
         .with_known_cause(crate::failure::KnownFailureCause::UnicodePath)
         .detail("path_role", role)
     })
+}
+
+#[cfg(test)]
+#[test]
+fn ancestor_check_allows_missing_components() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(temporary.path()).unwrap();
+    refuse_symlink_ancestors(&root.join("missing/child")).unwrap();
+}
+
+#[cfg(all(test, unix))]
+#[test]
+fn ancestor_check_propagates_metadata_errors() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(temporary.path()).unwrap();
+    let file = root.join("file");
+    std::fs::write(&file, b"").unwrap();
+    let child = file.join("child");
+    let metadata_error = std::fs::symlink_metadata(&child).unwrap_err();
+    assert_eq!(metadata_error.kind(), std::io::ErrorKind::NotADirectory);
+    assert_eq!(
+        refuse_symlink_ancestors(&child).unwrap_err().message,
+        metadata_error.to_string()
+    );
 }
 
 #[cfg(all(test, unix))]
