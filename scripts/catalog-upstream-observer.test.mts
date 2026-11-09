@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   runCatalogUpstreams,
   runCatalogOpportunity,
+  hostedHandoffByteLimit,
   retireObserverConfigurations,
 } from "./observe-catalog-upstreams.mts";
 import {
@@ -2429,6 +2430,33 @@ void test("hosted opportunity drains accepted progress without retrying failed s
   assert.deepEqual(result.report.completed_source_keys, ["large"]);
 });
 
+void test("hosted opportunity stops admitting batches at its request ceiling", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  let turns = 0;
+  const result = await continueCatalogBatches(
+    async () => {
+      turns++;
+      return {
+        report: {
+          pending_source_keys: ["large"],
+          attempted_source_keys: ["large"],
+          completed_source_keys: [],
+          failures: [],
+          requests: 300,
+          response_bytes_charged: 10,
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: false,
+      };
+    },
+    { deadline: 100, now: () => 0, maxRequests: 1000 },
+  );
+  assert.equal(turns, 4);
+  assert.equal(result.report.requests, 1200);
+  assert.deepEqual(result.report.pending_source_keys, ["large"]);
+});
+
 void test("opportunity refuses unknown capacity and stops on no accepted progress, byte exhaustion, deadline and cancellation", async () => {
   const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
   const batch = {
@@ -2651,6 +2679,11 @@ void test("hosted opportunity preserves one aggregate handoff and refuses change
     )
   ).reduce((sum, bytes) => sum + bytes.length, 0);
   assert.equal((result.summary as { artifact_bytes: number }).artifact_bytes, actualBytes);
+  // The hosted path wires its own aggregate handoff envelope into the summary.
+  assert.equal(
+    (result.summary as { artifact_byte_limit: number }).artifact_byte_limit,
+    hostedHandoffByteLimit + h.options.config.budget.response_bytes + observerSnapshotLimit,
+  );
   h.advanceClock(7 * 3600000);
   runtime.deadline = h.options.now!() + 500000;
   let changed = false;

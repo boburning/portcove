@@ -1,3 +1,4 @@
+import { hostedOpportunityMs } from "./observe-catalog-upstreams.mts";
 import { isRecord } from "./runtime-values.mts";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -358,7 +359,12 @@ void test("scheduled observation keeps the configured cadence, read-only authori
     workflow,
     /pull_request_target|contents: write|id-token: write|actions: write|secrets\.(?!GITHUB_TOKEN\b)/,
   );
-  assert.match(workflow, /timeout-minutes: 10/);
+  // The job limit keeps a finite reserve after the observation deadline for
+  // checkpoint export, artifact retention and cleanup.
+  const jobMinutes = Number(workflow.match(/timeout-minutes: (\d+)/u)?.[1]);
+  const deadlineMinutes = Number(workflow.match(/timedelta\(minutes=(\d+)\)/u)?.[1]);
+  assert.equal(deadlineMinutes * 60000, hostedOpportunityMs);
+  assert.ok(jobMinutes - deadlineMinutes >= 5);
   assert.match(workflow, /shared-key: upstream-observer-cli\s+cache-on-failure: true/);
   assert.match(workflow, /cancel-in-progress: false/);
   assert.match(
