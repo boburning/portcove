@@ -151,6 +151,15 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::revie
 slow-timeout = { period = "5s", terminate-after = 72, grace-period = "0s" }
 success-output = "immediate"
 
+# The populated Super Metroid fixture hit the 300s limit in 42563344846/1
+# and both 42579655658 attempts. It passed 42563344846/2 in 228.124s.
+# Match the exact MMX2 counterpart's 420s Windows budget.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_super_metroid_populated_install$/)'
+slow-timeout = { period = "5s", terminate-after = 84, grace-period = "0s" }
+success-output = "immediate"
+
 # Windows 5 on 42512432572/1 reached 30.036s in this prepared revocation
 # fixture after the same case timed out on 42484319837/1 and passed its retry.
 # Match the Intel Mac fixture allowance. Assertions, retries and cleanup stay fixed.
