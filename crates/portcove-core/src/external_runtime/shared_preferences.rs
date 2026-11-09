@@ -2,6 +2,8 @@
 use crate::runtime_path_policy::require_narrow_windows_path;
 use std::fs;
 use std::path::Path;
+#[cfg(windows)]
+use std::path::PathBuf;
 
 use crate::{
     ExternalRuntimeRecord, PortcoveError, PreparedSharedPreferencesContract, Result,
