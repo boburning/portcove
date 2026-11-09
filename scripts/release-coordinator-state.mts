@@ -218,6 +218,7 @@ function readCheckpoint(git: Git, commit: string) {
     state.previous === null &&
     (checked.input.review_request != null ||
       checked.input.review_disposition != null ||
+      checked.input.review_withdrawal != null ||
       checked.input.catalog_review_request != null ||
       checked.input.catalog_review_disposition != null)
   )
@@ -529,6 +530,7 @@ export async function checkpointReleaseOpportunity(
   else if (
     input.review_request != null ||
     input.review_disposition != null ||
+    input.review_withdrawal != null ||
     input.catalog_review_request != null ||
     input.catalog_review_disposition != null
   )
