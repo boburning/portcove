@@ -483,6 +483,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       periods: 24,
     },
     {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
+        "package(portcove-cli) & binary(machine_contract) & test(/^retained_build_contract::retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_reference$/)",
+      periods: 12,
+    },
+    {
       platform: "x86_64-unknown-linux-gnu",
       filter:
         "package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)",

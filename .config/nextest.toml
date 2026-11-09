@@ -159,6 +159,17 @@ filter = 'package(portcove-core) & test(/^definition_repository::tests::publishe
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
+# Windows passed this CLI contract in 16.358s to 30.006s across recent runs,
+# including 29.848s and 30.006s on main, and cut it at the default 30s in
+# 42553892092, 42564200212 and 42568048217. Give only this Windows case finite
+# 60s, matching its macOS allowance; keep assertions, product deadlines and
+# zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & binary(machine_contract) & test(/^retained_build_contract::retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_reference$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # These explicit predecessor-transition cases include the same populated
 # two-runtime path plus one journal interruption/recovery per case. The family
 # had finite 300s; green main 42548736587 used 274.152s for super_metroid and
