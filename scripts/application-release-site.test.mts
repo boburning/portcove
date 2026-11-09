@@ -8,6 +8,8 @@ import {
   failedBootstrapRecovery,
   immutableApplicationBootstrap,
   recoveredApplicationBootstrap,
+  retainedR55Renewal,
+  retainedR56FeedRecovery,
 } from "./application-release-run.mts";
 import {
   executeBootstrapPages,
@@ -870,6 +872,66 @@ void test("feed selects the serving actor only behind its exact active Actions a
   const active = { ...current, selection: "current" as const, deployment_id: own.id };
   assert.equal((await readApplicationPagesStateAsync(read(), serving)).deployment_id, old.id);
   assert.equal((await readApplicationPagesStateAsync(read(), active)).deployment_id, own.id);
+  const r56 = retainedR56FeedRecovery;
+  const r57Tag = r56.next_ref.slice("refs/tags/".length);
+  const failedR56 = {
+    id: r56.failed_admission_id,
+    sha: r56.control_commit,
+    ref: retainedR55Renewal.next_ref.slice("refs/tags/".length),
+    environment: "github-pages",
+  };
+  const failedR56Status = {
+    id: r56.failed_admission_status_id,
+    state: "failure",
+    environment: "github-pages",
+    log_url: `https://github.com/boburning/portcove/actions/runs/${r56.run_id}/job/${r56.feed_job_id}`,
+  };
+  const priorR44 = { ...old, id: r56.serving_admission_id };
+  const r56StatusRoute = `deployments/${failedR56.id}/statuses?per_page=1`;
+  const r44StatusRoute = `deployments/${priorR44.id}/statuses?per_page=1`;
+  const retainedResponses = {
+    "deployments?environment=github-pages&per_page=1": [failedR56],
+    "deployments?environment=github-pages&per_page=2": [failedR56, priorR44],
+    "deployments?environment=github-pages&per_page=3": [
+      { ...own, ref: r57Tag },
+      failedR56,
+      priorR44,
+    ],
+    "actions/jobs/456": { ...job, head_branch: r57Tag },
+    [r56StatusRoute]: [failedR56Status],
+    [r44StatusRoute]: [{ ...status, id: r56.serving_admission_status_id, state: "success" }],
+  };
+  await assert.rejects(readApplicationPagesStateAsync(read(retainedResponses)));
+  assert.equal(
+    (await readApplicationPagesStateAsync(read(retainedResponses), undefined, false, true))
+      .deployment_id,
+    priorR44.id,
+  );
+  assert.equal(
+    (
+      await readApplicationPagesStateAsync(
+        read(retainedResponses),
+        { ...serving, ref: r56.next_ref },
+        false,
+        true,
+      )
+    ).admission_id,
+    own.id,
+  );
+  for (const override of [
+    { [r56StatusRoute]: [{ ...failedR56Status, state: "in_progress" }] },
+    { [r56StatusRoute]: [{ ...failedR56Status, log_url: status.log_url }] },
+    { [r44StatusRoute]: [{ ...status, id: 4321, state: "success" }] },
+    { "deployments?environment=github-pages&per_page=2": [{ ...failedR56, id: 4321 }, priorR44] },
+  ])
+    await assert.rejects(
+      readApplicationPagesStateAsync(
+        read({ ...retainedResponses, ...override }),
+        undefined,
+        false,
+        true,
+      ),
+    );
   const original = immutableApplicationBootstrap;
   const failed = [failedBootstrapRecovery, { ...original, ...original.assembly }];
   const failedDeployments = failed.map((execution) => ({
