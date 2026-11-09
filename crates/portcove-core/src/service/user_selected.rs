@@ -2863,7 +2863,7 @@ mod tests {
     }
     #[test]
     fn cave_story_nxengine_evo_prepared_player_route_2647() {
-        assert_listing_only_player_route("cave-story-nxengine-evo", Some(false));
+        assert_listing_only_player_route("cave-story-nxengine-evo", Some(true));
     }
 
     #[test]

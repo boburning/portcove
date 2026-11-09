@@ -2034,6 +2034,15 @@ async fn embedded_re_cherry_selected_component_hold_keeps_prepared_guide_before_
     assert_embedded_player_download_holds(&["lollipop-chainsaw-re-cherry"]).await;
 }
 
+#[tokio::test]
+async fn embedded_nxengine_and_head_coach_hold_fresh_download_before_network() {
+    assert_embedded_player_download_holds(&[
+        "cave-story-nxengine-evo",
+        "nfl-head-coach-09-nfl-head-coach-09-static-recomp",
+    ])
+    .await;
+}
+
 // Synthetic first-party bytes exercise the real listing/provider contracts;
 // they are not an upstream package, permission or gameplay observation.
 async fn assert_embedded_resolved_frontend_download(

@@ -15336,9 +15336,18 @@
           {
             "title": "Retain the actual profile and fallback",
             "instruction": "Preserve the entire creating runtime/data/mods/translations and actual SDL nxengine preference directory, normally under the current account’s AppData. It holds settings.dat, profile.dat/profile2.dat and other slots, debug.log and mod-specific progress; overlays can change the data selected. If preference lookup fails paths can fall back to the working directory. Preserve both effective locations before updates; a second executable may share profiles. The current Windows release lacks an independently published accepted digest for managed install; a freshly computed hash would not authenticate it."
+          },
+          {
+            "title": "Use your permitted Linux copy",
+            "instruction": "The v2.6.5-1 x86-64 AppImage supplies its own launch environment. Open the complete AppImage yourself and keep the accompanying data, translations and mods. Preserve the effective SDL nxengine profile and any working-folder fallback. The AppImage setup has separate process supervision requirements."
+          },
+          {
+            "title": "Use your permitted Intel Mac copy",
+            "instruction": "The v2.6.5-1 DMG contains NXEngine.app for Intel Macs on macOS 10.14 or later. Copy the intact app out of the disk image and open it yourself after reviewing its publisher. Keep the effective SDL nxengine profile and any working-folder fallback as well as the complete player."
           }
         ]
-      }
+      },
+      "download_block_reason": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification."
     },
     {
       "id": "cbfd-recompiled-sciaschi",
@@ -33148,7 +33157,25 @@
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md"
+        "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md",
+        "references": [
+          {
+            "title": "Set up MDK on Linux",
+            "instruction": "Use the upstream v1.2.6 archive for your CPU. The x86-64 player needs glibc 2.43 or later and the ARM64 player needs glibc 2.38 or later. Use a Vulkan driver. Keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original MDK installation."
+          },
+          {
+            "title": "Set up MDK on an Apple silicon Mac",
+            "instruction": "Use the upstream v1.2.6 Apple silicon ZIP on macOS 12 or later with Metal. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. Review the publisher and your Mac’s download security prompts before opening the player."
+          },
+          {
+            "title": "Keep your desktop files",
+            "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. Keep mdk_paths.cfg and the original installation separately. Optional upscaling has its own tool download and output files."
+          },
+          {
+            "title": "Set up MDK on Android",
+            "instruction": "Use the upstream v1.2.6 APK on 64-bit Android 8 or later with Vulkan. Select your original MDK folder containing TRAVERSE, MISC, FALL3D and STREAM. To play in place, the app requires All files access and a writable folder. Progress stays in that folder. Choose Copy instead to avoid broad access. The app copies the game to Android/data/io.github.nemo22.mdk/files/mdk and keeps settings and saves in the parent files folder. Keep whichever location the app uses before uninstalling."
+          }
+        ]
       },
       "original_game_title": "MDK",
       "platforms": [
@@ -37026,7 +37053,7 @@
     {
       "id": "nfl-head-coach-09-nfl-head-coach-09-static-recomp",
       "name": "NFL Head Coach 09 (NFL Head Coach 09 Static Recomp)",
-      "summary": "An NFL Head Coach 09 Windows setup route that compiles locally from your own Xbox 360 disc image, title 45410841. HC09Setup.exe extracts the executable and builds the player. Keep the ISO at its configured path for every run: default.xex and image.pe outputs do not replace all disc data. Renderer and progression limits remain. Exact host CPU architecture and accepted region/revision/hashes are unconfirmed. Portcove has not confirmed setup or gameplay.",
+      "summary": "Prepare NFL Head Coach 09 on Windows x86-64 from your own Xbox 360 disc image. The upstream setup compiles the player locally, and the player reads the ISO during play.",
       "original_game_title": "NFL Head Coach 09",
       "project_url": "https://github.com/tools81/nfl-head-coach-09-static-recomp",
       "platforms": [],
@@ -37040,7 +37067,33 @@
         "game_slug": "nfl-head-coach-09",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2696
+      "issue_number": 2696,
+      "download_block_reason": "Use a setup copy you already have permission to use. The installer acquires additional build tools and compiles code from the original game. Portcove has no qualified download and build route.",
+      "manual_setup": {
+        "help_url": "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/f13c779d35b3ebed597573948c7d3f6e6a7671a6/README.md",
+        "steps": [
+          {
+            "title": "Prepare your original disc and Windows tools",
+            "instruction": "Use your own complete Xbox 360 NFL Head Coach 09 disc image. The setup reads default.xex and checks title ID 45410841. Use Visual Studio 2022 with the C++ and clang-cl tools, CMake and Git as described by upstream."
+          },
+          {
+            "title": "Build the player with upstream setup",
+            "instruction": "Run your permitted copy of HC09Setup.exe yourself to build the player. The setup downloads XenonRecomp and an FFmpeg package and compiles from your disc image. Keep the ISO available at the IsoPath in hc09.ini because the game reads it during play."
+          },
+          {
+            "title": "Choose the completed game program",
+            "instruction": "After confirming the prepared copy starts and quits normally, select build/hc09/HC09.exe with build/hc09 as its working folder. Choose Play separately when ready. The setup application and intermediate disc outputs have separate roles."
+          },
+          {
+            "title": "Keep your original game and career",
+            "instruction": "Keep the complete creating runtime, original ISO, hc09.ini and build/userdata. Review the upstream AutoUpdate setting in hc09.ini. Setup also builds HC27. Use its separate roster and media only if you have permission, and keep its progress in build/userdata-hc27. Close the player before replacing or copying files."
+          }
+        ],
+        "warnings": [
+          "The title ID establishes which game the setup expects. Matching region, revision and whole-disc digest are still unverified. Check upstream’s current renderer and progression limits before relying on a career save.",
+          "You manage setup, runtime changes, backups and recovery for this external copy. Removing its Portcove registration leaves the external files in place."
+        ]
+      }
     },
     {
       "id": "nfs-carbon-360-decomp-codepdbh-need-for-speed-carbon-xbox-360",
@@ -45747,11 +45800,11 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
           }
         ],
         "warnings": [
-          "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed.",
+          "Keep the engine and any matching Nightly resources together. Check original-game setup and mod compatibility with your prepared copy.",
           "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy.",
           "Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
         ],
@@ -45760,6 +45813,18 @@
           {
             "title": "Keep your existing game data",
             "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+          },
+          {
+            "title": "Prepare the Linux player yourself",
+            "instruction": "Use the upstream portable instructions with your own Call of Pripyat 1.6.02 files. On x86-64 or ARM64 with glibc 2.38 or later, make the complete upstream CI AppImage executable and open that file. For a separately prepared portable tree, keep its engine libraries and resources together and open bin/xr_3da. Use -fsltx and the absolute path to your config for either player."
+          },
+          {
+            "title": "Prepare the matching Mac build yourself",
+            "instruction": "The inspected upstream CI ZIPs are for Intel or Apple silicon on macOS 14 or later. Keep bin/xr_3da and share/openxray. Use the architecture-matched Homebrew dependencies in the upstream setup instructions, including sdl2-compat, and your own Call of Pripyat 1.6.02 resources. Start bin/xr_3da from the prepared folder containing bin and share. Use -fsltx and the absolute path to your config."
+          },
+          {
+            "title": "Keep the effective profile for this copy",
+            "instruction": "Keep the complete engine and original files and the actual app_data_root defined by the selected fsgame.ltx. The CI packages and source instructions describe player-managed setup. Confirm a normal start and quit before attaching any prepared native player."
           }
         ]
       },
@@ -45803,19 +45868,32 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
           }
         ],
         "warnings": [
           "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed.",
           "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy.",
-          "Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+          "Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration.",
+          "OpenXRay does not load saves created by the original Clear Sky engine. Keep your original saves and create a separate OpenXRay profile."
         ],
         "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
         "references": [
           {
             "title": "Keep your existing game data",
             "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+          },
+          {
+            "title": "Prepare the Linux player yourself",
+            "instruction": "Use the upstream portable instructions with your own Clear Sky 1.5.10 files. On x86-64 or ARM64 with glibc 2.38 or later, make the complete upstream CI AppImage executable and open that file. For a separately prepared portable tree, keep its engine libraries and resources together and open bin/xr_3da. Use -cs plus -fsltx and the absolute path to your config for either player."
+          },
+          {
+            "title": "Prepare the matching Mac build yourself",
+            "instruction": "The inspected upstream CI ZIPs are for Intel or Apple silicon on macOS 14 or later. Keep bin/xr_3da and share/openxray. Use the architecture-matched Homebrew dependencies in the upstream setup instructions, including sdl2-compat, and your own Clear Sky 1.5.10 resources. Start bin/xr_3da from the prepared folder containing bin and share. Use -cs plus -fsltx and the absolute path to your config."
+          },
+          {
+            "title": "Keep the effective profile for this copy",
+            "instruction": "Keep the complete engine and original files and the actual app_data_root defined by the selected fsgame.ltx. The CI packages and source instructions describe player-managed setup. Confirm a normal start and quit before attaching any prepared native player."
           }
         ]
       },
@@ -56038,6 +56116,20 @@
         "warnings": [
           "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
           "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+        ],
+        "references": [
+          {
+            "title": "Set up a separate Linux copy",
+            "instruction": "Start with a complete copy of your original Urban Chaos PC folder, then overlay the full upstream OpenChaos v1.0.2 Linux x86-64 ZIP. Use glibc 2.38 or later, libstdc++ with GLIBCXX_3.4.32, libatomic.so.1 and libGL.so.1. OpenChaos.sh starts the OpenChaos player in that folder. Keep the original config.ini and your effective Linux data-home OpenChaos profile."
+          },
+          {
+            "title": "Set up a separate Apple silicon Mac copy",
+            "instruction": "Start with a complete copy of your original Urban Chaos PC folder, then overlay the full upstream OpenChaos v1.0.2 Apple silicon ZIP on macOS 15 or later. Review the publisher and your Mac’s download security prompts before choosing whether to run OpenChaos.command yourself. Upstream uses this launcher to set the working folder and remove quarantine from the player. Keep the original config.ini and your OpenChaos profile under Application Support."
+          },
+          {
+            "title": "Keep every location that receives progress",
+            "instruction": "Keep the effective OpenChaos profile, saves, settings and crash logs, the complete original and working game folders, and any files written to a custom location. Early crashes or failed profile lookup can leave files in the working folder. Linux and Mac setup and replacement are yours to manage."
+          }
         ]
       }
     },

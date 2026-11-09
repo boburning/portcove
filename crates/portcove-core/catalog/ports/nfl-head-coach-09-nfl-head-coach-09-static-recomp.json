@@ -3,7 +3,7 @@
   "listing": {
     "id": "nfl-head-coach-09-nfl-head-coach-09-static-recomp",
     "name": "NFL Head Coach 09 (NFL Head Coach 09 Static Recomp)",
-    "summary": "An NFL Head Coach 09 Windows setup route that compiles locally from your own Xbox 360 disc image, title 45410841. HC09Setup.exe extracts the executable and builds the player. Keep the ISO at its configured path for every run: default.xex and image.pe outputs do not replace all disc data. Renderer and progression limits remain. Exact host CPU architecture and accepted region/revision/hashes are unconfirmed. Portcove has not confirmed setup or gameplay.",
+    "summary": "Prepare NFL Head Coach 09 on Windows x86-64 from your own Xbox 360 disc image. The upstream setup compiles the player locally, and the player reads the ISO during play.",
     "original_game_title": "NFL Head Coach 09",
     "project_url": "https://github.com/tools81/nfl-head-coach-09-static-recomp",
     "platforms": [],
@@ -17,7 +17,33 @@
       "game_slug": "nfl-head-coach-09",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2696
+    "issue_number": 2696,
+    "download_block_reason": "Use a setup copy you already have permission to use. The installer acquires additional build tools and compiles code from the original game. Portcove has no qualified download and build route.",
+    "manual_setup": {
+      "help_url": "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/f13c779d35b3ebed597573948c7d3f6e6a7671a6/README.md",
+      "steps": [
+        {
+          "title": "Prepare your original disc and Windows tools",
+          "instruction": "Use your own complete Xbox 360 NFL Head Coach 09 disc image. The setup reads default.xex and checks title ID 45410841. Use Visual Studio 2022 with the C++ and clang-cl tools, CMake and Git as described by upstream."
+        },
+        {
+          "title": "Build the player with upstream setup",
+          "instruction": "Run your permitted copy of HC09Setup.exe yourself to build the player. The setup downloads XenonRecomp and an FFmpeg package and compiles from your disc image. Keep the ISO available at the IsoPath in hc09.ini because the game reads it during play."
+        },
+        {
+          "title": "Choose the completed game program",
+          "instruction": "After confirming the prepared copy starts and quits normally, select build/hc09/HC09.exe with build/hc09 as its working folder. Choose Play separately when ready. The setup application and intermediate disc outputs have separate roles."
+        },
+        {
+          "title": "Keep your original game and career",
+          "instruction": "Keep the complete creating runtime, original ISO, hc09.ini and build/userdata. Review the upstream AutoUpdate setting in hc09.ini. Setup also builds HC27. Use its separate roster and media only if you have permission, and keep its progress in build/userdata-hc27. Close the player before replacing or copying files."
+        }
+      ],
+      "warnings": [
+        "The title ID establishes which game the setup expects. Matching region, revision and whole-disc digest are still unverified. Check upstream’s current renderer and progression limits before relying on a career save.",
+        "You manage setup, runtime changes, backups and recovery for this external copy. Removing its Portcove registration leaves the external files in place."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

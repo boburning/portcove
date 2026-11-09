@@ -427,6 +427,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)";
   const windowsSonicPopulatedTransitionFilter =
     "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_sonic_populated_install$/)";
+  const windowsSuperMetroidPopulatedTransitionFilter =
+    "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_super_metroid_populated_install$/)";
   const windowsPreparedRevocationFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_revocation_preserves_evidence$/)";
   const windowsPublishedRevocationFilter =
@@ -434,6 +436,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   for (const [filter, periods] of [
     [windowsMmx2PopulatedTransitionFilter, 84],
     [windowsSonicPopulatedTransitionFilter, 72],
+    [windowsSuperMetroidPopulatedTransitionFilter, 84],
     [windowsPreparedRevocationFilter, 12],
     [windowsPublishedRevocationFilter, 12],
   ] as const) {
@@ -449,6 +452,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   for (const filter of [
     windowsMmx2PopulatedTransitionFilter,
     windowsSonicPopulatedTransitionFilter,
+    windowsSuperMetroidPopulatedTransitionFilter,
   ])
     assert.ok(
       overrides.indexOf(overrideFor(filter, "x86_64-pc-windows-msvc")) <
@@ -892,7 +896,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     {
       filter:
         "package(portcove-core) & test(/^service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases$/)",
-      periods: 45,
+      periods: 54,
       beforeFilter: "package(portcove-core) & test(/^service::native_portable::tests::/)",
     },
     {
@@ -998,6 +1002,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsReviewedArchiveTransitionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsMmx2PopulatedTransitionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsSonicPopulatedTransitionFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsSuperMetroidPopulatedTransitionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparedRevocationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedRevocationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },

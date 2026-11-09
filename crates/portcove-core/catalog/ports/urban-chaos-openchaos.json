@@ -45,6 +45,20 @@
       "warnings": [
         "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
         "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+      ],
+      "references": [
+        {
+          "title": "Set up a separate Linux copy",
+          "instruction": "Start with a complete copy of your original Urban Chaos PC folder, then overlay the full upstream OpenChaos v1.0.2 Linux x86-64 ZIP. Use glibc 2.38 or later, libstdc++ with GLIBCXX_3.4.32, libatomic.so.1 and libGL.so.1. OpenChaos.sh starts the OpenChaos player in that folder. Keep the original config.ini and your effective Linux data-home OpenChaos profile."
+        },
+        {
+          "title": "Set up a separate Apple silicon Mac copy",
+          "instruction": "Start with a complete copy of your original Urban Chaos PC folder, then overlay the full upstream OpenChaos v1.0.2 Apple silicon ZIP on macOS 15 or later. Review the publisher and your Mac’s download security prompts before choosing whether to run OpenChaos.command yourself. Upstream uses this launcher to set the working folder and remove quarantine from the player. Keep the original config.ini and your OpenChaos profile under Application Support."
+        },
+        {
+          "title": "Keep every location that receives progress",
+          "instruction": "Keep the effective OpenChaos profile, saves, settings and crash logs, the complete original and working game folders, and any files written to a custom location. Early crashes or failed profile lookup can leave files in the working folder. Linux and Mac setup and replacement are yours to manage."
+        }
       ]
     }
   },
