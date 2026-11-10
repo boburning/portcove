@@ -1,0 +1,42 @@
+name: Cancel superseded CI runs
+
+# CI gives each pull request run its own concurrency group so a replacement starts at once.
+# This workflow cancels the older runs of the same pull request. It is separate from ci.yml
+# because ci.yml is also a reusable workflow whose callers grant only actions: read.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: ci-supersede-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  cancel:
+    name: cancel-superseded-runs
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel CI runs of this pull request for other heads
+        # Best effort: fork tokens are read-only, and a failed cancel only costs runner time.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          case "$PR_NUMBER" in ''|*[!0-9]*) echo "Unexpected pull request number" >&2; exit 1 ;; esac
+          case "$HEAD_SHA" in *[!0-9a-f]*|'') echo "Unexpected head SHA" >&2; exit 1 ;; esac
+          for status in queued in_progress waiting; do
+            gh api --paginate "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&status=$status&per_page=100" \
+              --jq ".workflow_runs[] | select(.head_sha != \"$HEAD_SHA\") | select(any(.pull_requests[]?; .number == $PR_NUMBER)) | .id"
+          done | sort -u | while read -r run; do
+            echo "Cancelling superseded run $run"
+            gh api -X POST "repos/$REPO/actions/runs/$run/cancel" || true
+          done
