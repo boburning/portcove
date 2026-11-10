@@ -112,7 +112,7 @@ async function readBootstrapScope(operation: unknown, platform: ControllerToolPl
   const needs = data(environment.PORTCOVE_FIXED_NEEDS, 256 * 1024);
   assert.ok(isRecord(needs));
   const bootstrap = windows ? needs.tool_bootstrap_windows : needs.tool_bootstrap,
-    attest = needs.tool_attest;
+    attest = windows ? needs.tool_attest_windows : needs.tool_attest;
   assert.ok(isRecord(bootstrap) && bootstrap.result === "success" && isRecord(bootstrap.outputs));
   assert.ok(isRecord(attest) && attest.result === "success" && isRecord(attest.outputs));
   const artifact = {

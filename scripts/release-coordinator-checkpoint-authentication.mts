@@ -204,6 +204,8 @@ export const retainedApplicationRenewalClaim = Object.freeze({
   successor_ref: "refs/tags/portcove-production-controller-20261110r70",
   settled_successor_ref: "refs/tags/portcove-production-controller-20261110r71",
   latency_successor_ref: "refs/tags/portcove-production-controller-20261110r72",
+  native_split_successor_ref: "refs/tags/portcove-production-controller-20261110r73",
+  native_split_workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
 });
 
 export function isRetainedApplicationRenewalClaimScope(
@@ -221,18 +223,28 @@ export function isRetainedApplicationRenewalClaimScope(
   );
 }
 
-/** Resume the signed r68 descriptor before any context upload or feed write. */
+export function isSettledApplicationRenewalRecoveryRef(executionRef: string) {
+  const pin = retainedApplicationRenewalClaim;
+  return (
+    executionRef === pin.settled_successor_ref ||
+    executionRef === pin.latency_successor_ref ||
+    executionRef === pin.native_split_successor_ref
+  );
+}
+
+/** Resume the settled signed renewal descriptor before any context upload or feed write. */
 export function matchesRetainedApplicationRenewalHandoff(
   checkpoint: { checkpoint: string; previous: string | null },
   producer: Record<string, unknown>,
-  source: { execution_ref: string },
+  source: { execution_ref: string; workflow_sha256?: string },
   purpose: "application" | "catalog-publication" | undefined,
 ) {
   const pin = retainedApplicationRenewalClaim;
   if (purpose !== "application") return false;
   if (
-    source.execution_ref === pin.settled_successor_ref ||
-    source.execution_ref === pin.latency_successor_ref
+    isSettledApplicationRenewalRecoveryRef(source.execution_ref) &&
+    (source.execution_ref !== pin.native_split_successor_ref ||
+      source.workflow_sha256 === pin.native_split_workflow_sha256)
   ) {
     return (
       checkpoint.checkpoint === pin.child &&
