@@ -2262,7 +2262,9 @@ async function prepareTrustedCoordinatorRenewalAt(
       },
     };
     const pin = retainedApplicationRenewalClaim;
-    const settledRecovery = reader.admitted.execution_ref === pin.settled_successor_ref;
+    const settledRecovery =
+      reader.admitted.execution_ref === pin.settled_successor_ref ||
+      reader.admitted.execution_ref === pin.latency_successor_ref;
     const appointedRecovery =
       settledRecovery || reader.admitted.execution_ref === pin.successor_ref;
     const resumingClaim = appointedRecovery && checkpoint !== pin.child;

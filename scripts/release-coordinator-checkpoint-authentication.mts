@@ -203,6 +203,7 @@ export const retainedApplicationRenewalClaim = Object.freeze({
   original_job: 129835641718,
   successor_ref: "refs/tags/portcove-production-controller-20261110r70",
   settled_successor_ref: "refs/tags/portcove-production-controller-20261110r71",
+  latency_successor_ref: "refs/tags/portcove-production-controller-20261110r72",
 });
 
 export function isRetainedApplicationRenewalClaimScope(
@@ -229,7 +230,10 @@ export function matchesRetainedApplicationRenewalHandoff(
 ) {
   const pin = retainedApplicationRenewalClaim;
   if (purpose !== "application") return false;
-  if (source.execution_ref === pin.settled_successor_ref) {
+  if (
+    source.execution_ref === pin.settled_successor_ref ||
+    source.execution_ref === pin.latency_successor_ref
+  ) {
     return (
       checkpoint.checkpoint === pin.child &&
       checkpoint.previous === pin.previous &&
