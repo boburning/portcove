@@ -1158,9 +1158,10 @@ function GameUpdateReview({
             {plan.plan.output_location.user_data_root}
           </bdi>
           <p className="mt-2 mb-0">
-            Keeping the previous game version is separate from backing up saved data. Save
-            compatibility between versions is not checked here. Review backup options in Saves and
-            storage.
+            Unless you turned it off in Settings, or this game has no managed saves yet, Portcove
+            first takes an automatic snapshot of its saves and settings. Keeping the previous game
+            version is separate from backing up saved data. Save compatibility between versions is
+            not checked here. Review backup options in Saves and storage.
           </p>
         </div>
       )}

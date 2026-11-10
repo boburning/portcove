@@ -2620,8 +2620,10 @@ function VersionRollback({
         Restore previous version
       </Button>
       <p className="text-sm text-pc-muted-foreground">
-        This switches game software and keeps current saved data. Older software may not understand
-        newer saves or configuration. Saved-data restore is a separate reviewed action in Saves.
+        This switches game software and keeps current saved data. Unless you turned it off in
+        Settings, or this game has no managed saves yet, Portcove first takes an automatic snapshot
+        of its saves and settings. Older software may not understand newer saves or configuration.
+        Saved-data restore is a separate reviewed action in Saves.
       </p>
       {rollback.blocked && (
         <p role="status" data-rollback-assessment>
