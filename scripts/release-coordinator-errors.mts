@@ -38,6 +38,10 @@ const applicationRefusalStages: readonly string[] = [
   "renewal-tuf-preparation",
   "renewal-publication-inventory",
   "actual-maintenance-controls",
+  "metadata-context-preparation",
+  "existing-metadata-pending",
+  "fixed-public-context-upload",
+  "metadata-upload-settlement",
   ...applicationCheckpointStages,
 ];
 

@@ -812,6 +812,10 @@ void test("application coordinator diagnostics retain a closed refusal without e
     "renewal-publication-inventory",
     "actual-maintenance-controls",
     "durable-maintenance-descriptor",
+    "metadata-context-preparation",
+    "existing-metadata-pending",
+    "fixed-public-context-upload",
+    "metadata-upload-settlement",
   ]) {
     const refusal = applicationCoordinatorRefusal(
       new CoordinatorRemoteError("private", {

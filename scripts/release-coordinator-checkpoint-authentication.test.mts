@@ -27,6 +27,7 @@ import {
   matchesRetainedCatalogBootstrapHandoff,
   matchesRetainedCatalogAdoptionWithdrawal,
   matchesRetainedCatalogForwardAdoptionHandoff,
+  matchesRetainedApplicationRenewalHandoff,
   retainedCatalogForwardAdoptionClaim,
   matchesRetainedReviewWithdrawalHandoff,
   retainedCatalogBootstrapClaim,
@@ -1175,4 +1176,55 @@ void test("only the appointed successor and exact r66 adoption producer can carr
       false,
       key,
     );
+});
+
+void test("r69 can resume only the signed r68 application renewal descriptor", () => {
+  const checkpoint = {
+    checkpoint: "86407ae8bca924200aba304340f33076e635b6e7",
+    previous: retainedCatalogForwardAdoptionClaim.child,
+  };
+  const producer = {
+    controller_revision: "9c5e7f0e33282115235fffa19d073e5cb084ffa0",
+    controller_ref: "refs/tags/portcove-production-controller-20261110r68",
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42786277008",
+    run_attempt: 1,
+    job_id: "129733085853",
+    check_run_id: "129733085853",
+  };
+  const source = { execution_ref: "refs/tags/portcove-production-controller-20261110r69" };
+  assert.ok(matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"));
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
+    false,
+  );
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(
+      checkpoint,
+      producer,
+      { execution_ref: producer.controller_ref },
+      "application",
+    ),
+    false,
+  );
+  for (const [key, value] of Object.entries(producer))
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : value + "0" },
+        source,
+        "application",
+      ),
+      false,
+      key,
+    );
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(
+      { ...checkpoint, previous: null },
+      producer,
+      source,
+      "application",
+    ),
+    false,
+  );
 });

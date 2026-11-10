@@ -192,6 +192,29 @@ export function matchesRetainedCatalogForwardAdoptionHandoff(
   );
 }
 
+/** Resume the signed r68 descriptor before any context upload or feed write. */
+export function matchesRetainedApplicationRenewalHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { execution_ref: string },
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  return (
+    purpose === "application" &&
+    source.execution_ref === "refs/tags/portcove-production-controller-20261110r69" &&
+    checkpoint.checkpoint === "86407ae8bca924200aba304340f33076e635b6e7" &&
+    checkpoint.previous === retainedCatalogForwardAdoptionClaim.child &&
+    producer.controller_revision === "9c5e7f0e33282115235fffa19d073e5cb084ffa0" &&
+    producer.controller_ref === "refs/tags/portcove-production-controller-20261110r68" &&
+    producer.workflow_sha256 ===
+      "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136" &&
+    producer.run_id === "42786277008" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "129733085853" &&
+    producer.check_run_id === "129733085853"
+  );
+}
+
 /** Authenticate one independently selected current head, not an ancestry walk.
  * Selected setup pins authorize only the exact empty seed. Every later head
  * must carry the existing signature plus actual fixed historical job binding.
@@ -264,7 +287,8 @@ export async function authenticateFixedJobCoordinatorHistory(
     (matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source) ||
       matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal) ||
       matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose) ||
-      matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose));
+      matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose) ||
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose));
   if (
     !producer ||
     (!retainedHandoff &&
