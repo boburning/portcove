@@ -765,6 +765,7 @@ const metadataPreparations = new WeakMap<
     seed: NonNullable<ReturnType<typeof inspectPublishedMetadata>>;
     descriptor_sha256: string;
     control_identity_sha256: string;
+    control_observed_at: string;
     next_controls: (
       phaseDeadline?: number,
     ) => Promise<Awaited<ReturnType<typeof authenticateReleaseControlSource>>>;
@@ -2261,7 +2262,9 @@ async function prepareTrustedCoordinatorRenewalAt(
       },
     };
     const pin = retainedApplicationRenewalClaim;
-    const appointedRecovery = reader.admitted.execution_ref === pin.successor_ref;
+    const settledRecovery = reader.admitted.execution_ref === pin.settled_successor_ref;
+    const appointedRecovery =
+      settledRecovery || reader.admitted.execution_ref === pin.successor_ref;
     const resumingClaim = appointedRecovery && checkpoint !== pin.child;
     const reuseDescriptor =
       inspectSelectedJournalRequirement(process.env) &&
@@ -2270,6 +2273,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       appointedRecovery &&
       (!reuseDescriptor ||
         reader.admitted.run_attempt !== 1 ||
+        (settledRecovery && checkpoint !== pin.child) ||
         (resumingClaim &&
           !isRetainedApplicationRenewalClaimScope(
             checkpoint,
@@ -2335,6 +2339,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       seed: structuredClone(published),
       descriptor_sha256: capacityDigest(prepared.descriptor),
       control_identity_sha256: controlIdentity,
+      control_observed_at: observed.protection.observed_at,
       next_controls: nextControls,
     });
     return result;
@@ -2381,9 +2386,13 @@ export async function requireActualCoordinatorMetadataPreparation(
       coordinatorHasUnresolvedEffect(current.input)
     )
       throw new Error("coordinator metadata seed or checkpoint changed");
-    // The original observer may have aged while the authenticated feed/tool
-    // custody was checked. Obtain a new fixed-job round before reading it.
-    const controls = await retained.next_controls();
+    // Keep the original observation clock. The live checks below still
+    // enforce its provider expiry and unchanged maintenance authority.
+    const observationAge = Date.now() - Date.parse(retained.control_observed_at);
+    const controls =
+      observationAge >= 0 && observationAge < 30000
+        ? retained.controls
+        : await retained.next_controls();
     const readControls = () =>
       controls.readSdkMaintenance(undefined, { deadline: retained.deadline });
     const fresh = await readControls();
