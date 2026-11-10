@@ -2901,6 +2901,26 @@ When an update resolves to an artifact already present in the managed library, P
 
 The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers, observes running launches and reconciles a pending application update, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
 
+Anonymous update-check request cost (measured November 2026 by
+`release::tests::measure_the_request_cost_of_checking_a_library`, which drives the real
+provider and its persisted ETag cache). One check of one GitHub-hosted game makes two
+requests: one `releases` page and one repository-metadata call. GitHub does not count a 304
+response against the primary rate limit, so only 200 responses count. The test pins the
+10- and 25-game rows; the 50-game row was measured once with the same harness and the cost
+is exactly linear.
+
+| Library  | Cold check (no cached ETags) | Warm check after a restart | One repository changed  |
+| -------- | ---------------------------- | -------------------------- | ----------------------- |
+| 10 games | 20 requests, 20 counted      | 20 requests, 0 counted     | 20 requests, 2 counted  |
+| 25 games | 50 requests, 50 counted      | 50 requests, 0 counted     | 50 requests, 2 counted  |
+| 50 games | 100 requests, 100 counted    | 100 requests, 0 counted    | 100 requests, 2 counted |
+
+An anonymous client is limited to 60 counted requests per hour per IP address, shared with
+anything else on that address. A cold check therefore exhausts a whole hour for a library of
+30 or more GitHub-hosted games and can fail partway through, while a warm check is free.
+Cost is dominated by first checks and by cache loss, not by routine rechecks, which is why
+the useful moment to offer GitHub sign-in is before a cold check that would not fit.
+
 React retains the latest event for each active operation and its available
 ancestor context, plus at most 32 other recent terminal events. Retained
 identities reject stale sequence delivery and cannot return from terminal to
