@@ -677,6 +677,7 @@ pub enum ExternalProfilePolicy {
     JgrppLinuxV1,
     OpengladMacV1,
     Z2rsDesktopV1,
+    RecompDirectV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.

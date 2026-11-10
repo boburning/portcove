@@ -17,6 +17,7 @@ pub(crate) mod archive_siblings;
 pub(crate) mod openmohaa;
 pub(crate) mod profile_siblings;
 pub(crate) mod quake_linux;
+pub(crate) mod recomp_direct;
 pub(crate) mod z2rs;
 
 fn read_amd64_elf_header(executable: &Path) -> Result<[u8; 20]> {
@@ -54,6 +55,7 @@ fn require_arm64_macho(executable: &Path, message: &str) -> Result<()> {
 pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
     match policy {
         ExternalProfilePolicy::Z2rsDesktopV1 => z2rs::NATIVE_CAPABILITY,
+        ExternalProfilePolicy::RecompDirectV1 => recomp_direct::NATIVE_CAPABILITY,
         ExternalProfilePolicy::JgrppLinuxV1 | ExternalProfilePolicy::OpengladMacV1 => 17,
         ExternalProfilePolicy::CorsixthLinuxV1 | ExternalProfilePolicy::OpenlocoUnixV1 => 16,
         ExternalProfilePolicy::IronwailLinuxV1 | ExternalProfilePolicy::VkquakeLinuxV1 => 15,
@@ -78,6 +80,9 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
             profile_siblings::applies_to(policy, platform)
         }
         ExternalProfilePolicy::JgrppLinuxV1 => platform == Platform::LinuxX86_64,
+        ExternalProfilePolicy::RecompDirectV1 => {
+            matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
+        }
         ExternalProfilePolicy::OpengladMacV1 => platform == Platform::MacosAarch64,
         _ => true,
     }
@@ -150,6 +155,10 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
                 Platform::MacosAarch64,
             ],
         ),
+        ExternalProfilePolicy::RecompDirectV1 => (
+            Some(("body-harvest-recompiled", "mcsoderh/BodyHarvestRecomp")),
+            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
+        ),
         ExternalProfilePolicy::Z2rsDesktopV1 => (
             Some(("troyedwardsjr-z2rs", "troyedwardsjr/z2rs")),
             &[
@@ -209,6 +218,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
     }
     if policy == ExternalProfilePolicy::Z2rsDesktopV1 {
         z2rs::validate(port)?;
+    }
+    if policy == ExternalProfilePolicy::RecompDirectV1 {
+        recomp_direct::validate(port)?;
     }
     if policy == ExternalProfilePolicy::Openrct2MacV1 {
         let mut mac_routes = port
@@ -348,7 +360,8 @@ fn linux_root(
         | ExternalProfilePolicy::OpenlocoUnixV1
         | ExternalProfilePolicy::JgrppLinuxV1
         | ExternalProfilePolicy::OpengladMacV1
-        | ExternalProfilePolicy::Z2rsDesktopV1 => {
+        | ExternalProfilePolicy::Z2rsDesktopV1
+        | ExternalProfilePolicy::RecompDirectV1 => {
             return Err(PortcoveError::unsupported(
                 "this profile uses a different upstream layout",
             ));
@@ -413,6 +426,10 @@ fn roots(
     command: &Command,
 ) -> Result<Vec<PathBuf>> {
     match (policy, platform) {
+        #[cfg(any(target_os = "linux", windows))]
+        (ExternalProfilePolicy::RecompDirectV1, _) => {
+            Ok(vec![recomp_direct::profile_root(command)?])
+        }
         #[cfg(unix)]
         (policy, platform) if archive_siblings::applies(policy) && applies_to(policy, platform) => {
             archive_siblings::profile_roots(policy, command)
@@ -725,6 +742,11 @@ pub(crate) fn require_external_roots(
     if archive_siblings::applies(policy) {
         archive_siblings::require_launch_layout(policy, spec, command, checkpoint)?;
     }
+    if policy == ExternalProfilePolicy::RecompDirectV1 {
+        let configured_override = std::env::var_os("APP_FOLDER_PATH");
+        recomp_direct::require_no_profile_override(platform, configured_override.as_deref())?;
+        recomp_direct::require_default_profile(&spec.working_directory)?;
+    }
     let owned = library
         .output_roots()?
         .into_iter()
@@ -739,6 +761,7 @@ pub(crate) fn require_external_roots(
                     ExternalProfilePolicy::RecompAppimageV1
                         | ExternalProfilePolicy::OpenmohaaUnixV1
                         | ExternalProfilePolicy::Z2rsDesktopV1
+                        | ExternalProfilePolicy::RecompDirectV1
                 ))
             .then(|| library.root().to_path_buf()),
         )
