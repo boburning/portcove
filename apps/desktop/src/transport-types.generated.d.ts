@@ -884,6 +884,7 @@ export type ApplicationUpdateObservedTermination =
 export type ApplicationUpdateInstallEligibility =
   "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
 export type InstallationContext =
   | {
       installation_id: string;
@@ -1056,6 +1057,7 @@ export interface TransportOutputs {
   desktop_application_update_production_transition: ApplicationUpdateProductionTransition;
   desktop_application_update_production_transition_result: OutputDesktopApplicationUpdateProductionTransitionResult;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
+  desktop_automatic_snapshots_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
   desktop_bug_report_draft: OutputDesktopBugReportDraft;

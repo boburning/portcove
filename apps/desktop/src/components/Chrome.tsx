@@ -12,6 +12,7 @@ import { Radio } from "@base-ui/react/radio";
 import { controlFocus } from "./ui/control-style";
 import { ActionRow, Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
+import { AutomaticSnapshotsSetting } from "./AutomaticSnapshotsSetting";
 import { SupportBundleExport } from "./SupportBundleExport";
 import { desktopApi } from "../api";
 import {
@@ -1824,6 +1825,7 @@ export function SettingsView(props: SettingsViewProps) {
           librarySelection.root !== (storage?.library_root ?? libraryRoot)
         }
       />
+      <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
         key={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
