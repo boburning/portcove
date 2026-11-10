@@ -64,3 +64,48 @@ it("disables the control until Core has answered and reports a failed read or sa
   expect(document.body.querySelector("[role=alert]")).not.toBeNull();
   expect(checkbox()?.getAttribute("aria-checked")).toBe("true");
 });
+
+const labelText = "Snapshot saved data before each version change";
+const label = () =>
+  [...document.body.querySelectorAll("label")].find((node) =>
+    node.textContent?.includes(labelText),
+  );
+
+it("toggles through the label, so the visible text is associated with the checkbox", async () => {
+  const save = vi.fn().mockResolvedValue(false);
+  await show(vi.fn().mockResolvedValue(true), save);
+  await act(async () => label()?.click());
+  expect(save).toHaveBeenCalledWith(false, 3);
+});
+
+it("blocks a second change while a save is in flight", async () => {
+  let finish: (value: boolean) => void = () => undefined;
+  const save = vi.fn().mockReturnValue(
+    new Promise<boolean>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await show(vi.fn().mockResolvedValue(true), save);
+  await act(async () => checkbox()?.click());
+  expect(checkbox()?.hasAttribute("data-disabled")).toBe(true);
+  await act(async () => checkbox()?.click());
+  expect(save).toHaveBeenCalledTimes(1);
+  await act(async () => finish(false));
+  expect(checkbox()?.getAttribute("aria-checked")).toBe("false");
+  expect(checkbox()?.hasAttribute("data-disabled")).toBe(false);
+});
+
+it("offers a retry after a failed read and recovers when Core answers", async () => {
+  const load = vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValue(true);
+  await show(load, vi.fn());
+  expect(document.body.querySelector("[role=alert]")).not.toBeNull();
+  expect(checkbox()?.hasAttribute("data-disabled")).toBe(true);
+  const retry = [...document.body.querySelectorAll("button")].find(
+    (button) => button.textContent === "Try again",
+  );
+  expect(retry).toBeDefined();
+  await act(async () => retry?.click());
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(document.body.querySelector("[role=alert]")).toBeNull();
+  expect(checkbox()?.getAttribute("aria-checked")).toBe("true");
+});

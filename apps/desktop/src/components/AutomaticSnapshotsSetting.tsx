@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { failurePresentation } from "../view-model";
+import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { SettingsRow } from "./ui/patterns";
 
@@ -23,13 +24,17 @@ export function AutomaticSnapshotsSetting({
   const [state, setState] = useState<{ generation: number; enabled: boolean } | undefined>();
   const [problem, setProblem] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const request = useRef(0);
   const controlId = useId();
   useEffect(() => {
     const current = ++request.current;
     load(generation).then(
       (enabled) => {
-        if (request.current === current) setState({ generation, enabled });
+        if (request.current === current) {
+          setProblem(undefined);
+          setState({ generation, enabled });
+        }
       },
       (value) => {
         if (request.current === current)
@@ -39,7 +44,7 @@ export function AutomaticSnapshotsSetting({
     return () => {
       request.current += 1;
     };
-  }, [generation, load]);
+  }, [generation, load, attempt]);
   const enabled = state?.generation === generation ? state.enabled : undefined;
   const change = async (next: boolean) => {
     const current = ++request.current;
@@ -60,11 +65,13 @@ export function AutomaticSnapshotsSetting({
       <div className="grid gap-2">
         <h3 className="text-base font-semibold">Snapshot saved data before version changes</h3>
         <p className="text-sm text-pc-muted-foreground">
-          Before an update installs, a saved update activates, or you restore a previous version,
-          Portcove copies the game&rsquo;s managed saves and settings so you can restore them if the
-          new version misreads them. Portcove keeps the newest five automatic snapshots for each
-          game and never removes the ones you take yourself. Turning this off applies to every game
-          in this library.
+          Before an update installs, a staged version is activated, or you restore a previous
+          version, Portcove copies a game&rsquo;s managed saves and settings so you can restore them
+          if the new version misreads them. It skips games whose saves live outside Portcove and
+          games with no saved data yet, and if a snapshot cannot be taken the version change stops.
+          Portcove keeps the newest five automatic snapshots for each game and never removes the
+          ones you take yourself. This applies to every game in this library, starting with the next
+          version change.
         </p>
         <label htmlFor={controlId} className="flex items-center gap-2 text-sm">
           <Checkbox
@@ -73,9 +80,18 @@ export function AutomaticSnapshotsSetting({
             disabled={enabled === undefined || saving}
             onCheckedChange={(value) => void change(value)}
           />
-          Take an automatic snapshot before each version change
+          Snapshot saved data before each version change
         </label>
-        {problem && <p role="alert">{problem}</p>}
+        {problem && (
+          <div className="flex flex-wrap items-center gap-2">
+            <p role="alert">{problem}</p>
+            {enabled === undefined && (
+              <Button variant="outline" onClick={() => setAttempt((value) => value + 1)}>
+                Try again
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </SettingsRow>
   );
