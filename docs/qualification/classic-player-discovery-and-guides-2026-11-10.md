@@ -1,6 +1,6 @@
 # Classic player discovery and setup observations
 
-The discovery directory adds eight desktop platform facts across four titles. This change also updates four existing guides. It does not expand managed platform eligibility, release selectors, persistence, source contracts or native qualification. Android and desktop ARM64 variants outside the discovery vocabulary appear in setup guidance where applicable.
+The discovery directory adds eight desktop platform facts across four titles. Four existing guides also receive corrections. These changes concern player-managed setup and discovery package selection. Android and desktop ARM64 variants outside the discovery vocabulary appear in setup guidance where applicable.
 
 ## OpenSC2K
 
@@ -14,7 +14,7 @@ The standard Linux archive has no portable `data/` directory. The engine can sel
 
 The stable Mac ZIP has a loose `usr/bin/openomf` and `usr/share/games/openomf/resources`. Its player is ARM64, requires macOS 14 and loads versioned Homebrew libraries from `/opt/homebrew`. The publisher's separate rolling asset 730412366 instead contains `OpenOMF.app`, requires macOS 15 and uses system libraries and frameworks. The inspected rolling Linux AppImage 730412558 and TAR.GZ 730412424 retain the distinction between bundled AppImage and system-dependent TAR.GZ. The older stable 0.8.5 TAR.GZ and Mac ZIP have different dependency or resource layouts.
 
-The [stable path implementation](https://github.com/omf2097/openomf/blob/e389b0b5f96c9eda5f2894cacd19202952cdc8a3/src/resources/resource_paths.c) checks explicit resource overrides, XDG data, the binary directory and system locations before AppImage resources. State and configuration have separate override and fallback rules. A managed sibling needs a creating package resource identity and a verified external profile boundary. The guide uses the stable publisher release and the actual package layout.
+The [stable path implementation](https://github.com/omf2097/openomf/blob/e389b0b5f96c9eda5f2894cacd19202952cdc8a3/src/resources/resource_paths.c) checks explicit resource overrides, XDG data, the binary directory and system locations before AppImage resources. State and configuration have separate override and fallback rules. A managed sibling needs a creating package resource identity and a verified external profile boundary. The guide uses the stable publisher release and the actual package layout. Package selection recognizes the separate macos14 and macos15 filename tokens so the tested arm shorthand identifies an Apple Silicon download on that host. Conflicting platform labels still require a choice.
 
 ## MDK
 
@@ -34,4 +34,4 @@ The [OpenJK rolling release](https://github.com/JACoders/OpenJK/releases/tag/lat
 
 [Exult's stable distribution page](https://exult.info/download.html) supplies the signed stable Android APK separately from snapshots. Preserve the observed 1.12.1 Android 9 floor as evidence while using the stable distribution link in both guides. Black Gate and Serpent Isle retain their own `STATIC` inputs, directories and app-data custody.
 
-These observations used release metadata, package listings, executable headers and tagged source. No original game data, native launch, populated save, installer or protected publication was exercised.
+The evidence consists of release metadata, package listings, executable headers and tagged source.
