@@ -21,7 +21,7 @@
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "generated-cache",
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
@@ -31,9 +31,7 @@
     "source_profile": "pokemon-gen-1",
     "executable_hints": {
       "windows-x86-64": ["gen1recomp.exe"],
-      "linux-x86-64": ["gen1recomp", "gen1recomp.appimage"],
-      "macos-x86-64": ["gen1recomp"],
-      "macos-aarch64": ["gen1recomp"]
+      "linux-x86-64": ["gen1recomp", "gen1recomp.appimage"]
     },
     "portable_marker": true,
     "source_environment": "POKEPORT_IMPORT_ROM",

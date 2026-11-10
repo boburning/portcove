@@ -2979,6 +2979,14 @@ mod tests {
         assert!(gen1.launch_environment.is_empty());
         gen1.launch_environment
             .insert("POKEPORT_PORTMASTER_MANAGED".into(), "1".into());
+        // The frozen reader still lists the Mac bundle as managed. Its LOVE-based app
+        // has no executable named like the declared hint and links framework folders,
+        // so fresh creation no longer offers that route.
+        assert!(gen1.platforms.contains(&Platform::MacosAarch64));
+        gen1.platforms
+            .retain(|platform| !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64));
+        gen1.executable_hints.remove(&Platform::MacosX86_64);
+        gen1.executable_hints.remove(&Platform::MacosAarch64);
         let battleship = expected_ports
             .iter_mut()
             .find(|port| port.id == "battleship")
