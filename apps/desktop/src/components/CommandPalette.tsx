@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { Search } from "lucide-react";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
+import { normalizeGameSearchText } from "../search-text";
 
 export interface PaletteCommand {
   id: string;
@@ -231,12 +232,13 @@ function OpenCommandPalette({
 }
 
 export function filterCommands(commands: PaletteCommand[], query: string) {
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const terms = normalizeGameSearchText(query.trim()).split(/\s+/).filter(Boolean);
   if (terms.length === 0) return commands.filter((command) => !command.searchOnly);
   return commands.filter((command) => {
-    const haystack =
-      `${command.label} ${command.matchDescription === false ? "" : command.description} ${command.keywords ?? ""}`.toLowerCase();
-    return terms.every((term) => haystack.includes(term));
+    const searchable = normalizeGameSearchText(
+      `${command.label} ${command.matchDescription === false ? "" : command.description} ${command.keywords ?? ""}`,
+    );
+    return terms.every((term) => searchable.includes(term));
   });
 }
 

@@ -337,9 +337,51 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   );
   assert.equal(desktopScripts["format:check"], "vp -C ../.. fmt --check");
   assert.match(fastRustQuality, /frontend_tools == 'true'/);
-  assert.match(fastRust, /key: fast-rust-tests-/);
   assert.doesNotMatch(fastRustQuality, /cargo clippy/);
   assert.ok(isRecord(settings.jobs));
+  const jobs = settings.jobs;
+  const caches = (job: string) => {
+    const owner = jobs[job];
+    assert.ok(isRecord(owner) && Array.isArray(owner.steps));
+    return owner.steps.filter(
+      (step: unknown): step is Record<string, unknown> =>
+        isRecord(step) &&
+        typeof step.uses === "string" &&
+        step.uses.startsWith("Swatinem/rust-cache@"),
+    );
+  };
+  // The Windows build and transport jobs share one cache; only the superset
+  // workspace build saves it, and only on main, so pull requests never save.
+  assert.deepEqual(
+    caches("fast_rust").map((step) => step.with),
+    [
+      {
+        "shared-key": "fast-rust-windows",
+        "save-if": "${{ github.ref == 'refs/heads/main' }}",
+        "cache-on-failure": true,
+        key: "${{ hashFiles('Cargo.toml') }}",
+      },
+    ],
+  );
+  assert.deepEqual(
+    caches("fast_rust_transport").map((step) => step.with),
+    [
+      {
+        "shared-key": "fast-rust-windows",
+        "save-if": false,
+        key: "${{ hashFiles('Cargo.toml') }}",
+      },
+    ],
+  );
+  for (const job of Object.keys(jobs))
+    for (const step of caches(job)) {
+      assert.ok(isRecord(step.with), job);
+      assert.ok(
+        step.with["save-if"] === "${{ github.ref == 'refs/heads/main' }}" ||
+          (job === "fast_rust_transport" && step.with["save-if"] === false),
+        job,
+      );
+    }
   const qualityJob = settings.jobs.fast_rust_quality;
   assert.ok(isRecord(qualityJob) && Array.isArray(qualityJob.steps));
   const qualityCaches = qualityJob.steps.filter(
@@ -353,6 +395,7 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
       uses: "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
       if: "contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
       with: {
+        "save-if": "${{ github.ref == 'refs/heads/main' }}",
         "cache-on-failure": true,
         key: "runtime-diagnostics-linux-${{ hashFiles('Cargo.toml') }}",
       },

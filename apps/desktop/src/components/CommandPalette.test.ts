@@ -58,3 +58,19 @@ it("lists search-only commands only for a query and can ignore generic descripti
   expect(filterCommands(all, "harbor").map((command) => command.id)).toEqual(["game:harbor"]);
   expect(filterCommands(all, "details")).toEqual([]);
 });
+
+it("matches commands regardless of letter case and accents", () => {
+  const game: PaletteCommand = {
+    id: "game:pokemon",
+    label: "Pokémon Snap",
+    description: "Open game details",
+    searchOnly: true,
+    matchDescription: false,
+    icon: Library,
+    action: vi.fn(),
+  };
+  expect(filterCommands([game], "pokemon").map((command) => command.id)).toEqual(["game:pokemon"]);
+  expect(filterCommands([game], "POKÉMON snap").map((command) => command.id)).toEqual([
+    "game:pokemon",
+  ]);
+});

@@ -2623,6 +2623,9 @@ impl PortcoveService {
                 None,
             ),
             Some(previous) => {
+                // Availability is a preview: execution re-verifies every byte
+                // under the port lock, so unchanged files may reuse digests.
+                let _preview = crate::adapter::preview_digest::PreviewScope::enter();
                 match self.rollback_target(&status.port_id, previous, status.active.as_ref(), false)
                 {
                     Ok(_) => (
@@ -5063,10 +5066,13 @@ impl PortcoveService {
                     )?;
                     let retained_catalog = self.installed_catalog(install)?;
                     let retained_port = retained_catalog.port(&install.port_id)?;
-                    if let Some(policy) = crate::native_external_profile::launch_policy(
+                    let platform = Platform::current()?;
+                    let profile_policy = crate::native_external_profile::launch_policy(
                         retained_port,
                         self.catalog.port(&install.port_id).ok(),
-                    ) {
+                    )
+                    .filter(|&policy| crate::native_external_profile::applies_to(policy, platform));
+                    if let Some(policy) = profile_policy {
                         if !arguments.is_empty() {
                             return Err(PortcoveError::usage(
                                 "managed external profiles require the ordinary launch without extra arguments",
@@ -5080,7 +5086,9 @@ impl PortcoveService {
                             &|| operation.checkpoint(),
                         )?;
                     }
-                    crate::native_temp::recheck(retained_port, &spec)?;
+                    crate::native_temp::recheck(retained_port, platform, &spec, &|| {
+                        operation.checkpoint()
+                    })?;
                     self.require_installed_shared_preferences(install)?;
                     if retained_port.managed_shared_preferences.is_some()
                         && (spec.arguments != retained_port.launch_arguments
@@ -5124,6 +5132,10 @@ impl PortcoveService {
                             install,
                         )?,
                     )?;
+                    #[cfg(target_os = "linux")]
+                    if profile_policy == Some(crate::ExternalProfilePolicy::RecompAppimageV1) {
+                        crate::native_external_profile::reserve_recomp_appimage_fallback(&spec)?;
+                    }
                 }
                 Ok(match command.spawn() {
                     Ok(child) => child,
@@ -5949,11 +5961,14 @@ impl PortcoveService {
         match retained {
             Some(catalog) => Ok(catalog),
             None => {
+                let platform = Platform::current()?;
                 if self.catalog.port(&install.port_id).is_ok_and(|current| {
                     current.runtime_data_policy.is_some()
                         || current.archive_data_compatibility_v1.is_some()
                         || current.managed_shared_preferences.is_some()
-                        || current.external_profile_policy.is_some()
+                        || current.external_profile_policy.is_some_and(|policy| {
+                            crate::native_external_profile::applies_to(policy, platform)
+                        })
                         || current.n64_runtime_at_executable_parent
                         || (cfg!(windows) && current.windows_shipwright_persistence)
                 }) {

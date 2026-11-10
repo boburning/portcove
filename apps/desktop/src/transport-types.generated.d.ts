@@ -320,7 +320,8 @@ export type AdapterKind =
 /**
  * Closed upstream profile resolution for managed portable players.
  */
-export type ExternalProfilePolicy = "dune-dynasty-allegro-v1" | "fheroes2-v1";
+export type ExternalProfilePolicy =
+  "dune-dynasty-allegro-v1" | "fheroes2-v1" | "openrct2-mac-v1" | "recomp-appimage-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
@@ -1818,6 +1819,17 @@ export interface PortDefinition {
   presentation?: PortPresentation | null;
   project_url: string;
   release: ReleaseSpec;
+  /**
+   * Bounded fingerprint of the reviewed package layout for each platform. A
+   * release that still matches the asset selector but extracts to a different
+   * layout is held for review instead of installing as an ordinary update.
+   */
+  reviewed_package_layouts?: {
+    "linux-x86-64"?: ReviewedPackageLayout;
+    "macos-aarch64"?: ReviewedPackageLayout;
+    "macos-x86-64"?: ReviewedPackageLayout;
+    "windows-x86-64"?: ReviewedPackageLayout;
+  };
   runtime_data_policy?: RuntimeDataPolicy | null;
   runtime_mutable_file_patterns?: PersistentFilePattern[];
   runtime_mutable_paths: string[];
@@ -2146,6 +2158,26 @@ export interface UserPreparedRuntimeSpec {
   trust?: ExternalRuntimeTrust;
   version: string;
   [k: string]: unknown;
+}
+/**
+ * The parts of an extracted package whose change signals changed runtime
+ * behavior: its top-level directories and every program or script (`.exe`,
+ * `.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or
+ * an executable mode bit on non-Windows packages). A single wrapper directory
+ * (for example a versioned folder name) is looked through. Names and paths are
+ * compared case-insensitively. Plain data files, documentation and libraries
+ * (including DLLs) are not fingerprinted and may change between releases.
+ */
+export interface ReviewedPackageLayout {
+  /**
+   * Lowercase top-level directory names of the package root, sorted.
+   */
+  directories: string[];
+  /**
+   * Lowercase package-relative paths (with `/`) of every program or script at
+   * any depth, sorted.
+   */
+  executables: string[];
 }
 export interface RuntimeSourceTarget {
   destination: string;
@@ -4572,7 +4604,21 @@ export interface SupportBundleSection {
 export interface OutputDesktopWorkspaceSnapshot {
   activities: ActivityFeed;
   browsing?: CatalogBrowsingSnapshot | null;
-  catalog: CatalogDocument;
+  /**
+   * Omitted only when `catalog_unchanged` is true.
+   */
+  catalog?: CatalogDocument | null;
+  /**
+   * SHA-256 of the catalog and listing documents as serialized here. A
+   * caller that already holds these exact documents passes the digest back
+   * and receives `catalog_unchanged` without either document.
+   */
+  catalog_digest?: string | null;
+  /**
+   * True when `catalog` and `listing_catalog` were omitted because the
+   * caller's known digest matched; the caller keeps its own copies.
+   */
+  catalog_unchanged?: boolean;
   listing_catalog?: CatalogListingDocument | null;
   listing_statuses?: PortListingStatus[];
   pending_setups?: PendingSetupRecord[];

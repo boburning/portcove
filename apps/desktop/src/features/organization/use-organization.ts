@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import type { LibraryOrganization, OrganizationChange } from "../../types";
 
@@ -67,11 +67,11 @@ export function useOrganization(generation: number) {
     },
     [generation, snapshot],
   );
-  return {
-    snapshot,
-    commit,
-    refresh,
-    busy: state.generation !== generation || state.busy,
-    failure: state.generation === generation ? state.failure : undefined,
-  };
+  const busy = state.generation !== generation || state.busy;
+  const failure = state.generation === generation ? state.failure : undefined;
+  // A stable value lets memoized collection cards skip unrelated workspace renders.
+  return useMemo(
+    () => ({ snapshot, commit, refresh, busy, failure }),
+    [snapshot, commit, refresh, busy, failure],
+  );
 }

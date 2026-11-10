@@ -35,7 +35,7 @@ function validateClosureIntent(intent: unknown) {
   return [...targets].sort();
 }
 
-function closingReferences(text: unknown, repository: string) {
+export function closingReferences(text: unknown, repository: string) {
   if (typeof text !== "string") throw new Error("Closure candidate text is unavailable");
   const targets = [];
   const expression =
@@ -205,6 +205,111 @@ export function restTimelineRelationships(
   return closingReferences(candidate.body, repository);
 }
 
+export const closingInventoryCheckName = "closing-inventory";
+export const closingInventoryWorkflowPath = ".github/workflows/closing-inventory.yml";
+
+/**
+ * Manual links that the hosted GraphQL inventory holds beyond the body's
+ * closing keywords. Keywords GitHub does not link (for example a pull request
+ * number or a non-default base) only make REST stricter and are not findings.
+ */
+export function closingInventoryFindings(
+  observation: { body: string; relationships: readonly string[] },
+  repository: string,
+) {
+  const keywords = new Set(closingReferences(observation.body, repository));
+  return observation.relationships.filter((target) => !keywords.has(target));
+}
+
+function latestClosingInventoryCheck(value: unknown, head: string) {
+  const checks: unknown = isRecord(value) ? value.check_runs : undefined;
+  if (
+    !isRecord(value) ||
+    !Array.isArray(checks) ||
+    value.total_count !== checks.length ||
+    checks.length > 100
+  )
+    throw new Error("Closing inventory check list is incomplete");
+  const entries: readonly unknown[] = checks;
+  const candidates = entries.filter(
+    (check): check is Record<string, unknown> =>
+      isRecord(check) &&
+      check.name === closingInventoryCheckName &&
+      isRecord(check.app) &&
+      check.app.slug === "github-actions",
+  );
+  const latest = candidates.toSorted((left, right) => Number(right.id) - Number(left.id))[0];
+  if (
+    !latest ||
+    latest.head_sha !== head ||
+    latest.status !== "completed" ||
+    latest.conclusion !== "success" ||
+    !isRecord(latest.check_suite) ||
+    !Number.isSafeInteger(latest.check_suite.id)
+  )
+    throw new Error(
+      "The closing-inventory check has not succeeded on this head; edit the PR body or push to rerun it, or read closing relationships through GraphQL",
+    );
+  return { id: latest.id, suite: Number(latest.check_suite.id) };
+}
+
+/**
+ * Hosted proof that GitHub's own closing inventory held no manual link when
+ * the trusted default-branch workflow last ran on this head. REST cannot see
+ * manual links to repositories the reader cannot access; the workflow reads
+ * GraphQL and fails on any non-keyword or hidden relationship. Only a
+ * pull_request_target run of the default-branch workflow file counts, so a
+ * candidate cannot supply its own check.
+ */
+export function validateClosingInventoryEvidence(
+  checks: unknown,
+  workflowRuns: unknown,
+  head: string,
+  number: number,
+) {
+  const latest = latestClosingInventoryCheck(checks, head);
+  const runs: unknown = isRecord(workflowRuns) ? workflowRuns.workflow_runs : undefined;
+  const run: unknown = Array.isArray(runs) && runs.length === 1 ? runs[0] : undefined;
+  if (
+    !isRecord(workflowRuns) ||
+    workflowRuns.total_count !== 1 ||
+    !isRecord(run) ||
+    run.check_suite_id !== latest.suite ||
+    run.path !== closingInventoryWorkflowPath ||
+    run.event !== "pull_request_target" ||
+    run.status !== "completed" ||
+    run.conclusion !== "success"
+  )
+    throw new Error("The closing-inventory check is not from the trusted default-branch workflow");
+  // A run proves only the pull request it ran for; another PR at the same head
+  // (or a fork, whose run lists none) cannot vouch for this one.
+  const pulls: unknown = run.pull_requests;
+  const entries: readonly unknown[] = Array.isArray(pulls) ? pulls : [];
+  if (entries.length !== 1 || !isRecord(entries[0]) || entries[0].number !== number)
+    throw new Error("The closing-inventory check did not run for this pull request");
+  return latest;
+}
+
+async function readClosingInventoryEvidence(
+  api: ClosingApi,
+  repository: string,
+  head: string,
+  number: number,
+) {
+  const { data: checks } = await api.request({
+    method: "GET",
+    url: `https://api.github.com/repos/${repository}/commits/${head}/check-runs?check_name=${closingInventoryCheckName}&filter=all&per_page=100`,
+    request: { portcove: { replay: "safe-read", attempts: 0 } },
+  });
+  const { suite } = latestClosingInventoryCheck(checks, head);
+  const { data: workflowRuns } = await api.request({
+    method: "GET",
+    url: `https://api.github.com/repos/${repository}/actions/runs?check_suite_id=${suite}&per_page=1`,
+    request: { portcove: { replay: "safe-read", attempts: 0 } },
+  });
+  return validateClosingInventoryEvidence(checks, workflowRuns, head, number);
+}
+
 /** Live REST reconstruction bracketed by unchanged pull request reads. */
 export async function readClosingRelationshipsRest(
   api: ClosingApi,
@@ -243,12 +348,13 @@ export async function readClosingRelationshipsRest(
     if (nextTimelinePage(link, number) === null) break;
   }
   const relationships = restTimelineRelationships({ number, ...first }, repository, pages);
+  await readClosingInventoryEvidence(api, repository, first.head, number);
   if (JSON.stringify(await readPull()) !== JSON.stringify(first))
     throw new Error("Closing relationship inventory changed during pagination");
   return closingObservation(first, relationships, "rest");
 }
 
-async function readClosingRelationshipsGraphql(
+export async function readClosingRelationshipsGraphql(
   api: ClosingApi,
   repository: string,
   number: number,

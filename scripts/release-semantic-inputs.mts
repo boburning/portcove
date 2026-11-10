@@ -58,6 +58,7 @@ export function readSemanticSourceChanges(
   root: string,
   opportunity: unknown,
   applicationComparison = false,
+  catalogComparison = false,
 ) {
   if (!isRecord(opportunity) || !oid(opportunity.base_commit) || !oid(opportunity.source_commit))
     throw new Error("semantic source requires exact commits");
@@ -121,6 +122,7 @@ export function readSemanticSourceChanges(
   if (cursor !== bytes.length) throw new Error("semantic commit batch trailing bytes");
   const result = collectReleaseSourceChanges(api, opportunity, {
     applicationComparison,
+    catalogComparison,
     readCommitObject(id) {
       const raw = objects.get(id);
       if (!raw) throw new Error("provider comparison commit missing from local bounded inventory");
@@ -576,7 +578,13 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
       );
   if (baseline.source_baseline.commit !== opportunity.base_commit)
     throw new Error("opportunity omits accumulated publication delta");
-  const source = readSemanticSourceChanges(api, root, opportunity, applicationComparison);
+  const source = readSemanticSourceChanges(
+    api,
+    root,
+    opportunity,
+    applicationComparison,
+    catalogBaseline !== undefined,
+  );
   if (
     source.change_set_sha256 !== opportunity.change_set_sha256 ||
     source.source_tree !== opportunity.source_tree ||

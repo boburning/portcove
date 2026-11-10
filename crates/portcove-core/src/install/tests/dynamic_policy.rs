@@ -310,3 +310,58 @@ async fn immutable_bytes_cannot_bypass_dynamic_runtime_provider_proof() {
     assert_eq!(std::fs::read_dir(private).unwrap().count(), 0);
     assert!(library.all_installs().unwrap().is_empty());
 }
+
+#[test]
+fn native10_appimage_requires_provider_selection_and_exact_retained_asset() {
+    let catalog = Catalog::embedded().unwrap();
+    let id = "diablo-devilutionx";
+    let port = catalog.port(id).unwrap();
+    let platform = Platform::LinuxX86_64;
+    let expected = "devilutionx-linux-x86_64.appimage";
+    let release = ResolvedRelease {
+        version: "1.5.5".into(),
+        channel: ReleaseChannel::Stable,
+        published_at: None,
+        asset: ReleaseAsset {
+            name: expected.into(),
+            url: "https://upstream.invalid/devilutionx-linux-x86_64.appimage".into(),
+            size: 42,
+            sha256: "a".repeat(64),
+        },
+    };
+    let qualification = || InstallQualification::from_catalog(&catalog, id, platform).unwrap();
+    let unresolved = crate::ScopedResolvedRelease::legacy(release.clone());
+    assert!(
+        qualification()
+            .with_acquisition_resolution(unresolved)
+            .is_err()
+    );
+    for selected in [Platform::WindowsX86_64, platform] {
+        let resolved = crate::ScopedResolvedRelease::legacy(release.clone())
+            .for_selection(port, selected, release.channel)
+            .unwrap();
+        assert_eq!(
+            qualification()
+                .with_acquisition_resolution(resolved)
+                .is_ok(),
+            selected == platform
+        );
+    }
+    for (selected, name, allowed) in [
+        (platform, expected, true),
+        (platform, "devilutionx-linux-x86_64.tar.xz", false),
+        (platform, "other.appimage", false),
+        (Platform::WindowsX86_64, expected, false),
+        (
+            Platform::WindowsX86_64,
+            "devilutionx-windows-x86_64.zip",
+            true,
+        ),
+    ] {
+        assert_eq!(
+            crate::managed_runtime_policy::require_native_appimage_artifact(port, selected, name)
+                .is_ok(),
+            allowed
+        );
+    }
+}

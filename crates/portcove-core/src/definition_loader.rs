@@ -49,6 +49,7 @@ pub(crate) fn validate_definition_transition(
         return Err(out_of_scope("unrelated port ordering changed"));
     }
     validate_acquisition_hold_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
+    validate_package_layout_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
 
     match (
         baseline.source_catalog.as_ref(),
@@ -95,6 +96,36 @@ fn validate_acquisition_hold_transition(
             "a managed acquisition hold permits an unreviewed artifact",
         )),
         None => Err(out_of_scope("a managed acquisition hold was removed")),
+    }
+}
+
+/// A selected definition may replace a reviewed package-layout fingerprint with
+/// a newly reviewed one, but never silently drop the requirement for a platform.
+fn validate_package_layout_transition(
+    baseline: &[crate::PortDefinition],
+    candidate: &[crate::PortDefinition],
+    selected_port_id: &str,
+) -> Result<()> {
+    let layouts = |ports: &[crate::PortDefinition]| {
+        ports
+            .iter()
+            .find(|port| port.id == selected_port_id)
+            .map(|port| {
+                port.reviewed_package_layouts
+                    .keys()
+                    .copied()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    };
+    let candidate_platforms = layouts(candidate);
+    if layouts(baseline)
+        .iter()
+        .all(|platform| candidate_platforms.contains(platform))
+    {
+        Ok(())
+    } else {
+        Err(out_of_scope("a reviewed package layout was removed"))
     }
 }
 
@@ -482,6 +513,38 @@ mod tests {
         });
         let error = validate_definition_transition(&baseline, &widened, port_id).unwrap_err();
         assert!(error.message.contains("unreviewed artifact"));
+    }
+
+    #[test]
+    fn a_selected_definition_can_replace_but_not_remove_a_reviewed_package_layout() {
+        let port_id = "open-nectar-pikmin";
+        let platform = crate::Platform::WindowsX86_64;
+        let layout = |name: &str| crate::ReviewedPackageLayout {
+            directories: vec![],
+            executables: vec![name.to_owned()],
+        };
+        let rebuilt = |change: &dyn Fn(&mut crate::PortDefinition)| {
+            let mut document = Catalog::embedded().unwrap().authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == port_id)
+                .unwrap();
+            change(port);
+            rebuild(document)
+        };
+        let baseline = rebuilt(&|port| {
+            port.reviewed_package_layouts
+                .insert(platform, layout("a.exe"));
+        });
+        let replaced = rebuilt(&|port| {
+            port.reviewed_package_layouts
+                .insert(platform, layout("b.exe"));
+        });
+        validate_definition_transition(&baseline, &replaced, port_id).unwrap();
+        let removed = rebuilt(&|port| port.reviewed_package_layouts.clear());
+        let error = validate_definition_transition(&baseline, &removed, port_id).unwrap_err();
+        assert!(error.message.contains("package layout was removed"));
     }
 
     #[test]

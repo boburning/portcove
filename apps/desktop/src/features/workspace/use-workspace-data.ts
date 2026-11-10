@@ -17,6 +17,7 @@ import type {
   SourceRecord,
   DesktopEventPayloads,
   WorkspaceSnapshot,
+  WorkspaceSnapshotTransport,
 } from "../../types";
 import {
   ActivityRefreshScheduler,
@@ -38,6 +39,9 @@ export function emptyActivityFeed(terminalHistoryLimit = 50): ActivityFeed {
     terminal_history_complete: true,
   };
 }
+
+/** Recent pushed operation events let running-work probes relax from one second. */
+const localOperationEventWindowMs = 5_000;
 
 function activitySnapshotIdentity(feed: ActivityFeed) {
   return JSON.stringify(feed);
@@ -83,6 +87,31 @@ function shareWorkspaceRead(previous: unknown, next: unknown): WorkspaceRead {
     ...shared,
     snapshot: { ...shared.snapshot, statuses: retained ? old.snapshot.statuses : statuses },
   };
+}
+
+/** Rebuilds a complete snapshot, reusing held catalog objects when unchanged. */
+export function restoreUnchangedCatalog(
+  transport: WorkspaceSnapshotTransport,
+  held: WorkspaceSnapshot | undefined,
+): WorkspaceSnapshot {
+  const {
+    catalog_unchanged: unchanged,
+    catalog,
+    listing_catalog: listingCatalog,
+    ...rest
+  } = transport;
+  if (unchanged) {
+    if (!held)
+      throw new Error("Portcove omitted an unchanged catalog that this window does not hold");
+    const { listing_catalog: listings } = held;
+    return listings === undefined
+      ? { ...rest, catalog: held.catalog }
+      : { ...rest, catalog: held.catalog, listing_catalog: listings };
+  }
+  if (!catalog) throw new Error("Portcove returned a workspace without its catalog");
+  return listingCatalog === undefined
+    ? { ...rest, catalog }
+    : { ...rest, catalog, listing_catalog: listingCatalog };
 }
 
 function workspaceDiagnosticInputsChanged(previous: WorkspaceSnapshot, next: WorkspaceSnapshot) {
@@ -188,6 +217,17 @@ export function usePortcoveData(libraryGeneration = 0) {
   const [readyGeneration, setReadyGeneration] = useState<number>();
   const queryKey = useMemo(() => ["workspace-snapshot", libraryGeneration], [libraryGeneration]);
   const fullReadRequested = useRef(false);
+  // This window's own operation lifecycle (start, pushed events, settled mutations).
+  // Its commits also advance the observer's data_version, so a change probe that
+  // coincides with them is re-read without a separate orphan-recovery pass.
+  const localWrites = useRef({ revision: 0, at: Number.NEGATIVE_INFINITY });
+  const observedLocalWrites = useRef(0);
+  // A commit observed during this window's own writes may also hide an external
+  // one (the observer consumes the change). Run one discovery once they go quiet.
+  const deferredDiscovery = useRef(false);
+  const noteLocalWrite = useCallback(() => {
+    localWrites.current = { revision: localWrites.current.revision + 1, at: Date.now() };
+  }, []);
   useEffect(() => {
     queryClient.mount();
     return () => queryClient.unmount();
@@ -203,17 +243,34 @@ export function usePortcoveData(libraryGeneration = 0) {
       fullReadRequested.current = false;
       if (!full && previous) {
         let changed = false;
+        let ownChange = false;
+        let deferredDue = false;
         try {
           changed = await desktopApi.workspaceChanged(libraryGeneration);
+          const localRevision = localWrites.current.revision;
+          ownChange = changed && localRevision !== observedLocalWrites.current;
+          observedLocalWrites.current = localRevision;
+          if (ownChange) deferredDiscovery.current = true;
+          else if (
+            deferredDiscovery.current &&
+            Date.now() - localWrites.current.at >= localOperationEventWindowMs
+          ) {
+            deferredDiscovery.current = false;
+            deferredDue = true;
+          }
         } catch {
           /* Periodic/full read remains the actionable fallback. */
         }
         signal.throwIfAborted(); // Stops frontend continuations, not the already-started backend read.
+        // A change coinciding with this window's own writes only needs a fresh read;
+        // other commits (CLI or another process) still run orphan discovery first.
+        const externalChange = (changed && !ownChange) || deferredDue;
         if (
-          previous.needsRecovery ||
-          changed ||
-          document.hidden ||
-          Date.now() - previous.fullReadAt < 60_000
+          (!ownChange || previous.needsRecovery) &&
+          (previous.needsRecovery ||
+            externalChange ||
+            document.hidden ||
+            Date.now() - previous.fullReadAt < 60_000)
         ) {
           let activities = previous.activities;
           let activityReadSucceeded = false;
@@ -229,12 +286,19 @@ export function usePortcoveData(libraryGeneration = 0) {
             activityRequest: activityReadSucceeded ? activityRequest : null,
             activities,
             needsRecovery:
-              !!queryClient.getQueryData<WorkspaceRead>(queryKey)?.needsRecovery || changed,
+              !!queryClient.getQueryData<WorkspaceRead>(queryKey)?.needsRecovery || externalChange,
           };
         }
       }
-      const snapshot = await desktopApi.workspaceSnapshot(libraryGeneration);
+      // Offer the catalog digest this generation already holds; an unchanged
+      // catalog (about 7 MB) is then omitted and reused by reference.
+      const held = previous?.snapshot;
+      const transport = await desktopApi.workspaceSnapshot(
+        libraryGeneration,
+        held?.catalog_digest ?? null,
+      );
       signal.throwIfAborted();
+      const snapshot = restoreUnchangedCatalog(transport, held);
       return {
         snapshot,
         activityRequest,
@@ -265,8 +329,18 @@ export function usePortcoveData(libraryGeneration = 0) {
     {
       ...options,
       enabled: readyGeneration === libraryGeneration,
-      refetchInterval: hasRunningActivity ? 1000 : document.hidden ? 30_000 : 10_000,
-      refetchIntervalInBackground: true,
+      // Pushed operation events already refresh activities, so running work owned by
+      // this window is probed less often; other running work keeps one-second probes.
+      // Idle hidden windows stop polling and reconcile on focus/visibility instead.
+      refetchInterval: () =>
+        !hasRunningActivity
+          ? document.hidden
+            ? false
+            : 10_000
+          : Date.now() - localWrites.current.at < localOperationEventWindowMs
+            ? 3_000
+            : 1_000,
+      refetchIntervalInBackground: hasRunningActivity,
     },
     queryClient,
   );
@@ -322,9 +396,10 @@ export function usePortcoveData(libraryGeneration = 0) {
     }
   }, [refresh]);
   const refreshAfterMutation = useCallback(() => {
+    noteLocalWrite();
     invalidateDiagnostics();
     return refresh();
-  }, [invalidateDiagnostics, refresh]);
+  }, [invalidateDiagnostics, noteLocalWrite, refresh]);
 
   const runDiagnostics = useCallback(async () => {
     const generation = diagnosticGeneration.current.begin();
@@ -374,9 +449,14 @@ export function usePortcoveData(libraryGeneration = 0) {
     }
   }, [acceptActivities]);
   const refreshActivities = useCallback(
-    (priority: "progress" | "prompt" = "prompt") =>
-      coordinators.current?.activity.request(priority) ?? Promise.resolve("disposed" as const),
-    [],
+    (priority: "progress" | "prompt" = "prompt") => {
+      // Only this window's operation lifecycle requests activity refreshes.
+      noteLocalWrite();
+      return (
+        coordinators.current?.activity.request(priority) ?? Promise.resolve("disposed" as const)
+      );
+    },
+    [noteLocalWrite],
   );
 
   useEffect(() => {

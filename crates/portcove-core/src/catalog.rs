@@ -11,7 +11,8 @@ use crate::{
 
 mod listings;
 
-const EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
+// A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
+static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 
 /// Inert declaration checks only; neither trust nor artifact/runtime acceptance.
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
@@ -176,6 +177,18 @@ impl Catalog {
                 .map_err(|_| PortcoveError::usage("qualification catalog must be valid UTF-8"))?;
             return Self::from_json(value);
         }
+        // The bundled bytes never change within a process, and `Catalog` shares
+        // its documents behind `Arc`, so parse and validate them once. A
+        // failure is not cached: the uncached path reproduces the typed error.
+        static EMBEDDED: std::sync::LazyLock<Option<Catalog>> =
+            std::sync::LazyLock::new(|| Catalog::parse_embedded().ok());
+        match EMBEDDED.as_ref() {
+            Some(catalog) => Ok(catalog.clone()),
+            None => Self::parse_embedded(),
+        }
+    }
+
+    fn parse_embedded() -> Result<Self> {
         Self::from_json(EMBEDDED_CATALOG)?.with_embedded_listings()
     }
 
@@ -2438,7 +2451,7 @@ mod tests {
             );
             assert_eq!(
                 port.presentation.as_ref().unwrap().manual_setup.is_some(),
-                id == "sonic-3-and-knuckles-recomp",
+                matches!(id, "dkc3-recomp" | "sonic-3-and-knuckles-recomp"),
                 "{id}"
             );
             assert!(port.automated_tested_platforms.is_empty(), "{id}");
@@ -3147,6 +3160,15 @@ mod tests {
             vec!["DK64".into(), "-Windows-Release".into(), ".zip".into()],
         );
         assert_eq!(previous_hints, Some(vec!["DK64-Recompiled-Windows".into()]));
+        // The frozen input keeps the former path. A reviewed upstream_lineage
+        // relocation moved the same GitHub repository identity (1352192597).
+        let mk4 = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "mortal-kombat-4-recompiled")
+            .unwrap();
+        assert_eq!(mk4.release.repository, "Alexbeav/mortal-kombat-4-recomp");
+        mk4.project_url = "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp".into();
+        mk4.release.repository = "alexbeavs-ps1-ports/mortal-kombat-4-recomp".into();
         for (id, hint) in [
             ("zelda64-recomp", "Linux-X64.zip"),
             ("banjo-recomp", "Linux-X64."),

@@ -20,7 +20,15 @@ import {
   useApplicationUpdateNotice,
   useApplicationUpdateProductionTransition,
 } from "./features/application-update/use-application-update";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
@@ -110,7 +118,7 @@ import { useGamepadNavigation } from "./gamepad";
 import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
-import { useCommandSurface } from "./use-command-surface";
+import { useCommandSurface, withLibraryVisibility } from "./use-command-surface";
 import type {
   ActivityRecord,
   BootstrapStatus,
@@ -131,6 +139,7 @@ import {
 } from "./view-model";
 import { gameIdentityLabel, gameTitle } from "./port-identity";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
+import { referenceIdentity } from "./shared/reference-identity";
 import { useCollectionLayout } from "./features/browsing/use-collection-layout";
 import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
 
@@ -470,7 +479,7 @@ function useWorkspace(props: WorkspaceProps) {
     operations.perform,
     data.sources,
     inspectionProfiles,
-    `${bootstrap.generation}|${JSON.stringify(data.catalog?.source_catalog ?? null)}`,
+    `${bootstrap.generation}|${referenceIdentity(data.catalog?.source_catalog ?? null)}`,
     data.queryClient,
   );
   const appearance = useThemePreference();
@@ -588,10 +597,15 @@ function useWorkspace(props: WorkspaceProps) {
     });
   };
   usePendingHostToolFocus(data, ui.view, pendingToolId, setPendingToolId);
+  const hiddenPortIds = organization.snapshot?.hidden_port_ids;
+  const paletteGames = useMemo(
+    () => withLibraryVisibility(model.searchableGames, hiddenPortIds),
+    [model.searchableGames, hiddenPortIds],
+  );
   const commandSurface = useCommandSurface({
     view: ui.view,
     recent: model.recent,
-    games: model.searchableGames,
+    games: paletteGames,
     installedCount: model.overview.installed,
     busy: Boolean(operations.busy),
     setView: setPrimaryView,
@@ -1142,6 +1156,8 @@ function useAppModel(
   gameFileQuery?: GameFileFilterState,
 ) {
   const { selectedId, setBiosPath, setSourcePath } = ui;
+  // Typing stays responsive; result filtering follows at React's deferred priority.
+  const query = useDeferredValue(ui.query);
   const { catalog, sources, statuses, browsing, listingCatalog, listingStatuses, pendingSetups } =
     data;
   const entries = useMemo(
@@ -1152,8 +1168,15 @@ function useAppModel(
     () => indexStatuses([...listingStatuses.map(({ status }) => status), ...statuses]),
     [statuses, listingStatuses],
   );
+  // Structurally shared workspace reads keep references for unchanged values.
   const gameFileQueryContext = useMemo(
-    () => JSON.stringify([catalog, sources, statuses, browsing?.workspace_binding_sha256]),
+    () =>
+      JSON.stringify([
+        referenceIdentity(catalog),
+        referenceIdentity(sources),
+        referenceIdentity(statuses),
+        browsing?.workspace_binding_sha256,
+      ]),
     [catalog, sources, statuses, browsing?.workspace_binding_sha256],
   );
   // Catalog and statuses arrive together in the accepted generation-bound snapshot.
@@ -1187,7 +1210,7 @@ function useAppModel(
         statusMap,
         ui.view,
         ui.filter,
-        ui.query,
+        query,
         ui.view === "library" ? ui.librarySort : ui.catalogSort,
         queryContext,
       ),
@@ -1197,7 +1220,7 @@ function useAppModel(
       ui.view,
       ui.filter,
       ui.libraryReadiness,
-      ui.query,
+      query,
       ui.catalogSort,
       ui.librarySort,
       queryContext,
@@ -1210,9 +1233,9 @@ function useAppModel(
   const libraryFilterCandidates = useMemo(
     () =>
       ui.view === "library" && data.catalog
-        ? filterPorts(entries, statusMap, "library", "all", ui.query)
+        ? filterPorts(entries, statusMap, "library", "all", query)
         : undefined,
-    [data.catalog, entries, statusMap, ui.view, ui.query],
+    [data.catalog, entries, statusMap, ui.view, query],
   );
   const overview = useMemo(() => summarizeLibrary(entries, statusMap), [entries, statusMap]);
   const recent = useMemo(() => mostRecentPort(entries, statusMap), [entries, statusMap]);

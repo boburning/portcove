@@ -260,6 +260,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         setup_output_paths,
         upstream_status: _,
         managed_acquisition_hold: _,
+        reviewed_package_layouts: _,
         presentation: _,
     } = port;
     serde_json::json!({

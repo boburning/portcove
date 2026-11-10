@@ -2,8 +2,20 @@
 use std::path::Path;
 
 use crate::{
-    AdapterKind, Platform, PortDefinition, PortcoveError, Result, WindowsRuntimePathPolicy,
+    AdapterKind, Platform, PortDefinition, PortcoveError, ReleaseSource, Result,
+    WindowsRuntimePathPolicy,
 };
+
+pub(crate) fn has_staged_sibling_platforms(port: &PortDefinition) -> bool {
+    port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        && port.platforms.len() > 1
+        && port.platforms.contains(&Platform::WindowsX86_64)
+        && port.release.provider == ReleaseSource::Github
+        && crate::persistence::ready_staged_archive(port)
+        && port.source_profile.is_some()
+        && !port.runtime_source_hashes.is_empty()
+        && port.archive_data_compatibility_v1.is_some()
+}
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
@@ -24,7 +36,8 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     }
     if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath) {
         let supported_route = (port.adapter == AdapterKind::NativePortable
-            && port.platforms == [Platform::WindowsX86_64])
+            && (port.platforms == [Platform::WindowsX86_64]
+                || crate::native_temp::has_sibling_platforms(port)))
             || (port.adapter == AdapterKind::LibultrashipPortable
                 && port.platforms.contains(&Platform::WindowsX86_64));
         return if supported_route
@@ -58,13 +71,14 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         && port.setup_executable_hints.is_empty();
     if port.windows_runtime_path_policy.is_some()
         && !cvlod_source
+        && !has_staged_sibling_platforms(port)
         && (port.platforms != [Platform::WindowsX86_64]
             || port.adapter != AdapterKind::StagedSourcePortable
             || !port.setup_executable_hints.is_empty()
             || !port.release.managed_build.is_empty())
     {
         return Err(PortcoveError::usage(
-            "Windows runtime path policy requires a Windows-only staged-source route without a setup executable or managed build, or the fixed CVLoD source recipe",
+            "Windows runtime path policy requires a Windows-only staged-source route, an original-bound staged archive with sibling platforms, or the fixed CVLoD source recipe",
         ));
     }
     if port.windows_runtime_path_policy.is_some()
@@ -89,6 +103,8 @@ pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
         } else {
             4
         }
+    } else if has_staged_sibling_platforms(port) {
+        29
     } else if port.release.user_prepared.is_empty() {
         11
     } else {

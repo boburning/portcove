@@ -27,9 +27,7 @@ import {
 const schema2Fixture = fixtureJson(
   readFileSync(join(catalogRoot, "catalog-schema2-migration-fixture.json")),
 );
-const schema3Fixture = fixtureJson(
-  readFileSync(join(catalogRoot, "catalog-current-authoring.json")),
-);
+const schema3Fixture = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
 
 void test("current catalog schema accepts numeric 2 without guide references", () => {
   assert.equal(schema2Fixture.schema_version, 2);
@@ -217,7 +215,7 @@ void test("shared upstream family facts stay consistent while game and permissio
 
 void test("per-port source projects all accepted operations unchanged and listing-only records stay inert", () => {
   const source = readCatalogSource(catalogRoot);
-  const accepted = fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json")));
+  const accepted = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
   assert.deepEqual(source.catalog, accepted);
   const listing = checkedAuthoredPort({
     format_version: 1,
@@ -337,7 +335,7 @@ void test("download restrictions project through the versioned directory without
 });
 
 void test("authoring split preserves unknown metadata and ordered operational arrays", () => {
-  const original = fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json")));
+  const original = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
   const catalog = fixtureCatalog(original);
   const port = structuredClone(requiredFixture(catalog.ports[0]));
   port.unfamiliar_metadata = { retained: ["second", "first"] };

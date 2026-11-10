@@ -1832,6 +1832,7 @@ for (const [file, tests] of [
     "scripts/pr-delivery-snapshot.mts",
     ["scripts/pr-delivery.test.mts", "scripts/pr-delivery-snapshot.test.mts"],
   ],
+  ["scripts/closing-inventory.mts", ["scripts/pr-delivery.test.mts"]],
   ...[
     "scripts/release-hosted-native-windows-diagnostic-source.mts",
     "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
@@ -1865,6 +1866,9 @@ for (const [file, tests] of [
   ["scripts/listing-upstream-observation.mts", upstreamHealthContractTests],
   ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
+  // Relocation tools keep their contract tests in the repository-health suite.
+  ["scripts/upstream-relocation-candidates.mts", ["scripts/check-catalog-repositories.test.mts"]],
+  ["scripts/upstream-relocation-evidence.mts", ["scripts/check-catalog-repositories.test.mts"]],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
   [
     "scripts/upstream-health-plan.mts",
@@ -1943,7 +1947,6 @@ for (const [file, tests] of [
     ],
   ],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
-  ["crates/portcove-core/catalog/catalog-current-authoring.json", catalogGeneratorContractTests],
   [
     "crates/portcove-core/catalog/catalog-schema1-fixture.json",
     ["scripts/migrate-catalog-schema2.test.mts"],
@@ -2387,6 +2390,7 @@ for (const file of [
   ]);
 
 const workflowTests = new Map([
+  ["upstream-relocation-evidence.yml", ["scripts/check-catalog-repositories.test.mts"]],
   [
     "hosted-native-continuity.yml",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
@@ -2432,6 +2436,7 @@ const workflowTests = new Map([
     ["scripts/updater-artifact-inventory.test.mts", "scripts/release-payload-signing.test.mts"],
   ],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
+  ["closing-inventory.yml", ["scripts/pr-delivery.test.mts"]],
 ]);
 
 for (const file of [

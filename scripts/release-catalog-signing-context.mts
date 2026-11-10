@@ -116,7 +116,7 @@ export async function readCatalogPublicAnchors(
   remaining({ deadline });
   const commit = inspectRemoteCommitObject(await metadata.commit(pins.commit), pins.commit);
   remaining({ deadline });
-  const tree = inspectReleaseSourceTree(await metadata.tree(commit.tree), commit.tree);
+  const tree = inspectReleaseSourceTree(await metadata.tree(commit.tree), commit.tree, false, true);
   remaining({ deadline });
   const result = new Map<string, Buffer>();
   for (const [name, pin] of [

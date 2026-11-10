@@ -362,7 +362,11 @@ impl Adapter for StandardAdapter {
             fixed_arguments_only: port.managed_initialization.is_some()
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
-                || port.external_profile_policy.is_some()
+                || port.external_profile_policy.is_some_and(|policy| {
+                    crate::native_external_profile::applies_to(policy, platform)
+                })
+                || (platform != Platform::WindowsX86_64
+                    && crate::native_temp::has_sibling_platforms(port))
                 || port
                     .release
                     .managed_build
@@ -418,6 +422,7 @@ impl Adapter for StandardAdapter {
         std::fs::create_dir_all(&user_data)?;
         crate::native_temp::prepare(
             port,
+            platform,
             install_root,
             &working_directory,
             &executable,
@@ -2060,7 +2065,169 @@ impl AdapterRegistry {
 }
 
 pub(crate) fn hash_file(path: &Path) -> Result<(String, u64)> {
-    hash_file_with_checkpoint(path, || Ok(()))
+    let mut file = File::open(path)?;
+    let before = preview_digest::Fingerprint::of(&file);
+    if let Some(cached) = before
+        .as_ref()
+        .and_then(|fingerprint| preview_digest::lookup(path, fingerprint))
+    {
+        return Ok(cached);
+    }
+    let digest = hash_reader_with_checkpoint(&mut file, || Ok(()))?;
+    if let Some(before) = before
+        && preview_digest::Fingerprint::of(&file).as_ref() == Some(&before)
+    {
+        preview_digest::record(path, before, &digest);
+    }
+    Ok(digest)
+}
+
+/// Read-only previews (status hydration and rollback availability) run full
+/// integrity verification for every retained install on every refresh. Inside
+/// an explicit [`preview_digest::PreviewScope`] a file whose identity metadata
+/// is unchanged since a completed hash reuses that digest. Outside a scope —
+/// installation, activation, rollback execution and launch — every call hashes
+/// the current bytes, so executable trust and execution-time integrity are
+/// unchanged; a preview can only be corrected by that execution-time check.
+pub(crate) mod preview_digest {
+    use std::{
+        cell::Cell,
+        collections::HashMap,
+        fs::File,
+        path::{Path, PathBuf},
+        sync::Mutex,
+        time::SystemTime,
+    };
+
+    const CAPACITY: usize = 50_000;
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub(crate) struct Fingerprint {
+        len: u64,
+        modified: Option<SystemTime>,
+        created: Option<SystemTime>,
+        #[cfg(unix)]
+        identity: (u64, u64, i64, i64),
+        /// Volume serial, file index and change time: a same-size copy that
+        /// preserves LastWriteTime (and tunnels CreationTime) still differs.
+        #[cfg(windows)]
+        identity: (u32, u64, i64),
+    }
+
+    impl Fingerprint {
+        pub(crate) fn of(file: &File) -> Option<Self> {
+            let metadata = file.metadata().ok()?;
+            if !metadata.is_file() {
+                return None;
+            }
+            Some(Self {
+                len: metadata.len(),
+                modified: metadata.modified().ok(),
+                created: metadata.created().ok(),
+                #[cfg(unix)]
+                identity: {
+                    use std::os::unix::fs::MetadataExt;
+                    (
+                        metadata.dev(),
+                        metadata.ino(),
+                        metadata.ctime(),
+                        metadata.ctime_nsec(),
+                    )
+                },
+                #[cfg(windows)]
+                identity: windows_identity(file)?,
+            })
+        }
+    }
+
+    #[cfg(windows)]
+    fn windows_identity(file: &File) -> Option<(u32, u64, i64)> {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            BY_HANDLE_FILE_INFORMATION, FILE_BASIC_INFO, FileBasicInfo, GetFileInformationByHandle,
+            GetFileInformationByHandleEx,
+        };
+        let handle = file.as_raw_handle();
+        // SAFETY: the handle belongs to `file` for the duration of both calls,
+        // and each output buffer has the exact size the API is given.
+        unsafe {
+            let mut information: BY_HANDLE_FILE_INFORMATION = std::mem::zeroed();
+            if GetFileInformationByHandle(handle as _, &mut information) == 0 {
+                return None;
+            }
+            let mut basic: FILE_BASIC_INFO = std::mem::zeroed();
+            if GetFileInformationByHandleEx(
+                handle as _,
+                FileBasicInfo,
+                std::ptr::from_mut(&mut basic).cast(),
+                std::mem::size_of::<FILE_BASIC_INFO>() as u32,
+            ) == 0
+            {
+                return None;
+            }
+            let index = (u64::from(information.nFileIndexHigh) << 32)
+                | u64::from(information.nFileIndexLow);
+            Some((information.dwVolumeSerialNumber, index, basic.ChangeTime))
+        }
+    }
+
+    type Entry = (Fingerprint, String, u64);
+    static DIGESTS: Mutex<Option<HashMap<PathBuf, Entry>>> = Mutex::new(None);
+
+    thread_local! {
+        static ACTIVE: Cell<bool> = const { Cell::new(false) };
+    }
+
+    /// Enables digest reuse on this thread until dropped.
+    /// Not `Send`: the scope must stay on the thread whose verification it
+    /// relaxes, so it can never be moved onto other work across an `.await`.
+    pub(crate) struct PreviewScope {
+        previous: bool,
+        _thread_bound: std::marker::PhantomData<*const ()>,
+    }
+
+    impl PreviewScope {
+        pub(crate) fn enter() -> Self {
+            Self {
+                previous: ACTIVE.with(|active| active.replace(true)),
+                _thread_bound: std::marker::PhantomData,
+            }
+        }
+    }
+
+    impl Drop for PreviewScope {
+        fn drop(&mut self) {
+            ACTIVE.with(|active| active.set(self.previous));
+        }
+    }
+
+    pub(crate) fn lookup(path: &Path, fingerprint: &Fingerprint) -> Option<(String, u64)> {
+        if !ACTIVE.with(Cell::get) {
+            return None;
+        }
+        let digests = DIGESTS.lock().ok()?;
+        let (recorded, sha256, size) = digests.as_ref()?.get(path)?;
+        (recorded == fingerprint).then(|| (sha256.clone(), *size))
+    }
+
+    /// Every completed, metadata-stable hash refreshes the entry, so a strict
+    /// execution-time hash also corrects what later previews observe.
+    pub(crate) fn record(path: &Path, fingerprint: Fingerprint, digest: &(String, u64)) {
+        if fingerprint.len != digest.1 {
+            return;
+        }
+        let Ok(mut digests) = DIGESTS.lock() else {
+            return;
+        };
+        let digests = digests.get_or_insert_with(HashMap::new);
+        if digests.len() >= CAPACITY && !digests.contains_key(path) {
+            digests.clear();
+        }
+        digests.insert(
+            path.to_path_buf(),
+            (fingerprint, digest.0.clone(), digest.1),
+        );
+    }
 }
 
 pub(crate) fn hash_file_with_checkpoint(

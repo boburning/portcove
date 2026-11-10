@@ -376,7 +376,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
     };
     const choose = async (id: (typeof pair)[number]) => {
       const value = await read();
-      const port = required(value.workspace.catalog.ports.find((item) => item.id === id));
+      const port = required(required(value.workspace.catalog).ports.find((item) => item.id === id));
       await click(button(`Use ${gameProjectLabel(port) || port.name}`));
       await browser.wait(
         async () => (await read()).organization.preferred_port_by_game?.[gameId] === id,
@@ -532,7 +532,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       assert.equal((await group.findElements(By.css("button.library-card-play"))).length, 0);
       report.ambiguous_without_preference = true;
       const chosenDefinition = required(
-        (await read()).workspace.catalog.ports.find((item) => item.id === portId),
+        required((await read()).workspace.catalog).ports.find((item) => item.id === portId),
       );
       await captureInstalledState(
         "ambiguous",
@@ -578,7 +578,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         );
       }
       const chosen = required(
-        (await read()).workspace.catalog.ports.find((item) => item.id === portId),
+        required((await read()).workspace.catalog).ports.find((item) => item.id === portId),
       );
       await click(By.css(`button[aria-label="Favorite ${gameIdentityLabel(chosen)}"]`));
       await browser.wait(async () => (await favorites()).includes(portId), 15_000);
@@ -599,7 +599,9 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         (await filtered.getText()).includes("Your usual implementation is outside these filters"),
       );
       const available = await read();
-      const first = required(available.workspace.catalog.ports.find((item) => item.id === pair[0]));
+      const first = required(
+        required(available.workspace.catalog).ports.find((item) => item.id === pair[0]),
+      );
       await browser.wait(
         until.elementLocated(button(`Use ${gameProjectLabel(first) || first.name}`)),
         15_000,

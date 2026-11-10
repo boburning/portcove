@@ -134,3 +134,45 @@ void test("prototype-named dependency closures cannot bypass packaging ownership
     );
   }
 });
+
+void test("Cargo.lock churn outside the packaged Desktop stack avoids ownership rehearsal", () => {
+  const lock = readFileSync(new URL("../Cargo.lock", import.meta.url), "utf8");
+  const replace = (name: string, field: "version" | "checksum", value: string) => {
+    const entry = new RegExp(
+      `(\\n\\[\\[package\\]\\]\\nname = "${name}"\\n(?:[^\\[\\n][^\\n]*\\n)*?${field} = )"[^"]+"`,
+      "u",
+    );
+    assert.match(lock, entry, `${name} ${field}`);
+    return lock.replace(entry, `$1"${value}"`);
+  };
+  const decide = (after: string, files = ["Cargo.lock"]) =>
+    needsPackageOwnership(
+      files,
+      () => lock,
+      () => after,
+    );
+  assert.equal(decide(lock), false);
+  const unrelated = replace("serde", "version", "1.0.999");
+  assert.equal(decide(unrelated), false);
+  assert.equal(decide(unrelated, ["Cargo.lock", "Cargo.toml"]), true);
+  for (const name of [
+    "tauri",
+    "tauri-runtime-wry",
+    "wry",
+    "tao",
+    "rfd",
+    "gtk",
+    "gobject-sys",
+    "libdbus-sys",
+    "webkit2gtk",
+  ])
+    assert.equal(decide(replace(name, "version", "99.0.0")), true, name);
+  assert.equal(decide(replace("tauri", "checksum", "0".repeat(64))), true);
+  assert.equal(decide(lock.replace("\nversion = 4\n", "\nversion = 5\n")), true);
+  assert.equal(decide(`${lock}\n[metadata]\nunknown = "value"\n`), true);
+  assert.equal(
+    decide(lock.replace('\n[[package]]\nname = "tauri"\n', '\n[[package]]\nname = "renamed"\n')),
+    true,
+  );
+  assert.equal(decide(lock.replace(/\r?\n/gu, "\r\n")), false);
+});

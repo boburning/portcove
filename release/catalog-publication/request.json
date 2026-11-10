@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "kind": "catalog-publication",
+  "compatibility": {
+    "contract": "official-definition-policy-launch-v1",
+    "notes": "Initial Windows x86-64 Chameleon Twist JP definition with exact original upstream acquisition and a private local cache. This scoped addition preserves unrelated definitions and user data. The accepted tuple is v0.1, release 190757282, asset 213295268."
+  }
+}

@@ -11,6 +11,16 @@ async function historyReadOracle(subject: Subject) {
   const calls: { input: RequestInfo | URL; init: RequestInit | undefined }[] = [];
   const original: typeof fetch = async (input, init) => {
     calls.push({ input, init });
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url === "ipc://get_workspace_snapshot")
+      return new Response(
+        JSON.stringify({
+          catalog: { ports: [{ id: "owned-port", release: { provider: "github" } }] },
+          catalog_digest: "held-digest",
+          statuses: [],
+          sources: [],
+        }),
+      );
     return new Response("native reply");
   };
   const host = {
@@ -61,6 +71,14 @@ async function historyReadOracle(subject: Subject) {
   });
   assert.deepEqual(await reply.json(), fixture.report);
   assert.equal(calls.length, count, "Only the matching profile may receive synthetic data");
+  // The fixture rewrites catalogs per mode, so it must strip the digest that
+  // would let the host omit the catalog from the next read.
+  const snapshotReply: unknown = await (
+    await host.fetch("ipc://get_workspace_snapshot", { method: "POST", body: "{}" })
+  ).json();
+  assert.ok(isRecord(snapshotReply));
+  assert.equal(Object.hasOwn(snapshotReply, "catalog_digest"), false, "HISTORY_DIGEST_STRIPPED");
+  assert.ok(isRecord(snapshotReply.catalog));
   const probe: unknown = Reflect.get(host, "__portcoveHistoryProbe");
   assert.ok(isRecord(probe));
   assert.equal(probe.reports, 1);

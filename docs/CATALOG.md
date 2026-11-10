@@ -266,7 +266,41 @@ and a required Linux TAR.XZ asset hint. That route accepts only matching TAR.XZ
 players and uses the same bounded reader as downloaded setup. Independent
 definitions require NativePortable capability 8 for this declaration.
 
-The `external_profile_policy` declaration requires NativePortable capability 9.
+Native portable capability 10 supports official sibling packages on an
+original-bound Native6 definition with `windows_temp_directory`. Every platform
+keeps the same verified original-file mapping and private profile namespace.
+Core reserves, creates and rechecks that namespace on the selected host.
+Only Windows applies the relative-path policy and sets the child’s
+`TEMP` and `TMP`. Sibling launches use the definition’s fixed arguments.
+An x86-64 Linux sibling may select one complete standalone AppImage by its
+exact asset basename and executable hint. It uses the existing AppImage
+installation path and the same retained original and profile checks.
+
+Native portable capability 11 covers the official universal OpenRCT2 Mac
+bundle. The retained Mac executable is `OpenRCT2.app/Contents/MacOS/OpenRCT2`.
+Its fixed launch keeps the full bundle and uses the real account’s home for
+the external OpenRCT2 profile. Core requires an absolute account home and
+checks the effective profile for runtime overlap and unsafe aliases. Player
+data and original game files stay external. Existing Windows and Linux launches
+keep their separate behavior.
+
+Native portable capability 12 adds the direct Linux x86-64 AppImage for
+recompiled players with the reviewed `recomp-appimage-v1` layout. Its matching
+Windows executable and declared title data fallback retain their existing
+contract. Core matches the title prefix, version and exact package suffix,
+binds the provider artifact, and retains the complete AppImage under a stable
+executable name. Linux launches with the package’s ordinary arguments and
+the player’s external configuration and launcher state.
+
+Before launch, Core checks effective configuration, state and temporary paths
+against the managed library and registered output roots. Adjacent AppImage
+`.home` and `.config` folders require a separate player-managed copy. Core
+reserves the launcher’s predictable log fallback under sticky system `/tmp`
+and preserves safe existing user-owned contents. The original ROM and the
+Linux profile remain the player’s files.
+
+The `external_profile_policy` declaration requires NativePortable capability 9 or
+the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment
 before the player starts. The reviewed Dune Dynasty policy follows Allegro's
 Windows roaming folder and Linux HOME-relative XDG selection. It refuses a
@@ -1390,6 +1424,27 @@ reviewed artifact. Because the catalog is currently embedded, the hold reaches
 players with the next application release; independent delivery to unchanged
 clients remains with #246.
 
+An integration may also record `reviewed_package_layouts`, one bounded fingerprint
+per platform, so a release that matches the selector but changes shape is held
+without a maintainer edit. The fingerprint lists the lowercase top-level directory
+names and the package-relative path of every program or script (`.exe`, `.appimage`,
+`.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or an executable mode bit
+on non-Windows packages), so a moved or duplicated launcher is drift. Libraries such as
+DLLs are not fingerprinted.
+One wrapper directory beside nothing else, such as a versioned folder name, is
+looked through. Core compares the extracted staging tree to the fingerprint after
+extraction and before any activation. An unchanged layout proceeds as an ordinary
+compatible release; plain data files, documentation and libraries may change. A
+different layout is refused with a player-facing reason naming the new or missing
+programs and folders, leaves the installed copy untouched, and uses the existing
+unsupported-acquisition surface, not a new hold authority. Platforms without a
+fingerprint keep today's behavior, and older clients ignore the field. A selected
+independent definition may replace a fingerprint after review but cannot remove
+one. The fingerprint is a gate, not part of the installed contract, and grants no
+qualification. Persistent-path anchors stay in the existing `persistent_paths`
+data. Exact-name matching means a route whose executable name carries a version
+needs a reviewed fingerprint update, which is the safe direction.
+
 The reusable managed TFE, GB shared-preferences and version-local credentials
 policies support reviewed GitHub package rules as well as exact direct manifests.
 Fresh dynamic acquisition requires an opaque in-process resolver binding to the
@@ -2332,12 +2387,22 @@ or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifie
 provider access terms, not a permissive copyright license.
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
-`catalog-current-authoring.json`, the embedded `catalog.json`, and `listings.json`.
-All three are generated outputs, and `--check` refuses a stale projection.
+the embedded `catalog.json` and `listings.json`, plus the generated route-enrollment
+and test-data projections. All are generated outputs, and `--check` refuses a stale
+projection. There is no separate committed authoring copy of `catalog.json`: it
+duplicated the embedded catalog byte for byte, and keeping it doubled every
+catalog conflict. Fixtures that need an editable aggregate copy `catalog.json`
+into scratch space.
 Filename/ID disagreement, duplicate IDs or JSON keys and a second shared port authority are
 refused. The migrated records retain their established order; new records sort
 by stable ID. Unknown retained operational metadata and ordered arrays remain
-unchanged. Reassemble after a rebase; do not hand-merge the generated aggregates.
+unchanged. Never hand-merge the generated aggregates. After a rebase or merge,
+resolve and stage any conflicted authored sources (`ports/`, `catalog-shared.json`),
+then run `node scripts/catalog-staged-check.mts --resolve-conflicts`: it regenerates
+every aggregate from those sources and stages the result, and refuses while any other
+path is still unmerged. A Git merge driver cannot replace this step, because a driver
+sees one file at a time before the merged sources exist and is ignored by hosted merges.
+`generate-catalog.mts --check` stays the required consistency gate.
 Core owns the temporary
 schema-1 compatibility projection required by the existing matcher and rejects
 any conflicting projection supplied by catalog input. The deterministic

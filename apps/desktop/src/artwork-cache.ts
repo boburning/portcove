@@ -15,14 +15,29 @@ export interface ArtworkDisplay {
 }
 
 const empty: ArtworkDisplay = { loading: false };
-const maximumEntries = 32;
+/** Inactive entries retained for revisits; sized for a few hundred collection cards. */
+export const maximumInactiveArtworkEntries = 256;
+/** Encoded preview characters retained for inactive entries, independently of the count. */
+export const maximumInactiveArtworkImageLength = 48 * 1024 * 1024;
 const maximumPngBytes = 1024 * 1024;
 const maximumRemoteRequests = 2;
+/**
+ * Concurrent choice reads for different ports; mutations still run alone. Local
+ * thumbnail decoding stays one at a time because Core refuses, rather than waits
+ * on, a contended library artwork lock.
+ */
+export const maximumConcurrentArtworkReads = 4;
 
 interface QueuedThumbnail {
   state: ArtworkState | CatalogMediaAsset;
   stillInterested: () => boolean;
   fetch: () => Promise<void>;
+}
+
+interface ScheduledArtworkTask {
+  /** A read lane serializes one port's slots; `undefined` marks an exclusive mutation. */
+  lane: string | undefined;
+  start: () => Promise<void>;
 }
 
 function decodedBytes(encoded: string) {
@@ -65,7 +80,10 @@ export class ArtworkCache {
   private entries = new Map<string, ArtworkDisplay>();
   private listeners = new Map<string, Set<() => void>>();
   private pending = new Map<string, Promise<void>>();
-  private tail: Promise<unknown> = Promise.resolve();
+  private scheduled: ScheduledArtworkTask[] = [];
+  private runningLanes = new Set<string>();
+  private exclusiveRunning = false;
+  private localThumbnailTail: Promise<unknown> = Promise.resolve();
   private remoteQueued = new Map<string, QueuedThumbnail>();
   private remoteActive = new Set<string>();
 
@@ -98,8 +116,19 @@ export class ArtworkCache {
   }
 
   private trim() {
-    const inactive = [...this.entries.keys()].filter((key) => !this.listeners.has(key));
-    for (const key of inactive.slice(0, Math.max(0, inactive.length - maximumEntries))) {
+    const inactive = [...this.entries].filter(([key]) => !this.listeners.has(key));
+    let retainedLength = inactive.reduce(
+      (total, [, value]) => total + (value.image?.length ?? 0),
+      0,
+    );
+    // Map order is least recently published first.
+    for (const [index, [key, value]] of inactive.entries()) {
+      if (
+        inactive.length - index <= maximumInactiveArtworkEntries &&
+        retainedLength <= maximumInactiveArtworkImageLength
+      )
+        break;
+      retainedLength -= value.image?.length ?? 0;
       this.entries.delete(key);
       this.remoteQueued.delete(key);
     }
@@ -116,10 +145,54 @@ export class ArtworkCache {
     this.listeners.get(key)?.forEach((listener) => listener());
   }
 
-  private enqueue<T>(action: () => Promise<T>): Promise<T> {
-    const next = this.tail.then(action);
-    this.tail = next.catch(() => undefined);
+  /**
+   * FIFO scheduler: reads for different ports overlap up to the local bound, while
+   * one port's slots stay ordered. An exclusive mutation waits for every earlier task,
+   * and no later task overtakes it.
+   */
+  private schedule<T>(lane: string | undefined, action: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      this.scheduled.push({
+        lane,
+        start: () => Promise.resolve().then(action).then(resolve, reject),
+      });
+      this.pump();
+    });
+  }
+
+  private serializeLocalThumbnail(action: () => Promise<void>) {
+    const next = this.localThumbnailTail.then(action);
+    this.localThumbnailTail = next.catch(() => undefined);
     return next;
+  }
+
+  private pump() {
+    let index = 0;
+    while (!this.exclusiveRunning && index < this.scheduled.length) {
+      const task = this.scheduled[index]!;
+      if (task.lane === undefined) {
+        if (index > 0 || this.runningLanes.size > 0) return;
+        this.scheduled.shift();
+        this.exclusiveRunning = true;
+        void task.start().finally(() => {
+          this.exclusiveRunning = false;
+          this.pump();
+        });
+        return;
+      }
+      if (this.runningLanes.size >= maximumConcurrentArtworkReads) return;
+      if (this.runningLanes.has(task.lane)) {
+        index += 1;
+        continue;
+      }
+      const lane = task.lane;
+      this.scheduled.splice(index, 1);
+      this.runningLanes.add(lane);
+      void task.start().finally(() => {
+        this.runningLanes.delete(lane);
+        this.pump();
+      });
+    }
   }
 
   private drainRemote() {
@@ -291,13 +364,13 @@ export class ArtworkCache {
       }
     };
     if (state.resolved_source.kind === "igdb_cover") {
-      // Keep remote work separate from the local-choice tail. Only current
+      // Keep remote work separate from the local read lanes. Only current
       // viewport requests reach IPC; newer state replaces an undispatched one.
       this.remoteQueued.set(key, { state, stillInterested, fetch: fetchThumbnail });
       this.drainRemote();
       return;
     }
-    await fetchThumbnail();
+    await this.serializeLocalThumbnail(fetchThumbnail);
   }
 
   load(
@@ -318,7 +391,7 @@ export class ArtworkCache {
       this.refreshQueuedInterest(key, stillInterested);
       return Promise.resolve();
     }
-    const result = this.enqueue(async () => {
+    const result = this.schedule(portId, async () => {
       if (!stillInterested() && !this.listeners.has(key)) return;
       this.publish(portId, slot, {
         ...this.read(portId, slot),
@@ -375,7 +448,7 @@ export class ArtworkCache {
     path: string | null,
     stillCurrent: () => boolean,
   ) {
-    return this.enqueue(async () => {
+    return this.schedule(undefined, async () => {
       if (!stillCurrent() || this.read(portId, slot).stale) return undefined;
       const state =
         path === null

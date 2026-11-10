@@ -733,7 +733,7 @@ const eventProducerSources = [
    emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);`,
   `use tauri::Emitter;
    fn emit_desktop_event<T>(app: &tauri::AppHandle, event: &'static str, payload: T) {
-     app.emit(event, payload);
+     app.emit_to(MAIN_WINDOW_LABEL, event, payload);
    }`,
 ];
 const eventExporterSource = `
@@ -898,6 +898,35 @@ void test("unparsed event constants and Tauri producers fail closed", () => {
       ),
     /must route through emit_desktop_event/,
   );
+  // Every other emitter spelling is also a bypass outside the adapter.
+  for (const rogue of [
+    `app.emit_to("secondary", "portcove://rogue", ());`,
+    `app.emit_to(MAIN_WINDOW_LABEL, "portcove://rogue", ());`,
+    `app.emit_str("portcove://rogue", String::new());`,
+    `app.emit_filter("portcove://rogue", (), |_| true);`,
+    `tauri::Emitter::emit_to(&app, "main", "portcove://rogue", ());`,
+  ])
+    assert.throws(
+      () => extractProducedDesktopEvents([...eventProducerSources, rogue], declarations),
+      /must route through emit_desktop_event/,
+      rogue,
+    );
+  // The adapter itself must keep the single call and its main-window target.
+  const adapter = eventProducerSources.at(-1) ?? "";
+  for (const weakened of [
+    adapter.replace("app.emit_to(MAIN_WINDOW_LABEL, event, payload)", "app.emit(event, payload)"),
+    adapter.replace("MAIN_WINDOW_LABEL", '"secondary"'),
+    adapter.replace("MAIN_WINDOW_LABEL, event", "event"),
+  ])
+    assert.throws(
+      () =>
+        extractProducedDesktopEvents(
+          [...eventProducerSources.slice(0, -1), weakened],
+          declarations,
+        ),
+      /only direct Tauri emit call, targeted at MAIN_WINDOW_LABEL/,
+      weakened,
+    );
   assert.throws(
     () =>
       extractProducedDesktopEvents(

@@ -29,7 +29,7 @@
       "steps": [
         {
           "title": "Choose the runtime owner and original set",
-          "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          "instruction": "The managed Windows and Linux x64 offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
         },
         {
           "title": "Use this original game and edition",
@@ -45,15 +45,15 @@
         },
         {
           "title": "Add the game and manage your files",
-          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Use the upstream application for the Linux, Mac and mobile instructions below."
+          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. The Linux reference below separates managed installation from upstream setup. Use the upstream application for the Mac and mobile instructions."
         }
       ],
       "warnings": [],
       "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
       "references": [
         {
-          "title": "Prepare DevilutionX on Linux",
-          "instruction": "Use the upstream x86-64 AppImage and make it executable. Put your matching MPQs in the actual data directory, normally ~/.local/share/diasurgical/devilution, then start the complete AppImage. The reviewed AppImage needs glibc 2.34 or newer. For the official v1.5.5 x86-64 tar.xz, use Portcove Download to extract into a new setup folder or unpack it yourself. Keep the companions and start devilutionx.sh. On Linux ARM64, use the separate AArch64 tar.xz, install its host dependencies including SDL2 and SDL2_image, and start devilutionx from the complete extracted folder. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal."
+          "title": "Choose a DevilutionX route on Linux",
+          "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned copy, make the AppImage executable and supply your matching MPQs in its actual data folder, normally ~/.local/share/diasurgical/devilution. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
         },
         {
           "title": "Prepare DevilutionX on Mac",
@@ -65,7 +65,7 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -82,18 +82,20 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
       "repository": "diasurgical/DevilutionX",
       "asset_hints": {
-        "windows-x86-64": ["devilutionx-windows-x86_64.zip"]
+        "windows-x86-64": ["devilutionx-windows-x86_64.zip"],
+        "linux-x86-64": ["devilutionx-linux-x86_64.appimage"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["devilutionx.exe"]
+      "windows-x86-64": ["devilutionx.exe"],
+      "linux-x86-64": ["devilutionx.AppImage"]
     },
     "windows_runtime_path_policy": "relative-file-max-path",
     "source_profile": "diablo-hellfire-devilutionx-originals",

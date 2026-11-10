@@ -1286,7 +1286,7 @@ void test("cross-cutting, manifest, unmapped addition, rename, and deletion chan
 
 void test("an explicitly mapped addition uses its reviewed focused group", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
-    { status: "A", path: "crates/portcove-core/catalog/catalog-current-authoring.json" },
+    { status: "A", path: "crates/portcove-core/catalog/catalog.json" },
   ]);
   assert.equal(selected.mode, "focused");
   assert.deepEqual(
@@ -1730,12 +1730,7 @@ void test("unrelated CLI fixtures cannot suppress artwork or advertised capabili
 
 void test("guide reference copy narrows Rust only for complete matching projections", () => {
   const root = "crates/portcove-core/catalog/";
-  const files = [
-    `${root}catalog-current-authoring.json`,
-    `${root}catalog.json`,
-    `${root}listings.json`,
-    `${root}ports/sample.json`,
-  ];
+  const files = [`${root}catalog.json`, `${root}listings.json`, `${root}ports/sample.json`];
   const plan = workspacePlan(files);
   const changes = plan.changes.map((change) => ({
     ...change,
@@ -1765,7 +1760,7 @@ void test("guide reference copy narrows Rust only for complete matching projecti
   const [first] = changes;
   assert.ok(first);
   const annotated = annotate();
-  assert.equal(annotated.filter((change) => change.guide_copy).length, 4);
+  assert.equal(annotated.filter((change) => change.guide_copy).length, 3);
   const guided = withProof(annotated);
   assert.deepEqual(
     selectWorkspaceRustImpact(guided, undefined, after).map((group) => group.id),
@@ -1778,12 +1773,12 @@ void test("guide reference copy narrows Rust only for complete matching projecti
   assert.ok(usesBroadCore(guided, before), "stale checkout");
   assert.ok(usesBroadCore(withProof([first, ...annotated.slice(1)])), "missing proof");
   for (const postimage of [
-    (file: string) => (file === files[2] ? before(file) : after(file)),
+    (file: string) => (file === files[1] ? before(file) : after(file)),
     (file: string) =>
-      file === files[3] ? after(file).replace("9007199254740991", "9007199254740992") : after(file),
-    (file: string) => (file === files[3] ? after(file).replace("stable", "beta") : after(file)),
+      file === files[2] ? after(file).replace("9007199254740991", "9007199254740992") : after(file),
+    (file: string) => (file === files[2] ? after(file).replace("stable", "beta") : after(file)),
     (file: string) =>
-      file === files[3] ? after(file).replace('"id":', '"id":"extra","id":') : after(file),
+      file === files[2] ? after(file).replace('"id":', '"id":"extra","id":') : after(file),
   ]) {
     assert.ok(usesBroadCore(withProof(annotate(changes, postimage)), postimage));
   }

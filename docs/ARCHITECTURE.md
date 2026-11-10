@@ -19,7 +19,11 @@ The workspace snapshot is one pure local-IPC TanStack Query in
 `usePortcoveData`, keyed by library generation and owned by that hook's mounted
 client. Subscription readiness enables the query; Query owns snapshot/error/fetch
 state, deduplication, polling and focus triggers. Structural sharing plus a narrow
-port-ID adapter preserves unchanged statuses across reordering. Reads work offline
+port-ID adapter preserves unchanged statuses across reordering. Each full read
+offers the SHA-256 `catalog_digest` the generation already holds; when the catalog
+and listing documents serialize to the same digest, Tauri omits both and sets
+`catalog_unchanged`, and the hook reuses its held objects by reference instead of
+receiving and comparing about 7 MB again. Reads work offline
 with retries disabled. Cheap change detection and activity reads precede periodic
 full reconciliation; explicit refresh requests a full snapshot. A mutation arriving
 during a read joins that read before targeted invalidation requests a fresh one,
@@ -502,6 +506,28 @@ install the Windows permission boundary exits the application. Other platform
 permission behavior requires its own native qualification and is not inferred
 from Windows results.
 
+The declaration, capability and event-audience review (#1281) kept two choices
+and changed one. Command declarations stay on the generated handler list behind
+the main-window gate; a per-command manifest would be a second inventory to keep
+synchronized with that list and the generated transport schema, and the gate
+already rejects every other webview. Capability selection stays explicit: the
+`default` capability names only the `main` window, and a host test refuses any
+capability file that names another window, `webviews`, `remote` or `platforms`,
+or a configured window other than `main`. Events changed: every Portcove event
+(`library-changed`, `operation`, `application-update-notice`) is emitted with an
+explicit `main` target through one function that shares the invoke gate's label.
+Each event has one consumer, in the main window, and none is a global event.
+Targeting is a second layer, not the boundary: the frontend's default listeners
+use Tauri's `Any` target and still receive every event, so the fixture windows
+are kept from receiving operation details by never being granted event listening:
+the capability that grants it names only `main`, and the test above pins that
+window scoping and refuses any widening key. The transport contract check
+requires that targeted call to be the only direct emit call in the host, so no
+producer can broadcast around it. The `Any`-target behavior is Tauri's own
+(`match_any_or_filter` in its event listener) and is not re-tested here: a host
+test using Tauri's mock runtime failed to load in the hosted Windows run
+(`0xc0000139`) and was removed.
+
 The optional native compatibility feature can create unprivileged secondary
 and loopback-origin windows for boundary qualification. Its remote test window
 may navigate so the existing remote ACL can actually be exercised; it never
@@ -752,9 +778,11 @@ continue to cover saved data; whole-library backup copies include the artwork ro
 
 Desktop owns native file selection and routes each read/change through a library
 generation check. React displays core results through a disposable cache for the
-visible viewport plus at most 32 inactive previews per generation. Requests are
-serialized for local-choice work to avoid competing for the artwork lock, while
-IGDB thumbnail retrieval uses a separate two-request drain. Undispatched requests
+visible viewport plus at most 256 inactive previews (bounded by encoded size) per
+generation. Local-choice reads run for up to four ports at once while each port's
+slots stay ordered; mutations and local thumbnail decoding run alone because Core
+refuses a contended artwork lock. IGDB thumbnail retrieval uses a separate
+two-request drain. Undispatched requests
 are keyed by port/slot, share the inactive-preview retention bound and recheck
 current state and viewport interest before IPC. A refreshed choice replaces queued
 work, and offscreen queued work is discarded so current covers can proceed.
@@ -2256,8 +2284,9 @@ also fails.
 
 Each ready Desktop library generation also owns one persistent, connection-scoped SQLite
 `data_version` observer. Commits from a CLI or another process are checked with that same observing
-connection every second while work is running, every ten seconds while visible and idle, and every
-thirty seconds while hidden. Query owns these intervals and foreground triggers. A quiet hint
+connection every second while work is running (every three seconds while this window's own
+operation events keep arriving), every ten seconds while visible and idle, and not at all while
+hidden and idle; focus and visibility return reconcile instead. Query owns these intervals and foreground triggers. A quiet hint
 reads activities without unconditionally retrieving a full snapshot. A detected commit remains
 pending until separate recovery settles and a fresh essential read follows. Visible sessions
 retrieve a full snapshot when the sixty-second fallback is due so non-database observations
@@ -2870,7 +2899,7 @@ Restore consumes its one-use, action/target-bound authorization under the port l
 
 When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, loader configuration, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions.
 
-The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
+The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers, observes running launches and reconciles a pending application update, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
 
 React retains the latest event for each active operation and its available
 ancestor context, plus at most 32 other recent terminal events. Retained
@@ -3249,7 +3278,7 @@ A 401 response when checking an existing credential returns an unauthenticated s
 
 Authentication does not grant webhook access to arbitrary upstream repositories. A future optional Portcove update relay may combine webhooks from cooperative upstreams with one centralized conditional poller and publish signed advisory catalog events. Local polling remains authoritative and available without an account or relay; every event must still pass normal repository, channel, asset, and checksum validation before installation.
 
-RetComM is not a Portcove release provider. Its title catalog is used only by a CI audit to confirm that PS1 entries still name the same direct per-game repositories. The RetComM launcher cannot satisfy a game release request and is explicitly rejected by catalog validation. `retcomm-toolchains` is a separate checksum-pinned build dependency used by the shared PS1 adapter.
+RetComM is not a Portcove release provider. Its title catalog is used only by a CI audit to confirm that PS1 entries still name the same direct per-game repositories. When RetComM still lists a former path, the audit logs instead of failing only if the port's reviewed `upstream_lineage` accepts a relocation from exactly that path with an unchanged repository identity; the audit grants no lineage authority. The RetComM launcher cannot satisfy a game release request and is explicitly rejected by catalog validation. `retcomm-toolchains` is a separate checksum-pinned build dependency used by the shared PS1 adapter.
 
 Core-managed PS1 rebuilds pass fixed `--cmake-extra` arguments defining both
 `CMAKE_C_COMPILER_LAUNCHER` and `CMAKE_CXX_COMPILER_LAUNCHER` as empty strings.
@@ -3472,7 +3501,7 @@ after a successful change, and distinguishes a saved choice from a failed releas
 refresh. Changing channel does not install or activate a version. Current channel
 identity invalidates old install/update reviews and mismatched update snapshots.
 
-Lifecycle startup and explicit orphan discovery use the core journal under the existing source-dependent or per-port locks. The initial journal inventory identifies candidate IDs; recovery reloads each record after acquiring its lock and uses its current phase and durable fields. A removed record is not recreated, and a record whose kind, port owner, or creation identity changed is left for a later correctly locked pass. Unchanged failed retries retain the original cause and latest bounded retry diagnostic without rewriting the journal. Core read-only service construction leaves cancellation and lifecycle recovery untouched. Desktop startup and library-generation initialization recover pending work; ordinary status/workspace reads do not. When the desktop change observer sees an external library commit or receives a library-change event, a separate generation-bound discovery call retries newly orphaned CLI work before refreshing the view. Quiet focus and periodic full reconciliation remain read-only. Live-worker locks still exclude recovery. CLI observation commands open without advancing recovery, while mutating commands retain startup recovery.
+Lifecycle startup and explicit orphan discovery use the core journal under the existing source-dependent or per-port locks. The initial journal inventory identifies candidate IDs; recovery reloads each record after acquiring its lock and uses its current phase and durable fields. A removed record is not recreated, and a record whose kind, port owner, or creation identity changed is left for a later correctly locked pass. Unchanged failed retries retain the original cause and latest bounded retry diagnostic without rewriting the journal. Core read-only service construction leaves cancellation and lifecycle recovery untouched. Desktop startup and library-generation initialization recover pending work; ordinary status/workspace reads do not. When the desktop change observer sees a library commit with no intervening write from this window, or receives a library-change event, a separate generation-bound discovery call retries newly orphaned CLI work before refreshing the view. A commit that coincides with this window's own operation lifecycle (start, pushed operation events, settled mutation refreshes) is refreshed without a discovery pass; because the observer cannot tell whether an external commit landed in the same interval, one deferred discovery runs on the first probe after this window's writes have been quiet for five seconds. Quiet focus and periodic full reconciliation remain read-only. Live-worker locks still exclude recovery. CLI observation commands open without advancing recovery, while mutating commands retain startup recovery.
 
 Desktop install and adoption reviews are ephemeral, generation-bound presentation state. Port/channel changes invalidate install plans; adoption path, target, dialog closure and newer reviews invalidate copy previews. Late results and request errors cannot replace newer review intent, and an older adoption completion cannot close a reopened dialog. Core still revalidates the content-bound adoption plan before copying.
 

@@ -691,6 +691,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           maxBytes: 16 * 1024 ** 2,
           requestTimeoutMs: 15000,
           guard: checkDirectSource,
+          catalogComparison: true,
         },
         {
           base_commit: seed?.source_commit ?? initial.commit,

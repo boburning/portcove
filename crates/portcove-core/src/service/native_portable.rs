@@ -479,6 +479,10 @@ fn pattern_names_added(narrow: &PortDefinition, broad: &PortDefinition) -> Optio
 #[path = "native_tar_xz_tests.rs"]
 mod native_tar_xz_tests;
 
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+#[path = "package_layout_tests.rs"]
+mod package_layout_tests;
+
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;

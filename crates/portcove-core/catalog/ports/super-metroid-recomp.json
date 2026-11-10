@@ -4,7 +4,7 @@
   "listing": {
     "id": "super-metroid-recomp",
     "name": "Super Metroid Recompiled",
-    "summary": "Native Super Metroid recompilation with an exact original and pinned Windows runtime.",
+    "summary": "Play Super Metroid Recompiled with your own exact original on Windows, Linux or Mac.",
     "project_url": "https://github.com/mstan/SuperMetroidRecomp",
     "original_game_title": "Super Metroid",
     "issue_number": 164,
@@ -52,7 +52,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -60,12 +60,18 @@
       "provider": "github",
       "repository": "mstan/SuperMetroidRecomp",
       "asset_hints": {
-        "windows-x86-64": ["supermetroid-", "-windows-x64.zip"]
+        "windows-x86-64": ["supermetroid-", "-windows-x64.zip"],
+        "linux-x86-64": ["supermetroid-", "-linux-x64.zip"],
+        "macos-x86-64": ["supermetroid-", "-macos-x64.zip"],
+        "macos-aarch64": ["supermetroid-", "-macos-arm64.zip"]
       }
     },
     "source_profile": "super-metroid-snes-japan-usa",
     "executable_hints": {
-      "windows-x86-64": ["SuperMetroidSNESRecomp.exe"]
+      "windows-x86-64": ["SuperMetroidSNESRecomp.exe"],
+      "linux-x86-64": ["SuperMetroidSNESRecomp"],
+      "macos-x86-64": ["SuperMetroidSNESRecomp"],
+      "macos-aarch64": ["SuperMetroidSNESRecomp"]
     },
     "runtime_source_filename": "game.sfc",
     "runtime_source_materialization": "copy",
@@ -111,7 +117,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. The managed route selects compatible official Windows packages, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. The installation folder needs basic Latin characters and a short path. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can fall back to %TEMP%/SuperMetroidSNESRecomp/logs outside managed backup/removal. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included."
+      "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. The managed route selects the compatible official ZIP for Windows x86-64, Linux x86-64, or Intel or Apple Silicon Mac, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. On Windows choose a short installation path with basic Latin characters. The reviewed Linux package needs glibc 2.34, GLIBCXX_3.4.29 and system OpenGL. The reviewed Mac packages need macOS 15 because their bundled libraries set that floor. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can place diagnostic logs outside managed backup and removal. Keep the runtime writable and preserve any fallback logs separately. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included."
     },
     "windows_runtime_path_policy": "printable-ascii-max-path",
     "archive_data_compatibility_v1": {

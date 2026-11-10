@@ -29,7 +29,43 @@ aqua_failure_is_attestation_only() {
   $seen
 }
 
-# Sourcing defines the helper above without running host setup.
+# Move a directory to a shared path and leave a symlink at the original path.
+# Reruns converge, including one interrupted between the move and the link; any
+# other layout is refused rather than overwritten.
+share_directory() {
+  local source=$1 target=$2
+  while [[ "$source" == */ && "$source" != / ]]; do source=${source%/}; done
+  if [[ -L "$source" ]]; then
+    [[ "$(readlink -- "$source")" == "$target" ]] && return 0
+    printf 'Refusing to share %s: it already links elsewhere.\n' "$source" >&2
+    return 1
+  fi
+  if [[ -d "$source" ]]; then
+    if [[ -e "$target" || -L "$target" ]]; then
+      printf 'Refusing to share %s: %s already exists.\n' "$source" "$target" >&2
+      return 1
+    fi
+    mv -- "$source" "$target"
+  elif [[ -e "$source" || -L "$target" || ! -d "$target" ]]; then
+    printf 'Refusing to share %s: unexpected layout.\n' "$source" >&2
+    return 1
+  fi
+  ln -s -- "$target" "$source"
+}
+
+# Link only the tools the pinned Node distribution ships. Node 25 and later no
+# longer bundle corepack; linking it anyway replaced the image's working copy
+# with a dangling symlink, which failed the test-pnpm step. A tool the pinned
+# tarball lacks keeps whatever the environment already provides.
+link_node_tools() {
+  local destination=$1 bin=$2 tool
+  for tool in node npm npx corepack; do
+    [[ -e "$destination/bin/$tool" ]] || continue
+    ln -sfn "$destination/bin/$tool" "$bin/$tool"
+  done
+}
+
+# Sourcing defines the helpers above without running host setup.
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
 
 usage() {
@@ -53,6 +89,9 @@ Provision a disposable Linux x86_64 cloud session for Portcove development:
   powershell tools/containers/build/Dockerfile PowerShell version and SHA-256
   history    complete Git history when the clone is shallow
   test-user  an unprivileged identity and resource domain for scripts/cloud-test.sh
+  test-toolchain
+             the Rust toolchain moved to /opt/portcove-rust, read-only to it
+  test-pnpm  the pinned pnpm fetched once into its own caches
 
 Existing exact versions are reused. A failed step is reported and the
 remaining steps continue; the exit status is 1 when any step failed. An
@@ -134,7 +173,7 @@ install_node() {
   mkdir -p "$destination"
   tar -xJf "$scratch/$archive" -C "$destination" --strip-components=1
   bin="$(link_dir)"
-  for tool in node npm npx corepack; do ln -sfn "$destination/bin/$tool" "$bin/$tool"; done
+  link_node_tools "$destination" "$bin"
   hash -r
   [[ "$(node --version)" == "v$pin" ]]
 }
@@ -310,6 +349,42 @@ create_test_user() {
   fi
 }
 
+# The test identity cannot traverse /root, where rustup installs. Move rustup's
+# home and the cargo bin directory to root-owned, world-readable /opt paths and
+# leave symlinks behind, so root's tooling is unchanged and scripts/cloud-test.sh
+# can run offline cargo commands without opening /root or letting the test
+# identity modify the toolchain.
+share_rust_toolchain() {
+  local shared=/opt/portcove-rust
+  install -d -m 0755 "$shared"
+  share_directory "${RUSTUP_HOME:-$HOME/.rustup}" "$shared/rustup"
+  share_directory "${CARGO_HOME:-$HOME/.cargo}/bin" "$shared/cargo-bin"
+  runuser -u portcove-test -- env -i PATH="$shared/cargo-bin:/usr/bin:/bin" \
+    RUSTUP_HOME="$shared/rustup" CARGO_HOME=/home/portcove-test/.cargo cargo --version
+}
+
+# Offline fixtures run `corepack pnpm`, which fetches the pinned pnpm and its
+# native binary on first use. Fetch them once into the test identity's own
+# caches; it receives only a copy of the trusted CA bundle, never proxy or
+# credential variables, and the wrapper itself stays offline.
+seed_test_pnpm() {
+  local spec seed version ca=()
+  spec="$(node -p 'JSON.parse(require("node:fs").readFileSync("package.json","utf8")).packageManager')"
+  [[ "$spec" =~ ^pnpm@[0-9]+\.[0-9]+\.[0-9]+$ ]] || { printf 'Malformed packageManager\n' >&2; return 1; }
+  seed="$(mktemp -d)"
+  chmod 0755 "$seed"
+  if [[ -r "${NODE_EXTRA_CA_CERTS:-}" ]]; then
+    install -m 0644 "$NODE_EXTRA_CA_CERTS" "$seed/ca.crt"
+    ca=(NODE_EXTRA_CA_CERTS="$seed/ca.crt")
+  fi
+  version="$(runuser -u portcove-test -- env -i PATH="$PATH" HOME=/home/portcove-test \
+    COREPACK_ENABLE_AUTO_PIN=0 COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    "${ca[@]}" \
+    bash -c 'cd "$HOME" && corepack "$1" --version' seed "$spec" | tail -n 1)" || version=
+  rm -rf -- "${seed:?}"
+  [[ "$version" == "${spec#pnpm@}" ]]
+}
+
 step node install_node
 step frontend install_frontend
 step resources coordinate_resources
@@ -322,6 +397,8 @@ if ! $skip_desktop; then step desktop install_desktop; fi
 step powershell install_powershell
 step history complete_history
 step test-user create_test_user
+step test-toolchain share_rust_toolchain
+step test-pnpm seed_test_pnpm
 
 printf '\n'
 node scripts/dev-doctor.mts || true

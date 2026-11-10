@@ -42,6 +42,234 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn recomp_appimages_select_the_direct_linux_asset_and_compatible_successor() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, name, tag, size, sha256) in [
+        (
+            "thatguymcd-glover-r",
+            "Glover-R",
+            "v1.0.1",
+            18_987_512_u64,
+            "765325f48cbe2fc4646a638faf75d971c7f122980b08b6bdedb148a8513296ca",
+        ),
+        (
+            "rocket-robot-on-wheels-rocket-r",
+            "Rocket-R",
+            "v.1.0.1",
+            21_637_624_u64,
+            "82048c0d7a8ab5555ea5f663cde7cec1563f799913ed390b12d0f6e35d9618ee",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let platform = Platform::LinuxX86_64;
+        let current_name = format!("{name}-1.0.1-Linux-x86_64.AppImage");
+        let next_name = format!("{name}-1.0.2-Linux-x86_64.AppImage");
+        let mut observed = asset(&current_name, None);
+        observed["size"] = serde_json::json!(size);
+        observed["digest"] = serde_json::json!(format!("sha256:{sha256}"));
+        let current = release(tag, vec![observed]);
+        let wrong = [
+            format!("{name}-1.0.2-Linux-aarch64.AppImage"),
+            format!("{name}-1.0.2-Linux-x86_64-SteamDeck.AppImage"),
+            format!("{name}-1.0.2-Linux-x86_64-Portable.tar.gz"),
+            format!("{name}-debug-1.0.2-Linux-x86_64.AppImage"),
+        ];
+        let mut next_assets = vec![asset(&next_name, Some('a'))];
+        next_assets.extend(wrong.iter().map(|name| asset(name, Some('b'))));
+        let next = release("v1.0.2", next_assets);
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(&[current]),
+            metadata(),
+            releases(&[next]),
+        ]);
+        let observed = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(observed.asset.name, current_name);
+        assert_eq!(observed.asset.size, size);
+        assert_eq!(observed.asset.sha256, sha256);
+        let successor = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(successor.asset.name, next_name);
+        assert_eq!(successor.asset.sha256, "a".repeat(64));
+        assert!(crate::managed_runtime_policy::requires_provider_resolution_on(port, platform));
+        for name in wrong {
+            assert!(
+                crate::managed_runtime_policy::require_native_appimage_artifact(
+                    port, platform, &name
+                )
+                .is_err()
+            );
+        }
+        crate::managed_runtime_policy::require_native_appimage_artifact(port, platform, &next_name)
+            .unwrap();
+        server.join().unwrap();
+    }
+}
+
+#[tokio::test]
+async fn openrct2_both_mac_architectures_follow_the_official_universal_bundle() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("openrct2-openrct2").unwrap();
+    let archive = "OpenRCT2-v0.5.7-macos-universal.zip";
+    let sha256 = "fd71e17c8ee5e8bd5887e2b1e269d7bdd0c7cee056997cdc6b55813ed395fed3";
+    let mut observed = asset(archive, None);
+    observed["size"] = serde_json::json!(115_868_444_u64);
+    observed["digest"] = serde_json::json!(format!("sha256:{sha256}"));
+    let current = release(
+        "v0.5.7",
+        vec![
+            observed,
+            asset("OpenRCT2-v0.5.7-windows-portable-x64.zip", Some('a')),
+            asset("OpenRCT2-v0.5.7-Linux-bookworm-x86_64.tar.gz", Some('b')),
+        ],
+    );
+    let successor_name = "OpenRCT2-v0.5.8-macos-universal.zip";
+    let successor = release(
+        "v0.5.8",
+        vec![
+            asset(successor_name, Some('c')),
+            asset("OpenRCT2-v0.5.8-macos-arm64.zip", Some('d')),
+            asset("OpenRCT2-v0.5.8-macos-universal.dmg", Some('e')),
+        ],
+    );
+    for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(&current)),
+            metadata(),
+            releases(std::slice::from_ref(&successor)),
+        ]);
+        let old = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(old.asset.name, archive);
+        assert_eq!(old.asset.size, 115_868_444);
+        assert_eq!(old.asset.sha256, sha256);
+        let next = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(next.asset.name, successor_name);
+        assert_eq!(next.asset.sha256, "c".repeat(64));
+        server.join().unwrap();
+    }
+}
+
+#[tokio::test]
+async fn native10_original_sibling_assets_follow_stable_successors() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (record, ids, routes, tag) in [
+        (
+            include_str!("../../testdata/bstone-release-selection-2026-10-29.json"),
+            [
+                "blake-stone-aliens-of-gold-bstone",
+                "blake-stone-planet-strike-bstone",
+            ],
+            &[
+                (Platform::LinuxX86_64, "bstone-1.3.4+e65a6b40-Linux.zip"),
+                (Platform::MacosX86_64, "bstone-1.3.4+e65a6b40-Darwin.zip"),
+            ][..],
+            "v1.3.5",
+        ),
+        (
+            include_str!("../../testdata/devilution-release-selection-2026-10-29.json"),
+            ["diablo-devilutionx", "diablo-hellfire-devilutionx"],
+            &[(Platform::LinuxX86_64, "devilutionx-linux-x86_64.appimage")][..],
+            "1.5.6",
+        ),
+    ] {
+        let captured: serde_json::Value = serde_json::from_str(record).unwrap();
+        let observed = &captured["release"];
+        let mut next = observed.clone();
+        next["tag_name"] = serde_json::json!(tag);
+        for row in next["assets"].as_array_mut().unwrap() {
+            let name = row["name"]
+                .as_str()
+                .unwrap()
+                .replace("1.3.4+e65a6b40", "1.3.5+01234567");
+            *row = asset(&name, Some('c'));
+        }
+        for id in ids {
+            let port = catalog.port(id).unwrap();
+            for &(platform, name) in routes {
+                let selected = observed["assets"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|row| row["name"] == name)
+                    .unwrap();
+                let (root, _, server) = serve_http(vec![
+                    metadata(),
+                    releases(std::slice::from_ref(observed)),
+                    metadata(),
+                    releases(std::slice::from_ref(&next)),
+                ]);
+                let current = GithubReleaseProvider::with_api_root(root.clone())
+                    .unwrap()
+                    .resolve(port, ReleaseChannel::Stable, platform)
+                    .await
+                    .unwrap();
+                assert_eq!(current.asset.name, name);
+                assert_eq!(current.asset.size, selected["size"].as_u64().unwrap());
+                assert_eq!(
+                    format!("sha256:{}", current.asset.sha256),
+                    selected["digest"]
+                );
+                let successor = GithubReleaseProvider::with_api_root(root)
+                    .unwrap()
+                    .resolve(port, ReleaseChannel::Stable, platform)
+                    .await
+                    .unwrap();
+                assert_eq!(successor.version, tag);
+                assert_eq!(
+                    successor.asset.name,
+                    name.replace("1.3.4+e65a6b40", "1.3.5+01234567")
+                );
+                assert_eq!(successor.asset.sha256, "c".repeat(64));
+                server.join().unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn native10_appimage_selector_refuses_archive_fallback_and_legacy_routes() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("diablo-devilutionx").unwrap().clone();
+    let platform = Platform::LinuxX86_64;
+    let assets = serde_json::from_value::<Vec<GithubAsset>>(serde_json::json!([
+        asset("devilutionx-linux-x86_64.tar.gz", Some('d')),
+        asset(
+            "devilutionx-linux-x86_64.appimage.unreviewed.appimage",
+            Some('d')
+        ),
+    ]))
+    .unwrap();
+    assert_eq!(
+        choose_asset(&port, platform, &assets).unwrap_err().code,
+        crate::ErrorCode::NotFound
+    );
+    let appimage = serde_json::from_value::<GithubAsset>(asset(
+        "devilutionx-linux-x86_64.appimage",
+        Some('d'),
+    ))
+    .unwrap();
+    assert!(choose_asset(&port, platform, std::slice::from_ref(&appimage)).is_ok());
+    port.windows_temp_directory = None;
+    assert!(choose_asset(&port, platform, std::slice::from_ref(&appimage)).is_err());
+}
+
+#[tokio::test]
 async fn bstone_definitions_keep_win64_identity_and_refuse_unqualified_metadata() {
     let catalog = crate::Catalog::embedded().unwrap();
     let captured: serde_json::Value = serde_json::from_str(include_str!(
@@ -1105,6 +1333,30 @@ async fn successor_resolution_refuses_lost_variant_ambiguity_wrong_architecture_
             );
         }
     }
+}
+
+#[tokio::test]
+async fn a_renamed_successor_asset_fails_closed_instead_of_falling_back_to_the_previous_release() {
+    let port = variant_port();
+    let old = release(
+        "v1.0.0",
+        vec![asset("Game-hd-v1.0.0-windows-x64.zip", Some('a'))],
+    );
+    // The successor keeps the platform tokens but upstream renamed the product, so
+    // the reviewed selector no longer matches. The route stays unavailable until a
+    // reviewed definition change; it never resolves to the older release.
+    let renamed = release(
+        "v2.0.0",
+        vec![asset("NewName-hd-v2.0.0-windows-x64.zip", Some('b'))],
+    );
+    let (api_root, _, server) = serve_http(vec![metadata(), releases(&[renamed, old])]);
+    let failure = GithubReleaseProvider::with_api_root(api_root)
+        .unwrap()
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(failure.code, crate::ErrorCode::NotFound);
 }
 
 #[tokio::test]
@@ -2429,11 +2681,14 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
     #[derive(serde::Deserialize)]
     struct Case {
         inventory: String,
+        repository_id: Option<u64>,
         selected_assets: Vec<String>,
         #[serde(default)]
         linux_selected_assets: Vec<String>,
         #[serde(default)]
         macos_x86_64_selected_assets: Vec<String>,
+        #[serde(default)]
+        macos_aarch64_selected_assets: Vec<String>,
         channel: Option<ReleaseChannel>,
         managed_psx: Option<ManagedPsxArchiveExpectation>,
     }
@@ -2481,6 +2736,7 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
             (Platform::WindowsX86_64, case.selected_assets),
             (Platform::LinuxX86_64, case.linux_selected_assets),
             (Platform::MacosX86_64, case.macos_x86_64_selected_assets),
+            (Platform::MacosAarch64, case.macos_aarch64_selected_assets),
         ];
         for (platform, names) in platforms {
             if names.is_empty() {
@@ -2502,7 +2758,14 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
                 );
                 selected_zips.insert((case.inventory.clone(), index, name.clone()));
                 let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
-                let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
+                let repository = match case.repository_id {
+                    Some(id) => ok_json(
+                        &serde_json::json!({"id":id,"archived":false}).to_string(),
+                        "",
+                    ),
+                    None => metadata(),
+                };
+                let (root, requests, server) = serve_http(vec![repository, releases(&visible)]);
                 let selected = GithubReleaseProvider::with_api_root(root)
                     .unwrap()
                     .resolve(port, channel, platform)

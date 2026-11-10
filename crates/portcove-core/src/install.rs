@@ -468,7 +468,8 @@ const fn is_false(value: &bool) -> bool {
 #[derive(Clone)]
 pub struct Installer {
     library: Library,
-    client: reqwest::Client,
+    /// Built on first download; most installers only verify or read manifests.
+    client: std::sync::OnceLock<reqwest::Client>,
     network_bounds: (Duration, Duration),
     faults: Arc<dyn LifecycleFaultInjector>,
     #[cfg(test)]
@@ -543,10 +544,9 @@ pub(crate) fn default_download_client() -> Result<reqwest::Client> {
 
 impl Installer {
     pub fn new(library: Library) -> Result<Self> {
-        let client = default_download_client()?;
         Ok(Self {
             library,
-            client,
+            client: std::sync::OnceLock::new(),
             network_bounds: (DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT),
             faults: Arc::new(NoLifecycleFaults),
             #[cfg(test)]
@@ -564,7 +564,7 @@ impl Installer {
     ) -> Result<Self> {
         Ok(Self {
             library,
-            client: download_client(connect_timeout, read_idle_timeout)?,
+            client: std::sync::OnceLock::from(download_client(connect_timeout, read_idle_timeout)?),
             network_bounds: (connect_timeout, read_idle_timeout),
             faults: Arc::new(NoLifecycleFaults),
             archive_worker_test_hook: None,
@@ -959,6 +959,11 @@ impl Installer {
                 "managed TAR.XZ requires the matching retained Linux native release declaration",
             ));
         }
+        crate::managed_runtime_policy::require_native_appimage_artifact(
+            port,
+            request.qualification.platform,
+            &request.release.asset.name,
+        )?;
         crate::installed_mutability::require_shipwright_release(
             port,
             request.qualification.platform,
@@ -1210,6 +1215,11 @@ impl Installer {
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
             let port = catalog.port(&request.port_id)?;
+            crate::package_layout::require_reviewed_layout(
+                port,
+                request.qualification.platform,
+                &payload_root,
+            )?;
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
@@ -1221,7 +1231,12 @@ impl Installer {
             }
             if port.windows_temp_directory.is_some() {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
-                crate::native_temp::require_pristine_package(port, &payload_root, &selected)?;
+                crate::native_temp::require_pristine_package(
+                    port,
+                    request.qualification.platform,
+                    &payload_root,
+                    &selected,
+                )?;
                 crate::native_temp::require_canonical_data(port, &self.library)?;
             }
         }
@@ -1629,7 +1644,13 @@ impl Installer {
                     .build()
                     .map_err(|error| PortcoveError::network(error.to_string()))?
             }
-            None => self.client.clone(),
+            None => match self.client.get() {
+                Some(client) => client.clone(),
+                None => {
+                    let client = download_client(self.network_bounds.0, self.network_bounds.1)?;
+                    self.client.get_or_init(|| client).clone()
+                }
+            },
         };
         Self::download_with_client(&client, asset, destination, operation, emit).await
     }
@@ -1663,7 +1684,12 @@ impl Installer {
             .or(Some(asset.size))
             .filter(|value| *value > 0);
         let mut stream = response.bytes_stream();
-        let mut file = tokio::fs::File::create(destination).await?;
+        // Network chunks are small; batch them so each write is not its own
+        // blocking-pool dispatch. `flush` below drains the buffer and the file.
+        let mut file = tokio::io::BufWriter::with_capacity(
+            1024 * 1024,
+            tokio::fs::File::create(destination).await?,
+        );
         let mut completed = 0_u64;
         let transfer_result: Result<()> = async {
             let mut reported = 0_u64;
@@ -1936,15 +1962,16 @@ impl Installer {
                     .mutable_file_patterns
                     .iter()
                     .any(|pattern| pattern.matches(&relative))
-                || manifest.mutable_paths.iter().any(|mutable| {
-                    relative == *mutable || relative.starts_with(&format!("{mutable}/"))
-                })
+                || manifest
+                    .mutable_paths
+                    .iter()
+                    .any(|mutable| relative_is_within(&relative, mutable))
             {
                 continue;
             }
             if current_mutable_paths
                 .iter()
-                .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
+                .any(|mutable| relative_is_within(&relative, mutable))
                 || (graphics_exports
                     && Path::new(&relative)
                         .starts_with(crate::managed_shared_preferences::GRAPHICS_EXPORTS))
@@ -2063,7 +2090,9 @@ impl Installer {
             &manifest,
             crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse,
         )?;
-        if full_immutable_integrity(&manifest, install, qualification.strict_staged_source)? {
+        let full_integrity =
+            full_immutable_integrity(&manifest, install, qualification.strict_staged_source)?;
+        if full_integrity {
             let report = self.verify_managed(install, qualification)?;
             if !report.valid {
                 return Err(PortcoveError::verification(format!(
@@ -2079,13 +2108,15 @@ impl Installer {
         let mut failures = Vec::new();
         failures.extend(mutable_file_pattern_failures(&install.path, &manifest)?);
         if let Some(root) = &manifest.runtime_root {
+            let critical = manifest
+                .files
+                .iter()
+                .filter(|file| file.critical)
+                .map(|file| file.path.as_str())
+                .collect::<std::collections::HashSet<_>>();
             for path in walk_files(&install.path.join(root))? {
                 let relative = manifest_relative(&install.path, &path)?;
-                if !manifest
-                    .files
-                    .iter()
-                    .any(|file| file.path == relative && file.critical)
-                {
+                if !critical.contains(relative.as_str()) {
                     failures.push(format!("unexpected runtime file: {relative}"));
                 }
             }
@@ -2117,7 +2148,7 @@ impl Installer {
             }
             if current_mutable
                 .iter()
-                .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
+                .any(|mutable| relative_is_within(&relative, mutable))
             {
                 refuse_symlink_path_within(&install.path, &candidate, "current mutable path")?;
                 let file_type = entry.file_type()?;
@@ -2136,6 +2167,9 @@ impl Installer {
                 failures.push(format!("unexpected launch-sensitive file: {relative}"));
             }
         }
+        // After the full-tree pass above, critical members whose identity
+        // metadata is unchanged reuse the digest that pass just computed.
+        let same_call = full_integrity.then(crate::adapter::preview_digest::PreviewScope::enter);
         for file in &manifest.files {
             let candidate = manifest_member(&install.path, &file.path)?;
             let adjacent_to_executable = candidate.parent() == executable.parent();
@@ -2172,6 +2206,7 @@ impl Installer {
                 failures.push(format!("permissions changed: {}", file.path));
             }
         }
+        drop(same_call);
         if !failures.is_empty() {
             return Err(PortcoveError::verification(format!(
                 "critical install integrity failed for {}",
@@ -2298,7 +2333,12 @@ impl Installer {
             }
             if port.windows_temp_directory.is_some() {
                 let selected = resolve_declared_executable(root, qualification)?;
-                crate::native_temp::require_pristine_package(port, root, &selected)?;
+                crate::native_temp::require_pristine_package(
+                    port,
+                    qualification.platform,
+                    root,
+                    &selected,
+                )?;
                 crate::native_temp::require_canonical_data(port, &self.library)?;
             }
         }
@@ -3148,6 +3188,11 @@ fn write_manifest(
         ));
     }
     let catalog = retained_contract.catalog(port_id)?;
+    crate::managed_runtime_policy::require_native_appimage_artifact(
+        catalog.port(port_id)?,
+        qualification.platform,
+        &artifact.asset_name,
+    )?;
     crate::managed_shared_preferences::require_artifact(
         catalog.port(port_id)?,
         version,
@@ -3604,6 +3649,13 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
+        crate::managed_runtime_policy::require_native_appimage_artifact(
+            catalog.port(&install.port_id)?,
+            manifest
+                .platform
+                .ok_or_else(|| PortcoveError::verification("retained manifest has no platform"))?,
+            &manifest.artifact.asset_name,
+        )?;
         if let Some(admission) = &manifest.archive_data_admission {
             crate::archive_data_transition::effective_port(install, &catalog, admission)?;
         }
@@ -3941,6 +3993,13 @@ fn manifest_relative(root: &Path, path: &Path) -> Result<String> {
         ));
     }
     Ok(value.replace('\\', "/"))
+}
+
+/// `relative` equals `root` or lies beneath it, without allocating a prefix.
+fn relative_is_within(relative: &str, root: &str) -> bool {
+    relative
+        .strip_prefix(root)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
 }
 
 fn full_immutable_integrity(
@@ -5390,16 +5449,40 @@ mod tests {
                 .port("dkr-r")
                 .unwrap()
                 .clone();
+        check_standalone_appimage_versions(
+            &temporary.path().join("dkr"),
+            &port,
+            "DKR-R",
+            "DKR-R-1.0.4-Linux-x86_64.AppImage",
+            ["1.0.4", "1.0.5"],
+        );
+        let catalog = crate::Catalog::embedded().unwrap();
+        check_standalone_appimage_versions(
+            &temporary.path().join("rocket"),
+            catalog.port("rocket-robot-on-wheels-rocket-r").unwrap(),
+            "Rocket-R",
+            "Rocket-R.AppImage",
+            ["1.0.1", "1.0.2"],
+        );
+    }
+
+    fn check_standalone_appimage_versions(
+        temporary: &Path,
+        port: &crate::PortDefinition,
+        name: &str,
+        declared: &str,
+        versions: [&str; 2],
+    ) {
         let qualification =
-            crate::test_fixture::retained_qualification(&port, Platform::LinuxX86_64).unwrap();
-        let declared = Path::new("DKR-R-1.0.4-Linux-x86_64.AppImage");
-        for version in ["1.0.4", "1.0.5"] {
-            let root = temporary.path().join(version);
+            crate::test_fixture::retained_qualification(port, Platform::LinuxX86_64).unwrap();
+        let declared = Path::new(declared);
+        for version in versions {
+            let root = temporary.join(version);
             fs::create_dir_all(&root).unwrap();
-            let source = temporary.path().join(format!("{version}.download"));
+            let source = temporary.join(format!("{version}.download"));
             fs::write(&source, version).unwrap();
             let artifact = ArtifactIdentity {
-                asset_name: format!("DKR-R-{version}-Linux-x86_64.AppImage"),
+                asset_name: format!("{name}-{version}-Linux-x86_64.AppImage"),
                 sha256: hex::encode(Sha256::digest(version)),
                 size: version.len() as u64,
             };
@@ -5413,7 +5496,7 @@ mod tests {
             }
             assert_eq!(fs::read(root.join(declared)).unwrap(), version.as_bytes());
             let (_, selected, _) =
-                write_manifest(version, "dkr-r", version, &artifact, &qualification, &root)
+                write_manifest(version, &port.id, version, &artifact, &qualification, &root)
                     .unwrap();
             assert_eq!(selected, declared);
             let manifest: InstallManifest =

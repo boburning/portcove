@@ -667,7 +667,7 @@ void test("one-port preparation is resumable, keeps accepted sources unchanged a
   const f = fixture();
   try {
     const accepted = readCatalogSource(catalogRoot);
-    const sourceBytes = readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8");
+    const sourceBytes = readFileSync(join(catalogRoot, "catalog.json"), "utf8");
     const options = {
       catalogRoot,
       outputDirectory: join(f.root, "output"),
@@ -698,10 +698,7 @@ void test("one-port preparation is resumable, keeps accepted sources unchanged a
       JSON.parse(readFileSync(first.report.files.catalog, "utf8")),
       accepted.catalog,
     );
-    assert.equal(
-      readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8"),
-      sourceBytes,
-    );
+    assert.equal(readFileSync(join(catalogRoot, "catalog.json"), "utf8"), sourceBytes);
     assert.deepEqual(readCatalogSource(catalogRoot), accepted);
     const evidence = JSON.parse(readFileSync(first.report.files.artwork, "utf8")) as {
       records: { reason: string }[];

@@ -227,7 +227,13 @@ exception's rule, and older entries without one keep it until their next attempt
 eligible sources without a recorded turn go first, then the least recently
 attempted sources. A completed managed source leaves the pending set until it is
 due again, and a managed source with a recorded failure rejoins ordinary
-rotation, so listing-only sources still receive turns. Unknown quota uses
+rotation, so listing-only sources still receive turns. Each admitted source receives a turn large enough to finish a typical
+collection and validation (twice the per-collection page allowance plus four
+requests, within the per-operation request budget) rather than an equal split of
+the remaining capacity across every pending source, which rounded each turn down
+to a single request and completed almost nothing. Sources beyond the remaining
+capacity wait for a later batch in rotation order; early configured or
+scheduled-priority turns keep their existing page-allowance and half-capacity cap. Unknown quota uses
 the existing finite request envelope; it is not assumed available. Quantum/runtime
 exhaustion has no provider retry clock. Actual depletion and provider retry
 responses defer the shared provider until its reset. A budget-limited source with
@@ -258,6 +264,20 @@ relocation, accounting or catalog authority; an accepted rename is still a
 reviewed catalog change, and qualification, holds and accepted bytes do not
 transfer by themselves. The same command accepts `--repository OWNER/NAME` for
 manual use.
+
+The owner-dispatched `Upstream relocation evidence` workflow
+(`scripts/upstream-relocation-evidence.mts`) gathers the provider facts a reviewed
+rename needs. It takes up to eight current names, each `OWNER/NAME` or
+`OWNER/NAME@TAG`. For each one it reads the repository identity and the first page
+of releases with their asset names. For a named tag it also reads that release and
+its complete asset collection, with release and asset facts and hashes produced
+by the observer's own fact functions. A reviewer can compare a reviewed pin's
+numeric release and asset identities, size and digest at the new name, and see the
+exact facts a rebinding would record. Redirects are refused, nothing is
+downloaded, the job has read-only repository permission, and the JSON report is
+retained as a run artifact. The evidence grants no lineage, relocation, selector,
+acquisition or accounting authority; any rebinding remains a reviewed accounting
+change.
 
 The forty-five-minute hosted job establishes a forty-minute observation deadline
 before checkout and build, reserving the final five minutes for checkpoint and

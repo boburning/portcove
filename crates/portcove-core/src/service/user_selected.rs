@@ -1413,7 +1413,20 @@ mod tests {
             let port = catalog.port(id).unwrap();
             assert_eq!(port.adapter, crate::AdapterKind::NativePortable);
             assert_ne!(port.release.provider, ReleaseSource::UserPrepared);
-            assert!(catalog.listing(id).unwrap().download_block_reason.is_none());
+            // A reviewed catalog hold may legitimately withhold a managed route, so
+            // the invariant follows the hold instead of assuming no route is held.
+            let held = port.managed_acquisition_hold.is_some();
+            assert_eq!(
+                crate::managed_runtime_policy::require_acquisition_available(&catalog, id).is_err(),
+                held,
+                "{id}: acquisition availability follows the catalog hold"
+            );
+            if !held {
+                assert!(
+                    catalog.listing(id).unwrap().download_block_reason.is_none(),
+                    "{id}: an unheld managed route has no listing download block"
+                );
+            }
         }
         let args = case
             .prepared_player
