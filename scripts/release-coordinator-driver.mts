@@ -795,7 +795,7 @@ export function coordinatorMaintenanceIdentity(raw: unknown) {
 export function catalogCoordinatorMaintenanceIdentity(raw: unknown) {
   return maintenanceIdentity(raw, "catalog-coordinator-controls");
 }
-function maintenanceIdentity(raw: unknown, purpose: string) {
+function maintenanceIdentity(raw: unknown, purpose: string, publicationPaused = false) {
   if (
     !isRecord(raw) ||
     raw.phase !== "coordinator" ||
@@ -804,7 +804,7 @@ function maintenanceIdentity(raw: unknown, purpose: string) {
     !isRecord(raw.reader) ||
     !isRecord(raw.protection) ||
     !isRecord(raw.pause) ||
-    raw.pause.publication_paused !== false ||
+    raw.pause.publication_paused !== publicationPaused ||
     !isRecord(raw.capacity)
   )
     throw new Error("eligible coordinator maintenance facts required");
@@ -2394,7 +2394,7 @@ async function authenticateCoordinatorInitialControls(
   workflow: Buffer,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   purpose: "application" | "catalog" = "application",
-  controlReader?: "metadata-maintenance" | "catalog-maintenance",
+  controlReader?: "metadata-maintenance" | "catalog-maintenance" | "coordinator-application",
 ) {
   budget.check();
   const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
@@ -4322,25 +4322,36 @@ async function withdrawTrustedApplicationReview(
     deadline: budget.monotonicDeadline,
   });
   reportStage("withdrawal-protection-observation");
-  const controls = await authenticateCoordinatorInitialControls(
+  const factsSha = capacityDigest(withdrawal);
+  let controls = await authenticateCoordinatorInitialControls(
     directory,
-    capacityDigest(withdrawal),
+    factsSha,
     reader,
     workflow,
     budget,
+    "application",
+    "coordinator-application",
   );
   reportStage("withdrawal-live-controls");
-  const observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
-  if (!observed.resource_policy_matches_controller)
-    throw new Error("review withdrawal bounded policy differs");
+  let observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
+  const stable = maintenanceIdentity(observed, "metadata-coordinator-controls", true);
+  let round = 0;
   const checkpointControls = {
     async readCurrent() {
       budget.check();
       appointed.recheck();
-      if (
-        (await controls.readSdkWithdrawal(withdrawal.source_commit)).facts_sha256 !==
-        observed.facts_sha256
-      )
+      if (Date.now() - Date.parse(observed.protection.observed_at) >= 30000) {
+        if (++round > 14) throw new Error("review withdrawal control rounds exhausted");
+        controls = await authenticateReleaseControlRound(
+          path.join(directory, `withdrawal-control-${round}`),
+          factsSha,
+          "coordinator",
+          round,
+          { deadline: budget.monotonicDeadline, controlReader: "coordinator-application" },
+        );
+      }
+      observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
+      if (maintenanceIdentity(observed, "metadata-coordinator-controls", true) !== stable)
         throw new Error("review withdrawal controls changed before journal mutation");
       budget.check();
     },
