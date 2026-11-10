@@ -42,6 +42,23 @@ const repository = "boburning/portcove",
   repositoryId = 1354613114;
 const workflow = ".github/workflows/configured-upstream-observer.yml";
 const workflowId = 354075266;
+/** Repository owner account. Only its own dispatches on main may produce
+ * recoverable history besides natural schedules (#4779); a dispatch by any other
+ * account is skipped, never trusted. Numeric identity, not login, is compared. */
+const ownerAccountId = 43177418;
+
+type ProducerTrust = "trusted" | "untrusted-dispatch" | "foreign";
+/** Classify a completed run's trigger as a checkpoint producer. */
+export function producerTrust(raw: Record<string, unknown>): ProducerTrust {
+  if (raw.event === "schedule") return "trusted";
+  if (raw.event !== "workflow_dispatch") return "foreign";
+  return isRecord(raw.actor) &&
+    raw.actor.id === ownerAccountId &&
+    isRecord(raw.triggering_actor) &&
+    raw.triggering_actor.id === ownerAccountId
+    ? "trusted"
+    : "untrusted-dispatch";
+}
 const maximumAge = 24 * 3600000;
 const member = "checkpoint.json";
 const binarySnapshotMagic = Buffer.from("PORTCOVE-OBSERVER-SNAPSHOT-3\n", "ascii");
@@ -714,6 +731,7 @@ async function scheduledRunWindow(
   read: (route: string) => Promise<unknown>,
   currentRun: number,
   now: number,
+  events: "schedule" | "schedule-and-dispatch" = "schedule",
 ) {
   const runs: Record<string, unknown>[] = [],
     seen = new Set<number>();
@@ -721,7 +739,7 @@ async function scheduledRunWindow(
     previousCreated = Infinity;
   for (let page = 1; page <= 10; page++) {
     const raw = await read(
-      `actions/workflows/${workflowId}/runs?branch=main&event=schedule&per_page=10&page=${page}`,
+      `actions/workflows/${workflowId}/runs?branch=main${events === "schedule" ? "&event=schedule" : ""}&per_page=10&page=${page}`,
     );
     requireValue(
       isRecord(raw) &&
@@ -1048,7 +1066,9 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   } catch (error) {
     if (errorCode(error) !== "ENOENT") throw error;
   }
-  const inventory = await scheduledRunWindow(read, current.run, now());
+  // Owner dispatches on main are producers too, so their progress survives a
+  // missed schedule. Untrusted dispatches are skipped; other triggers refuse.
+  const inventory = await scheduledRunWindow(read, current.run, now(), "schedule-and-dispatch");
   let expectedHistory = false;
   let reachedAgeBoundary = false;
   for (const raw of inventory.runs) {
@@ -1057,7 +1077,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     requireValue(
       raw.workflow_id === workflowId &&
         raw.path === workflow &&
-        raw.event === "schedule" &&
+        producerTrust(raw) !== "foreign" &&
         raw.head_branch === "main" &&
         isRecord(raw.repository) &&
         raw.repository.id === repositoryId &&
@@ -1065,6 +1085,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         raw.head_repository.id === repositoryId,
       "foreign scheduled producer",
     );
+    if (producerTrust(raw) !== "trusted") continue;
     requireValue(
       typeof raw.created_at === "string" &&
         Number.isFinite(Date.parse(raw.created_at)) &&
@@ -1180,7 +1201,8 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         runAfter.id === source.run &&
         runAfter.workflow_id === workflowId &&
         runAfter.path === workflow &&
-        runAfter.event === "schedule" &&
+        runAfter.event === raw.event &&
+        producerTrust(runAfter) === "trusted" &&
         runAfter.head_branch === "main" &&
         isRecord(runAfter.repository) &&
         runAfter.repository.id === repositoryId &&
@@ -1207,7 +1229,9 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     "scheduled history coverage incomplete; preserve evidence",
   );
   if (expectedHistory) {
-    const baseline = await initializeApprovedBaseline(read, inventory, options, now);
+    // The one-time baseline permit is defined over natural schedules only.
+    const schedules = await scheduledRunWindow(read, current.run, now());
+    const baseline = await initializeApprovedBaseline(read, schedules, options, now);
     if (baseline) return baseline;
   }
   requireValue(

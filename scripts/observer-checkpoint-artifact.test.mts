@@ -1550,3 +1550,77 @@ void test("snapshot workflow keeps job-only read permission and shares the origi
     /actions: write|contents: write|id-token: write|secrets\.(?!GITHUB_TOKEN)/,
   );
 });
+
+void test("owner dispatches on main are recoverable producers; other dispatches are skipped (#4779)", async (t) => {
+  const owner = { id: 43177418 },
+    other = { id: 7 };
+  const dispatched = (f: ReturnType<typeof transport>, actor: object, triggering: object) => {
+    Object.assign(f.run, { event: "workflow_dispatch", actor, triggering_actor: triggering });
+  };
+  const recover = (root: string, f: ReturnType<typeof transport>) =>
+    recoverObserverCheckpoint({
+      root,
+      config,
+      current,
+      deadline: Date.now() + 60000,
+      api: f.api,
+      download: f.download,
+    });
+
+  const trusted = transport();
+  dispatched(trusted, owner, owner);
+  const trustedRoot = await directory(t);
+  const restored = await recover(trustedRoot, trusted);
+  assert.equal(restored.origin, "artifact");
+  assert.equal(trusted.count(), 1);
+  // The producer inventory spans schedules and dispatches on main.
+  assert.ok(
+    trusted.routes.some(
+      (route) => route.includes("/actions/workflows/") && !route.includes("event=schedule"),
+    ),
+  );
+  assert.deepEqual(
+    JSON.parse(
+      await readFile(
+        path.join(trustedRoot, "work/upstream-observer/catalog/checkpoint.json"),
+        "utf8",
+      ),
+    ),
+    trusted.value.files["catalog/checkpoint.json"],
+  );
+
+  for (const [name, actor, triggering] of [
+    ["another dispatcher", other, other],
+    ["owner run re-run by another account", owner, other],
+    ["missing actor identity", {}, owner],
+  ] as const) {
+    const f = transport();
+    dispatched(f, actor, triggering);
+    const root = await directory(t);
+    const result = await recover(root, f);
+    assert.equal(result.origin, "initial-baseline", name);
+    assert.equal(f.count(), 0, name);
+    await assert.rejects(
+      readFile(path.join(root, "work/upstream-observer/catalog/checkpoint.json")),
+      { code: "ENOENT" },
+      name,
+    );
+  }
+
+  // A trusted producer whose identity changes during collection never publishes.
+  const changed = transport();
+  dispatched(changed, owner, owner);
+  const original = changed.api.read;
+  changed.api.read = async (endpoint) => {
+    const response = await original(endpoint);
+    return endpoint.endsWith("/runs/101")
+      ? { ...response, body: { ...changed.run, triggering_actor: other } }
+      : response;
+  };
+  const changedRoot = await directory(t);
+  await assert.rejects(recover(changedRoot, changed), /producer changed during collection/u);
+  await assert.rejects(
+    readFile(path.join(changedRoot, "work/upstream-observer/catalog/checkpoint.json")),
+    { code: "ENOENT" },
+  );
+});

@@ -443,11 +443,16 @@ is four jobs/forty runner-minutes daily, plus explicitly requested manual runs;
 actual usage is lower with a warm build cache. There are no agent/model calls.
 
 The main observer job has `contents: read` and `actions: read`; the latter permits
-retrieval of the preceding scheduled observer's checkpoint artifact. No write,
+retrieval of the preceding observer's checkpoint artifact. No write,
 signing or publication permission follows. The existing cache remains the fast
 path with its original thirty-two-MiB per-file reader limits. On complete cache
 loss, recovery admits only the same repository, workflow and default branch's
-completed scheduled producer, including a failed run carrying a complete snapshot.
+completed scheduled producer, or a completed manual dispatch whose actor and
+triggering actor are both the repository owner's numeric account, including a
+failed run carrying a complete snapshot. GitHub can skip scheduled runs for
+hours, so owner dispatches keep progress continuous (#4779). A dispatch by any
+other account is skipped and never trusted; any other trigger refuses recovery.
+The producer's trigger and owner identity are re-read after collection.
 Provider run/artifact identity, main ancestry, the exact configuration digest,
 artifact digest, archive structure and the complete checkpoint graph are checked
 before an absent checkpoint tree is published atomically. A partial or foreign
