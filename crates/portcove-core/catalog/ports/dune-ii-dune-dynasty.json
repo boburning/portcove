@@ -79,6 +79,16 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned"
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["campaign", "data", "gfx", "licences", "music"],
+        "executables": ["dunedynasty.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["campaign", "data", "gfx", "libs", "licences", "music"],
+        "executables": ["dunedynasty"]
+      }
     }
   },
   "route_facts_v1": {

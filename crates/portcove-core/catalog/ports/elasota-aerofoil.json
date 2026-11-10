@@ -60,6 +60,12 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned"
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["documentation", "packaged"],
+        "executables": ["aerofoil.exe"]
+      }
     }
   },
   "route_facts_v1": {

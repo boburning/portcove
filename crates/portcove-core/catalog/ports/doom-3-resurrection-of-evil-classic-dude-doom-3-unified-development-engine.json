@@ -93,6 +93,12 @@
       "d3xp/pak001.pk4"
     ],
     "windows_runtime_path_policy": "printable-ascii-max-path",
-    "launch_arguments": ["+set", "fs_game", "d3xp"]
+    "launch_arguments": ["+set", "fs_game", "d3xp"],
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["base", "d3le", "d3xp"],
+        "executables": ["dude.exe"]
+      }
+    }
   }
 }

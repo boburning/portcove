@@ -37875,20 +37875,28 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
         "repository": "AlisterT/openjazz",
+        "grant_declared_executable": true,
         "asset_hints": {
           "windows-x86-64": [
             "openjazz-windows-mingw-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openjazz-linux-glibc2.35-x86_64.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "OpenJazz.exe"
+        ],
+        "linux-x86-64": [
+          "OpenJazz"
         ]
       },
       "persistent_paths": [
@@ -39317,6 +39325,14 @@
           ],
           "executables": [
             "bodyharvestrecompiled"
+          ]
+        },
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "bodyharvestrecompiled.exe"
           ]
         }
       }
@@ -42068,7 +42084,20 @@
         "base/pak007.pk4",
         "base/pak008.pk4"
       ],
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "d3xp"
+          ],
+          "executables": [
+            "dhewm3.exe",
+            "dhewm3_notools.exe",
+            "dhewm3ded.exe"
+          ]
+        }
+      }
     },
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
@@ -42144,7 +42173,19 @@
         "base/pak007.pk4",
         "base/pak008.pk4"
       ],
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "d3le",
+            "d3xp"
+          ],
+          "executables": [
+            "dude.exe"
+          ]
+        }
+      }
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dhewm3",
@@ -42231,7 +42272,20 @@
         "+set",
         "fs_game",
         "d3xp"
-      ]
+      ],
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "d3xp"
+          ],
+          "executables": [
+            "dhewm3.exe",
+            "dhewm3_notools.exe",
+            "dhewm3ded.exe"
+          ]
+        }
+      }
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
@@ -42314,7 +42368,19 @@
         "+set",
         "fs_game",
         "d3xp"
-      ]
+      ],
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "d3le",
+            "d3xp"
+          ],
+          "executables": [
+            "dude.exe"
+          ]
+        }
+      }
     },
     {
       "id": "doom-ii-crispy-doom-family",
@@ -42993,6 +43059,33 @@
           "game_slug": "dune-ii-the-building-of-a-dynasty",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "campaign",
+            "data",
+            "gfx",
+            "licences",
+            "music"
+          ],
+          "executables": [
+            "dunedynasty.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "campaign",
+            "data",
+            "gfx",
+            "libs",
+            "licences",
+            "music"
+          ],
+          "executables": [
+            "dunedynasty"
+          ]
+        }
       }
     },
     {
@@ -43076,6 +43169,17 @@
           "image_sha256": "121ef536a98931c57917b7d97cf78f5679d55d5a714879ac2a43feb22df2082a",
           "game_slug": "glider-pro",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "documentation",
+            "packaged"
+          ],
+          "executables": [
+            "aerofoil.exe"
+          ]
         }
       }
     },
@@ -50444,6 +50548,14 @@
           "game_slug": "muppet-racemania",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "rustmania-racing.exe"
+          ]
+        }
       }
     },
     {
@@ -50710,6 +50822,14 @@
           "image_sha256": "1f39fdcee8bb8f823cfca576fb2f91508d582f5b7cf42f5239e360632105340d",
           "game_slug": "the-legend-of-sword-and-fairy",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "sdlpal.exe"
+          ]
         }
       }
     },
@@ -51685,7 +51805,17 @@
       "persistent_paths": [
         "base"
       ],
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "openjk"
+          ],
+          "executables": [
+            "openjo_sp.x86_64.exe"
+          ]
+        }
+      }
     },
     {
       "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
@@ -51772,7 +51902,20 @@
         "base/assets2.pk3",
         "base/assets3.pk3"
       ],
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "openjk"
+          ],
+          "executables": [
+            "openjk.x86_64.exe",
+            "openjk_sp.x86_64.exe",
+            "openjkded.x86_64.exe"
+          ]
+        }
+      }
     },
     {
       "id": "star-wars-x-wing-alliance-openxwa",
@@ -53953,6 +54096,16 @@
               "title": "Managed runtime ownership",
               "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: spaceranger-config. Its backup does not include external profiles."
             }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "spaceranger.exe"
           ]
         }
       }

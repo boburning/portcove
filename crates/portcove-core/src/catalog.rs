@@ -585,6 +585,17 @@ impl Catalog {
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
             validate_portable_marker_file(port)?;
+            if port.release.grant_declared_executable
+                && (port.adapter != AdapterKind::NativePortable
+                    || !port.platforms.iter().any(|platform| {
+                        crate::permissions::platform_requires_executable(*platform)
+                    }))
+            {
+                return Err(PortcoveError::verification(format!(
+                    "{} declares a declared-executable grant outside a native Unix route",
+                    port.id
+                )));
+            }
             if let Some(settings) = &port.game_settings {
                 settings.validate(&port.persistent_paths)?;
                 if !port.platforms.contains(&crate::Platform::WindowsX86_64) {
@@ -3364,10 +3375,10 @@ mod tests {
                 .asset_hints
                 .insert(Platform::LinuxX86_64, vec![hint.into()]);
         }
-        // Three Linux packages store their program without an executable bit, which Core
+        // Two Linux packages store their program without an executable bit, which Core
         // refuses by design. Fresh creation stops offering Linux while the frozen reader
-        // keeps the old claim.
-        for id in ["alistert-openjazz", "paperboat", "perfect-dark"] {
+        // keeps the old claim. OpenJazz is offered again through a verified grant.
+        for id in ["paperboat", "perfect-dark"] {
             if let Some(port) = expected_ports.iter_mut().find(|port| port.id == id) {
                 port.platforms
                     .retain(|platform| *platform != Platform::LinuxX86_64);
@@ -3452,6 +3463,8 @@ mod tests {
             // Archive file links are a later additive release declaration.
             assert!(!legacy.release.archive_file_links);
             port.release.archive_file_links = false;
+            assert!(!legacy.release.grant_declared_executable);
+            port.release.grant_declared_executable = false;
             port.presentation = None;
             port.summary = expected_ports
                 .iter()

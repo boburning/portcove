@@ -1239,6 +1239,9 @@ impl Installer {
                 request.qualification.platform,
                 &payload_root,
             )?;
+            if port.release.grant_declared_executable {
+                grant_declared_executable(&payload_root, &request.qualification)?;
+            }
             if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 let working_directory =
@@ -4053,6 +4056,46 @@ fn resolve_executable_hints_with_wrapper(
     label: &str,
     allow_one_wrapper: bool,
 ) -> Result<PathBuf> {
+    let found = locate_executable_hints(search_root, platform, hints, label, allow_one_wrapper)?;
+    crate::permissions::require_platform_executable(&found, platform, label)?;
+    Ok(found)
+}
+
+/// Grant execution to the declared program of a package whose archive carries no executable
+/// bit, only when the file verifies as a binary for the platform.
+fn grant_declared_executable(root: &Path, qualification: &InstallQualification) -> Result<()> {
+    let search_root = qualification
+        .runtime_subdirectory
+        .as_deref()
+        .map(|relative| root.join(relative))
+        .unwrap_or_else(|| root.to_path_buf());
+    if !search_root.starts_with(root) {
+        return Err(PortcoveError::verification(
+            "declared runtime directory escaped the install",
+        ));
+    }
+    refuse_symlink_path_within(root, &search_root, "declared runtime directory")?;
+    let found = locate_executable_hints(
+        &search_root,
+        qualification.platform,
+        &qualification.executable_hints,
+        "declared executable",
+        false,
+    )?;
+    crate::permissions::grant_verified_executable(
+        &found,
+        qualification.platform,
+        "declared executable",
+    )
+}
+
+fn locate_executable_hints(
+    search_root: &Path,
+    platform: Platform,
+    hints: &[String],
+    label: &str,
+    allow_one_wrapper: bool,
+) -> Result<PathBuf> {
     if !search_root.is_dir() {
         return Err(PortcoveError::verification(format!(
             "{label} search root is missing"
@@ -4098,7 +4141,6 @@ fn resolve_executable_hints_with_wrapper(
             );
         }
         if let Some(found) = matches.pop() {
-            crate::permissions::require_platform_executable(&found, platform, label)?;
             return Ok(found);
         }
     }
@@ -4601,6 +4643,39 @@ mod tests {
         let alias = root.join("Game.app/Contents/Frameworks/libz.1.dylib");
         assert!(fs::symlink_metadata(&alias).unwrap().file_type().is_file());
         assert_eq!(fs::read(alias).unwrap(), b"zlib");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_unmarked_binary_resolves_only_after_the_verified_grant() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let mut elf = vec![0_u8; 64];
+        elf[..4].copy_from_slice(&[0x7f, b'E', b'L', b'F']);
+        elf[4] = 2;
+        elf[5] = 1;
+        elf[16] = 2;
+        elf[18] = 62;
+        fs::create_dir_all(root.join("pkg")).unwrap();
+        fs::write(root.join("pkg/Game"), &elf).unwrap();
+        fs::write(root.join("pkg/Other"), b"#!/bin/sh\n").unwrap();
+        let hint = ["Game".to_string()];
+        assert!(resolve_executable_hints(root, Platform::LinuxX86_64, &hint, "t").is_err());
+        let found =
+            locate_executable_hints(root, Platform::LinuxX86_64, &hint, "t", false).unwrap();
+        crate::permissions::grant_verified_executable(&found, Platform::LinuxX86_64, "t").unwrap();
+        assert_eq!(
+            resolve_executable_hints(root, Platform::LinuxX86_64, &hint, "t").unwrap(),
+            root.join("pkg/Game")
+        );
+        let other = ["Other".to_string()];
+        let found =
+            locate_executable_hints(root, Platform::LinuxX86_64, &other, "t", false).unwrap();
+        assert!(
+            crate::permissions::grant_verified_executable(&found, Platform::LinuxX86_64, "t")
+                .is_err()
+        );
+        assert!(resolve_executable_hints(root, Platform::LinuxX86_64, &other, "t").is_err());
     }
 
     #[cfg(unix)]
