@@ -32,18 +32,16 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "AlisterT/openjazz",
       "asset_hints": {
-        "windows-x86-64": ["openjazz-windows-mingw-x86_64.zip"],
-        "linux-x86-64": ["openjazz-linux-glibc2.35-x86_64.zip"]
+        "windows-x86-64": ["openjazz-windows-mingw-x86_64.zip"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["OpenJazz.exe"],
-      "linux-x86-64": ["OpenJazz"]
+      "windows-x86-64": ["OpenJazz.exe"]
     },
     "persistent_paths": [
       "game-data",

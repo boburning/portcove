@@ -19756,8 +19756,7 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
       "adapter": "libultraship-portable",
       "release": {
@@ -19765,9 +19764,6 @@
         "asset_hints": {
           "windows-x86-64": [
             "win64"
-          ],
-          "linux-x86-64": [
-            "linux"
           ]
         }
       },
@@ -19790,9 +19786,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Paperboat.exe"
-        ],
-        "linux-x86-64": [
-          "Paperboat.AppImage"
         ]
       },
       "persistent_paths": [
@@ -24034,8 +24027,7 @@
         "rolling"
       ],
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
       "adapter": "generated-cache",
       "automated_tested_platforms": [
@@ -24050,9 +24042,6 @@
         "asset_hints": {
           "windows-x86-64": [
             "pd-x86_64-windows"
-          ],
-          "linux-x86-64": [
-            "pd-x86_64-linux"
           ]
         }
       },
@@ -24060,9 +24049,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "pd.x86_64.exe"
-        ],
-        "linux-x86-64": [
-          "pd.x86_64"
         ]
       },
       "launch_arguments": [
@@ -37889,8 +37875,7 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -37898,18 +37883,12 @@
         "asset_hints": {
           "windows-x86-64": [
             "openjazz-windows-mingw-x86_64.zip"
-          ],
-          "linux-x86-64": [
-            "openjazz-linux-glibc2.35-x86_64.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "OpenJazz.exe"
-        ],
-        "linux-x86-64": [
-          "OpenJazz"
         ]
       },
       "persistent_paths": [

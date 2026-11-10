@@ -214,8 +214,7 @@
       },
       "issue_number": 909,
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
       "availability": "unknown"
     },
@@ -1653,8 +1652,7 @@
       },
       "issue_number": 106,
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
       "availability": "unknown"
     },
@@ -11367,8 +11365,7 @@
       },
       "original_game_title": "Jazz Jackrabbit",
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ]
     },
     {

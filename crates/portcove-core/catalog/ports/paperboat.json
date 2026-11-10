@@ -20,13 +20,12 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64"],
     "adapter": "libultraship-portable",
     "release": {
       "repository": "HarbourMasters/PaperBoat",
       "asset_hints": {
-        "windows-x86-64": ["win64"],
-        "linux-x86-64": ["linux"]
+        "windows-x86-64": ["win64"]
       }
     },
     "source_profile": "paperboat-paper-mario-us",
@@ -39,8 +38,7 @@
     "setup_marker": "pm64.o2r",
     "setup_output_paths": ["pm64.o2r", "torch.hash.yml"],
     "executable_hints": {
-      "windows-x86-64": ["Paperboat.exe"],
-      "linux-x86-64": ["Paperboat.AppImage"]
+      "windows-x86-64": ["Paperboat.exe"]
     },
     "persistent_paths": [
       "mods",
