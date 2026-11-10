@@ -21,7 +21,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["windows-x86-64", "macos-x86-64", "macos-aarch64"],
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "psx-recomp-managed",
@@ -29,7 +29,6 @@
       "repository": "TechnicallyComputers/Final-Fantasy-VII",
       "asset_hints": {
         "windows-x86-64": ["windows-x64"],
-        "linux-x86-64": ["linux-x64"],
         "macos-x86-64": ["macos-x64"],
         "macos-aarch64": ["macos-arm64"]
       }
@@ -37,7 +36,6 @@
     "source_profile": "final-fantasy-vii-psx",
     "executable_hints": {
       "windows-x86-64": ["Final_Fantasy_7.exe"],
-      "linux-x86-64": ["Final_Fantasy_7"],
       "macos-x86-64": ["Final_Fantasy_7"],
       "macos-aarch64": ["Final_Fantasy_7"]
     },
