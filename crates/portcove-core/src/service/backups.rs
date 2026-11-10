@@ -37,7 +37,6 @@ pub(super) const AUTOMATIC_SNAPSHOT_RETENTION: usize = 5;
 #[derive(Debug)]
 pub(crate) enum SnapshotOutcome {
     Created {
-        record: BackupRecord,
         pruned: usize,
     },
     /// The library setting is off.
@@ -1723,9 +1722,9 @@ impl PortcoveService {
                 to_version: to_version.to_owned(),
             };
             match self.create_backup_locked_labeled(port_id, Some(label)) {
-                Ok(record) => {
+                Ok(_) => {
                     let pruned = self.prune_automatic_snapshots(port_id);
-                    Ok(SnapshotOutcome::Created { record, pruned })
+                    Ok(SnapshotOutcome::Created { pruned })
                 }
                 // Nothing to protect yet; this is a recorded skip, not a failure.
                 Err(error) if error.code == crate::ErrorCode::NotFound => {

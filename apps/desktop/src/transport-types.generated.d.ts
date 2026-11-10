@@ -280,6 +280,10 @@ export type ArtworkResolvedSource =
     };
 export type IgdbArtworkMatch = "port" | "underlying-game";
 /**
+ * The version change an automatic snapshot protects.
+ */
+export type VersionChangeKind = "update" | "activation" | "rollback";
+/**
  * Public reviewed backup actions; persisted manifests remain an implementation detail.
  *
  * ```
@@ -1604,6 +1608,10 @@ export interface OutputArtworkThumbnail {
   [k: string]: unknown;
 }
 export interface BackupRecord {
+  /**
+   * Present only for snapshots Portcove took automatically.
+   */
+  automatic?: AutomaticSnapshotLabel | null;
   created_at: number;
   file_count: number;
   id: string;
@@ -1611,6 +1619,16 @@ export interface BackupRecord {
   port_id: string;
   sha256: string;
   size: number;
+  [k: string]: unknown;
+}
+/**
+ * Marks a snapshot Portcove took itself before a version change. Manual
+ * snapshots carry none, and retention never removes a snapshot without one.
+ */
+export interface AutomaticSnapshotLabel {
+  from_version: string | null;
+  operation: VersionChangeKind;
+  to_version: string;
   [k: string]: unknown;
 }
 export interface BackupActionPreview {

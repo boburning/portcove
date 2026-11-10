@@ -358,3 +358,31 @@ fn installed_file_check_names_recorded_manifest_scope_without_gameplay_assurance
         }
     }
 }
+
+#[test]
+fn backup_list_tells_automatic_snapshots_from_manual_ones() {
+    use portcove_core::{AutomaticSnapshotLabel, VersionChangeKind};
+    let label = |operation, from: Option<&str>, to: &str| AutomaticSnapshotLabel {
+        operation,
+        from_version: from.map(str::to_owned),
+        to_version: to.to_owned(),
+    };
+    let manual = backup();
+    assert_eq!(crate::human::backup_kind(&manual), "Manual");
+    let mut automatic = backup();
+    automatic.automatic = Some(label(VersionChangeKind::Rollback, Some("2.0"), "1.9"));
+    assert_eq!(
+        crate::human::backup_kind(&automatic),
+        "Automatic, before rollback (2.0 to 1.9)"
+    );
+    automatic.automatic = Some(label(VersionChangeKind::Update, None, "3.0"));
+    assert_eq!(
+        crate::human::backup_kind(&automatic),
+        "Automatic, before update (to 3.0)"
+    );
+    automatic.automatic = Some(label(VersionChangeKind::Activation, Some("a\u{1b}b"), "c"));
+    assert!(
+        !crate::human::backup_kind(&automatic).contains('\u{1b}'),
+        "control characters are cleaned"
+    );
+}

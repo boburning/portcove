@@ -738,6 +738,29 @@
   },
   "backup_review": {
     "$defs": {
+      "AutomaticSnapshotLabel": {
+        "description": "Marks a snapshot Portcove took itself before a version change. Manual\nsnapshots carry none, and retention never removes a snapshot without one.",
+        "properties": {
+          "from_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "$ref": "#/$defs/VersionChangeKind"
+          },
+          "to_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "from_version",
+          "to_version"
+        ],
+        "type": "object"
+      },
       "BackupAction": {
         "description": "Public reviewed backup actions; persisted manifests remain an implementation detail.\n\n```\nuse portcove_core::{BackupAction, PortcoveService};\nlet action = BackupAction::Restore;\nlet _ = action;\n```\n\n```compile_fail,E0432\nuse portcove_core::BackupManifest;\n```",
         "enum": [
@@ -779,6 +802,17 @@
       },
       "BackupRecord": {
         "properties": {
+          "automatic": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AutomaticSnapshotLabel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only for snapshots Portcove took automatically."
+          },
           "created_at": {
             "format": "int64",
             "type": "integer"
@@ -816,6 +850,15 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "VersionChangeKind": {
+        "description": "The version change an automatic snapshot protects.",
+        "enum": [
+          "update",
+          "activation",
+          "rollback"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -12666,8 +12709,42 @@
         ],
         "type": "object"
       },
+      "AutomaticSnapshotLabel": {
+        "description": "Marks a snapshot Portcove took itself before a version change. Manual\nsnapshots carry none, and retention never removes a snapshot without one.",
+        "properties": {
+          "from_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "$ref": "#/$defs/VersionChangeKind"
+          },
+          "to_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "from_version",
+          "to_version"
+        ],
+        "type": "object"
+      },
       "BackupRecord": {
         "properties": {
+          "automatic": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AutomaticSnapshotLabel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only for snapshots Portcove took automatically."
+          },
           "created_at": {
             "format": "int64",
             "type": "integer"
@@ -19010,6 +19087,15 @@
           "arguments"
         ],
         "type": "object"
+      },
+      "VersionChangeKind": {
+        "description": "The version change an automatic snapshot protects.",
+        "enum": [
+          "update",
+          "activation",
+          "rollback"
+        ],
+        "type": "string"
       },
       "WindowsRuntimePathPolicy": {
         "description": "A declared upstream limitation, checked by Core rather than left to the game.",
