@@ -1,10 +1,43 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { requireCatalogRefusal } from "./release-control-step-bridge.mts";
 import {
   inspectFixedCatalogCoordinatorConfiguration,
   runFixedCatalogCoordinatorConfiguration,
 } from "./release-catalog-coordinator.mts";
+
+void test("catalog refusal retains only bounded signer progress", () => {
+  const report = {
+    schema_version: 1,
+    stage: "standalone-application-bootstrap-CAS",
+    authority: "none",
+    automatic_retry: false,
+    checkpoint_exchange: {
+      phase: "signing",
+      attempted_claim: true,
+      attempted_commit: false,
+      signer: "signing-effect-unknown",
+      signer_progress: {
+        request: "rekor",
+        phase: "response",
+        completed_requests: 1,
+        response_status: 503,
+      },
+    },
+  };
+  requireCatalogRefusal("operation", report);
+  for (const change of [
+    { raw_response: "private" },
+    { response_status: 600 },
+    { request: "fulcio" },
+    { phase: "control" },
+  ]) {
+    const changed = structuredClone(report);
+    Object.assign(changed.checkpoint_exchange.signer_progress, change);
+    assert.throws(() => requireCatalogRefusal("operation", changed), /fixed public stage record/u);
+  }
+});
 
 const selected = {
   remote_configuration: { schema_version: 1, namespace: "portcove-worker-fixture-catalog" },
@@ -66,7 +99,7 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
  const scope={source:{commit:'7'.repeat(40),tree:'8'.repeat(40)},request:{compatibility:{contract:'official-definition-policy-launch-v1',notes:'Controlled source route only.'}},request_sha256:'e'.repeat(64),bundle_sha256:'9'.repeat(64),bundle:'/inert/bundle'};
  const actualInspection={tools_receipt:{},tool_sha256:'f'.repeat(64),source:scope.source,bundle:scope.bundle,bundle_sha256:scope.bundle_sha256,inspection_sha256:hash(coreText),inspection:core,directory:'/inert/inspection',authority:'none'};
  const reader={admitted:{revision:selection.tools.artifact.controller_revision,execution_ref:selection.tools.artifact.controller_ref,run_id:'123',run_attempt:1},identity:{evidence_scope:'github.com',job_id:51,check_run_id:52}};
- const facts={reader:{job_id:51,check_run_id:52},pause:{publication_paused:false},capacity_source:{capacity:capacityFixture()},resource_policy_matches_controller:true};
+ const facts={reader:{job_id:51,check_run_id:52},pause:{publication_paused:false},capacity_source:{capacity:capacityFixture()},resource_policy_matches_controller:true,protection:{observed_at:new Date().toISOString()}};
  let scenario,live,cp,root,counters,maintenanceReads;
  const fake={
   authority,reader,
@@ -83,7 +116,7 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
  './release-catalog-recovery.mts':'export const continueActualCatalogPublication=(...a)=>globalThis.__catalog.continue(...a);',
  './release-catalog-signing-context.mts':'export const completeCoordinatorCatalogSigningContext=(...a)=>globalThis.__catalog.complete(...a);',
  './release-authority-configuration.mts':'export const requireControllerCatalogCoordinatorAuthorities=async()=>globalThis.__catalog.authority;export const assertControllerCatalogPublisherScope=()=>{};',
- './release-live-control-admission.mts':'export const authenticateCatalogControlReaderJob=async()=>globalThis.__catalog.reader;export const authenticateCatalogReleaseControlSource=async(...a)=>globalThis.__catalog.authenticateControls(...a);export const requireAuthenticatedCatalogControlSource=()=>{};',
+ './release-live-control-admission.mts':'export const authenticateCatalogControlReaderJob=async()=>globalThis.__catalog.reader;export const authenticateCatalogReleaseControlSource=async(...a)=>globalThis.__catalog.authenticateControls(...a);export const authenticateCatalogReleaseControlRound=async(...a)=>globalThis.__catalog.refreshControls(...a);export const requireAuthenticatedCatalogControlSource=()=>{};',
  './production-controller-admission.mts':'export const readProductionControllerWorkflowBytes=async()=>Buffer.from("fixed controlled fixture");',
  './release-controller-tool-admission.mts':'export const receiveControllerTools=async()=>globalThis.__catalog.tools;export const verifiedControllerToolPaths=async()=>({identity:globalThis.__catalog.identity});',
  './release-catalog-source.mts':'export const materializeCatalogPublicationSource=async(provider,commit)=>{await provider.commit(commit);return globalThis.__catalog.source(commit)};export const readCatalogPublicationSourceBytesAsync=async(provider,commit)=>{await provider.commit(commit);return globalThis.__catalog.previous()};',
@@ -96,7 +129,7 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
  './release-semantic-disposition-reader.mts':'export const readIndependentCatalogSemanticCheckInventoryWithSdk=async(_options,producer)=>{globalThis.__catalog.inspectProducer(producer);return {records:[],assertUnchanged:async()=>{}};};export const inspectCatalogSemanticRequestCheckMatches=()=>globalThis.__catalog.matches();export const discoverIndependentCatalogSemanticDispositionWithSdk=async()=>globalThis.__catalog.negativeObserved;',
  './release-catalog-review-disposition.mts': 'export {inspectCatalogReviewDisposition,advanceCatalogReviewRecovery} from '+JSON.stringify(${JSON.stringify(negativeModule)})+';export const receiveActualCatalogReviewDisposition=(...a)=>globalThis.__catalog.receiveNegative(...a);export const requireActualCatalogReviewDisposition=async()=>globalThis.__catalog.negative;export const prepareActualCatalogReviewRetirement=(...a)=>globalThis.__catalog.prepareNegative(...a);',
  './release-control-handshake.mts':'export const prepareControlReadiness=()=>({fixture:true});export const waitForControlArtifact=async()=>({fixture:true});',
- './release-control-step-bridge.mts':'export const retainControlStepLocator=async()=>{};export const retainCatalogCoordinatorRefusal=async()=>{};export const inspectCatalogCheckpointRefusal=()=>undefined;',
+ './release-control-step-bridge.mts':'export const retainControlStepLocator=async()=>{};export const retainCatalogCoordinatorRefusal=async()=>{};export const inspectCatalogCheckpointRefusal=()=>undefined;export const inspectCheckpointSigningProgress=()=>undefined;',
  './release-path-safety.mts':'export const assertOwnedUnlinkedPath=async()=>{};'
  };
  registerHooks({resolve(spec,context,next){if(context.parentURL===entry&&code[spec])return {url:data(code[spec]),shortCircuit:true};return next(spec,context);}});
@@ -132,7 +165,7 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
 
  root=await mkdtemp(path.join(os.tmpdir(),'catalog-entry-controlled-'));
  try {
-  async function setup(name){scenario=name;counters={inventory:[],controls:0,inspect:0,write:0,prepare:0,complete:0,sourceReads:0,sourceHeads:0,comparisons:0};maintenanceReads=0;live=path.join(root,name);await mkdir(live);execFileSync('git',['init','--bare','--quiet',live]);
+  async function setup(name){scenario=name;counters={inventory:[],controls:0,rounds:0,inspect:0,write:0,prepare:0,complete:0,sourceReads:0,sourceHeads:0,comparisons:0};maintenanceReads=0;facts.protection.observed_at=new Date(Date.now()-(['refresh','refresh-mismatch'].includes(name)?31000:0)).toISOString();live=path.join(root,name);await mkdir(live);execFileSync('git',['init','--bare','--quiet',live]);
    const now=new Date().toISOString(),input={schema_version:2,now,opportunity:null,active_candidate:null,controller:{workflow:'.github/workflows/application-update-production.yml',revision:reader.admitted.revision,publication_paused:false,capacity_attempt:{...capacityFixture(),schema_version:2}},publication:{complete:true,observed_at:now,published_versions:[],published_sources:[],reserved_versions:[],last_routine_preview_at:null},catalog_initialization:{schema_version:1,kind:'catalog-initialization',authority:'none',source_commit:authority.catalog.public_source.commit,source_tree:'a'.repeat(40),root_sha256:authority.catalog.public_source.root.sha256,publisher_configuration_sha256:authority.configuration_sha256,setup_plan_sha256:authority.catalog.setup_plan_sha256,initial_site_preimage_sha256:authority.catalog.public_source.initial_site_preimage.sha256}};
    cp=(await checkpointReleaseOpportunity(live,null,input)).checkpoint;
    fake.tools={};fake.identity=selection.tools.artifact;fake.inspection=actualInspection;fake.previous=()=>({...scope,source:{commit:'4'.repeat(40),tree:'a'.repeat(40)},request:scenario==='previous-missing'?null:scope.request});
@@ -141,6 +174,13 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
     assert.equal(options.token,'ghs_catalog_coordinator_clock_fixture');assert.equal(options.maxBytes,16*1024**2);assert.equal(options.requestTimeoutMs,15000);assert.ok(options.deadline>performance.now());options.guard();assert.equal(requested.source_commit,scope.source.commit);counters.comparisons++;return {base_tree:'a'.repeat(40),change_set_sha256:'b'.repeat(64)};
    };
    fake.inspect=()=>{counters.inspect++;return {};};fake.authenticateControls=(env,_workflow,options)=>{assert.equal(env.GH_TOKEN,'ghs_catalog_coordinator_clock_fixture');assert.equal(options.controlReader,'catalog-maintenance');counters.controls++;return fake.controls;};fake.write=()=>{counters.write++;return {};};
+   fake.refreshControls=async(directory,subject,phase,round,options)=>{
+    assert.equal(path.basename(directory),'catalog-bootstrap-control-1');assert.match(subject,/^[a-f0-9]{64}$/u);
+    assert.equal(phase,'coordinator');assert.equal(round,1);assert.equal(options.controlReader,'catalog-maintenance');assert.ok(options.deadline>performance.now());counters.rounds++;
+    facts.protection.observed_at=new Date().toISOString();
+    if(scenario==='refresh-mismatch')return {...fake.controls,readSdkMaintenance:async()=>({...facts,reader:{...facts.reader,job_id:999}})};
+    return fake.controls;
+   };
    fake.inventory=async(options)=>{assert.equal(options.token,'ghs_catalog_coordinator_clock_fixture');assert.equal(options.maxBytes,16*1024**2);assert.ok(options.deadline>performance.now());options.beforeDispatch();return {tags:async()=>{counters.inventory.push('tags');return [];},releases:async()=>{counters.inventory.push('releases');return [];},readAllocations:async()=>{counters.inventory.push('allocations');return {allocations:[]};}};};
    fake.matches=()=>({accepted:['accepted','selected-accepted','replacement'].includes(scenario)?[{check_run_id:99,opportunity:{}}]:[],negative:['negative','retire'].includes(scenario)?[100]:[],authority:'none'});
    fake.prepare=(parent,args,deadline)=>{counters.prepare++;assert.equal(args.tools,fake.tools);assert.equal(args.check_id,99);assert.ok(deadline<performance.now()+170000);return {};};fake.complete=()=>{counters.complete++;return {decision:'catalog-context-prepared',authority:'none'};};
@@ -168,6 +208,8 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
   await setup('negative');result=await runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000);assert.equal(result.decision,'held');assert.equal(counters.prepare,0);assert.equal(counters.controls,0);assert.equal(counters.write,0);
   await setup('unchanged');result=await runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000);assert.match(result.reason,/unchanged accepted/);assert.equal(counters.sourceReads,2);assert.equal(counters.inspect,0);assert.equal(counters.write,0);
   await setup('previous-missing');result=await runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000);assert.match(result.reason,/missing or contradictory/);assert.equal(counters.inspect,0);assert.equal(counters.write,0);
+  await setup('refresh');result=await runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000);assert.equal(result.decision,'catalog-review-requested');assert.equal(counters.rounds,1);assert.equal(counters.write,2);
+  await setup('refresh-mismatch');const wrongRound=cp;await assert.rejects(runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000),/maintenance identity changed/);assert.equal(counters.rounds,1);assert.equal(counters.write,0);assert.equal(cp,wrongRound);
   await setup('drift');const beforeDrift=cp;await assert.rejects(runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000),/configuration changed before mutation/);assert.equal(counters.write,0);assert.equal(cp,beforeDrift);delete process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION;
   await setup('expired');const before=cp;await assert.rejects(runFixedCatalogCoordinatorConfiguration(selection,root,performance.now()+150000),/expired maintenance/);assert.equal(counters.write,0);assert.equal(cp,before);
  }finally{await rm(root,{recursive:true,force:true});}

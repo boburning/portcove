@@ -40,6 +40,36 @@ import {
 import { catalogEnvironmentFixture } from "./fixtures/release-live-control-fixture.mts";
 import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
+import { selectCatalogBootstrapRecovery } from "./release-catalog-bootstrap-adoption.mts";
+import {
+  retainedCatalogBootstrapClaim,
+  retainedCatalogForwardAdoptionClaim,
+} from "./release-coordinator-checkpoint-authentication.mts";
+
+void test("catalog recovery distinguishes the exact forward claim from historical bootstrap", () => {
+  const old = retainedCatalogBootstrapClaim;
+  const forward = retainedCatalogForwardAdoptionClaim;
+  assert.equal(selectCatalogBootstrapRecovery(old.successor_ref, 1, old.previous, false), old);
+  assert.equal(
+    selectCatalogBootstrapRecovery(forward.successor_ref, 1, forward.previous, true),
+    forward,
+  );
+  assert.equal(
+    selectCatalogBootstrapRecovery(forward.original_ref, 1, forward.previous, true),
+    undefined,
+  );
+  for (const [ref, attempt, parent, direction] of [
+    [old.successor_ref, 1, old.previous, true],
+    [forward.successor_ref, 1, forward.previous, false],
+    [forward.successor_ref, 2, forward.previous, true],
+    [forward.successor_ref, 1, old.previous, true],
+  ] as const)
+    assert.throws(
+      () => selectCatalogBootstrapRecovery(ref, attempt, parent, direction),
+      /original predecessor and one successor attempt/u,
+    );
+});
+
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function fixture() {
   const fixed = {
