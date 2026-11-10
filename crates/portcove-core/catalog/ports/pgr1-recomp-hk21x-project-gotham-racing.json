@@ -6,6 +6,7 @@
     "original_game_title": "Project Gotham Racing",
     "summary": "Native title runtime and modern frontend described; the extent of working races and career progression has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/hk21x/pgr1-recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/hk21x/pgr1-recomp",

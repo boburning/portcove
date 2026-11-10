@@ -6,6 +6,7 @@
     "summary": "Use the upstream EmeraldRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
     "project_url": "https://github.com/mstan/EmeraldRecomp",
     "issue_number": 334,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/mstan/EmeraldRecomp/blob/1bd517bc8ce8def93b91b4363af12c4ae540dce2/README.md",
     "artwork": {

@@ -10,6 +10,7 @@
     "availability": "unknown",
     "setup_url": "https://github.com/nmlgc/ssg",
     "issue_number": 2837,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/nmlgc/ssg/blob/dc63b340a7c184b456850972b89324d9a8f13c4f/README.md",
       "steps": [

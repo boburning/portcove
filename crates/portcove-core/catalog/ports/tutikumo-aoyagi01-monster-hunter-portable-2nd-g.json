@@ -6,6 +6,7 @@
     "original_game_title": "Monster Hunter Portable 2nd G",
     "summary": "The project reports ahead-of-time compilation of all overlays with interpreter fallback for untranslated code. The extent of playthrough testing is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Aoyagi01/Tutikumo",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Aoyagi01/Tutikumo",

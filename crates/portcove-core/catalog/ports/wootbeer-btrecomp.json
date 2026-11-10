@@ -10,6 +10,7 @@
     "availability": "unknown",
     "setup_url": "https://github.com/wootbeer/btrecomp",
     "issue_number": 2793,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/wootbeer/btrecomp/blob/5b06c1bb496c021acd64d5dabd053d9ec5471d8c/README.md",
       "steps": [

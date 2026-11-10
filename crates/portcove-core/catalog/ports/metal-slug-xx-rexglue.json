@@ -6,6 +6,7 @@
     "summary": "Native Metal Slug XX source build using your own extracted game data. The title-specific player needs its matching runtime DLL and configured game-data root; a ReXGlue SDK archive or code generator alone is not a prepared game. Complete upstream preparation before registration.",
     "project_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX",
     "issue_number": 813,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX#readme",

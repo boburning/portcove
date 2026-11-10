@@ -6,6 +6,7 @@
     "original_game_title": "Jackie Chan Stuntmaster",
     "summary": "Experimental project. native 3D/sound/widescreen at 60 FPS claim; game-specific interrupt fixes; release packaging undone, no full playthrough. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp",

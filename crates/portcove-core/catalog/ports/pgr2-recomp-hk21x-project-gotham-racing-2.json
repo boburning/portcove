@@ -6,6 +6,7 @@
     "original_game_title": "Project Gotham Racing 2",
     "summary": "Upstream reports boot, movies, menus, races in every mode tried, saves and System Link. This is not a demonstrated complete career/campaign. Sound-effect reverb/filters remain unmodeled; experimental 60 FPS races can dip in busy streets. The current README adds top-right Quit game and Alt+F4 exit controls. No Portcove setup, package, controller, networking or gameplay qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/hk21x/pgr2-recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/hk21x/pgr2-recomp",

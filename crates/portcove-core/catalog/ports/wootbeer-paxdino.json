@@ -10,6 +10,7 @@
     "availability": "unknown",
     "setup_url": "https://github.com/wootbeer/PaxDino",
     "issue_number": 2790,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/wootbeer/PaxDino/blob/edfac2ea7bd941ce5df8e04afe930d92711a392b/README.md",
       "steps": [

@@ -6,6 +6,7 @@
     "summary": "Existing permitted standalone Naughty Bear: Gold Edition player using your own Xbox 360 disc data. The documented Windows setup keeps complete extracted disc contents directly in assets beside restuff.exe. Completed standalone copies need not use the separate Goopie launcher; upstream owns preparation and replacement.",
     "project_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff",
     "issue_number": 160,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff",

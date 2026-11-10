@@ -6,6 +6,7 @@
     "summary": "An unfinished Sin and Punishment native project. The documented milestone reaches the title screen; its required patched-ROM pipeline is unpublished, so a clean Japanese ROM and checkout alone do not establish a reproducible player. Existing prepared development copies retain their limitations.",
     "project_url": "https://github.com/maximilianoide/sin-punishment-recompiled",
     "issue_number": 167,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/maximilianoide/sin-punishment-recompiled#readme",

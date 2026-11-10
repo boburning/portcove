@@ -6,6 +6,7 @@
     "summary": "Pair the matching Sonic Mania module and RSDK engine with your own game assets before adding the player.",
     "project_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation",
     "issue_number": 384,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/56cf1bbac45ebf9da5df781c2983317c3fbb6d5f/README.md",

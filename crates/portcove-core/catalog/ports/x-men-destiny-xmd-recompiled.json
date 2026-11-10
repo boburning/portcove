@@ -6,6 +6,7 @@
     "summary": "Register an independently permitted, upstream-prepared X-Men: Destiny / xmd-recompiled native Windows player. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/florinp93/xmd-recompiled",
     "issue_number": 365,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/florinp93/xmd-recompiled",

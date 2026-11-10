@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2894,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/Patt92/recvx-native/blob/0531b9490aec3ab859a6738420e881b0ef1b1dd1/README.md",
       "steps": [

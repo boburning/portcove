@@ -6,6 +6,7 @@
     "summary": "An experimental SSX 3 Linux x86-64 racing port. The Windows x86-64 preview crashes while loading races and is explicitly unplayable; Wine/Proton testing does not establish native Windows play. macOS work has not started. Supply your own PAL/Europe original-Xbox build dated 2003-09-19, title 4541003C, with English/French/German/Spanish. The installer accepts a full ISO, trimmed XISO or complete extracted tree into game_files/. The original XBE SHA-1 is ba876cc11ad38650eac9831b1c7f8c4dbf7c5ba9; its documented region/media-free patched form is 409141774025fce02ab4743d1e669d35bb1d190e. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "SSX 3 (Xbox, PAL)",
     "project_url": "https://github.com/bertibertig/SSX3-Recomp",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/bertibertig/SSX3-Recomp",

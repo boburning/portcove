@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2887,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
       "steps": [

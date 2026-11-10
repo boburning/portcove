@@ -6,6 +6,7 @@
     "original_game_title": "'Splosion Man",
     "summary": "The project describes Linux as fully playable, but crashes can leave shared-memory files and damage the shader cache. CI built a Windows test package that was checked end-to-end through Proton. Native Windows testing has not been reported. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/SplosionManRecomp",
+    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/thefixinhixon/SplosionManRecomp",

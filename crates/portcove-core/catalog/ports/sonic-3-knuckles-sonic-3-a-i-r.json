@@ -6,6 +6,7 @@
     "summary": "Use an upstream-prepared Sonic 3 & Knuckles / Sonic 3 A.I.R. player with matching originals; runtime maintenance and player data stay upstream-owned.",
     "project_url": "https://github.com/Eukaryot/sonic3air",
     "issue_number": 323,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/Eukaryot/sonic3air/blob/29cf83c9dcc22c949e9a3e4cafda3f76b945981a/README.md",
     "artwork": {

@@ -7,6 +7,7 @@
     "summary": "Play Zelda II with the z2rs native reconstruction and your own supported USA NES ROM. Optional enhancements, randomization and co-op have separate compatibility requirements.",
     "project_url": "https://github.com/troyedwardsjr/z2rs",
     "issue_number": 1911,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/troyedwardsjr/z2rs",

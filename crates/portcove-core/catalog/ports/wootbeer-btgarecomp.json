@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2846,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/wootbeer/btgarecomp/blob/4afa89bcb21f38a010f63726ecf9f716fcb04fab/README.md",
       "steps": [

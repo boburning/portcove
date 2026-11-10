@@ -6,6 +6,7 @@
     "summary": "Conditional existing-copy route for Prop Cycle using your own supported arcade chip set. The documented Windows player accepts propcycl.zip and unpacks it on first Play. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved; the project MIT terms do not settle it.",
     "project_url": "https://github.com/spacestate1/namco22-decompile",
     "issue_number": 1565,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",

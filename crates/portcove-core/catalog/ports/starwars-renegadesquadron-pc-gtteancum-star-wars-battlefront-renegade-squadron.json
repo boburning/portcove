@@ -6,6 +6,7 @@
     "original_game_title": "Star Wars Battlefront: Renegade Squadron",
     "summary": "The project provides a native host and statically translated game runtime. The extent of working gameplay has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC",

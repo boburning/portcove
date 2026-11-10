@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2900,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/mstan/SuperMarioRPGRecomp/blob/f5eb899e1683cb0183fe99ae0cfdea24f1a18a0b/README.md",
       "steps": [

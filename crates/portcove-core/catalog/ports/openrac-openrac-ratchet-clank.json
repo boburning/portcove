@@ -6,6 +6,7 @@
     "original_game_title": "Ratchet & Clank",
     "summary": "The launcher release includes the first native port and skips unmatched assembly. SDK releases and matching-progress counts do not establish that all six games are playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/OpenRAC/OpenRAC",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/OpenRAC/OpenRAC",

@@ -17,6 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2605,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/tx00100xt/SeriousSamClassic/releases/tag/1.10.7",
     "download_asset_hints": {
       "windows-x86-64": ["SeriousSamClassic-", "-directx9-win64-bin.7z"]

@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2604,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/danisandoval/fukami/blob/2ecb2810ddb742245b17fd54500bcf07d1fe6760/README.md",
       "steps": [
