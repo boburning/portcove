@@ -19,15 +19,14 @@ fn environment(names: &[&str]) -> Option<String> {
         .find(|value| !value.trim().is_empty())
 }
 
-/// Fails closed: without the library folder the report cannot promise it is
-/// redacted, so no draft or link is produced.
-fn redactions(service: &PortcoveService) -> DesktopResult<ReportRedactions> {
-    let storage = service.library().storage_summary()?;
-    Ok(ReportRedactions {
+/// The library root is the opened library's own path, so it is known even when
+/// the volume is unreadable or unmounted, which is when a report is most needed.
+fn redactions(service: &PortcoveService) -> ReportRedactions {
+    ReportRedactions {
         home_dir: environment(&["USERPROFILE", "HOME"]),
         user_name: environment(&["USERNAME", "USER"]),
-        library_root: Some(storage.library_root.to_string_lossy().into_owned()),
-    })
+        library_root: Some(service.library().root().to_string_lossy().into_owned()),
+    }
 }
 
 #[tauri::command]
@@ -85,7 +84,7 @@ pub(crate) async fn preview_bug_report(
             last_exit_code,
             doctor_summary: summary,
         };
-        Ok(draft_bug_report(&inputs, &redactions(&service)?))
+        Ok(draft_bug_report(&inputs, &redactions(&service)))
     })
     .await
 }
@@ -99,7 +98,7 @@ pub(crate) async fn open_bug_report(
 ) -> DesktopResult<BugReportLink> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        let redactions = redactions(&service(&state)?)?;
+        let redactions = redactions(&service(&state)?);
         let link = bug_report_link(&fields, &redactions);
         if let Some(url) = &link.url {
             open_host_target(std::ffi::OsStr::new(url))?;

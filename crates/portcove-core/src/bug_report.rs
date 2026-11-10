@@ -74,6 +74,12 @@ fn platform_label(platform: Platform) -> &'static str {
 /// path segments (`C:\Users\Al` never rewrites `C:\Users\Alice`). The user name
 /// matches whole words only, so it cannot rewrite unrelated text.
 pub fn redact_report_text(input: &str, redactions: &ReportRedactions) -> String {
+    redact_user_name(&redact_paths(input, redactions), redactions)
+}
+
+/// Secrets, then the library root and home directory. Safe for fixed fields: a
+/// path is never a legitimate version or platform value.
+fn redact_paths(input: &str, redactions: &ReportRedactions) -> String {
     let mut text = redact_diagnostic_text(input);
     // Most specific first, so a library inside the home directory reads <library>.
     for (path, placeholder) in [
@@ -93,15 +99,19 @@ pub fn redact_report_text(input: &str, redactions: &ReportRedactions) -> String 
             text = replace_path(&text, &trimmed.replace(' ', "%20"), placeholder);
         }
     }
-    if let Some(name) = redactions
+    text
+}
+
+fn redact_user_name(text: &str, redactions: &ReportRedactions) -> String {
+    match redactions
         .user_name
         .as_deref()
         .map(str::trim)
         .filter(|name| name.chars().count() >= 3)
     {
-        text = replace_word(&text, name, "<user>");
+        Some(name) => replace_word(text, name, "<user>"),
+        None => text.to_owned(),
     }
-    text
 }
 
 fn is_word(character: char) -> bool {
@@ -211,10 +221,11 @@ pub fn draft_bug_report(inputs: &BugReportInputs, redactions: &ReportRedactions)
 }
 
 /// `version` and `platform` are fixed facts matched against the issue template, so
-/// a user name that happens to be a word inside them must not rewrite them.
+/// a user name that happens to be a word inside them must not rewrite them. Paths
+/// and secrets are still removed from them.
 fn redact_for_field(id: &str, value: &str, redactions: &ReportRedactions) -> String {
     match id {
-        "version" | "platform" => redact_diagnostic_text(value),
+        "version" | "platform" => redact_paths(value, redactions),
         _ => redact_report_text(value, redactions),
     }
 }
@@ -426,6 +437,33 @@ mod tests {
         assert_eq!(value(&draft, "version"), "0.1.0-win");
         let link = bug_report_link(&draft.fields, &redactions).url.unwrap();
         assert!(link.contains("platform=Windows&") && link.contains("version=0.1.0-win&"));
+    }
+
+    #[test]
+    fn fixed_fields_lose_paths_and_secrets_but_keep_user_name_words() {
+        let redactions = ReportRedactions {
+            home_dir: Some(r"C:\Users\Alice".to_owned()),
+            user_name: Some("win".to_owned()),
+            ..ReportRedactions::default()
+        };
+        let fields = vec![
+            BugReportField {
+                id: "version".to_owned(),
+                label: "Version".to_owned(),
+                value: r"C:\Users\Alice\x token=abc12345".to_owned(),
+            },
+            BugReportField {
+                id: "platform".to_owned(),
+                label: "Platform".to_owned(),
+                value: "Windows".to_owned(),
+            },
+        ];
+        let link = bug_report_link(&fields, &redactions);
+        let url = link.url.unwrap();
+        assert!(!url.to_lowercase().contains("alice"), "{url}");
+        assert!(!url.contains("abc12345"), "{url}");
+        assert!(url.contains("platform=Windows"), "{url}");
+        assert!(link.clipboard_text.contains("<home>"));
     }
 
     #[test]
