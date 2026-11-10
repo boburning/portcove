@@ -44017,6 +44017,48 @@
         "macos-x86-64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "files",
+            "maps"
+          ],
+          "executables": [
+            "download_demo_version.bat",
+            "download_demo_version.ps1",
+            "extract_homm2_resources.bat",
+            "extract_homm2_resources.ps1",
+            "fheroes2.exe",
+            "resource_extraction_toolset.bat",
+            "resource_extraction_toolset.ps1"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "files",
+            "maps",
+            "script"
+          ],
+          "executables": [
+            "download_demo_version.sh",
+            "extract_homm2_resources.sh",
+            "fheroes2",
+            "script/linux/install_sdl2.sh"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [
+            "files",
+            "maps",
+            "script"
+          ],
+          "executables": [
+            "download_demo_version.sh",
+            "extract_homm2_resources.sh",
+            "fheroes2"
+          ]
+        }
+      },
       "external_profile_policy": "fheroes2-v1",
       "release": {
         "provider": "github",
@@ -46115,6 +46157,18 @@
         "macos-aarch64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base.exe",
+            "launch_openmohaa_breakthrough.exe",
+            "launch_openmohaa_spearhead.exe",
+            "omohaaded.exe",
+            "openmohaa.exe"
+          ]
+        }
+      },
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
@@ -46214,6 +46268,18 @@
         "macos-aarch64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base.exe",
+            "launch_openmohaa_breakthrough.exe",
+            "launch_openmohaa_spearhead.exe",
+            "omohaaded.exe",
+            "openmohaa.exe"
+          ]
+        }
+      },
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
@@ -46320,6 +46386,18 @@
         "macos-aarch64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base.exe",
+            "launch_openmohaa_breakthrough.exe",
+            "launch_openmohaa_spearhead.exe",
+            "omohaaded.exe",
+            "openmohaa.exe"
+          ]
+        }
+      },
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
@@ -47165,9 +47243,28 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "nhl94.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "nhl94"
+          ]
+        }
+      },
       "release": {
         "provider": "github",
         "repository": "1nputs/ninety-four",
@@ -47175,12 +47272,19 @@
           "windows-x86-64": [
             "ninety-four-",
             "-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "ninety-four-",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "nhl94.exe"
+        ],
+        "linux-x86-64": [
+          "nhl94"
         ]
       },
       "persistent_paths": [
@@ -47195,7 +47299,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "On first Play, select your own supported 1 MiB NHL ’94 Genesis US/Europe ROM in the upstream picker. Keep it at a stable location outside the managed runtime. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: out, rosters, screenshots, settings.ini, states, videos. Its backup does not include external profiles. Use the default data paths with the managed runtime. Keep an independent copy of your ROM, and use a separately prepared copy for custom data paths. Runtime rollback does not establish save-state compatibility.",
+        "manual_preparation": "On first Play, select your own supported 1 MiB NHL ’94 Genesis US/Europe ROM in the upstream picker. Keep it at a stable location outside the managed runtime. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: out, rosters, screenshots, settings.ini, states, videos. Its backup does not include external profiles. Use the default data paths with the managed runtime. Keep an independent copy of your ROM, and use a separately prepared copy for custom data paths. Runtime rollback does not establish save-state compatibility. On Linux x86-64, install the system SDL2 runtime and use glibc 2.34 or newer.",
         "original_game_title": "NHL '94 (Genesis)",
         "manual_setup": {
           "help_url": "https://github.com/1nputs/ninety-four/blob/1b0b30e7bf6ee4e66ab33ef10acbeec55442b021/README.md",
@@ -47209,21 +47313,22 @@
               "instruction": "Use a complete player and components you are independently permitted to use, with your own 1 MiB retail NHL ’94 Genesis US/Europe ROM. Finish the upstream first-launch ROM picker and saved settings before attachment; retain the independent original. Optional larger ROM hacks and roster imports are separate upstream operations, not another accepted retail revision by title alone. This guide obtains or executes no ROM, converter, helper or game. The inspected official 0.3.6 ZIP contains ninety-four-windows-x86_64/nhl94.exe as an AMD64 native player with matching library and notices. Keep that complete directory. This is the native rewrite using the linked pulseman hardware/audio/frontend facilities; it is not an original Genesis executable or a generic emulator admission. A source build and another platform’s application are separate artifacts. Upstream documents the remembered ROM picker for normal windowed starts; the native entry runs the game in the selected process. Complete a missing-ROM prompt outside the attached attempt. Do not add headless, finite-frame, trace, ROM-extraction or network-server arguments as normal Play."
             },
             {
-              "title": "Preserve the actual working-directory data",
-              "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion. Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted."
+              "title": "Preserve the actual Linux and Mac data locations",
+              "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion. Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted. On Linux x86-64, the upstream archive needs glibc 2.34 or newer and the system SDL2 runtime. For an existing copy, keep nhl94 and its full archive together and run it from that folder. On macOS 11 or newer, use the upstream universal application for Intel or Apple Silicon. Finder launches keep settings and saves under ~/Library/Application Support/ninety-four. A shell launch can use the working directory instead. Keep the complete application bundle and back up the data location your copy actually uses. Portcove manages the separate Linux runtime, while the Mac application stays with upstream setup."
             },
             {
               "title": "Keep original, roster and component terms separate",
               "instruction": "Retain the project MIT notice and pulseman/component notices, including Nuked-OPN2 LGPL-2.1, ymfm BSD-3 and the separately credited upscalers. They grant nothing over the original NHL ’94 name or game data. Use only originals, roster art and modified content you are independently permitted to use. Online peers need matching releases and applicable roster/state data; no account, relay/server, real multiplayer or full user-content corpus qualification is provided."
             },
             {
-              "title": "Select the prepared player",
+              "title": "Select the prepared Windows player",
               "instruction": "Select nhl94.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],
           "warnings": [
             "Keep the original retail ROM and actual working-directory data. Cartridge SRAM, states, modified rosters and online session compatibility are separate.",
-            "Use the default data paths with the managed runtime. Keep an independent copy of your ROM, and use a separately prepared copy for custom data paths. Runtime rollback does not establish save-state compatibility."
+            "Use the default data paths with the managed runtime. Keep an independent copy of your ROM, and use a separately prepared copy for custom data paths. Runtime rollback does not establish save-state compatibility.",
+            "On Linux x86-64, install the system SDL2 runtime and use glibc 2.34 or newer."
           ],
           "references": [
             {
@@ -49606,6 +49711,25 @@
         "linux-x86-64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "ironwail.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "ironwail",
+            "ironwail.pak",
+            "license.txt",
+            "quakespasm-music.txt",
+            "quakespasm.html",
+            "quakespasm.txt"
+          ]
+        }
+      },
       "release": {
         "provider": "github",
         "repository": "andrei-drexler/ironwail",
@@ -49706,6 +49830,14 @@
         "linux-x86-64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "vkquake.exe"
+          ]
+        }
+      },
       "release": {
         "provider": "github",
         "repository": "Novum/vkQuake",
@@ -53838,6 +53970,16 @@
         "windows-x86-64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "z2-signal.exe",
+            "z2rs-launcher.exe",
+            "z2rs.exe"
+          ]
+        }
+      },
       "release": {
         "provider": "github",
         "repository": "troyedwardsjr/z2rs",
@@ -53870,8 +54012,8 @@
               "instruction": "Choose Play to start z2rs.exe directly. Drag your own supported USA NES ROM onto the window. The game reads it in place and remembers its path. Keep the ROM outside the managed runtime."
             },
             {
-              "title": "Keep the Windows release archive intact",
-              "instruction": "Use the complete extracted official Windows x64 z2rs package (the ZIP ending in -x86_64-pc-windows-msvc.zip) with z2rs-launcher.exe, z2rs.exe, companions and notices. z2-signal.exe is an optional signalling server, not the player. This is a Rust reconstruction with a native desktop frontend; upstream frame-comparison and enhancement claims do not establish a Portcove playthrough or native/controller observation. In the upstream launcher choose your own Zelda II: The Adventure of Link (USA) NES ROM. Its accepted ROM body, after stripping the 16-byte iNES header, has CRC32 BA322865 and SHA-1 11333adb723a5975e0ecca3aee8f4747aa8d2d26. These identify the body, not the complete headered file. The game reads the ROM in place and remembers its path; keep it at that location. The project’s MIT code grant and original-ROM/HD-pack rights are separate; no ROM or extracted asset redistribution is granted."
+              "title": "Keep the upstream package and prepare your own original",
+              "instruction": "Use the complete extracted official Windows x64 z2rs package (the ZIP ending in -x86_64-pc-windows-msvc.zip) with z2rs-launcher.exe, z2rs.exe, companions and notices. z2-signal.exe is an optional signalling server, not the player. This is a Rust reconstruction with a native desktop frontend; upstream frame-comparison and enhancement claims do not establish a Portcove playthrough or native/controller observation. In the upstream launcher choose your own Zelda II: The Adventure of Link (USA) NES ROM. Its accepted ROM body, after stripping the 16-byte iNES header, has CRC32 BA322865 and SHA-1 11333adb723a5975e0ecca3aee8f4747aa8d2d26. These identify the body, not the complete headered file. The game reads the ROM in place and remembers its path; keep it at that location. The project’s MIT code grant and original-ROM/HD-pack rights are separate; no ROM or extracted asset redistribution is granted. On Linux x86-64, keep the complete official archive together and start z2rs-launcher. On macOS, choose the archive for Intel or Apple Silicon and start z2rs.app. Pick your own supported USA ROM in the launcher. Preserve the actual profile, normally ~/.local/share/z2rs on Linux or ~/Library/Application Support/z2rs on Mac, including any XDG_DATA_HOME or custom data directory. On Android 8 or newer, use the official release APK and choose the ROM with Android's file picker. Keep an independent copy of the original. The app copies the ROM and keeps saves in private storage. A same-signature update preserves that data, while uninstalling deletes the private copy and saves. Use the upstream app and its backup guidance for these platforms."
             },
             {
               "title": "Attach a separate prepared launcher",
@@ -53882,7 +54024,7 @@
               "instruction": "Keep %APPDATA%/z2rs on Windows, or the existing XDG_DATA_HOME/z2rs override, including z2-native.json, battery saves, savestate*.z2snap and other user files. Preserve the original ROM’s separate path, optional HD packs, randomizer outputs and existing custom config paths. Do not assume save-state compatibility beyond upstream’s documented format, import another project’s saves or reset populated options to add the reference. The ROM is not copied into the default data directory. Online co-op, the signalling service, HD packs and Discord presence are upstream options; Portcove does not enable services, supply credentials or configure them. The launcher starts a separate game process: Portcove follows the selected program only, and its activity can finish while the game continues. Close the actual game and helpers before replacing the complete upstream release or recovering files. Review/select the executable after updates. Reference removal preserves external files; Portcove does not replace or back up this external copy."
             },
             {
-              "title": "Select the prepared player",
+              "title": "Select the prepared Windows player",
               "instruction": "Select z2rs.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],

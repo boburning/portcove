@@ -3060,7 +3060,9 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
                     enrolled.insert((id.clone(), platform, index)),
                     "{id}: duplicate release selection enrollment at {index}"
                 );
-                selected_zips.insert((case.inventory.clone(), index, name.clone()));
+                if name.ends_with(".zip") {
+                    selected_zips.insert((case.inventory.clone(), index, name.clone()));
+                }
                 let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
                 let repository = match case.repository_id {
                     Some(id) => ok_json(
