@@ -6,7 +6,6 @@
     "original_game_title": "Perfect Dark (Xbox Live Arcade remaster)",
     "summary": "The project reports D3D12 boot, audio and input, plus mission-restart fixes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp",
-    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp",

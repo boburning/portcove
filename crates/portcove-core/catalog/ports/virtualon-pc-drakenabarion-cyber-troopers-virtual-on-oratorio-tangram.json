@@ -6,7 +6,6 @@
     "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram",
     "summary": "Experimental project. The project reports ot boot, menus, matches and audio. Online play is unavailable. Completion has not been established, and Portcove has not confirmed this component. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/drakenabarion/virtualon_pc",
-    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64", "windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/drakenabarion/virtualon_pc",

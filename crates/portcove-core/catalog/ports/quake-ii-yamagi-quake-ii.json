@@ -10,7 +10,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/yquake2/yquake2",
     "issue_number": 2700,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/yquake2/yquake2/tree/76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
       "steps": [

@@ -6,7 +6,6 @@
     "original_game_title": "WWE '12",
     "summary": "The 0.9.0-beta has coloured-block defects on some Intel and AMD GPUs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/iMrBurn/wwe12-pc",
-    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/iMrBurn/wwe12-pc",

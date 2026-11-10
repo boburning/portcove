@@ -61,6 +61,11 @@ function main() {
   const root = dirname(dirname(fileURLToPath(import.meta.url)));
   const portsDirectory = join(root, "crates", "portcove-core", "catalog", "ports");
   const write = process.argv.includes("--write");
+  // CI carries the changed-file plan in one bounded environment string, so a very
+  // large mechanical change is landed in batches: --limit N dates at most N files.
+  const limitIndex = process.argv.indexOf("--limit");
+  const limit = limitIndex < 0 ? Infinity : Number(process.argv[limitIndex + 1]);
+  if (!(limit > 0)) throw new Error("--limit requires a positive number of files.");
   const log = execFileSync(
     "git",
     [
@@ -76,7 +81,10 @@ function main() {
   const added = firstAddedSeconds(log);
   let changed = 0;
   let missing = 0;
-  for (const name of readdirSync(portsDirectory).filter((file) => file.endsWith(".json"))) {
+  for (const name of readdirSync(portsDirectory)
+    .filter((file) => file.endsWith(".json"))
+    .sort()) {
+    if (changed >= limit) break;
     const file = join(portsDirectory, name);
     const text = readFileSync(file, "utf8");
     if (/^ {4}"listed_at":/mu.test(text)) continue;

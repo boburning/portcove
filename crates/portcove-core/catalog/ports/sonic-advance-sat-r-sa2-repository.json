@@ -6,7 +6,6 @@
     "summary": "Sonic Advance 1 source project sharing a repository with Sonic Advance 2. Its documented sa1.gba output is a GBA ROM; the sa2 SDL commands do not establish this title's native player. Native registration requires a separately prepared native Sonic Advance 1 copy.",
     "project_url": "https://github.com/SAT-R/sa2",
     "issue_number": 380,
-    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/SAT-R/sa2#readme",

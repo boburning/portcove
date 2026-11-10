@@ -6,7 +6,6 @@
     "summary": "An in-development Pokémon Gold route in Gen1Recomp/G1R Deluxe. Import your own canonical US English Gold ROM using the project’s instructions; its README lists accepted revisions and SHA-1 values. The shared engine documents Windows x64, Linux x64 and Intel/Apple Silicon macOS, but current package compatibility with Gold remains unconfirmed. Pokémon Red’s separate qualification does not establish support for this game or managed updates/saves. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Pokémon Gold",
     "project_url": "https://github.com/bryanthaboi/gen1recomp",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/bryanthaboi/gen1recomp",

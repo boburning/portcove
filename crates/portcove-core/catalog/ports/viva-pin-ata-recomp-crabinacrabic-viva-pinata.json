@@ -6,7 +6,6 @@
     "original_game_title": "Viva Pinata",
     "summary": "The project reports garden play and save/load. A rare crash while idle at the title remains, and a full playthrough has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/crabinacrabic/VivaPinataRecomp",
-    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/crabinacrabic/VivaPinataRecomp",

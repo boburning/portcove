@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2886,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/zaps166/NFSIISE/tree/6fc5caf24e9cf3d411da3ea87552babaf09253a6",
       "steps": [

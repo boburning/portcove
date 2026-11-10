@@ -6,7 +6,6 @@
     "summary": "Register an independently permitted, upstream-prepared Sega Superstars Tennis / ReMatch native Windows player. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/m1ndcrap/Sega-Superstars-Tennis-ReMatch",
     "issue_number": 378,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/m1ndcrap/Sega-Superstars-Tennis-ReMatch",

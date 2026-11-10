@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2906,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/UltimaBeaR/OpenChaos/tree/b893450a04c9ae2a7f6b6cf6eaefe10fcf2562ad",
       "steps": [

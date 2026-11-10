@@ -6,7 +6,6 @@
     "summary": "An experimental Wind Waker renderer and framework, not a playable game port. The documented Windows launcher runs the development renderer; playable game support still needs upstream runtime completion.",
     "project_url": "https://github.com/sp00nznet/ww",
     "issue_number": 170,
-    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/sp00nznet/ww#readme",

@@ -6,7 +6,6 @@
     "summary": "Existing prepared ReTiP player for Viva Piñata: Trouble in Paradise using your own retail Xbox 360 disc ISO under the documented world-region contract. Complete upstream ISO import first; another game or disc revision is not automatically compatible. The standalone GitHub build omits GameJolt integration.",
     "project_url": "https://github.com/SolarCookies/TiP-Recomp",
     "issue_number": 158,
-    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/SolarCookies/TiP-Recomp",

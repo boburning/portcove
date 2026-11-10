@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2865,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/MorsGames/MoonChildFE/blob/b98445a93a8d9214fe1dedcae3870dd86731128f/README.md",
       "steps": [

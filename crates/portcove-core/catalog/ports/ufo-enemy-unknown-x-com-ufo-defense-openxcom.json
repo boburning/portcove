@@ -9,7 +9,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
     "issue_number": 2619,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "steps": [
         {

@@ -6,7 +6,6 @@
     "summary": "Register your permitted source-built experimental snesrev Super Metroid Windows player while keeping its original, configuration and diagnostic saves together.",
     "project_url": "https://github.com/snesrev/sm",
     "issue_number": 340,
-    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/snesrev/sm#readme",

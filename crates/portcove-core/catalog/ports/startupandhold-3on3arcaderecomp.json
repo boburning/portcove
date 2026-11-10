@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2737,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/startupandhold/3on3ArcadeRecomp/blob/efcd9e5a0c46e0177b76b93d336ab701667e8539/README.md",
       "steps": [

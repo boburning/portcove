@@ -6,7 +6,6 @@
     "summary": "An early Super Mario Maker 2 port translating AArch64 code to C with Horizon/NVN services on Metal/Vulkan. The project reports Mac course play and Windows tester results; Steam Deck is slow, Linux ARM reaches the title in a VM, and Android has only emulator testing. Nextendo online is untested on hardware. Launcher/recompiler packages include a compiler and check/build your game locally on first setup. Packages target Windows x64 x86-64-v2, Linux x64 v2/aarch64 and Apple Silicon macOS 15+. Intel macOS 15+ AVX2, Android and iOS are source-only routes. Use your own base game and 3.0.3 update as NSP/XCI or extracted ExeFS/RomFS, with prod.keys and firmware system NCAs for fonts/Mii. Optional 100 Mario Challenge separately needs your own Wii U Super Mario Maker dump. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Super Mario Maker 2",
     "project_url": "https://github.com/smm2recomp/smm2recomp",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/smm2recomp/smm2recomp",

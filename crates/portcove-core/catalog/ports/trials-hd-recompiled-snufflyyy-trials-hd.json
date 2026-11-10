@@ -6,7 +6,6 @@
     "original_game_title": "Trials HD",
     "summary": "The project claims controller and keyboard play. Browser storage, audio and gameplay checks remain unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/snufflyyy/trials-hd-recompiled",
-    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/snufflyyy/trials-hd-recompiled",

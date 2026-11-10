@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2624,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/plinkr/Wild9Recomp/blob/b0c37ccaa382beeaefd8c81dc99c7a72ec11f391/packaging/release/README-WINDOWS.txt",
       "steps": [

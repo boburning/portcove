@@ -9,7 +9,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/README.md",
     "issue_number": 2889,
-    "listed_at": "2026-10-25",
     "release_url": "https://github.com/KD-lab-Open-Source/Perimeter/releases/tag/3.0.10",
     "manual_setup": {
       "steps": [

@@ -17,7 +17,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2708,
-    "listed_at": "2026-10-25",
     "release_url": "https://github.com/OpenXRay/xray-16/releases/tag/latest-nightly",
     "download_asset_hints": {
       "windows-x86-64": ["OpenXRay.Release.Master.Gold.64-bit.7z"]

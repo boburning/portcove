@@ -17,7 +17,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2690,
-    "listed_at": "2026-10-25",
     "release_url": "https://github.com/ReflectionHLE/ReflectionHLE/releases",
     "recommended_download_channel": "stable",
     "manual_setup": {

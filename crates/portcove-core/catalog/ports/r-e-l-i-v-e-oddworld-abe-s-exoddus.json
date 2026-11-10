@@ -6,7 +6,6 @@
     "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Exoddus. Fresh downloads require distribution permission and a supported release package.",
     "project_url": "https://github.com/AliveTeam/alive_reversing",
     "issue_number": 122,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",

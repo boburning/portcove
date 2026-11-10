@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2912,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/kyle-sylvestre/CircleShootApp/tree/090dc13912c8bb2b0f55dbdf3c6ff79cfe694ef2",
       "steps": [

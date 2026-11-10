@@ -6,7 +6,6 @@
     "original_game_title": "The Maw",
     "summary": "The project describes Linux as playable, with cache and shared-memory files left after crashes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/TheMawRecomp",
-    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/thefixinhixon/TheMawRecomp",

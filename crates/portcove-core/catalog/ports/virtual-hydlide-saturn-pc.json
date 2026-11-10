@@ -6,7 +6,6 @@
     "summary": "Experimental Virtual Hydlide native source route for your own complete Europe MK-81380 V1.000 CUE/BIN track set. It needs upstream compiler/SDL3 preparation and the extracted game data plus audio. Register only a prepared native game output with its creating working directory.",
     "project_url": "https://github.com/vs-sr-dev/pc-virtualhydlide",
     "issue_number": 1579,
-    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/vs-sr-dev/pc-virtualhydlide#readme",

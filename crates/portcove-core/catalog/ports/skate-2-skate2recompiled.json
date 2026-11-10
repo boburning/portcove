@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2608,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/cookingwithsimon/Skate2Recompiled/blob/bcbc1e55cc2a14e97f077ca7540b1f9ca97fbb15/README.md",
       "steps": [

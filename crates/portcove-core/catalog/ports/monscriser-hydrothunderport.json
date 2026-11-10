@@ -6,7 +6,6 @@
     "summary": "An experimental Hydro Thunder Hurricane port, Revision 9.1.0. The project offers Windows and Linux Vulkan/AppImage routes using your own Xbox 360 game; DLC and title updates are optional. Linux frame generation additionally needs lsfg-vk and remains untested from setup through play. Complete-game and broad GPU coverage are unconfirmed. Exact CPU requirements follow the selected guide; accepted game revisions/hashes and BIOS/firmware needs are unconfirmed here. No game data is distributed. You and the project manage installation and version changes; Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "Hydro Thunder Hurricane",
     "project_url": "https://github.com/monscriser/HydroThunderPORT",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/monscriser/HydroThunderPORT",

@@ -6,7 +6,6 @@
     "summary": "Register the completed native Windows NSMBU game produced by upstream setup, using its own game/save arguments and data working directory. Upstream retains Wii U input preparation, updates and player-data ownership; the setup launcher is not the tracked game entry.",
     "project_url": "https://github.com/IrishBruse/nsmbu-recomp",
     "issue_number": 1712,
-    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/IrishBruse/nsmbu-recomp",

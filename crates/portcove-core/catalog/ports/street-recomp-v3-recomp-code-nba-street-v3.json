@@ -6,7 +6,6 @@
     "original_game_title": "NBA Street V3",
     "summary": "The project describes a native game with an optional renderer helper process and online-play claims. The helper’s communication protocol has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/recomp-code/street-recomp-v3",
-    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/recomp-code/street-recomp-v3",

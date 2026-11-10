@@ -6,7 +6,6 @@
     "summary": "Play Chris Sawyer’s Locomotion with OpenLoco on Windows x64, Linux x64 or Apple Silicon Mac. Bring your own Locomotion data.",
     "project_url": "https://github.com/OpenLoco/OpenLoco",
     "issue_number": 1855,
-    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/OpenLoco/OpenLoco#readme",
     "artwork": {

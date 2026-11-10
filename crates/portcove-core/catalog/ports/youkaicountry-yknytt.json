@@ -18,7 +18,6 @@
       "match_kind": "port"
     },
     "issue_number": 2809,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/youkaicountry/yknytt/blob/d667e28166486444e6bf1eb90c6a8f227c2500c3/README.md",
       "steps": [

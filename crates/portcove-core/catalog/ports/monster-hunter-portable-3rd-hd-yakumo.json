@@ -6,7 +6,6 @@
     "summary": "Play your Monster Hunter Portable 3rd HD disc image with Yakumo. Use Yakumo to prepare the game and keep its saves.",
     "project_url": "https://github.com/TeamGDB/Yakumo",
     "issue_number": 1120,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/TeamGDB/Yakumo",

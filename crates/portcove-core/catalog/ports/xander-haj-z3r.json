@@ -6,7 +6,6 @@
     "summary": "Prepare Zelda 3 Reborn with your own USA A Link to the Past ROM and the upstream launcher.",
     "project_url": "https://github.com/xander-haj/Z3R",
     "issue_number": 1912,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md",

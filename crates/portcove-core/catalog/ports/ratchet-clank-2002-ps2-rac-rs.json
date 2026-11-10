@@ -10,7 +10,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/AsobiCodes/rac-rs",
     "issue_number": 2599,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/AsobiCodes/rac-rs/blob/5b1415469460192f9236e9ad7b075e37223d764a/README.md",
       "steps": [

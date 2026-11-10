@@ -6,7 +6,6 @@
     "original_game_title": "SOCOM: U.S. Navy SEALs",
     "summary": "Only native initialization and a checkpoint are established. A game-specific runtime exists, but working gameplay is not guaranteed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/BLVCKBURN/socom-native",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/BLVCKBURN/socom-native",

@@ -1571,7 +1571,7 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let mut document = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        // Every embedded listing carries its first-listed date, which needs format 9.
+        // Embedded listings carry first-listed dates, which need format 9.
         assert_eq!(document.format_version, 9);
         // This test is about setup references, so drop the unrelated date requirement.
         for listing in &mut document.listings {

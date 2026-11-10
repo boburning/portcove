@@ -10,7 +10,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/TetrisGBRecomp",
     "issue_number": 2738,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md",
       "steps": [

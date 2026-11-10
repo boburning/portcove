@@ -10,7 +10,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/YoshiNESRecomp",
     "issue_number": 2739,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/mstan/YoshiNESRecomp/blob/f219991df2e70d6bf41f4ba9a46c8ddf990b572e/README.md",
       "steps": [

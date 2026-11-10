@@ -6,7 +6,6 @@
     "summary": "Play RubyRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
     "project_url": "https://github.com/mstan/RubySapphireRecomp",
     "issue_number": 337,
-    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/mstan/RubySapphireRecomp/blob/308071c623af3e611a03b151625ecd7c282b550d/README.md",
     "artwork": {

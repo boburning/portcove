@@ -6,7 +6,6 @@
     "summary": "Register an independently permitted, upstream-prepared Project Gotham Racing 4 / PGR4-Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/beatrixzy/PGR4-Recomp",
     "issue_number": 360,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/beatrixzy/PGR4-Recomp",

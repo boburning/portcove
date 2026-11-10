@@ -10,7 +10,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/swfans/syndwarsfx",
     "issue_number": 2715,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/swfans/syndwarsfx/tree/a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
       "steps": [

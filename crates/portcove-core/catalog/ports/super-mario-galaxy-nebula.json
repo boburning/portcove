@@ -10,7 +10,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/keepvaibin/nebula",
     "issue_number": 2613,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/keepvaibin/nebula/blob/ea9ad871612f97085cea8a31a58313b16dbecc3c/README.md",
       "steps": [

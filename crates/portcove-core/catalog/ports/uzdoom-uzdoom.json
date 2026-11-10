@@ -6,7 +6,6 @@
     "summary": "Choose your own Doom-family game data and mods in UZDoom; the upstream launcher provides runtime updates.",
     "project_url": "https://github.com/UZDoom/UZDoom",
     "issue_number": 1899,
-    "listed_at": "2026-10-23",
     "platforms": ["linux-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md",

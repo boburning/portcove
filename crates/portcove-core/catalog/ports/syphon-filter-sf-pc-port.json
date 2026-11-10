@@ -6,7 +6,6 @@
     "summary": "Play Syphon Filter on Windows using your own USA v1.1 (SCUS-94240) BIN/CUE files. You handle setup and updates; Portcove can launch it.",
     "project_url": "https://github.com/Madxbio97/SF-pc-port",
     "issue_number": 344,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Madxbio97/SF-pc-port",

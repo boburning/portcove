@@ -16,7 +16,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 742,
-    "listed_at": "2026-10-23",
     "platforms": ["linux-x86-64"],
     "manual_setup": {
       "steps": [

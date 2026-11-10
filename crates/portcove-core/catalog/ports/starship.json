@@ -16,7 +16,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 61,
-    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
     "release_url": "https://github.com/HarbourMasters/Starship/releases/tag/v2.0.0",

@@ -10,7 +10,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/obaidr1/hercules-recompiled",
     "issue_number": 2823,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/obaidr1/hercules-recompiled/blob/9df37864f6e5d50e30ff7381117e34a06a1a04c0/README.md",
       "steps": [

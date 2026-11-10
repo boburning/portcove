@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2902,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/nolffan/nolfsrc/tree/6f61ddcfe33ff374f984264ff357a74a81291ffe",
       "steps": [

@@ -6,7 +6,6 @@
     "summary": "Ogre Battle 64 native player using your own USA Rev A 40 MiB cartridge dump. The documented .z64/.n64 representations are of that exact original; another region/revision is not interchangeable. Finish upstream ROM selection and preserve the prepared player's stored ROM and battery progress. Attachment does not establish source/redistribution permission.",
     "project_url": "https://github.com/lfarroco/ogre-battle-64-recomp",
     "issue_number": 1356,
-    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/lfarroco/ogre-battle-64-recomp",

@@ -6,7 +6,6 @@
     "original_game_title": "Taiko no Tatsujin (System 357 Green)",
     "summary": "Experimental project. The project claims native initialization, original-data access, gameplay and cabinet security/I/O support. USB camera NG and card support are unimplemented. Windows and Linux source targets are documented; Portcove has not tested a cabinet or physical controller. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/R19988088/TaikoGreenRecomp",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/R19988088/TaikoGreenRecomp",

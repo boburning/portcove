@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2855,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/PromethenDev/wwe13-recomp/blob/d6574985f7e73ab2a4c09f68684aba49ba454d07/README.md",
       "steps": [

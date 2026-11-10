@@ -6,7 +6,6 @@
     "summary": "Register a completed The Simpsons Game Windows player through its supported waiting launcher and preserve its external saves.",
     "project_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp",
     "issue_number": 379,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp",

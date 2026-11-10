@@ -6,7 +6,6 @@
     "name": "Alley Cat (Alley Cat x86-64 recomp)",
     "summary": "Alley Cat native recompilation; fresh acquisition retains the existing embedded-original-data condition, with guidance for a permitted existing copy.",
     "issue_number": 2827,
-    "listed_at": "2026-10-25",
     "original_game_title": "Alley Cat",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
     "availability": "packages",

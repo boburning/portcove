@@ -6,7 +6,6 @@
     "summary": "Use an upstream-prepared Super Mario 64 / SM64 Co-op DX player with matching originals; runtime maintenance and player data stay upstream-owned.",
     "project_url": "https://github.com/coop-deluxe/sm64coopdx",
     "issue_number": 322,
-    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md",
     "artwork": {

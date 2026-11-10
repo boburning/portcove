@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2600,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/aikatore/recvx-enhanced-port/blob/e8c8f8097ccc082c635d7ed7d6ad50073bc73227/README.md",
       "steps": [

@@ -6,7 +6,6 @@
     "summary": "An experimental Pokémon Sword port translating AArch64 code to C with LetsGo/LAS-derived Vulkan services. The project reports Sword 1.3.2 with DLC on one PC, with memory growth, title flicker and experimental 60 FPS. Online play, trades and raids are unavailable; a full playthrough is unconfirmed. The Windows ZIP imports, copies and recompiles locally, estimated at 40 minutes on 20 threads; DLC setup is not automated. Windows 10/11 x64 needs AVX2/FMA/BMI2 and Vulkan 1.3; only RTX 3080 is tested, with AMD/Intel/integrated graphics untested. Supply your own already-extracted updated 1.3.2 exefs/romfs and optional matching owned DLC. Extract XCI/NSP externally first; the launcher describes no keys input. No other desktop route is offered. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Pokémon Sword",
     "project_url": "https://github.com/raulzrrs/swsh-recomp",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/raulzrrs/swsh-recomp",

@@ -6,7 +6,6 @@
     "original_game_title": "Tekken Tag Tournament 2 Wii U Edition",
     "summary": "Experimental project. The project reports boot through arcade mode. GamePad screen and speaker, online play, software keyboard and errors, and unused audio effects remain missing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Petexy/Tekken-Tag-2-Ultimate-Edition",
-    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Petexy/Tekken-Tag-2-Ultimate-Edition",

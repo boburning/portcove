@@ -6,7 +6,6 @@
     "summary": "Tomba! 2 native USA player using your own SCUS-94454 PlayStation disc. Complete upstream original selection and settings; OpenBIOS is provided and retail BIOS is optional. Italian PAL SCES-02686 needs separate mappings and is not qualified by the USA package. Preserve cards and the separate seamless-loading cache.",
     "project_url": "https://github.com/mstan/Tomba2Recomp",
     "issue_number": 169,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/Tomba2Recomp",

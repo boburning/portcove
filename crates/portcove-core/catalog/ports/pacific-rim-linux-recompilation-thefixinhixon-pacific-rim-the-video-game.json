@@ -6,7 +6,6 @@
     "original_game_title": "Pacific Rim: The Video Game",
     "summary": "The project reports Linux gameplay, DLC and saves, with fault and shared-memory fixes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/PacificRimRecomp",
-    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/thefixinhixon/PacificRimRecomp",

@@ -6,7 +6,6 @@
     "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image and the upstream updater.",
     "project_url": "https://github.com/OpenCommunityEdition/OpenCE",
     "issue_number": 1849,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/OpenCommunityEdition/OpenCE#readme",

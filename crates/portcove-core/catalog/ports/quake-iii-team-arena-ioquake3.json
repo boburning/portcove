@@ -17,7 +17,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2702,
-    "listed_at": "2026-10-25",
     "release_url": "https://github.com/ioquake/ioq3/actions/workflows/build.yml",
     "manual_setup": {
       "steps": [

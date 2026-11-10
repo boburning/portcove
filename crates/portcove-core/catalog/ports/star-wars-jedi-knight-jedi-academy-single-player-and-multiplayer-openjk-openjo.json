@@ -9,7 +9,6 @@
     "availability": "packages",
     "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
     "issue_number": 2612,
-    "listed_at": "2026-10-25",
     "release_url": "https://github.com/JACoders/OpenJK/releases/tag/latest",
     "download_asset_hints": {
       "windows-x86-64": ["OpenJK-windows-x86_64.zip"],

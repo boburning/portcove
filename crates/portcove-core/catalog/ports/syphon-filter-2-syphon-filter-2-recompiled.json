@@ -6,7 +6,6 @@
     "summary": "Prepare the current upstream Syphon Filter 2 player from your own USA two-disc set and SCPH-1001 BIOS, then keep its launcher, saves and updates under your control.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp",
     "issue_number": 345,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases/tag/v0.2.0",

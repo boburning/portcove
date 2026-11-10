@@ -6,7 +6,6 @@
     "original_game_title": "The Lord of the Rings: The Return of the King",
     "summary": "The project reports boot, menus, movies and Helm’s Deep audio/gameplay near 60 FPS on an M1 Max. Frame rates drop during the largest fights. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/kenny08gt/rotk-native",
-    "listed_at": "2026-10-25",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/kenny08gt/rotk-native",

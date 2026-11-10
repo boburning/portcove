@@ -6,7 +6,6 @@
     "original_game_title": "Tekken 6",
     "summary": "The project describes native matches, lobby and rollback, but does not establish a campaign. It credits mahmoud-mess for faster recompiled code; reuse does not establish the same runtime owner. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Ekspym/Tekken6-native-online",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Ekspym/Tekken6-native-online",

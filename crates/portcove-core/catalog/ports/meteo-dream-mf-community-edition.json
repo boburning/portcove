@@ -7,7 +7,6 @@
     "summary": "Use a permitted Mario Forever: Community Edition copy, the community remake of Mario Forever.",
     "project_url": "https://github.com/meteo-dream/mf-community-edition",
     "issue_number": 2729,
-    "listed_at": "2026-10-26",
     "availability": "packages",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "release_url": "https://github.com/meteo-dream/mf-community-edition/releases",

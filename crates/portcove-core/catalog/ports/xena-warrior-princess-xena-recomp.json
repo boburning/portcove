@@ -6,7 +6,6 @@
     "summary": "Play Xena: Warrior Princess using your own matching USA PlayStation disc and retail BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp",
     "issue_number": 329,
-    "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp#readme",

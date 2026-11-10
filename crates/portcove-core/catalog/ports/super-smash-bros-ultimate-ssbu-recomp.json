@@ -6,7 +6,6 @@
     "summary": "An experimental Super Smash Bros. Ultimate port translating AArch64 code to C/x64 with Vulkan and OpenGL fallback services. Partial fighter-script recovery is not recovered whole-game source. The project reports a scripted full CPU 1v1 match; other modes are only scripted/reachable and World of Light reaches its intro. Three-to-eight-player play and physical controllers are unconfirmed; online is experimental and rollback incomplete. Use the source ZIP/clone and Install SSBU.bat to download private Python and player/tool releases and generate locally; Visual Studio is not stated as required. Windows 10/11 x64 is primary. One native Linux CachyOS/NVIDIA/Wayland full match is reported, while Linux work continues and Steam Deck is untested. Supply your own 13.0.4/13.0.5 dump, keys and owned updates/DLC applied locally. Firmware is explicitly unnecessary and open-source fonts are included; exact regional hashes are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Super Smash Bros. Ultimate",
     "project_url": "https://github.com/OpenSmash-Ultimate/ssbu-recomp",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/OpenSmash-Ultimate/ssbu-recomp",

@@ -6,7 +6,6 @@
     "summary": "Prepare your own USA Street Fighter EX2 Plus disc with the upstream setup kit and use the completed player.",
     "project_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
     "issue_number": 1117,
-    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",

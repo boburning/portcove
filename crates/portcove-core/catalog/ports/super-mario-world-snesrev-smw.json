@@ -6,7 +6,6 @@
     "summary": "Use an upstream-prepared Super Mario World / snesrev smw player with matching originals; runtime maintenance and player data stay upstream-owned.",
     "project_url": "https://github.com/snesrev/smw",
     "issue_number": 339,
-    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/snesrev/smw/blob/eae20c65c58930c8b62c76188d259579ad4130f1/README.md",
     "artwork": {

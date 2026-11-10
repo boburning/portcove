@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2719,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/geno55/wg3d-recomp/blob/f7de1d6f15f680e995c7894e405361e363a3f1ef/README.md",
       "steps": [

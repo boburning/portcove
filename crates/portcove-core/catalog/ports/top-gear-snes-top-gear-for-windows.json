@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2905,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/thebradshaw/topgear-pc/blob/b91007aaf1bb95afa4c510d734f74455de48a770/README.md",
       "steps": [

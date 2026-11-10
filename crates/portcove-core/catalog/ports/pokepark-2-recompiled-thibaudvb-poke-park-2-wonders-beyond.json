@@ -6,7 +6,6 @@
     "original_game_title": "PokéPark 2: Wonders Beyond",
     "summary": "Upstream reaches title, save flow, opening cinematic and first playable area; cave route is approximately 30 presented FPS. Black surfaces, wall blur and slow transitions remain. Full game, gestures and Wiimote speaker support are unverified. Interpreter fallback remains for copied exception code. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ThibaudVB/Pokepark-2-Recompiled",
-    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ThibaudVB/Pokepark-2-Recompiled",

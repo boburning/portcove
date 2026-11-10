@@ -6,7 +6,6 @@
     "original_game_title": "SSX 3 (optional SSX Tricky course import)",
     "summary": "The project claims native SSX3 at 120 updates per second with modified courses. This runtime is independent of the browser-recovered ssx-web implementation. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/brad-richardson/ssx3-120",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/brad-richardson/ssx3-120",

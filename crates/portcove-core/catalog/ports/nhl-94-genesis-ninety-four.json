@@ -17,7 +17,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2597,
-    "listed_at": "2026-10-25",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "manual_setup": {
       "help_url": "https://github.com/1nputs/ninety-four/blob/1b0b30e7bf6ee4e66ab33ef10acbeec55442b021/README.md",

@@ -7,7 +7,6 @@
     "project_url": "https://github.com/ZDoom/gzdoom",
     "original_game_title": "Doom",
     "issue_number": 1824,
-    "listed_at": "2026-10-23",
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/ZDoom/gzdoom#readme",

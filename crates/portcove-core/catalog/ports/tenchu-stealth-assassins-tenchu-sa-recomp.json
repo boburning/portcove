@@ -6,7 +6,6 @@
     "summary": "Keep an independently permitted, prepared Linux Tenchu SA Recomp player for your own USA disc. Project/fork permission and actual runtime maturity remain unresolved; no Windows package is established.",
     "project_url": "https://github.com/Heromachine/Tenchu-SA-Recomp",
     "issue_number": 353,
-    "listed_at": "2026-10-23",
     "platforms": ["linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Heromachine/Tenchu-SA-Recomp",

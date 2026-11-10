@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2731,
-    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/TheXTech/TheXTech/tree/5181debcb4cea2b131ebf0e0958e375d87afee05",
       "steps": [

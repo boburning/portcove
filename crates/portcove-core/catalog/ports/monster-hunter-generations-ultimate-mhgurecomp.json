@@ -6,7 +6,6 @@
     "summary": "An experimental Monster Hunter Generations Ultimate port translating 32-bit ARM code to C on x64 hosts. Code-changing cheats use interpreter fallbacks; it does not guarantee interpreter-free execution. The project claims a dozen hunts and multiplayer, without independent play observations. Its release includes mhgugame.dll, expressly identified as translated game code outside the project license, and optional donor saves/event data. Package downloads remain unavailable until contents and applicable permissions are reviewed; a no-game-files banner does not resolve those conditions. A local-generation source route is separate. Windows 10/11 x64 needs AVX2 and Vulkan 1.2; Windows/Arch Linux ZIPs exist, and Gentoo/NVIDIA/Wayland source play is reported. The non-AVX2 v2 flag is untested. Use your own 1.4.0 title 0100770008DD8000, main build prefix FB08F1D20FD1204F, with updated ExeFS and complete merged RomFS under data. No separate keys/firmware input is described after extraction. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Monster Hunter Generations Ultimate",
     "project_url": "https://github.com/morerokk/MHGURecomp",
-    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/morerokk/MHGURecomp",

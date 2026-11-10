@@ -6,7 +6,6 @@
     "name": "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
     "summary": "Saboteur II: Avenging Angel native recompilation; fresh acquisition retains the existing embedded-original-data condition, with guidance for a permitted existing copy.",
     "issue_number": 2722,
-    "listed_at": "2026-10-25",
     "original_game_title": "Saboteur II: Avenging Angel",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
     "availability": "packages",
