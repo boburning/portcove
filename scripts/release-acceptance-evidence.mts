@@ -24,7 +24,7 @@ import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 
-const reviewedSyftProducer = "Tool: syft-1.56.0";
+const reviewedSyftProducer = "Tool: syft-1.57.1";
 const repository = "boburning/portcove";
 const workflow = ".github/workflows/release.yml";
 export const releaseSpdxPredicateType = "https://spdx.dev/Document/v2.3";
