@@ -927,11 +927,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
         let version = if port.release.archive_file_links {
-            if port.adapter == crate::AdapterKind::N64RecompPortable {
-                5
-            } else {
-                14
-            }
+            crate::test_fixture::archive_file_links_capability(port)
         } else if crate::native_temp::has_sibling_platforms(port) {
             10
         } else if let Some(policy) = port.external_profile_policy {
