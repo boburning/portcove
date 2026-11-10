@@ -1072,10 +1072,7 @@
       },
       "issue_number": 86,
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
+        "windows-x86-64"
       ],
       "availability": "unknown"
     },
