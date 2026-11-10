@@ -2083,7 +2083,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       previous_repository: component.application,
       prior_repository_sha256: published.repository_sha256,
       generated_at: generatedAt,
-      output_parent: directory,
+      output_parent: await mkdtemp(path.join(directory, "renewal-work-")),
       deadline: budget.monotonicDeadline,
     });
     const prepared = await inspectPreparedMetadataRenewal(preparation);
@@ -3444,7 +3444,7 @@ async function recoverTrustedCoordinatorContext(
       previous_repository: currentSite.verified.application,
       prior_repository_sha256: published.repository_sha256,
       generated_at: selected.descriptor.generated_at,
-      output_parent: directory,
+      output_parent: await mkdtemp(path.join(directory, "renewal-work-")),
       deadline: budget.monotonicDeadline,
     });
     const actual = await inspectPreparedMetadataRenewal(preparation);
