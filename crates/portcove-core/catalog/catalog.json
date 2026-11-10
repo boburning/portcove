@@ -22225,10 +22225,7 @@
         "beta"
       ],
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
+        "windows-x86-64"
       ],
       "automated_tested_platforms": [
         "windows-x86-64"
@@ -22242,15 +22239,6 @@
         "asset_hints": {
           "windows-x86-64": [
             "windows-x64"
-          ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
-          "macos-x86-64": [
-            "macos-x64"
-          ],
-          "macos-aarch64": [
-            "macos-arm64"
           ]
         }
       },
@@ -22258,15 +22246,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Tomba__Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Tomba__Recompiled"
-        ],
-        "macos-x86-64": [
-          "Tomba__Recompiled"
-        ],
-        "macos-aarch64": [
-          "Tomba__Recompiled"
         ]
       },
       "persistent_paths": [
