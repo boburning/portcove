@@ -4647,6 +4647,60 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn an_unmarked_zip_program_is_granted_after_extraction_inside_the_declared_runtime() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut elf = vec![0_u8; 64];
+        elf[..4].copy_from_slice(&[0x7f, b'E', b'L', b'F']);
+        elf[4] = 2;
+        elf[5] = 1;
+        elf[16] = 3;
+        elf[18] = 62;
+        let package = temporary.path().join("Game-linux-x86_64.zip");
+        write_test_zip(
+            &package,
+            &[
+                ("pkg-1/Game", &elf, 0o644),
+                ("pkg-1/data.bin", b"data", 0o644),
+                ("outside/Game", b"not a binary", 0o644),
+            ],
+            &[],
+        );
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        extract_asset(
+            &package,
+            &root,
+            "Game-linux-x86_64.zip",
+            fs::metadata(&package).unwrap().len(),
+            false,
+            &|| Ok(()),
+        )
+        .unwrap();
+        let mut qualification = InstallQualification::test("Game");
+        qualification.platform = Platform::LinuxX86_64;
+        qualification.runtime_subdirectory = Some("pkg-1".into());
+        // Core honors only the publisher's own bit, so nothing resolves before the grant.
+        assert!(resolve_declared_executable(&root, &qualification).is_err());
+        grant_declared_executable(&root, &qualification).unwrap();
+        assert_eq!(
+            resolve_declared_executable(&root, &qualification).unwrap(),
+            root.join("pkg-1/Game")
+        );
+        // Only the declared program changes; the same-named file outside the runtime and
+        // ordinary data keep their extracted modes.
+        assert!(!crate::permissions::executable_intent(&root.join("outside/Game")).unwrap());
+        assert!(!crate::permissions::executable_intent(&root.join("pkg-1/data.bin")).unwrap());
+        // A package whose declared program is not a platform binary is refused.
+        qualification.runtime_subdirectory = Some("outside".into());
+        assert!(grant_declared_executable(&root, &qualification).is_err());
+        assert!(!crate::permissions::executable_intent(&root.join("outside/Game")).unwrap());
+        // Windows grants nothing and a missing runtime directory is refused.
+        qualification.runtime_subdirectory = Some("absent".into());
+        assert!(grant_declared_executable(&root, &qualification).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn an_unmarked_binary_resolves_only_after_the_verified_grant() {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path();
