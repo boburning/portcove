@@ -36,7 +36,7 @@
       ],
       "warnings": [
         "Portcove manages the official Windows, Linux x86-64 and universal Mac packages. The Linux ARM64 and Flatpak packages and the Android APK use upstream or player-managed setup, replacement and data backups.",
-        "The Mac app is unsigned. If macOS refuses its first launch, follow the upstream instructions in its START HERE.txt (Open Anyway in Privacy & Security).",
+        "The Mac app needs macOS 14 or newer and is unsigned. If macOS refuses its first launch, follow the upstream instructions in its START HERE.txt (Open Anyway in Privacy & Security).",
         "Upstream reports that its Mac app has run on GitHub-hosted Macs but not yet on physical ones; Portcove has no native Mac execution result for it."
       ],
       "help_url": "https://github.com/JackandBeans/Snap64Recomp#readme",
