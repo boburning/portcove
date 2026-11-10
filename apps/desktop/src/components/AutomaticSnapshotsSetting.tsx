@@ -65,13 +65,13 @@ export function AutomaticSnapshotsSetting({
       <div className="grid gap-2">
         <h3 className="text-base font-semibold">Snapshot saved data before version changes</h3>
         <p className="text-sm text-pc-muted-foreground">
-          Before an update installs, a staged version is activated, or you restore a previous
-          version, Portcove copies a game&rsquo;s managed saves and settings so you can restore them
-          if the new version misreads them. It skips games whose saves live outside Portcove and
-          games with no saved data yet, and if a snapshot cannot be taken the version change stops.
-          Portcove keeps the newest five automatic snapshots for each game and never removes the
-          ones you take yourself. This applies to every game in this library, starting with the next
-          version change.
+          Before an update installs, a saved update is activated, or you restore a previous version,
+          Portcove copies a game&rsquo;s managed saves and settings so you can restore them if the
+          new version misreads them. It skips games whose saves live outside Portcove and games with
+          no saved data yet, and if a snapshot cannot be taken the version change stops. Portcove
+          keeps the newest five automatic snapshots for each game and never removes the ones you
+          take yourself. This applies to every game in this library, starting with the next version
+          change.
         </p>
         <label htmlFor={controlId} className="flex items-center gap-2 text-sm">
           <Checkbox

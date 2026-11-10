@@ -9,6 +9,7 @@ import { BackupReviewDialog, type ApplyBackupAction } from "./BackupReview";
 import { Button } from "./ui/button";
 import { FailureDetails } from "./FailureDetails";
 import type { BackupReadState } from "../features/backups/use-port-backups";
+import { automaticSnapshotLabel } from "../features/backups/snapshot-label";
 
 export function BackupHistory({
   gameName,
@@ -290,6 +291,7 @@ export function BackupHistory({
       {renderRestoreAssessment()}
       {visible.map((backup, index) => {
         const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
+        const automaticLabel = automaticSnapshotLabel(backup);
         return (
           <div
             className="backup-row grid min-w-0 gap-3 border-b border-pc-border py-4"
@@ -304,6 +306,14 @@ export function BackupHistory({
                 {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
                 {formatBytes(backup.size)}
               </small>
+              {automaticLabel && (
+                <small
+                  className="mt-[3px] block text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]"
+                  data-automatic-snapshot
+                >
+                  {automaticLabel}
+                </small>
+              )}
             </span>
             <details>
               <summary
