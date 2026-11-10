@@ -2396,6 +2396,8 @@ struct ManagedPsxArchiveExpectation {
     crash_diagnostic: bool,
     #[serde(default)]
     split_mod_paths: bool,
+    #[serde(default)]
+    extra_persistent_paths: Vec<String>,
 }
 
 impl ManagedPsxArchiveExpectation {
@@ -2442,7 +2444,10 @@ impl ManagedPsxArchiveExpectation {
             "bios.cfg",
             "disc.cfg",
             "overlay-captures",
-        ] {
+        ]
+        .into_iter()
+        .chain(self.extra_persistent_paths.iter().map(String::as_str))
+        {
             assert!(
                 port.persistent_paths.iter().any(|path| path == owned),
                 "{id}: {owned}"

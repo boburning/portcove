@@ -25,6 +25,7 @@ import {
   requireAuthenticatedCheckpointEvidence,
   authenticateFixedJobCoordinatorHistory,
   matchesRetainedCatalogBootstrapHandoff,
+  matchesRetainedReviewWithdrawalHandoff,
   retainedCatalogBootstrapClaim,
   retainedApplicationReviewClaim,
   isRetainedApplicationReviewClaimScope,
@@ -995,6 +996,55 @@ void test("the exact historical r51 adoption can hand off to only the r52 applic
       execution_ref: "refs/tags/another",
     }),
     false,
+  );
+});
+
+void test("appointed withdrawal authenticates only the exact retained r53 producer", () => {
+  const retained = retainedApplicationReviewClaim;
+  const checkpoint = { checkpoint: retained.child, previous: retained.previous };
+  const producer = {
+    controller_revision: retained.successor_revision,
+    controller_ref: retained.successor_ref,
+    workflow_sha256: retained.successor_workflow_sha256,
+    run_id: retained.successor_run,
+    job_id: retained.successor_job,
+  };
+  const withdrawal = {
+    schema_version: 1,
+    kind: "application-review-safety-withdrawal",
+    request_id: retained.request_id,
+    source_commit: retained.source,
+    source_tree: retained.source_tree,
+    request_checkpoint: retained.child,
+    approval_sha256: "a".repeat(64),
+    technical_stop_sha256: "b".repeat(64),
+  };
+  assert.ok(matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal));
+  assert.ok(!matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, undefined));
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(
+      { ...checkpoint, previous: null },
+      producer,
+      withdrawal,
+    ),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, { ...producer, run_id: "1" }, withdrawal),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, { ...producer, job_id: "1" }, withdrawal),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, {
+      ...withdrawal,
+      request_id: "a".repeat(64),
+    }),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, {
+      ...withdrawal,
+      source_tree: "a".repeat(40),
+    }),
   );
 });
 

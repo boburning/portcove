@@ -7867,7 +7867,7 @@
     {
       "id": "alexbeav-medievil-recomp",
       "name": "MediEvil / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build a native MediEvil player from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp",
       "issue_number": 461,
       "platforms": [
@@ -7889,26 +7889,31 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+            "title": "Use your original disc and BIOS",
+            "instruction": "Use your own MediEvil (USA) disc (SCUS-94227) with both its data and audio tracks, and your own retail SCPH-1001 BIOS. Keep the original files separately."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+            "title": "Build the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both files in place. Choose Play after Portcove builds the game."
           },
           {
-            "title": "Build the game and add it to Portcove",
-            "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "The current Intel and Apple Silicon generators require macOS 15 or later. Extract the matching official ZIP into a writable folder. Make the Xcode Command Line Tools, CMake, Ninja and Python 3 available for your architecture. Open the upstream MediEvil_Recompiled setup host and choose Generate & rebuild with the matching CUE, both BIN files and your retail BIOS."
+          },
+          {
+            "title": "Add the completed Mac player",
+            "instruction": "In Portcove, select build-release/MediEvil_Recompiled and use build-release as the start folder. Keep the complete working kit and its companion files. You manage replacement and backups for this copy."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package."
+          "Portcove checks the first data track and track count. Keep the complete disc intact.",
+          "The game records offline diagnostics by default, including starting memory cards, settings and inputs. Turn off Input Recording to stop new recordings. Review diagnostic contents before sharing."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep your saves and diagnostics",
+            "instruction": "Close the game before backing up. Portcove retains the declared files of its managed Windows and Linux players. For a Mac copy, preserve the complete working folder, including saves, settings, installed mods and any diagnostic location named beside the player."
           }
         ]
       },
@@ -7931,7 +7936,8 @@
           "-macos-arm64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "original_game_title": "MediEvil"
     },
     {
       "id": "alexbeav-mega-man-legends-2-recomp",

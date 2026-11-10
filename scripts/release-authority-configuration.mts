@@ -7,6 +7,7 @@ import {
   inspectControllerPurposePhase,
 } from "./release-control-phases.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
+import type { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 import { performance } from "node:perf_hooks";
 import {
   coordinatorCommandTimeout,
@@ -212,7 +213,16 @@ async function readControllerSelectedAuthoritySource(role: CapacityExecutorRole)
   return { configuration, purpose, source } as const;
 }
 
-export async function requireControllerFixedJobJournalAuthorities(role: CapacityExecutorRole) {
+export async function requireControllerFixedJobJournalAuthorities(
+  role: CapacityExecutorRole,
+): Promise<{
+  configuration: ReturnType<typeof inspectBoundFixedJobJournalAuthorities>;
+  purpose: ReturnType<typeof inspectControllerExecutionPurpose>;
+  source: Awaited<ReturnType<typeof readControllerSelectedAuthoritySource>>["source"];
+  configuration_sha256: string;
+  authority_configuration_sha256?: string;
+  review_withdrawal?: NonNullable<ReturnType<typeof inspectReleaseReviewWithdrawal>>;
+}> {
   const { configuration, purpose, source } = await readControllerSelectedAuthoritySource(role);
   const raw: unknown = JSON.parse(configuration);
   if (isRecord(raw) && raw.schema_version === 4) {
@@ -223,6 +233,11 @@ export async function requireControllerFixedJobJournalAuthorities(role: Capacity
       source,
       configuration_sha256: selected.journal_configuration_sha256,
       authority_configuration_sha256: selected.configuration_sha256,
+      ...(role === "coordinator" &&
+        selected.configuration.purpose === "application" &&
+        selected.configuration.review_withdrawal && {
+          review_withdrawal: selected.configuration.review_withdrawal,
+        }),
     };
   }
   const selected = inspectBoundFixedJobJournalAuthorities(configuration, source, purpose);

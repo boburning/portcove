@@ -22,6 +22,7 @@ const MAX_ENTRY_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_ENTRIES: usize = 100_000;
 const MAX_PATH_DEPTH: usize = 32;
 const MAX_PATH_BYTES: usize = 1024;
+const MAX_LINK_TARGET_BYTES: u64 = 1024;
 const MAX_COMPONENT_BYTES: usize = 255;
 const MAX_COMPRESSION_RATIO: u64 = 200;
 const TAR_BLOCK_BYTES: u64 = 512;
@@ -366,19 +367,26 @@ fn extract_zip(
     }
     let mut collisions = CollisionSet::default();
     let mut plans = Vec::with_capacity(archive.len());
+    // The ZIP entry whose bytes populate each plan. A file alias reuses its target's entry.
+    let mut sources = Vec::with_capacity(archive.len());
+    let mut files = BTreeMap::<String, usize>::new();
+    let mut aliases = Vec::new();
     for index in 0..archive.len() {
         checkpoint()?;
-        let entry = archive
+        let mut entry = archive
             .by_index(index)
             .map_err(|error| PortcoveError::verification(format!("invalid ZIP entry: {error}")))?;
-        if !entry.is_file() && !entry.is_dir() {
+        let alias = entry
+            .unix_mode()
+            .is_some_and(|mode| mode & 0o170000 == 0o120000);
+        if !alias && !entry.is_file() && !entry.is_dir() {
             return Err(PortcoveError::verification(
                 "ZIP contains an unsupported entry type",
             ));
         }
         if let Some(mode) = entry.unix_mode() {
             let kind = mode & 0o170000;
-            if kind != 0 && kind != 0o100000 && kind != 0o040000 {
+            if kind != 0 && kind != 0o100000 && kind != 0o040000 && !alias {
                 return Err(PortcoveError::verification(
                     "ZIP links and special files are not allowed",
                 ));
@@ -394,7 +402,28 @@ fn extract_zip(
             })?
             .replace('\\', "/");
         let (relative, key) = validate_relative_path(&portable_name, entry.is_dir())?;
-        collisions.insert(key, entry.is_dir())?;
+        let target = if alias {
+            if entry.is_dir() || entry.size() > MAX_LINK_TARGET_BYTES {
+                return Err(PortcoveError::verification(
+                    "ZIP links and special files are not allowed",
+                ));
+            }
+            let mut target = String::new();
+            (&mut entry)
+                .take(MAX_LINK_TARGET_BYTES + 1)
+                .read_to_string(&mut target)
+                .map_err(|_| PortcoveError::verification("ZIP link target is not valid text"))?;
+            Some(target)
+        } else {
+            None
+        };
+        collisions.insert(key.clone(), entry.is_dir())?;
+        if let Some(target) = target {
+            aliases.push((plans.len(), target));
+        } else if !entry.is_dir() {
+            files.insert(key, plans.len());
+        }
+        sources.push(index);
         plans.push(EntryPlan {
             relative,
             directory: entry.is_dir(),
@@ -402,15 +431,63 @@ fn extract_zip(
             size: entry.size(),
         });
     }
+    // A link that names a regular file in this archive is written as a copy of that file.
+    // No link is created, and every other link shape remains refused.
+    for (plan_index, target) in aliases {
+        let resolved = resolve_alias_target(&plans[plan_index].relative, &target)?;
+        let (_, key) = validate_relative_path(&resolved, false)?;
+        let Some(&target_plan) = files.get(&key) else {
+            return Err(PortcoveError::verification(
+                "ZIP links and special files are not allowed",
+            ));
+        };
+        plans[plan_index].size = plans[target_plan].size;
+        plans[plan_index].executable = plans[target_plan].executable;
+        sources[plan_index] = sources[target_plan];
+    }
     validate_plan(destination, &plans, compressed_size)?;
     for (index, plan) in plans.iter().enumerate() {
         checkpoint()?;
         let mut entry = archive
-            .by_index(index)
+            .by_index(sources[index])
             .map_err(|error| PortcoveError::verification(format!("invalid ZIP entry: {error}")))?;
         write_entry(destination, plan, &mut entry, checkpoint)?;
     }
     Ok(())
+}
+
+/// Resolve a relative ZIP link target lexically against the link's directory.
+/// Absolute, empty, backslash, control-character and archive-escaping spellings refuse.
+fn resolve_alias_target(alias: &Path, target: &str) -> Result<String> {
+    let refused = || PortcoveError::verification("ZIP links and special files are not allowed");
+    if target.is_empty()
+        || target.starts_with('/')
+        || target.contains('\\')
+        || target.bytes().any(|byte| byte < 0x20)
+    {
+        return Err(refused());
+    }
+    let mut parts = alias
+        .parent()
+        .into_iter()
+        .flat_map(Path::components)
+        .map(|component| component.as_os_str().to_str().map(str::to_owned))
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(refused)?;
+    for part in target.split('/') {
+        match part {
+            "" => return Err(refused()),
+            "." => {}
+            ".." => {
+                parts.pop().ok_or_else(refused)?;
+            }
+            name => parts.push(name.to_owned()),
+        }
+    }
+    if parts.is_empty() {
+        return Err(refused());
+    }
+    Ok(parts.join("/"))
 }
 
 fn extract_tar_gz(
@@ -1207,6 +1284,163 @@ mod tests {
                 .contains("duplicate")
         );
         assert_eq!(fs::read_dir(destination).unwrap().count(), 0);
+    }
+
+    fn write_zip_with_links(path: &Path, files: &[(&str, &[u8], u32)], links: &[(&str, &str)]) {
+        let mut writer = zip::ZipWriter::new(File::create(path).unwrap());
+        for (name, bytes, mode) in files {
+            let options = zip::write::SimpleFileOptions::default().unix_permissions(*mode);
+            writer.start_file(*name, options).unwrap();
+            writer.write_all(bytes).unwrap();
+        }
+        for (name, target) in links {
+            writer
+                .add_symlink(*name, *target, zip::write::SimpleFileOptions::default())
+                .unwrap();
+        }
+        writer.finish().unwrap();
+    }
+
+    #[test]
+    fn zip_file_links_inside_the_archive_extract_as_regular_copies() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("bundle.zip");
+        let destination = temporary.path().join("out");
+        fs::create_dir_all(&destination).unwrap();
+        write_zip_with_links(
+            &source,
+            &[
+                (
+                    "App.app/Contents/Frameworks/libz.1.3.2.dylib",
+                    b"zlib",
+                    0o755,
+                ),
+                ("App.app/Contents/MacOS/App", b"main", 0o755),
+                ("App.app/Contents/Resources/notes.txt", b"notes", 0o644),
+            ],
+            &[
+                (
+                    "App.app/Contents/Frameworks/libz.1.dylib",
+                    "libz.1.3.2.dylib",
+                ),
+                (
+                    "App.app/Contents/MacOS/libz",
+                    "../Frameworks/./libz.1.3.2.dylib",
+                ),
+                ("App.app/Contents/Resources/Notes.link", "NOTES.TXT"),
+            ],
+        );
+        extract_archive(
+            &source,
+            &destination,
+            "bundle.zip",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap();
+        for copy in [
+            "App.app/Contents/Frameworks/libz.1.dylib",
+            "App.app/Contents/MacOS/libz",
+        ] {
+            let path = destination.join(copy);
+            assert!(fs::symlink_metadata(&path).unwrap().file_type().is_file());
+            assert_eq!(fs::read(&path).unwrap(), b"zlib");
+            #[cfg(unix)]
+            assert_eq!(mode(&path), 0o755);
+        }
+        let notes = destination.join("App.app/Contents/Resources/Notes.link");
+        assert!(fs::symlink_metadata(&notes).unwrap().file_type().is_file());
+        assert_eq!(fs::read(&notes).unwrap(), b"notes");
+        #[cfg(unix)]
+        assert_eq!(mode(&notes), 0o644);
+        assert_eq!(
+            fs::read(destination.join("App.app/Contents/MacOS/App")).unwrap(),
+            b"main"
+        );
+    }
+
+    #[test]
+    fn zip_links_that_do_not_name_a_regular_archive_file_are_refused_before_writing() {
+        let temporary = tempdir().unwrap();
+        for (name, links) in [
+            ("absolute", vec![("dir/link", "/etc/passwd")]),
+            ("escape", vec![("dir/link", "../../outside")]),
+            ("above-root", vec![("link", "../real.bin")]),
+            ("missing", vec![("dir/link", "missing.bin")]),
+            ("directory", vec![("link", "dir")]),
+            ("self", vec![("dir/link", "link")]),
+            ("chain", vec![("dir/a", "b"), ("dir/b", "real.bin")]),
+            ("backslash", vec![("dir/link", "..\\real.bin")]),
+            ("empty", vec![("dir/link", "")]),
+            ("doubled-separator", vec![("dir/link", ".//real.bin")]),
+            ("trailing-separator", vec![("dir/link", "real.bin/")]),
+            ("control", vec![("dir/link", "real\u{1}.bin")]),
+        ] {
+            let source = temporary.path().join(format!("{name}.zip"));
+            let destination = temporary.path().join(format!("out-{name}"));
+            fs::create_dir_all(&destination).unwrap();
+            write_zip_with_links(
+                &source,
+                &[
+                    ("dir/real.bin", b"real", 0o644),
+                    ("real.bin", b"top", 0o644),
+                ],
+                &links,
+            );
+            let outcome = extract_archive(
+                &source,
+                &destination,
+                "fixture.zip",
+                fs::metadata(&source).unwrap().len(),
+            );
+            assert!(outcome.is_err(), "{name}");
+            assert_eq!(fs::read_dir(&destination).unwrap().count(), 0, "{name}");
+        }
+    }
+
+    #[test]
+    fn zip_links_are_counted_against_the_expanded_size_limit() {
+        let temporary = tempdir().unwrap();
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        let payload = (0..64 * 1024)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                (state >> 24) as u8
+            })
+            .collect::<Vec<_>>();
+        let plain = temporary.path().join("plain.zip");
+        write_zip_with_links(&plain, &[("real.bin", &payload, 0o644)], &[]);
+        let plain_output = temporary.path().join("plain-out");
+        fs::create_dir_all(&plain_output).unwrap();
+        extract_archive(
+            &plain,
+            &plain_output,
+            "plain.zip",
+            fs::metadata(&plain).unwrap().len(),
+        )
+        .unwrap();
+
+        let source = temporary.path().join("linked.zip");
+        let destination = temporary.path().join("out");
+        fs::create_dir_all(&destination).unwrap();
+        let names = (0..400)
+            .map(|index| format!("copies/link-{index}"))
+            .collect::<Vec<_>>();
+        let links = names
+            .iter()
+            .map(|name| (name.as_str(), "../real.bin"))
+            .collect::<Vec<_>>();
+        write_zip_with_links(&source, &[("real.bin", &payload, 0o644)], &links);
+        let error = extract_archive(
+            &source,
+            &destination,
+            "linked.zip",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("compression ratio"), "{error}");
+        assert_eq!(fs::read_dir(&destination).unwrap().count(), 0);
     }
 
     #[test]

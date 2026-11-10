@@ -2089,6 +2089,16 @@ extraction, symlink refusal, persistent-data ownership, per-port locking,
 atomic activation, rollback, credential boundaries, and executable trust. See
 [ARCHITECTURE.md](ARCHITECTURE.md) and [PROJECT-GOVERNANCE.md](PROJECT-GOVERNANCE.md).
 
+Managed ZIP extraction never creates a link. A ZIP symlink entry is written as a
+regular copy of its target only when its relative target resolves, inside the same
+archive, to another regular file; absolute, escaping, missing, directory, chained
+and malformed targets refuse before any write, and the copied bytes count toward
+the same size and compression-ratio limits. This covers the dylib version aliases
+in macOS app bundles. A package whose whole payload is one ZIP file is unwrapped one
+level through the same extractor. The exact upstream asset keeps its own identity,
+and any other payload shape is unchanged. These are extraction facts, not native
+Mac execution evidence.
+
 The embedded catalog uses schema 2. It contains reusable identities, logical
 variants, tagged physical representations, explicitly scoped conjunctive digest
 records, per-port game and BIOS contracts, validators, exact qualification facts,
@@ -2892,7 +2902,7 @@ never ownership or continuity evidence. The standalone `--previous-report=PATH`
 accepts bounded comparison evidence and writes no state or issue comments.
 
 The workflow coordinator persists validated main-only observation history and
-automatically drains checkpointed operations of at most 320 requests and 512 new
+automatically drains checkpointed operations of at most 352 requests and 512 new
 location assessments. Individually oversized collections continue by endpoint
 without starving smaller scopes; compatible completed facts retain their original
 24-hour clocks and do not consume another request or new-location slot.

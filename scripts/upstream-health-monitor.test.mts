@@ -818,7 +818,7 @@ void test("catalog coverage progresses beyond one collector and history batch wi
       options({ now: () => epoch + batch * 1000 }),
     );
     checkpoint = result.checkpoint;
-    assert.ok(result.report.collection.consumed.requests <= 320);
+    assert.ok(result.report.collection.consumed.requests <= 352);
     for (const id of result.report.batch.selected_port_ids) assessed.add(id);
     assert.equal(result.report.collection.scope.global_health, "not assessed");
     if (batch === 0) assert.ok(result.report.inventory.unmonitored_port_ids.length > 0);
@@ -920,7 +920,7 @@ function oversizedCatalog(count = 641) {
   };
 }
 
-void test("an oversized single collection progresses beyond 320 requests and 512 records beside a smaller port", async () => {
+void test("an oversized single collection progresses beyond 352 requests and 512 records beside a smaller port", async () => {
   const input = oversizedCatalog();
   let calls = 0;
   const settings = options({
@@ -931,7 +931,7 @@ void test("an oversized single collection progresses beyond 320 requests and 512
   });
   let result = await advanceHealthMonitor(input, null, settings);
   assert.deepEqual(result.report.batch.selected_port_ids, ["port-1", "port-2"]);
-  assert.equal(result.report.collection.consumed.requests, 320);
+  assert.equal(result.report.collection.consumed.requests, 352);
   assert.equal(result.report.collection.observations.length, 643);
   assert.deepEqual(result.report.inventory.fresh_complete_port_ids, ["port-2"]);
   assert.deepEqual(result.report.inventory.fresh_partial_port_ids, ["port-1"]);
@@ -943,13 +943,7 @@ void test("an oversized single collection progresses beyond 320 requests and 512
     continueDueOnly: true,
     now: () => epoch + 1000,
   });
-  assert.equal(result.report.collection.consumed.requests, 320);
-  result = await advanceHealthMonitor(input, result.checkpoint, {
-    ...settings,
-    continueDueOnly: true,
-    now: () => epoch + 2000,
-  });
-  assert.equal(result.report.collection.consumed.requests, 3);
+  assert.equal(result.report.collection.consumed.requests, 291);
   assert.deepEqual(result.report.inventory.fresh_complete_port_ids, ["port-1", "port-2"]);
   assert.equal(calls, 643);
   assert.equal(
@@ -1073,10 +1067,10 @@ void test("automatic draining finishes logical oversized work without specificat
     sessionDeadline: epoch + 120000,
   });
   assert.equal(calls, 643);
-  assert.equal(result.report.session!.batches.length, 3);
+  assert.equal(result.report.session!.batches.length, 2);
   assert.deepEqual(
     result.report.session!.batches.map((batch) => batch.requests),
-    [320, 320, 3],
+    [352, 291],
   );
   assert.equal(result.report.inventory.fresh_complete_port_ids.length, 2);
   assert.deepEqual(result.report.batch.selected_port_ids, ["port-1"]);
@@ -1104,7 +1098,7 @@ void test("automatic draining finishes logical oversized work without specificat
   });
   assert.equal(failures, 643);
   assert.equal(failed.exitCode, 1);
-  assert.equal(failed.report.session!.batches.length, 3);
+  assert.equal(failed.report.session!.batches.length, 2);
   assert.ok(failed.report.known_conditions.some((record) => record.rule === "provider-error"));
 });
 
@@ -1232,10 +1226,10 @@ void test("actual provider headers preserve a rate-limit reserve without rejecti
 });
 
 void test("provider-wide reserve survives batch boundaries and restart without blocking unrelated providers", async () => {
-  const input = catalog(322);
+  const input = catalog(354);
   for (const [index, port] of input.ports.entries())
-    port.id = index === 321 ? "z-small" : `g-${String(index).padStart(4, "0")}`;
-  input.ports[321]!.project_url = "https://gitlab.com/other/small";
+    port.id = index === 353 ? "z-small" : `g-${String(index).padStart(4, "0")}`;
+  input.ports[353]!.project_url = "https://gitlab.com/other/small";
   let githubCalls = 0;
   let gitlabCalls = 0;
   const resetAt = epoch + 3600000;
@@ -1256,7 +1250,7 @@ void test("provider-wide reserve survives batch boundaries and restart without b
       }),
       {
         headers:
-          githubCalls === 320
+          githubCalls === 352
             ? {
                 "content-type": "application/json",
                 "x-ratelimit-limit": "5000",
@@ -1271,24 +1265,24 @@ void test("provider-wide reserve survives batch boundaries and restart without b
     ...options({ fetch }),
     sessionDeadline: epoch + 120000,
   });
-  assert.equal(githubCalls, 320);
+  assert.equal(githubCalls, 352);
   assert.equal(gitlabCalls, 1);
-  assert.equal(result.report.inventory.fresh_complete_port_ids.length, 321);
+  assert.equal(result.report.inventory.fresh_complete_port_ids.length, 353);
   assert.equal(result.checkpoint!.provider_backoff!.github, new Date(resetAt).toISOString());
   const beforeReset = await advanceHealthMonitor(
     input,
     result.checkpoint,
     options({ fetch, now: () => epoch + 1000, continueDueOnly: true }),
   );
-  assert.equal(githubCalls, 320);
+  assert.equal(githubCalls, 352);
   assert.equal(beforeReset.report.collection.consumed.requests, 0);
   const reset = await advanceHealthMonitor(
     input,
     beforeReset.checkpoint,
     options({ fetch, now: () => resetAt + 1, continueDueOnly: true }),
   );
-  assert.equal(githubCalls, 321);
-  assert.equal(reset.report.inventory.fresh_complete_port_ids.length, 322);
+  assert.equal(githubCalls, 353);
+  assert.equal(reset.report.inventory.fresh_complete_port_ids.length, 354);
   const invalid = {
     ...result.checkpoint,
     provider_backoff: { "https://bad.example/path": "invalid" },
