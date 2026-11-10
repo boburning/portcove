@@ -764,6 +764,58 @@ void test("catalog diagnostics retain only fixed refusal stages and no exception
   );
 });
 
+void test("coordinator transport refuses a retained bootstrap failure before successful settlement", async (t) => {
+  const {
+    applicationCoordinatorRefusal,
+    applicationCoordinatorRefusalFile,
+    CoordinatorRemoteError,
+  } = await import("./release-coordinator-errors.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "coordinator-bootstrap-settlement-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await retainControllerJobSettlement(root, "coordinator", 0, false);
+  await writeFile(
+    path.join(root, applicationCoordinatorRefusalFile),
+    JSON.stringify(
+      applicationCoordinatorRefusal(
+        new CoordinatorRemoteError("private", { phase: "bootstrap-worker-settlement" }),
+      ),
+    ),
+  );
+  await assert.rejects(
+    nextControllerTransport(root, "coordinator", 1, performance.now() + 5000),
+    /coordinator refused/,
+  );
+});
+
+void test(
+  "coordinator transport detects its exited original worker without waiting for its full budget",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "coordinator-worker-ended-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const current = await observeLinuxControllerProcessStart(process.pid);
+    assert.ok(current);
+    await writeFile(
+      path.join(root, "controller-worker-coordinator-started.json"),
+      JSON.stringify({
+        operation: "coordinator",
+        phase: "coordinator",
+        pid: process.pid,
+        start_ticks: current.start_ticks === "1" ? "2" : "1",
+      }),
+    );
+    await assert.rejects(
+      nextControllerTransport(root, "coordinator", 1, performance.now() + 5000),
+      /exited without settlement/,
+    );
+    await retainControllerJobSettlement(root, "coordinator", 0, false);
+    assert.deepEqual(
+      await nextControllerTransport(root, "coordinator", 1, performance.now() + 5000),
+      { kind: "done" },
+    );
+  },
+);
+
 void test("application coordinator diagnostics retain a closed refusal without exception data", async (t) => {
   const {
     CoordinatorRemoteError,

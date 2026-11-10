@@ -19,6 +19,11 @@ const applicationCheckpointStages: readonly string[] = [
 ];
 
 const applicationRefusalStages: readonly string[] = [
+  "bootstrap-source-admission",
+  "bootstrap-job-clock",
+  "bootstrap-tool-custody",
+  "bootstrap-attested-worker",
+  "bootstrap-worker-settlement",
   "remote-recovery",
   "exact-qualified-neutral-request-gate",
   "actual-terminal-context-readback-recovery",
