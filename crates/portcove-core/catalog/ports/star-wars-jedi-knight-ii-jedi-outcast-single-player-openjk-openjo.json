@@ -99,6 +99,12 @@
       "windows-x86-64": ["openjo_sp.x86_64.exe"]
     },
     "persistent_paths": ["base"],
-    "windows_runtime_path_policy": "printable-ascii-max-path"
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["openjk"],
+        "executables": ["openjo_sp.x86_64.exe"]
+      }
+    }
   }
 }

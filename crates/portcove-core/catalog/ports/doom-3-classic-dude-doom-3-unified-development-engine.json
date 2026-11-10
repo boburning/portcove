@@ -89,6 +89,12 @@
       "base/pak007.pk4",
       "base/pak008.pk4"
     ],
-    "windows_runtime_path_policy": "printable-ascii-max-path"
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["base", "d3le", "d3xp"],
+        "executables": ["dude.exe"]
+      }
+    }
   }
 }

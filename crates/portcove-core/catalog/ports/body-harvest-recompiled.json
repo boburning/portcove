@@ -77,6 +77,10 @@
       "linux-x86-64": {
         "directories": ["assets"],
         "executables": ["bodyharvestrecompiled"]
+      },
+      "windows-x86-64": {
+        "directories": ["assets"],
+        "executables": ["bodyharvestrecompiled.exe"]
       }
     }
   },
