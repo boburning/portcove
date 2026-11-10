@@ -3189,6 +3189,47 @@ mod tests {
                 .asset_hints
                 .insert(Platform::LinuxX86_64, vec![hint.into()]);
         }
+        // Reviewed macOS additions after the frozen input: universal app bundles for
+        // three ports and an Apple Silicon bundle for Donkey Kong 64.
+        for (id, platforms, hint, executable) in [
+            (
+                "bm64-recomp",
+                &[Platform::MacosX86_64, Platform::MacosAarch64][..],
+                "macOS-Release.zip",
+                "BM64Recompiled",
+            ),
+            (
+                "bomberman-hero-recomp",
+                &[Platform::MacosX86_64, Platform::MacosAarch64][..],
+                "macOS-Release.zip",
+                "BMHeroRecompiled",
+            ),
+            (
+                "goemon64-recomp",
+                &[Platform::MacosX86_64, Platform::MacosAarch64][..],
+                "macOS-Release.zip",
+                "Goemon64Recompiled",
+            ),
+            (
+                "donkey-kong-64-recompiled",
+                &[Platform::MacosAarch64][..],
+                "macOS-ARM64",
+                "DK64Recompiled",
+            ),
+        ] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            for platform in platforms {
+                port.platforms.push(*platform);
+                port.release
+                    .asset_hints
+                    .insert(*platform, vec![hint.into()]);
+                port.executable_hints
+                    .insert(*platform, vec![executable.into()]);
+            }
+        }
         for id in ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"] {
             let port = expected_ports
                 .iter_mut()
