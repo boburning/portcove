@@ -26,6 +26,8 @@ import {
   authenticateFixedJobCoordinatorHistory,
   matchesRetainedCatalogBootstrapHandoff,
   matchesRetainedCatalogAdoptionWithdrawal,
+  matchesRetainedCatalogForwardAdoptionHandoff,
+  retainedCatalogForwardAdoptionClaim,
   matchesRetainedReviewWithdrawalHandoff,
   retainedCatalogBootstrapClaim,
   retainedApplicationReviewClaim,
@@ -1108,5 +1110,60 @@ void test("catalog adoption can authenticate only the exact settled r63 withdraw
         "catalog-publication",
       ),
       false,
+    );
+});
+
+void test("only the appointed successor and exact r66 adoption producer can carry the shared journal", () => {
+  const claim = retainedCatalogForwardAdoptionClaim;
+  const checkpoint = { checkpoint: claim.child, previous: claim.previous };
+  const source = { execution_ref: "refs/tags/portcove-production-controller-20261110r67" };
+  const producer = {
+    controller_revision: "d6918c546f8080bf3cb033ddb065ce9a65a4d7f2",
+    controller_ref: claim.successor_ref,
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42774078033",
+    run_attempt: 1,
+    job_id: "129690072424",
+    check_run_id: "129690072424",
+  };
+  for (const purpose of ["application", "catalog-publication"] as const)
+    assert.equal(
+      matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose),
+      true,
+    );
+  assert.equal(
+    matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, undefined),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogForwardAdoptionHandoff(
+      checkpoint,
+      producer,
+      { execution_ref: claim.successor_ref },
+      "application",
+    ),
+    false,
+  );
+  for (const [key, value] of Object.entries(producer))
+    assert.equal(
+      matchesRetainedCatalogForwardAdoptionHandoff(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : value + "0" },
+        source,
+        "catalog-publication",
+      ),
+      false,
+      key,
+    );
+  for (const key of ["checkpoint", "previous"] as const)
+    assert.equal(
+      matchesRetainedCatalogForwardAdoptionHandoff(
+        { ...checkpoint, [key]: "0".repeat(40) },
+        producer,
+        source,
+        "catalog-publication",
+      ),
+      false,
+      key,
     );
 });
