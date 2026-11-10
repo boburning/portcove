@@ -22781,8 +22781,8 @@
         "linux-x86-64"
       ],
       "availability": "packages",
-      "release_url": "https://github.com/power-pudu/egg-of-time/releases/tag/v1.1.0",
-      "setup_url": "https://github.com/power-pudu/egg-of-time/blob/022434b1e7f309673a11c226e0cccf13b2140226/README.md",
+      "release_url": "https://github.com/power-pudu/egg-of-time/releases",
+      "setup_url": "https://github.com/power-pudu/egg-of-time#readme",
       "download_block_reason": "Portcove downloads are paused while the first-start build tools and recovery are being reviewed. The guide covers a copy you already trust and are permitted to use.",
       "manual_setup": {
         "steps": [
@@ -22792,11 +22792,11 @@
           },
           {
             "title": "Start the Windows x64 package",
-            "instruction": "Extract EggOfTime-v1.1.0-windows-x64.zip into a writable folder and open Egg of Time.exe. The package includes the tools for the first-start build."
+            "instruction": "Use a trusted EggOfTime Windows x64 ZIP ending in -windows-x64.zip. Extract it into a writable folder and open Egg of Time.exe. The package includes the tools for the local first-start build."
           },
           {
             "title": "Start the Linux x64 package",
-            "instruction": "Use glibc 2.35 or newer, Python 3, a C compiler and libcurl. For the file picker, use xdg-desktop-portal or zenity. Extract EggOfTime-v1.1.0-linux-x64.tar.gz and run ./\"Egg of Time\" from its folder, or make the separate EggOfTime-v1.1.0-x86_64.AppImage executable and open it."
+            "instruction": "The current Linux x64 packages need glibc 2.35 or newer, Python 3 and libcurl. They include Zig for the first-start build. The file picker uses xdg-desktop-portal or zenity. Extract the -linux-x64.tar.gz package and start Egg of Time from its folder, or make the separate x86-64 AppImage executable and open it."
           },
           {
             "title": "Let Egg of Time build your game",
@@ -22808,7 +22808,7 @@
           "Keep your ROM, extracted assets, generated game code and saves private. Close Egg of Time and wait for any build to finish before replacing the package or copying its data.",
           "The upstream macOS runtime compiles from source. Upstream lists a full Mac game build as untested."
         ],
-        "help_url": "https://github.com/power-pudu/egg-of-time/blob/022434b1e7f309673a11c226e0cccf13b2140226/README.md",
+        "help_url": "https://github.com/power-pudu/egg-of-time#readme",
         "references": [
           {
             "title": "Find the data for your package",
@@ -25043,12 +25043,17 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Start playing",
-            "instruction": "The official package includes the game. Choose Play after installation; no separate commercial files, extraction step or installer is required."
+            "title": "Start the managed Windows game",
+            "instruction": "The official Windows package includes the game. Choose Play after installation."
+          },
+          {
+            "title": "Install the upstream Mac app",
+            "instruction": "Choose the ZIP for your Mac processor, extract its DMG and copy SDL Sopwith.app into Applications. The inspected Intel build needs macOS 13 and the Apple silicon build needs macOS 15. Keep your SDL Sopwith settings and high scores before replacing the Mac app."
           }
         ],
         "warnings": [
-          "This project has not been verified for play through Portcove."
+          "This project has not been verified for play through Portcove.",
+          "You and upstream own the Mac setup, updates and preference files."
         ],
         "help_url": "https://github.com/fragglet/sdl-sopwith/blob/sdl-sopwith-2.9.0/README.md"
       },
@@ -25061,7 +25066,9 @@
         "match_kind": "underlying-game"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -29897,7 +29904,7 @@
           },
           {
             "title": "Choose the Linux AppImage for your processor",
-            "instruction": "The v0.22.1 x86-64 AppImage opens the upstream launcher. The aarch64 and armhf AppImages start ja2 directly. For the direct entry, configure game_dir in ~/.ja2/ja2.json and use -resversion with your localization if needed. The armhf runtime uses libfuse.so.2. Keep the x86-64 launcher open until its game exits."
+            "instruction": "The inspected x86-64 AppImage opens the upstream launcher. The aarch64 and armhf AppImages start ja2 directly. For the direct entry, configure game_dir in ~/.ja2/ja2.json and use -resversion with your localization if needed. The armhf runtime uses libfuse.so.2. Keep the x86-64 launcher open until its game exits."
           }
         ],
         "warnings": [
@@ -29906,11 +29913,11 @@
         "references": [
           {
             "title": "Open the Apple silicon Mac app",
-            "instruction": "Mount the v0.22.1 DMG and copy JA2 Stracciatella.app out of it. Both the launcher and player in this build need Apple silicon and macOS 15 or later. Start the app to configure your original data and localization."
+            "instruction": "Mount the Apple silicon DMG and copy JA2 Stracciatella.app out of it. Both the launcher and player in this build need Apple silicon and macOS 15 or later. Start the app to configure your original data and localization."
           },
           {
             "title": "Configure the Android APK",
-            "instruction": "Use the v0.22.1 APK on a compatible device that allows its storage access. In the Data tab choose your original game folder and version, then choose a separate Save Game Directory if needed. Keep the originals and your effective save location before replacing the app. This APK uses io.github.ja2stracciatella and targets Android API 26."
+            "instruction": "Use the upstream APK on a compatible device that allows its storage access. In the Data tab choose your original game folder and version, then choose a separate Save Game Directory if needed. Keep the originals and your effective save location before replacing the app. The inspected APK uses io.github.ja2stracciatella, targets Android API 26, and contains ARM64, ARMv7, x86 and x86-64 native libraries."
           }
         ],
         "help_url": "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/11e9430b67d788b73f7a57d22166e8b500c23dab/README.md"
@@ -30206,7 +30213,7 @@
       "project_url": "https://github.com/JGRennison/OpenTTD-patches",
       "issue_number": 1859,
       "availability": "packages",
-      "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md",
+      "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md",
       "artwork": {
         "game_id": 5502,
         "cover_id": 85659,
@@ -30215,20 +30222,31 @@
         "game_slug": "transport-tycoon-deluxe",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/JGRennison/OpenTTD-patches/releases/tag/jgrpp-0.73.4",
+      "release_url": "https://github.com/JGRennison/OpenTTD-patches/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Start the game",
             "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
+          },
+          {
+            "title": "Set up the Linux game yourself",
+            "instruction": "Choose the upstream generic Linux AMD64 archive with the -linux-generic-amd64.tar.xz suffix. Extract it into a folder you own and run openttd from the extracted folder. Keep its lib and data folders together. Back up your effective OpenTTD configuration, saves and downloaded content before changing the package."
+          },
+          {
+            "title": "Set up the Mac app yourself",
+            "instruction": "Mount the upstream universal Mac DMG and copy OpenTTD.app into your Applications folder. The inspected player needs macOS 10.15 on Intel or macOS 11 on Apple silicon. Keep the JGR Patch Pack app and its effective profile with saves created by that build."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md"
+        "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md"
       },
       "original_game_title": "OpenTTD",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -35505,6 +35523,10 @@
           {
             "title": "Select an existing native player",
             "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder."
+          },
+          {
+            "title": "Set up the upstream Mac app",
+            "instruction": "Expand the universal Mac ZIP with macOS Archive Utility and keep the complete Stunts HD.app. The inspected app needs macOS 11 on Intel or Apple silicon. Start the app and choose your own Stunts 1.1 folder or ZIP. Follow macOS security prompts for a copy you trust."
           }
         ],
         "warnings": [
@@ -35515,7 +35537,7 @@
         "references": [
           {
             "title": "Profile locations and alternatives",
-            "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned."
+            "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. On Mac, preserve the app's effective user profile and export destinations. Mac, Windows ARM64 and Linux ARM64 or AppImage setup stay with upstream."
           }
         ],
         "help_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md"
@@ -35532,7 +35554,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -40703,7 +40727,8 @@
       "original_game_title": "Alley Cat",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/petarov/alleycat.exe#readme",
@@ -40722,7 +40747,7 @@
           },
           {
             "title": "Keep a permitted existing player together",
-            "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose alleycat.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses alleycat and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. Mac versions follow their own upstream instructions. Registration preserves external ownership and does not grant permission to use a copy."
+            "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose alleycat.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses alleycat and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. For a permitted existing Mac copy, keep the Intel alleycat player next to its original SDL2.framework and follow upstream's Mac instructions. Apple silicon uses Rosetta 2 for this Intel build. Registration preserves external ownership and does not grant permission to use a copy."
           }
         ],
         "references": [
@@ -40742,7 +40767,8 @@
       "original_game_title": "Saboteur II: Avenging Angel",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/petarov/saboteur2#readme",
@@ -40760,7 +40786,7 @@
           },
           {
             "title": "Keep a permitted existing player together",
-            "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose saboteur2.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses saboteur2 and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. Mac versions follow their own upstream instructions. Registration preserves external ownership and does not grant permission to use a copy."
+            "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose saboteur2.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses saboteur2 and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. For a permitted existing Mac copy, keep the Intel saboteur2 player next to its original SDL2.framework and follow upstream's Mac instructions. Apple silicon uses Rosetta 2 for this Intel build. Registration preserves external ownership and does not grant permission to use a copy."
           }
         ],
         "references": [
@@ -46676,11 +46702,16 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
+          },
+          {
+            "title": "Prepare the upstream Linux player",
+            "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together and copy your own matching classic .gro files and the Help and Levels folders into that encounter folder. The player is x64/SamTFE/Bin/SeriousSam. Start it from that Bin directory with the local library search path used in the upstream launch instructions. Install system SDL2 and keep your effective user profile."
           }
         ],
         "warnings": [
-          "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+          "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement.",
+          "The inspected Intel Mac archive refers to the build machine for engine libraries and expects SDL2 at a system path. Keep using a working upstream build or wait for a compatible package."
         ],
         "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
         "references": [
@@ -46691,7 +46722,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -46731,11 +46763,16 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
+          },
+          {
+            "title": "Prepare the upstream Linux player",
+            "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTSE together and copy your own matching classic .gro files and the Help folder into that encounter folder. The player is x64/SamTSE/Bin/SeriousSam. Start it from that Bin directory with the local library search path used in the upstream launch instructions. Install system SDL2 and keep your effective user profile."
           }
         ],
         "warnings": [
-          "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+          "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement.",
+          "The inspected Intel Mac archive refers to the build machine for engine libraries and expects SDL2 at a system path. Keep using a working upstream build or wait for a compatible package."
         ],
         "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
         "references": [
@@ -46746,7 +46783,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {

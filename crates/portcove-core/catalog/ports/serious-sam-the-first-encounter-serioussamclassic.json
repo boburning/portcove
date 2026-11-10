@@ -34,11 +34,16 @@
         },
         {
           "title": "Add the game and manage your files",
-          "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+          "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
+        },
+        {
+          "title": "Prepare the upstream Linux player",
+          "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together and copy your own matching classic .gro files and the Help and Levels folders into that encounter folder. The player is x64/SamTFE/Bin/SeriousSam. Start it from that Bin directory with the local library search path used in the upstream launch instructions. Install system SDL2 and keep your effective user profile."
         }
       ],
       "warnings": [
-        "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+        "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement.",
+        "The inspected Intel Mac archive refers to the build machine for engine libraries and expects SDL2 at a system path. Keep using a working upstream build or wait for a compatible package."
       ],
       "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
       "references": [
@@ -47,7 +52,8 @@
           "instruction": "Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
         }
       ]
-    }
+    },
+    "platforms": ["linux-x86-64"]
   },
   "upstream_lineage": {
     "format_version": 1,
