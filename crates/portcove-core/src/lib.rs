@@ -84,6 +84,7 @@ mod process;
 mod provider_observation;
 mod providers;
 pub use provider_observation::inspect_provider_observation;
+mod profile;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
@@ -272,6 +273,11 @@ pub use preparation::{
     PreparationPlan, PreparationTool,
 };
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
+pub use profile::{
+    LoaderContractRef, OriginalAvailability, OriginalBinding, OriginalStatus, Profile,
+    ProfileIntent, ProfileInventory, ProfileRevision, ProfileRevisionRequest, ProfileUpdatePolicy,
+    ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage, TypedOrdering,
+};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use release::{

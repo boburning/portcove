@@ -17,7 +17,7 @@ use crate::{
 
 #[cfg(test)]
 #[path = "retained_build_tests.rs"]
-mod tests;
+pub(crate) mod tests;
 
 pub(crate) const MAX_REFERENCES: usize = 4096;
 /// Superseded builds one setup may keep offered for recovery. Reaching the bound
@@ -427,8 +427,48 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::state("retained-build review was not consumed"))?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        require_idle(&transaction, port_id)?;
-        if reference_from(&transaction, port_id, setup_id)? != preview.previous {
+        let reference = self.publish_binding(
+            &transaction,
+            port_id,
+            setup_id,
+            install_id,
+            preview.build,
+            preview.previous.as_ref(),
+        )?;
+        transaction.commit()?;
+        self.reference_committed(&reference)?;
+        Ok(reference)
+    }
+
+    /// Verifies one exact build outside any transaction, as binding review does.
+    pub(crate) fn verified_retained_build(
+        &self,
+        port_id: &str,
+        install_id: &str,
+    ) -> Result<RetainedBuildIdentity> {
+        validate_identifier(port_id, "port ID")?;
+        let install = Library::install_by_id(&self.library.connection()?, Some(install_id))?
+            .filter(|install| install.port_id == port_id)
+            .ok_or_else(|| {
+                PortcoveError::not_found("exact installation ID is not registered for this port")
+            })?;
+        self.check_retained_build(&install)
+    }
+
+    /// Writes the next binding inside the caller's immediate transaction, leaving the
+    /// commit to the caller so related durable rows publish atomically with it. The
+    /// caller holds the port lock and supplies the previous reference it reviewed.
+    pub(crate) fn publish_binding(
+        &self,
+        transaction: &rusqlite::Transaction<'_>,
+        port_id: &str,
+        setup_id: &str,
+        install_id: &str,
+        build: RetainedBuildIdentity,
+        previous: Option<&RetainedBuildReference>,
+    ) -> Result<RetainedBuildReference> {
+        require_idle(transaction, port_id)?;
+        if reference_from(transaction, port_id, setup_id)?.as_ref() != previous {
             return Err(PortcoveError::conflict(
                 "setup reference changed after review",
             ));
@@ -436,7 +476,7 @@ impl PortcoveService {
         // Serialize the final current-policy decision with durable publication.
         // Policy admissions use this same SQLite writer boundary. The port lock
         // already protects ordinary managed byte changes during verification.
-        let install = Library::install_by_id(&transaction, Some(install_id))?
+        let install = Library::install_by_id(transaction, Some(install_id))?
             .ok_or_else(|| PortcoveError::conflict("referenced installation disappeared"))?;
         let installer = Installer::new(self.library.clone())?;
         let catalog = installer.retained_catalog(&install)?.ok_or_else(|| {
@@ -444,33 +484,31 @@ impl PortcoveService {
         })?;
         self.require_retained_build_permission(&installer, &install, &catalog)?;
         let now = Library::now();
-        let history = successor_history(preview.previous.as_ref(), &preview.build, now)?;
+        let history = successor_history(previous, &build, now)?;
         let reference = RetainedBuildReference {
-            id: preview
-                .previous
-                .as_ref()
-                .map_or_else(|| uuid::Uuid::new_v4().to_string(), |r| r.id.clone()),
+            id: previous.map_or_else(|| uuid::Uuid::new_v4().to_string(), |r| r.id.clone()),
             setup_id: setup_id.into(),
-            build: preview.build,
+            build,
             history,
-            revision: preview
-                .previous
-                .as_ref()
+            revision: previous
                 .map_or(Some(1), |r| r.revision.checked_add(1))
                 .ok_or_else(|| {
                     PortcoveError::state("retained-build reference revision exhausted")
                 })?,
-            created_at: preview.previous.as_ref().map_or(now, |r| r.created_at),
-            updated_at: preview
-                .previous
-                .as_ref()
-                .map_or(now, |r| now.max(r.updated_at)),
+            created_at: previous.map_or(now, |r| r.created_at),
+            updated_at: previous.map_or(now, |r| now.max(r.updated_at)),
         };
-        write_reference(&transaction, &reference)?;
+        write_reference(transaction, &reference)?;
         self.reference_publication_checkpoint()?;
-        transaction.commit()?;
-        self.reference_committed(&reference)?;
         Ok(reference)
+    }
+
+    pub(crate) fn current_retained_reference(
+        &self,
+        port_id: &str,
+        setup_id: &str,
+    ) -> Result<Option<RetainedBuildReference>> {
+        reference_from(&self.library.connection()?, port_id, setup_id)
     }
 
     pub fn preview_retained_build_removal(

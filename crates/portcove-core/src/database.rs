@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 45;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 46;
 
 struct Migration {
     version: i64,
@@ -294,7 +294,22 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_45,
         verify: verify_migration_45,
     },
+    Migration {
+        version: 46,
+        name: "stable local profiles and immutable revisions",
+        apply: migration_46,
+        verify: verify_migration_46,
+    },
 ];
+
+fn migration_46(transaction: &Transaction<'_>) -> Result<()> {
+    crate::profile::migrate(transaction)?;
+    verify_migration_46(transaction)
+}
+
+fn verify_migration_46(connection: &Connection) -> Result<()> {
+    crate::profile::verify_migration(connection)
+}
 
 fn migration_45(transaction: &Transaction<'_>) -> Result<()> {
     // On by default: existing libraries gain the protection without a decision.
