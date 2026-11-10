@@ -1090,6 +1090,9 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
   expect(dialog()?.textContent).toContain(
     "Keeping the previous game version is separate from backing up saved data",
   );
+  expect(dialog()?.textContent).toContain(
+    "Portcove first takes an automatic snapshot of its saves and settings",
+  );
   expect(dialog()?.textContent).toContain(notice);
   expect(dialog()?.textContent).toContain("No download; use the verified local release");
   expect(dialog()?.textContent).not.toContain("Download for later");
