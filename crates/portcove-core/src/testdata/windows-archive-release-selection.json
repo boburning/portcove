@@ -32,6 +32,18 @@
       "selected_assets": [
         "z2rs-0.5.2-x86_64-pc-windows-msvc.zip",
         "z2rs-0.6.0-x86_64-pc-windows-msvc.zip"
+      ],
+      "linux_selected_assets": [
+        "z2rs-0.5.2-x86_64-unknown-linux-gnu.tar.gz",
+        "z2rs-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
+      ],
+      "macos_x86_64_selected_assets": [
+        "z2rs-0.5.2-x86_64-apple-darwin.zip",
+        "z2rs-0.6.0-x86_64-apple-darwin.zip"
+      ],
+      "macos_aarch64_selected_assets": [
+        "z2rs-0.5.2-aarch64-apple-darwin.zip",
+        "z2rs-0.6.0-aarch64-apple-darwin.zip"
       ]
     },
     "nhl-94-genesis-ninety-four": {
@@ -7238,26 +7250,6 @@
     ]
   },
   "other_zip_assets": [
-    {
-      "inventory": "z2rs",
-      "release_index": 0,
-      "asset": "z2rs-0.5.2-aarch64-apple-darwin.zip"
-    },
-    {
-      "inventory": "z2rs",
-      "release_index": 0,
-      "asset": "z2rs-0.5.2-x86_64-apple-darwin.zip"
-    },
-    {
-      "inventory": "z2rs",
-      "release_index": 1,
-      "asset": "z2rs-0.6.0-aarch64-apple-darwin.zip"
-    },
-    {
-      "inventory": "z2rs",
-      "release_index": 1,
-      "asset": "z2rs-0.6.0-x86_64-apple-darwin.zip"
-    },
     {
       "inventory": "ninety_four",
       "release_index": 0,

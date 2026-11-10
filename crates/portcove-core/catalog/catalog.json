@@ -53946,7 +53946,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
@@ -53957,6 +53960,36 @@
             "z2rs-launcher.exe",
             "z2rs.exe"
           ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "z2-signal",
+            "z2rs",
+            "z2rs-launcher"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [
+            "z2rs.app"
+          ],
+          "executables": [
+            "z2rs",
+            "z2rs.app/contents/macos/z2-signal",
+            "z2rs.app/contents/macos/z2rs",
+            "z2rs.app/contents/macos/z2rs-launcher"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [
+            "z2rs.app"
+          ],
+          "executables": [
+            "z2rs",
+            "z2rs.app/contents/macos/z2-signal",
+            "z2rs.app/contents/macos/z2rs",
+            "z2rs.app/contents/macos/z2rs-launcher"
+          ]
         }
       },
       "release": {
@@ -53966,12 +53999,33 @@
           "windows-x86-64": [
             "z2rs-",
             "-x86_64-pc-windows-msvc.zip"
+          ],
+          "linux-x86-64": [
+            "z2rs-",
+            "-x86_64-unknown-linux-gnu.tar.gz"
+          ],
+          "macos-x86-64": [
+            "z2rs-",
+            "-x86_64-apple-darwin.zip"
+          ],
+          "macos-aarch64": [
+            "z2rs-",
+            "-aarch64-apple-darwin.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "z2rs.exe"
+        ],
+        "linux-x86-64": [
+          "z2rs"
+        ],
+        "macos-x86-64": [
+          "z2rs.app/Contents/MacOS/z2rs"
+        ],
+        "macos-aarch64": [
+          "z2rs.app/Contents/MacOS/z2rs"
         ]
       },
       "persistent_paths": [
@@ -53981,14 +54035,14 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose Play to start z2rs.exe directly. Drag your own supported USA NES ROM onto the window. The game reads it in place and remembers its path. Keep the ROM outside the managed runtime. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: .z2rs-data. Its backup does not include external profiles. Back up your external z2rs profile before changing versions. Upstream checks XDG_DATA_HOME, APPDATA, then HOME. For the managed player, any of those roots that you set must be absolute. Use a separately prepared copy for relative roots, a custom data_dir_override, or launcher-only options. Portcove preserves the fixed .z2rs-data fallback. Runtime rollback does not establish save-state compatibility.",
+        "manual_preparation": "Choose Play to start the direct z2rs player. Drag your own supported USA NES ROM onto the game window. The player reads it in place and remembers its path. Keep the ROM outside the managed runtime. Use upstream setup for the separate launcher and Android. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: .z2rs-data. Its backup does not include external profiles. Back up your external z2rs profile before changing versions. Use an absolute personal profile and the default data directory. Use a separately prepared copy for relative paths, a custom data_dir_override or launcher-only options. Windows and Linux can use the fixed .z2rs-data fallback when the upstream environment supplies no profile root. On Mac, use an absolute XDG_DATA_HOME or HOME outside the managed library. Runtime rollback does not establish save-state compatibility. The inspected Linux packages require glibc 2.39, libudev.so.1, libasound.so.2 and libgcc_s.so.1.",
         "original_game_title": "Zelda II: The Adventure of Link",
         "manual_setup": {
           "help_url": "https://github.com/troyedwardsjr/z2rs/blob/4c5e34418017cfda71ea0ca09c952ff93ba1591c/README.md",
           "steps": [
             {
               "title": "Drop your own Zelda II USA ROM into the game window",
-              "instruction": "Choose Play to start z2rs.exe directly. Drag your own supported USA NES ROM onto the window. The game reads it in place and remembers its path. Keep the ROM outside the managed runtime."
+              "instruction": "Choose Play to start the direct z2rs player. Drag your own supported USA NES ROM onto the game window. The player reads it in place and remembers its path. Keep the ROM outside the managed runtime. Use upstream setup for the separate launcher and Android."
             },
             {
               "title": "Keep the upstream package and prepare your own original",
@@ -54003,13 +54057,14 @@
               "instruction": "Keep %APPDATA%/z2rs on Windows, or the existing XDG_DATA_HOME/z2rs override, including z2-native.json, battery saves, savestate*.z2snap and other user files. Preserve the original ROM’s separate path, optional HD packs, randomizer outputs and existing custom config paths. Do not assume save-state compatibility beyond upstream’s documented format, import another project’s saves or reset populated options to add the reference. The ROM is not copied into the default data directory. Online co-op, the signalling service, HD packs and Discord presence are upstream options; Portcove does not enable services, supply credentials or configure them. The launcher starts a separate game process: Portcove follows the selected program only, and its activity can finish while the game continues. Close the actual game and helpers before replacing the complete upstream release or recovering files. Review/select the executable after updates. Reference removal preserves external files; Portcove does not replace or back up this external copy."
             },
             {
-              "title": "Select the prepared Windows player",
+              "title": "Select the prepared player",
               "instruction": "Select z2rs.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],
           "warnings": [
             "Use your own exact USA ROM. If you attach the prepared launcher, select z2rs-launcher.exe from the complete external package. Preserve %APPDATA%/z2rs and the ROM’s original path; the selected launcher does not establish full-game lifetime.",
-            "Back up your external z2rs profile before changing versions. Upstream checks XDG_DATA_HOME, APPDATA, then HOME. For the managed player, any of those roots that you set must be absolute. Use a separately prepared copy for relative roots, a custom data_dir_override, or launcher-only options. Portcove preserves the fixed .z2rs-data fallback. Runtime rollback does not establish save-state compatibility."
+            "Back up your external z2rs profile before changing versions. Use an absolute personal profile and the default data directory. Use a separately prepared copy for relative paths, a custom data_dir_override or launcher-only options. Windows and Linux can use the fixed .z2rs-data fallback when the upstream environment supplies no profile root. On Mac, use an absolute XDG_DATA_HOME or HOME outside the managed library. Runtime rollback does not establish save-state compatibility.",
+            "The inspected Linux packages require glibc 2.39, libudev.so.1, libasound.so.2 and libgcc_s.so.1."
           ],
           "references": [
             {
@@ -54034,7 +54089,8 @@
           "game_slug": "zelda-ii-the-adventure-of-link",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "external_profile_policy": "z2rs-desktop-v1"
     },
     {
       "id": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",

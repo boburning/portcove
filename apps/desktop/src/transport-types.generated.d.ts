@@ -335,7 +335,8 @@ export type ExternalProfilePolicy =
   | "corsixth-linux-v1"
   | "openloco-unix-v1"
   | "jgrpp-linux-v1"
-  | "openglad-mac-v1";
+  | "openglad-mac-v1"
+  | "z2rs-desktop-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {

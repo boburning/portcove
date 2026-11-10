@@ -1709,12 +1709,13 @@ impl PortcoveService {
         // cannot be read, treat the data as managed: copying Portcove's own saved-data
         // folder is harmless, whereas refusing here could block a rollback, which is
         // the recovery path.
-        if self
-            .installed_port(contract_install)
-            .ok()
-            .and_then(|port| port.presentation)
-            .is_some_and(|p| p.saves_and_settings == SavesAndSettingsBehavior::ExternalUserOwned)
-        {
+        if self.installed_port(contract_install).is_ok_and(|port| {
+            port.presentation.as_ref().is_some_and(|p| {
+                p.saves_and_settings == SavesAndSettingsBehavior::ExternalUserOwned
+            }) && !crate::Platform::current().is_ok_and(|platform| {
+                crate::native_external_profile::z2rs::owns_fallback(&port, platform)
+            })
+        }) {
             return Ok(SnapshotOutcome::ExternalData);
         }
         let activity = self.library.begin_activity(
