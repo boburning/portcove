@@ -345,56 +345,65 @@ void test("application neutral and publication read complete live-size protectio
   }
 });
 
-void test("application rule-detail batches drain on refusal and reject duplicate list identities", async () => {
-  const rules = Array.from({ length: 6 }, (_, index) => ({
-    id: index + 1,
-    source_type: "Repository",
-    source: "boburning/portcove",
-    enforcement: "active",
-    conditions: {},
-    bypass_actors: [],
-    rules: [],
-  }));
-  const started = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
-  const dispatches: number[] = [];
-  let duplicate = false;
-  let finished = 0;
-  const read = async (endpoint: string) => {
-    if (endpoint.endsWith("/portcove"))
-      return { status: 200, body: { id: 1354613114, full_name: "boburning/portcove" } };
-    if (endpoint.includes("/rulesets?"))
-      return { status: 200, body: duplicate ? [...rules, rules[0]] : rules };
-    const rule = /\/rulesets\/(\d+)\?includes_parents=true$/u.exec(endpoint)?.[1];
-    assert.ok(rule);
-    dispatches.push(Number(rule));
-    if (dispatches.length === 4) started.resolve();
-    if (rule === "1") return { status: 403, body: {} };
-    await release.promise;
-    finished++;
-    return { status: 200, body: rules[Number(rule) - 1] };
-  };
-  let settled = false;
-  const observation = observeReleaseInputProtections(read, { releasePublication: true }).finally(
-    () => {
-      settled = true;
+for (const applicationCoordinator of [undefined, true] as const) {
+  const batchSize = applicationCoordinator ? 8 : 4;
+  void test(
+    `application rule-detail batches of ${batchSize} drain on refusal and reject duplicate identities`,
+    { timeout: 5000 },
+    async () => {
+      const rules = Array.from({ length: 10 }, (_, index) => ({
+        id: index + 1,
+        source_type: "Repository",
+        source: "boburning/portcove",
+        enforcement: "active",
+        conditions: {},
+        bypass_actors: [],
+        rules: [],
+      }));
+      const started = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      const dispatches: number[] = [];
+      let duplicate = false;
+      let finished = 0;
+      const read = async (endpoint: string) => {
+        if (endpoint.endsWith("/portcove"))
+          return { status: 200, body: { id: 1354613114, full_name: "boburning/portcove" } };
+        if (endpoint.includes("/rulesets?"))
+          return { status: 200, body: duplicate ? [...rules, rules[0]] : rules };
+        const rule = /\/rulesets\/(\d+)\?includes_parents=true$/u.exec(endpoint)?.[1];
+        assert.ok(rule);
+        dispatches.push(Number(rule));
+        if (dispatches.length === batchSize) started.resolve();
+        if (rule === "1") return { status: 403, body: {} };
+        await release.promise;
+        finished++;
+        return { status: 200, body: rules[Number(rule) - 1] };
+      };
+      const options = applicationCoordinator
+        ? { applicationCoordinator }
+        : { releasePublication: true };
+      const expected = rules.slice(0, batchSize).map((rule) => rule.id);
+      let settled = false;
+      const observation = observeReleaseInputProtections(read, options).finally(() => {
+        settled = true;
+      });
+      await started.promise;
+      assert.deepEqual(dispatches, expected);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(settled, false);
+      release.resolve();
+      await assert.rejects(observation, /protection response unavailable/u);
+      assert.equal(finished, batchSize - 1);
+      assert.deepEqual(dispatches, expected);
+      duplicate = true;
+      await assert.rejects(
+        observeReleaseInputProtections(read, options),
+        /inventory pages incomplete or duplicated/u,
+      );
+      assert.deepEqual(dispatches, expected);
     },
   );
-  await started.promise;
-  assert.deepEqual(dispatches, [1, 2, 3, 4]);
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.equal(settled, false);
-  release.resolve();
-  await assert.rejects(observation, /protection response unavailable/u);
-  assert.equal(finished, 3);
-  assert.deepEqual(dispatches, [1, 2, 3, 4]);
-  duplicate = true;
-  await assert.rejects(
-    observeReleaseInputProtections(read, { releasePublication: true }),
-    /inventory pages incomplete or duplicated/u,
-  );
-  assert.deepEqual(dispatches, [1, 2, 3, 4]);
-});
+}
 
 void test("release immutability requires fresh complete isolated setting, not an imported enabled flag", () => {
   const now = Date.now();

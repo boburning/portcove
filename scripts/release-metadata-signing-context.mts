@@ -264,8 +264,8 @@ export async function prepareCoordinatorSigningContext(
       authority: "none",
     });
     contexts.set(receipt, owned);
-    await requireCoordinatorSigningContext(receipt);
-    return receipt;
+    const context = await requireCoordinatorSigningContext(receipt);
+    return { receipt, context };
   } catch {
     await writeFile(
       path.join(work, "refusal.json"),

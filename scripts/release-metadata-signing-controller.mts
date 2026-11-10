@@ -31,18 +31,17 @@ export async function completeCoordinatorSigningContext(
   parent: string,
   phaseDeadline?: number,
 ) {
-  const receipt = await prepareCoordinatorSigningContext(
-      actualPreparation,
-      parent,
-      phaseDeadline,
-    ).catch((error: unknown) => {
-      if (error instanceof CoordinatorRemoteError) throw error;
-      throw new CoordinatorRemoteError("actual metadata context preparation refused", {
-        phase: "metadata-context-preparation",
-      });
-    }),
-    context = await requireCoordinatorSigningContext(receipt),
-    deadline = context.deadline;
+  const { receipt, context } = await prepareCoordinatorSigningContext(
+    actualPreparation,
+    parent,
+    phaseDeadline,
+  ).catch((error: unknown) => {
+    if (error instanceof CoordinatorRemoteError) throw error;
+    throw new CoordinatorRemoteError("actual metadata context preparation refused", {
+      phase: "metadata-context-preparation",
+    });
+  });
+  const deadline = context.deadline;
   return withCoordinatorDeadline(deadline, async () => {
     signingContextRemaining(deadline, 15000);
     const reconciliation = await reconcileCoordinatorSigningContext(receipt, parent);
