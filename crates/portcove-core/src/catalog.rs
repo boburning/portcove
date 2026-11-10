@@ -2987,6 +2987,56 @@ mod tests {
             .retain(|platform| !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64));
         gen1.executable_hints.remove(&Platform::MacosX86_64);
         gen1.executable_hints.remove(&Platform::MacosAarch64);
+        // Reviewed Unix route corrections after the frozen input. Three disk-image-only
+        // Mac routes became a handoff, and the Linux AppImage and Spaghettify
+        // executables are now named in the declared hints.
+        for id in ["shipwright", "2ship2harkinian", "lighthouse"] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            port.platforms.retain(|platform| {
+                !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+            });
+            for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+                port.executable_hints.remove(&platform);
+                port.release.asset_hints.remove(&platform);
+            }
+        }
+        for (id, platform, hints) in [
+            (
+                "2ship2harkinian",
+                Platform::LinuxX86_64,
+                &["2ship", "2ship2harkinian", "2ship.appimage"][..],
+            ),
+            (
+                "lighthouse",
+                Platform::LinuxX86_64,
+                &["lighthouse.appimage"][..],
+            ),
+            (
+                "spaghetti-kart",
+                Platform::LinuxX86_64,
+                &["spaghettikart", "spaghetti.appimage"][..],
+            ),
+            (
+                "spaghetti-kart",
+                Platform::MacosX86_64,
+                &["spaghettikart", "Spaghettify"][..],
+            ),
+            (
+                "spaghetti-kart",
+                Platform::MacosAarch64,
+                &["spaghettikart", "Spaghettify"][..],
+            ),
+        ] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            port.executable_hints
+                .insert(platform, hints.iter().map(|hint| (*hint).into()).collect());
+        }
         let battleship = expected_ports
             .iter_mut()
             .find(|port| port.id == "battleship")
