@@ -285,8 +285,9 @@ function producerFixture() {
     publicKey = "";
   const posts: string[] = [];
   function identityResponse(endpoint: string | undefined) {
-    const job = { ...f.job, status: "in_progress", completed_at: null };
-    if (endpoint?.endsWith("/actions/runs/9988")) return { ...f.attempt, status: "in_progress" };
+    const job = { ...f.job, status: "in_progress", conclusion: null, completed_at: null };
+    if (endpoint?.endsWith("/actions/runs/9988"))
+      return { ...f.attempt, status: "in_progress", conclusion: null };
     if (endpoint?.includes("/jobs?")) return { total_count: 1, jobs: [job] };
     if (endpoint?.endsWith("/actions/jobs/501")) return job;
     assert.fail(`unexpected inert provider route ${endpoint}`);
