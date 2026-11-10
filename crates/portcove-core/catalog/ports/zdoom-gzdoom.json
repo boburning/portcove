@@ -5,6 +5,7 @@
     "name": "Doom / GZDoom (ZDoom)",
     "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
     "project_url": "https://github.com/ZDoom/gzdoom",
+    "original_game_title": "Doom",
     "issue_number": 1824,
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",

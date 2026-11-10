@@ -54845,6 +54845,7 @@
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Choose Install, then Play. In GZDoom, choose a detected game IWAD, or add the folder holding your own original game files to its IWAD search paths. Keep your originals where they are. The managed Windows player keeps its configuration (gzdoom_portable.ini), saves, screenshots and demos beside it; its normal-profile settings are not imported. GZDoom keeps some caches under your Windows local application data folder outside Portcove.",
+        "original_game_title": "Doom",
         "manual_setup": {
           "steps": [
             {
