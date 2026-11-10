@@ -12,7 +12,7 @@ import {
   readNativeSessionObservation,
 } from "./desktop-owned-native-session.mts";
 import type { NativeManagedGame, NativeProcessSnapshot } from "./desktop-owned-native-session.mts";
-import type { LaunchSessionRecord } from "../src/transport-types.generated.d.ts";
+import type { LaunchSessionView } from "../src/transport-types.generated.d.ts";
 import {
   recordInstalledUpdateFailure,
   hashFile,
@@ -32,7 +32,7 @@ void test("native acquisition binds the connected GUI and admits only its exact 
       path: path.resolve("owned-library/versions/fixture/artifact"),
     },
   };
-  const record: LaunchSessionRecord = {
+  const record: LaunchSessionView = {
     id: "owned-session",
     port_id: game.installation.port_id,
     install_id: game.installation.id,
@@ -138,7 +138,7 @@ void test("native acquisition binds the connected GUI and admits only its exact 
   assertNativeApplicationInventory(live, application, nextGame, [nextRecord]);
   const leaving = { ...supervisor, pid: 15, started_filetime: "134375515263942075" };
   const afterActivation = { ...live, processes: [...live.processes, leaving] };
-  const priorRecord: LaunchSessionRecord = {
+  const priorRecord: LaunchSessionView = {
     ...record,
     supervisor_pid: leaving.pid,
     supervisor_identity: `windows-filetime:${leaving.started_filetime}`,

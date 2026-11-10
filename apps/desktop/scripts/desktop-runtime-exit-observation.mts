@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { LaunchSessionRecord } from "../src/transport-types.generated.d.ts";
+import type { LaunchSessionView } from "../src/transport-types.generated.d.ts";
 import type { NativeSessionObservations } from "./desktop-owned-native-session.mts";
 
 export async function observeRegisteredRuntimeExit({
@@ -9,7 +9,7 @@ export async function observeRegisteredRuntimeExit({
   wait,
   route,
 }: {
-  session: LaunchSessionRecord;
+  session: LaunchSessionView;
   snapshot: string;
   native: <Mode extends "Observe" | "Wait">(
     mode: Mode,

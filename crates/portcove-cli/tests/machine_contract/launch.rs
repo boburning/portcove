@@ -269,3 +269,60 @@ impl Drop for OwnedLaunch {
         }
     }
 }
+
+#[test]
+fn launch_show_explains_only_failed_sessions_and_never_invents_a_cause() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    drop(portcove_core::Library::open(&library).unwrap());
+    let database = rusqlite::Connection::open(library.join("portcove.sqlite3")).unwrap();
+    let cases = [
+        (
+            "11111111-1111-4111-8111-111111111111",
+            "failed",
+            -1_073_741_515_i32,
+        ),
+        ("22222222-2222-4222-8222-222222222222", "failed", 3),
+        ("33333333-3333-4333-8333-333333333333", "succeeded", 0),
+        ("44444444-4444-4444-8444-444444444444", "cancelled", 1),
+    ];
+    for (id, outcome, exit_code) in cases {
+        database
+            .execute(
+                "INSERT INTO launch_sessions(
+                   id, port_id, install_id, install_root, supervisor_pid, phase, outcome,
+                   exit_code, started_at, updated_at, finished_at, owner_kind
+                 ) VALUES (?1, 'zelda64-recomp', 'install', '/install', 1, 'running', ?2,
+                           ?3, 1, 2, 2, 'managed')",
+                rusqlite::params![id, outcome, exit_code],
+            )
+            .unwrap();
+    }
+    let show = |id: &str| json_stdout(&portcove(&library, &["--json", "launch", "show", id]));
+
+    let missing_dll = show(cases[0].0);
+    let explanation = &missing_dll["data"]["exit_explanation"];
+    assert_eq!(explanation["key"], "dll_not_found");
+    assert_eq!(explanation["raw_code"], "0xC0000135");
+    assert!(
+        explanation["explanation"]
+            .as_str()
+            .unwrap()
+            .contains("most likely")
+    );
+    assert_eq!(missing_dll["data"]["exit_code"], -1_073_741_515);
+    assert_eq!(missing_dll["data"]["outcome"], "failed");
+
+    let unmapped = show(cases[1].0);
+    assert_eq!(
+        unmapped["data"]["exit_explanation"]["key"],
+        "unexplained_exit"
+    );
+    assert_eq!(unmapped["data"]["exit_explanation"]["raw_code"], "3");
+
+    for (id, _, _) in &cases[2..] {
+        let quiet = show(id);
+        assert!(quiet["data"].is_object());
+        assert!(quiet["data"].get("exit_explanation").is_none(), "{quiet}");
+    }
+}

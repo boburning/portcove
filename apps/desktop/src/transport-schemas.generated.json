@@ -17424,6 +17424,37 @@
   },
   "launch_request": {
     "$defs": {
+      "ExitExplanation": {
+        "properties": {
+          "explanation": {
+            "type": "string"
+          },
+          "key": {
+            "description": "Stable machine key, e.g. `dll_not_found`.",
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "raw_code": {
+            "description": "Raw status as Windows reports it, e.g. `0xC0000135`, or the decimal value.",
+            "type": "string"
+          },
+          "table_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "table_version",
+          "key",
+          "raw_code",
+          "explanation",
+          "next_action"
+        ],
+        "type": "object"
+      },
       "LaunchOwnerKind": {
         "enum": [
           "managed",
@@ -17449,7 +17480,8 @@
         ],
         "type": "string"
       },
-      "LaunchSessionRecord": {
+      "LaunchSessionView": {
+        "description": "A launch-session record plus the explanation for an unsuccessful exit.\nThe record stays the only durable authority; the explanation is derived.",
         "properties": {
           "child_identity": {
             "type": [
@@ -17470,6 +17502,16 @@
             "type": [
               "integer",
               "null"
+            ]
+          },
+          "exit_explanation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExitExplanation"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "finished_at": {
@@ -17558,13 +17600,13 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "anyOf": [
       {
-        "$ref": "#/$defs/LaunchSessionRecord"
+        "$ref": "#/$defs/LaunchSessionView"
       },
       {
         "type": "null"
       }
     ],
-    "title": "Nullable_LaunchSessionRecord"
+    "title": "Nullable_LaunchSessionView"
   },
   "library_identity": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",

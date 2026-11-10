@@ -36,6 +36,7 @@ mod definition_publication;
 mod definition_repository;
 mod durability;
 mod error;
+mod exit_explanation;
 mod external_runtime;
 mod failure;
 mod game_file_query;
@@ -189,6 +190,9 @@ pub use definition_repository::{
     },
 };
 pub use error::{ErrorCode, PortcoveError, Result};
+pub use exit_explanation::{
+    EXIT_EXPLANATION_TABLE_VERSION, ExitExplanation, LaunchSessionView, explain_exit_code,
+};
 pub use external_runtime::{
     ExternalRuntimePreview, ExternalRuntimeRelinkPreview, ExternalRuntimeRemovalPreview,
 };

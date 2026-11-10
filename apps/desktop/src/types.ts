@@ -251,6 +251,7 @@ export type CatalogUpdatePlan = Generated.TransportOutputs["catalog_update_plan"
 
 export type InstallInput = Requests.TransportInputs["desktop_install_input"];
 export type LaunchResult = Generated.TransportOutputs["desktop_launch_result"];
+export type LaunchSessionView = NonNullable<Generated.TransportOutputs["launch_request"]>;
 
 export type BackupReview = Generated.TransportOutputs["desktop_backup_review"];
 export type BackupAction = BackupReview["preview"]["action"];
