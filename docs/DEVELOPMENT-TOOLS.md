@@ -572,11 +572,13 @@ workspace tests (`rust-workspace-tests`), the production build (`ui-build`) and 
 complete browser suite (`ui-tests`), whose unit project runs instead as
 `ui-unit-tests`; hosted CI runs everything on the exact head. Its contract tests skip
 `pnpm uses` and `direct just recipes`, which need the full toolchain and which hosted
-contract lanes skip for the same reason. A change that names the transport contract,
+contract lanes skip for the same reason (the full hosted run still executes them).
+A change whose path names the transport contract or schema,
 or `just push-check --with-transport`, adds `transport-contract`, the check that the
 generated transport schemas match the Rust output contract (`node
 scripts/check-transport-contract.mts --write` regenerates them); it builds Rust, so it
-is not part of every run. `--fast` cannot be combined with `--preflight`, and
+is not part of every run; add the flag after editing Rust commands or output
+structs, whose paths do not match. `--fast` cannot be combined with `--preflight`, and
 `--with-transport` requires `--fast`.
 
 The plan describes the current diff's selected work. The exact/related commands
@@ -957,7 +959,9 @@ Ordinary Windows CI compiles the workspace targets once, inventories the selecte
 tests, and transfers a pinned nextest archive to one through eight workers.
 `scripts/windows-rust-tests.mts` balances the current test identities using bounded
 historical timing hints from `.config/rust-test-timing-hints.json`; hints affect
-scheduling only. The independently discovered current inventory owns coverage,
+scheduling only. Refresh them with `node scripts/rust-timing-hints.mts generate
+<junit.xml>...` from the hosted partitions' `runtime-diagnostics-windows-*` artifacts;
+`summary --timeout SECONDS` lists tests near a timeout. The independently discovered current inventory owns coverage,
 including new tests without a timing hint. Each selected test belongs to exactly
 one nonempty partition. Workers verify the source, run and attempt, validation
 plan, compiler, nextest version, input digests and archive digest, then check the

@@ -56,7 +56,7 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_user_selected_runtime preview_user_selected_runtime_relink
     review_game_setting review_source_reuse scan_game_file_roots scan_source_inbox
   `.split(/\s+/),
-  "read-only getter no fixture surface requests (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
+  "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
     get_catalog get_catalog_media_thumbnail get_default_library_root
     get_engine_capabilities get_game_settings get_host_tools get_library_identity
