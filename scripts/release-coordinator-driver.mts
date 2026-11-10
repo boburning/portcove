@@ -46,6 +46,7 @@ import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import {
   capacityDigest,
+  slice4CapacityResourceDigest,
   inspectCapacityOperation,
   assessBoundedCapacity,
 } from "./release-capacity.mts";
@@ -2269,7 +2270,11 @@ async function prepareTrustedCoordinatorRenewalAt(
     const resumingClaim = appointedRecovery && checkpoint !== pin.child;
     const reuseDescriptor =
       inspectSelectedJournalRequirement(process.env) &&
-      metadataRenewalInputIdentity(recovered.input) === metadataRenewalInputIdentity(input);
+      (reader.admitted.execution_ref === pin.capacity_rebind_successor_ref
+        ? reader.admitted.workflow_sha256 === pin.native_split_workflow_sha256 &&
+          matchesRetainedRenewalCapacityRebind(recovered.input, input)
+        : metadataRenewalInputIdentity(recovered.input) === metadataRenewalInputIdentity(input));
+    phase = "retained-renewal-descriptor-identity";
     if (
       appointedRecovery &&
       (!reuseDescriptor ||
@@ -2284,6 +2289,7 @@ async function prepareTrustedCoordinatorRenewalAt(
           )))
     )
       throw new Error("retained renewal claim requires the exact prepared descriptor and parent");
+    phase = "durable-maintenance-descriptor";
     if (resumingClaim) await authenticateRetainedRenewalClaim(recovered, budget);
     const publishCheckpoint = await coordinatorCheckpointPublisher(
       directory,
@@ -2436,6 +2442,43 @@ export function metadataRenewalInputIdentity(input: Record<string, unknown>) {
   delete stable.now;
   if (isRecord(stable.publication)) delete stable.publication.observed_at;
   return capacityDigest(stable);
+}
+
+/** The signed r70 claim records its original resource policy. Its appointed
+ * successor must separately admit the current resource policy before reusing
+ * that claim. Verify the exact rebind before comparing the operation inputs. */
+export function matchesRetainedRenewalCapacityRebind(
+  retained: Record<string, unknown>,
+  current: Record<string, unknown>,
+) {
+  const rebound = structuredClone(current);
+  if (!isRecord(retained.controller) || !isRecord(rebound.controller)) return false;
+  const prior = retained.controller.capacity_attempt;
+  if (!isRecord(prior) || !isRecord(prior.boundary) || !isRecord(prior.ratification)) return false;
+  const originalPolicy = "b553063de9c8d9c6c6412fbed7b607bdc5a1bb509a06b38e4f25e2c68c0f7b38";
+  if (
+    prior.boundary.resource_policy_sha256 !== originalPolicy ||
+    prior.ratification.resource_policy_sha256 !== originalPolicy ||
+    prior.ratification.boundary_sha256 !== capacityDigest(prior.boundary)
+  )
+    return false;
+  const boundary = { ...prior.boundary, resource_policy_sha256: slice4CapacityResourceDigest };
+  const expected = {
+    ...prior,
+    boundary,
+    ratification: {
+      ...prior.ratification,
+      resource_policy_sha256: slice4CapacityResourceDigest,
+      boundary_sha256: capacityDigest(boundary),
+    },
+  };
+  if (
+    !isRecord(rebound.controller.capacity_attempt) ||
+    capacityDigest(rebound.controller.capacity_attempt) !== capacityDigest(expected)
+  )
+    return false;
+  rebound.controller.capacity_attempt = prior;
+  return metadataRenewalInputIdentity(retained) === metadataRenewalInputIdentity(rebound);
 }
 
 async function authenticateRetainedRenewalClaim(

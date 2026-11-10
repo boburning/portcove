@@ -205,6 +205,7 @@ export const retainedApplicationRenewalClaim = Object.freeze({
   settled_successor_ref: "refs/tags/portcove-production-controller-20261110r71",
   latency_successor_ref: "refs/tags/portcove-production-controller-20261110r72",
   native_split_successor_ref: "refs/tags/portcove-production-controller-20261110r73",
+  capacity_rebind_successor_ref: "refs/tags/portcove-production-controller-20261110r74",
   native_split_workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
 });
 
@@ -228,7 +229,8 @@ export function isSettledApplicationRenewalRecoveryRef(executionRef: string) {
   return (
     executionRef === pin.settled_successor_ref ||
     executionRef === pin.latency_successor_ref ||
-    executionRef === pin.native_split_successor_ref
+    executionRef === pin.native_split_successor_ref ||
+    executionRef === pin.capacity_rebind_successor_ref
   );
 }
 
@@ -243,7 +245,8 @@ export function matchesRetainedApplicationRenewalHandoff(
   if (purpose !== "application") return false;
   if (
     isSettledApplicationRenewalRecoveryRef(source.execution_ref) &&
-    (source.execution_ref !== pin.native_split_successor_ref ||
+    ((source.execution_ref !== pin.native_split_successor_ref &&
+      source.execution_ref !== pin.capacity_rebind_successor_ref) ||
       source.workflow_sha256 === pin.native_split_workflow_sha256)
   ) {
     return (
