@@ -42,8 +42,15 @@ pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackageP
         || [".appimage", ".deb", ".rpm"]
             .iter()
             .any(|ext| name.ends_with(ext));
-    let mac =
-        has(&["mac", "macos", "osx", "darwin"]) || name.ends_with(".dmg") || name.ends_with(".pkg");
+    let versioned_macos = tokens.iter().any(|token| {
+        token
+            .strip_prefix("macos")
+            .is_some_and(|major| major.len() == 2 && major.parse::<u8>().is_ok_and(|v| v >= 10))
+    });
+    let mac = has(&["mac", "macos", "osx", "darwin"])
+        || versioned_macos
+        || name.ends_with(".dmg")
+        || name.ends_with(".pkg");
     let foreign = has(&["android", "switch", "vita", "wii", "ios"]) || name.ends_with(".apk");
     match [windows, linux, mac, foreign]
         .into_iter()
@@ -650,6 +657,40 @@ mod tests {
                 "emulation"
             );
         }
+    }
+
+    #[test]
+    fn versioned_macos_names_recommend_the_openomf_apple_silicon_package() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let listing = catalog.listing("omf2097-openomf").unwrap();
+        let hints = &listing.download_asset_hints[&Platform::MacosAarch64];
+        for name in [
+            "openomf_0.8.6_macos14_arm.zip",
+            "openomf_0.8.7-131-bc3eca03_macos15_arm.zip",
+        ] {
+            let assets = [asset(1, name), asset(2, "openomf_0.8.6_windows.zip")];
+            assert_eq!(
+                recommend_packages(&assets, Platform::MacosAarch64, hints, true).1,
+                Some(1.into()),
+                "{name}"
+            );
+            assert_eq!(
+                assess_package_name(name, true, Platform::MacosX86_64, hints).0,
+                "incompatible"
+            );
+            assert_eq!(
+                package_platform_match(name, Platform::LinuxX86_64),
+                PackagePlatformMatch::Other
+            );
+        }
+        assert_eq!(
+            package_platform_match("game-macos14beta-arm.zip", Platform::MacosAarch64),
+            PackagePlatformMatch::Unspecified
+        );
+        assert_eq!(
+            package_platform_match("game-macos14-linux-arm.zip", Platform::MacosAarch64),
+            PackagePlatformMatch::Ambiguous
+        );
     }
 
     #[test]

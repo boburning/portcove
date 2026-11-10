@@ -45726,28 +45726,30 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Prepare your original game",
+              "title": "Prepare your original game on Windows",
               "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
-            }
-          ],
-          "warnings": [],
-          "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md",
-          "references": [
+            },
             {
               "title": "Set up MDK on Linux",
-              "instruction": "Use the upstream v1.2.6 archive for your CPU. The x86-64 player needs glibc 2.43 or later and the ARM64 player needs glibc 2.38 or later. Use a Vulkan driver. Keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original MDK installation."
+              "instruction": "Choose mdk-linux-x64.tar.gz or mdk-linux-arm64.tar.gz from the stable releases. Use a Vulkan driver and keep libSDL3.so beside mdk_sdl. Point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your complete original installation. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
             },
             {
               "title": "Set up MDK on an Apple silicon Mac",
-              "instruction": "Use the upstream v1.2.6 Apple silicon ZIP on macOS 12 or later with Metal. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. Review the publisher and your Mac’s download security prompts before opening the player."
-            },
-            {
-              "title": "Keep your desktop files",
-              "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. Keep mdk_paths.cfg and the original installation separately. Optional upscaling has its own tool download and output files."
+              "instruction": "Choose mdk-osx-arm64.zip from the stable releases. Keep libSDL3.dylib beside mdk_sdl and use MDK_DATA_DIR or mdk_paths.cfg to point at your complete original installation. The inspected v1.2.6 package requires macOS 12 or later with Metal. Review the publisher and your Mac’s download security prompts before opening the player."
             },
             {
               "title": "Set up MDK on Android",
-              "instruction": "Use the upstream v1.2.6 APK on 64-bit Android 8 or later with Vulkan. Select your original MDK folder containing TRAVERSE, MISC, FALL3D and STREAM. To play in place, the app requires All files access and a writable folder. Progress stays in that folder. Choose Copy instead to avoid broad access. The app copies the game to Android/data/io.github.nemo22.mdk/files/mdk and keeps settings and saves in the parent files folder. Keep whichever location the app uses before uninstalling."
+              "instruction": "Choose mdk-android.apk from the stable releases. The inspected v1.2.6 APK needs 64-bit Android 8 or later with Vulkan. Select your original MDK folder containing TRAVERSE, MISC, FALL3D and STREAM. To play in place, the app requires All files access and a writable folder. Progress stays in that folder. Choose Copy instead to avoid broad access. The app copies the game to Android/data/io.github.nemo22.mdk/files/mdk and keeps settings and saves in the parent files folder. Keep whichever location the app uses before uninstalling."
+            }
+          ],
+          "warnings": [
+            "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux, Mac and Android copies."
+          ],
+          "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
+          "references": [
+            {
+              "title": "Keep your desktop files",
+              "instruction": "For a Linux or Mac copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
             }
           ]
         },
@@ -46168,6 +46170,36 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal Windows entry is zamn_launcher.exe: select your ROM and settings there, then use its Play button. Keep zamn.exe, SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings.",
         "original_game_title": "Zombies Ate My Neighbors",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original USA ROM",
+              "instruction": "Use your own uncompressed 1,048,576-byte USA Zombies Ate My Neighbors ROM. Keep it outside the player folder. Select it in the launcher, then choose Play."
+            },
+            {
+              "title": "Start the managed Windows player",
+              "instruction": "Open the installed zamn_launcher.exe and select your original ROM in the game settings. Keep zamn.exe and SDL2 beside the launcher."
+            },
+            {
+              "title": "Run the upstream Linux launcher",
+              "instruction": "Extract zamn-linux-x86_64.tar.gz and run ./zamn_launcher from the extracted zamn folder. Keep the launcher, zamn and the bundled SDL2 library together. On Linux you can type the ROM path or drop the file onto the launcher."
+            }
+          ],
+          "warnings": [
+            "The upstream Linux build is experimental and player-managed. Close both the launcher and the game before replacing the runtime or backing up its files. Keep the creating version with its configuration, quicksave and high scores."
+          ],
+          "references": [
+            {
+              "title": "Check the inspected Linux build",
+              "instruction": "The 20261028 Linux launcher and bundled library need glibc 2.38 or later. The launcher needs an available system font in a supported location, such as DejaVu Sans. The expected USA ROM has SHA-256 b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059."
+            },
+            {
+              "title": "Keep the default player data",
+              "instruction": "Preserve zamn.ini, zamn.quicksave, zamn.hiscore and any matching .tmp files in your working copy. Preserve custom config, high-score and output locations separately."
+            }
+          ],
+          "help_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"
+        },
         "artwork": {
           "game_id": 2162,
           "cover_id": 129525,
@@ -46911,12 +46943,31 @@
             {
               "title": "Keep your existing copy available",
               "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
+            },
+            {
+              "title": "Open the upstream Linux archive",
+              "instruction": "Choose the x64 or ARM64 archive for your Linux system. Extract it completely and run OpenSC2K.x86_64 or OpenSC2K.arm64 from its folder. Keep the PCK, shared libraries and bundled SoundFont beside the player."
+            },
+            {
+              "title": "Copy the upstream Mac app to Applications",
+              "instruction": "Open the universal Mac DMG and drag OpenSC2K.app to Applications. Keep the app intact and preserve its OpenSC2K Godot profile when updating it."
+            },
+            {
+              "title": "Choose the Windows on Arm package",
+              "instruction": "On Windows on Arm, extract the ARM64 portable ZIP into its own writable folder. Run its OpenSC2K.exe and keep its PCK, DLLs and data folder together."
             }
           ],
           "warnings": [
-            "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities."
+            "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities.",
+            "Save cities normally before backing up. Recent autosaves live in OpenSC2K Autosaves under the system temporary directory and upstream prunes older autosaves. Preserve the profile and any custom save or export locations used by your copy."
           ],
-          "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md"
+          "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md",
+          "references": [
+            {
+              "title": "Check the inspected desktop packages",
+              "instruction": "The v0.3.0 Linux archives require glibc 2.34 or later. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain these Linux, Mac and Windows on Arm copies."
+            }
+          ]
         },
         "artwork": {
           "game_id": 330,
@@ -47025,12 +47076,32 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Start the game",
+              "title": "Start the managed Windows player",
               "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
+            },
+            {
+              "title": "Open the upstream Linux AppImage",
+              "instruction": "Choose the stable x86-64 AppImage and use your Linux system’s AppImage support. Keep it executable. It includes the freeware resources and its own SDL2 libraries."
+            },
+            {
+              "title": "Prepare the upstream Apple Silicon package",
+              "instruction": "Extract the stable Apple Silicon ZIP into a separate folder. If it contains usr/bin/openomf, check the Homebrew library requirements below and keep the entire usr tree. Set OPENOMF_RESOURCE_PATH to the absolute path to the extracted usr/share/games/openomf folder when launching that player. If the package instead contains OpenOMF.app, keep the app intact and follow its release instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/omf2097/openomf/blob/0.8.6/README.md"
+          "warnings": [
+            "You and upstream maintain the Linux and Mac packages. Back up the configuration and state folders your copy actually uses before replacement. An explicit OPENOMF_CONFIG_PATH or OPENOMF_STATE_PATH can change those locations."
+          ],
+          "help_url": "https://github.com/omf2097/openomf/blob/master/PATHS.md",
+          "references": [
+            {
+              "title": "Check the inspected stable packages",
+              "instruction": "The 0.8.6 AppImage player needs glibc 2.34 or later. The separate 0.8.6 Linux TAR.GZ needs glibc 2.43 and system libraries. The loose 0.8.6 Apple Silicon ZIP needs macOS 14 and Homebrew libepoxy, confuse, enet, sdl2_mixer, libxmp, libpng, opusfile, miniupnpc, libnatpmp and sdl2-compat. The binary loads specific library versions from /opt/homebrew. The macOS 15 app layout was observed on the separate rolling channel."
+            },
+            {
+              "title": "Find the effective OpenOMF profile",
+              "instruction": "After explicit OpenOMF overrides, upstream checks XDG_CONFIG_HOME for configuration and XDG_STATE_HOME for state, then the SDL preference directory. Preserve settings, saves, scores, recordings, screenshots and user mods at their effective locations."
+            }
+          ]
         },
         "artwork": {
           "game_id": 14429,
@@ -50816,7 +50887,7 @@
             },
             {
               "title": "Prepare the upstream Mac player",
-              "instruction": "Unpack the official OpenJO Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Outcast GameData layout. Open openjo_sp.arm64.app or openjo_sp.x86_64.app for the campaign. Keep the supplied SDL2 framework with the app and follow the project’s data setup instructions."
+              "instruction": "Unpack the official OpenJO Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Outcast GameData layout. Open openjo_sp.arm64.app or openjo_sp.x86_64.app for the campaign. Keep the complete app, including libSDL2-2.0.0.dylib in Contents/Frameworks and follow the project’s data setup instructions. The inspected packages require macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
             }
           ],
           "warnings": [
@@ -50910,7 +50981,7 @@
             },
             {
               "title": "Prepare the upstream Mac player",
-              "instruction": "Unpack the official OpenJK Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Academy GameData layout. Open openjk_sp.arm64.app or openjk_sp.x86_64.app for the campaign. Use openjk.arm64.app or openjk.x86_64.app for multiplayer. Keep the supplied SDL2 framework with the app and follow the project’s data setup instructions."
+              "instruction": "Unpack the official OpenJK Mac tarball for your Mac with the system archive tools. Keep the app and its required game data in the matching Jedi Academy GameData layout. Open openjk_sp.arm64.app or openjk_sp.x86_64.app for the campaign. Use openjk.arm64.app or openjk.x86_64.app for multiplayer. Keep the complete app, including libSDL2-2.0.0.dylib in Contents/Frameworks and follow the project’s data setup instructions. The inspected packages require macOS 14 or later on Intel and macOS 15 or later on Apple Silicon."
             }
           ],
           "warnings": [
@@ -53237,7 +53308,7 @@
             },
             {
               "title": "Prepare upstream and select the real player",
-              "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
+              "instruction": "Choose the official Windows installer from Exult’s download page, or keep a complete upstream-prepared player with its runtime data. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
             },
             {
               "title": "Set up the upstream Linux package",
@@ -53249,7 +53320,7 @@
             },
             {
               "title": "Import this edition in the Android launcher",
-              "instruction": "Install the official Exult 1.12.1 APK from Exult’s download page on Android 9 or later. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
+              "instruction": "Choose the official Android APK under the stable release on Exult’s download page and check its Android version requirement. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
             },
             {
               "title": "Add the game and manage your files",
@@ -53320,7 +53391,7 @@
             },
             {
               "title": "Prepare upstream and select the real player",
-              "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
+              "instruction": "Choose the official Windows installer from Exult’s download page, or keep a complete upstream-prepared player with its runtime data. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
             },
             {
               "title": "Set up the upstream Linux package",
@@ -53332,7 +53403,7 @@
             },
             {
               "title": "Import this edition in the Android launcher",
-              "instruction": "Install the official Exult 1.12.1 APK from Exult’s download page on Android 9 or later. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private blackgate/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
+              "instruction": "Choose the official Android APK under the stable release on Exult’s download page and check its Android version requirement. Zip your own Black Gate STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private blackgate/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
             },
             {
               "title": "Add the game and manage your files",

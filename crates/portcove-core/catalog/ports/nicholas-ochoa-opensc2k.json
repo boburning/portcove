@@ -18,7 +18,10 @@
     },
     "release_url": "https://github.com/OpenSC2K/OpenSC2K/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"]
+      "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"],
+      "linux-x86-64": ["OpenSC2K-", "-linux-x64.tar.gz"],
+      "macos-x86-64": ["OpenSC2K-", "-macos-universal.dmg"],
+      "macos-aarch64": ["OpenSC2K-", "-macos-universal.dmg"]
     },
     "manual_setup": {
       "steps": [
@@ -29,14 +32,34 @@
         {
           "title": "Keep your existing copy available",
           "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
+        },
+        {
+          "title": "Open the upstream Linux archive",
+          "instruction": "Choose the x64 or ARM64 archive for your Linux system. Extract it completely and run OpenSC2K.x86_64 or OpenSC2K.arm64 from its folder. Keep the PCK, shared libraries and bundled SoundFont beside the player."
+        },
+        {
+          "title": "Copy the upstream Mac app to Applications",
+          "instruction": "Open the universal Mac DMG and drag OpenSC2K.app to Applications. Keep the app intact and preserve its OpenSC2K Godot profile when updating it."
+        },
+        {
+          "title": "Choose the Windows on Arm package",
+          "instruction": "On Windows on Arm, extract the ARM64 portable ZIP into its own writable folder. Run its OpenSC2K.exe and keep its PCK, DLLs and data folder together."
         }
       ],
       "warnings": [
-        "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities."
+        "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities.",
+        "Save cities normally before backing up. Recent autosaves live in OpenSC2K Autosaves under the system temporary directory and upstream prunes older autosaves. Preserve the profile and any custom save or export locations used by your copy."
       ],
-      "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md"
+      "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md",
+      "references": [
+        {
+          "title": "Check the inspected desktop packages",
+          "instruction": "The v0.3.0 Linux archives require glibc 2.34 or later. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain these Linux, Mac and Windows on Arm copies."
+        }
+      ]
     },
-    "original_game_title": "SimCity 2000"
+    "original_game_title": "SimCity 2000",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

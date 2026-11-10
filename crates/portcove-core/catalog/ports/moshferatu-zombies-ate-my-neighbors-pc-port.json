@@ -15,7 +15,42 @@
       "game_slug": "zombies-ate-my-neighbors",
       "match_kind": "underlying-game"
     },
-    "original_game_title": "Zombies Ate My Neighbors"
+    "original_game_title": "Zombies Ate My Neighbors",
+    "platforms": ["linux-x86-64"],
+    "download_asset_hints": {
+      "linux-x86-64": ["zamn-linux-x86_64.tar.gz"]
+    },
+    "release_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/latest",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your original USA ROM",
+          "instruction": "Use your own uncompressed 1,048,576-byte USA Zombies Ate My Neighbors ROM. Keep it outside the player folder. Select it in the launcher, then choose Play."
+        },
+        {
+          "title": "Start the managed Windows player",
+          "instruction": "Open the installed zamn_launcher.exe and select your original ROM in the game settings. Keep zamn.exe and SDL2 beside the launcher."
+        },
+        {
+          "title": "Run the upstream Linux launcher",
+          "instruction": "Extract zamn-linux-x86_64.tar.gz and run ./zamn_launcher from the extracted zamn folder. Keep the launcher, zamn and the bundled SDL2 library together. On Linux you can type the ROM path or drop the file onto the launcher."
+        }
+      ],
+      "warnings": [
+        "The upstream Linux build is experimental and player-managed. Close both the launcher and the game before replacing the runtime or backing up its files. Keep the creating version with its configuration, quicksave and high scores."
+      ],
+      "references": [
+        {
+          "title": "Check the inspected Linux build",
+          "instruction": "The 20261028 Linux launcher and bundled library need glibc 2.38 or later. The launcher needs an available system font in a supported location, such as DejaVu Sans. The expected USA ROM has SHA-256 b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059."
+        },
+        {
+          "title": "Keep the default player data",
+          "instruction": "Preserve zamn.ini, zamn.quicksave, zamn.hiscore and any matching .tmp files in your working copy. Preserve custom config, high-score and output locations separately."
+        }
+      ],
+      "help_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"
+    }
   },
   "integration": {
     "support_tier": "beta",
