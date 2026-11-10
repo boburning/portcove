@@ -2,7 +2,8 @@ name: Cleanup consumed Intel transfers
 
 on:
   workflow_run:
-    workflows: [CI, Qualification, Release]
+    # Direct CI runs never produce Intel transfers; only qualification does.
+    workflows: [Qualification, Release]
     types: [completed]
   schedule:
     - cron: "43 * * * *"
@@ -39,7 +40,7 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Install trusted locked cleanup dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Remove only verified consumed Intel transfers
         env:
           GH_TOKEN: ${{ github.token }}
