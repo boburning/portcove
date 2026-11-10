@@ -30,6 +30,8 @@ export function createCheckpointSigningTransport(
   let next = 0;
   let failed = false;
   let inFlight = false;
+  let requestPhase: "request" | "control" | "dispatch" | "response" | "receipt" = "request";
+  let responseStatus: number | undefined;
   const remaining = () => {
     const value = Math.ceil(deadline - performance.now());
     if (!Number.isFinite(deadline) || value < 1 || value > 120000)
@@ -41,9 +43,19 @@ export function createCheckpointSigningTransport(
     get completedRequests() {
       return next;
     },
+    get progress() {
+      return {
+        request: next === 0 ? "fulcio" : "rekor",
+        phase: requestPhase,
+        completed_requests: next,
+        ...(responseStatus === undefined ? {} : { response_status: responseStatus }),
+      };
+    },
     async request(url: string, rawOptions: unknown) {
       if (failed || inFlight) throw new Error("checkpoint signing attempt requires recovery");
       inFlight = true;
+      requestPhase = "request";
+      responseStatus = undefined;
       const stage = next === 0 ? "fulcio" : "rekor";
       try {
         remaining();
@@ -92,11 +104,13 @@ export function createCheckpointSigningTransport(
         // Custody can await/fsync. Recheck the owning journal/session/control
         // boundary AFTER those writes, immediately before the provider POST.
         remaining();
+        requestPhase = "control";
         await beforePost?.(stage);
         const timeout = remaining();
         const controller = new AbortController();
         let timer: ReturnType<typeof setTimeout> | undefined;
         const read = async () => {
+          requestPhase = "dispatch";
           const response = await fetcher(url, {
             method: "POST",
             redirect: "error",
@@ -109,6 +123,9 @@ export function createCheckpointSigningTransport(
             body,
           });
           if (controller.signal.aborted) throw new Error("late signing response");
+          requestPhase = "response";
+          if (Number.isInteger(response.status) && response.status >= 100 && response.status <= 599)
+            responseStatus = response.status;
           remaining();
           if (
             ![200, 201].includes(response.status) ||
@@ -196,6 +213,7 @@ export function createCheckpointSigningTransport(
         }
         // A successful HTTP response is its own observation, even if parsing or
         // SDK certificate/log validation subsequently refuses it.
+        requestPhase = "receipt";
         await store.write(`${stage}-response.body`, bytes);
         remaining();
         const parsed: unknown = JSON.parse(bytes.toString("utf8"));

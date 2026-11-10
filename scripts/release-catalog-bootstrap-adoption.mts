@@ -18,6 +18,10 @@ import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import {
+  retainedCatalogBootstrapClaim,
+  retainedCatalogForwardAdoptionClaim,
+} from "./release-coordinator-checkpoint-authentication.mts";
 import type { CatalogCoordinatorRefusalStage } from "./release-control-step-bridge.mts";
 import {
   inspectTufPublicationFacts,
@@ -34,6 +38,30 @@ import {
   readPublicApplicationSite,
   readPublicApplicationSiteMarker,
 } from "./release-site-readback.mts";
+
+export function selectCatalogBootstrapRecovery(
+  executionRef: string,
+  attempt: number,
+  previous: string,
+  forward: boolean,
+) {
+  const claim =
+    executionRef === retainedCatalogForwardAdoptionClaim.successor_ref
+      ? retainedCatalogForwardAdoptionClaim
+      : executionRef === retainedCatalogBootstrapClaim.successor_ref
+        ? retainedCatalogBootstrapClaim
+        : undefined;
+  if (
+    claim &&
+    (forward !== (claim === retainedCatalogForwardAdoptionClaim) ||
+      attempt !== 1 ||
+      previous !== claim.previous)
+  )
+    throw new Error(
+      "claimed bootstrap recovery requires its original predecessor and one successor attempt",
+    );
+  return claim;
+}
 
 /** This checks the current authenticated coordinator observation; the
  * historical journal counters remain untouched by the app-only import. */

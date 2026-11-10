@@ -124,6 +124,7 @@ export async function signCoordinatorCheckpointEvidence(
   // Existing owner-only, exclusive, fsynced native Linux capture machinery.
   // A retained path is refused rather than reset, overwritten or reminted.
   const store = await (selected.createStore ?? createCheckpointSigningStore)(capture);
+  let network: ReturnType<typeof createCheckpointSigningTransport> | undefined;
   let stage = "identity";
   try {
     await store.write(
@@ -183,7 +184,7 @@ export async function signCoordinatorCheckpointEvidence(
       if (performance.now() >= signingDeadline || Date.now() >= Date.parse(identity.expires_at))
         throw new Error("checkpoint signing identity or original deadline exhausted");
     };
-    const network = createCheckpointSigningTransport(
+    const transport = (network = createCheckpointSigningTransport(
       store,
       signingDeadline,
       selected.fetcher ?? fetch,
@@ -193,12 +194,12 @@ export async function signCoordinatorCheckpointEvidence(
         await selected.beforePost?.(stage);
         requireCurrent();
       },
-    );
+    ));
     stage = "signing";
     const signed = await withPortcoveSigningTransport(
       (url, settings) => {
         requireCurrent();
-        return network.request(url, settings);
+        return transport.request(url, settings);
       },
       async () => {
         const signer = new FulcioSigner({
@@ -228,7 +229,7 @@ export async function signCoordinatorCheckpointEvidence(
       },
     );
     requireCurrent();
-    if (network.completedRequests !== 2)
+    if (transport.completedRequests !== 2)
       throw new Error("checkpoint signing exchange incomplete or expired");
     const evidence = {
       subject: input.subject,
@@ -278,6 +279,7 @@ export async function signCoordinatorCheckpointEvidence(
             automatic_retry: false,
             recovery_required: true,
             provider_error_text_retained: false,
+            ...(stage === "signing" && network ? { transport: network.progress } : {}),
           }),
         ),
       );

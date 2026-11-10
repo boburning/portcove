@@ -54,17 +54,49 @@ const checkpointExchangePhases = [
   "proof-objects",
   "commit",
 ] as const;
+const signingProgressPhases = ["request", "control", "dispatch", "response", "receipt"] as const;
+
+export function inspectCheckpointSigningProgress(raw: unknown) {
+  if (!isRecord(raw)) return;
+  const { request, phase, completed_requests, response_status } = raw;
+  if (
+    Object.keys(raw).sort().join(",") !==
+      (response_status === undefined
+        ? "completed_requests,phase,request"
+        : "completed_requests,phase,request,response_status") ||
+    (completed_requests !== 0 && completed_requests !== 1 && completed_requests !== 2) ||
+    request !== (completed_requests === 0 ? "fulcio" : "rekor") ||
+    typeof phase !== "string" ||
+    !(signingProgressPhases as readonly string[]).includes(phase) ||
+    (response_status !== undefined &&
+      (typeof response_status !== "number" ||
+        !Number.isInteger(response_status) ||
+        response_status < 100 ||
+        response_status > 599 ||
+        (phase !== "response" && phase !== "receipt")))
+  )
+    return;
+  return {
+    request,
+    phase: phase as (typeof signingProgressPhases)[number],
+    completed_requests,
+    ...(response_status === undefined ? {} : { response_status }),
+  };
+}
+
 type CatalogCheckpointRefusal = {
   phase: (typeof checkpointExchangePhases)[number];
   attempted_claim: boolean;
   attempted_commit: boolean;
   signer?: "identity-not-attempted" | "signing-effect-unknown";
+  signer_progress?: NonNullable<ReturnType<typeof inspectCheckpointSigningProgress>>;
 };
 export function inspectCatalogCheckpointRefusal(
   raw: unknown,
 ): CatalogCheckpointRefusal | undefined {
   if (!isRecord(raw)) return;
   const { phase, attempted_claim, attempted_commit, signer } = raw;
+  const signerProgress = inspectCheckpointSigningProgress(raw.signer_progress);
   if (
     typeof phase !== "string" ||
     !(checkpointExchangePhases as readonly string[]).includes(phase) ||
@@ -72,7 +104,8 @@ export function inspectCatalogCheckpointRefusal(
     typeof attempted_commit !== "boolean" ||
     (signer !== undefined &&
       signer !== "identity-not-attempted" &&
-      signer !== "signing-effect-unknown")
+      signer !== "signing-effect-unknown") ||
+    (raw.signer_progress !== undefined && (signer !== "signing-effect-unknown" || !signerProgress))
   )
     return;
   return {
@@ -80,6 +113,7 @@ export function inspectCatalogCheckpointRefusal(
     attempted_claim,
     attempted_commit,
     ...(signer === undefined ? {} : { signer }),
+    ...(signerProgress === undefined ? {} : { signer_progress: signerProgress }),
   };
 }
 
@@ -97,9 +131,13 @@ export function requireCatalogRefusal(layer: CatalogRefusalLayer, raw: unknown) 
         !inspectCatalogCheckpointRefusal(raw.checkpoint_exchange) ||
         !isRecord(raw.checkpoint_exchange) ||
         Object.keys(raw.checkpoint_exchange).sort().join(",") !==
-          (raw.checkpoint_exchange.signer === undefined
-            ? "attempted_claim,attempted_commit,phase"
-            : "attempted_claim,attempted_commit,phase,signer"))) ||
+          [
+            "attempted_claim",
+            "attempted_commit",
+            "phase",
+            ...(raw.checkpoint_exchange.signer === undefined ? [] : ["signer"]),
+            ...(raw.checkpoint_exchange.signer_progress === undefined ? [] : ["signer_progress"]),
+          ].join(","))) ||
     raw.schema_version !== 1 ||
     raw.authority !== "none" ||
     raw.automatic_retry !== false ||

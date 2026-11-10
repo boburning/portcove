@@ -53,6 +53,20 @@ export const retainedCatalogBootstrapClaim = {
   application_ref: "refs/tags/portcove-production-controller-windows-20261108r52",
 } as const;
 
+/** r65 claimed these exact forward-adoption bytes before checkpoint signing stopped. */
+export const retainedCatalogForwardAdoptionClaim = {
+  previous: "da80188916dfc40f5d46c1eb4123bc00b9d68a8b",
+  child: "69b7ebea4a3e6bf624cdb80de5ed83d921a5289e",
+  tree: "569a58df71802fa5df13b5cbbe1a4836cb3a1961",
+  state_sha256: "0205080c70da3c411c95627c36683f13c16bc648ffbc7bc19209437b3f3a97da",
+  clock: "2026-11-10T06:30:35.317Z",
+  original_source: "f8d2429864d2d7da14ed5f47aed143641ae2d86d",
+  original_ref: "portcove-production-controller-20261110r65",
+  original_run: "42767924166",
+  original_job: 129671436946,
+  successor_ref: "refs/tags/portcove-production-controller-20261110r66",
+} as const;
+
 /** The r52 application claim already exists, so r53 may only settle these bytes. */
 export const retainedApplicationReviewClaim = {
   previous: "565eb5b3ccf58d6f0654e99b8d3e0214987cd003",
