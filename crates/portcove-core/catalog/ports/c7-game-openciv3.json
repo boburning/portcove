@@ -6,7 +6,7 @@
     "summary": "Prepare a permitted OpenCiv3 player and choose your own Civilization III files or permitted standalone content.",
     "project_url": "https://github.com/C7-Game/OpenCiv3",
     "issue_number": 1850,
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md",
     "artwork": {
@@ -23,7 +23,11 @@
       "steps": [
         {
           "title": "Keep a permitted player and its companions",
-          "instruction": "For an existing permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep the complete extracted player folder, including OpenCiv3.pck, data_C7_windows_x86_64, Assets, Text and Lua. Linux and macOS packages are published separately; follow their upstream preparation instructions rather than reusing Windows launch details."
+          "instruction": "For a permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep the complete extracted player folder, including OpenCiv3.pck, data_C7_windows_x86_64, Assets, Text and Lua."
+        },
+        {
+          "title": "Keep the complete Linux or Mac player",
+          "instruction": "For a permitted Linux x86-64 copy, unpack the ZIP and its inner TGZ, then run OpenCiv3.x86_64 from the complete extracted folder. On Intel and Apple Silicon Macs, unpack both ZIP layers and open OpenCiv3.app through macOS. Keep the adjacent Assets, Text and Lua with the app. These are upstream setup instructions for a permitted copy."
         },
         {
           "title": "Choose game content on first Play",

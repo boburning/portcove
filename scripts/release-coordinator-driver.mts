@@ -95,6 +95,7 @@ import {
   authenticateCapacityExecutor,
   authenticateOwnedCheckpointJournalHistory,
   ensureOwnedCheckpointJournalHistory,
+  inspectSelectedJournalRequirement,
   publishOwnedSignedCoordinatorCheckpoint,
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
@@ -113,7 +114,9 @@ import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   isRetainedApplicationReviewClaimScope,
+  isRetainedApplicationRenewalClaimScope,
   retainedApplicationReviewClaim,
+  retainedApplicationRenewalClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
@@ -1047,7 +1050,7 @@ async function coordinatorCheckpointPublisher(
     claimedChild !== undefined ||
     (await ensureOwnedCheckpointJournalHistory(executor, repository, previous, refresh));
   if (requireSigned && !selected)
-    throw new Error("review withdrawal requires signed journal history");
+    throw new Error("selected operation requires signed journal history");
   return async (checkpoint: string) => {
     await refresh();
     if (selected)
@@ -2257,6 +2260,26 @@ async function prepareTrustedCoordinatorRenewalAt(
         await readFreshMaintenance();
       },
     };
+    const pin = retainedApplicationRenewalClaim;
+    const appointedRecovery = reader.admitted.execution_ref === pin.successor_ref;
+    const resumingClaim = appointedRecovery && checkpoint !== pin.child;
+    const reuseDescriptor =
+      inspectSelectedJournalRequirement(process.env) &&
+      metadataRenewalInputIdentity(recovered.input) === metadataRenewalInputIdentity(input);
+    if (
+      appointedRecovery &&
+      (!reuseDescriptor ||
+        reader.admitted.run_attempt !== 1 ||
+        (resumingClaim &&
+          !isRetainedApplicationRenewalClaimScope(
+            checkpoint,
+            pin.child,
+            reader.admitted.execution_ref,
+            reader.admitted.run_attempt,
+          )))
+    )
+      throw new Error("retained renewal claim requires the exact prepared descriptor and parent");
+    if (resumingClaim) await authenticateRetainedRenewalClaim(recovered, budget);
     const publishCheckpoint = await coordinatorCheckpointPublisher(
       directory,
       budget,
@@ -2265,10 +2288,18 @@ async function prepareTrustedCoordinatorRenewalAt(
       checkpoint,
       selected.remote_configuration,
       checkpointControls,
+      resumingClaim ? pin.child : undefined,
+      reuseDescriptor,
     );
-    const saved = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
-    checkpoint = saved.checkpoint;
-    await publishCheckpoint(checkpoint);
+    if (resumingClaim) {
+      await stageRetainedCoordinatorClaim(recovered.repository, checkpoint, pin.child);
+      await publishCheckpoint(pin.child);
+      checkpoint = pin.child;
+    } else if (!reuseDescriptor) {
+      const saved = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
+      await publishCheckpoint(saved.checkpoint);
+      checkpoint = saved.checkpoint;
+    }
     const result = Object.freeze({
       decision: "metadata-prepared",
       directory,
@@ -2387,6 +2418,70 @@ export async function requireActualCoordinatorMetadataPreparation(
       deadline: retained.deadline,
     });
   });
+}
+
+/** The observation clocks can advance while every decision input stays fixed. */
+export function metadataRenewalInputIdentity(input: Record<string, unknown>) {
+  const stable = structuredClone(input);
+  delete stable.now;
+  if (isRecord(stable.publication)) delete stable.publication.observed_at;
+  return capacityDigest(stable);
+}
+
+async function authenticateRetainedRenewalClaim(
+  recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
+) {
+  const pin = retainedApplicationRenewalClaim;
+  const provider = await coordinatorBootstrapSourceProvider(budget, 2 * 1024 ** 2);
+  const [run, job, intent, proof] = await Promise.all([
+    provider.attempt(pin.original_run, 1),
+    provider.job(pin.original_job),
+    provider.versionTag(`portcove-production-checkpoint-intent/${pin.previous}`),
+    provider.versionTag(`portcove-production-checkpoint-proof/${pin.child}`),
+  ]);
+  if (
+    !isRecord(run) ||
+    run.id !== Number(pin.original_run) ||
+    run.run_attempt !== 1 ||
+    run.event !== "workflow_dispatch" ||
+    run.path !== ".github/workflows/application-update-production.yml" ||
+    run.head_sha !== pin.original_source ||
+    run.head_branch !== pin.original_ref.slice("refs/tags/".length) ||
+    run.status !== "completed" ||
+    run.conclusion !== "failure" ||
+    !isRecord(run.actor) ||
+    run.actor.id !== 41898282 ||
+    !isRecord(run.triggering_actor) ||
+    run.triggering_actor.id !== 41898282 ||
+    !isRecord(job) ||
+    job.id !== pin.original_job ||
+    job.run_id !== Number(pin.original_run) ||
+    job.run_attempt !== 1 ||
+    job.name !== "Coordinate application release" ||
+    job.head_sha !== pin.original_source ||
+    job.status !== "completed" ||
+    job.conclusion !== "failure" ||
+    intent.kind !== "present" ||
+    !isRecord(intent.data) ||
+    intent.data.ref !== `refs/tags/portcove-production-checkpoint-intent/${pin.previous}` ||
+    !isRecord(intent.data.object) ||
+    intent.data.object.type !== "commit" ||
+    intent.data.object.sha !== pin.child ||
+    proof.kind !== "absent"
+  )
+    throw new Error("retained renewal claim original custody differs");
+  const retained = await hydrateRetainedCoordinatorCheckpoint(recovered.repository, pin.child, {
+    provider,
+  });
+  const object = exportRetainedCoordinatorCheckpoint(recovered.repository, pin.child);
+  if (
+    object.previous !== pin.previous ||
+    object.tree.oid !== pin.tree ||
+    createHash("sha256").update(object.blob.contents).digest("hex") !== pin.state_sha256 ||
+    metadataRenewalInputIdentity(retained.input) !== metadataRenewalInputIdentity(recovered.input)
+  )
+    throw new Error("retained renewal claim bytes differ from the exact clock-only transition");
 }
 
 /** Scheduling only; the actual fixed tool must authenticate the public feed

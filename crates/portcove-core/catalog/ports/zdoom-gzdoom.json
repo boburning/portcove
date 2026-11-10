@@ -6,7 +6,7 @@
     "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
     "project_url": "https://github.com/ZDoom/gzdoom",
     "issue_number": 1824,
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/ZDoom/gzdoom#readme",
     "release_url": "https://github.com/ZDoom/gzdoom/releases",
@@ -15,6 +15,10 @@
         {
           "title": "Use the Windows player ZIP",
           "instruction": "Choose the Windows runtime ZIP. Finish setup with gzdoom.exe in the extracted game folder. Keep your original game files and mods available."
+        },
+        {
+          "title": "Use the upstream Linux or Mac package",
+          "instruction": "On Debian-based Linux, install the upstream DEB for your CPU through your package manager, then launch /usr/games/gzdoom. Upstream publishes both amd64 and arm64 packages. On Intel and Apple Silicon Macs, extract the universal macOS ZIP and open the complete GZDoom.app through macOS. Use your operating system or upstream to update these players."
         },
         {
           "title": "Choose your original game",
@@ -28,12 +32,13 @@
       "references": [
         {
           "title": "Keep your profile and saved games",
-          "instruction": "GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable mode uses gzdoom_portable.ini and Save beside the player instead. Keep the locations you use, original files and mods backed up when updating the upstream runtime."
+          "instruction": "GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom. On Mac, preserve its Preferences and Documents data. Keep your actual data locations, original files and mods when updating the upstream runtime."
         }
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["gzdoom-", "-windows.zip"]
+      "windows-x86-64": ["gzdoom-", "-windows.zip"],
+      "linux-x86-64": ["gzdoom_", "_amd64.deb"]
     }
   }
 }

@@ -360,6 +360,13 @@ pub(crate) fn launch_record(
     if let Some(exit_code) = record.exit_code {
         output.push_str(&format!("\nGame exit code: {exit_code}"));
     }
+    if let Some(explained) = portcove_core::LaunchSessionView::new(record.clone()).exit_explanation
+    {
+        output.push_str(&format!(
+            "\nWhat likely happened: {}\nNext step: {}",
+            explained.explanation, explained.next_action
+        ));
+    }
     if technical && known_catalog.is_none() {
         output.push_str(&format!(
             "\nRecorded port ID (redacted): {}",
@@ -477,6 +484,23 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launch_readback_explains_failed_exit_codes_without_inventing_causes() {
+        let mut record: LaunchSessionRecord = serde_json::from_value(serde_json::json!({
+            "id": "r", "port_id": "unknown", "install_id": "i", "install_root": "/i",
+            "supervisor_pid": 1, "phase": "running", "started_at": 0, "updated_at": 1,
+            "outcome": "failed", "exit_code": -1073741515,
+        }))
+        .unwrap();
+        let text = launch_record(Some(&record), "r", None, false);
+        assert!(text.contains("What likely happened: A required DLL"));
+        record.exit_code = Some(3);
+        let text = launch_record(Some(&record), "r", None, false);
+        assert!(text.contains("The game closed with an error."));
+        record.outcome = Some(LaunchSessionOutcome::Cancelled);
+        assert!(!launch_record(Some(&record), "r", None, false).contains("What likely happened"));
+    }
 
     #[test]
     fn launch_readback_names_known_ports_and_keeps_unknown_targets_and_outcomes_honest() {

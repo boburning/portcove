@@ -1758,6 +1758,11 @@
       "issue_number": 110,
       "availability": "packages",
       "release_url": "https://github.com/JRickey/BattleShip/releases",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
       "setup_url": "https://github.com/JRickey/BattleShip/blob/78069c1fdac54351612ccf1c99778b51f2db1256/scripts/package-macos.sh",
       "manual_setup": {
         "steps": [
@@ -1775,12 +1780,8 @@
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/JRickey/BattleShip/releases/tag/v1.6"
-      },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ]
+        "help_url": "https://github.com/JRickey/BattleShip/releases"
+      }
     },
     {
       "id": "g-diffuser",
@@ -4468,7 +4469,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "download_block_reason": "Fresh bundled-package acquisition remains held for the documented mixed/uncertain game-data, music and soundfont permissions. Reconsider after exact component grants or a compatible clean official data/package route is accepted. A conditional permitted-existing-copy route does not clear those assets.",
       "artwork": {
@@ -15082,7 +15085,12 @@
       "summary": "Prepare a permitted OpenCiv3 player and choose your own Civilization III files or permitted standalone content.",
       "project_url": "https://github.com/C7-Game/OpenCiv3",
       "issue_number": 1850,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md",
       "artwork": {
@@ -15099,7 +15107,11 @@
         "steps": [
           {
             "title": "Keep a permitted player and its companions",
-            "instruction": "For an existing permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep the complete extracted player folder, including OpenCiv3.pck, data_C7_windows_x86_64, Assets, Text and Lua. Linux and macOS packages are published separately; follow their upstream preparation instructions rather than reusing Windows launch details."
+            "instruction": "For a permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep the complete extracted player folder, including OpenCiv3.pck, data_C7_windows_x86_64, Assets, Text and Lua."
+          },
+          {
+            "title": "Keep the complete Linux or Mac player",
+            "instruction": "For a permitted Linux x86-64 copy, unpack the ZIP and its inner TGZ, then run OpenCiv3.x86_64 from the complete extracted folder. On Intel and Apple Silicon Macs, unpack both ZIP layers and open OpenCiv3.app through macOS. Keep the adjacent Assets, Text and Lua with the app. These are upstream setup instructions for a permitted copy."
           },
           {
             "title": "Choose game content on first Play",
@@ -56868,20 +56880,25 @@
       "summary": "Choose your own Doom-family game data and mods in UZDoom; the upstream launcher provides runtime updates.",
       "project_url": "https://github.com/UZDoom/UZDoom",
       "issue_number": 1899,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md",
       "manual_setup": {
         "steps": [
           {
             "title": "Use the upstream-owned player",
-            "instruction": "Extract the complete official Windows x64 archive into a separate folder. Choose uzdoom.exe with that folder as its working directory and save launch details, then choose Play deliberately. updater.exe is the upstream runtime replacement helper, not the player to register. Other upstream platforms use their own AppImage or Mac disk-image setup; this Windows package does not establish their operation."
+            "instruction": "On Windows, extract the complete official x64 archive into a separate folder. Choose uzdoom.exe with that folder as its working directory and save launch details, then choose Play deliberately. updater.exe is the upstream runtime replacement helper, not the player to register."
           },
           {
             "title": "Choose your game data",
             "instruction": "Use the launcher to select your own supported IWAD or compatible free game data. Keep mods and game data under the upstream documented setup. Adding launch details does not start a game; choose Play separately."
           },
           {
-            "title": "Register your prepared player",
+            "title": "Register your prepared Windows player",
             "instruction": "Complete the upstream setup in your permitted working copy first. Select the actual uzdoom.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready."
           }
         ],
@@ -56899,8 +56916,8 @@
             "instruction": "UZDoom’s launcher checks for updates and can use updater.exe to replace package files. Keep that runtime ownership with upstream. Portcove leaves these external files untouched and offers no managed Update, Backup or Rollback promise for them. Before changing versions, close the game and back up your actual IWADs, mods and configured save paths. Windows normally stores uzdoom.ini under Documents/My Games/UZDoom and saves under the Windows Saved Games/UZDoom folder. Portable mode uses uzdoom_portable.ini and the local Save and Screenshots folders. Custom config/save overrides and relocated Windows user folders need their own backup. Keep the working copy recoverable; upstream update_backup is not a Portcove-verified player-data backup."
           },
           {
-            "title": "Keep your runtime and data recoverable",
-            "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
+            "title": "Use the Linux or Apple Silicon package yourself",
+            "instruction": "On Linux x86-64, make the official AppImage executable and open it with AppImage support. The inspected player needs glibc 2.34 or newer. On Apple Silicon, open the ARM64 DMG, copy the complete UZDoom.app to Applications and open it through macOS. The inspected Mac executable targets macOS 12 or later. These packages use upstream setup outside Portcove registration. On Linux, keep configuration in $XDG_CONFIG_HOME/uzdoom (default ~/.config/uzdoom) and saves under $XDG_DATA_HOME/games/uzdoom/savegames (default ~/.local/share/games/uzdoom/savegames). Screenshots have a separate Pictures location. On Mac, preserve ~/Library/Preferences/uzdoom.ini and ~/Documents/UZDoom."
           }
         ]
       },
@@ -56910,11 +56927,14 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "Windows-UZDoom-Release-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "Linux-UZDoom-Release-x86_64.AppImage"
+        ],
+        "macos-aarch64": [
+          "MacOS-UZDoom-Release-ARM64.dmg"
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "v64recomp-1080-us-polaco1782-1080-snowboarding",
@@ -57818,7 +57838,7 @@
           },
           {
             "title": "Upstream iPhone and iPad setup",
-            "instruction": "On iOS or iPadOS 12 or later, use VCMI’s upstream TestFlight route when available, or provision the official 1.7.5 IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
+            "instruction": "Check the upstream iOS guide for the current system requirements. Use VCMI’s upstream TestFlight route when available, or provision the official IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
           }
         ]
       },
@@ -61272,7 +61292,10 @@
       "project_url": "https://github.com/ZDoom/gzdoom",
       "issue_number": 1824,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/ZDoom/gzdoom#readme",
@@ -61282,6 +61305,10 @@
           {
             "title": "Use the Windows player ZIP",
             "instruction": "Choose the Windows runtime ZIP. Finish setup with gzdoom.exe in the extracted game folder. Keep your original game files and mods available."
+          },
+          {
+            "title": "Use the upstream Linux or Mac package",
+            "instruction": "On Debian-based Linux, install the upstream DEB for your CPU through your package manager, then launch /usr/games/gzdoom. Upstream publishes both amd64 and arm64 packages. On Intel and Apple Silicon Macs, extract the universal macOS ZIP and open the complete GZDoom.app through macOS. Use your operating system or upstream to update these players."
           },
           {
             "title": "Choose your original game",
@@ -61295,7 +61322,7 @@
         "references": [
           {
             "title": "Keep your profile and saved games",
-            "instruction": "GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable mode uses gzdoom_portable.ini and Save beside the player instead. Keep the locations you use, original files and mods backed up when updating the upstream runtime."
+            "instruction": "GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom. On Mac, preserve its Preferences and Documents data. Keep your actual data locations, original files and mods when updating the upstream runtime."
           }
         ]
       },
@@ -61303,6 +61330,10 @@
         "windows-x86-64": [
           "gzdoom-",
           "-windows.zip"
+        ],
+        "linux-x86-64": [
+          "gzdoom_",
+          "_amd64.deb"
         ]
       }
     },

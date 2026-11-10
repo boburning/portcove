@@ -328,7 +328,7 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "launch_request",
                 serde_json::json!(schema_for_contract::<
-                    Option<portcove_core::LaunchSessionRecord>,
+                    Option<portcove_core::LaunchSessionView>,
                 >(contract)),
             ),
             (

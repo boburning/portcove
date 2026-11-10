@@ -210,6 +210,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: 17,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::NATIVE_CAPABILITY,
+        });
         supported
     }
 }

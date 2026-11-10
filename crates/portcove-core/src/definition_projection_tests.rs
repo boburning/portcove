@@ -99,7 +99,9 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     let port = &document["catalog"]["ports"][port_index];
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if typed.release.archive_file_links {
+    let version = if !typed.reviewed_package_layouts.is_empty() {
+        crate::package_layout::NATIVE_CAPABILITY
+    } else if typed.release.archive_file_links {
         crate::test_fixture::archive_file_links_capability(&typed)
     } else if crate::native_temp::has_sibling_platforms(&typed) {
         10
@@ -297,6 +299,14 @@ fn current_projection_routes_keep_distinct_capability_floors() {
         ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
         ("f-zero-snes-recomp", 23),
+        (
+            "jgrennison-openttd-patches",
+            crate::package_layout::NATIVE_CAPABILITY,
+        ),
+        (
+            "gladiator-openglad",
+            crate::package_layout::NATIVE_CAPABILITY,
+        ),
     ] {
         let position = document["catalog"]["ports"]
             .as_array()

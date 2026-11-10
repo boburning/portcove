@@ -9,7 +9,7 @@ import type {
   nativeConfirmation,
   nativeGameFileFolderPicker,
 } from "./desktop-native-confirmation.mts";
-import type { InstallRecord, LaunchSessionRecord } from "../src/transport-types.generated.d.ts";
+import type { InstallRecord, LaunchSessionView } from "../src/transport-types.generated.d.ts";
 import type {
   NativeManagedGame,
   NativeProcessSnapshot,
@@ -86,7 +86,7 @@ export interface GameFirstInstalledContext extends ScenarioContext {
   /** The owner must bind actual runtime pixels to the verified game identity. */
   captureGameFrame?: (request: {
     name: string;
-    session: LaunchSessionRecord;
+    session: LaunchSessionView;
     executable: string;
     executableSha256: string;
     game: NativeProcessSnapshot;

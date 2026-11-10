@@ -683,7 +683,7 @@ export type HostToolProbeState =
   | "incompatible_version"
   | "cancelled"
   | "success";
-export type OutputLaunchRequest = LaunchSessionRecord | null;
+export type OutputLaunchRequest = LaunchSessionView | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
 export type LibraryContentKind =
@@ -3460,10 +3460,15 @@ export interface OutputHostToolProbeResult {
   tool_id: string;
   [k: string]: unknown;
 }
-export interface LaunchSessionRecord {
+/**
+ * A launch-session record plus the explanation for an unsuccessful exit.
+ * The record stays the only durable authority; the explanation is derived.
+ */
+export interface LaunchSessionView {
   child_identity: string | null;
   child_pid: number | null;
   exit_code: number | null;
+  exit_explanation?: ExitExplanation | null;
   finished_at: number | null;
   id: string;
   install_id: string;
@@ -3477,6 +3482,20 @@ export interface LaunchSessionRecord {
   supervisor_identity: string | null;
   supervisor_pid: number;
   updated_at: number;
+  [k: string]: unknown;
+}
+export interface ExitExplanation {
+  explanation: string;
+  /**
+   * Stable machine key, e.g. `dll_not_found`.
+   */
+  key: string;
+  next_action: string;
+  /**
+   * Raw status as Windows reports it, e.g. `0xC0000135`, or the decimal value.
+   */
+  raw_code: string;
+  table_version: number;
   [k: string]: unknown;
 }
 /**

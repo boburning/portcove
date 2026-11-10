@@ -176,6 +176,7 @@ export async function runCatalogUpstreams(
     log?: (value: string) => void;
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
+    requestLimit?: number;
     prioritizeConfigured?: boolean;
     scheduledPrioritySources?: ReadonlySet<string>;
     handoff?: { directory: string; sizes: Map<string, number>; bytes: number };
@@ -305,6 +306,7 @@ export async function runCatalogUpstreams(
       now,
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
+      ...(runtime.requestLimit === undefined ? {} : { requestLimit: runtime.requestLimit }),
       prioritizeConfigured: runtime.prioritizeConfigured === true,
       ...(runtime.scheduledPrioritySources
         ? { scheduledPrioritySources: runtime.scheduledPrioritySources }
@@ -600,7 +602,11 @@ export async function runCatalogUpstreams(
 /** Use only a positively bounded caller opportunity; retain the same per-operation config. */
 export async function runCatalogOpportunity(
   args: string[],
-  runtime: NonNullable<Parameters<typeof runCatalogUpstreams>[1]> & { deadline: number },
+  runtime: NonNullable<Parameters<typeof runCatalogUpstreams>[1]> & {
+    deadline: number;
+    /** Fixture override of the trigger's hosted request ceiling. */
+    requestCeiling?: number;
+  },
 ) {
   const root = runtime.root ?? defaultRoot,
     now = runtime.now ?? Date.now;
@@ -682,7 +688,7 @@ export async function runCatalogOpportunity(
   try {
     let prioritizeConfigured = true;
     const result = await continueCatalogBatches(
-      async (excluded) => {
+      async (excluded, requestLimit) => {
         await assertInputs();
         const batch = await runCatalogUpstreams(fixedArgs, {
           ...runtime,
@@ -694,6 +700,7 @@ export async function runCatalogOpportunity(
           repositoryMetadata,
           handoff,
           excludedSources: excluded,
+          requestLimit,
           prioritizeConfigured,
           handoffByteLimit: hostedHandoffByteLimit,
           log: () => {},
@@ -704,7 +711,7 @@ export async function runCatalogOpportunity(
       },
       {
         deadline: runtime.deadline,
-        maxRequests: hostedRequestCeiling(process.env.GITHUB_EVENT_NAME),
+        maxRequests: runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME),
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
         onBatch: (batch) => {

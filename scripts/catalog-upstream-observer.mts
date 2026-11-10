@@ -437,6 +437,8 @@ export interface CatalogObservationOptions extends Pick<
   now?: () => number;
   deadline?: number;
   excludedSources?: ReadonlySet<string>;
+  /** Hard cap on provider requests this operation may admit (#4779). */
+  requestLimit?: number;
   prioritizeConfigured?: boolean;
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
@@ -640,6 +642,7 @@ export async function advanceCatalogObservations(
             remaining === null
               ? template.budget.requests - requests
               : remaining - Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05)),
+            (options.requestLimit ?? Infinity) - requests,
             Math.floor(
               (deadline - now()) /
                 (sampledRequests

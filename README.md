@@ -197,6 +197,19 @@ See [safe cancellation](docs/CLI.md#cancel-work-safely) and
 Desktop and CLI share library locks and recovery rules; close other clients
 before a whole-library transfer.
 
+### If a game won’t start
+
+When the last launch of an installed game closed with an error, its details page
+says what the failure most likely means, shows the exit code so you can copy it,
+and suggests one next step. The wording is a hint, not a diagnosis: Portcove
+explains only a short list of common Windows exit codes (a missing DLL or
+runtime, a wrong-architecture or damaged DLL, a crash, a game that stopped
+itself, a DLL that failed to start). Any other code is shown as “The game closed
+with an error.” with nothing guessed. Nothing appears after a normal exit or
+when you stop the game yourself. “Restore previous version” appears only when
+Portcove still keeps one. The same explanation is in `launch show --json` as
+`exit_explanation`; see the [CLI guide](docs/CLI.md).
+
 ### Optional disc tools
 
 Some declared disc formats or preparation routes need a local `chdman` or

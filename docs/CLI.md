@@ -1190,7 +1190,13 @@ A record identifies the exact port, installation, supervisor and child. `phase` 
 `preparing`, `spawning`, `running`, `collecting` or `recovering`; it describes the
 last recorded phase, even after termination. `outcome` is null while unresolved and
 `succeeded`, `failed` or `cancelled` when terminal; `exit_code` and `finished_at`
-carry the retained result. `started_at` is request acceptance, not a precise game-start
+carry the retained result. A `failed` session may also carry `exit_explanation`
+(`table_version`, `key`, `raw_code`, `explanation`, `next_action`), derived from
+`exit_code` by a versioned Core table and never stored. Explanations say "most likely"
+and are not proof of cause; an unmapped non-zero code gets the generic key
+`unexplained_exit` with no invented cause, and succeeded, cancelled and unfinished
+sessions omit the field. `exec` itself stays a raw stream with no JSON result;
+its process exit status is unchanged. `started_at` is request acceptance, not a precise game-start
 timestamp. `child_pid`/`child_identity` are recorded only after child
 creation; they are observations, never authorization for a client to signal a PID.
 A running snapshot can become stale immediately. Poll at a bounded interval and stop
