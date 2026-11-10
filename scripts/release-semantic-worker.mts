@@ -922,6 +922,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       { git_sha256: config.source_git_sha256, python_sha256: config.runtime.tools_sha256.python },
       undefined,
       applicationComparison,
+      selected.purpose === "catalog",
     );
     await retain("bounded-source-materialized-no-runtime", acquired);
     const source = acquired.repository;

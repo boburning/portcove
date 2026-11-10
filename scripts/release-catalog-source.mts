@@ -91,6 +91,8 @@ function* catalogPublicationSourceReads(sourceCommit: string, deadline: number) 
   const tree = inspectReleaseSourceTree(
     yield* get({ kind: "tree", sha: commit.tree }),
     commit.tree,
+    false,
+    true,
   );
   const requestPath = `${catalogPublicationSourcePrefix}request.json`;
   const requestEntry = tree.entries.get(requestPath);

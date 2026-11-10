@@ -8,6 +8,7 @@ import {
   inspectReleaseSourceTree,
   maximumApplicationSourceCommits,
   maximumApplicationSourceTreeEntries,
+  maximumCatalogSourceTreeEntries,
   maximumReleaseSourceCommits,
   netTreeDeltaScope,
   releaseSourceChangeRequests,
@@ -128,6 +129,23 @@ void test("retained public signed GitHub commit preserves non-UTC offsets and te
   assert.equal(result.object.bytes.length, 1352);
   assert.match(result.object.bytes.toString("utf8"), / -0400\ncommitter /u);
   assert.match(result.object.bytes.toString("utf8"), /-----END PGP SIGNATURE-----\n \n\n/u);
+  const terminalLf = structuredClone(record);
+  assert.ok(
+    isRecord(terminalLf.verification) && typeof terminalLf.verification.payload === "string",
+  );
+  terminalLf.verification.payload += "\n";
+  const withLf = Buffer.concat([result.object.bytes, Buffer.from("\n")]);
+  const withLfId = createHash("sha1")
+    .update(`commit ${withLf.length}\0`)
+    .update(withLf)
+    .digest("hex");
+  terminalLf.sha = withLfId;
+  assert.deepEqual(inspectRemoteCommitObject(terminalLf, withLfId).object.bytes, withLf);
+  terminalLf.verification.payload += "\n";
+  assert.throws(
+    () => inspectRemoteCommitObject(terminalLf, withLfId),
+    /unsupported signed Git commit payload/u,
+  );
   for (const fault of ["offset", "signature", "message", "actor", "extra-header"]) {
     const changed = structuredClone(record);
     assert.ok(
@@ -316,40 +334,60 @@ void test("cryptographic tree reconstruction reaches its finite entry boundary a
   const gitOid = (kind: string, bytes: Buffer) =>
     createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
   const blob = gitOid("blob", Buffer.from("fixture"));
-  const paths = Array.from(
-    { length: maximumApplicationSourceTreeEntries - 2 },
-    (_, index) => `folder${index % 2}/entry${String(index).padStart(4, "0")}`,
-  );
-  const rows = paths.map((path) => ({ path, mode: "100644", type: "blob", sha: blob }));
-  for (const directory of ["folder0", "folder1"]) {
-    const bytes = Buffer.concat(
+  for (const [limit, application] of [
+    [maximumApplicationSourceTreeEntries, true],
+    [maximumCatalogSourceTreeEntries, false],
+  ] as const) {
+    const paths = Array.from(
+      { length: limit - 2 },
+      (_, index) => `folder${index % 2}/entry${String(index).padStart(4, "0")}`,
+    );
+    const rows = paths.map((path) => ({ path, mode: "100644", type: "blob", sha: blob }));
+    for (const directory of ["folder0", "folder1"]) {
+      const bytes = Buffer.concat(
+        rows
+          .filter((entry) => entry.path.startsWith(`${directory}/`))
+          .map((entry) =>
+            Buffer.concat([
+              Buffer.from(`100644 ${entry.path.split("/")[1]}\0`),
+              Buffer.from(blob, "hex"),
+            ]),
+          ),
+      );
+      rows.push({ path: directory, mode: "040000", type: "tree", sha: gitOid("tree", bytes) });
+    }
+    const root = Buffer.concat(
       rows
-        .filter((entry) => entry.path.startsWith(`${directory}/`))
+        .filter((entry) => entry.type === "tree")
         .map((entry) =>
-          Buffer.concat([
-            Buffer.from(`100644 ${entry.path.split("/")[1]}\0`),
-            Buffer.from(blob, "hex"),
-          ]),
+          Buffer.concat([Buffer.from(`40000 ${entry.path}\0`), Buffer.from(entry.sha, "hex")]),
         ),
     );
-    rows.push({ path: directory, mode: "040000", type: "tree", sha: gitOid("tree", bytes) });
+    const sha = gitOid("tree", root);
+    assert.equal(
+      inspectReleaseSourceTree(
+        { sha, truncated: false, tree: rows },
+        sha,
+        application,
+        !application,
+      ).entries.size,
+      limit,
+    );
+    assert.throws(
+      () =>
+        inspectReleaseSourceTree(
+          { sha, truncated: false, tree: [...rows, rows[0]] },
+          sha,
+          application,
+          !application,
+        ),
+      /oversized/u,
+    );
+    assert.throws(
+      () => inspectReleaseSourceTree({ sha, truncated: false, tree: rows }, sha),
+      /oversized/u,
+    );
   }
-  const root = Buffer.concat(
-    rows
-      .filter((entry) => entry.type === "tree")
-      .map((entry) =>
-        Buffer.concat([Buffer.from(`40000 ${entry.path}\0`), Buffer.from(entry.sha, "hex")]),
-      ),
-  );
-  const sha = gitOid("tree", root);
-  assert.equal(
-    inspectReleaseSourceTree({ sha, truncated: false, tree: rows }, sha, true).entries.size,
-    maximumApplicationSourceTreeEntries,
-  );
-  assert.throws(
-    () => inspectReleaseSourceTree({ sha, truncated: false, tree: [...rows, rows[0]] }, sha, true),
-    /oversized/u,
-  );
 });
 
 void test("truncated/diverged/duplicate/escaping comparisons and forged incomplete trees refuse", () => {

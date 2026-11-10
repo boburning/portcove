@@ -159,13 +159,14 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
         /^[+-](?:0[0-9]|1[0-4])[0-5][0-9]$/u.test(line.slice(prefix.length))
       );
     };
+    const signedMessage = payload.slice(boundary + 2);
     if (
       boundary < 0 ||
       lines.length !== leading.length + 2 ||
       leading.some((line, index) => lines[index] !== line) ||
       !actorMatches(lines[leading.length], "author", value.author) ||
       !actorMatches(lines[leading.length + 1], "committer", value.committer) ||
-      payload.slice(boundary + 2) !== message ||
+      (signedMessage !== message && signedMessage !== `${message}\n`) ||
       !signature ||
       signature.includes("\r")
     )
@@ -174,7 +175,7 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
     // empty continuation line. Support only these two bounded encodings; the
     // exact raw-object hash, never the verification boolean, chooses one.
     for (const form of new Set([signature.replace(/\n$/u, ""), signature])) {
-      raw = `${payload.slice(0, boundary)}\ngpgsig ${form.replaceAll("\n", "\n ")}\n\n${message}`;
+      raw = `${payload.slice(0, boundary)}\ngpgsig ${form.replaceAll("\n", "\n ")}\n\n${signedMessage}`;
       try {
         return {
           object: inspectRemoteGitObject("commit", expected, Buffer.from(raw)),
