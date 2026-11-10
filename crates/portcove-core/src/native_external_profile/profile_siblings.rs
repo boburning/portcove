@@ -1,5 +1,5 @@
 //! The official CorsixTH and OpenLoco packages and their upstream profile roots.
-use std::{fs, io::Read, path::Path};
+use std::{fs, path::Path};
 
 use crate::{ExternalProfilePolicy, Platform, PortDefinition, PortcoveError, Result};
 
@@ -152,15 +152,11 @@ pub(crate) fn require_payload(executable: &Path, platform: Platform) -> Result<(
     if platform == Platform::LinuxX86_64 {
         return super::require_type2_appimage(executable);
     }
-    let mut file = crate::external_runtime::open_single_link_file(executable)?;
-    let mut header = [0; 16];
-    file.read_exact(&mut header)?;
     // The upstream ARM64 ZIP contains a thin little-endian MH_EXECUTE.
-    if !header.starts_with(&[0xcf, 0xfa, 0xed, 0xfe, 12, 0, 0, 1]) || header[12..] != [2, 0, 0, 0] {
-        return Err(PortcoveError::verification(
-            "the OpenLoco bundle no longer contains its expected Mac ARM64 executable",
-        ));
-    }
+    super::require_arm64_macho(
+        executable,
+        "the OpenLoco bundle no longer contains its expected Mac ARM64 executable",
+    )?;
     let contents = executable
         .parent()
         .and_then(Path::parent)

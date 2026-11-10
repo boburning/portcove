@@ -95,6 +95,13 @@ Apple Silicon ZIP. Fresh and retained entries require version 16. It binds
 the reviewed package and default external profile, with AppImage mount
 checks on Linux. The creating Windows definitions retain their rules.
 
+Native portable version 17 consumes `jgrpp-linux-v1` and `openglad-mac-v1`
+for the official Linux JGR Patch Pack and Apple silicon OpenGlad archives.
+Fresh and retained entries require version 17. JGR additionally declares
+the archive file links it needs. These guarded routes check default
+external profiles and use the executable's directory for packaged assets.
+The previously managed platform contracts retain their creating rules.
+
 Native portable version 10 adds official sibling packages to verified native
 original-file definitions that keep a Windows temporary directory inside their
 private profile. Fresh and retained indexed entries declaring that combination

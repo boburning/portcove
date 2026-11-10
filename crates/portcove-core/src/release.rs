@@ -106,7 +106,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     requires_tar_xz: bool,
     native_appimage: bool,
     native_appimage_two_part: bool,
-    versioned_native_archive: bool,
+    restricted_native_archive: bool,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -131,13 +131,16 @@ impl ReleaseSelectionCacheKey {
                     ..
                 })
             ),
-            versioned_native_archive: crate::native_external_profile::openmohaa::requires_zip(
+            restricted_native_archive: crate::native_external_profile::openmohaa::requires_zip(
                 port, platform,
             )
                 || crate::native_external_profile::quake_linux::requires_ironwail_tar(
                     port, platform,
                 )
                 || crate::native_external_profile::profile_siblings::requires_openloco_zip(
+                    port, platform,
+                )
+                || crate::native_external_profile::archive_siblings::requires_archive(
                     port, platform,
                 ),
             scope_binding: None,
@@ -1800,6 +1803,9 @@ fn choose_asset<'a>(
                 || !crate::native_external_profile::profile_siblings::matches_openloco_zip(
                     port, platform, &name,
                 )
+                || !crate::native_external_profile::archive_siblings::matches_asset(
+                    port, platform, &name,
+                )
             {
                 return None;
             }
@@ -2661,7 +2667,7 @@ mod tests {
             requires_tar_xz: false,
             native_appimage: false,
             native_appimage_two_part: false,
-            versioned_native_archive: false,
+            restricted_native_archive: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2689,7 +2695,7 @@ mod tests {
                         requires_tar_xz: false,
                         native_appimage: false,
                         native_appimage_two_part: false,
-                        versioned_native_archive: false,
+                        restricted_native_archive: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

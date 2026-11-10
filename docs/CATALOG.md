@@ -342,6 +342,16 @@ copies. Keep those locations outside the library. The managed runtime
 inventory holds updates, switches and removal if unrecognized files appear.
 Windows creating contracts retain their previous rules.
 
+Native portable capability 17 covers the generic JGR Patch Pack Linux
+x86-64 TAR.XZ and the OpenGlad Apple silicon ZIP. JGR reuses archive file
+link extraction and launches with its default XDG configuration and
+data roots. The guard holds a portable configuration or native social
+plugin in a searched directory. OpenGlad launches the packaged player
+beside its assets and uses the default HOME/.openglad profile.
+Use a separately prepared copy for OpenGlad's custom profile override or
+a custom Unix library search path. Existing platform contracts keep their
+creating definitions.
+
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment

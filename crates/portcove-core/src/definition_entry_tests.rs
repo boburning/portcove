@@ -143,6 +143,29 @@ fn profile_siblings_require_native16_for_fresh_and_retained_reads() {
 }
 
 #[test]
+fn archive_siblings_require_native17_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in ["jgrennison-openttd-patches", "gladiator-openglad"] {
+        let mut entry = entry_for_port(catalog.port(id).unwrap());
+        entry["required_capabilities"][0]["maximum_version"] = json!(17);
+        for minimum in [16, 17] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            for result in [
+                inspect(&entry),
+                index(&bytes, id).inspect_retained_entry("official", id, &bytes),
+            ] {
+                if minimum == 16 {
+                    assert!(result.unwrap_err().message.contains("version 17"));
+                } else {
+                    assert!(result.unwrap().capabilities().compatible);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn managed_external_profiles_require_version_9_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("dune-ii-dune-dynasty").unwrap();
