@@ -1,4 +1,5 @@
 //! Complete backup lifecycle fixture family; production authority stays in its owner.
+use super::super::backups::{is_no_persistent_data, no_persistent_data};
 use super::*;
 use crate::VersionChangeKind;
 
@@ -3308,4 +3309,50 @@ fn retention_keeps_the_newest_automatic_snapshots_and_never_removes_a_manual_one
         .delete_automatic_backup_locked(ZELDA, &manual.id)
         .unwrap_err();
     assert!(refusal.message.contains("only an automatic snapshot"));
+}
+
+#[test]
+fn a_failed_snapshot_also_stops_staged_activation_before_any_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let first = register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", false);
+    seed_saves(&first, b"saves");
+    let service = PortcoveService::with_provider_and_faults(
+        library.clone(),
+        Arc::new(StaticReleaseProvider {
+            version: "v1".into(),
+        }),
+        Arc::new(FailSnapshotCopy),
+    )
+    .unwrap();
+
+    let error = service.activate_staged(ZELDA).unwrap_err();
+
+    assert!(
+        error.message.contains("injected snapshot failure"),
+        "{error:?}"
+    );
+    let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
+    assert_eq!(
+        status.active.unwrap().version,
+        "v1",
+        "activation must not happen"
+    );
+    assert_eq!(
+        status.staged.unwrap().version,
+        "v2",
+        "the staged version stays staged"
+    );
+    assert!(automatic_snapshots(&service).is_empty());
+}
+
+#[test]
+fn only_the_nothing_to_back_up_error_is_a_recorded_skip() {
+    let marked = no_persistent_data(ZELDA);
+    assert!(is_no_persistent_data(&marked));
+    // An unrelated not_found (catalog entry, install, directory) must still fail the change.
+    assert!(!is_no_persistent_data(&PortcoveError::not_found(
+        "no such port"
+    )));
 }

@@ -33,6 +33,20 @@ mod guarded_archive;
 /// The newest this many automatic snapshots per game are kept.
 pub(super) const AUTOMATIC_SNAPSHOT_RETENTION: usize = 5;
 
+/// Marks the one `not_found` that means "nothing to back up", so a snapshot skip
+/// never swallows an unrelated missing catalog entry, install or directory.
+const NO_PERSISTENT_DATA: &str = "no_persistent_data";
+
+pub(super) fn no_persistent_data(port_id: &str) -> PortcoveError {
+    PortcoveError::not_found(format!("{port_id} has no persistent data to back up"))
+        .detail("backup_state", NO_PERSISTENT_DATA)
+}
+
+pub(super) fn is_no_persistent_data(error: &PortcoveError) -> bool {
+    error.code == crate::ErrorCode::NotFound
+        && error.details.get("backup_state").map(String::as_str) == Some(NO_PERSISTENT_DATA)
+}
+
 /// What an automatic snapshot request did.
 #[derive(Debug)]
 pub(crate) enum SnapshotOutcome {
@@ -615,9 +629,7 @@ impl PortcoveService {
         self.require_generated_cache_outputs_unchanged(port_id)?;
         let source = self.library.user_dir(port_id);
         if !source.is_dir() {
-            return Err(PortcoveError::not_found(format!(
-                "{port_id} has no persistent data to back up"
-            )));
+            return Err(no_persistent_data(port_id));
         }
         // Both callers have successfully collected the active runtime under the
         // port lock. A catalog pin cannot supply this producer observation.
@@ -670,9 +682,7 @@ impl PortcoveService {
                 ));
             }
             if stats.file_count == 0 {
-                return Err(PortcoveError::not_found(format!(
-                    "{port_id} has no persistent data to back up"
-                )));
+                return Err(no_persistent_data(port_id));
             }
             // Publish only data that the existing restore review can interpret.
             crate::runtime_data_policy::DataReview::default()
@@ -1681,8 +1691,8 @@ impl PortcoveService {
 
     /// Takes the automatic snapshot a version change promises, or explains why none
     /// is needed. The caller holds the port lock; `collect_first` gathers the
-    /// active version's latest saves when the caller has not already. A snapshot failure returns an error, so the caller
-    /// stops before it mutates anything.
+    /// active version's latest saves when the caller has not already. A snapshot
+    /// failure returns an error, so the caller stops before it mutates anything.
     pub(super) fn snapshot_before_version_change(
         &self,
         port_id: &str,
@@ -1695,12 +1705,14 @@ impl PortcoveService {
         if !self.library.automatic_snapshots_enabled()? {
             return Ok(SnapshotOutcome::Disabled);
         }
-        // The retained contract decides ownership, not today's catalog.
-        let contract = self.persistence_contract_for_install(contract_install)?;
-        if contract
-            .port
-            .presentation
-            .as_ref()
+        // The retained definition decides ownership, not today's catalog. If it
+        // cannot be read, treat the data as managed: copying Portcove's own saved-data
+        // folder is harmless, whereas refusing here could block a rollback, which is
+        // the recovery path.
+        if self
+            .installed_port(contract_install)
+            .ok()
+            .and_then(|port| port.presentation)
             .is_some_and(|p| p.saves_and_settings == SavesAndSettingsBehavior::ExternalUserOwned)
         {
             return Ok(SnapshotOutcome::ExternalData);
@@ -1727,9 +1739,7 @@ impl PortcoveService {
                     Ok(SnapshotOutcome::Created { pruned })
                 }
                 // Nothing to protect yet; this is a recorded skip, not a failure.
-                Err(error) if error.code == crate::ErrorCode::NotFound => {
-                    Ok(SnapshotOutcome::NoData)
-                }
+                Err(error) if is_no_persistent_data(&error) => Ok(SnapshotOutcome::NoData),
                 Err(error) => Err(error),
             }
         })();
