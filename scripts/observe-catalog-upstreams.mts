@@ -154,6 +154,13 @@ export async function retireObserverConfigurations(
 export const hostedOpportunityMs = 40 * 60000;
 export const hostedHandoffByteLimit = 32 * 1024 * 1024;
 export const hostedRequestLimit = 1800;
+/** Push runs only fill schedule gaps (#4779). Half the ceiling keeps the
+ * worst case of a gap-filling push followed by the next schedule within the
+ * same hour at about half of the shared hourly allowance. */
+export const pushRequestLimit = hostedRequestLimit / 2;
+export function hostedRequestCeiling(event: string | undefined) {
+  return event === "push" ? pushRequestLimit : hostedRequestLimit;
+}
 
 export async function runCatalogUpstreams(
   args: string[],
@@ -697,7 +704,7 @@ export async function runCatalogOpportunity(
       },
       {
         deadline: runtime.deadline,
-        maxRequests: hostedRequestLimit,
+        maxRequests: hostedRequestCeiling(process.env.GITHUB_EVENT_NAME),
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
         onBatch: (batch) => {
@@ -784,7 +791,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     const deadline = process.env.PORTCOVE_OBSERVER_OPPORTUNITY_DEADLINE_UTC;
     const scheduledPrioritySource =
-      process.env.GITHUB_EVENT_NAME === "schedule"
+      // Gap-filling push runs stand in for skipped schedules (#4779).
+      ["schedule", "push"].includes(process.env.GITHUB_EVENT_NAME ?? "")
         ? process.env.PORTCOVE_OBSERVER_SCHEDULED_PRIORITY_SOURCE
         : undefined;
     if (scheduledPrioritySource !== undefined && !/^[a-f0-9]{64}$/u.test(scheduledPrioritySource))

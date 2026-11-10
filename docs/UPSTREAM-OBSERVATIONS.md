@@ -286,7 +286,9 @@ start another operation within that opportunity; each operation keeps its existi
 three-minute admission budget. Request counts and refreshed clocks alone cannot
 authorize another batch. A hosted opportunity also stops admitting batches after
 1,800 provider requests, about a third of the observed hourly allowance, so
-upstream-health and other workflows sharing the token keep capacity. Non-budget failures stay visible and are excluded from
+upstream-health and other workflows sharing the token keep capacity. A
+gap-filling push opportunity (below) stops at 900 requests, so a push followed
+by the next schedule within one hour stays near half of that allowance. Non-budget failures stay visible and are excluded from
 further attempts in that job. All batches share one aggregate handoff byte budget;
 input or inspector changes stop continuation and preserve earlier evidence. The
 standalone command without this explicit hosted deadline remains one bounded
@@ -438,10 +440,15 @@ the SDK supplies bounded transport and request evidence.
 Conditional requests count against the request budget. No game artifact bytes
 are downloaded. The core input is bounded to 4 MiB, its process to thirty
 seconds, and the entire hosted job to ten minutes on one fixed Linux runner.
-Workflow concurrency permits one active run per ref and at most one pending run,
-so hourly schedules, merges to main and explicitly requested manual runs together
-cannot exceed back-to-back opportunities; actual usage is lower with a warm build
-cache. There are no agent/model calls.
+Only observing jobs share the per-ref concurrency slot, with one active and at
+most one pending. Hourly schedules and manual runs always observe. A merge to
+main starts an admission job that lets its run observe only to fill a schedule
+gap: when no schedule or push run of the observer observed, or is observing,
+within the last fifty-five minutes. Admission reads at most two run pages and
+the jobs of recent runs, and any read failure declines. A declined push run
+finishes without observing, so it neither consumes the slot nor displaces a
+pending scheduled observation. Actual usage is lower with a warm build cache.
+There are no agent/model calls.
 
 The main observer job has `contents: read` and `actions: read`; the latter permits
 retrieval of the preceding observer's checkpoint artifact. No write,
@@ -450,12 +457,14 @@ path with its original thirty-two-MiB per-file reader limits. On complete cache
 loss, recovery admits only the same repository, workflow and default branch's
 completed producer from a natural schedule or a push to main, including a
 failed run carrying a complete snapshot. GitHub can skip scheduled runs for
-hours, so merges to main also start observations and keep progress continuous
-(#4779). Both triggers run main's reviewed workflow source. Recovery reads one
+hours, so gap-filling push runs (above) keep progress continuous (#4779). Both triggers run main's reviewed workflow source. Recovery reads one
 provider-filtered inventory per trigger and merges them newest-first, so manual
 dispatches, fork pull requests and other triggers never enter it, consume its
 window or set its age boundary; a listed run whose trigger differs from its
-filter refuses. The producer's trigger is re-read after collection.
+filter refuses. Each trigger's window must be complete or reach its own age
+boundary; one cannot certify the other. A push run without a snapshot is passed
+over, because declined push runs never observe; only natural schedules count as
+evidence of missing history. The producer's trigger is re-read after collection.
 Provider run/artifact identity, main ancestry, the exact configuration digest,
 artifact digest, archive structure and the complete checkpoint graph are checked
 before an absent checkpoint tree is published atomically. A partial or foreign

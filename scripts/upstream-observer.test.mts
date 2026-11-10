@@ -357,6 +357,15 @@ void test("scheduled observation keeps the configured cadence, read-only authori
   // Pushes to main are a second trigger because GitHub skips schedules (#4779);
   // no other branch or pull request event may start an observation.
   assert.match(workflow, /\n  push:\n    branches: \[main\]\n/u);
+  // Push runs pass the gap-filling admission gate; only observing jobs share
+  // the concurrency slot, so gated runs cannot displace a pending schedule.
+  assert.match(
+    workflow,
+    /\n  observe:\n    needs: admit\n    if: .*needs\.admit\.outputs\.observe == 'true'/u,
+  );
+  assert.match(workflow, /\n    concurrency:\n      group: configured-upstream-observer-/u);
+  assert.doesNotMatch(workflow, /\nconcurrency:/u);
+  assert.match(workflow, /node scripts\/observer-push-admission\.mts/u);
   assert.doesNotMatch(workflow, /\n  pull_request|\n  workflow_run|branches-ignore/u);
   assert.match(workflow, /permissions:\s+contents: read/);
   assert.doesNotMatch(
@@ -1863,4 +1872,95 @@ void test("pure observer hashes load in a clean dependency-free checkout without
     { cwd: root, encoding: "utf8", timeout: 20000, maxBuffer: 16384 },
   );
   assert.equal(result, "b582d69203da8050e06ea8c50746b42435449c8af7eefe2025b2bb6eeacaa1d1");
+});
+
+void test("push runs observe only to fill schedule gaps and use a reduced request ceiling (#4779)", async () => {
+  const { admitObservation, pushCooldownMs } = await import("./observer-push-admission.mts");
+  const { hostedRequestCeiling, hostedRequestLimit, pushRequestLimit } =
+    await import("./observe-catalog-upstreams.mts");
+  assert.equal(hostedRequestCeiling("schedule"), hostedRequestLimit);
+  assert.equal(hostedRequestCeiling("workflow_dispatch"), hostedRequestLimit);
+  assert.equal(hostedRequestCeiling("push"), pushRequestLimit);
+  assert.ok(pushRequestLimit * 2 <= hostedRequestLimit);
+
+  const now = Date.parse("2026-11-10T03:00:00Z");
+  const run = (id: number, event: string, minutesAgo: number, extra: object = {}) => ({
+    id,
+    event,
+    head_branch: "main",
+    status: "completed",
+    conclusion: "success",
+    created_at: new Date(now - minutesAgo * 60000).toISOString(),
+    ...extra,
+  });
+  const fixture = (runsByEvent: Record<string, object[]>, observed: Record<number, string>) => {
+    const routes: string[] = [];
+    return {
+      routes,
+      read: async (route: string) => {
+        routes.push(route);
+        const event = new URLSearchParams(route.split("?")[1]).get("event");
+        if (event) return { workflow_runs: runsByEvent[event] ?? [] };
+        const id = Number(route.match(/runs\/(\d+)\/jobs/u)?.[1]);
+        return {
+          jobs: [
+            { name: "admit", conclusion: "success" },
+            { name: "observe", conclusion: observed[id] ?? "skipped" },
+          ],
+        };
+      },
+    };
+  };
+  const admit = (event: string, f: ReturnType<typeof fixture>) =>
+    admitObservation({ event, currentRun: 1, now, read: f.read });
+
+  // Schedules and manual runs are never gated and make no reads.
+  for (const event of ["schedule", "workflow_dispatch"]) {
+    const f = fixture({}, {});
+    assert.deepEqual(await admit(event, f), { observe: true, reason: "not-push" });
+    assert.equal(f.routes.length, 0);
+  }
+  // No recent observation admits the push run.
+  assert.equal((await admit("push", fixture({}, {}))).observe, true);
+  // A schedule that observed within the cooldown declines it.
+  assert.equal(
+    (await admit("push", fixture({ schedule: [run(10, "schedule", 20)] }, { 10: "success" })))
+      .observe,
+    false,
+  );
+  // A failed observation still counts; a gated push run that skipped observing does not.
+  assert.equal(
+    (await admit("push", fixture({ push: [run(11, "push", 10)] }, { 11: "failure" }))).observe,
+    false,
+  );
+  assert.equal((await admit("push", fixture({ push: [run(12, "push", 10)] }, {}))).observe, true);
+  // Older, cancelled or current runs are ignored.
+  const minutes = pushCooldownMs / 60000 + 5;
+  assert.equal(
+    (
+      await admit(
+        "push",
+        fixture(
+          {
+            schedule: [
+              run(13, "schedule", minutes),
+              run(14, "schedule", 5, { conclusion: "cancelled" }),
+            ],
+            push: [run(1, "push", 0, { status: "in_progress" })],
+          },
+          { 13: "success", 14: "success" },
+        ),
+      )
+    ).observe,
+    true,
+  );
+  // An active observer run declines it without reading jobs.
+  const active = fixture({ schedule: [run(15, "schedule", 3, { status: "in_progress" })] }, {});
+  assert.equal((await admit("push", active)).observe, false);
+  assert.ok(active.routes.every((route) => !route.includes("/jobs")));
+  // Inconsistent records refuse rather than admit.
+  await assert.rejects(admit("push", fixture({ push: [run(16, "schedule", 1)] }, {})));
+  await assert.rejects(
+    admit("push", fixture({ schedule: [run(17, "schedule", 1, { head_branch: "feature" })] }, {})),
+  );
 });

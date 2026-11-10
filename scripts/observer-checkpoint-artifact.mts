@@ -767,9 +767,10 @@ async function scheduledRunWindow(
         typeof value.created_at === "string" &&
         now - Date.parse(value.created_at) > maximumAge,
     );
-    if (runs.length === total || boundary) return { runs, complete: runs.length === total };
+    if (runs.length === total || boundary)
+      return { runs, complete: runs.length === total, bounded: boundary };
   }
-  return { runs, complete: runs.length === total };
+  return { runs, complete: runs.length === total, bounded: false };
 }
 
 /** No caller flag can renew this permit. Only the first natural schedule after
@@ -1068,6 +1069,9 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         (left, right) => Date.parse(String(right.created_at)) - Date.parse(String(left.created_at)),
       ),
     complete: windows.every((window) => window.complete),
+    // Each trigger's window must stand on its own: complete, or paged through
+    // its own age boundary. One window cannot certify the other's coverage.
+    covered: windows.every((window) => window.complete || window.bounded),
   };
   let expectedHistory = false;
   let reachedAgeBoundary = false;
@@ -1119,6 +1123,16 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     const name = snapshotName(config, source),
       matches = artifacts.artifacts.filter((row) => row.name === name);
     requireValue(matches.length <= 1, "duplicate checkpoint artifact");
+    if (!matches.length && raw.event === "push") {
+      // Gated push runs finish without observing, so a push run without its
+      // snapshot is never evidence of lost history (#4779). Natural schedules
+      // keep the cutover and missing-history checks below.
+      if (tooOld) {
+        reachedAgeBoundary = true;
+        break;
+      }
+      continue;
+    }
     if (!matches.length) {
       // Explicit migration only: inspect trusted old source, never silently cold-start
       // after a deployed snapshot publisher failed to retain its history.
@@ -1223,7 +1237,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     };
   }
   requireValue(
-    inventory.complete || reachedAgeBoundary,
+    inventory.covered && (inventory.complete || reachedAgeBoundary),
     "scheduled history coverage incomplete; preserve evidence",
   );
   if (expectedHistory) {

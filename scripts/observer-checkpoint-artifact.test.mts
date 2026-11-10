@@ -123,7 +123,13 @@ function transport() {
             (left, right) =>
               Date.parse(String(right.created_at)) - Date.parse(String(left.created_at)),
           );
-        body = { total_count: runs.length, workflow_runs: runs };
+        const query = new URLSearchParams(endpoint.split("?")[1]);
+        const size = Number(query.get("per_page") ?? 100),
+          page = Number(query.get("page") ?? 1);
+        body = {
+          total_count: runs.length,
+          workflow_runs: runs.slice((page - 1) * size, page * size),
+        };
       } else if (endpoint.includes("/compare/"))
         body = { status: "ahead", merge_base_commit: { sha: source.source } };
       else if (endpoint.includes("/contents/"))
@@ -1661,6 +1667,52 @@ void test("push producers on main are recoverable; other triggers never enter th
   await assert.rejects(recover(mislabeledRoot, mislabeled), /run inventory invalid/u);
   await assert.rejects(
     readFile(path.join(mislabeledRoot, "work/upstream-observer/catalog/checkpoint.json")),
+    { code: "ENOENT" },
+  );
+});
+
+void test("gated push runs are not history loss and each trigger window must cover itself (#4779)", async (t) => {
+  const recover = (root: string, f: ReturnType<typeof transport>) =>
+    recoverObserverCheckpoint({
+      root,
+      config,
+      current,
+      deadline: Date.now() + 60000,
+      api: f.api,
+      download: f.download,
+    });
+
+  // A newer push run that skipped observing has no snapshot, even though its
+  // source has the snapshot publisher; recovery passes it and restores the
+  // older schedule instead of demanding explicit recovery.
+  const gated = transport();
+  gated.publisher();
+  const pushedAt = gated.run.created_at;
+  gated.run.created_at = new Date(Date.parse(pushedAt) - 60000).toISOString();
+  gated.extraRuns.push({ ...gated.run, id: 205, event: "push", created_at: pushedAt });
+  const gatedRoot = await directory(t);
+  const restored = await recover(gatedRoot, gated);
+  assert.equal(restored.origin, "artifact");
+  assert.equal(gated.count(), 1);
+
+  // A full ten-page push window that neither completes nor reaches its age
+  // boundary refuses, even when the schedule window is bounded.
+  const crowded = transport();
+  crowded.missing();
+  const old = new Date(Date.now() - 30 * 3600000).toISOString();
+  crowded.run.created_at = old;
+  for (let i = 0; i < 101; i++)
+    crowded.extraRuns.push({
+      ...crowded.run,
+      id: 1000 + i,
+      event: "push",
+      conclusion: "cancelled",
+      created_at: new Date(Date.now() - (i + 1) * 60000).toISOString(),
+    });
+  const crowdedRoot = await directory(t);
+  await assert.rejects(recover(crowdedRoot, crowded), /coverage incomplete/u);
+  await assert.rejects(
+    readFile(path.join(crowdedRoot, "work/upstream-observer/catalog/checkpoint.json")),
     { code: "ENOENT" },
   );
 });
