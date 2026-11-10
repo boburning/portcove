@@ -74,6 +74,13 @@ version 12. Linux acquisition binds the provider artifact and launch checks
 the effective external profile and AppImage mount and log paths. The same
 definition retains its existing Windows executable and data fallback.
 
+Native portable version 13 consumes `openmohaa-unix-v1` for the reviewed
+official OpenMoHAA Linux and Mac ZIPs. Fresh and retained entries require
+version 13. The Unix routes verify the title-specific launcher and child,
+establish executable permissions in staging, and check the effective profile
+outside managed runtimes before launch. Windows creating definitions keep
+their existing behavior.
+
 Native portable version 10 adds official sibling packages to verified native
 original-file definitions that keep a Windows temporary directory inside their
 private profile. Fresh and retained indexed entries declaring that combination
