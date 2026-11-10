@@ -2124,7 +2124,7 @@ archive and through at most eight links, to a regular file; absolute, escaping,
 missing, directory, cyclic, overlong-chain and malformed targets refuse before any
 write, and the copied bytes count toward the same size and compression-ratio limits.
 A definition whose package relies on this declares `release.archive_file_links`,
-which older readers refuse through [native capability 14](DEFINITION-DELIVERY.md). The six macOS N64 recomp routes that predate the declaration are not yet gated this way. This covers the dylib version aliases
+which older readers refuse through [native capability 14](DEFINITION-DELIVERY.md). N64 recomp definitions with macOS app-bundle packages declare it and require [N64 capability 5](DEFINITION-DELIVERY.md). This covers the dylib version aliases
 in macOS app bundles. A package whose whole payload is one ZIP file is unwrapped one
 level through the same extractor. The exact upstream asset keeps its own identity,
 and any other payload shape is unchanged. These are extraction facts, not native

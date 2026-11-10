@@ -422,7 +422,9 @@
       "issue_number": 66,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },
@@ -534,17 +536,6 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 69,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-aarch64"
-      ],
-      "download_asset_hints": {
-        "macos-aarch64": [
-          "macOS-ARM64-Release",
-          ".zip"
-        ]
-      },
       "availability": "packages",
       "release_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled/releases",
       "setup_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme",
@@ -559,25 +550,27 @@
             "instruction": "Extract the Flatpak x64 ZIP to get io.github.dk64recompiled.dk64recompiled.flatpak. Install the file with Flatpak, then start io.github.dk64recompiled.dk64recompiled from the app menu or with flatpak run io.github.dk64recompiled.dk64recompiled."
           },
           {
-            "title": "Open the Mac app",
-            "instruction": "Choose the official Apple Silicon ZIP. Extract the outer release ZIP, then use Archive Utility to extract DK64Recompiled.zip to get DK64Recompiled.app. Open the app from its permanent folder."
-          },
-          {
             "title": "Select your original",
             "instruction": "In the upstream game picker choose your own USA 1.0 Donkey Kong 64 cartridge dump. The game validates the matching original before play."
           }
         ],
         "warnings": [
-          "These packages use upstream or player-managed setup, replacement and data backups. Portcove has no native execution or populated-save result for these sibling packages."
+          "Portcove manages the official Windows, Linux x64 and Apple Silicon Mac packages. The Linux ARM64 and Flatpak packages use upstream or player-managed setup, replacement and data backups.",
+          "Portcove has no native Mac execution, macOS first-launch (Gatekeeper) result or populated-save result for this package."
         ],
         "help_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme",
         "references": [
           {
-            "title": "Keep the external profile",
-            "instruction": "Preserve ~/.config/DK64Recompiled on Linux and the DK64Recompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dk64recompiled.dk64recompiled. Back up the original, saves, mods and settings before replacing an upstream copy."
+            "title": "Keep an upstream-managed profile",
+            "instruction": "If you already use an upstream-managed copy, preserve ~/.config/DK64Recompiled on Linux, the DK64Recompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dk64recompiled.dk64recompiled. Back up the original, saves, mods and settings before replacing it. Portcove-managed installs keep their data in the Portcove profile and do not adopt these folders."
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "automobili-lamborghini-recompiled",
@@ -1501,7 +1494,9 @@
       "issue_number": 102,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },
@@ -1594,7 +1589,9 @@
       "issue_number": 105,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "unknown"
     },

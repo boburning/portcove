@@ -96,6 +96,12 @@ require version 10. The Windows launch environment and creating Windows
 contracts retain their prior semantics. The Linux sibling may use a single
 exact AppImage asset with the existing standalone installer.
 
+N64 recomp version 5 consumes the same `release.archive_file_links` declaration for
+macOS app bundles whose upstream ZIP carries dylib version links, optionally wrapped in
+one inner ZIP. Indexed entries with the declaration require an N64 version 5 lower
+bound for fresh and retained reads; older readers refuse them, and no other adapter
+accepts the declaration.
+
 Native portable version 14 consumes `release.archive_file_links` for a package
 whose archive relies on file links, such as versioned shared-library names. Core
 extracts each link as a regular copy of the file it names, following at most eight

@@ -280,7 +280,11 @@ impl<'a> IndexedCatalogFixture<'a> {
         let port = self.port.as_ref();
         let port_id = &port.id;
         let capability_version = if port.release.archive_file_links {
-            14
+            if port.adapter == crate::AdapterKind::N64RecompPortable {
+                5
+            } else {
+                14
+            }
         } else if crate::native_temp::has_sibling_platforms(port) {
             10
         } else if let Some(policy) = port.external_profile_policy {

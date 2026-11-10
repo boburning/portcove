@@ -77,7 +77,8 @@
       "repository": "Zelda64Recomp/Zelda64Recomp",
       "asset_hints": {
         "linux-x86-64": ["Linux-X64.zip"]
-      }
+      },
+      "archive_file_links": true
     },
     "source_profile": "majoras-mask",
     "executable_hints": {

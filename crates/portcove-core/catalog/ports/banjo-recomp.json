@@ -57,7 +57,8 @@
       "repository": "BanjoRecomp/BanjoRecomp",
       "asset_hints": {
         "linux-x86-64": ["Linux-X64."]
-      }
+      },
+      "archive_file_links": true
     },
     "source_profile": "banjo-kazooie",
     "executable_hints": {
