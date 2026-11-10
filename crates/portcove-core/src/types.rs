@@ -683,6 +683,7 @@ pub enum ExternalProfilePolicy {
     OpengladMacV1,
     Z2rsDesktopV1,
     RecompDirectV1,
+    Doom3LinuxV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.
