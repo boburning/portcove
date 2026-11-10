@@ -78,7 +78,9 @@ fn recomp_appimage_entries_require_native12_for_fresh_and_retained_reads() {
 fn openmohaa_unix_entries_require_native13_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     let id = "medal-of-honor-allied-assault-openmohaa";
-    let mut entry = entry_for_port(catalog.port(id).unwrap());
+    let mut creating_port = catalog.port(id).unwrap().clone();
+    creating_port.reviewed_package_layouts.clear();
+    let mut entry = entry_for_port(&creating_port);
     entry["required_capabilities"][0]["maximum_version"] = json!(13);
     for minimum in [12, 13] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
@@ -100,7 +102,9 @@ fn openmohaa_unix_entries_require_native13_for_fresh_and_retained_reads() {
 fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     for id in ["quake-ironwail", "quake-vkquake"] {
-        let mut entry = entry_for_port(catalog.port(id).unwrap());
+        let mut creating_port = catalog.port(id).unwrap().clone();
+        creating_port.reviewed_package_layouts.clear();
+        let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(15);
         for minimum in [14, 15] {
             entry["required_capabilities"][0]["minimum_version"] = json!(minimum);

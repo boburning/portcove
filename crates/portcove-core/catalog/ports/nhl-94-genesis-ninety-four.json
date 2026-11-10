@@ -17,6 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2597,
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "manual_setup": {
       "help_url": "https://github.com/1nputs/ninety-four/blob/1b0b30e7bf6ee4e66ab33ef10acbeec55442b021/README.md",
       "steps": [
@@ -25,8 +26,8 @@
           "instruction": "Use a complete player and components you are independently permitted to use, with your own 1 MiB retail NHL ’94 Genesis US/Europe ROM. Finish the upstream first-launch ROM picker and saved settings before attachment; retain the independent original. Optional larger ROM hacks and roster imports are separate upstream operations, not another accepted retail revision by title alone. This guide obtains or executes no ROM, converter, helper or game. The inspected official 0.3.6 ZIP contains ninety-four-windows-x86_64/nhl94.exe as an AMD64 native player with matching library and notices. Keep that complete directory. This is the native rewrite using the linked pulseman hardware/audio/frontend facilities; it is not an original Genesis executable or a generic emulator admission. A source build and another platform’s application are separate artifacts. Upstream documents the remembered ROM picker for normal windowed starts; the native entry runs the game in the selected process. Complete a missing-ROM prompt outside the attached attempt. Do not add headless, finite-frame, trace, ROM-extraction or network-server arguments as normal Play."
         },
         {
-          "title": "Preserve the actual working-directory data",
-          "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion. Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted."
+          "title": "Preserve the actual Linux and Mac data locations",
+          "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion. Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted. On Linux x86-64, the upstream archive needs glibc 2.34 or newer, SDL2 and the GNU C++ and GCC support runtimes. For an existing copy, keep nhl94 and its full archive together and run it from that folder. On macOS 11 or newer, use the upstream universal application for Intel or Apple Silicon. Finder launches keep settings and saves under ~/Library/Application Support/ninety-four. A shell launch can use the working directory instead. Keep the complete application bundle and back up the data location your copy actually uses. Portcove manages the separate Linux runtime, while the Mac application stays with upstream setup."
         },
         {
           "title": "Keep original, roster and component terms separate",
@@ -65,7 +66,8 @@
         "instruction": "On first Play, select your own supported 1 MiB NHL ’94 Genesis US/Europe ROM in the upstream picker. Keep it at a stable location outside the managed runtime."
       },
       "warnings": [
-        "Use the default data paths with the managed runtime. Keep an independent copy of your ROM, and use a separately prepared copy for custom data paths. Runtime rollback does not establish save-state compatibility."
+        "Use the default data paths with the managed runtime. Keep an independent copy of your ROM, and use a separately prepared copy for custom data paths. Runtime rollback does not establish save-state compatibility.",
+        "On Linux x86-64, use glibc 2.34 or newer with SDL2, libstdc++.so.6 and libgcc_s.so.1."
       ]
     }
   },
@@ -98,17 +100,29 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["nhl94.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["nhl94"]
+      }
+    },
     "release": {
       "provider": "github",
       "repository": "1nputs/ninety-four",
       "asset_hints": {
-        "windows-x86-64": ["ninety-four-", "-windows-x86_64.zip"]
+        "windows-x86-64": ["ninety-four-", "-windows-x86_64.zip"],
+        "linux-x86-64": ["ninety-four-", "-linux-x86_64.tar.gz"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["nhl94.exe"]
+      "windows-x86-64": ["nhl94.exe"],
+      "linux-x86-64": ["nhl94"]
     },
     "persistent_paths": ["out", "rosters", "screenshots", "settings.ini", "states", "videos"],
     "presentation": {

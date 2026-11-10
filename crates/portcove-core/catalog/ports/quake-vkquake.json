@@ -56,6 +56,12 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["vkquake.exe"]
+      }
+    },
     "release": {
       "provider": "github",
       "repository": "Novum/vkQuake",

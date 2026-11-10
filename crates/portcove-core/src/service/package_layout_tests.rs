@@ -1,6 +1,9 @@
 //! Production install/update-path fixtures for reviewed package-layout holds.
 //! The archives are inert fixtures, not upstream artifacts or gameplay evidence.
-use std::sync::{Arc, Mutex};
+use std::{
+    io::Write,
+    sync::{Arc, Mutex},
+};
 
 use super::*;
 use crate::{
@@ -30,6 +33,18 @@ fn release(
     version: &str,
     entries: &[(&str, u32)],
 ) -> (ResolvedRelease, crate::test_http::HttpServer) {
+    archive_release(
+        version,
+        format!("openxw-{version}-linux-x86_64-release.tar.xz"),
+        entries,
+    )
+}
+
+fn archive_release(
+    version: &str,
+    asset_name: String,
+    entries: &[(&str, u32)],
+) -> (ResolvedRelease, crate::test_http::HttpServer) {
     let mut tar = tar::Builder::new(Vec::new());
     for (path, mode) in entries {
         let body = format!("#!/bin/sh\n# Inert fixture {version} {path}\n");
@@ -43,8 +58,15 @@ fn release(
         )
         .unwrap();
     }
-    let payload = crate::archive::encode_xz_fixture(&tar.into_inner().unwrap());
-    let asset_name = format!("openxw-{version}-linux-x86_64-release.tar.xz");
+    let tar = tar.into_inner().unwrap();
+    let payload = if asset_name.ends_with(".tar.xz") {
+        crate::archive::encode_xz_fixture(&tar)
+    } else {
+        assert!(asset_name.ends_with(".tar.gz"));
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        gzip.write_all(&tar).unwrap();
+        gzip.finish().unwrap()
+    };
     let size = payload.len() as u64;
     let digest = crate::signed_catalog::digest(&payload);
     let mut response =
@@ -68,39 +90,39 @@ fn release(
     )
 }
 
-async fn install(service: &PortcoveService) -> InstallRecord {
-    let review = service.plan_game_install(PORT).await.unwrap();
+async fn install(service: &PortcoveService, port: &str) -> InstallRecord {
+    let review = service.plan_game_install(port).await.unwrap();
     let authorization = service
-        .authorize_game_install(PORT, &review.plan_sha256)
+        .authorize_game_install(port, &review.plan_sha256)
         .await
         .unwrap();
     service
-        .apply_game_install(PORT, &authorization.token, |_| {})
+        .apply_game_install(port, &authorization.token, |_| {})
         .await
         .unwrap()
 }
 
-async fn acquire(service: &PortcoveService) -> String {
-    let review = service.plan_game_update_acquisition(PORT).await.unwrap();
+async fn acquire(service: &PortcoveService, port: &str) -> String {
+    let review = service.plan_game_update_acquisition(port).await.unwrap();
     let authorization = service
-        .authorize_game_update_acquisition(PORT, &review.plan_sha256)
+        .authorize_game_update_acquisition(port, &review.plan_sha256)
         .await
         .unwrap();
     service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .acquire_game_update(port, &authorization.token, |_| {})
         .await
         .unwrap()
         .id
 }
 
-async fn apply_update(service: &PortcoveService) -> Result<InstallRecord> {
-    let review = service.plan_game_update(PORT, true).await.unwrap();
+async fn apply_update(service: &PortcoveService, port: &str) -> Result<InstallRecord> {
+    let review = service.plan_game_update(port, true).await.unwrap();
     let authorization = service
-        .authorize_game_update(PORT, true, &review.plan_sha256)
+        .authorize_game_update(port, true, &review.plan_sha256)
         .await
         .unwrap();
     service
-        .apply_game_update(PORT, true, &authorization.token, |_| {})
+        .apply_game_update(port, true, &authorization.token, |_| {})
         .await
 }
 
@@ -134,7 +156,7 @@ async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
     );
 
     // N: the reviewed layout installs.
-    let installed = install(&service).await;
+    let installed = install(&service, PORT).await;
     first_server.join().unwrap();
     assert_eq!(installed.version, "1.0.0");
 
@@ -149,9 +171,9 @@ async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
         ],
     );
     *provider.0.lock().unwrap() = compatible;
-    let acquired = acquire(&service).await;
+    let acquired = acquire(&service, PORT).await;
     compatible_server.join().unwrap();
-    let updated = apply_update(&service).await.unwrap();
+    let updated = apply_update(&service, PORT).await.unwrap();
     assert_eq!(updated.version, "2.0.0");
     // A consumed acquisition is discarded before the next release is acquired.
     let _ = service.discard_game_update_acquisition(PORT, &acquired);
@@ -167,9 +189,9 @@ async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
         ],
     );
     *provider.0.lock().unwrap() = drifted;
-    acquire(&service).await;
+    acquire(&service, PORT).await;
     drifted_server.join().unwrap();
-    let refusal = apply_update(&service).await.unwrap_err();
+    let refusal = apply_update(&service, PORT).await.unwrap_err();
     assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
     assert!(
         refusal.message.contains("new programs: updater"),
@@ -185,4 +207,73 @@ async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
     );
     let status = service.status(PORT).unwrap();
     assert_eq!(status.active.unwrap().version, "2.0.0");
+}
+
+#[tokio::test]
+async fn nhl94_linux_update_and_rollback_preserve_default_player_files() {
+    const NHL: &str = "nhl-94-genesis-ninety-four";
+    const DATA: [&str; 6] = [
+        "out/nhl94.srm",
+        "rosters/player.txt",
+        "screenshots/shot.png",
+        "settings.ini",
+        "states/autosave.state",
+        "videos/replay.gif",
+    ];
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let package = |version| {
+        archive_release(
+            version,
+            format!("ninety-four-{version}-linux-x86_64.tar.gz"),
+            &[("nhl94", 0o755), ("licenses/ninety-four-MIT.txt", 0o644)],
+        )
+    };
+    let (first, first_server) = package("0.3.5");
+    let provider = Arc::new(Provider(Mutex::new(first)));
+    let service = PortcoveService::with_provider(library, provider.clone()).unwrap();
+    let installed = install(&service, NHL).await;
+    first_server.join().unwrap();
+    let working_directory = |record: &InstallRecord| {
+        let port = service.installed_port(record).unwrap();
+        let launch = service
+            .prepare_launch_for_install(&port, record, None, None)
+            .unwrap();
+        assert_eq!(launch.executable, launch.working_directory.join("nhl94"));
+        assert!(launch.arguments.is_empty());
+        launch.working_directory
+    };
+    let initial = working_directory(&installed);
+    for path in DATA {
+        let file = initial.join(path);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(file, path).unwrap();
+    }
+    let (second, second_server) = package("0.3.6");
+    *provider.0.lock().unwrap() = second;
+    acquire(&service, NHL).await;
+    second_server.join().unwrap();
+    let updated = apply_update(&service, NHL).await.unwrap();
+    assert_eq!(updated.version, "0.3.6");
+    let updated_root = working_directory(&updated);
+    for path in DATA {
+        assert_eq!(
+            std::fs::read_to_string(updated_root.join(path)).unwrap(),
+            path
+        );
+    }
+    std::fs::write(updated_root.join("settings.ini"), "updated settings").unwrap();
+    let restored = service.rollback(NHL).unwrap();
+    assert_eq!(restored.id, installed.id);
+    let restored_root = working_directory(&restored);
+    assert_eq!(
+        std::fs::read_to_string(restored_root.join("settings.ini")).unwrap(),
+        "updated settings"
+    );
+    for path in DATA.into_iter().filter(|path| *path != "settings.ini") {
+        assert_eq!(
+            std::fs::read_to_string(restored_root.join(path)).unwrap(),
+            path
+        );
+    }
 }
