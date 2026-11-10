@@ -3,6 +3,7 @@ import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { LaunchSessionView, PortStatus } from "../types";
 import { portActionPresentation } from "../features/port-actions/port-action-presentation";
+import { ReportProblem } from "./ReportProblem";
 import { Button } from "./ui/button";
 
 /**
@@ -81,6 +82,7 @@ export function LaunchFailureNotice({
         >
           {copied ? "Copied" : "Copy exit code"}
         </Button>
+        <ReportProblem portId={portId} generation={generation} />
         {status?.previous && !portActionPresentation(status, "rollback").blocked && (
           <Button
             variant="outline"

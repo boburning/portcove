@@ -135,6 +135,27 @@
     "title": "ApplicationUpdateRecoveryArea",
     "type": "string"
   },
+  "bug_report_field": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      },
+      "value": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "label",
+      "value"
+    ],
+    "title": "BugReportField",
+    "type": "object"
+  },
   "catalog_download_request": {
     "$defs": {
       "CatalogDownloadAssetId": {

@@ -125,6 +125,7 @@ export interface TransportInputs {
   desktop_application_update_manual_check_request: InputDesktopApplicationUpdateManualCheckRequest;
   desktop_application_update_production_decision: InputDesktopApplicationUpdateProductionDecision;
   desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
+  desktop_bug_report_field: InputDesktopBugReportField;
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_comparison_request: InputDesktopGameComparisonRequest;
   desktop_game_file_query_request: InputGameFileQueryRequest;
@@ -202,6 +203,12 @@ export interface ApplicationUpdateCandidateSummary {
 }
 export interface InputDesktopApplicationUpdateManualCheckRequest {
   channel?: ApplicationChannel | null;
+}
+export interface InputDesktopBugReportField {
+  id: string;
+  label: string;
+  value: string;
+  [k: string]: unknown;
 }
 export interface InputDesktopCatalogDownloadRequest {
   asset_id: CatalogDownloadAssetId;
