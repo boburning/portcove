@@ -1105,7 +1105,7 @@ function guardedCoordinatorJournal(
   };
 }
 
-/** Provider inventory facts only. Every Release is available in Preview; using
+/** Provider inventory facts only. Every application Release is available in Preview; using
  * their latest publication as an explicitly typed upper bound can delay a
  * routine Preview, but never bypass its actual cadence. No urgency is inferred. */
 export function deriveCoordinatorPublication(
@@ -1130,7 +1130,7 @@ export function deriveCoordinatorPublication(
   }
   let latest: number | null = null;
   for (const release of releases) {
-    if (release.draft) continue;
+    if (release.draft || !isApplicationReviewReleaseTag(release.tag_name)) continue;
     if (!release.tag_name.startsWith("v"))
       throw new Error("published application Release has unsupported tag scope");
     const version = classifyApplicationVersion(
@@ -2037,7 +2037,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       typeof published.repository_sha256 !== "string"
     )
       throw new Error("published application root/repository identity unavailable");
-    phase = "actual-current-tool-and-public-feed";
+    phase = "renewal-current-tools";
     const receipt = await receiveControllerTools(
       directory,
       selected.tools.artifact,
@@ -2060,6 +2060,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       tools.identity.run_attempt !== reader.admitted.run_attempt
     )
       throw new Error("metadata verifier tools differ from actual current coordinator");
+    phase = "renewal-public-site";
     const site = await materializeCoordinatorPublishedSite(
       currentApplicationSitePins(recovered.input),
       directory,
@@ -2074,6 +2075,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       typeof existing.generated_at === "string"
         ? existing.generated_at
         : new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
+    phase = "renewal-tuf-preparation";
     const verifierBytes = await readControllerToolFile(tools.rust);
     const preparation = await prepareAuthenticatedMetadataRenewal({
       verifier: tools.rust,
@@ -2087,6 +2089,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       deadline: budget.monotonicDeadline,
     });
     const prepared = await inspectPreparedMetadataRenewal(preparation);
+    phase = "renewal-publication-inventory";
     const sourceOptions = coordinatorSourceReadOptions(budget, 2 * 1024 ** 2);
     const inventory = await createPublicationInventoryWithSdk({
       ...sourceOptions,
@@ -3884,9 +3887,9 @@ async function requestTrustedSemanticReviewAt(
     const releases = await inventory.releases();
     const { allocations } = await inventory.readAllocations(tags, namespace);
     const now = new Date().toISOString();
-    const baselineReleases = qualified
-      ? releases.filter((release) => isApplicationReviewReleaseTag(release.tag_name))
-      : releases;
+    const baselineReleases = releases.filter((release) =>
+      isApplicationReviewReleaseTag(release.tag_name),
+    );
     const publication = deriveCoordinatorPublication(tags, baselineReleases, allocations, now);
     const { release: baselineRelease, version: baseVersion } = selectCoordinatorPublicationBaseline(
       baselineReleases,

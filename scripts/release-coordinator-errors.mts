@@ -14,6 +14,7 @@ const applicationCheckpointStages: readonly string[] = [
   "durable-neutral-review-request",
   "retained-application-review-claim",
   "withdrawal-signed-checkpoint",
+  "durable-maintenance-descriptor",
 ];
 
 const applicationRefusalStages: readonly string[] = [
@@ -32,6 +33,11 @@ const applicationRefusalStages: readonly string[] = [
   "withdrawal-protection-observation",
   "withdrawal-live-controls",
   "withdrawal-checkpoint-authority",
+  "renewal-current-tools",
+  "renewal-public-site",
+  "renewal-tuf-preparation",
+  "renewal-publication-inventory",
+  "actual-maintenance-controls",
   ...applicationCheckpointStages,
 ];
 

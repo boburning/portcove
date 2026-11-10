@@ -1127,10 +1127,19 @@ void test("only the appointed successor and exact r66 adoption producer can carr
     check_run_id: "129690072424",
   };
   for (const purpose of ["application", "catalog-publication"] as const)
-    assert.equal(
-      matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose),
-      true,
-    );
+    for (const execution_ref of [
+      source.execution_ref,
+      "refs/tags/portcove-production-controller-20261110r68",
+    ])
+      assert.equal(
+        matchesRetainedCatalogForwardAdoptionHandoff(
+          checkpoint,
+          producer,
+          { execution_ref },
+          purpose,
+        ),
+        true,
+      );
   assert.equal(
     matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, undefined),
     false,

@@ -769,6 +769,7 @@ void test("application coordinator diagnostics retain a closed refusal without e
     CoordinatorRemoteError,
     applicationCoordinatorRefusal,
     applicationCoordinatorRefusalFile,
+    requireApplicationCoordinatorRefusal,
   } = await import("./release-coordinator-errors.mts");
   const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
   const root = await mkdtemp(path.join(os.tmpdir(), "application-controller-diagnostics-"));
@@ -804,6 +805,24 @@ void test("application coordinator diagnostics retain a closed refusal without e
     attempted_claim: false,
     attempted_commit: false,
   });
+  for (const phase of [
+    "renewal-current-tools",
+    "renewal-public-site",
+    "renewal-tuf-preparation",
+    "renewal-publication-inventory",
+    "actual-maintenance-controls",
+    "durable-maintenance-descriptor",
+  ]) {
+    const refusal = applicationCoordinatorRefusal(
+      new CoordinatorRemoteError("private", {
+        phase,
+        retained_error: exchange.checkpoint_exchange,
+      }),
+    );
+    assert.equal(refusal.stage, phase);
+    assert.equal("checkpoint_exchange" in refusal, phase === "durable-maintenance-descriptor");
+    assert.doesNotThrow(() => requireApplicationCoordinatorRefusal(refusal));
+  }
 
   assert.equal(
     applicationCoordinatorRefusal(new CoordinatorRemoteError("private", { phase: "unknown" }))
