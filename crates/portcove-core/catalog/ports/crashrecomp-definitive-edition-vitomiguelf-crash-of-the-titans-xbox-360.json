@@ -6,6 +6,7 @@
     "original_game_title": "Crash of the Titans (Xbox 360)",
     "summary": "The project reports story, menus, saves and performance in specific v1.04 scenes; a complete campaign is unconfirmed. Newer source instructions describe 21:9, 32:9 and 16:10 display modes, GPU-dependent DLSS/FSR and an Intel UHD black-flicker problem with gpu_safe_mode and diagnostic workarounds. Windows 10/11 x64 and Vulkan 1.3 remain required; Linux through Proton is an unconfirmed goal. The v1.05 installer and layout were described before a public tag was available. Portcove has not tested that package or player. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/VitoMiguelF/crashott-pc",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/VitoMiguelF/crashott-pc",

@@ -6,6 +6,7 @@
     "summary": "Use the sciaschi Conker player with your own USA ROM and preserve its saves, mods and save states.",
     "project_url": "https://github.com/sciaschi/CBFD-Recompiled",
     "issue_number": 1216,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md",

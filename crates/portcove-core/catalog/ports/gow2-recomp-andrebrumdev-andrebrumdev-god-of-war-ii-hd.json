@@ -6,6 +6,7 @@
     "original_game_title": "God of War II HD",
     "summary": "Upstream reports Rhodes and the Colossus fight at 45–60 FPS. A shoulder-bone bug remains, and later progression is not fully confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/andrebrumdev/gow2-recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/andrebrumdev/gow2-recomp",

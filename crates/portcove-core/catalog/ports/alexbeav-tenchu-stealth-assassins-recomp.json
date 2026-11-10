@@ -7,6 +7,7 @@
     "original_game_title": "Tenchu: Stealth Assassins",
     "project_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
     "issue_number": 487,
+    "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp#readme",

@@ -16,6 +16,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 424,
+    "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
       "windows-x86-64": ["Ape-Escape-Recomp-", "-windows-x64.zip"],

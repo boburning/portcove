@@ -6,6 +6,7 @@
     "summary": "Register an independently permitted, upstream-prepared Condemned 2: Bloodshot / Condemned2Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/psxrestore/Condemned2Recomp",
     "issue_number": 361,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/psxrestore/Condemned2Recomp",

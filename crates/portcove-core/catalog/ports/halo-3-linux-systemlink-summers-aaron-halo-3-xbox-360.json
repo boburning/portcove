@@ -6,6 +6,7 @@
     "original_game_title": "Halo 3",
     "summary": "Upstream reports startup, menus, campaign progress from Arrival into Sierra 117 and beyond, and System Link across instances or machines. A full campaign is unconfirmed. The experimental native graphics path is separate from the default Xenos renderer; Portcove has not tested either route. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/summers-aaron/xenon-pc-comp",
+    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/summers-aaron/xenon-pc-comp",

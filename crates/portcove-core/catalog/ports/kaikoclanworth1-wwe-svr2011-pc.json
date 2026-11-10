@@ -6,6 +6,7 @@
     "summary": "A WWE SmackDown vs. Raw 2011 port with project-reported gameplay, settings and updates. The Windows ZIP includes the player and launcher; its installer imports your own Xbox 360 ISO and configures optional music and movies. The launcher manages updates. Steam Deck uses the Windows player through Proton, while the Android ARM64/Vulkan APK imports your own image. The README’s Galaxy Z Fold 7 test claim conflicts with an older untested-phone statement, so physical-device coverage remains uncertain. Developer ARM build notes are separate. Exact original revision/hashes and BIOS/firmware requirements are unconfirmed. Portcove has not qualified the release packages or confirmed setup, gameplay or a full playthrough.",
     "original_game_title": "WWE SmackDown vs. Raw 2011",
     "project_url": "https://github.com/KaikoClanworth1/wwe-svr2011-pc",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/KaikoClanworth1/wwe-svr2011-pc",

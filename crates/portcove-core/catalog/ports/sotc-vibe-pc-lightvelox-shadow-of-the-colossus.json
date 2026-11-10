@@ -6,6 +6,7 @@
     "original_game_title": "Shadow of the Colossus",
     "summary": "This uses static EE/XFF translation with an IOP interpreter and runtime device emulation. Check the progress guide for the exact gameplay and playthrough limits. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LightVelox/sotc-vibe-pc",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/LightVelox/sotc-vibe-pc",

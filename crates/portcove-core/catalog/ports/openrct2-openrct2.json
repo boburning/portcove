@@ -6,6 +6,7 @@
     "summary": "OpenRCT2 offers upstream packages for RollerCoaster Tycoon 2. Follow upstream setup before registering your executable.",
     "project_url": "https://github.com/OpenRCT2/OpenRCT2",
     "issue_number": 1854,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://docs.openrct2.io/en/latest/",
     "original_game_title": "RollerCoaster Tycoon 2",

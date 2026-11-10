@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2578,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/Try/OpenGothic/tree/2855fa51957bac9e7ce83f938ec127a0ab3badce",
       "steps": [

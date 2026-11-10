@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2696,
+    "listed_at": "2026-10-25",
     "download_block_reason": "Use a setup copy you already have permission to use. The installer acquires additional build tools and compiles code from the original game. Portcove has no qualified download and build route.",
     "manual_setup": {
       "help_url": "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/f13c779d35b3ebed597573948c7d3f6e6a7671a6/README.md",

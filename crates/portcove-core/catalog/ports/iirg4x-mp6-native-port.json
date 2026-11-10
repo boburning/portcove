@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2843,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/iirg4x/mp6-native-port/blob/99e4630d142142c5d745007481fd2b9d1562fb7e/README.md",
       "steps": [

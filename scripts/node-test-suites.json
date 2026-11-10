@@ -451,6 +451,13 @@
       ]
     },
     {
+      "file": "scripts/backfill-listing-dates.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8914],
+        ["repository-tools-2", 3914]
+      ]
+    },
+    {
       "file": "scripts/package-player-observation.test.mts",
       "memberships": [
         ["catalog-full-2", 8912],

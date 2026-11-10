@@ -6,6 +6,7 @@
     "summary": "Play MediEvil with your own supported disc; its upstream player handles setup and runtime updates.",
     "project_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
     "issue_number": 1844,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",

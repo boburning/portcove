@@ -16,6 +16,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2583,
+    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64", "macos-aarch64"],
     "manual_setup": {
       "steps": [

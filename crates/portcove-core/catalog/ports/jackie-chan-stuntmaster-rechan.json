@@ -6,6 +6,7 @@
     "summary": "Register an already prepared ReChan Windows player with your own SLUS-00684 original, preserving its actual data folder, saves, mods and upstream-owned updater.",
     "project_url": "https://github.com/SilverwireGames/ReChan",
     "issue_number": 348,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/SilverwireGames/ReChan",

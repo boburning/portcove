@@ -907,6 +907,11 @@ pub struct PortListing {
     pub variant_label: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub issue_number: Option<u64>,
+    /// The UTC date (`YYYY-MM-DD`) this listing was first added to the directory.
+    /// Descriptive only: it orders a "Recently added" view and grants nothing.
+    /// Requires listing format 9.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listed_at: Option<String>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,
@@ -2202,7 +2207,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8],
+            listing_formats: vec![5, 6, 7, 8, 9],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

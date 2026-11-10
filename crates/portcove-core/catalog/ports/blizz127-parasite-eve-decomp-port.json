@@ -6,6 +6,7 @@
     "summary": "Explore the experimental Linux Parasite Eve port and its original-disc setup requirements.",
     "project_url": "https://github.com/Blizz127/parasite-eve-decomp-port",
     "issue_number": 1865,
+    "listed_at": "2026-10-23",
     "platforms": ["linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",

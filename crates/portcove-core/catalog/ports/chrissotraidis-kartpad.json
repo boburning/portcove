@@ -6,6 +6,7 @@
     "summary": "Build your own KartPad Mac app through upstream setup and keep its game data, saves and controller features.",
     "project_url": "https://github.com/chrissotraidis/kartpad",
     "issue_number": 1835,
+    "listed_at": "2026-10-23",
     "platforms": ["macos-aarch64"],
     "availability": "source-only",
     "setup_url": "https://github.com/chrissotraidis/kartpad/blob/5c9af806c02733f238520b405f886ae45b5aa37e/docs/INSTALL_MACOS.md",

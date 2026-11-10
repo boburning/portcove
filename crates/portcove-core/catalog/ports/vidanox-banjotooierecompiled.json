@@ -6,6 +6,7 @@
     "summary": "Use a permitted Banjo-Tooie player and select your own USA big-endian cartridge dump.",
     "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
     "issue_number": 1795,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",

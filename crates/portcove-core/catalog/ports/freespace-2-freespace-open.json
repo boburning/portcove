@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2677,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/scp-fs2open/fs2open.github.com/tree/feed085710869ccd8d998fc07a04ffccc8ed479a",
       "steps": [

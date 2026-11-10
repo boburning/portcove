@@ -631,6 +631,10 @@ export async function preparePort(options: PrepareOptions) {
             ? metadata.description
             : "Upstream project; setup requirements have not been reviewed."),
         ...(facts.issue ? { issue_number: facts.issue.number } : {}),
+        // A new listing records the UTC day it was first listed; an existing one keeps its date.
+        ...(base?.listing.listed_at === undefined && !base
+          ? { listed_at: new Date(options.facts?.now?.() ?? Date.now()).toISOString().slice(0, 10) }
+          : {}),
       },
     });
     if (previous) checkLineageChange(previous, record);

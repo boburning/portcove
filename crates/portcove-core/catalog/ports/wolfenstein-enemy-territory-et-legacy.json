@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2721,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/etlegacy/etlegacy/tree/e12f07957cd0b5fae5f83cea24412ee334ea999a",
       "steps": [

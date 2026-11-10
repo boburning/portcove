@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2706,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/iortcw/iortcw/tree/c42648b0d30c1e560cdbeea1018f28990d0d69c5",
       "steps": [

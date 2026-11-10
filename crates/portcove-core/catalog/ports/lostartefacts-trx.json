@@ -6,6 +6,7 @@
     "summary": "Set up Tomb Raider I–III with TRX and the original files for the games you own.",
     "project_url": "https://github.com/LostArtefacts/TRX",
     "issue_number": 1898,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",

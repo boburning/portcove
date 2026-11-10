@@ -8,6 +8,7 @@
     "project_url": "https://github.com/1nputs/gunstars",
     "setup_url": "https://github.com/1nputs/gunstars",
     "issue_number": 2580,
+    "listed_at": "2026-10-25",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "manual_setup": {
       "steps": [

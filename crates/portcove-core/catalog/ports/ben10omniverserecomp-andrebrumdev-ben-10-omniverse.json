@@ -6,6 +6,7 @@
     "original_game_title": "Ben 10: Omniverse",
     "summary": "The project reports startup, logos and video, with 27–59 FPS measured on an M5 Air. Exact mission coverage is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp",

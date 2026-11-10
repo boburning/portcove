@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2807,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/GTTeancum/OpenJam/blob/8daa317846f34125a147114b129f47063b7c23ee/RELEASE.md",
       "steps": [

@@ -6,6 +6,7 @@
     "original_game_title": "Tekken Tag Tournament 2",
     "summary": "This early build reaches native menus at 60 FPS, selection, intros, fights and local versus. Online play uses lockstep and input delay; rollback is unfinished. Music and voices are silent. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/naleqs/TTT2-native-online",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/naleqs/TTT2-native-online",

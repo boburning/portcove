@@ -6,6 +6,7 @@
     "name": "DKC2Recomp",
     "summary": "Play Donkey Kong Country 2 with a Windows runtime you prepare from the specified upstream package.",
     "project_url": "https://github.com/mstan/DKC2Recomp",
+    "listed_at": "2026-10-23",
     "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
     "manual_setup": {
       "steps": [

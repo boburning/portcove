@@ -6,6 +6,7 @@
     "summary": "Register an independently permitted Pokémon Platinum native Windows copy after upstream preparation of your own USA CPUE01 original. Preserve the creating runtime, extracted files and actual player data.",
     "project_url": "https://github.com/cybervisi0n/pokeplatinum",
     "issue_number": 373,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/cybervisi0n/pokeplatinum",

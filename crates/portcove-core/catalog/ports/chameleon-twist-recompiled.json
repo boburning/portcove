@@ -6,6 +6,7 @@
     "summary": "Use a permitted Chameleon Twist player with your own supported Japanese cartridge dump.",
     "project_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp",
     "issue_number": 125,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",

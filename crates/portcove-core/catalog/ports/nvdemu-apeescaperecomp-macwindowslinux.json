@@ -7,6 +7,7 @@
     "original_game_title": "Ape Escape",
     "project_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux",
     "issue_number": 2806,
+    "listed_at": "2026-10-26",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],
     "availability": "packages",
     "recommended_download_channel": "beta",

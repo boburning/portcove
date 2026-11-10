@@ -14,6 +14,7 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
+import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 
 import {
   requiredFixture,
@@ -431,7 +432,8 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  assert.equal(projected.directory.format_version, 6);
+  // The real source carries first-listed dates (format 9); the date-free record alone stays 3.
+  assert.equal(projected.directory.format_version, 9);
   assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
@@ -561,7 +563,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 6);
+  assert.equal(source.directory.format_version, 9);
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -663,7 +665,8 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   const { ports: _ports, ...shared } = accepted.catalog;
   const assembled = assembleCatalogRecords(shared, records);
-  assert.equal(assembled.directory.format_version, 8);
+  // GitLab observations need 8; the real source's first-listed dates lift the directory to 9.
+  assert.equal(assembled.directory.format_version, 9);
   assert.deepEqual(assembled.catalog, accepted.catalog);
   const compatibility = {
     format_version: 1,
@@ -682,7 +685,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   record.listing.compatibility = compatibility;
   const combined = assembleCatalogRecords(shared, records);
-  assert.equal(combined.directory.format_version, 8);
+  assert.equal(combined.directory.format_version, 9);
   assert.deepEqual(
     combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
     compatibility,
@@ -856,5 +859,46 @@ void test("PSX split mods retain player data with explicit dual-platform and ret
   assert.throws(
     () => checkedAuthoredPort({ ...record, psx_managed_windows_v1: "split-mods-openbios" }),
     /reviewed Windows GitHub kit/u,
+  );
+});
+
+void test("a first-listed date is authored per listing, validated, and selects listing format 9", () => {
+  const source = readCatalogSource(catalogRoot);
+  const { ports: _ports, ...shared } = source.catalog;
+  const fixture = (extra: Record<string, unknown>) =>
+    checkedAuthoredPort({
+      format_version: 1,
+      listing: {
+        id: "dated-fixture",
+        name: "Dated fixture",
+        summary: "Descriptive metadata only.",
+        project_url: "https://example.com/dated",
+        ...extra,
+      },
+    });
+  const dated = fixture({ listed_at: "2026-11-09" });
+  assert.equal(dated.listing.listed_at, "2026-11-09");
+  assert.equal(assembleCatalogRecords(shared, [dated]).directory.format_version, 9);
+  // Without a date the directory keeps the format its other content needs.
+  assert.equal(assembleCatalogRecords(shared, [fixture({})]).directory.format_version, 1);
+  for (const bad of ["2026-13-01", "2026-02-30", "2026-11-09T00:00:00Z", "2026-1-9", "", 20261109])
+    assert.throws(() => fixture({ listed_at: bad }), /listed_at/u, String(bad));
+});
+
+void test("the observation declaration hash ignores the first-listed date", () => {
+  const listing = {
+    id: "hash-fixture",
+    name: "Hash fixture",
+    summary: "Descriptive metadata only.",
+    project_url: "https://github.com/example/hash",
+  };
+  // Adding a date to every listing must not invalidate retained observations.
+  assert.equal(
+    listingDeclarationHash(listing),
+    listingDeclarationHash({ ...listing, listed_at: "2026-11-09" }),
+  );
+  assert.notEqual(
+    listingDeclarationHash(listing),
+    listingDeclarationHash({ ...listing, name: "A different declaration" }),
   );
 });

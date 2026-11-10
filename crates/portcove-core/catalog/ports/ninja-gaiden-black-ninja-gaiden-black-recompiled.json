@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2598,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/gamboozino/ngbrecomp/blob/10f25f0f8622ef387b46eb55edefca6ed2e2856b/README.md",
       "steps": [

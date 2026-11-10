@@ -6,6 +6,7 @@
     "summary": "The documented Windows Digimon World route is a setup kit for your own USA SLUS-01032 CUE/BIN disc. It generates the native player locally with Python and build tools. OpenBIOS can be generated upstream, so a retail BIOS is optional; register only the completed prepared game.",
     "project_url": "https://gitlab.com/ethan4love/psx-recomp-port",
     "issue_number": 357,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://gitlab.com/ethan4love/psx-recomp-port/-/blob/978ea38eb594354724772ba611a22372e1809476/README.md",

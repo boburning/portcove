@@ -6,6 +6,7 @@
     "original_game_title": "Ratchet & Clank",
     "summary": "The native app replaces platform services but retains PS2Recomp’s fallback game executor. Level 0, rendering and overlay checks do not establish complete gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Nikityyy/OpenRatchet",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Nikityyy/OpenRatchet",

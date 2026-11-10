@@ -6,6 +6,7 @@
     "summary": "An experimental Tears of the Kingdom compatibility adaptation running rewritten original ARM64 code on Apple Silicon, with shared Mac/iOS Horizon services and NVN-to-Metal graphics. It is title-specific, rather than a Windows recompilation or standalone original game. The project reports Mac save loading, scene play, audio, cutscenes and keyboard/Xbox controls; a full playthrough is unconfirmed, with first-visit shader stutter and variable frame rates. Build from source on an Apple Silicon M1+ Mac with full Xcode/Command Line Tools and Homebrew; there is no official release package and exact macOS/Metal minimums are unconfirmed. Intel is unsupported. iPad M1+ has limited play/import evidence; iPhone 15 Pro reaches the title without measured gameplay. Use your own base game, v1.4.3 .nsz update and matching prod.keys, with exactly one base/update in local/games/. Module fingerprints refuse other versions, and code/resources/shaders are generated locally. Accepted base format, region/title ID, exact hashes and firmware/font/ticket requirements are unspecified in the retained README. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
     "project_url": "https://github.com/OJZen/totk-mobile",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/OJZen/totk-mobile",

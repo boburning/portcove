@@ -6,6 +6,7 @@
     "summary": "Use an upstream-prepared WipeOut Phantom Edition player with matching originals; runtime maintenance and player data stay upstream-owned.",
     "project_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition",
     "issue_number": 119,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/blob/1d0141ebc6594902c7de176d034529a763079ed2/README.md",
     "artwork": {

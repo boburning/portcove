@@ -10,6 +10,7 @@
     "availability": "unknown",
     "setup_url": "https://github.com/bluddy/rails",
     "issue_number": 2787,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/README.md",
       "steps": [

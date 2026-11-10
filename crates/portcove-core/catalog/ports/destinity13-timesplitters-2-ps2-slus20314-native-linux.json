@@ -7,6 +7,7 @@
     "summary": "Prepare a native Linux player from your own USA PlayStation 2 disc image.",
     "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
     "issue_number": 4759,
+    "listed_at": "2026-11-09",
     "platforms": ["linux-x86-64"],
     "availability": "packages",
     "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/releases/tag/v0.9.9",

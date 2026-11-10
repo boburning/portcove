@@ -9,6 +9,7 @@
     "availability": "packages",
     "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
     "issue_number": 2688,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/ReflectionHLE/ReflectionHLE/releases",
     "recommended_download_channel": "stable",
     "manual_setup": {

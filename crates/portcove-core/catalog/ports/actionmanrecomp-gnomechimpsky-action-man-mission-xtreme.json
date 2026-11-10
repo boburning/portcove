@@ -6,6 +6,7 @@
     "original_game_title": "Action Man: Mission Xtreme",
     "summary": "Research project. Upstream preview boots/plays tested parts; full playthrough not verified. Linux virtual-display-only and Windows cross-compile evidence must not become physical/native host gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/GnomeChimpsky/ActionManRecomp",
+    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GnomeChimpsky/ActionManRecomp",

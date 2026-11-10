@@ -6,6 +6,7 @@
     "summary": "An in-development Call of Duty 3 port with project-reported level loading and early play. The Windows setup/player extracts your own Xbox 360 full XGD1/XGD2/XGD3 or stripped ISO, or uses an installed folder containing default.xex. Its check compares executable size with the compiled target; exact accepted region, revision and cryptographic hashes are unconfirmed. A native source build is separate. This guide has not confirmed the Windows package’s host CPU architecture; the Xbox 360 CPU does not establish it. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Call of Duty 3",
     "project_url": "https://github.com/FrankHUN88453/CoD3Recomp",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/FrankHUN88453/CoD3Recomp",

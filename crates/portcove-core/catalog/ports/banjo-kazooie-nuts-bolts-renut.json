@@ -6,6 +6,7 @@
     "summary": "Prepare and play your permitted reNut copy with upstream tools and your own original game data.",
     "project_url": "https://github.com/masterspike52/reNut",
     "issue_number": 161,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/masterspike52/reNut/blob/02e33bdbf2ac97acf74a0dc61143a8ee38f85ab9/README.md",

@@ -6,6 +6,7 @@
     "summary": "Play SSX Tricky from your own USA Xbox disc through the upstream launcher and its consented updates.",
     "project_url": "https://github.com/GiZcesi/OpenTricky",
     "issue_number": 1857,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md",

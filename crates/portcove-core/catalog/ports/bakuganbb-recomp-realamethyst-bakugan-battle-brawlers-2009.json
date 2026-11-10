@@ -6,6 +6,7 @@
     "original_game_title": "Bakugan Battle Brawlers (2009)",
     "summary": "Research project. Upstream early work: input and audio working, crashes and unfinished features remain, not tested far into game. Maintainer cannot visually check graphics; no complete playthrough claim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/RealAmethyst/BakuganBB-recomp",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/RealAmethyst/BakuganBB-recomp",

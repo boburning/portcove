@@ -6,6 +6,7 @@
     "summary": "Prepare your own SunPad Mac app upstream and keep its initialized game data and saves together.",
     "project_url": "https://github.com/chrissotraidis/sunpad",
     "issue_number": 1634,
+    "listed_at": "2026-10-23",
     "platforms": ["macos-aarch64"],
     "availability": "source-only",
     "setup_url": "https://github.com/chrissotraidis/sunpad/blob/d40a0674afa7189c14bfd6ce6f099dd275b46397/README.md",

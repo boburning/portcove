@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2574,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/alexbatalov/fallout2-ce/tree/9fb917c357b20d95d597bed4d67904c29cd5c753",
       "steps": [

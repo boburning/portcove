@@ -36,6 +36,7 @@ impl From<&PortDefinition> for PortListing {
             original_game: presentation.and_then(|value| value.original_game.clone()),
             variant_label: presentation.and_then(|value| value.variant_label.clone()),
             issue_number: None,
+            listed_at: None,
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
@@ -72,13 +73,19 @@ fn has_extended_media(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=8) {
+        if !matches!(format_version, 5..=9) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5, 6, 7 and 8",
+                "listing export supports formats 5, 6, 7, 8 and 9",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < 9 {
+            for listing in &mut document.listings {
+                // The first-listed date is inert; earlier strict readers never see it.
+                listing.listed_at = None;
+            }
+        }
         if format_version < 7 {
             for listing in &mut document.listings {
                 // Only inert notices are omitted. Acquisition restrictions stay intact.
@@ -141,6 +148,13 @@ impl CatalogListingDocument {
         if self.has_gitlab_observations() {
             self.format_version = self.format_version.max(8);
         }
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.listed_at.is_some())
+        {
+            self.format_version = self.format_version.max(9);
+        }
     }
 
     fn has_gitlab_observations(&self) -> bool {
@@ -181,7 +195,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=8) {
+        if !matches!(self.format_version, 1..=9) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -200,6 +214,16 @@ impl CatalogListingDocument {
         if self.format_version < 8 && self.has_gitlab_observations() {
             return Err(PortcoveError::unsupported(
                 "GitLab descriptive observations require listing format 8",
+            ));
+        }
+        if self.format_version < 9
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.listed_at.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "the first-listed date requires listing format 9",
             ));
         }
         if self.format_version == 1
@@ -260,6 +284,29 @@ impl CatalogListingDocument {
         }
         Ok(())
     }
+}
+
+/// A real calendar date in exactly `YYYY-MM-DD` form, with no time or offset.
+fn valid_listed_at(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return false;
+    }
+    let digits = |range: std::ops::Range<usize>| -> Option<u32> {
+        let slice = &value[range];
+        slice
+            .bytes()
+            .all(|byte| byte.is_ascii_digit())
+            .then(|| slice.parse().ok())
+            .flatten()
+    };
+    let (Some(year), Some(month), Some(day)) = (digits(0..4), digits(5..7), digits(8..10)) else {
+        return false;
+    };
+    let Ok(month) = time::Month::try_from(month as u8) else {
+        return false;
+    };
+    time::Date::from_calendar_date(year as i32, month, day as u8).is_ok()
 }
 
 fn valid_text(value: &str, limit: usize) -> bool {
@@ -540,6 +587,13 @@ impl PortListing {
     }
     pub fn validate(&self) -> Result<()> {
         self.validate_observation_metadata()?;
+        if let Some(date) = &self.listed_at
+            && !valid_listed_at(date)
+        {
+            return Err(PortcoveError::usage(
+                "the first-listed date must be a real calendar date written YYYY-MM-DD",
+            ));
+        }
         if let Some(game) = &self.original_game {
             game.validate()?;
         }
@@ -774,6 +828,7 @@ impl Catalog {
                     original_game,
                     media,
                     issue_number,
+                    listed_at: listing.listed_at.clone(),
                     platforms,
                     availability,
                     download_block_reason,
@@ -1091,7 +1146,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":9,"listings":[]}),
+            json!({"format_version":10,"listings":[]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -1298,7 +1353,7 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        assert_eq!(projected.listing_document().format_version, 6);
+        assert_eq!(projected.listing_document().format_version, 9);
     }
 
     #[test]
@@ -1487,11 +1542,11 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         let mut future = document;
-        future.format_version = 9;
+        future.format_version = 10;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 9);
+        assert_eq!(future.format_version, 10);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 9).is_err());
+        assert!(parse(&value, 10).is_err());
     }
 
     #[test]
@@ -1518,7 +1573,13 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let mut document = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        assert_eq!(document.format_version, 6);
+        // Every embedded listing carries its first-listed date, which needs format 9.
+        assert_eq!(document.format_version, 9);
+        // This test is about setup references, so drop the unrelated date requirement.
+        for listing in &mut document.listings {
+            listing.listed_at = None;
+        }
+        document.format_version = 6;
         let legacy = document.export_format(5).unwrap();
         for listing in &document.listings {
             if let Some(guide) = &listing.manual_setup {
@@ -1555,5 +1616,34 @@ mod observation_metadata_tests {
         guide.references.push(guide.references[0].clone());
         guide.references.push(guide.references[0].clone());
         assert!(document.validate().is_err());
+    }
+    #[test]
+    fn a_directory_carrying_a_first_listed_date_is_projected_as_format_nine() {
+        let listing = |date: Option<&str>| -> PortListing {
+            let mut value = serde_json::json!({
+                "id": "fixture", "name": "Fixture", "summary": "Fixture",
+                "project_url": "https://example.com/fixture"
+            });
+            if let Some(date) = date {
+                value["listed_at"] = serde_json::json!(date);
+            }
+            serde_json::from_value(value).unwrap()
+        };
+        let mut dated = CatalogListingDocument {
+            format_version: 6,
+            listings: vec![listing(Some("2026-11-09"))],
+        };
+        dated.promote_projected_format();
+        assert_eq!(dated.format_version, 9);
+        assert!(dated.validate().is_ok());
+        let mut undated = CatalogListingDocument {
+            format_version: 6,
+            listings: vec![listing(None)],
+        };
+        undated.promote_projected_format();
+        assert_eq!(
+            undated.format_version, 6,
+            "an undated directory keeps its format"
+        );
     }
 }

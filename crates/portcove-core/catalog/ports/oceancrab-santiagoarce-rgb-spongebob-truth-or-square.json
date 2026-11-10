@@ -6,6 +6,7 @@
     "original_game_title": "SpongeBob: Truth or Square",
     "summary": "The project reports boot, main-loop, rendering and audio work. Input and rendering improvements are still planned; interactive gameplay is not yet available. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/santiagoarce-rgb/OceanCrab",
+    "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/santiagoarce-rgb/OceanCrab",

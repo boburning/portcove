@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2810,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/themuffinator/openQ4/blob/fcdd56967135fbbdfb1688e2d25533f8f123b1c6/README.md",
       "steps": [

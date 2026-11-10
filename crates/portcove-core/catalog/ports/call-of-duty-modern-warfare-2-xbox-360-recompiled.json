@@ -6,6 +6,7 @@
     "summary": "Native Modern Warfare 2 (2009) route for your own USA/Europe Xbox 360 disc version 1.0.557 plus required Title Update 6. Complete upstream setup first; the PC release, remaster and other Call of Duty titles are different inputs. The prepared player's build-specific source-hash checks remain required.",
     "project_url": "https://github.com/PaulCombal/mw2-recompiled",
     "issue_number": 1397,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/PaulCombal/mw2-recompiled",

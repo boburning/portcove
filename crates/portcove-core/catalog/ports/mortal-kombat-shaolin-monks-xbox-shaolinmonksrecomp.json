@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2595,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/OAleex/OpenShao/blob/0bd55e4cc27cdf1eae470b49226dfa404f8d785d/README.md",
       "steps": [

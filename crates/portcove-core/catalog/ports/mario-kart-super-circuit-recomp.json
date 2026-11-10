@@ -6,6 +6,7 @@
     "summary": "Play Mario Kart: Super Circuit with your own matching GBA game and BIOS.",
     "project_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
     "issue_number": 285,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/blob/d551cfc2893f01c089f918a625ec184af571ad60/README.md",

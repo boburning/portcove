@@ -6,6 +6,7 @@
     "original_game_title": "FIFA 09 (Xbox 360)",
     "summary": "Upstream describes release and online features. Support for every game mode is unknown. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ChunchunQ/fifa09-recomp",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ChunchunQ/fifa09-recomp",

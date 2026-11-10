@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2908,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/JEschete/VS-NativePort/blob/f104d511ca04665edfd6fc74b7216a3220fbe055/README.md",
       "steps": [

@@ -6,6 +6,7 @@
     "original_game_title": "Real Steel",
     "summary": "The project reports Linux boot, menus, robot builder and gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/RealSteelRecomp",
+    "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/thefixinhixon/RealSteelRecomp",

@@ -6,6 +6,7 @@
     "original_game_title": "Monster Hunter Portable 2nd G (optional FUComplete mod)",
     "summary": "This is a work in progress rather than a general release. The project reports village, quest, combat and zone tests, with remaining edge cases and interpreter fallback for some code. Standalone overlay generation is not yet a confirmed documented procedure, and macOS hydration is incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/francl35/Poke",
+    "listed_at": "2026-10-25",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/francl35/Poke",

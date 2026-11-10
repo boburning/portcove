@@ -6,6 +6,7 @@
     "original_game_title": "Ultima IV: Quest of the Avatar (Master System)",
     "summary": "The project describes native map, combat, shop, dungeon, audio and save systems with reference comparisons. Full-game completion has not been independently verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/alexdia25/u4-sms-recompiled",
+    "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/alexdia25/u4-sms-recompiled",

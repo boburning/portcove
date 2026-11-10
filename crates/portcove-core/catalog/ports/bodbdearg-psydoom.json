@@ -6,6 +6,7 @@
     "summary": "Play PlayStation Doom and Final Doom through PsyDoom using your own game-disc image.",
     "project_url": "https://github.com/BodbDearg/PsyDoom",
     "issue_number": 1873,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/BodbDearg/PsyDoom#running-the-game",
     "manual_setup": {

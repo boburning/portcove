@@ -18,6 +18,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2845,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "help_url": "https://github.com/BountyHunterKanden/SecondHunt/blob/6a41f47fa6ed580c0b3ff8f90b2f841acd1d738c/src/SecondHunt.Desktop/dist/README.txt",
       "steps": [

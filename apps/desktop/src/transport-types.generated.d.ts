@@ -2495,6 +2495,12 @@ export interface PortListing {
   download_block_reason?: string | null;
   id: string;
   issue_number?: number | null;
+  /**
+   * The UTC date (`YYYY-MM-DD`) this listing was first added to the directory.
+   * Descriptive only: it orders a "Recently added" view and grants nothing.
+   * Requires listing format 9.
+   */
+  listed_at?: string | null;
   manual_setup?: ManualSetupGuide | null;
   media?: CatalogMediaAsset[];
   name: string;

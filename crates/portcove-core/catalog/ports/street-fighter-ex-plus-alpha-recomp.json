@@ -6,6 +6,7 @@
     "summary": "Register a completed upstream-prepared Street Fighter EX Plus Alpha Windows player for your own USA disc and SCPH1001 BIOS.",
     "project_url": "https://github.com/guimaraf/plusalpha-recomp",
     "issue_number": 1116,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/guimaraf/plusalpha-recomp",

@@ -6,6 +6,7 @@
     "summary": "Follow Conker64’s scene prototype and preserve an already registered development copy.",
     "project_url": "https://github.com/Conker64Recomp/conker64-recompiled",
     "issue_number": 123,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md",
