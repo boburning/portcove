@@ -1207,7 +1207,10 @@ mod tests {
         use Platform::{LinuxX86_64, MacosAarch64, MacosX86_64, WindowsX86_64};
         let id = "body-harvest-recompiled";
         let catalog = Catalog::embedded().unwrap();
-        assert_eq!(catalog.port(id).unwrap().platforms, [WindowsX86_64]);
+        assert_eq!(
+            catalog.port(id).unwrap().platforms,
+            [WindowsX86_64, LinuxX86_64]
+        );
         assert_eq!(
             catalog.listing(id).unwrap().platforms,
             [WindowsX86_64, LinuxX86_64, MacosX86_64, MacosAarch64]
@@ -1219,13 +1222,8 @@ mod tests {
             .find(|port| port.id == id)
             .unwrap();
         port.platforms = vec![LinuxX86_64];
-        port.release.asset_hints.clear();
-        port.release
-            .asset_hints
-            .insert(LinuxX86_64, vec!["-Linux-X64.tar.gz".into()]);
-        port.executable_hints.clear();
-        port.executable_hints
-            .insert(LinuxX86_64, vec!["BodyHarvestRecompiled".into()]);
+        port.release.asset_hints.remove(&WindowsX86_64);
+        port.executable_hints.remove(&WindowsX86_64);
         let selected = Catalog::from_document(accepted)
             .unwrap()
             .with_embedded_listings()

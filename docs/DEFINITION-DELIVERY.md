@@ -121,6 +121,15 @@ Windows and Linux retain the owned `.z2rs-data` fallback. The exact older
 Windows layout can use the launch check without rewriting its creating
 definition. New entries declaring the policy require version 20.
 
+Native portable version 21 consumes `recomp-direct-v1` for Body Harvest's
+official Windows and Linux x86-64 packages. The Linux package selects the
+direct AMD64 ELF player. Launch uses the upstream default profile lookup, holds
+portable markers and ambiguous or managed-overlapping profiles, and leaves
+profile data under player ownership.
+The exact retained Windows layout can apply this guard without recapturing its
+creating contract. Fresh and retained independent entries declaring the policy
+require version 21.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted
