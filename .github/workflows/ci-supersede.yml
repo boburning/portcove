@@ -38,7 +38,7 @@ jobs:
           own=""
           for _ in 1 2 3 4 5 6; do
             own=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$HEAD_SHA&per_page=100" \
-              --jq "[.workflow_runs[] | select(any(.pull_requests[]?; .number == $PR_NUMBER)) | .id] | max // empty")
+              --jq "[.workflow_runs[] | select(any(.pull_requests[]?; .number == $PR_NUMBER)) | .id] | max // empty") || own=""
             [ -n "$own" ] && break
             sleep 5
           done
