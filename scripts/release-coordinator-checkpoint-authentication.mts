@@ -34,6 +34,7 @@ import {
 import { inspectFixedJobJournalAuthorities } from "./release-authority-configuration.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { assessBoundedCapacity } from "./release-capacity.mts";
+import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 
 // The original immutable r45 child survives its interrupted publication. A
 // fixed catalog recovery and its exact application handoff own it.
@@ -70,6 +71,10 @@ export const retainedApplicationReviewClaim = {
   original_run: "42514436313",
   original_job: 128836705670,
   successor_ref: "refs/tags/portcove-production-controller-windows-20261108r53",
+  successor_revision: "8d2573bf510d8c79db9bcc13d05cd927299d6625",
+  successor_workflow_sha256: "1a3c919b259130af66b9e813bc3737c9670bdbcf1a2499b730d43debd5a8d57e",
+  successor_run: "42521028980",
+  successor_job: "128856935921",
 } as const;
 
 export function isRetainedApplicationReviewClaimScope(
@@ -103,6 +108,31 @@ export function matchesRetainedCatalogBootstrapHandoff(
   );
 }
 
+/** The authenticated withdrawal appointment selects one historical input.
+ * The normal provider job and Sigstore checks still authenticate its producer. */
+export function matchesRetainedReviewWithdrawalHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  rawWithdrawal: unknown,
+) {
+  const withdrawal = inspectReleaseReviewWithdrawal(rawWithdrawal);
+  const retained = retainedApplicationReviewClaim;
+  return (
+    withdrawal !== null &&
+    withdrawal.request_checkpoint === retained.child &&
+    withdrawal.request_id === retained.request_id &&
+    withdrawal.source_commit === retained.source &&
+    withdrawal.source_tree === retained.source_tree &&
+    checkpoint.checkpoint === retained.child &&
+    checkpoint.previous === retained.previous &&
+    producer.controller_revision === retained.successor_revision &&
+    producer.controller_ref === retained.successor_ref &&
+    producer.workflow_sha256 === retained.successor_workflow_sha256 &&
+    producer.run_id === retained.successor_run &&
+    producer.job_id === retained.successor_job
+  );
+}
+
 /** Authenticate one independently selected current head, not an ancestry walk.
  * Selected setup pins authorize only the exact empty seed. Every later head
  * must carry the existing signature plus actual fixed historical job binding.
@@ -114,6 +144,7 @@ export async function authenticateFixedJobCoordinatorHistory(
   rawSource: { revision: string; execution_ref: string; workflow_sha256: string; actor_id: string },
   deadline: number,
   api: CoordinatorCheckpointApi,
+  withdrawal?: ReturnType<typeof inspectReleaseReviewWithdrawal>,
 ) {
   const checkpoint = structuredClone(rawCheckpoint);
   const authorities = inspectFixedJobJournalAuthorities(rawAuthorities);
@@ -169,7 +200,9 @@ export async function authenticateFixedJobCoordinatorHistory(
   const subject: unknown = JSON.parse(evidence.subject.toString("utf8"));
   const producer = isRecord(subject) && isRecord(subject.producer) ? subject.producer : null;
   const retainedHandoff =
-    producer !== null && matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source);
+    producer !== null &&
+    (matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source) ||
+      matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal));
   if (
     !producer ||
     (!retainedHandoff &&
