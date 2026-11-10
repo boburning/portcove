@@ -602,7 +602,11 @@ export async function runCatalogUpstreams(
 /** Use only a positively bounded caller opportunity; retain the same per-operation config. */
 export async function runCatalogOpportunity(
   args: string[],
-  runtime: NonNullable<Parameters<typeof runCatalogUpstreams>[1]> & { deadline: number },
+  runtime: NonNullable<Parameters<typeof runCatalogUpstreams>[1]> & {
+    deadline: number;
+    /** Fixture override of the trigger's hosted request ceiling. */
+    requestCeiling?: number;
+  },
 ) {
   const root = runtime.root ?? defaultRoot,
     now = runtime.now ?? Date.now;
@@ -707,7 +711,7 @@ export async function runCatalogOpportunity(
       },
       {
         deadline: runtime.deadline,
-        maxRequests: hostedRequestCeiling(process.env.GITHUB_EVENT_NAME),
+        maxRequests: runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME),
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
         onBatch: (batch) => {

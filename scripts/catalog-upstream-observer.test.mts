@@ -2670,6 +2670,61 @@ void test("accepted checkpoint advancement ignores request counts, clocks, clear
   );
 });
 
+void test("hosted opportunity wires its request ceiling into every batch (#4779)", async (t) => {
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "catalog-opportunity-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(4);
+  await mkdir(path.join(root, "release"), { recursive: true });
+  await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+  await writeFile(
+    path.join(root, "crates/portcove-core/catalog/listings.json"),
+    JSON.stringify({ format_version: 1, listings: [] }),
+  );
+  const cli = path.join(root, "inspector"),
+    catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
+  await writeFile(cli, "fixture inspector identity; native execution is mocked");
+  await writeFile(
+    path.join(root, "release/upstream-observer.json"),
+    JSON.stringify(h.options.config),
+  );
+  await writeFile(catalog, JSON.stringify(h.input));
+  const runtime = {
+    root,
+    deadline: h.options.now!() + 500000,
+    now: h.options.now!,
+    inspectCatalog: async () =>
+      new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
+    observer: { fetch: h.options.fetch!, sleep: h.options.sleep! },
+    project: async (
+      _cli: string,
+      config: Parameters<typeof h.options.load>[0],
+      _directory: string,
+      observation: Parameters<typeof h.options.project>[2],
+    ) => h.options.project(config.port_id, config.repository_id, observation),
+    repositoryMetadata: async (repository: string) => {
+      const body = {
+        id: repository === "owner/shared" ? 7 : 8,
+        full_name: repository,
+        archived: false,
+      };
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
+    },
+    log: () => {},
+  };
+  // Each batch's template budget is 4 requests. Without the wiring, two batches
+  // would spend 8 against a ceiling of 6; with it the second receives only 2.
+  const result = await runCatalogOpportunity(["--cli", cli], { ...runtime, requestCeiling: 6 });
+  assert.ok(result.batches >= 2, String(result.batches));
+  assert.equal(result.report.requests, 6);
+});
+
 void test("hosted opportunity preserves one aggregate handoff and refuses changed catalog after accepted progress", async (t) => {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });
