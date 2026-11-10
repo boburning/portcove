@@ -67,7 +67,7 @@ Keep the four template sections: **Linked issue**, **Outcome and scope**,
 scope. State the concrete outcome, link exact-head required CI, identify the
 review performed, source head and result under QUALITY, and record explicit
 native/manual acceptance when required. Include material risks or limitations.
-Local checks are optional and need no omission narrative. Drafts may say pending;
+Local checks, including `just push-check`, need no omission narrative. Drafts may say pending;
 ready candidates carry final evidence in one current description. The advisory
 `just pr-check <number-or-url>` is optional, including after body updates.
 
