@@ -84,6 +84,23 @@ export function isCatalogAuthoringProof(value: unknown): value is CatalogAuthori
   );
 }
 
+export interface DiscoveryPlatformProof {
+  kind: "catalog-discovery-platforms-v1";
+  before: string;
+  after: string;
+  operational: string;
+}
+
+export function isDiscoveryPlatformProof(value: unknown): value is DiscoveryPlatformProof {
+  return (
+    isRecord(value) &&
+    value.kind === "catalog-discovery-platforms-v1" &&
+    typeof value.operational === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.operational) &&
+    isGuideCopyProof({ ...value, kind: "catalog-guide-reference-copy-v1" })
+  );
+}
+
 export interface ValidationChange {
   status: string;
   oldMode: string | null;
@@ -93,6 +110,7 @@ export interface ValidationChange {
   nextest_equivalence?: NextestProof;
   guide_copy?: GuideCopyProof;
   catalog_authoring?: CatalogAuthoringProof;
+  discovery_platforms?: DiscoveryPlatformProof;
 }
 export interface ValidationChangeInput {
   status: string;
@@ -106,6 +124,7 @@ export interface ValidationChangeInput {
   nextest_equivalence?: NextestProof;
   guide_copy?: GuideCopyProof;
   catalog_authoring?: CatalogAuthoringProof;
+  discovery_platforms?: DiscoveryPlatformProof;
 }
 export interface PathOwnership {
   path: string;
@@ -1368,6 +1387,7 @@ export function buildValidationPlan({
         nextest_equivalence,
         guide_copy,
         catalog_authoring,
+        discovery_platforms,
       }) => ({
         status,
         oldMode: oldMode ?? null,
@@ -1377,6 +1397,7 @@ export function buildValidationPlan({
         ...(nextest_equivalence ? { nextest_equivalence } : {}),
         ...(guide_copy ? { guide_copy } : {}),
         ...(catalog_authoring ? { catalog_authoring } : {}),
+        ...(discovery_platforms ? { discovery_platforms } : {}),
       }),
     ),
     areas,
@@ -1461,6 +1482,11 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
       !isCatalogAuthoringProof(change.catalog_authoring)
     )
       throw new Error("invalid catalog authoring equivalence proof");
+    if (
+      change.discovery_platforms !== undefined &&
+      !isDiscoveryPlatformProof(change.discovery_platforms)
+    )
+      throw new Error("invalid catalog discovery platform proof");
   }
   if (!Array.isArray(plan.paths)) throw new Error("validation plan paths must be an array");
   for (const entry of plan.paths) assertPathOwnership(entry);
