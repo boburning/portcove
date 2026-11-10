@@ -2156,6 +2156,17 @@ level through the same extractor on macOS and Linux routes that declare an execu
 and any other payload shape is unchanged. These are extraction facts, not native
 Mac execution evidence.
 
+A native package whose official archive stores its declared program without an
+executable bit declares `release.grant_declared_executable`. After extraction on a
+macOS or Linux route Core resolves the declared executable and sets execute permission
+only when the file verifies as a binary for the platform: ELF64 little-endian
+executable or shared-object for x86-64 on Linux, or a 64-bit Mach-O (or a universal
+image with a matching slice) for the Mac architecture. A script, another
+architecture, a link or a non-regular file refuses, a program the publisher already
+marked executable is left unchanged, and Windows grants nothing. Older readers refuse
+the declaration through [native capability 20](DEFINITION-DELIVERY.md); other adapters
+reject it. The check proves what kind of file is being trusted, not that it runs.
+
 The embedded catalog uses schema 2. It contains reusable identities, logical
 variants, tagged physical representations, explicitly scoped conjunctive digest
 records, per-port game and BIOS contracts, validators, exact qualification facts,

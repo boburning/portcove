@@ -138,6 +138,12 @@ with the declaration require a Native14 lower bound for fresh and retained reads
 Older readers refuse such an entry; other definitions keep their existing package
 contracts.
 
+Native portable version 20 consumes `release.grant_declared_executable`, which lets Core
+grant execution to the declared program of a package whose archive stores it without an
+executable bit, after verifying the file as a binary for the platform. Indexed entries
+with the declaration require a Native20 lower bound for fresh and retained reads; older
+readers refuse the whole definition, and no other adapter accepts the declaration.
+
 Native portable version 9 consumes `external_profile_policy` for the reviewed
 Dune Dynasty and fheroes2 external profile checks. Both fresh and retained
 indexed entries must declare capability 9 when they use this field.

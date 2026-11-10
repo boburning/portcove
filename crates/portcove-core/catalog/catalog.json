@@ -37875,20 +37875,28 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
         "repository": "AlisterT/openjazz",
+        "grant_declared_executable": true,
         "asset_hints": {
           "windows-x86-64": [
             "openjazz-windows-mingw-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openjazz-linux-glibc2.35-x86_64.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "OpenJazz.exe"
+        ],
+        "linux-x86-64": [
+          "OpenJazz"
         ]
       },
       "persistent_paths": [

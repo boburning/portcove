@@ -1018,7 +1018,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.portable_marker_file.is_some() {
+        let version = if port.release.grant_declared_executable {
+            20
+        } else if port.portable_marker_file.is_some() {
             19
         } else if !port.reviewed_package_layouts.is_empty() {
             crate::package_layout::NATIVE_CAPABILITY
