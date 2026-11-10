@@ -404,9 +404,10 @@ an explicit export to formats 5 through 8 omits them. A reader that predates for
 must request a format it understands.
 
 The catalog listing document has its own format version. Readers accept formats
-1–8 with independent field gates: format 7 adds advice and format 8 adds GitLab
-descriptive observations using provider-qualified project/tag identities.
-`catalog listings --format-version 8` preserves both. Exports to 5/6 omit only
+1–9 with independent field gates: format 7 adds advice, format 8 adds GitLab
+descriptive observations using provider-qualified project/tag identities, and format 9
+adds the first-listed date. `catalog listings --format-version 8` preserves advice and
+GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
 directory. CLI, Tauri and independent refresh share the same Core validation.

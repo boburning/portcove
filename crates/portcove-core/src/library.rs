@@ -68,12 +68,16 @@ fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Re
 /// envelope for opt-in selectors; legacy registrations keep their original shape.
 fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
     if catalog.is_user_selected_listing(port_id) {
+        let mut listing = catalog.listing(port_id)?.clone();
+        // The first-listed date is directory-level recency, not part of what a retained
+        // selection must preserve. Keeping it would put a field that earlier strict readers
+        // do not know inside an envelope version they still accept.
+        listing.listed_at = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
-            format_version: if catalog.listing(port_id)?.compatibility.is_some() {
+            format_version: if listing.compatibility.is_some() {
                 3
-            } else if catalog
-                .listing(port_id)?
+            } else if listing
                 .manual_setup
                 .as_ref()
                 .is_some_and(|guide| !guide.references.is_empty())
@@ -82,7 +86,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
             } else {
                 1
             },
-            listing: catalog.listing(port_id)?.clone(),
+            listing,
         })?);
     }
     let port = catalog.port(port_id)?;
@@ -3286,6 +3290,27 @@ mod tests {
             invalid[field] = changed;
             assert!(decode_external_catalog(&invalid.to_string(), "inert-project").is_err());
         }
+    }
+
+    #[test]
+    fn a_retained_selection_does_not_carry_the_directory_first_listed_date() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"dated-project", "name":"Dated project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream", "listed_at":"2026-11-09"
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "dated-project").unwrap();
+        // An earlier strict reader must still be able to read the retained entry.
+        assert!(!content.contains("listed_at"), "{content}");
+        let retained = decode_external_catalog(&content, "dated-project").unwrap();
+        assert!(
+            retained
+                .listing("dated-project")
+                .unwrap()
+                .listed_at
+                .is_none()
+        );
     }
 
     #[test]

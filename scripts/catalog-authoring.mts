@@ -114,7 +114,9 @@ const stableId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 export function isCalendarDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/u.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number) as [number, number, number];
-  const date = new Date(Date.UTC(year, month - 1, day));
+  // Date.UTC maps years 0-99 to 19xx, so set the year explicitly.
+  const date = new Date(Date.UTC(2000, month - 1, day));
+  date.setUTCFullYear(year);
   return (
     date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
   );

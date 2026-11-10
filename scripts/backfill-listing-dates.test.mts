@@ -54,6 +54,12 @@ void test("an existing date is kept and a nested key of the same name is not mis
   assert.equal(parsed(insertListedAt(nested, "2026-11-09")).listing.listed_at, "2026-11-09");
 });
 
+void test("early years are real dates, matching the Rust validator", () => {
+  assert.ok(isCalendarDate("0050-06-15"));
+  assert.ok(!isCalendarDate("0050-02-29"), "year 50 is not a leap year");
+  assert.ok(isCalendarDate("0004-02-29"), "year 4 is a leap year");
+});
+
 void test("only real calendar dates are accepted", () => {
   for (const good of ["2026-11-09", "2024-02-29", "2000-01-01"])
     assert.ok(isCalendarDate(good), good);
