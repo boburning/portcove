@@ -762,6 +762,15 @@ pub(crate) fn validate_reference(reference: &RetainedBuildReference) -> Result<(
     }
     if reference
         .history
+        .windows(2)
+        .any(|pair| pair[0].revision >= pair[1].revision)
+    {
+        return Err(PortcoveError::verification(
+            "retained-build history revisions must be unique and increasing",
+        ));
+    }
+    if reference
+        .history
         .iter()
         .any(|entry| entry.revision >= reference.revision)
     {

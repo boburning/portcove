@@ -824,3 +824,19 @@ fn retirement_consent_is_bound_to_the_reviewed_revision() {
         2
     );
 }
+
+#[test]
+fn history_revisions_must_be_unique_and_increasing() {
+    let (_temporary, service, first) = fixture();
+    bind(&service, "custom", &first);
+    let second = install(service.library(), "second", b"second runtime", true);
+    bind(&service, "custom", &second);
+    let third = install(service.library(), "third", b"third runtime", true);
+    let mut reference = bind(&service, "custom", &third);
+    assert_eq!(reference.history.len(), 2);
+    validate_reference(&reference).unwrap();
+    reference.history[1].revision = reference.history[0].revision;
+    assert!(validate_reference(&reference).is_err());
+    reference.history.reverse();
+    assert!(validate_reference(&reference).is_err());
+}
