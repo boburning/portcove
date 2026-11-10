@@ -31,6 +31,85 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn executable_grants_require_their_adapter_floor_for_fresh_and_retained_reads() {
+    for (adapter, version) in [
+        (crate::AdapterKind::NativePortable, 22),
+        (crate::AdapterKind::LibultrashipPortable, 4),
+        (crate::AdapterKind::GeneratedCache, 2),
+    ] {
+        let mut port = fixture_catalog().ports()[0].clone();
+        port.adapter = adapter;
+        let legacy = entry_for_port(&port);
+        let bytes = serde_json::to_vec(&legacy).unwrap();
+        assert!(inspect(&legacy).unwrap().capabilities().compatible);
+        assert!(
+            index(&bytes, &port.id)
+                .inspect_retained_entry("official", &port.id, &bytes)
+                .unwrap()
+                .capabilities()
+                .compatible
+        );
+        port.release.grant_declared_executable = true;
+        let mut entry = entry_for_port(&port);
+        entry["required_capabilities"][0]["maximum_version"] = json!(version);
+        for minimum in [version - 1, version] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            for result in [
+                inspect(&entry),
+                index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+            ] {
+                if minimum < version {
+                    assert!(
+                        result
+                            .unwrap_err()
+                            .message
+                            .contains(&format!("version {version}"))
+                    );
+                } else {
+                    assert!(result.unwrap().capabilities().compatible);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn executable_grants_refuse_other_adapters_and_windows_only_declarations() {
+    for adapter in [
+        crate::AdapterKind::N64RecompPortable,
+        crate::AdapterKind::StagedSourcePortable,
+        crate::AdapterKind::ReferencedDisc,
+        crate::AdapterKind::UpstreamManagedSetup,
+        crate::AdapterKind::PsxRecompManaged,
+    ] {
+        let mut document = fixture_catalog().authoritative_document();
+        document.ports[0].adapter = adapter;
+        document.ports[0].release.grant_declared_executable = true;
+        assert!(
+            crate::Catalog::from_document(document)
+                .unwrap_err()
+                .message
+                .contains("declared-executable grant")
+        );
+    }
+    let mut document = fixture_catalog().authoritative_document();
+    let port = &mut document.ports[0];
+    port.platforms = vec![crate::Platform::WindowsX86_64];
+    port.executable_hints = std::collections::BTreeMap::from([(
+        crate::Platform::WindowsX86_64,
+        vec!["fixture.exe".into()],
+    )]);
+    port.release.grant_declared_executable = true;
+    assert!(
+        crate::Catalog::from_document(document)
+            .unwrap_err()
+            .message
+            .contains("declared-executable grant")
+    );
+}
+
+#[test]
 fn openrct2_mac_bundle_requires_native11_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("openrct2-openrct2").unwrap();
@@ -1046,7 +1125,10 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
         let version = if port.release.grant_declared_executable {
-            22
+            port.adapter
+                .declared_executable_grant_capability()
+                .unwrap()
+                .1
         } else if port.portable_marker_file.is_some() {
             19
         } else if !port.reviewed_package_layouts.is_empty() {

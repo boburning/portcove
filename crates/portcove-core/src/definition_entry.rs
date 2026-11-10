@@ -219,17 +219,20 @@ impl DefinitionContentIndex {
             ));
         }
         if port.release.grant_declared_executable {
-            if port.adapter != crate::AdapterKind::NativePortable {
-                return Err(PortcoveError::verification(
-                    "granting a declared executable is supported only by native definitions",
-                ));
-            }
+            let (template, minimum) = port
+                .adapter
+                .declared_executable_grant_capability()
+                .ok_or_else(|| {
+                    PortcoveError::verification(
+                        "granting a declared executable is unsupported by this adapter",
+                    )
+                })?;
             if !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable" && requirement.minimum_version >= 22
+                requirement.template == template && requirement.minimum_version >= minimum
             }) {
-                return Err(PortcoveError::verification(
-                    "granting a declared executable requires native capability version 22",
-                ));
+                return Err(PortcoveError::verification(format!(
+                    "granting a declared executable requires {template} capability version {minimum}"
+                )));
             }
         }
         if port.release.archive_file_links {

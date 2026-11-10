@@ -293,6 +293,15 @@ impl AdapterKind {
         Self::UpstreamManagedSetup,
         Self::PsxRecompManaged,
     ];
+
+    pub(crate) const fn declared_executable_grant_capability(self) -> Option<(&'static str, u32)> {
+        match self {
+            Self::NativePortable => Some(("native-portable", 22)),
+            Self::LibultrashipPortable => Some(("libultraship-portable", 4)),
+            Self::GeneratedCache => Some(("generated-cache", 2)),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -613,7 +622,7 @@ pub struct ReleaseSpec {
     /// regular copies of the files they name.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub archive_file_links: bool,
-    /// Native22 (native definitions only): after extraction on a Unix platform, grant
+    /// Native22, Libultraship4 or GeneratedCache2: after extraction on a Unix platform, grant
     /// execute permission to the declared executable only when it verifies as a binary for
     /// that platform. The publisher's own executable bit, when present, is never changed.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]

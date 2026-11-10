@@ -19756,14 +19756,19 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
       "release": {
         "repository": "HarbourMasters/PaperBoat",
+        "grant_declared_executable": true,
         "asset_hints": {
           "windows-x86-64": [
             "win64"
+          ],
+          "linux-x86-64": [
+            "Linux.zip"
           ]
         }
       },
@@ -19786,6 +19791,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Paperboat.exe"
+        ],
+        "linux-x86-64": [
+          "Paperboat.AppImage"
         ]
       },
       "persistent_paths": [
@@ -24027,7 +24035,8 @@
         "rolling"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "generated-cache",
       "automated_tested_platforms": [
@@ -24038,10 +24047,14 @@
       ],
       "release": {
         "repository": "perfect-dark-pc-port/perfect_dark",
+        "grant_declared_executable": true,
         "rolling_tag": "ci-dev-build",
         "asset_hints": {
           "windows-x86-64": [
             "pd-x86_64-windows"
+          ],
+          "linux-x86-64": [
+            "pd-x86_64-linux.tar.gz"
           ]
         }
       },
@@ -24049,6 +24062,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "pd.x86_64.exe"
+        ],
+        "linux-x86-64": [
+          "pd.x86_64"
         ]
       },
       "launch_arguments": [

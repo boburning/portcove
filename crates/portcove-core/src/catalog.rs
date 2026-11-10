@@ -586,13 +586,16 @@ impl Catalog {
             crate::native_temp::validate(port)?;
             validate_portable_marker_file(port)?;
             if port.release.grant_declared_executable
-                && (port.adapter != AdapterKind::NativePortable
+                && (port
+                    .adapter
+                    .declared_executable_grant_capability()
+                    .is_none()
                     || !port.platforms.iter().any(|platform| {
                         crate::permissions::platform_requires_executable(*platform)
                     }))
             {
                 return Err(PortcoveError::verification(format!(
-                    "{} declares a declared-executable grant outside a native Unix route",
+                    "{} declares a declared-executable grant outside a supported Unix route",
                     port.id
                 )));
             }
@@ -3375,15 +3378,16 @@ mod tests {
                 .asset_hints
                 .insert(Platform::LinuxX86_64, vec![hint.into()]);
         }
-        // Two Linux packages store their program without an executable bit, which Core
-        // refuses by design. Fresh creation stops offering Linux while the frozen reader
-        // keeps the old claim. OpenJazz is offered again through a verified grant.
-        for id in ["paperboat", "perfect-dark"] {
+        // The verified grant restores these Linux routes. Their selectors now name
+        // the package suffix explicitly, preserving the frozen original inputs/data.
+        for (id, hint) in [
+            ("paperboat", "Linux.zip"),
+            ("perfect-dark", "pd-x86_64-linux.tar.gz"),
+        ] {
             if let Some(port) = expected_ports.iter_mut().find(|port| port.id == id) {
-                port.platforms
-                    .retain(|platform| *platform != Platform::LinuxX86_64);
-                port.executable_hints.remove(&Platform::LinuxX86_64);
-                port.release.asset_hints.remove(&Platform::LinuxX86_64);
+                port.release
+                    .asset_hints
+                    .insert(Platform::LinuxX86_64, vec![hint.into()]);
             }
         }
         // Reviewed macOS additions after the frozen input: universal app bundles for
@@ -6019,6 +6023,14 @@ mod tests {
         );
         let port = catalog.port("perfect-dark").unwrap();
         assert_eq!(port.channels, vec![crate::ReleaseChannel::Rolling]);
+        assert_eq!(
+            port.platforms,
+            [Platform::WindowsX86_64, Platform::LinuxX86_64]
+        );
+        assert!(port.release.grant_declared_executable);
+        assert_eq!(port.executable_hints[&Platform::LinuxX86_64], ["pd.x86_64"]);
+        assert_eq!(port.automated_tested_platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.manually_validated_platforms, [Platform::WindowsX86_64]);
         assert_eq!(port.launch_arguments, vec!["--portable"]);
         assert_eq!(
             port.runtime_source_filename.as_deref(),
@@ -7653,6 +7665,19 @@ mod tests {
         );
 
         let port = catalog.port("paperboat").unwrap();
+        assert_eq!(
+            port.platforms,
+            [Platform::WindowsX86_64, Platform::LinuxX86_64]
+        );
+        assert!(port.release.grant_declared_executable);
+        assert_eq!(
+            port.executable_hints[&Platform::LinuxX86_64],
+            ["Paperboat.AppImage"]
+        );
+        assert_eq!(
+            port.setup_executable_hints[&Platform::LinuxX86_64],
+            ["Paperboat.AppImage"]
+        );
         assert_eq!(
             port.runtime_source_materialization,
             Some(RuntimeSourceMaterialization::N64BigEndian)

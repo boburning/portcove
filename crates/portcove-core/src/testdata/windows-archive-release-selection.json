@@ -1,5 +1,25 @@
 {
   "cases": {
+    "paperboat": {
+      "inventory": "paperboat",
+      "repository_id": 1175026745,
+      "selected_assets": [
+        "Paperboat-Mulberry-Alfa-Win64.zip",
+        "Paperboat-Mulberry-Delta-Win64.zip"
+      ],
+      "linux_selected_assets": [
+        "Paperboat-Mulberry-Alfa-Linux.zip",
+        "Paperboat-Mulberry-Delta-Linux.zip"
+      ]
+    },
+    "perfect-dark": {
+      "inventory": "perfect_dark",
+      "repository_id": 669207138,
+      "selected_assets": ["pd-x86_64-windows.zip", "pd-x86_64-windows.zip"],
+      "linux_selected_assets": ["pd-x86_64-linux.tar.gz", "pd-x86_64-linux.tar.gz"],
+      "channel": "rolling",
+      "mutable_tag_snapshots": true
+    },
     "doom-3-classic-dude-doom-3-unified-development-engine": {
       "inventory": "dude",
       "selected_assets": ["dude-0.9.7-win64.zip", "dude-0.9.8-win64.zip"],
@@ -1404,6 +1424,214 @@
     }
   },
   "inventories": {
+    "paperboat": [
+      {
+        "id": 390372419,
+        "tag_name": "1.0.0",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-17T01:19:09Z",
+        "assets": [
+          {
+            "id": 569187842,
+            "name": "Paperboat-Mulberry-Alfa-Linux.zip",
+            "browser_download_url": "https://github.com/HarbourMasters/PaperBoat/releases/download/1.0.0/Paperboat-Mulberry-Alfa-Linux.zip",
+            "size": 17289088,
+            "digest": "sha256:0621a8bfc028c647f4e83b8975c9f4eeb393bc7a2c1cab5fd8161eac5d906bac"
+          },
+          {
+            "id": 569187871,
+            "name": "Paperboat-Mulberry-Alfa-Mac.zip",
+            "browser_download_url": "https://github.com/HarbourMasters/PaperBoat/releases/download/1.0.0/Paperboat-Mulberry-Alfa-Mac.zip",
+            "size": 8851503,
+            "digest": "sha256:31658b61135394305eb05015f9c163dafa1074d243bdafc6843936c9ceed0ae0"
+          },
+          {
+            "id": 569187883,
+            "name": "Paperboat-Mulberry-Alfa-Win64.zip",
+            "browser_download_url": "https://github.com/HarbourMasters/PaperBoat/releases/download/1.0.0/Paperboat-Mulberry-Alfa-Win64.zip",
+            "size": 24193220,
+            "digest": "sha256:705b413a3657fa4e2e5fb50e65cf3c1860946955cf385a89547435f2aa714b86"
+          }
+        ]
+      },
+      {
+        "id": 409820474,
+        "tag_name": "1.0.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-11T17:56:48Z",
+        "assets": [
+          {
+            "id": 631379018,
+            "name": "Paperboat-Mulberry-Delta-Linux.zip",
+            "browser_download_url": "https://github.com/HarbourMasters/PaperBoat/releases/download/1.0.3/Paperboat-Mulberry-Delta-Linux.zip",
+            "size": 21437464,
+            "digest": "sha256:f6c72564e8c1485df6022aed24e33c5122815c9c6c90589411f3fbd23e56ffa2"
+          },
+          {
+            "id": 631379014,
+            "name": "Paperboat-Mulberry-Delta-Mac.zip",
+            "browser_download_url": "https://github.com/HarbourMasters/PaperBoat/releases/download/1.0.3/Paperboat-Mulberry-Delta-Mac.zip",
+            "size": 16347455,
+            "digest": "sha256:9fc5e12658804d2d08defd6033495c1089aa2313808b77febbe16cadb37bc3ee"
+          },
+          {
+            "id": 631379016,
+            "name": "Paperboat-Mulberry-Delta-Win64.zip",
+            "browser_download_url": "https://github.com/HarbourMasters/PaperBoat/releases/download/1.0.3/Paperboat-Mulberry-Delta-Win64.zip",
+            "size": 27512774,
+            "digest": "sha256:ad7a825befbbad2d925f511fc97cfa26027f825935b413040b9d294d953983f3"
+          }
+        ]
+      }
+    ],
+    "perfect_dark": [
+      {
+        "id": 155654014,
+        "tag_name": "ci-dev-build",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2024-05-14T09:41:23Z",
+        "assets": [
+          {
+            "id": 429366849,
+            "name": "io.github.fgsfdsfgs.perfect_dark.flatpak",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/io.github.fgsfdsfgs.perfect_dark.flatpak",
+            "size": 1519088,
+            "digest": "sha256:e5b6cf50e10197a502f433c822ec0a2c7fb60005b062e528767e383b4f073eee"
+          },
+          {
+            "id": 512564000,
+            "name": "io.github.perfect_dark_pc_port.perfect_dark.flatpak",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/io.github.perfect_dark_pc_port.perfect_dark.flatpak",
+            "size": 1520216,
+            "digest": "sha256:248ede25caba42c0274e05af1f3125b7bc5dd1214beee3025dc7c6ed35bb4269"
+          },
+          {
+            "id": 512563999,
+            "name": "pd-arm64-nswitch.zip",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-arm64-nswitch.zip",
+            "size": 10815625,
+            "digest": "sha256:59babcbaa81728b15110fbf40899ce34e41f3f4a6a1d49335b3817e0142cdfdb"
+          },
+          {
+            "id": 512564001,
+            "name": "pd-arm64-osx.tar.xz",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-arm64-osx.tar.xz",
+            "size": 3500000,
+            "digest": "sha256:36a649bc011031286b65260a60bbb5317eb2d938371ff7ed63a3a40bef2ecbe2"
+          },
+          {
+            "id": 512563996,
+            "name": "pd-i686-linux.tar.gz",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-i686-linux.tar.gz",
+            "size": 21419437,
+            "digest": "sha256:46bf3ecd5f8394094aacb04d9e5182c3871ed01de19df28f6ff5c2afd3c66618"
+          },
+          {
+            "id": 512563995,
+            "name": "pd-i686-windows.zip",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-i686-windows.zip",
+            "size": 25147137,
+            "digest": "sha256:685eb52755e4f71269a1af7ccc76f5f5921c211a4624572e3e0b91bd0afe4ab7"
+          },
+          {
+            "id": 512564020,
+            "name": "pd-x86_64-linux.tar.gz",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-x86_64-linux.tar.gz",
+            "size": 22213594,
+            "digest": "sha256:0f28fd59b488e0a919aae4350083059faebd462fce52df7bfdc9a4aec26f92ae"
+          },
+          {
+            "id": 512564022,
+            "name": "pd-x86_64-osx.tar.xz",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-x86_64-osx.tar.xz",
+            "size": 2905352,
+            "digest": "sha256:6f684e8946370d39e6d7bba2da693f695faa865789ee160848311211801fa9dd"
+          },
+          {
+            "id": 512564026,
+            "name": "pd-x86_64-windows.zip",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-x86_64-windows.zip",
+            "size": 25739820,
+            "digest": "sha256:56e6a2f8bad36bd90f0d396c1d525b953adcc1a20157f594b90a7530d58258d3"
+          }
+        ]
+      },
+      {
+        "id": 155654014,
+        "tag_name": "ci-dev-build",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-11T00:00:00Z",
+        "assets": [
+          {
+            "id": 1429366849,
+            "name": "io.github.fgsfdsfgs.perfect_dark.flatpak",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/io.github.fgsfdsfgs.perfect_dark.flatpak",
+            "size": 1519088,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 1512564000,
+            "name": "io.github.perfect_dark_pc_port.perfect_dark.flatpak",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/io.github.perfect_dark_pc_port.perfect_dark.flatpak",
+            "size": 1520216,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 1512563999,
+            "name": "pd-arm64-nswitch.zip",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-arm64-nswitch.zip",
+            "size": 10815625,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 1512564001,
+            "name": "pd-arm64-osx.tar.xz",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-arm64-osx.tar.xz",
+            "size": 3500000,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 1512563996,
+            "name": "pd-i686-linux.tar.gz",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-i686-linux.tar.gz",
+            "size": 21419437,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 1512563995,
+            "name": "pd-i686-windows.zip",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-i686-windows.zip",
+            "size": 25147137,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 1512564020,
+            "name": "pd-x86_64-linux.tar.gz",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-x86_64-linux.tar.gz",
+            "size": 22213594,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 1512564022,
+            "name": "pd-x86_64-osx.tar.xz",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-x86_64-osx.tar.xz",
+            "size": 2905352,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "id": 1512564026,
+            "name": "pd-x86_64-windows.zip",
+            "browser_download_url": "https://github.com/perfect-dark-pc-port/perfect_dark/releases/download/ci-dev-build/pd-x86_64-windows.zip",
+            "size": 25739820,
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ]
+      }
+    ],
     "dude": [
       {
         "id": 427859119,
@@ -7390,6 +7618,36 @@
     ]
   },
   "other_zip_assets": [
+    {
+      "inventory": "paperboat",
+      "release_index": 0,
+      "asset": "Paperboat-Mulberry-Alfa-Mac.zip"
+    },
+    {
+      "inventory": "paperboat",
+      "release_index": 1,
+      "asset": "Paperboat-Mulberry-Delta-Mac.zip"
+    },
+    {
+      "inventory": "perfect_dark",
+      "release_index": 0,
+      "asset": "pd-arm64-nswitch.zip"
+    },
+    {
+      "inventory": "perfect_dark",
+      "release_index": 0,
+      "asset": "pd-i686-windows.zip"
+    },
+    {
+      "inventory": "perfect_dark",
+      "release_index": 1,
+      "asset": "pd-arm64-nswitch.zip"
+    },
+    {
+      "inventory": "perfect_dark",
+      "release_index": 1,
+      "asset": "pd-i686-windows.zip"
+    },
     {
       "inventory": "dude",
       "release_index": 0,

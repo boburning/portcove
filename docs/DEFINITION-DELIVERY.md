@@ -164,11 +164,22 @@ with the declaration require a Native14 lower bound for fresh and retained reads
 Older readers refuse such an entry; other definitions keep their existing package
 contracts.
 
-Native portable version 22 consumes `release.grant_declared_executable`, which lets Core
-grant execution to the declared program of a package whose archive stores it without an
-executable bit, after verifying the file as a binary for the platform. Indexed entries
-with the declaration require a Native22 lower bound for fresh and retained reads; older
-readers refuse the whole definition, and no other adapter accepts the declaration.
+Native portable version 22, Libultraship portable version 4 and generated cache
+version 2 consume `release.grant_declared_executable`. After extraction Core can
+grant execution to the single resolved player when the archive stores it without
+an executable bit and its header verifies as a binary for the selected platform.
+Fresh and retained indexed entries require the corresponding adapter's lower
+bound. Older flag-free definitions remain readable. Other adapters and
+Windows-only declarations refuse the field.
+
+The grant runs inside installation staging before manifest construction and
+upstream preparation. It preserves publisher-set executable bits and grants no
+helper or sibling program. Launch, verification, backup and restore preserve
+existing executable intent. Paperboat's private graphical preparation and
+generated `pm64.o2r` ownership retain their contract. Perfect Dark retains its
+portable original-ROM and player-data paths. Ordinary compatible upstream
+releases use the same selector and verified header checks without an authored
+version update.
 
 Native portable version 9 consumes `external_profile_policy` for the reviewed
 Dune Dynasty and fheroes2 external profile checks. Both fresh and retained
