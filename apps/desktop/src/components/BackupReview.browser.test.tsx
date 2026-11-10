@@ -84,6 +84,29 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   expect(close).toHaveBeenCalledOnce();
 });
 
+it("tells the player when the reviewed backup is an automatic snapshot", async () => {
+  const automatic = {
+    ...review.preview.backup,
+    automatic: { operation: "rollback" as const, from_version: "2.0", to_version: "1.9" },
+  };
+  vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue({
+    ...review,
+    preview: { ...review.preview, backup: automatic },
+  });
+  await root.rerender(
+    <BackupReviewDialog
+      backup={automatic}
+      action="restore"
+      generation={7}
+      apply={vi.fn()}
+      close={vi.fn()}
+    />,
+  );
+  expect(document.body.textContent).toContain(
+    "Automatic snapshot before restoring a previous version (2.0 to 1.9)",
+  );
+});
+
 it("explains permanent deletion and can dismiss without authorizing it", async () => {
   vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue({
     ...review,
