@@ -4035,6 +4035,9 @@ pub(crate) fn resolve_declared_executable(
         Some(crate::ExternalProfilePolicy::RecompDirectV1) if platform == Platform::LinuxX86_64 => {
             crate::native_external_profile::recomp_direct::require_linux_player(&executable)?;
         }
+        Some(crate::ExternalProfilePolicy::Doom3LinuxV1) if platform == Platform::LinuxX86_64 => {
+            crate::native_external_profile::doom3_linux::require_payload(&executable)?;
+        }
         _ => {}
     }
     Ok(executable)
@@ -4327,7 +4330,7 @@ fn is_regular_file_without_symlink(path: &Path) -> bool {
         .is_ok_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
 }
 
-fn refuse_symlink_path_within(root: &Path, path: &Path, label: &str) -> Result<()> {
+pub(crate) fn refuse_symlink_path_within(root: &Path, path: &Path, label: &str) -> Result<()> {
     for candidate in path
         .ancestors()
         .take_while(|candidate| candidate.starts_with(root))

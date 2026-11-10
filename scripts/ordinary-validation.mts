@@ -3541,6 +3541,12 @@ function sorted(set: ReadonlySet<string>) {
   return [...set].sort((left, right) => left.localeCompare(right));
 }
 
+/**
+ * Contract tests that need the full development toolchain (`corepack`, `just`) rather than a
+ * contract lane's environment. Hosted contract jobs and the pre-push profile both skip them.
+ */
+export const environmentDependentContractSkip = "--test-skip-pattern=pnpm uses|direct just recipes";
+
 export function nodeTestCommand(files: string[]) {
   const serialWindowsQualification = [
     "scripts/updater-artifact-inventory.test.mts",

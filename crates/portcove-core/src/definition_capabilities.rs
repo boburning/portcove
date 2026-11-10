@@ -238,6 +238,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: 22,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::doom3_linux::NATIVE_CAPABILITY,
+        });
         supported
     }
 }

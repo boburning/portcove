@@ -28,8 +28,8 @@
       "help_url": "https://dhewm3.org/#how-to-install",
       "references": [
         {
-          "title": "Prepare the upstream Linux player",
-          "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dhewm3 from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL and libcurl through your distribution. The inspected ARM64 executable needs glibc 2.38."
+          "title": "Choose your Linux setup",
+          "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dhewm3 from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries through your distribution. The inspected ARM64 executable needs glibc 2.38. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path."
         },
         {
           "title": "Set up dhewm3 on Mac",
@@ -37,7 +37,7 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -54,7 +54,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -62,7 +62,8 @@
       "provider": "github",
       "repository": "dhewm/dhewm3",
       "asset_hints": {
-        "windows-x86-64": ["dhewm3-1.", "_win32.zip"]
+        "windows-x86-64": ["dhewm3-1.", "_win32.zip"],
+        "linux-x86-64": ["dhewm3-1.", "_Linux_amd64.tar.gz"]
       }
     },
     "presentation": {
@@ -71,7 +72,8 @@
       "saves_and_settings": "external-user-owned"
     },
     "executable_hints": {
-      "windows-x86-64": ["dhewm3.exe"]
+      "windows-x86-64": ["dhewm3.exe"],
+      "linux-x86-64": ["dhewm3"]
     },
     "persistent_paths": [
       "base/pak000.pk4",
@@ -89,8 +91,13 @@
       "windows-x86-64": {
         "directories": ["base", "d3xp"],
         "executables": ["dhewm3.exe", "dhewm3_notools.exe", "dhewm3ded.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["base", "d3xp", "libs"],
+        "executables": ["base.so", "d3xp.so", "dhewm3", "dhewm3ded"]
       }
-    }
+    },
+    "external_profile_policy": "doom3-linux-v1"
   },
   "route_facts_v1": {
     "format_version": 1,
@@ -105,7 +112,7 @@
     "managed_native": {
       "preparation": {
         "title": "Prepare your original game",
-        "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
+        "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. On managed Linux x86-64, keep the packaged modules together and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Back up the actual external dhewm3 config and save folders separately. Use a separately prepared copy for custom paths or native mods."
       },
       "warnings": [
         "Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract.",

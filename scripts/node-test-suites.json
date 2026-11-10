@@ -591,6 +591,20 @@
       ]
     },
     {
+      "file": "scripts/rust-timing-hints.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5001],
+        ["repository-tools-2", 601]
+      ]
+    },
+    {
+      "file": "scripts/ci-supersede.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5002],
+        ["repository-tools-2", 602]
+      ]
+    },
+    {
       "file": "scripts/ci-metrics.test.mts",
       "memberships": [
         ["catalog-full-2", 900],

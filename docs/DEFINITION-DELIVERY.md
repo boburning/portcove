@@ -130,6 +130,14 @@ The exact retained Windows layout can apply this guard without recapturing its
 creating contract. Fresh and retained independent entries declaring the policy
 require version 21.
 
+Native portable version 23 consumes `doom3-linux-v1` for the reviewed
+direct dhewm3 and DUDE Linux x86-64 packages. It checks the packaged
+executable and native modules, starts with the managed base and module
+paths, and checks the effective external config and save directories.
+It holds a DUDE first launch that would copy a legacy profile. Earlier
+creating definitions keep their Windows launch and ownership contracts.
+Fresh and retained indexed entries declaring the policy require version 23.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

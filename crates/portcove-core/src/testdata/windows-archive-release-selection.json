@@ -2,11 +2,13 @@
   "cases": {
     "doom-3-classic-dude-doom-3-unified-development-engine": {
       "inventory": "dude",
-      "selected_assets": ["dude-0.9.7-win64.zip", "dude-0.9.8-win64.zip"]
+      "selected_assets": ["dude-0.9.7-win64.zip", "dude-0.9.8-win64.zip"],
+      "linux_selected_assets": ["dude-0.9.7-linux-x86_64.tar.gz", "dude-0.9.8-linux-x86_64.tar.gz"]
     },
     "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine": {
       "inventory": "dude",
-      "selected_assets": ["dude-0.9.7-win64.zip", "dude-0.9.8-win64.zip"]
+      "selected_assets": ["dude-0.9.7-win64.zip", "dude-0.9.8-win64.zip"],
+      "linux_selected_assets": ["dude-0.9.7-linux-x86_64.tar.gz", "dude-0.9.8-linux-x86_64.tar.gz"]
     },
     "super-metroid-recomp": {
       "inventory": "super_metroid",
@@ -164,11 +166,19 @@
     },
     "doom-3-classic-dhewm3": {
       "inventory": "dhewm3",
-      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"]
+      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"],
+      "linux_selected_assets": [
+        "dhewm3-1.5.5_Linux_amd64.tar.gz",
+        "dhewm3-1.5.6_Linux_amd64.tar.gz"
+      ]
     },
     "doom-3-resurrection-of-evil-classic-dhewm3": {
       "inventory": "dhewm3",
-      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"]
+      "selected_assets": ["dhewm3-1.5.5_win32.zip", "dhewm3-1.5.6_win32.zip"],
+      "linux_selected_assets": [
+        "dhewm3-1.5.5_Linux_amd64.tar.gz",
+        "dhewm3-1.5.6_Linux_amd64.tar.gz"
+      ]
     },
     "alexbeav-tony-hawk-s-pro-skater-2-recomp": {
       "inventory": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
