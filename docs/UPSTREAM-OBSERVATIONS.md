@@ -631,8 +631,11 @@ facts and endpoint/source-archive checks remain in place.
 After a reviewed same-identity relocation (an accepted `upstream_lineage`
 relocation with an unchanged numeric repository ID), a rebound pin names the
 current repository and download URL. Its retained historical projection keeps
-the former path, because that projection is frozen with its source hash. The two
-then match by numeric repository identity, not by name. Rebinding requires
+the former path, because that projection is frozen with its source hash. The
+binding test pairs them by port, platform and historical contract hash, not by
+repository name. The reviewed `upstream_lineage` relocation and the pin's
+unchanged `repository_id` establish that both paths name the same repository.
+Rebinding requires
 read-only evidence that the reviewed repository, release and asset IDs, release
 facts, size and SHA-256 are unchanged at the new name; only the URL-bearing
 asset facts hash is recorded anew.
