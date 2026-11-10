@@ -1,6 +1,7 @@
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { controlArtifactMaximumBytes } from "./release-control-handshake.mts";
 import { requireStorageAppToken } from "./release-storage-credential.mts";
 import { spawnSync } from "node:child_process";
 import { open, writeFile, readFile } from "node:fs/promises";
@@ -81,14 +82,19 @@ export async function retainProtectionObservationOutputs(
 ) {
   const encoded = JSON.stringify(result);
   requireFresh();
-  if (typeof encoded !== "string" || Buffer.byteLength(encoded) > 60 * 1024 || !output)
+  // Leave room for the existing single-file ZIP envelope.
+  const maximum = retainedPath ? controlArtifactMaximumBytes - 4 * 1024 : 60 * 1024;
+  if (typeof encoded !== "string" || Buffer.byteLength(encoded) > maximum)
     throw new Error("trusted observer output channel unavailable or oversized");
-  await io.appendFile(output, `observation=${encoded}\n`);
-  requireFresh();
+  // Artifact-backed phases have no inline consumer. Classification still uses
+  // the smaller workflow output channel.
   if (retainedPath) {
     await io.writeFile(retainedPath, encoded, { flag: "wx", mode: 0o600 });
-    requireFresh();
+  } else {
+    if (!output) throw new Error("trusted observer output channel unavailable or oversized");
+    await io.appendFile(output, `observation=${encoded}\n`);
   }
+  requireFresh();
   await receipt.writeFile(
     JSON.stringify({
       schema_version: 1,

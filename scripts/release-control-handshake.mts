@@ -23,7 +23,7 @@ import {
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
 
 const base = "repos/boburning/portcove";
-const maximum = 128 * 1024;
+export const controlArtifactMaximumBytes = 128 * 1024;
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const proofs = new WeakSet<object>();
 function immutable<T>(value: T, depth = 0): T {
@@ -342,7 +342,7 @@ export async function waitForControlArtifact(
           artifact.expired !== false ||
           !Number.isSafeInteger(artifact.size_in_bytes) ||
           Number(artifact.size_in_bytes) < 22 ||
-          Number(artifact.size_in_bytes) > maximum ||
+          Number(artifact.size_in_bytes) > controlArtifactMaximumBytes ||
           typeof artifact.digest !== "string" ||
           !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
         )
@@ -371,8 +371,8 @@ export async function waitForControlArtifact(
           throw new Error("control artifact archive changed");
         const member = `${role}-${input.phase}.json`;
         const parsed = inspectBoundedZip(zip, {
-          compressedBytes: maximum,
-          expandedBytes: maximum,
+          compressedBytes: controlArtifactMaximumBytes,
+          expandedBytes: controlArtifactMaximumBytes,
           files: 1,
           nameBytes: 64,
           allowedPaths: new Set([member]),

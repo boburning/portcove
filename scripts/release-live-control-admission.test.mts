@@ -76,68 +76,90 @@ import {
 } from "./release-authority-configuration.mts";
 
 void test("observer output transport refuses expiry after every awaited write and retains partial effects", async (t) => {
-  for (const delayed of ["output", "observation", "receipt", "none"]) {
-    await t.test(delayed, async () => {
-      const root = await mkdtemp(path.join(os.tmpdir(), "portcove-observer-output-"));
-      try {
-        const output = path.join(root, "output");
-        const observation = path.join(root, "observation.json");
-        const receipt = path.join(root, "receipt.jsonl");
-        const result = { evidence: "controlled-output-transport", authority: "none" };
-        const encoded = JSON.stringify(result);
-        let now = 1;
-        const writes: string[] = [];
-        const finish = (stage: string) => {
-          writes.push(stage);
-          if (delayed === stage) now = 2;
-        };
-        const attempt = retainProtectionObservationOutputs(
-          output,
-          observation,
-          result,
-          "observe-production",
-          {
-            writeFile: async (value) => {
-              await appendFile(receipt, value);
-              finish("receipt");
+  for (const transport of ["output", "observation"]) {
+    for (const delayed of [transport, "receipt", "none"]) {
+      await t.test(`${transport}: ${delayed}`, async () => {
+        const root = await mkdtemp(path.join(os.tmpdir(), "portcove-observer-output-"));
+        try {
+          const output = path.join(root, "output");
+          const observation = path.join(root, "observation.json");
+          const receipt = path.join(root, "receipt.jsonl");
+          const result = {
+            evidence: transport === "observation" ? "x".repeat(64 * 1024) : "inline",
+            authority: "none",
+          };
+          const encoded = JSON.stringify(result);
+          let now = 1;
+          const writes: string[] = [];
+          const finish = (stage: string) => {
+            writes.push(stage);
+            if (delayed === stage) now = 2;
+          };
+          const attempt = retainProtectionObservationOutputs(
+            output,
+            transport === "observation" ? observation : undefined,
+            result,
+            "observe-production",
+            {
+              writeFile: async (value) => {
+                await appendFile(receipt, value);
+                finish("receipt");
+              },
             },
-          },
-          () => {
-            assert.ok(now < 2, "original observer identity/deadline expired");
-          },
-          {
-            appendFile: async (...args) => {
-              await appendFile(...args);
-              finish("output");
+            () => {
+              assert.ok(now < 2, "original observer identity/deadline expired");
             },
-            writeFile: async (...args) => {
-              await writeFile(...args);
-              finish("observation");
+            {
+              appendFile: async (...args) => {
+                await appendFile(...args);
+                finish("output");
+              },
+              writeFile: async (...args) => {
+                await writeFile(...args);
+                finish("observation");
+              },
             },
-          },
-        );
-        if (delayed === "none") await attempt;
-        else await assert.rejects(attempt, /original observer identity\/deadline expired/);
-        const expected =
-          delayed === "output"
-            ? ["output"]
-            : delayed === "observation"
-              ? ["output", "observation"]
-              : ["output", "observation", "receipt"];
-        assert.deepEqual(writes, expected);
-        assert.equal(await readFile(output, "utf8"), `observation=${encoded}\n`);
-        if (writes.includes("observation"))
-          assert.equal(await readFile(observation, "utf8"), encoded);
-        else await assert.rejects(readFile(observation), { code: "ENOENT" });
-        if (writes.includes("receipt")) {
-          const retained: unknown = JSON.parse(await readFile(receipt, "utf8"));
-          assert.ok(isRecord(retained) && isRecord(retained.result));
-          assert.equal(retained.result.evidence, result.evidence);
-        } else await assert.rejects(readFile(receipt), { code: "ENOENT" });
-      } finally {
-        await rm(root, { recursive: true, force: true });
-      }
-    });
+          );
+          if (delayed === "none") await attempt;
+          else await assert.rejects(attempt, /original observer identity\/deadline expired/);
+          assert.deepEqual(writes, delayed === transport ? [transport] : [transport, "receipt"]);
+          if (transport === "output")
+            assert.equal(await readFile(output, "utf8"), `observation=${encoded}\n`);
+          else await assert.rejects(readFile(output), { code: "ENOENT" });
+          if (transport === "observation")
+            assert.equal(await readFile(observation, "utf8"), encoded);
+          else await assert.rejects(readFile(observation), { code: "ENOENT" });
+          if (writes.includes("receipt")) {
+            const retained: unknown = JSON.parse(await readFile(receipt, "utf8"));
+            assert.ok(isRecord(retained) && isRecord(retained.result));
+            assert.equal(retained.result.evidence, result.evidence);
+          } else await assert.rejects(readFile(receipt), { code: "ENOENT" });
+        } finally {
+          await rm(root, { recursive: true, force: true });
+        }
+      });
+    }
+  }
+});
+
+void test("oversized observer handoffs refuse before writing either transport", async () => {
+  const forbiddenWrite = async () => assert.fail("oversized handoff attempted a write");
+  for (const [retainedPath, size] of [
+    [undefined, 61 * 1024],
+    ["observation.json", 128 * 1024],
+  ] as const) {
+    await assert.rejects(
+      retainProtectionObservationOutputs(
+        "output",
+        retainedPath,
+        { evidence: "x".repeat(size), authority: "none" },
+        "observe-production",
+        { writeFile: forbiddenWrite },
+        () => {},
+        { appendFile: forbiddenWrite, writeFile: forbiddenWrite },
+      ),
+      /trusted observer output channel unavailable or oversized/u,
+    );
   }
 });
 
