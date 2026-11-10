@@ -4037,6 +4037,11 @@ fn grant_declared_executable(
         .as_deref()
         .map(|relative| root.join(relative))
         .unwrap_or_else(|| root.to_path_buf());
+    if !search_root.starts_with(root) {
+        return Err(PortcoveError::verification(
+            "declared runtime directory escaped the install",
+        ));
+    }
     refuse_symlink_path_within(root, &search_root, "declared runtime directory")?;
     let found = locate_executable_hints(
         &search_root,

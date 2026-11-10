@@ -585,6 +585,17 @@ impl Catalog {
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
             validate_portable_marker_file(port)?;
+            if port.release.grant_declared_executable
+                && (port.adapter != AdapterKind::NativePortable
+                    || !port.platforms.iter().any(|platform| {
+                        crate::permissions::platform_requires_executable(*platform)
+                    }))
+            {
+                return Err(PortcoveError::verification(format!(
+                    "{} declares a declared-executable grant outside a native Unix route",
+                    port.id
+                )));
+            }
             if let Some(settings) = &port.game_settings {
                 settings.validate(&port.persistent_paths)?;
                 if !port.platforms.contains(&crate::Platform::WindowsX86_64) {

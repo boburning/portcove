@@ -2161,7 +2161,8 @@ executable bit declares `release.grant_declared_executable`. After extraction on
 macOS or Linux route Core resolves the declared executable and sets execute permission
 only when the file verifies as a binary for the platform: ELF64 little-endian
 executable or shared-object for x86-64 on Linux, or a 64-bit Mach-O (or a universal
-image with a matching slice) for the Mac architecture. A script, another
+image of at most two slices with a matching one) for the Mac architecture. The check reads headers only, so a non-program shared object
+of the right architecture also qualifies. An unmarked script, another
 architecture, a link or a non-regular file refuses, a program the publisher already
 marked executable is left unchanged, and Windows grants nothing. Older readers refuse
 the declaration through [native capability 20](DEFINITION-DELIVERY.md); other adapters

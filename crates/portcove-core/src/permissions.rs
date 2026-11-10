@@ -81,12 +81,19 @@ pub(crate) fn require_platform_executable(
 /// Whether the file's header identifies a binary this platform can run. A text file, a
 /// script, a binary for another architecture or an unreadable file does not qualify.
 pub(crate) fn is_platform_binary(path: &Path, platform: Platform) -> Result<bool> {
+    let file = std::fs::File::open(path)?;
+    header_is_platform_binary(&read_header(&file)?, platform)
+}
+
+fn read_header(file: &std::fs::File) -> Result<Vec<u8>> {
     use std::io::Read;
 
-    let mut header = [0_u8; 64];
-    let mut file = std::fs::File::open(path)?;
-    let read = file.read(&mut header)?;
-    let header = &header[..read];
+    let mut header = Vec::with_capacity(64);
+    file.take(64).read_to_end(&mut header)?;
+    Ok(header)
+}
+
+fn header_is_platform_binary(header: &[u8], platform: Platform) -> Result<bool> {
     Ok(match platform {
         Platform::LinuxX86_64 => {
             // ELF64, little endian, executable or position-independent, x86-64.
@@ -138,8 +145,7 @@ pub(crate) fn grant_verified_executable(
     if !platform_requires_executable(platform) {
         return Ok(());
     }
-    let metadata = std::fs::symlink_metadata(path)?;
-    if !metadata.file_type().is_file() {
+    if !std::fs::symlink_metadata(path)?.file_type().is_file() {
         return Err(PortcoveError::verification(format!(
             "{label} is missing or is not a regular file"
         )));
@@ -147,12 +153,22 @@ pub(crate) fn grant_verified_executable(
     if executable_intent(path)? {
         return Ok(());
     }
-    if !is_platform_binary(path, platform)? {
+    // Verify and change the same open file, so a path swap cannot redirect the grant.
+    let file = std::fs::File::open(path)?;
+    if !file.metadata()?.is_file()
+        || !header_is_platform_binary(&read_header(&file)?, platform)?
+    {
         return Err(PortcoveError::verification(format!(
             "{label} is not a binary for this platform, so execution is not granted"
         )));
     }
-    normalize_archive_entry(path, false, true)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        file.set_permissions(std::fs::Permissions::from_mode(0o755))?;
+    }
+    Ok(())
 }
 
 #[cfg(all(test, unix))]
