@@ -102,6 +102,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { LaunchFailureNotice } from "./LaunchFailureNotice";
+import { ReportProblem } from "./ReportProblem";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
 import {
@@ -2676,6 +2677,12 @@ function MaintenanceActions({
           </Button>
         </ManagementRow>
       )}
+      <ManagementRow
+        title="Report a problem"
+        description="Review a pre-filled GitHub bug report before anything is sent."
+      >
+        <ReportProblem portId={port.id} generation={libraryGeneration} />
+      </ManagementRow>
       <div className="detail-danger-zone">
         <DetailGroup title="Remove from library">
           <p>Review the exact files to remove and the data to keep before confirming.</p>

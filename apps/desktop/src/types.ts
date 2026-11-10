@@ -268,4 +268,7 @@ export type SteamBatchReview = Generated.TransportOutputs["desktop_steam_batch_r
 export type SteamBatchSelection = Requests.TransportInputs["desktop_steam_batch_selection"];
 
 export type GameComparison = Generated.TransportOutputs["desktop_game_comparison"];
+export type BugReportDraft = Generated.TransportOutputs["desktop_bug_report_draft"];
+export type BugReportLink = Generated.TransportOutputs["desktop_bug_report_link"];
+export type BugReportField = Requests.TransportInputs["desktop_bug_report_field"];
 export type GameComparisonRequest = Requests.TransportInputs["desktop_game_comparison_request"];

@@ -178,6 +178,7 @@ mod tests {
             windows_runtime_path_policy: None,
             windows_temp_directory: None,
             portable_marker: false,
+            portable_marker_file: None,
             n64_windows_initial_d3d12: false,
             n64_runtime_at_executable_parent: false,
             managed_initialization: None,

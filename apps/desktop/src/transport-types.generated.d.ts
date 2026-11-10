@@ -1058,6 +1058,8 @@ export interface TransportOutputs {
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
+  desktop_bug_report_draft: OutputDesktopBugReportDraft;
+  desktop_bug_report_link: OutputDesktopBugReportLink;
   desktop_catalog_download_candidates: OutputCatalogDownloadCandidates;
   desktop_catalog_download_preview: OutputCatalogDownloadPreview;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
@@ -1844,6 +1846,12 @@ export interface PortDefinition {
   persistent_paths: string[];
   platforms: Platform[];
   portable_marker: boolean;
+  /**
+   * Native19: create this empty file beside the launch working directory only when it
+   * is missing. For engines whose portable mode is keyed on a named file that is also
+   * their configuration, so it must be a declared persistent path and is never reset.
+   */
+  portable_marker_file?: string | null;
   presentation?: PortPresentation | null;
   project_url: string;
   release: ReleaseSpec;
@@ -4478,6 +4486,30 @@ export interface OutputDesktopBootstrapStatus {
   library_root: string | null;
   ready: boolean;
   selection: LibrarySelection | null;
+  [k: string]: unknown;
+}
+/**
+ * The exact text that will appear in the issue form, after redaction.
+ */
+export interface OutputDesktopBugReportDraft {
+  fields: BugReportField[];
+  [k: string]: unknown;
+}
+export interface BugReportField {
+  id: string;
+  label: string;
+  value: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopBugReportLink {
+  /**
+   * Plain text to copy when there is no link.
+   */
+  clipboard_text: string;
+  /**
+   * Pre-filled form link, or `None` when the text does not fit in a link.
+   */
+  url: string | null;
   [k: string]: unknown;
 }
 export interface OutputDesktopCliCommandContext {

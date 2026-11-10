@@ -364,6 +364,36 @@ fn n64_archive_file_links_require_n64_version_5_and_other_adapters_refuse_the_fl
 }
 
 #[test]
+fn native_portable_marker_files_require_version_19_in_fresh_and_retained_readers() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.portable_marker_file = Some("engine_portable.ini".into());
+    port.persistent_paths.push("engine_portable.ini".into());
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(18);
+    entry["required_capabilities"][0]["maximum_version"] = json!(19);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 19")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(19);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+}
+
+#[test]
 fn libultraship_windows_paths_require_the_owning_v2_template() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("2ship2harkinian").unwrap().clone();
@@ -985,7 +1015,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if !port.reviewed_package_layouts.is_empty() {
+        let version = if port.portable_marker_file.is_some() {
+            19
+        } else if !port.reviewed_package_layouts.is_empty() {
             crate::package_layout::NATIVE_CAPABILITY
         } else if port.release.archive_file_links {
             crate::test_fixture::archive_file_links_capability(port)

@@ -1100,6 +1100,66 @@
     "title": "BootstrapStatus",
     "type": "object"
   },
+  "bug_report_draft": {
+    "$defs": {
+      "BugReportField": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "value"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "The exact text that will appear in the issue form, after redaction.",
+    "properties": {
+      "fields": {
+        "items": {
+          "$ref": "#/$defs/BugReportField"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "fields"
+    ],
+    "title": "BugReportDraft",
+    "type": "object"
+  },
+  "bug_report_link": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "clipboard_text": {
+        "description": "Plain text to copy when there is no link.",
+        "type": "string"
+      },
+      "url": {
+        "description": "Pre-filled form link, or `None` when the text does not fit in a link.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "url",
+      "clipboard_text"
+    ],
+    "title": "BugReportLink",
+    "type": "object"
+  },
   "catalog_download_candidates": {
     "$defs": {
       "CatalogDownloadAssetId": {
@@ -16057,6 +16117,13 @@
           "portable_marker": {
             "default": false,
             "type": "boolean"
+          },
+          "portable_marker_file": {
+            "description": "Native19: create this empty file beside the launch working directory only when it\nis missing. For engines whose portable mode is keyed on a named file that is also\ntheir configuration, so it must be a declared persistent path and is never reset.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "presentation": {
             "anyOf": [

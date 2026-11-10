@@ -214,6 +214,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::package_layout::NATIVE_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 19,
+        });
         supported
     }
 }
@@ -439,6 +443,31 @@ mod tests {
         );
         assert!(
             check_definition_capabilities(&request("n64-recomp-portable", 4, 4))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn native19_portable_marker_files_exclude_older_readers_without_retiring_native18() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 19
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 19, 19), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 19, 19))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 18, 18))
                 .unwrap()
                 .compatible
         );

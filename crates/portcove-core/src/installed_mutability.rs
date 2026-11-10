@@ -234,6 +234,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         windows_runtime_path_policy,
         windows_temp_directory,
         portable_marker,
+        portable_marker_file,
         n64_windows_initial_d3d12,
         n64_runtime_at_executable_parent,
         managed_initialization,
@@ -263,7 +264,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         reviewed_package_layouts: _,
         presentation: _,
     } = port;
-    serde_json::json!({
+    let mut compatibility = serde_json::json!({
         "id": id,
         "channels": channels,
         "platforms": platforms,
@@ -304,5 +305,36 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         "setup_arguments": setup_arguments,
         "setup_marker": setup_marker,
         "setup_output_paths": setup_output_paths,
-    })
+    });
+    // Only a declared marker joins the identity, so existing retained contracts keep theirs.
+    if let Some(marker) = portable_marker_file {
+        compatibility["portable_marker_file"] = serde_json::json!(marker);
+    }
+    compatibility
+}
+
+#[cfg(test)]
+mod marker_identity_tests {
+    use super::*;
+
+    #[test]
+    fn a_named_portable_marker_joins_the_retained_identity_only_when_declared() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.ports()[0].clone();
+        port.portable_marker_file = None;
+        let without = operational_compatibility(&port);
+        assert!(
+            without.get("portable_marker_file").is_none(),
+            "existing retained contracts must keep their exact identity"
+        );
+        port.portable_marker_file = Some("engine_portable.ini".into());
+        let with = operational_compatibility(&port);
+        assert_eq!(with["portable_marker_file"], "engine_portable.ini");
+        let mut stripped = with.clone();
+        stripped
+            .as_object_mut()
+            .unwrap()
+            .remove("portable_marker_file");
+        assert_eq!(stripped, without);
+    }
 }

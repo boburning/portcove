@@ -106,6 +106,26 @@ pub(crate) fn standard(kind: AdapterKind) -> impl Adapter {
     StandardAdapter(kind)
 }
 
+/// Create a declared named portable marker only when it is missing. An existing regular
+/// file is the engine's own configuration and is never truncated; anything else refuses.
+fn create_missing_portable_marker_file(working_directory: &Path, name: &str) -> Result<()> {
+    let marker = working_directory.join(name);
+    match std::fs::symlink_metadata(&marker) {
+        Ok(metadata) if metadata.file_type().is_file() => Ok(()),
+        Ok(_) => Err(PortcoveError::launch(format!(
+            "portable marker {name} is not a regular file"
+        ))),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&marker)?;
+            Ok(())
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
 pub(crate) fn launch_working_directory(
     kind: AdapterKind,
     port: &PortDefinition,
@@ -461,6 +481,9 @@ impl Adapter for StandardAdapter {
         }
         if self.0 == AdapterKind::N64RecompPortable || port.portable_marker {
             std::fs::write(working_directory.join("portable.txt"), b"")?;
+        }
+        if let Some(name) = &port.portable_marker_file {
+            create_missing_portable_marker_file(&working_directory, name)?;
         }
         let sealed_source = crate::preparation::source::sealed(library, port, install_root)?;
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
@@ -3519,6 +3542,35 @@ pub(crate) fn walk_files(root: &Path) -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn named_portable_marker_is_created_once_and_never_truncated() {
+        let temporary = tempfile::tempdir().unwrap();
+        create_missing_portable_marker_file(temporary.path(), "engine_portable.ini").unwrap();
+        let marker = temporary.path().join("engine_portable.ini");
+        assert_eq!(std::fs::read(&marker).unwrap(), b"");
+        std::fs::write(&marker, b"[Settings]\nplayer=1\n").unwrap();
+        create_missing_portable_marker_file(temporary.path(), "engine_portable.ini").unwrap();
+        assert_eq!(
+            std::fs::read(&marker).unwrap(),
+            b"[Settings]\nplayer=1\n",
+            "an existing configuration must survive every launch"
+        );
+    }
+
+    #[test]
+    fn named_portable_marker_refuses_a_directory_and_a_link() {
+        let temporary = tempfile::tempdir().unwrap();
+        std::fs::create_dir(temporary.path().join("as_directory.ini")).unwrap();
+        assert!(create_missing_portable_marker_file(temporary.path(), "as_directory.ini").is_err());
+        #[cfg(unix)]
+        {
+            let target = temporary.path().join("target.ini");
+            std::fs::write(&target, b"x").unwrap();
+            std::os::unix::fs::symlink(&target, temporary.path().join("link.ini")).unwrap();
+            assert!(create_missing_portable_marker_file(temporary.path(), "link.ini").is_err());
+        }
+    }
+
     use super::*;
     use crate::Catalog;
 

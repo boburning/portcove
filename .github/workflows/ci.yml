@@ -54,8 +54,10 @@ env:
   VP_GIT_HOOKS: "0"
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
+# Pull request runs get a group of their own so a replacement starts at once instead of
+# waiting for the superseded run's gate jobs to drain; ci-supersede.yml cancels the old run.
 concurrency:
-  group: ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number || github.ref }}
+  group: ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number && format('pr-{0}-{1}', github.event.pull_request.number, github.run_id) || github.ref }}
   cancel-in-progress: ${{ !inputs.force_qualification }}
 
 jobs:

@@ -12,7 +12,14 @@ import type {
   ExternalRuntimeRecord,
 } from "./types";
 
-import type { InstallInput, LaunchResult, LaunchSessionView } from "./types";
+import type {
+  BugReportDraft,
+  BugReportField,
+  BugReportLink,
+  InstallInput,
+  LaunchResult,
+  LaunchSessionView,
+} from "./types";
 import type {
   GameUpdateAcquisition,
   GameUpdatePlan,
@@ -933,6 +940,9 @@ export const desktopApi = {
       source: source || null,
       arguments: [],
     }),
+  previewBugReport: (portId: string | undefined, generation: number) =>
+    invoke<BugReportDraft>("preview_bug_report", { portId: portId ?? null, generation }),
+  openBugReport: (fields: BugReportField[]) => invoke<BugReportLink>("open_bug_report", { fields }),
   launchFailure: (portId: string, generation: number) =>
     invoke<LaunchSessionView | null>("get_launch_failure", { portId, generation }),
   previewAdoption: (path: string, generation: number, portId?: string) =>

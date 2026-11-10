@@ -1,3 +1,5 @@
+// The transport inventory in desktop_contract is one large json! literal.
+#![recursion_limit = "256"]
 mod adoption;
 pub mod application_update;
 pub mod application_update_apply;
@@ -32,6 +34,7 @@ pub mod application_update_trust;
 pub mod application_update_windows;
 mod artwork;
 mod backup_review;
+mod bug_report;
 mod catalog;
 mod catalog_download;
 mod cli_context;
@@ -2924,6 +2927,8 @@ pub fn run() -> std::process::ExitCode {
             preparation::preview_preparation_cleanup,
             preparation::cleanup_preparation,
             launch_port,
+            bug_report::preview_bug_report,
+            bug_report::open_bug_report,
             get_launch_failure,
             get_doctor_report,
             get_host_tools,

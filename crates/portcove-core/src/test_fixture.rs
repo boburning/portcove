@@ -290,7 +290,9 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if !port.reviewed_package_layouts.is_empty() {
+        let capability_version = if port.portable_marker_file.is_some() {
+            19
+        } else if !port.reviewed_package_layouts.is_empty() {
             crate::package_layout::NATIVE_CAPABILITY
         } else if port.release.archive_file_links {
             archive_file_links_capability(port)
