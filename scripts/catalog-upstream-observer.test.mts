@@ -1110,6 +1110,28 @@ void test("scarce capacity completes admitted sources instead of one request eac
   assert.ok(result.report.requests <= 40);
 });
 
+void test("an operation request limit caps admissions below the template budget (#4779)", async () => {
+  const h = harness(400);
+  for (let index = 0; index < 60; index++)
+    h.input.ports.push({
+      id: `limited-${index}`,
+      channels: ["stable"],
+      release: { repository: `owner/limited-${index}` },
+    });
+  const unlimited = await advanceCatalogObservations(h.input, null, h.options);
+  assert.ok(unlimited.report.requests > 40);
+  const limited = harness(400);
+  limited.input.ports.push(...h.input.ports.slice(limited.input.ports.length));
+  const result = await advanceCatalogObservations(limited.input, null, {
+    ...limited.options,
+    requestLimit: 40,
+  });
+  assert.ok(result.report.requests <= 40, String(result.report.requests));
+  assert.ok(result.report.attempted_source_keys.length > 0);
+  // Every provider request passes the capped admission.
+  assert.equal(limited.network.length, result.report.requests);
+});
+
 void test("the configured first turn admits a page set while other sources retain capacity", async () => {
   const h = harness(8);
   for (const name of ["extra-one", "extra-two"]) {
@@ -2458,19 +2480,20 @@ void test("hosted opportunity drains accepted progress without retrying failed s
   assert.deepEqual(result.report.completed_source_keys, ["large"]);
 });
 
-void test("hosted opportunity stops admitting batches at its request ceiling", async () => {
+void test("hosted opportunity hands each batch only its remaining request allowance", async () => {
   const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
-  let turns = 0;
+  const limits: number[] = [];
   const result = await continueCatalogBatches(
-    async () => {
-      turns++;
+    async (_excluded, requestLimit) => {
+      limits.push(requestLimit);
+      // A batch honours its allowance, as advanceCatalogObservations does.
       return {
         report: {
           pending_source_keys: ["large"],
           attempted_source_keys: ["large"],
           completed_source_keys: [],
           failures: [],
-          requests: 300,
+          requests: Math.min(300, requestLimit),
           response_bytes_charged: 10,
         },
         made_progress: true,
@@ -2480,8 +2503,9 @@ void test("hosted opportunity stops admitting batches at its request ceiling", a
     },
     { deadline: 100, now: () => 0, maxRequests: 1000 },
   );
-  assert.equal(turns, 4);
-  assert.equal(result.report.requests, 1200);
+  // The ceiling is a hard total, not an admission threshold (#4779).
+  assert.deepEqual(limits, [1000, 700, 400, 100]);
+  assert.equal(result.report.requests, 1000);
   assert.deepEqual(result.report.pending_source_keys, ["large"]);
 });
 

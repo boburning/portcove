@@ -117,7 +117,7 @@ export async function continueCatalogBatches<
     handoff_exhausted: boolean;
   },
 >(
-  operation: (excluded: ReadonlySet<string>) => Promise<T>,
+  operation: (excluded: ReadonlySet<string>, requestLimit: number) => Promise<T>,
   {
     deadline,
     maxRequests = Infinity,
@@ -127,7 +127,8 @@ export async function continueCatalogBatches<
     evidenceByteLimit = 4 * 1024 * 1024,
   }: {
     deadline: number;
-    /** Stop admitting further batches once this many requests are spent. */
+    /** Hard aggregate request cap: each batch receives only the remaining
+     * allowance, and no batch starts once it is spent (#4779). */
     maxRequests?: number;
     now?: () => number;
     signal?: AbortSignal;
@@ -151,7 +152,7 @@ export async function continueCatalogBatches<
   for (;;) {
     if (signal?.aborted)
       throw new ObservationFailure("cancelled", "Observation cancelled between bounded batches");
-    const result = await operation(excluded);
+    const result = await operation(excluded, maxRequests - requests);
     batches++;
     // Publish original batch evidence before bounded aggregate admission can fail.
     await onBatch(result);

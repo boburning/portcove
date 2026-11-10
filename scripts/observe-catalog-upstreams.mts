@@ -176,6 +176,7 @@ export async function runCatalogUpstreams(
     log?: (value: string) => void;
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
+    requestLimit?: number;
     prioritizeConfigured?: boolean;
     scheduledPrioritySources?: ReadonlySet<string>;
     handoff?: { directory: string; sizes: Map<string, number>; bytes: number };
@@ -305,6 +306,7 @@ export async function runCatalogUpstreams(
       now,
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
+      ...(runtime.requestLimit === undefined ? {} : { requestLimit: runtime.requestLimit }),
       prioritizeConfigured: runtime.prioritizeConfigured === true,
       ...(runtime.scheduledPrioritySources
         ? { scheduledPrioritySources: runtime.scheduledPrioritySources }
@@ -682,7 +684,7 @@ export async function runCatalogOpportunity(
   try {
     let prioritizeConfigured = true;
     const result = await continueCatalogBatches(
-      async (excluded) => {
+      async (excluded, requestLimit) => {
         await assertInputs();
         const batch = await runCatalogUpstreams(fixedArgs, {
           ...runtime,
@@ -694,6 +696,7 @@ export async function runCatalogOpportunity(
           repositoryMetadata,
           handoff,
           excludedSources: excluded,
+          requestLimit,
           prioritizeConfigured,
           handoffByteLimit: hostedHandoffByteLimit,
           log: () => {},
