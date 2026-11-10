@@ -26,6 +26,7 @@ export interface CiResultInputs {
   qualification: unknown;
   always?: unknown;
   reuse?: unknown;
+  frontendBrowserSharded?: string | undefined;
 }
 function isGroup(value: unknown): value is ValidationGroup {
   return fastGroups.some((group) => group === value);
@@ -92,6 +93,7 @@ export function evaluateCiResults({
   qualification: qualificationInput,
   always: alwaysInput = {},
   reuse: reuseInput = null,
+  frontendBrowserSharded,
 }: CiResultInputs) {
   if (classifier !== "success")
     throw resultFailure(`classifier result is ${classifier || "missing"}`, "classify", classifier);
@@ -117,6 +119,26 @@ export function evaluateCiResults({
       `windows_helpers was ${targeted?.windows_helpers ?? "missing"}, expected success for affected Windows helpers`,
       "windows_helpers",
       targeted?.windows_helpers,
+    );
+  if (
+    frontendBrowserSharded !== undefined &&
+    frontendBrowserSharded !== "true" &&
+    frontendBrowserSharded !== "false"
+  )
+    throw new Error("frontend browser sharding flag must be true or false");
+  // The classifier flag and the producers share one source, so a wrong flag cannot lose coverage:
+  // true makes the browser shards mandatory here, false makes the main frontend job run everything.
+  const shardedFrontend =
+    group === "frontend" &&
+    frontendBrowserSharded === "true" &&
+    plan.mode === "fast" &&
+    selected &&
+    !reused;
+  if (shardedFrontend && targeted?.fast_frontend_browser !== "success")
+    throw resultFailure(
+      `fast_frontend_browser was ${targeted?.fast_frontend_browser ?? "missing"}, expected success for sharded browser tests`,
+      "fast_frontend_browser",
+      targeted?.fast_frontend_browser,
     );
   if (plan.mode === "qualification") {
     if (!selected) throw new Error(`qualification plan omitted protected group ${group}`);
@@ -176,7 +198,7 @@ export function evaluateCiResults({
     if (Object.keys(targeted ?? {}).length)
       requireResults(
         targeted,
-        targetsAffectedPlatform ? "success" : "skipped",
+        targetsAffectedPlatform || shardedFrontend ? "success" : "skipped",
         "fast targeted-platform",
       );
   } else if (plan.mode === "prose") {
@@ -207,6 +229,7 @@ function main() {
     evaluateCiResults({
       classifier: process.env.PORTCOVE_CLASSIFIER_RESULT,
       reuse: JSON.parse(process.env.PORTCOVE_REUSE_JSON ?? "null"),
+      frontendBrowserSharded: process.env.PORTCOVE_FRONTEND_BROWSER_SHARDED,
       plan,
       group: process.env.PORTCOVE_GROUP,
       prose: process.env.PORTCOVE_PROSE_RESULT,

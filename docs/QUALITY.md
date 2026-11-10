@@ -305,6 +305,19 @@ build and public CLI/Playnite consumer, and Clippy remains independent. Archive
 sharing removes per-worker Core test builds; it does not establish an elapsed-time
 improvement or replace full qualification evidence.
 
+Ordinary frontend coverage splits the browser projects across jobs only when the
+complete frontend suite is selected. The classifier sets `frontend_browser_shards`;
+`fast_frontend` then runs content, static checks, the production build and the unit
+project, and the `fast-frontend-browser` matrix runs the `browser`, `browser-locale`
+and `browser-forced-colors` projects with Vitest `--shard`. The shard count is the
+matrix length, so the shards cover the suite. Import-related selections, reused
+postmerge results and qualification run unsharded. The required `frontend` result
+waits for every shard and requires success exactly when the flag is true; with the
+flag false, `fast_frontend` owns every project and the shards must be skipped. A
+wrong flag therefore cannot omit coverage. Sharding changes where the same tests run,
+not what is required, and it adds runner jobs per full run, so queue time still
+counts toward latency.
+
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
 termination; an unchanged later pass does not establish a causal repair.

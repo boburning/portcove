@@ -966,3 +966,92 @@ void test(
     }
   },
 );
+
+void test("browser shards, the main frontend job and the gate share one classifier flag", () => {
+  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.jobs));
+  const jobs = settings.jobs;
+  const flag = "${{ needs.classify.outputs.frontend_browser_shards }}";
+  const record = (value: unknown) => {
+    assert.ok(isRecord(value));
+    return value;
+  };
+
+  const classify = record(jobs.classify);
+  assert.equal(
+    record(classify.outputs).frontend_browser_shards,
+    "${{ steps.plan.outputs.frontend_browser_shards }}",
+  );
+
+  // The main job learns from the same flag that gates the shard job.
+  const main = record(jobs.fast_frontend);
+  assert.equal(record(main.env).PORTCOVE_FRONTEND_BROWSER_SHARDED, flag);
+
+  const shard = record(jobs.fast_frontend_browser);
+  assert.equal(shard.needs, "classify");
+  assert.equal(shard["runs-on"], main["runs-on"]);
+  const condition = String(shard.if);
+  assert.match(condition, /needs\.classify\.outputs\.mode == 'fast'/u);
+  assert.match(
+    condition,
+    /contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'frontend'\)/u,
+  );
+  assert.match(
+    condition,
+    /!contains\(fromJSON\(needs\.classify\.outputs\.reused_groups\), 'frontend'\)/u,
+  );
+  assert.match(condition, /needs\.classify\.outputs\.frontend_browser_shards == 'true'/u);
+
+  // Every shard must run: the count is the matrix length, never a separate constant.
+  const strategy = record(shard.strategy);
+  assert.equal(strategy["fail-fast"], false);
+  const shards: unknown = record(strategy.matrix).shard;
+  assert.ok(Array.isArray(shards) && shards.length >= 2);
+  assert.deepEqual(
+    shards,
+    shards.map((_: unknown, index: number) => index + 1),
+  );
+  assert.equal(
+    record(shard.env).PORTCOVE_BROWSER_SHARD,
+    "${{ matrix.shard }}/${{ strategy.job-total }}",
+  );
+  assert.equal(
+    record(shard.env).PORTCOVE_PLAN_GZIP_BASE64,
+    record(main.env).PORTCOVE_PLAN_GZIP_BASE64,
+  );
+  assert.ok(Array.isArray(shard.steps));
+  const commands = shard.steps.map((step: unknown) => {
+    const run = record(step).run;
+    return typeof run === "string" ? run : "";
+  });
+  assert.equal(
+    commands.filter((run: string) => run.includes("ci-baseline.mts frontend-browser")).length,
+    1,
+  );
+  assert.ok(
+    shard.steps.some(
+      (step: unknown) =>
+        record(step).uses === "./.github/actions/retain-browser-diagnostics" &&
+        record(step).if === "always()" &&
+        String(record(record(step).with).name).includes("${{ matrix.shard }}"),
+    ),
+    "every shard retains its own browser diagnostics",
+  );
+
+  // The required frontend gate waits for the shards and demands their result.
+  const gate = record(jobs.frontend);
+  assert.ok(Array.isArray(gate.needs) && gate.needs.includes("fast_frontend_browser"));
+  assert.ok(Array.isArray(gate.steps));
+  const gateEnv = gate.steps
+    .map((step: unknown) => record(step).env)
+    .find((env: unknown) => isRecord(env) && env.PORTCOVE_GROUP === "frontend");
+  assert.ok(isRecord(gateEnv));
+  assert.equal(gateEnv.PORTCOVE_FRONTEND_BROWSER_SHARDED, flag);
+  assert.equal(
+    gateEnv.PORTCOVE_TARGETED_RESULTS,
+    '{"fast_frontend_browser":"${{ needs.fast_frontend_browser.result }}"}',
+  );
+
+  // Qualification keeps its complete, unsharded producer.
+  assert.ok(!JSON.stringify(jobs.frontend_full).includes("fast_frontend_browser"));
+});
