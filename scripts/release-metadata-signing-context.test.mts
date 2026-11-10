@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mkdtemp, readdir, rm, readFile } from "node:fs/promises";
@@ -712,4 +713,57 @@ void test("metadata context rechecks maintenance after slow current-state/public
   assert.deepEqual(reads, [59000, 59000]);
   clock = 61000;
   await assert.rejects(entry.checkpointControls(receipt), /maintenance observation expired/);
+});
+
+void test("renewal context reuses the verified observer without extending its lifetime", async () => {
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(
+    new URL("./release-metadata-signing-context.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("const maintenanceRefreshMilliseconds"),
+    end = source.indexOf("async function snapshot(", start);
+  assert(start >= 0 && end > start);
+  const epoch = Date.parse("2026-11-10T14:21:30Z");
+  let clock = 10_000;
+  const reads: string[] = [];
+  const facts = { pause: { publication_paused: false }, capacity: {} };
+  const reader = (name: string) => ({
+    evidence_scope: "github.com",
+    async readSdkMaintenance(_: undefined, options: { deadline: number; signingContext: true }) {
+      assert.equal(options.deadline, 100_000);
+      assert.equal(options.signingContext, true);
+      reads.push(name);
+      return { ...facts, resource_policy_matches_controller: true };
+    },
+  });
+  const session = {
+    mode: "renewal",
+    controls: reader("retained live read"),
+    async next_controls() {
+      reads.push("new observation");
+      return reader("refreshed live read");
+    },
+  };
+  const { seed, check } = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) +
+      "\n({seed: renewalControlObservation, check: controls})",
+    {
+      Date: { now: () => epoch + clock, parse: Date.parse },
+      performance: { now: () => clock },
+      isDeepStrictEqual,
+    },
+  ) as {
+    seed: (input: typeof session, observedAt: string) => object;
+    check: (owned: object) => Promise<unknown>;
+  };
+  const observedAt = new Date(epoch).toISOString();
+  const owned = { session, deadline: 100_000, control_facts: facts, ...seed(session, observedAt) };
+  clock = 44_999;
+  await check(owned);
+  assert.deepEqual(reads, ["retained live read"]);
+  clock = 45_000;
+  await check(owned);
+  assert.deepEqual(reads, ["retained live read", "new observation", "refreshed live read"]);
 });
