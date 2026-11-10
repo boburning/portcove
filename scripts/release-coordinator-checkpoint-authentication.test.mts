@@ -1247,3 +1247,43 @@ void test("only the exact r70 attempt may resume the retained r69 renewal claim"
     false,
   );
 });
+
+void test("the repaired application controller accepts only the settled renewal producer", () => {
+  const pin = retainedApplicationRenewalClaim;
+  const checkpoint = { checkpoint: pin.child, previous: pin.previous };
+  const producer = {
+    controller_revision: "b03b3ed7e9e661a57328489583cedcafef4c7004",
+    controller_ref: pin.successor_ref,
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42827180124",
+    run_attempt: 1,
+    job_id: "129885597891",
+    check_run_id: "129885597891",
+  };
+  const source = { execution_ref: pin.settled_successor_ref };
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
+    true,
+  );
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
+    false,
+  );
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(
+      { ...checkpoint, checkpoint: pin.previous },
+      producer,
+      source,
+      "application",
+    ),
+    false,
+  );
+  for (const [key, value] of Object.entries(producer)) {
+    const changed = { ...producer, [key]: typeof value === "number" ? 2 : value + "0" };
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(checkpoint, changed, source, "application"),
+      false,
+      key,
+    );
+  }
+});

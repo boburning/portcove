@@ -67,6 +67,13 @@ type Owned = {
   pending?: { executor: Executor; checkpoint: string; operation_id: string };
 };
 const contexts = new WeakMap<object, Owned>();
+const maintenanceRefreshMilliseconds = 45000;
+function renewalControlObservation(session: Session, observedAt: string) {
+  const age = Date.now() - Date.parse(observedAt);
+  if (session.mode === "renewal" && age >= 0 && age < maintenanceRefreshMilliseconds)
+    return { source: session.controls, observed: performance.now() - age };
+  return { observed: -Infinity };
+}
 function remaining(owned: { deadline: number }, max = 15000) {
   const left = Math.floor(owned.deadline - performance.now());
   if (!Number.isFinite(left) || left < 1) throw new Error("coordinator context deadline exhausted");
@@ -74,7 +81,7 @@ function remaining(owned: { deadline: number }, max = 15000) {
 }
 async function controls(owned: Owned) {
   remaining(owned);
-  if (!owned.source || performance.now() - owned.observed >= 45000) {
+  if (!owned.source || performance.now() - owned.observed >= maintenanceRefreshMilliseconds) {
     owned.source = await owned.session.next_controls(owned.deadline);
     owned.observed = performance.now();
   }
@@ -235,7 +242,9 @@ export async function prepareCoordinatorSigningContext(
     },
     facts,
     binding,
-    observed: -Infinity,
+    // The signing-context read just verified this observer. Keep its original
+    // age so the next check refreshes it only when the existing cutoff requires it.
+    ...renewalControlObservation(session, current.protection.observed_at),
     bootstrap_observed: -Infinity,
   };
   try {
