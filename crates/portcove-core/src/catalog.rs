@@ -1502,6 +1502,7 @@ impl Catalog {
                                     && code
                                         .bytes()
                                         .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+                                    && code.bytes().filter(u8::is_ascii_alphanumeric).count() >= 4
                             })
                             && image.max_image_bytes > 0
                             && image.max_image_bytes <= crate::disc_filesystem::MAX_IMAGE_BYTES

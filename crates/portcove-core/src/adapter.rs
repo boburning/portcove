@@ -515,58 +515,31 @@ impl Adapter for StandardAdapter {
             let materialization = port
                 .runtime_source_materialization
                 .unwrap_or(RuntimeSourceMaterialization::N64BigEndian);
-            if let Some(record) = request.source_record {
-                if record.path != source {
-                    return Err(PortcoveError::verification(
-                        "runtime source does not match its admitted record",
-                    ));
+            let disc = port.runtime_disc_image.as_ref().map(|profile| DiscUnpack {
+                profile,
+                report: &|_, _, _| {},
+            });
+            let input = match request.source_record {
+                Some(record) => {
+                    if record.path != source {
+                        return Err(PortcoveError::verification(
+                            "runtime source does not match its admitted record",
+                        ));
+                    }
+                    RuntimeSourceInput::Admitted(record)
                 }
-                match port.runtime_disc_image.as_ref() {
-                    Some(image) => prepare_admitted_disc_runtime_source(
-                        record,
-                        &stored_source,
-                        materialization,
-                        &port.runtime_source_hashes,
-                        None,
-                        &DiscUnpack {
-                            profile: image,
-                            report: &|_, _, _| {},
-                        },
-                        checkpoint,
-                    )?,
-                    None => prepare_admitted_runtime_source(
-                        record,
-                        &stored_source,
-                        materialization,
-                        &port.runtime_source_hashes,
-                        None,
-                        checkpoint,
-                        crate::tool_process::ToolProcessObserver::default(),
-                    )?,
-                }
-            } else {
-                match port.runtime_disc_image.as_ref() {
-                    Some(image) => prepare_disc_runtime_source(
-                        source,
-                        &stored_source,
-                        materialization,
-                        &port.runtime_source_hashes,
-                        None,
-                        &DiscUnpack {
-                            profile: image,
-                            report: &|_, _, _| {},
-                        },
-                        checkpoint,
-                    )?,
-                    None => prepare_runtime_source(
-                        source,
-                        &stored_source,
-                        materialization,
-                        &port.runtime_source_hashes,
-                        checkpoint,
-                    )?,
-                }
-            }
+                None => RuntimeSourceInput::Legacy(source),
+            };
+            prepare_runtime_source_input(
+                input,
+                &stored_source,
+                materialization,
+                &port.runtime_source_hashes,
+                None,
+                checkpoint,
+                crate::tool_process::ToolProcessObserver::default(),
+                disc.as_ref(),
+            )?;
             checkpoint()?;
         }
         (self.0 == AdapterKind::PsxRecompManaged)
@@ -843,27 +816,7 @@ pub(crate) struct DiscUnpack<'a> {
     pub(crate) report: &'a dyn Fn(DiscUnpackPhase, u64, Option<u64>),
 }
 
-pub(crate) fn prepare_admitted_disc_runtime_source(
-    source: &SourceRecord,
-    destination: &Path,
-    materialization: RuntimeSourceMaterialization,
-    required_hashes: &BTreeMap<String, String>,
-    pinned_host_tool: Option<&Path>,
-    disc: &DiscUnpack<'_>,
-    checkpoint: &dyn Fn() -> Result<()>,
-) -> Result<()> {
-    prepare_runtime_source_input(
-        RuntimeSourceInput::Admitted(source),
-        destination,
-        materialization,
-        required_hashes,
-        pinned_host_tool,
-        checkpoint,
-        crate::tool_process::ToolProcessObserver::default(),
-        Some(disc),
-    )
-}
-
+#[cfg(test)]
 pub(crate) fn prepare_disc_runtime_source(
     source: &Path,
     destination: &Path,
@@ -1276,6 +1229,23 @@ fn materialize_disc_directory(
         .ok_or_else(|| PortcoveError::state("disc-image destination has no parent directory"))?;
     crate::path::refuse_symlink_ancestors(parent)?;
     std::fs::create_dir_all(parent)?;
+    // Staging left behind by an interrupted unpacking is never reused.
+    if let Ok(entries) = std::fs::read_dir(parent) {
+        for entry in entries.flatten() {
+            if entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".portcove-disc-")
+            {
+                let path = entry.path();
+                let _ = if path.is_dir() {
+                    std::fs::remove_dir_all(&path)
+                } else {
+                    std::fs::remove_file(&path)
+                };
+            }
+        }
+    }
     let report = |phase: DiscUnpackPhase| {
         (disc.report)(phase, 0, None);
         checkpoint()
@@ -1296,6 +1266,20 @@ fn materialize_disc_directory(
     let temporary = parent.join(format!(".portcove-disc-{}", Uuid::new_v4()));
     let outcome = (|| -> Result<()> {
         let image_path = if is_chd {
+            let logical = crate::disc_filesystem::chd_logical_bytes(source)?;
+            if logical
+                > disc
+                    .profile
+                    .max_image_bytes
+                    .min(crate::disc_filesystem::MAX_IMAGE_BYTES)
+            {
+                return Err(PortcoveError::source(
+                    "the disc image is larger than this port allows",
+                )
+                .with_known_cause(crate::failure::KnownFailureCause::DiscImageLimit));
+            }
+            // The private ISO and the unpacked tree coexist until the ISO is removed.
+            ensure_free_space(parent, logical.saturating_mul(2))?;
             let iso = parent.join(format!(".portcove-disc-{}.iso", Uuid::new_v4()));
             staged_iso = Some(iso.clone());
             extract_chd_dvd(source, &iso, pinned_host_tool, checkpoint, observer)?;

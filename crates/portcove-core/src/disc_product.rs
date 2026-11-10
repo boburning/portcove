@@ -146,7 +146,7 @@ fn serial(letters_and_digits: &str) -> Option<String> {
 
 pub(crate) fn ps2_serial(bytes: &[u8]) -> Result<String> {
     let malformed = || unreadable("the disc's SYSTEM.CNF has no readable boot file");
-    let text = std::str::from_utf8(bytes).map_err(|_| malformed())?;
+    let text = String::from_utf8_lossy(bytes);
     for line in text.lines() {
         let Some((key, value)) = line.split_once('=') else {
             continue;

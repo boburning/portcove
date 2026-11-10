@@ -71,15 +71,17 @@ fn limit(message: impl Into<String>) -> PortcoveError {
     PortcoveError::source(message).with_known_cause(KnownFailureCause::DiscImageLimit)
 }
 
+fn read_error(error: std::io::Error) -> PortcoveError {
+    if error.kind() == std::io::ErrorKind::UnexpectedEof {
+        invalid("the disc image is truncated")
+    } else {
+        error.into()
+    }
+}
+
 fn read_exact_at<R: Read + Seek>(input: &mut R, offset: u64, buffer: &mut [u8]) -> Result<()> {
     input.seek(SeekFrom::Start(offset))?;
-    input.read_exact(buffer).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::UnexpectedEof {
-            invalid("the disc image is truncated")
-        } else {
-            error.into()
-        }
-    })
+    input.read_exact(buffer).map_err(read_error)
 }
 
 fn le32(bytes: &[u8], at: usize) -> u32 {
@@ -299,15 +301,18 @@ fn parse_iso_record(record: &[u8]) -> Result<IsoRecord> {
         ));
     }
     let name_length = usize::from(record[32]);
-    // The record must be exactly its fixed fields and name (plus the common
-    // 14-byte CD-XA tail). Any other system-use area could hide a following
-    // record, so it is refused rather than skipped.
+    // Bytes after the name are a system-use area. Only a CD-XA tail or a chain of
+    // well-formed SUSP/Rock Ridge entries that exactly fills the record is
+    // accepted, so a corrupted length can never swallow the records after it.
     let minimal = (33 + name_length).div_ceil(2) * 2;
-    let xa_tail = record.len() == minimal + 14 && &record[minimal + 6..minimal + 8] == b"XA";
-    if record.len() != minimal && !xa_tail {
-        return Err(invalid(
-            "a directory record has a system-use area, which Portcove does not read",
-        ));
+    if record.len() != minimal {
+        let area = record.get(minimal..).unwrap_or_default();
+        let xa_tail = area.len() == 14 && &area[6..8] == b"XA";
+        if !xa_tail && !is_susp_chain(area) {
+            return Err(invalid(
+                "a directory record has a system-use area Portcove cannot read",
+            ));
+        }
     }
     Ok(IsoRecord {
         name: record[33..33 + name_length].to_vec(),
@@ -317,6 +322,24 @@ fn parse_iso_record(record: &[u8]) -> Result<IsoRecord> {
             size: u64::from(le32(record, 10)),
         },
     })
+}
+
+/// True when `area` is entirely consecutive SUSP entries (two capital letters,
+/// a length of at least four, a version), as Rock Ridge writes them.
+fn is_susp_chain(area: &[u8]) -> bool {
+    let mut at = 0;
+    while at < area.len() {
+        let Some(entry) = area.get(at..at + 4) else {
+            return false;
+        };
+        let length = usize::from(entry[2]);
+        if !entry[..2].iter().all(u8::is_ascii_uppercase) || length < 4 || at + length > area.len()
+        {
+            return false;
+        }
+        at += length;
+    }
+    !area.is_empty()
 }
 
 fn list_iso9660(table: &[u8]) -> Result<Vec<Listed>> {
@@ -595,23 +618,30 @@ impl DiscImage {
                 let count = remaining.min(buffer.len() as u64) as usize;
                 self.input
                     .read_exact(&mut buffer[..count])
-                    .map_err(|error| {
-                        if error.kind() == std::io::ErrorKind::UnexpectedEof {
-                            invalid("the disc image is truncated")
-                        } else {
-                            error.into()
-                        }
-                    })?;
+                    .map_err(read_error)?;
                 output.write_all(&buffer[..count])?;
                 remaining -= count as u64;
                 done += count as u64;
                 progress(done, plan.expanded_bytes);
             }
             checkpoint()?;
-            output.sync_all()?;
         }
         checkpoint()
     }
+}
+
+/// Logical (expanded) size a CHD declares, read from its version 5 header so an
+/// oversized or hostile CHD is refused before `chdman` writes anything.
+pub(crate) fn chd_logical_bytes(source: &Path) -> Result<u64> {
+    let mut header = [0_u8; 40];
+    let mut input = File::open(source)?;
+    input.read_exact(&mut header).map_err(read_error)?;
+    if &header[..8] != b"MComprHD" || be32(&header, 12) != 5 {
+        return Err(invalid("the CHD is not a version 5 compressed disc image"));
+    }
+    Ok(u64::from_be_bytes(
+        header[32..40].try_into().expect("eight bytes"),
+    ))
 }
 
 /// Bytes that must be free on the destination volume to unpack `expanded_bytes`.
