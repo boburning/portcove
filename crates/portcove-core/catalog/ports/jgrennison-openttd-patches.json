@@ -7,7 +7,7 @@
     "project_url": "https://github.com/JGRennison/OpenTTD-patches",
     "issue_number": 1859,
     "availability": "packages",
-    "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md",
+    "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md",
     "artwork": {
       "game_id": 5502,
       "cover_id": 85659,
@@ -16,18 +16,27 @@
       "game_slug": "transport-tycoon-deluxe",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/JGRennison/OpenTTD-patches/releases/tag/jgrpp-0.73.4",
+    "release_url": "https://github.com/JGRennison/OpenTTD-patches/releases",
     "manual_setup": {
       "steps": [
         {
           "title": "Start the game",
           "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
+        },
+        {
+          "title": "Set up the Linux game yourself",
+          "instruction": "Choose the upstream generic Linux AMD64 archive with the -linux-generic-amd64.tar.xz suffix. Extract it into a folder you own and run openttd from the extracted folder. Keep its lib and data folders together. Back up your effective OpenTTD configuration, saves and downloaded content before changing the package."
+        },
+        {
+          "title": "Set up the Mac app yourself",
+          "instruction": "Mount the upstream universal Mac DMG and copy OpenTTD.app into your Applications folder. The inspected player needs macOS 10.15 on Intel or macOS 11 on Apple silicon. Keep the JGR Patch Pack app and its effective profile with saves created by that build."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md"
+      "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md"
     },
-    "original_game_title": "OpenTTD"
+    "original_game_title": "OpenTTD",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "integration": {
     "support_tier": "beta",

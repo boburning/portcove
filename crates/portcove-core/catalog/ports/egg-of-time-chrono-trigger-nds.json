@@ -9,8 +9,8 @@
     "issue_number": 3740,
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
-    "release_url": "https://github.com/power-pudu/egg-of-time/releases/tag/v1.1.0",
-    "setup_url": "https://github.com/power-pudu/egg-of-time/blob/022434b1e7f309673a11c226e0cccf13b2140226/README.md",
+    "release_url": "https://github.com/power-pudu/egg-of-time/releases",
+    "setup_url": "https://github.com/power-pudu/egg-of-time#readme",
     "download_block_reason": "Portcove downloads are paused while the first-start build tools and recovery are being reviewed. The guide covers a copy you already trust and are permitted to use.",
     "manual_setup": {
       "steps": [
@@ -20,11 +20,11 @@
         },
         {
           "title": "Start the Windows x64 package",
-          "instruction": "Extract EggOfTime-v1.1.0-windows-x64.zip into a writable folder and open Egg of Time.exe. The package includes the tools for the first-start build."
+          "instruction": "Use a trusted EggOfTime Windows x64 ZIP ending in -windows-x64.zip. Extract it into a writable folder and open Egg of Time.exe. The package includes the tools for the local first-start build."
         },
         {
           "title": "Start the Linux x64 package",
-          "instruction": "Use glibc 2.35 or newer, Python 3, a C compiler and libcurl. For the file picker, use xdg-desktop-portal or zenity. Extract EggOfTime-v1.1.0-linux-x64.tar.gz and run ./\"Egg of Time\" from its folder, or make the separate EggOfTime-v1.1.0-x86_64.AppImage executable and open it."
+          "instruction": "The current Linux x64 packages need glibc 2.35 or newer, Python 3 and libcurl. They include Zig for the first-start build. The file picker uses xdg-desktop-portal or zenity. Extract the -linux-x64.tar.gz package and start Egg of Time from its folder, or make the separate x86-64 AppImage executable and open it."
         },
         {
           "title": "Let Egg of Time build your game",
@@ -36,7 +36,7 @@
         "Keep your ROM, extracted assets, generated game code and saves private. Close Egg of Time and wait for any build to finish before replacing the package or copying its data.",
         "The upstream macOS runtime compiles from source. Upstream lists a full Mac game build as untested."
       ],
-      "help_url": "https://github.com/power-pudu/egg-of-time/blob/022434b1e7f309673a11c226e0cccf13b2140226/README.md",
+      "help_url": "https://github.com/power-pudu/egg-of-time#readme",
       "references": [
         {
           "title": "Find the data for your package",
