@@ -9,6 +9,7 @@ import { BackupReviewDialog, type ApplyBackupAction } from "./BackupReview";
 import { Button } from "./ui/button";
 import { FailureDetails } from "./FailureDetails";
 import type { BackupReadState } from "../features/backups/use-port-backups";
+import { automaticSnapshotLabel } from "../features/backups/snapshot-label";
 
 export function BackupHistory({
   gameName,
@@ -304,6 +305,14 @@ export function BackupHistory({
                 {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
                 {formatBytes(backup.size)}
               </small>
+              {automaticSnapshotLabel(backup) && (
+                <small
+                  className="mt-[3px] block text-xs text-[var(--color-text-muted)]"
+                  data-automatic-snapshot
+                >
+                  {automaticSnapshotLabel(backup)}
+                </small>
+              )}
             </span>
             <details>
               <summary

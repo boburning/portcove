@@ -4,6 +4,7 @@ import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { desktopApi } from "../api";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
 import { formatBytes } from "../view-model";
+import { automaticSnapshotLabel } from "../features/backups/snapshot-label";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
@@ -134,6 +135,12 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
       <p>
         {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
         {formatBytes(backup.size)}
+        {automaticSnapshotLabel(backup) && (
+          <>
+            <br />
+            <small data-automatic-snapshot>{automaticSnapshotLabel(backup)}</small>
+          </>
+        )}
       </p>
       <dl>
         <div>
