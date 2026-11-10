@@ -137,6 +137,78 @@ fn openmohaa_unix_selector_cannot_reuse_a_broader_cached_release() {
 }
 
 #[tokio::test]
+async fn quake_linux_selects_the_official_package_and_compatible_successor() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, current, next, alternatives, digest, size) in [
+        (
+            "quake-ironwail",
+            "ironwail-0.8.2-linux-x64.tar.gz",
+            "ironwail-0.8.3-linux-x64.tar.gz",
+            [
+                "ironwail-0.8.3-win64.zip",
+                "ironwail-0.8.3-linux-arm64.tar.gz",
+                "ironwail-0.8.3-linux-x64.tar.gz.zip",
+                "mirror-ironwail-0.8.3-linux-x64.tar.gz",
+            ],
+            "fcb0219d13c50f64728892f0558b4761ba5578319a6cc01021fad981c6333aa5",
+            592_534,
+        ),
+        (
+            "quake-vkquake",
+            "vkQuake-1.37.0-x86_64.AppImage",
+            "vkQuake-1.38.0-x86_64.AppImage",
+            [
+                "vkQuake-1.38.0_windows_x64.zip",
+                "vkQuake-1.38.0-aarch64.AppImage",
+                "vkQuake-1.38.0-x86_64.AppImage.zip",
+                "mirror-vkQuake-1.38.0-x86_64.AppImage",
+            ],
+            "abf8546316997d16b86fea242d90afc8203fecb9e5016d6262f7bec1f36a5a9e",
+            9_538_040,
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut broad = port.clone();
+        broad.external_profile_policy = None;
+        let key =
+            |port, platform| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+        assert_ne!(
+            key(port, Platform::LinuxX86_64),
+            key(&broad, Platform::LinuxX86_64)
+        );
+        assert_eq!(
+            key(port, Platform::WindowsX86_64),
+            key(&broad, Platform::WindowsX86_64)
+        );
+        let mut observed = asset(current, None);
+        observed["digest"] = serde_json::json!(format!("sha256:{digest}"));
+        observed["size"] = serde_json::json!(size);
+        let mut next_assets = vec![asset(next, Some('a'))];
+        next_assets.extend(alternatives.map(|name| asset(name, Some('b'))));
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[release(current.split('-').nth(1).unwrap(), vec![observed])]),
+            metadata(),
+            releases(&[release(next.split('-').nth(1).unwrap(), next_assets)]),
+        ]);
+        for (name, expected, root) in [
+            (current, digest.to_string(), root.clone()),
+            (next, "a".repeat(64), root),
+        ] {
+            let release = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::LinuxX86_64)
+                .await
+                .unwrap();
+            assert_eq!(release.asset.name, name);
+            assert_eq!(release.asset.sha256, expected);
+        }
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[tokio::test]
 async fn recomp_appimages_select_the_direct_linux_asset_and_compatible_successor() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, name, tag, size, sha256) in [

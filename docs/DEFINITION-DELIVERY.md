@@ -81,6 +81,14 @@ establish executable permissions in staging, and check the effective profile
 outside managed runtimes before launch. Windows creating definitions keep
 their existing behavior.
 
+Native portable version 15 consumes the `ironwail-linux-v1` and
+`vkquake-linux-v1` external profile policies for the official Linux
+packages. Fresh and retained entries using either policy require version 15.
+The policies preserve the Windows launch contracts. Ironwail checks the
+Linux account-based profile outside managed storage. vkQuake keeps the
+managed save paths, binds the exact AppImage selection and checks its
+temporary mount location.
+
 Native portable version 10 adds official sibling packages to verified native
 original-file definitions that keep a Windows temporary directory inside their
 private profile. Fresh and retained indexed entries declaring that combination

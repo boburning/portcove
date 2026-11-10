@@ -314,6 +314,20 @@ or overlapping profiles require a separate player-managed copy. Portcove
 preserves the declared original-data directories and leaves the shared
 external profile with the player.
 
+Native portable capability 15 covers the official Ironwail Linux x86-64
+TAR.GZ and vkQuake Linux x86-64 AppImage. The two titles retain their
+Windows launch and data declarations. The fixed classic Quake launch uses
+the player's managed `id1` data. On Linux, Ironwail uses the account-based
+external game profile, with HOME as a fallback. Portcove checks this profile
+outside the library and leaves it with the player.
+
+Ironwail requires its `ironwail.pak` beside the engine. vkQuake keeps the
+provider-bound AppImage intact and checks its mount directory and adjacent
+portable profile locations before launch. vkQuake uses the managed working
+folder for saves and settings. The fixed data path avoids the upstream
+store picker, and `-userdir .` keeps the same directory when a compatible
+build enables account-based user directories.
+
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment

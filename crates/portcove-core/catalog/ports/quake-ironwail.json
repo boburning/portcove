@@ -3,10 +3,9 @@
   "listing": {
     "id": "quake-ironwail",
     "name": "Quake (Ironwail)",
-    "summary": "A native Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
+    "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",
     "project_url": "https://github.com/andrei-drexler/ironwail",
-    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/andrei-drexler/ironwail",
     "issue_number": 2698,
@@ -23,7 +22,7 @@
         },
         {
           "title": "Run the upstream Linux build",
-          "instruction": "Unpack the official Linux x64 tarball. Keep ironwail and ironwail.pak together. The current build needs glibc 2.29 or newer, OpenGL, SDL2, libcurl, libvorbisfile and libmpg123. Supply your matching classic Quake id1 data and use the upstream engine with the intended data folder and profile. Follow the project’s Linux setup and update instructions. Preserve the Quake id1 originals, settings, saves, mods and any configured profile or portable game folder. Keep the creating Ironwail version before replacement."
+          "instruction": "For a separately prepared Linux copy, unpack the official x64 tarball and keep ironwail and ironwail.pak together. Use glibc 2.29 or newer, OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Keep your own matching classic Quake id1 data and your external .ironwail profile. Store-selected profiles and migration files stay with your separately prepared copy."
         }
       ],
       "warnings": [
@@ -52,17 +51,19 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "provider": "github",
       "repository": "andrei-drexler/ironwail",
       "asset_hints": {
-        "windows-x86-64": ["ironwail", "win64.zip"]
+        "windows-x86-64": ["ironwail", "win64.zip"],
+        "linux-x86-64": ["ironwail-", "-linux-x64.tar.gz"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["ironwail.exe"]
+      "windows-x86-64": ["ironwail.exe"],
+      "linux-x86-64": ["ironwail"]
     },
     "launch_arguments": ["-basedir", ".", "-noaddons"],
     "windows_runtime_path_policy": "printable-ascii-max-path",
@@ -70,8 +71,10 @@
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
-      "saves_and_settings": "portcove-managed"
-    }
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before Play, copy your matching classic Quake id1 folder into the managed player’s working folder. Use lowercase id1 and pak filenames on Linux. Keep your originals separately. Linux needs OpenGL 4.3, SDL2, libcurl, libvorbisfile, libmpg123 and glibc 2.29 or newer. Keep ironwail.pak beside ironwail. Back up the external .ironwail profile separately. The Linux player uses the account home, or HOME when no account home is available. Portcove keeps the profile in place. The Windows runtime continues to keep its listed saves and settings in the managed game folder."
+    },
+    "external_profile_policy": "ironwail-linux-v1"
   },
   "route_facts_v1": {
     "format_version": 1,

@@ -194,6 +194,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 29,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 15,
+        });
         supported
     }
 }

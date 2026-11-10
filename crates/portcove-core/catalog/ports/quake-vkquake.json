@@ -3,10 +3,10 @@
   "listing": {
     "id": "quake-vkquake",
     "name": "Quake (vkQuake)",
-    "summary": "A Vulkan Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
+    "summary": "A Vulkan Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",
     "project_url": "https://github.com/Novum/vkQuake",
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Novum/vkQuake",
     "issue_number": 2697,
@@ -30,7 +30,7 @@
       "references": [
         {
           "title": "Use an upstream Linux, Mac or Windows ARM64 package",
-          "instruction": "On Linux x86-64, download the official AppImage and mark it executable. Use a Vulkan-capable driver, your own Quake data, and lowercase id1 and pak filenames. On Intel or Apple Silicon Mac, follow the upstream Mac Source Ports link, keep vkQuake.app together and put your own id1 folder beside it. On Windows ARM64, use the official windows_arm64 ZIP and keep vkQuake.exe and its libraries together with your own data. Maintain these copies upstream and preserve their actual game-data and preference locations."
+          "instruction": "For a separately prepared Linux x86-64 copy, make the official AppImage executable and use a Vulkan-capable driver and AppImage FUSE support. Keep your own Quake data, lowercase id1 and pak filenames, and the actual game-data and preference locations. On Intel or Apple Silicon Mac, follow the upstream Mac Source Ports link, keep vkQuake.app together and put your own id1 folder beside it. On Windows ARM64, use the official windows_arm64 ZIP and keep vkQuake.exe and its libraries together with your own data. Maintain these copies upstream and preserve their actual game-data and preference locations."
         }
       ]
     },
@@ -54,17 +54,19 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "provider": "github",
       "repository": "Novum/vkQuake",
       "asset_hints": {
-        "windows-x86-64": ["vkquake", "_windows_x64.zip"]
+        "windows-x86-64": ["vkquake", "_windows_x64.zip"],
+        "linux-x86-64": ["vkquake-", "-x86_64.appimage"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["vkQuake.exe"]
+      "windows-x86-64": ["vkQuake.exe"],
+      "linux-x86-64": ["vkquake.AppImage"]
     },
     "launch_arguments": ["-basedir", ".", "-nosteam"],
     "windows_runtime_path_policy": "printable-ascii-max-path",
@@ -72,8 +74,10 @@
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
-      "saves_and_settings": "portcove-managed"
-    }
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before Play, copy your matching classic Quake id1 folder into the managed player’s working folder. Use lowercase id1 and pak filenames on Linux. Keep your originals separately. Linux needs a Vulkan-capable driver, glibc 2.34 or newer and AppImage FUSE support. Keep the AppImage intact. Portcove preserves the listed original files, saves and settings in the managed game folder. Use a separately prepared copy for store selection or a custom profile."
+    },
+    "external_profile_policy": "vkquake-linux-v1"
   },
   "route_facts_v1": {
     "format_version": 1,

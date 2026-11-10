@@ -48894,14 +48894,15 @@
     {
       "id": "quake-ironwail",
       "name": "Quake (Ironwail)",
-      "summary": "A native Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
+      "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "project_url": "https://github.com/andrei-drexler/ironwail",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -48911,12 +48912,19 @@
           "windows-x86-64": [
             "ironwail",
             "win64.zip"
+          ],
+          "linux-x86-64": [
+            "ironwail-",
+            "-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "ironwail.exe"
+        ],
+        "linux-x86-64": [
+          "ironwail"
         ]
       },
       "launch_arguments": [
@@ -48952,10 +48960,10 @@
             },
             {
               "title": "Run the upstream Linux build",
-              "instruction": "Unpack the official Linux x64 tarball. Keep ironwail and ironwail.pak together. The current build needs glibc 2.29 or newer, OpenGL, SDL2, libcurl, libvorbisfile and libmpg123. Supply your matching classic Quake id1 data and use the upstream engine with the intended data folder and profile. Follow the project’s Linux setup and update instructions. Preserve the Quake id1 originals, settings, saves, mods and any configured profile or portable game folder. Keep the creating Ironwail version before replacement."
+              "instruction": "For a separately prepared Linux copy, unpack the official x64 tarball and keep ironwail and ironwail.pak together. Use glibc 2.29 or newer, OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Keep your own matching classic Quake id1 data and your external .ironwail profile. Store-selected profiles and migration files stay with your separately prepared copy."
             },
             {
-              "title": "Select the prepared Windows player",
+              "title": "Select the prepared player",
               "instruction": "Select ironwail.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],
@@ -48980,19 +48988,21 @@
             }
           ]
         }
-      }
+      },
+      "external_profile_policy": "ironwail-linux-v1"
     },
     {
       "id": "quake-vkquake",
       "name": "Quake (vkQuake)",
-      "summary": "A Vulkan Quake engine for the classic base game on Windows x64. Use your own compatible Quake files or register a separately prepared copy.",
+      "summary": "A Vulkan Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "project_url": "https://github.com/Novum/vkQuake",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -49002,12 +49012,19 @@
           "windows-x86-64": [
             "vkquake",
             "_windows_x64.zip"
+          ],
+          "linux-x86-64": [
+            "vkquake-",
+            "-x86_64.appimage"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "vkQuake.exe"
+        ],
+        "linux-x86-64": [
+          "vkquake.AppImage"
         ]
       },
       "launch_arguments": [
@@ -49056,7 +49073,7 @@
           "references": [
             {
               "title": "Use an upstream Linux, Mac or Windows ARM64 package",
-              "instruction": "On Linux x86-64, download the official AppImage and mark it executable. Use a Vulkan-capable driver, your own Quake data, and lowercase id1 and pak filenames. On Intel or Apple Silicon Mac, follow the upstream Mac Source Ports link, keep vkQuake.app together and put your own id1 folder beside it. On Windows ARM64, use the official windows_arm64 ZIP and keep vkQuake.exe and its libraries together with your own data. Maintain these copies upstream and preserve their actual game-data and preference locations."
+              "instruction": "For a separately prepared Linux x86-64 copy, make the official AppImage executable and use a Vulkan-capable driver and AppImage FUSE support. Keep your own Quake data, lowercase id1 and pak filenames, and the actual game-data and preference locations. On Intel or Apple Silicon Mac, follow the upstream Mac Source Ports link, keep vkQuake.app together and put your own id1 folder beside it. On Windows ARM64, use the official windows_arm64 ZIP and keep vkQuake.exe and its libraries together with your own data. Maintain these copies upstream and preserve their actual game-data and preference locations."
             },
             {
               "title": "Registration ownership and removal",
@@ -49072,7 +49089,8 @@
             }
           ]
         }
-      }
+      },
+      "external_profile_policy": "vkquake-linux-v1"
     },
     {
       "id": "re-rac-rerac",
