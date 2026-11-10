@@ -19280,9 +19280,7 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
+        "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
       "windows_shipwright_persistence": true,
@@ -19305,14 +19303,6 @@
           "soh",
           "shipwright",
           "soh.appimage"
-        ],
-        "macos-x86-64": [
-          "soh",
-          "shipwright"
-        ],
-        "macos-aarch64": [
-          "soh",
-          "shipwright"
         ]
       },
       "persistent_paths": [
@@ -19336,6 +19326,26 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "The Legend of Zelda: Ocarina of Time",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "macOS: get the upstream application",
+              "instruction": "Windows and Linux use Portcove’s managed Install route where offered. On macOS, get the Mac ZIP from the upstream Releases page. The release is a ZIP holding a disk image, and Portcove cannot extract or manage replacement of a disk image. Open the disk image yourself and copy the complete application to a permanent folder you choose."
+            },
+            {
+              "title": "macOS: register the copy and choose Play",
+              "instruction": "Use Choose existing installation and select the Ship of Harkinian executable inside the copied application bundle (in its Contents/MacOS folder). Review the executable and launch location, then choose Play explicitly. Supply your own matching original in the game’s own picker. Follow upstream instructions for updates to this copy."
+            },
+            {
+              "title": "macOS: keep the app data separate",
+              "instruction": "Portcove does not own this copy, its data, update, backup or rollback. Check the upstream readme for where this build keeps settings and saves, and preserve that folder and your original separately before replacing the application."
+            }
+          ],
+          "warnings": [
+            "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
+          ],
+          "help_url": "https://github.com/HarbourMasters/Shipwright/releases"
+        },
         "artwork": {
           "game_id": 194694,
           "cover_id": 287780,
@@ -19399,9 +19409,7 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
+        "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
       "windows_runtime_path_policy": "relative-file-max-path",
@@ -19422,13 +19430,8 @@
         ],
         "linux-x86-64": [
           "2ship",
-          "2ship2harkinian"
-        ],
-        "macos-x86-64": [
-          "2ship"
-        ],
-        "macos-aarch64": [
-          "2ship"
+          "2ship2harkinian",
+          "2ship.appimage"
         ]
       },
       "persistent_paths": [
@@ -19495,6 +19498,26 @@
             }
           ]
         },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "macOS: get the upstream application",
+              "instruction": "Windows and Linux use Portcove’s managed Install route where offered. On macOS, get the Mac ZIP from the upstream Releases page. The release is a ZIP holding a disk image, and Portcove cannot extract or manage replacement of a disk image. Open the disk image yourself and copy the complete application to a permanent folder you choose."
+            },
+            {
+              "title": "macOS: register the copy and choose Play",
+              "instruction": "Use Choose existing installation and select the 2Ship2Harkinian executable inside the copied application bundle (in its Contents/MacOS folder). Review the executable and launch location, then choose Play explicitly. Supply your own matching original in the game’s own picker. Follow upstream instructions for updates to this copy."
+            },
+            {
+              "title": "macOS: keep the app data separate",
+              "instruction": "Portcove does not own this copy, its data, update, backup or rollback. Check the upstream readme for where this build keeps settings and saves, and preserve that folder and your original separately before replacing the application."
+            }
+          ],
+          "warnings": [
+            "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
+          ],
+          "help_url": "https://github.com/2ship2harkinian/2ship2harkinian/releases"
+        },
         "artwork": {
           "game_id": 303033,
           "cover_id": 385536,
@@ -19552,13 +19575,16 @@
           "spaghettikart.exe"
         ],
         "linux-x86-64": [
-          "spaghettikart"
+          "spaghettikart",
+          "spaghetti.appimage"
         ],
         "macos-x86-64": [
-          "spaghettikart"
+          "spaghettikart",
+          "Spaghettify"
         ],
         "macos-aarch64": [
-          "spaghettikart"
+          "spaghettikart",
+          "Spaghettify"
         ]
       },
       "persistent_paths": [
@@ -19910,9 +19936,7 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
+        "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
       "automated_tested_platforms": [
@@ -19930,13 +19954,7 @@
           "lighthouse.exe"
         ],
         "linux-x86-64": [
-          "lighthouse"
-        ],
-        "macos-x86-64": [
-          "lighthouse"
-        ],
-        "macos-aarch64": [
-          "lighthouse"
+          "lighthouse.appimage"
         ]
       },
       "persistent_paths": [
@@ -19960,6 +19978,26 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Banjo-Kazooie",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "macOS: get the upstream application",
+              "instruction": "Windows and Linux use Portcove’s managed Install route where offered. On macOS, get the Mac ZIP from the upstream Releases page. The release is a ZIP holding a disk image, and Portcove cannot extract or manage replacement of a disk image. Open the disk image yourself and copy the complete application to a permanent folder you choose."
+            },
+            {
+              "title": "macOS: register the copy and choose Play",
+              "instruction": "Use Choose existing installation and select the Lighthouse executable inside the copied application bundle (in its Contents/MacOS folder). Review the executable and launch location, then choose Play explicitly. Supply your own matching original in the game’s own picker. Follow upstream instructions for updates to this copy."
+            },
+            {
+              "title": "macOS: keep the app data separate",
+              "instruction": "Portcove does not own this copy, its data, update, backup or rollback. Check the upstream readme for where this build keeps settings and saves, and preserve that folder and your original separately before replacing the application."
+            }
+          ],
+          "warnings": [
+            "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
+          ],
+          "help_url": "https://github.com/HarbourMasters/Lighthouse/releases"
+        },
         "artwork": {
           "game_id": 2148,
           "cover_id": 528449,
