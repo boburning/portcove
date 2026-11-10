@@ -13,14 +13,14 @@
       "runner_class": "standard-public",
       "scope": "account",
       "stop_usage": true,
-      "resource_policy_sha256": "b553063de9c8d9c6c6412fbed7b607bdc5a1bb509a06b38e4f25e2c68c0f7b38"
+      "resource_policy_sha256": "c659816d61e9436fec72037dd815bfede7d4716e33ff761b40e2d0cc7219bc12"
     },
     "operation": null,
     "prior_operations": [],
     "ratification": {
       "active": true,
-      "boundary_sha256": "a77ed4367a8de81002fdcd40cb039ddeedbc4ff454c986b8dd818acccb470fbe",
-      "resource_policy_sha256": "b553063de9c8d9c6c6412fbed7b607bdc5a1bb509a06b38e4f25e2c68c0f7b38",
+      "boundary_sha256": "81344879d03b71ea595f9f1feb5ae268b50eb4831df57b18e0b9cba6f363cf32",
+      "resource_policy_sha256": "c659816d61e9436fec72037dd815bfede7d4716e33ff761b40e2d0cc7219bc12",
       "selection": "slice4-d2-c6470ec28ba9addb0f70d9f86953322d835bb8c0"
     }
   },
