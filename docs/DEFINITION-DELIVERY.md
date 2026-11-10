@@ -89,6 +89,12 @@ Linux account-based profile outside managed storage. vkQuake keeps the
 managed save paths, binds the exact AppImage selection and checks its
 temporary mount location.
 
+Native portable version 16 consumes `corsixth-linux-v1` and
+`openloco-unix-v1` for their official Linux AppImages and the OpenLoco
+Apple Silicon ZIP. Fresh and retained entries require version 16. It binds
+the reviewed package and default external profile, with AppImage mount
+checks on Linux. The creating Windows definitions retain their rules.
+
 Native portable version 10 adds official sibling packages to verified native
 original-file definitions that keep a Windows temporary directory inside their
 private profile. Fresh and retained indexed entries declaring that combination

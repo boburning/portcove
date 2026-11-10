@@ -16940,7 +16940,7 @@
         "references": [
           {
             "title": "Set up CorsixTH on Linux",
-            "instruction": "Use the official x86-64 AppImage. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
+            "instruction": "For a separately prepared copy, use the official x86-64 AppImage with FUSE support. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
           },
           {
             "title": "Set up CorsixTH on Mac",
@@ -16968,8 +16968,8 @@
       ],
       "download_asset_hints": {
         "linux-x86-64": [
-          "CorsixTH-v",
-          "-x86_64.AppImage"
+          "corsixth-",
+          "-x86_64.appimage"
         ],
         "macos-x86-64": [
           "CorsixTH-",
@@ -38974,7 +38974,7 @@
     {
       "id": "openloco-openloco",
       "name": "Chris Sawyer's Locomotion / OpenLoco (OpenLoco)",
-      "summary": "Explore Chris Sawyer's Locomotion / OpenLoco (OpenLoco) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Chris Sawyer’s Locomotion with OpenLoco on Windows x64, Linux x64 or Apple Silicon Mac. Bring your own Locomotion data.",
       "project_url": "https://github.com/OpenLoco/OpenLoco",
       "issue_number": 1855,
       "availability": "packages",
@@ -39000,30 +39000,30 @@
         "references": [
           {
             "title": "Set up OpenLoco on Linux",
-            "instruction": "Use the official x86-64 AppImage. The reviewed player needs glibc 2.28 or newer. Make it executable and run it directly to select your installed Locomotion directory containing Data/g1.DAT. Preserve the whole profile under ~/.config/OpenLoco or the actual XDG_CONFIG_HOME location. Keep separately selected saves, landscapes, custom objects and original-game folders."
+            "instruction": "For a separately prepared copy, use the official x86-64 AppImage with FUSE support. The reviewed player needs glibc 2.28 or newer. Make it executable and run it directly to select your installed Locomotion directory containing Data/g1.DAT. Preserve the whole profile under ~/.config/OpenLoco or the actual XDG_CONFIG_HOME location. Keep separately selected saves, landscapes, custom objects and original-game folders."
           },
           {
             "title": "Set up OpenLoco on Apple Silicon",
-            "instruction": "Use the upstream macos-arm64 ZIP. If downloading through Portcove, clear “Extract the archive after downloading”. Extract it with the system archive tool and keep the entire OpenLoco.app bundle. Upstream describes this build as unsigned and unnotarized. Follow its Mac instructions if Gatekeeper blocks it. Start it directly, select the Locomotion directory containing Data/g1.DAT and preserve ~/Library/Application Support/OpenLoco and custom locations. You manage this external copy and its updates."
+            "instruction": "For a separately prepared copy, use the upstream macos-arm64 ZIP on macOS 15 or newer. If downloading through Portcove, clear “Extract the archive after downloading”. Extract it with the system archive tool and keep the entire OpenLoco.app bundle. Upstream describes this build as unsigned and unnotarized. Follow its Mac instructions if Gatekeeper blocks it. Start it directly, select the Locomotion directory containing Data/g1.DAT and preserve ~/Library/Application Support/OpenLoco and custom locations. You manage this external copy and its updates."
           }
         ]
       },
       "original_game_title": "Chris Sawyer's Locomotion",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "openloco-",
+          "-linux-x64.appimage"
+        ],
+        "macos-aarch64": [
+          "openloco-",
+          "-macos-arm64.zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-aarch64"
-      ],
-      "download_asset_hints": {
-        "linux-x86-64": [
-          "OpenLoco-",
-          "-linux-x64.AppImage"
-        ],
-        "macos-aarch64": [
-          "OpenLoco-",
-          "-macos-arm64.zip"
-        ]
-      }
+      ]
     },
     {
       "id": "openport-labs-galaxy-android",

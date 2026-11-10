@@ -327,7 +327,9 @@ export type ExternalProfilePolicy =
   | "recomp-appimage-v1"
   | "openmohaa-unix-v1"
   | "ironwail-linux-v1"
-  | "vkquake-linux-v1";
+  | "vkquake-linux-v1"
+  | "corsixth-linux-v1"
+  | "openloco-unix-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {

@@ -209,6 +209,73 @@ async fn quake_linux_selects_the_official_package_and_compatible_successor() {
 }
 
 #[tokio::test]
+async fn profile_siblings_select_official_archives_and_compatible_successors() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, platform, current, successor, digest, size) in [
+        (
+            "corsixth-corsixth",
+            Platform::LinuxX86_64,
+            "CorsixTH-v0.70.2-x86_64.AppImage",
+            "CorsixTH-v0.70.3-x86_64.AppImage",
+            "106aa756cfbd59be153067f63fa8ac8b2090996752853cd4f03d03425011237e",
+            82_872_824,
+        ),
+        (
+            "openloco-openloco",
+            Platform::LinuxX86_64,
+            "OpenLoco-v26.09-linux-x64.AppImage",
+            "OpenLoco-v26.10.1-linux-x64.AppImage",
+            "353750c8cee127aa24ce2e3cc7e8233c14fe37362bd62f6b3c3d6887a7d16fb3",
+            17_680_888,
+        ),
+        (
+            "openloco-openloco",
+            Platform::MacosAarch64,
+            "OpenLoco-v26.09-macos-arm64.zip",
+            "OpenLoco-v26.10-macos-arm64.zip",
+            "15cd95be662810cae3a16bc8053b2cb3cd2bc680fc29ac486322c3e00fe6da1e",
+            17_557_193,
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut broad = port.clone();
+        broad.external_profile_policy = None;
+        let key = |port| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+        assert_ne!(key(port), key(&broad));
+        let mut published = asset(current, None);
+        published["digest"] = serde_json::json!(format!("sha256:{digest}"));
+        published["size"] = serde_json::json!(size);
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[release(current.split('-').nth(1).unwrap(), vec![published])]),
+            metadata(),
+            releases(&[release(
+                successor.split('-').nth(1).unwrap(),
+                vec![
+                    asset(successor, Some('a')),
+                    asset(&format!("mirror-{successor}"), Some('b')),
+                    asset(&format!("{successor}.zip"), Some('c')),
+                ],
+            )]),
+        ]);
+        for (name, expected, root) in [
+            (current, digest.to_string(), root.clone()),
+            (successor, "a".repeat(64), root),
+        ] {
+            let resolved = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap();
+            assert_eq!(resolved.asset.name, name);
+            assert_eq!(resolved.asset.sha256, expected);
+        }
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[tokio::test]
 async fn recomp_appimages_select_the_direct_linux_asset_and_compatible_successor() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, name, tag, size, sha256) in [

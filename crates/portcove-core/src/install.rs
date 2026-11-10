@@ -1241,6 +1241,30 @@ impl Installer {
                 request.qualification.platform,
                 &payload_root,
             )?;
+            if let Some(
+                policy @ (crate::ExternalProfilePolicy::CorsixthLinuxV1
+                | crate::ExternalProfilePolicy::OpenlocoUnixV1),
+            ) = port.external_profile_policy
+                && crate::native_external_profile::applies_to(
+                    policy,
+                    request.qualification.platform,
+                )
+            {
+                if !crate::native_external_profile::profile_siblings::matches_openloco_zip(
+                    port,
+                    request.qualification.platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "OpenLoco archive differs from its retained Mac package selector",
+                    ));
+                }
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::native_external_profile::profile_siblings::require_payload(
+                    &selected,
+                    request.qualification.platform,
+                )?;
+            }
             if request.qualification.platform == Platform::LinuxX86_64
                 && let Some(
                     policy @ (crate::ExternalProfilePolicy::IronwailLinuxV1

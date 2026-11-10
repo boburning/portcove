@@ -672,6 +672,8 @@ pub enum ExternalProfilePolicy {
     OpenmohaaUnixV1,
     IronwailLinuxV1,
     VkquakeLinuxV1,
+    CorsixthLinuxV1,
+    OpenlocoUnixV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.

@@ -22,7 +22,7 @@
       "references": [
         {
           "title": "Set up CorsixTH on Linux",
-          "instruction": "Use the official x86-64 AppImage. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
+          "instruction": "For a separately prepared copy, use the official x86-64 AppImage with FUSE support. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
         },
         {
           "title": "Set up CorsixTH on Mac",
@@ -42,9 +42,9 @@
       "game_slug": "corsixth",
       "match_kind": "port"
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "linux-x86-64": ["CorsixTH-v", "-x86_64.AppImage"],
+      "linux-x86-64": ["corsixth-", "-x86_64.appimage"],
       "macos-x86-64": ["CorsixTH-", ".dmg"],
       "macos-aarch64": ["CorsixTH-", ".dmg"]
     }
@@ -52,23 +52,26 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "CorsixTH/CorsixTH",
       "asset_hints": {
-        "windows-x86-64": ["windows", "x64", ".zip"]
+        "windows-x86-64": ["windows", "x64", ".zip"],
+        "linux-x86-64": ["corsixth-", "-x86_64.appimage"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["CorsixTH.exe"]
+      "windows-x86-64": ["CorsixTH.exe"],
+      "linux-x86-64": ["corsix-th.AppImage"]
     },
     "persistent_paths": [],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first launch, CorsixTH asks you to locate your original Theme Hospital data. Keep those files outside the managed runtime. CorsixTH normally stores configuration and saves in its own AppData folder, which remains available to replacement versions and is outside Portcove backups. Portcove updates the portable runtime only. Runtime rollback does not restore older saves or guarantee their compatibility. Use an external registration for customized or self-updating installations."
-    }
+      "manual_preparation": "On first Play, CorsixTH asks for your original Theme Hospital data. Keep that folder outside the managed runtime. The Windows player uses its own AppData profile. The Linux AppImage needs FUSE, glibc 2.34 or newer and libstdc++ with GLIBCXX_3.4.30. The Linux player uses CorsixTH under XDG_CONFIG_HOME when it is set, or ~/.config/CorsixTH. Back up that profile separately. If CorsixTH reports a temporary copy after a write error, preserve that copy before restarting. Portcove replaces its portable engine and leaves the external profile in place. Use a separately prepared copy for custom or relative save, campaign, level, log or screenshot locations, portable overrides or custom launch arguments. Keep those folders outside the library."
+    },
+    "external_profile_policy": "corsixth-linux-v1"
   }
 }
