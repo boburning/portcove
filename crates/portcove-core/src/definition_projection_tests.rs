@@ -314,6 +314,7 @@ fn current_projection_routes_keep_distinct_capability_floors() {
             crate::package_layout::NATIVE_CAPABILITY,
         ),
         ("troyedwardsjr-z2rs", 20),
+        ("body-harvest-recompiled", 21),
     ] {
         let position = document["catalog"]["ports"]
             .as_array()

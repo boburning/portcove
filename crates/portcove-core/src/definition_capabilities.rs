@@ -222,6 +222,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::native_external_profile::z2rs::NATIVE_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::recomp_direct::NATIVE_CAPABILITY,
+        });
         supported
     }
 }
