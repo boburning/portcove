@@ -97,6 +97,7 @@ jobs:
       linux_diagnostics: ${{ steps.plan.outputs.linux_diagnostics }}
       frontend_tools: ${{ steps.plan.outputs.frontend_tools }}
       frontend_workspace: ${{ steps.plan.outputs.frontend_workspace }}
+      frontend_browser_shards: ${{ steps.plan.outputs.frontend_browser_shards }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -584,6 +585,8 @@ jobs:
     env:
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
+      # When true the sharded jobs below own the browser projects and this job runs the rest.
+      PORTCOVE_FRONTEND_BROWSER_SHARDED: ${{ needs.classify.outputs.frontend_browser_shards }}
       npm_config_audit: "false"
     defaults:
       run:
@@ -633,6 +636,58 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-timings-${{ github.job }}-${{ github.run_attempt }}
+          path: work/ci-metrics/*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  fast_frontend_browser:
+    timeout-minutes: 45
+    name: fast-frontend-browser (linux-x86_64, ${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: classify
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'frontend') && !contains(fromJSON(needs.classify.outputs.reused_groups), 'frontend') && needs.classify.outputs.frontend_browser_shards == 'true'
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
+      # The shard count is the matrix length, so the shards always cover the whole suite.
+      PORTCOVE_BROWSER_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+      npm_config_audit: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          version-file: pnpm-workspace.yaml
+          node-version-file: .node-version
+          cache-toolchain: true
+          cache: true
+          run-install: |
+            args: [--frozen-lockfile]
+      - name: Provision the pinned browser for the browser shard
+        run: node scripts/browser-runtime.mts bootstrap
+        working-directory: apps/desktop
+      - name: Run this shard of the browser projects
+        run: node scripts/ci-baseline.mts frontend-browser
+      - name: Retain browser shard diagnostics
+        if: always()
+        uses: ./.github/actions/retain-browser-diagnostics
+        with:
+          name: browser-traces-fast-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Summarize diagnostic timings
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          node scripts/ci-metrics.mts summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain diagnostic timings
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-timings-${{ github.job }}-${{ matrix.shard }}-${{ github.run_attempt }}
           path: work/ci-metrics/*.json
           if-no-files-found: warn
           retention-days: 7
@@ -1434,7 +1489,7 @@ jobs:
   frontend:
     timeout-minutes: 15
     if: always()
-    needs: [classify, prose_checks, fast_frontend, frontend_full]
+    needs: [classify, prose_checks, fast_frontend, fast_frontend_browser, frontend_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1446,7 +1501,8 @@ jobs:
           PORTCOVE_GROUP: frontend
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_frontend":"${{ needs.fast_frontend.result }}"}'
-          PORTCOVE_TARGETED_RESULTS: "{}"
+          PORTCOVE_FRONTEND_BROWSER_SHARDED: ${{ needs.classify.outputs.frontend_browser_shards }}
+          PORTCOVE_TARGETED_RESULTS: '{"fast_frontend_browser":"${{ needs.fast_frontend_browser.result }}"}'
           PORTCOVE_QUALIFICATION_RESULTS: '{"frontend_full":"${{ needs.frontend_full.result }}"}'
         run: node scripts/ci-result-gate.mts
 

@@ -743,3 +743,37 @@ void test("held application release can request only dispatched Windows qualific
   ])
     assert.throws(() => discoverCiPlan({ ...options, ...changed }), /forced release reusable/u);
 });
+
+void test("the classifier flags sharded browser execution only for a complete frontend suite", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-browser-shard-plan-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const cases: [string, string][] = [
+    ["apps/desktop/tsconfig.json", "true"],
+    ["apps/desktop/src/App.tsx", "false"],
+    ["docs/QUALITY.md", "false"],
+  ];
+  for (const [index, [file, expected]] of cases.entries()) {
+    const plan = buildValidationPlan({
+      changes: [
+        { status: "M", oldMode: "100644", newMode: "100644", oldPath: file, newPath: file },
+      ],
+      eventName: "pull_request",
+      base: sha("a"),
+      mergeBase: sha("a"),
+      head: sha("b"),
+      checkout: sha("b"),
+    });
+    const output = path.join(root, String(index));
+    await writeGithubOutputs(output, plan);
+    const values = new Map(
+      (await readFile(output, "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => {
+          const split = line.indexOf("=");
+          return [line.slice(0, split), line.slice(split + 1)];
+        }),
+    );
+    assert.equal(values.get("frontend_browser_shards"), expected, file);
+  }
+});

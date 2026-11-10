@@ -516,7 +516,7 @@ void test("CI toolchain caches retain exact repository version authorities", asy
       }
     }
   }
-  assert.equal(count, 8);
+  assert.equal(count, 9);
 });
 
 void test("Windows analyzer acquisition retains the exact pin and both mandatory gates", (t) => {
