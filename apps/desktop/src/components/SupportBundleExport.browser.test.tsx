@@ -232,6 +232,28 @@ it("uses the same receipt in Settings without refreshing diagnostic state", asyn
   expect(host.textContent).toContain("Some diagnostics are partial or omitted.");
 });
 
+it("opens the support report folder only after export and keeps the saved path when opening fails", async () => {
+  const open = vi
+    .spyOn(desktopApi, "openSupportReportFolder")
+    .mockRejectedValueOnce(new Error("no file manager"))
+    .mockResolvedValueOnce(undefined);
+  await root.rerender(<SupportBundleExport createSupportBundle={vi.fn(async () => bundle())} />);
+  expect(host.textContent).not.toContain("Open support report folder");
+  await click("Create a support report");
+  expect(open).not.toHaveBeenCalled();
+
+  await click("Open support report folder");
+  await vi.waitFor(() => expect(host.textContent).toContain("Couldn’t open the folder."));
+  expect(open).toHaveBeenCalledOnce();
+  expect(open).toHaveBeenCalledWith();
+  expect(host.textContent).toContain("Support report saved to E:/diagnostics/نسخة/support.zip");
+  expect(button("Create a support report").disabled).toBe(false);
+
+  await click("Open support report folder");
+  await vi.waitFor(() => expect(host.textContent).not.toContain("Couldn’t open the folder."));
+  expect(open).toHaveBeenCalledTimes(2);
+});
+
 it("keeps export failure separate from startup failure and retries without exposing raw error text", async () => {
   const failure = failureReport();
   failure.message = "unrequested private export detail";
