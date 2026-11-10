@@ -376,6 +376,13 @@ impl Adapter for StandardAdapter {
         let mut arguments = port.launch_arguments.clone();
         arguments.extend(adapter_arguments);
         if platform == Platform::LinuxX86_64
+            && port.external_profile_policy == Some(crate::ExternalProfilePolicy::Doom3LinuxV1)
+        {
+            arguments.extend(
+                crate::native_external_profile::doom3_linux::LAUNCH_ARGUMENTS.map(String::from),
+            );
+        }
+        if platform == Platform::LinuxX86_64
             && port.external_profile_policy == Some(crate::ExternalProfilePolicy::VkquakeLinuxV1)
         {
             // Keep the same managed data root if a compatible package enables DO_USERDIRS.

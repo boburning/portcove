@@ -337,7 +337,8 @@ export type ExternalProfilePolicy =
   | "jgrpp-linux-v1"
   | "openglad-mac-v1"
   | "z2rs-desktop-v1"
-  | "recomp-direct-v1";
+  | "recomp-direct-v1"
+  | "doom3-linux-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
