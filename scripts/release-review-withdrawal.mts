@@ -1,3 +1,4 @@
+import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bounded journal evidence, separate from any App Check. The protected
@@ -37,5 +38,16 @@ export function matchesWithdrawnReviewRequest(
     request?.request_id === withdrawal.request_id &&
     request.source_commit === withdrawal.source_commit &&
     request.source_tree === withdrawal.source_tree
+  );
+}
+
+export function matchesRetainedReviewWithdrawal(
+  withdrawal: NonNullable<ReturnType<typeof inspectReleaseReviewWithdrawal>>,
+  input: Record<string, unknown>,
+) {
+  return (
+    input.review_request === null &&
+    input.review_withdrawal != null &&
+    releaseCanonicalDigest(input.review_withdrawal) === releaseCanonicalDigest(withdrawal)
   );
 }

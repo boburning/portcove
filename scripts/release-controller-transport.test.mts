@@ -810,6 +810,28 @@ void test("application coordinator diagnostics retain a closed refusal without e
       .stage,
     "fixed-entry",
   );
+  for (const phase of [
+    "withdrawal-source-authority",
+    "withdrawal-journal-preimage",
+    "withdrawal-reader-identity",
+    "withdrawal-protection-observation",
+    "withdrawal-live-controls",
+    "withdrawal-checkpoint-authority",
+    "withdrawal-signed-checkpoint",
+  ]) {
+    const withdrawal = applicationCoordinatorRefusal(
+      new CoordinatorRemoteError("private", {
+        phase,
+        retained_error: { ...exchange.checkpoint_exchange, checkpoint: "private" },
+      }),
+    );
+    assert.equal(withdrawal.stage, phase);
+    assert.equal(JSON.stringify(withdrawal).includes("private"), false);
+    assert.deepEqual(
+      withdrawal.checkpoint_exchange,
+      phase === "withdrawal-signed-checkpoint" ? exchange.checkpoint_exchange : undefined,
+    );
+  }
   const encoded = JSON.stringify(known);
   await writeFile(
     path.join(root, applicationCoordinatorRefusalFile),

@@ -1,5 +1,6 @@
 import {
   inspectReleaseReviewWithdrawal,
+  matchesRetainedReviewWithdrawal,
   matchesWithdrawnReviewRequest,
 } from "./release-review-withdrawal.mts";
 import { coordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
@@ -794,7 +795,7 @@ export function coordinatorMaintenanceIdentity(raw: unknown) {
 export function catalogCoordinatorMaintenanceIdentity(raw: unknown) {
   return maintenanceIdentity(raw, "catalog-coordinator-controls");
 }
-function maintenanceIdentity(raw: unknown, purpose: string) {
+function maintenanceIdentity(raw: unknown, purpose: string, publicationPaused = false) {
   if (
     !isRecord(raw) ||
     raw.phase !== "coordinator" ||
@@ -803,7 +804,7 @@ function maintenanceIdentity(raw: unknown, purpose: string) {
     !isRecord(raw.reader) ||
     !isRecord(raw.protection) ||
     !isRecord(raw.pause) ||
-    raw.pause.publication_paused !== false ||
+    raw.pause.publication_paused !== publicationPaused ||
     !isRecord(raw.capacity)
   )
     throw new Error("eligible coordinator maintenance facts required");
@@ -2393,7 +2394,7 @@ async function authenticateCoordinatorInitialControls(
   workflow: Buffer,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   purpose: "application" | "catalog" = "application",
-  controlReader?: "metadata-maintenance" | "catalog-maintenance",
+  controlReader?: "metadata-maintenance" | "catalog-maintenance" | "coordinator-application",
 ) {
   budget.check();
   const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
@@ -3609,13 +3610,16 @@ async function requestTrustedSemanticReviewAt(
     });
     checkpoint = recovered.checkpoint;
     if (selected.review_withdrawal) {
-      phase = "paused-application-review-withdrawal";
+      phase = "withdrawal-source-authority";
       return await withdrawTrustedApplicationReview(
         directory,
         selected.remote_configuration,
         recovered,
         selected.review_withdrawal,
         budget,
+        (stage) => {
+          phase = stage;
+        },
       );
     }
     let recheckQualifiedSource: (() => void) | undefined;
@@ -4281,19 +4285,19 @@ async function withdrawTrustedApplicationReview(
   recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
   withdrawal: NonNullable<ReturnType<typeof inspectReleaseReviewWithdrawal>>,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
+  reportStage: (stage: string) => void,
 ) {
   const appointed = await requireControllerJobSourceConfiguration("coordinator");
   if (
     appointed.binding.purpose !== "application" ||
     appointed.binding.namespace !== inspectCoordinatorRemoteNamespace(configuration) ||
+    !appointed.binding.review_withdrawal ||
     capacityDigest(appointed.binding.review_withdrawal) !== capacityDigest(withdrawal)
   )
     throw new Error("review withdrawal differs from the source-bound owner grant");
+  reportStage("withdrawal-journal-preimage");
   const { checkpoint, input } = recovered;
-  if (
-    capacityDigest(input.review_withdrawal) === capacityDigest(withdrawal) &&
-    input.review_request === null
-  )
+  if (matchesRetainedReviewWithdrawal(withdrawal, input))
     return {
       decision: "review-withdrawal-already-retained",
       directory,
@@ -4311,29 +4315,43 @@ async function withdrawTrustedApplicationReview(
     !isRecord(input.controller)
   )
     throw new Error("review withdrawal original checkpoint, request or effects differ");
+  reportStage("withdrawal-reader-identity");
   const workflow = await readProductionControllerWorkflowBytes();
   const reader = await authenticateControlReaderJob(process.env, workflow, {
     phase: "coordinator",
     deadline: budget.monotonicDeadline,
   });
-  const controls = await authenticateCoordinatorInitialControls(
+  reportStage("withdrawal-protection-observation");
+  const factsSha = capacityDigest(withdrawal);
+  let controls = await authenticateCoordinatorInitialControls(
     directory,
-    capacityDigest(withdrawal),
+    factsSha,
     reader,
     workflow,
     budget,
+    "application",
+    "coordinator-application",
   );
-  const observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
-  if (!observed.resource_policy_matches_controller)
-    throw new Error("review withdrawal bounded policy differs");
+  reportStage("withdrawal-live-controls");
+  let observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
+  const stable = maintenanceIdentity(observed, "metadata-coordinator-controls", true);
+  let round = 0;
   const checkpointControls = {
     async readCurrent() {
       budget.check();
       appointed.recheck();
-      if (
-        (await controls.readSdkWithdrawal(withdrawal.source_commit)).facts_sha256 !==
-        observed.facts_sha256
-      )
+      if (Date.now() - Date.parse(observed.protection.observed_at) >= 30000) {
+        if (++round > 14) throw new Error("review withdrawal control rounds exhausted");
+        controls = await authenticateReleaseControlRound(
+          path.join(directory, `withdrawal-control-${round}`),
+          factsSha,
+          "coordinator",
+          round,
+          { deadline: budget.monotonicDeadline, controlReader: "coordinator-application" },
+        );
+      }
+      observed = await controls.readSdkWithdrawal(withdrawal.source_commit);
+      if (maintenanceIdentity(observed, "metadata-coordinator-controls", true) !== stable)
         throw new Error("review withdrawal controls changed before journal mutation");
       budget.check();
     },
@@ -4342,6 +4360,7 @@ async function withdrawTrustedApplicationReview(
     transport: budget.journalTransport(),
   });
   if (current.checkpoint !== checkpoint) throw new Error("review withdrawal journal head changed");
+  reportStage("withdrawal-checkpoint-authority");
   const publish = await coordinatorCheckpointPublisher(
     directory,
     budget,
@@ -4359,6 +4378,7 @@ async function withdrawTrustedApplicationReview(
     review_request: null,
     review_withdrawal: withdrawal,
   });
+  reportStage("withdrawal-signed-checkpoint");
   await publish(saved.checkpoint);
   return {
     decision: "review-withdrawn",

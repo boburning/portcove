@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { stripTypeScriptTypes } from "node:module";
@@ -1693,4 +1694,111 @@ void test("coordinator journal rechecks its cutoff after the awaited SDK mutatio
   expired = false;
   await journal.graphql("mutation { exactCAS }");
   assert.deepEqual(calls, ["controls", "controls", "CAS"]);
+});
+
+void test("paused withdrawal rechecks the same controls and refreshes aging observations", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const identityStart = source.indexOf("function maintenanceIdentity(");
+  const identityEnd = source.indexOf("/** Budget derivation", identityStart);
+  const start = source.indexOf("async function withdrawTrustedApplicationReview(");
+  const end = source.indexOf("/** Resolve the exact outstanding request", start);
+  const implementation = stripTypeScriptTypes(
+    source.slice(identityStart, identityEnd) + source.slice(start, end),
+  );
+  const withdrawal = { request_checkpoint: "parent", source_commit: "withdrawn" };
+  let now = 0;
+  let refreshes = 0;
+  let changeOnRefresh = false;
+  let published = false;
+  const observations = (round: number) => ({
+    async readSdkWithdrawal(commit: string) {
+      assert.equal(commit, withdrawal.source_commit);
+      return {
+        phase: "coordinator",
+        purpose: "metadata-coordinator-controls",
+        resource_policy_matches_controller: true,
+        reader: { round },
+        pause: {
+          publication_paused: true,
+          commit: changeOnRefresh && round > 0 ? "changed" : "closed",
+        },
+        protection: { observed_at: new Date(round === 0 ? 0 : now).toISOString() },
+        capacity: {},
+      };
+    },
+  });
+  const run = runInNewContext(`${implementation}; withdrawTrustedApplicationReview;`, {
+    path,
+    capacityDigest,
+    isRecord,
+    structuredClone,
+    process: { env: {} },
+    Date: { parse: Date.parse, now: () => now },
+    inspectCoordinatorRemoteNamespace: () => "portcove-production",
+    requireControllerJobSourceConfiguration: async () => ({
+      binding: {
+        purpose: "application",
+        namespace: "portcove-production",
+        review_withdrawal: withdrawal,
+      },
+      recheck() {},
+    }),
+    matchesRetainedReviewWithdrawal: () => false,
+    matchesWithdrawnReviewRequest: () => true,
+    inspectReleaseReviewRequest: () => ({}),
+    coordinatorHasUnresolvedEffect: () => false,
+    selectCoordinatorPendingContextRecovery: () => null,
+    selectCoordinatorPendingPagesRecovery: () => null,
+    inspectSettledPagesMetadataHandoff: () => null,
+    selectCoordinatorCandidateSigningRecovery: () => null,
+    readProductionControllerWorkflowBytes: async () => Buffer.alloc(0),
+    authenticateControlReaderJob: async () => ({}),
+    authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
+      assert.equal(args[6], "coordinator-application");
+      return observations(0);
+    },
+    authenticateReleaseControlRound: async (...args: unknown[]) => {
+      assert.equal(args[3], 1);
+      assert.equal((args[4] as { controlReader: string }).controlReader, "coordinator-application");
+      refreshes++;
+      return observations(1);
+    },
+    readRemoteCoordinatorSnapshot: async () => ({ checkpoint: "parent" }),
+    coordinatorCheckpointPublisher: async (...args: unknown[]) => {
+      assert.equal(args[8], true);
+      const controls = args[6] as { readCurrent(): Promise<void> };
+      await controls.readCurrent();
+      return async () => {
+        now = 30000;
+        await controls.readCurrent();
+        published = true;
+      };
+    },
+    checkpointReleaseOpportunity: async () => ({ checkpoint: "child" }),
+  }) as (...args: unknown[]) => Promise<{ decision: string }>;
+  const invoke = () =>
+    run(
+      "inert",
+      {},
+      { checkpoint: "parent", input: { controller: {} } },
+      withdrawal,
+      {
+        check() {},
+        monotonicDeadline: 100000,
+        journalTransport() {},
+      },
+      () => {},
+    );
+  assert.equal((await invoke()).decision, "review-withdrawn");
+  assert.equal(refreshes, 1);
+  assert.equal(published, true);
+
+  now = 0;
+  published = false;
+  changeOnRefresh = true;
+  await assert.rejects(invoke(), /controls changed before journal mutation/);
+  assert.equal(published, false);
 });
