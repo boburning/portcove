@@ -25,6 +25,13 @@ function failure(explained: boolean): LaunchSessionView {
 }
 
 const rollback = vi.fn();
+// Core's rollback assessment gates the action exactly as the maintenance control does.
+function withRollback(availability: string, reason: string): PortStatus {
+  return {
+    previous: { id: "old" },
+    port_actions: [{ action: "rollback", availability, reason }],
+  } as unknown as PortStatus;
+}
 let root: RenderResult;
 let container: HTMLDivElement;
 beforeEach(async () => {
@@ -59,8 +66,14 @@ it("shows the explanation and raw code, offering rollback only with a retained v
   expect(document.body.textContent).toContain("most likely missing");
   expect(document.body.textContent).toContain("0xC0000135");
   expect(buttons()).toEqual(["Copy exit code"]);
-  await show(load, { previous: { id: "old" } } as unknown as PortStatus);
+  await show(load, withRollback("allowed", "available"));
   expect(buttons()).toEqual(["Copy exit code", "Restore previous version"]);
+});
+
+it("withholds rollback while Core reports it unavailable", async () => {
+  const load = vi.fn().mockResolvedValue(failure(true));
+  await show(load, withRollback("not_offered", "not_installed"));
+  expect(buttons()).toEqual(["Copy exit code"]);
 });
 
 it.each([
