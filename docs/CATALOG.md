@@ -783,6 +783,47 @@ bounded quick filter observations are distinct: the latter returns `NotChecked`
 for this shape. See [managed Dark Forces setup and recovery](reference/managed-tfe.md)
 for player workflow, persistence boundaries and the removal recovery hold.
 
+## Disc-image unpacking
+
+`xdvdfs-directory` (Xbox and Xbox 360) and `iso9660-directory` (PlayStation 2 and
+PSP, ISO or CHD) unpack a player's original disc image into the runtime directory
+named by `runtime_source_filename`, following the same staged-source pattern as
+`stfs-directory`. They are valid only on `staged-source-portable` ports whose
+destination has no extension and appears in `runtime_mutable_paths`, with a
+`source_profile` of kind `file` that carries exact whole-image SHA-1 or SHA-256
+identities (for example Redump). Core reads the image read-only; it never modifies,
+locks, trims or rebuilds it.
+
+A port also declares `runtime_disc_image`:
+
+| Field             | Meaning                                                                                                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`          | `xdvdfs` or `iso9660`; must match the materialization.                                                                                                                       |
+| `max_image_bytes` | Explicit bound on the selected image, at most 16 GiB. The 2 GiB bound of existing disc formats is unchanged.                                                                 |
+| `product_codes`   | One to sixteen identifiers the disc must declare: the Xbox/Xbox 360 title ID (eight hex digits from `default.xex`/`default.xbe`), the PS2 boot serial, or the PSP `DISC_ID`. |
+
+`runtime_source_hashes` is required: at least one anchor file (for example
+`default.xex`, `default.xbe`, `SYSTEM.CNF` or `PSP_GAME/PARAM.SFO`) with its exact
+SHA-256, each a safe relative path. Anchors, product codes and size limits must come
+from owner-provided or upstream-published evidence; never infer or guess them. A
+port that declares `runtime_disc_image` without a disc-image materialization is
+invalid. Core compares the disc's identifier with `product_codes` before extracting,
+so a wrong game or region is refused first.
+
+Unpacking plans the whole file system before writing, refuses any entry it would
+otherwise skip (extent past the image, oversized tables, too many entries or levels,
+expanded bytes beyond the image, traversal, separator, control or non-ASCII names,
+Windows reserved names, trailing dots or spaces, case-insensitive duplicates,
+overlapping extents, multi-extent or interleaved ISO 9660 files, unreadable
+system-use areas), checks free space with a margin, stages beside the destination,
+verifies the anchors, then swaps transactionally and writes the marker. Failure or
+cancellation leaves the previous runtime directory intact and removes staging. An
+unchanged source with a valid marker and matching anchors is a no-op; any other
+state re-extracts and never reuses output by size. Destination drift outside the
+declared anchors is not detected, so declare every file the runtime cannot do
+without. A definition using these values must also gate older engines with a
+staged-source capability, as other new materializations do; none ships yet.
+
 ## Default covers
 
 Ordinary single-record preparation uses [the authoring entry point](#adding-or-changing-a-port).

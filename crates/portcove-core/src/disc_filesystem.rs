@@ -1,0 +1,644 @@
+//! Bounded, read-only XDVDFS and ISO 9660 readers for managed disc-image unpacking.
+//!
+//! Implemented from ECMA-119 and the published XDVDFS layout. Nothing here writes
+//! to, locks or modifies the source image. Every structural doubt is an error:
+//! no entry is ever skipped silently.
+#[cfg(test)]
+#[path = "disc_filesystem_fixtures.rs"]
+pub(crate) mod fixtures;
+#[cfg(test)]
+#[path = "disc_filesystem_fuzz_tests.rs"]
+mod fuzz_tests;
+#[cfg(test)]
+#[path = "disc_filesystem_tests.rs"]
+mod tests;
+
+use std::{
+    collections::HashSet,
+    fs::File,
+    io::{Read, Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
+};
+
+use crate::{DiscImageFormat, PortcoveError, Result, failure::KnownFailureCause};
+
+pub(crate) const SECTOR: u64 = 2048;
+/// Fixed ceiling for any disc-image profile; profiles declare a lower explicit limit.
+pub(crate) const MAX_IMAGE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
+const MAX_EXPANDED_BYTES: u64 = 16 * 1024 * 1024 * 1024;
+const MAX_TABLE_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_ENTRIES: usize = 131_072;
+const MAX_DEPTH: usize = 32;
+const COPY_BUFFER_BYTES: usize = 1024 * 1024;
+const XDVDFS_MAGIC: &[u8; 20] = b"MICROSOFT*XBOX*MEDIA";
+const XDVDFS_PARTITIONS: [u64; 4] = [0, 0x1830_0000, 0x0FD9_0000, 0x0208_0000];
+const FREE_SPACE_FLOOR_BYTES: u64 = 64 * 1024 * 1024;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Extent {
+    offset: u64,
+    size: u64,
+}
+
+#[derive(Debug)]
+struct Listed {
+    name: String,
+    directory: bool,
+    extent: Extent,
+}
+
+#[derive(Debug)]
+pub(crate) struct PlannedEntry {
+    pub(crate) relative: PathBuf,
+    pub(crate) directory: bool,
+    pub(crate) size: u64,
+    offset: u64,
+}
+
+/// Complete validated listing. Producing it writes nothing.
+#[derive(Debug)]
+pub(crate) struct DiscPlan {
+    pub(crate) entries: Vec<PlannedEntry>,
+    pub(crate) expanded_bytes: u64,
+    pub(crate) image_bytes: u64,
+}
+
+fn invalid(message: impl Into<String>) -> PortcoveError {
+    PortcoveError::source(message).with_known_cause(KnownFailureCause::UnsupportedDiscImage)
+}
+
+fn limit(message: impl Into<String>) -> PortcoveError {
+    PortcoveError::source(message).with_known_cause(KnownFailureCause::DiscImageLimit)
+}
+
+fn read_exact_at<R: Read + Seek>(input: &mut R, offset: u64, buffer: &mut [u8]) -> Result<()> {
+    input.seek(SeekFrom::Start(offset))?;
+    input.read_exact(buffer).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::UnexpectedEof {
+            invalid("the disc image is truncated")
+        } else {
+            error.into()
+        }
+    })
+}
+
+fn le32(bytes: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes(bytes[at..at + 4].try_into().expect("four bytes"))
+}
+
+fn be32(bytes: &[u8], at: usize) -> u32 {
+    u32::from_be_bytes(bytes[at..at + 4].try_into().expect("four bytes"))
+}
+
+fn le16(bytes: &[u8], at: usize) -> u16 {
+    u16::from_le_bytes(bytes[at..at + 2].try_into().expect("two bytes"))
+}
+
+fn component(raw: &[u8]) -> Result<String> {
+    if raw.is_empty()
+        || raw
+            .iter()
+            .any(|byte| !(0x20..0x7f).contains(byte) || matches!(byte, b'/' | b'\\'))
+    {
+        return Err(invalid(
+            "the disc image contains a file name Portcove will not unpack",
+        ));
+    }
+    Ok(String::from_utf8_lossy(raw).into_owned())
+}
+
+#[derive(Debug)]
+struct Volume {
+    format: DiscImageFormat,
+    base: u64,
+    volume_bytes: u64,
+    root: Extent,
+}
+
+impl Volume {
+    fn open<R: Read + Seek>(
+        input: &mut R,
+        image_bytes: u64,
+        format: DiscImageFormat,
+    ) -> Result<Self> {
+        match format {
+            DiscImageFormat::Xdvdfs => Self::open_xdvdfs(input, image_bytes),
+            DiscImageFormat::Iso9660 => Self::open_iso9660(input, image_bytes),
+        }
+    }
+
+    fn open_xdvdfs<R: Read + Seek>(input: &mut R, image_bytes: u64) -> Result<Self> {
+        let mut found = Vec::new();
+        for base in XDVDFS_PARTITIONS {
+            let descriptor = base + 32 * SECTOR;
+            if descriptor + SECTOR > image_bytes {
+                continue;
+            }
+            let mut sector = [0_u8; SECTOR as usize];
+            read_exact_at(input, descriptor, &mut sector)?;
+            if &sector[..20] == XDVDFS_MAGIC && &sector[0x7ec..0x7ec + 20] == XDVDFS_MAGIC {
+                found.push((base, le32(&sector, 20), le32(&sector, 24)));
+            }
+        }
+        let [(base, root_sector, root_size)] = found[..] else {
+            return Err(invalid(if found.is_empty() {
+                "the file is not an Xbox or Xbox 360 disc image"
+            } else {
+                "the disc image has more than one Xbox volume descriptor"
+            }));
+        };
+        let root = Extent {
+            offset: base + u64::from(root_sector) * SECTOR,
+            size: u64::from(root_size),
+        };
+        Ok(Self {
+            format: DiscImageFormat::Xdvdfs,
+            base,
+            volume_bytes: image_bytes,
+            root,
+        })
+    }
+
+    fn open_iso9660<R: Read + Seek>(input: &mut R, image_bytes: u64) -> Result<Self> {
+        if 17 * SECTOR > image_bytes {
+            return Err(invalid("the file is not an ISO 9660 disc image"));
+        }
+        let mut sector = [0_u8; SECTOR as usize];
+        read_exact_at(input, 16 * SECTOR, &mut sector)?;
+        if sector[0] != 1 || &sector[1..6] != b"CD001" || sector[6] != 1 {
+            return Err(invalid("the file is not an ISO 9660 disc image"));
+        }
+        let block_size = le16(&sector, 128);
+        if u64::from(block_size) != SECTOR || sector[128..130] != [sector[131], sector[130]] {
+            return Err(invalid("the disc image does not use 2048-byte sectors"));
+        }
+        if le32(&sector, 80) != be32(&sector, 84) {
+            return Err(invalid("the disc image has an inconsistent volume size"));
+        }
+        let volume_bytes = u64::from(le32(&sector, 80)) * SECTOR;
+        if volume_bytes == 0 || volume_bytes > image_bytes {
+            return Err(invalid("the disc image is truncated"));
+        }
+        let record = parse_iso_record(&sector[156..190])?;
+        if !record.directory {
+            return Err(invalid("the disc image has an invalid root directory"));
+        }
+        let root = record.extent;
+        if root.size == 0 || root.offset + root.size > volume_bytes {
+            return Err(invalid("the disc image has an invalid root directory"));
+        }
+        Ok(Self {
+            format: DiscImageFormat::Iso9660,
+            base: 0,
+            volume_bytes,
+            root,
+        })
+    }
+
+    fn list<R: Read + Seek>(
+        &self,
+        input: &mut R,
+        directory: Extent,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<Vec<Listed>> {
+        checkpoint()?;
+        if directory.size == 0 {
+            return Ok(Vec::new());
+        }
+        if directory.size > MAX_TABLE_BYTES {
+            return Err(limit("a directory table in the disc image is too large"));
+        }
+        if directory
+            .offset
+            .checked_add(directory.size)
+            .is_none_or(|end| end > self.volume_bytes)
+        {
+            return Err(invalid(
+                "a directory table extends past the end of the disc image",
+            ));
+        }
+        let mut table = vec![0_u8; directory.size as usize];
+        read_exact_at(input, directory.offset, &mut table)?;
+        checkpoint()?;
+        match self.format {
+            DiscImageFormat::Xdvdfs => self.list_xdvdfs(&table),
+            DiscImageFormat::Iso9660 => list_iso9660(&table),
+        }
+    }
+
+    fn list_xdvdfs(&self, table: &[u8]) -> Result<Vec<Listed>> {
+        let mut listed = Vec::new();
+        if table.len() >= 2 && table[0] == 0xff && table[1] == 0xff {
+            return Ok(listed);
+        }
+        let mut seen = HashSet::new();
+        let mut pending = vec![0_usize];
+        while let Some(at) = pending.pop() {
+            if !seen.insert(at) {
+                return Err(invalid(
+                    "a directory in the disc image refers back to itself",
+                ));
+            }
+            if at.checked_add(14).is_none_or(|end| end > table.len()) {
+                return Err(invalid("a directory entry extends past its table"));
+            }
+            let left = usize::from(le16(table, at)) * 4;
+            let right = usize::from(le16(table, at + 2)) * 4;
+            let sector = le32(table, at + 4);
+            let size = le32(table, at + 8);
+            let attributes = table[at + 12];
+            let name_length = usize::from(table[at + 13]);
+            if name_length == 0 || at + 14 + name_length > table.len() {
+                return Err(invalid("a directory entry has an invalid name"));
+            }
+            let name = component(&table[at + 14..at + 14 + name_length])?;
+            let directory = attributes & 0x10 != 0;
+            listed.push(Listed {
+                name,
+                directory,
+                extent: Extent {
+                    offset: self.base + u64::from(sector) * SECTOR,
+                    size: u64::from(size),
+                },
+            });
+            if listed.len() > MAX_ENTRIES {
+                return Err(limit("the disc image contains too many entries"));
+            }
+            for child in [left, right] {
+                if child != 0 {
+                    pending.push(child);
+                }
+            }
+        }
+        Ok(listed)
+    }
+}
+
+struct IsoRecord {
+    name: Vec<u8>,
+    directory: bool,
+    extent: Extent,
+}
+
+fn parse_iso_record(record: &[u8]) -> Result<IsoRecord> {
+    if record.len() < 34 || record.len() < 33 + usize::from(record[32]) {
+        return Err(invalid("a directory record is malformed"));
+    }
+    if le32(record, 2) != be32(record, 6) || le32(record, 10) != be32(record, 14) {
+        return Err(invalid("a directory record has inconsistent fields"));
+    }
+    let flags = record[25];
+    if flags & 0x80 != 0 {
+        return Err(invalid(
+            "the disc image contains a multi-extent file, which Portcove does not unpack",
+        ));
+    }
+    if record[26] != 0 || record[27] != 0 {
+        return Err(invalid(
+            "the disc image contains an interleaved file, which Portcove does not unpack",
+        ));
+    }
+    let name_length = usize::from(record[32]);
+    // The record must be exactly its fixed fields and name (plus the common
+    // 14-byte CD-XA tail). Any other system-use area could hide a following
+    // record, so it is refused rather than skipped.
+    let minimal = (33 + name_length).div_ceil(2) * 2;
+    let xa_tail = record.len() == minimal + 14 && &record[minimal + 6..minimal + 8] == b"XA";
+    if record.len() != minimal && !xa_tail {
+        return Err(invalid(
+            "a directory record has a system-use area, which Portcove does not read",
+        ));
+    }
+    Ok(IsoRecord {
+        name: record[33..33 + name_length].to_vec(),
+        directory: flags & 0x02 != 0,
+        extent: Extent {
+            offset: (u64::from(le32(record, 2)) + u64::from(record[1])) * SECTOR,
+            size: u64::from(le32(record, 10)),
+        },
+    })
+}
+
+fn list_iso9660(table: &[u8]) -> Result<Vec<Listed>> {
+    let mut listed = Vec::new();
+    let mut at = 0_usize;
+    while at < table.len() {
+        let length = usize::from(table[at]);
+        if length == 0 {
+            at = (at / SECTOR as usize + 1) * SECTOR as usize;
+            continue;
+        }
+        if length < 34
+            || at + length > table.len()
+            || at % SECTOR as usize + length > SECTOR as usize
+        {
+            return Err(invalid("a directory record extends past its sector"));
+        }
+        let record = parse_iso_record(&table[at..at + length])?;
+        at += length;
+        if record.name == [0] || record.name == [1] {
+            continue;
+        }
+        let mut name = record.name;
+        if !record.directory {
+            if let Some(semicolon) = name.iter().rposition(|byte| *byte == b';') {
+                let version = &name[semicolon + 1..];
+                if version.is_empty()
+                    || version.len() > 5
+                    || !version.iter().all(u8::is_ascii_digit)
+                {
+                    return Err(invalid("a file has an invalid version suffix"));
+                }
+                name.truncate(semicolon);
+            }
+            if name.last() == Some(&b'.') {
+                name.pop();
+            }
+        }
+        listed.push(Listed {
+            name: component(&name)?,
+            directory: record.directory,
+            extent: record.extent,
+        });
+        if listed.len() > MAX_ENTRIES {
+            return Err(limit("the disc image contains too many entries"));
+        }
+    }
+    Ok(listed)
+}
+
+/// An opened image: one read-only handle shared by planning, peeking and extraction.
+pub(crate) struct DiscImage {
+    input: File,
+    volume: Volume,
+    image_bytes: u64,
+}
+
+impl DiscImage {
+    pub(crate) fn open(
+        source: &Path,
+        format: DiscImageFormat,
+        max_image_bytes: u64,
+    ) -> Result<Self> {
+        let input = File::open(source)?;
+        let image_bytes = input.metadata()?.len();
+        Self::from_file(input, image_bytes, format, max_image_bytes)
+    }
+
+    fn from_file(
+        mut input: File,
+        image_bytes: u64,
+        format: DiscImageFormat,
+        max_image_bytes: u64,
+    ) -> Result<Self> {
+        if image_bytes > max_image_bytes.min(MAX_IMAGE_BYTES) {
+            return Err(limit("the disc image is larger than this port allows"));
+        }
+        let volume = Volume::open(&mut input, image_bytes, format)?;
+        Ok(Self {
+            input,
+            volume,
+            image_bytes,
+        })
+    }
+
+    /// Read up to `max_bytes` from the start of one file named by a slash path,
+    /// matched case-insensitively. `Ok(None)` means the file is absent.
+    pub(crate) fn read_root_file(
+        &mut self,
+        path: &str,
+        max_bytes: u64,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<Option<Vec<u8>>> {
+        let mut directory = self.volume.root;
+        let mut parts = path.split('/').peekable();
+        while let Some(part) = parts.next() {
+            let last = parts.peek().is_none();
+            let listed = self.volume.list(&mut self.input, directory, checkpoint)?;
+            let mut matches = listed
+                .into_iter()
+                .filter(|item| item.name.eq_ignore_ascii_case(part));
+            let Some(item) = matches.next() else {
+                return Ok(None);
+            };
+            if matches.next().is_some() {
+                return Err(invalid("the disc image has ambiguous file names"));
+            }
+            if item.directory == last {
+                return Ok(None);
+            }
+            if last {
+                let count = item.extent.size.min(max_bytes);
+                if item
+                    .extent
+                    .offset
+                    .checked_add(item.extent.size)
+                    .is_none_or(|end| end > self.volume.volume_bytes)
+                {
+                    return Err(invalid("a file extends past the end of the disc image"));
+                }
+                let mut bytes = vec![0_u8; count as usize];
+                read_exact_at(&mut self.input, item.extent.offset, &mut bytes)?;
+                return Ok(Some(bytes));
+            }
+            directory = item.extent;
+        }
+        Ok(None)
+    }
+
+    /// Validate the whole file system without writing anything.
+    pub(crate) fn plan(&mut self, checkpoint: &dyn Fn() -> Result<()>) -> Result<DiscPlan> {
+        checkpoint()?;
+        struct Raw {
+            path: String,
+            directory: bool,
+            extent: Extent,
+        }
+        let mut raw: Vec<Raw> = Vec::new();
+        let mut tables = HashSet::new();
+        if self.volume.root.size > 0 {
+            tables.insert(self.volume.root.offset);
+        }
+        let mut stack = vec![(self.volume.root, String::new(), 0_usize)];
+        while let Some((directory, prefix, depth)) = stack.pop() {
+            for item in self.volume.list(&mut self.input, directory, checkpoint)? {
+                if raw.len() >= MAX_ENTRIES {
+                    return Err(limit("the disc image contains too many entries"));
+                }
+                let path = if prefix.is_empty() {
+                    item.name.clone()
+                } else {
+                    format!("{prefix}/{}", item.name)
+                };
+                if item.directory {
+                    if depth + 1 > MAX_DEPTH {
+                        return Err(limit("the disc image nests folders too deeply"));
+                    }
+                    if item.extent.size > 0 && !tables.insert(item.extent.offset) {
+                        return Err(invalid(
+                            "folders in the disc image share or repeat a directory table",
+                        ));
+                    }
+                    stack.push((item.extent, path.clone(), depth + 1));
+                } else if item.extent.size > 0
+                    && item
+                        .extent
+                        .offset
+                        .checked_add(item.extent.size)
+                        .is_none_or(|end| end > self.volume.volume_bytes)
+                {
+                    return Err(invalid("a file extends past the end of the disc image"));
+                }
+                raw.push(Raw {
+                    path,
+                    directory: item.directory,
+                    extent: item.extent,
+                });
+            }
+        }
+        if raw.is_empty() {
+            return Err(invalid("the disc image contains no files"));
+        }
+
+        let mut keys = HashSet::new();
+        let mut entries = Vec::with_capacity(raw.len());
+        let mut extents = Vec::new();
+        let mut expanded = 0_u64;
+        if self.volume.root.size > 0 {
+            extents.push((self.volume.root, true));
+        }
+        for item in &raw {
+            checkpoint()?;
+            let (relative, key) =
+                crate::archive::validate_relative_path(&item.path, item.directory)
+                    .map_err(|error| invalid(error.message))?;
+            if !keys.insert(key) {
+                return Err(invalid(
+                    "the disc image contains names that differ only by letter case",
+                ));
+            }
+            if item.extent.size > 0 {
+                extents.push((item.extent, item.directory));
+            }
+            if !item.directory {
+                expanded = expanded
+                    .checked_add(item.extent.size)
+                    .ok_or_else(|| limit("the disc image expands past its size limit"))?;
+            }
+            entries.push(PlannedEntry {
+                relative,
+                directory: item.directory,
+                size: if item.directory { 0 } else { item.extent.size },
+                offset: item.extent.offset,
+            });
+        }
+        if expanded > MAX_EXPANDED_BYTES || expanded > self.image_bytes {
+            return Err(limit("the disc image expands past its size limit"));
+        }
+        // Exactly repeated file extents are harmless to a read-only source; any
+        // other overlap, or any overlap with a directory table, is refused.
+        extents.sort_by_key(|(extent, directory)| (extent.offset, extent.size, *directory));
+        let mut previous: Option<(Extent, bool)> = None;
+        for (extent, directory) in extents {
+            if let Some((last, last_directory)) = previous {
+                let overlaps = extent.offset < last.offset + last.size;
+                let identical_files = !directory && !last_directory && extent == last;
+                if overlaps && !identical_files {
+                    return Err(invalid("files or folders in the disc image overlap"));
+                }
+            }
+            previous = Some((extent, directory));
+        }
+        checkpoint()?;
+        Ok(DiscPlan {
+            entries,
+            expanded_bytes: expanded,
+            image_bytes: self.image_bytes,
+        })
+    }
+
+    /// Create `destination` (which must not exist) and stream every planned
+    /// file into it. `progress` receives (bytes written, bytes planned).
+    pub(crate) fn extract(
+        &mut self,
+        plan: &DiscPlan,
+        destination: &Path,
+        checkpoint: &dyn Fn() -> Result<()>,
+        progress: &dyn Fn(u64, u64),
+    ) -> Result<()> {
+        checkpoint()?;
+        if self.input.metadata()?.len() != plan.image_bytes {
+            return Err(PortcoveError::conflict(
+                "the disc image changed while it was being unpacked",
+            )
+            .with_known_cause(KnownFailureCause::SourceChanged));
+        }
+        std::fs::create_dir(destination)?;
+        let mut buffer = vec![0_u8; COPY_BUFFER_BYTES];
+        let mut done = 0_u64;
+        progress(0, plan.expanded_bytes);
+        for entry in &plan.entries {
+            checkpoint()?;
+            let target = destination.join(&entry.relative);
+            if entry.directory {
+                std::fs::create_dir_all(&target)?;
+                continue;
+            }
+            if let Some(parent) = target.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut output = File::create_new(&target)?;
+            self.input.seek(SeekFrom::Start(entry.offset))?;
+            let mut remaining = entry.size;
+            while remaining > 0 {
+                checkpoint()?;
+                let count = remaining.min(buffer.len() as u64) as usize;
+                self.input
+                    .read_exact(&mut buffer[..count])
+                    .map_err(|error| {
+                        if error.kind() == std::io::ErrorKind::UnexpectedEof {
+                            invalid("the disc image is truncated")
+                        } else {
+                            error.into()
+                        }
+                    })?;
+                output.write_all(&buffer[..count])?;
+                remaining -= count as u64;
+                done += count as u64;
+                progress(done, plan.expanded_bytes);
+            }
+            checkpoint()?;
+            output.sync_all()?;
+        }
+        checkpoint()
+    }
+}
+
+/// Bytes that must be free on the destination volume to unpack `expanded_bytes`.
+pub(crate) fn required_free_bytes(expanded_bytes: u64) -> u64 {
+    expanded_bytes.saturating_add(FREE_SPACE_FLOOR_BYTES.max(expanded_bytes / 32))
+}
+
+/// Refuse before writing when the destination volume cannot hold the unpacked tree.
+pub(crate) fn ensure_free_space(parent: &Path, expanded_bytes: u64) -> Result<()> {
+    let required = required_free_bytes(expanded_bytes);
+    let available = fs2::available_space(parent)?;
+    if required > available {
+        let volume = parent
+            .components()
+            .next()
+            .map(|component| component.as_os_str().to_string_lossy().into_owned())
+            .unwrap_or_default();
+        return Err(PortcoveError::state(
+            "the disc image cannot be unpacked in the available destination space",
+        )
+        .detail("required_bytes", required.to_string())
+        .detail("available_bytes", available.to_string())
+        .with_known_cause(KnownFailureCause::DiscSpace {
+            required_bytes: required,
+            available_bytes: available,
+            volume,
+        }));
+    }
+    Ok(())
+}
