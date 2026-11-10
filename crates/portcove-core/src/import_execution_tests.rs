@@ -304,6 +304,7 @@ fn add_retained_references(
                 setup_id: (*setup_id).into(),
                 revision: 1,
                 build: crate::install::retained_build_identity_for_install(install).unwrap(),
+                history: Vec::new(),
                 created_at: 1,
                 updated_at: 1,
             }

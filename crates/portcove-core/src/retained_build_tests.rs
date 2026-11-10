@@ -679,3 +679,148 @@ fn retained_build_reference_detects_reused_record_identity_and_missing_record() 
     assert!(service.library().remove_port("starship").is_err());
     assert!(first.path.exists());
 }
+
+fn retire(service: &PortcoveService, setup: &str, revision: u64) -> RetainedBuildRevision {
+    let preview = service
+        .preview_retained_build_revision_retirement("starship", setup, revision)
+        .unwrap();
+    let authorization = service
+        .authorize_retained_build_revision_retirement(
+            "starship",
+            setup,
+            revision,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    service
+        .retire_retained_build_revision("starship", setup, revision, &authorization.token)
+        .unwrap()
+}
+
+#[test]
+fn advancing_a_binding_keeps_the_offered_older_build_until_it_is_retired() {
+    let (_temporary, service, first) = fixture();
+    let initial = bind(&service, "custom", &first);
+    assert!(initial.history.is_empty());
+    let second = install(service.library(), "second", b"second runtime", true);
+    let advanced = bind(&service, "custom", &second);
+    assert_eq!(advanced.build.install_id, second.id);
+    assert_eq!(advanced.history.len(), 1);
+    assert_eq!(advanced.history[0].revision, initial.revision);
+    assert_eq!(advanced.history[0].build.install_id, first.id);
+
+    // The superseded build is still protected from cleanup, refresh and removal.
+    assert!(
+        require_unreferenced_install(&service.library().connection().unwrap(), &first.id).is_err()
+    );
+    assert!(service.preview_removal("starship").is_err());
+    let inventory = service.retained_builds("starship").unwrap();
+    let older = inventory
+        .builds
+        .iter()
+        .find(|b| b.install.id == first.id)
+        .unwrap();
+    assert!(older.retained_by.is_empty());
+    assert_eq!(older.offered_by, ["custom"]);
+    let resolved = service
+        .resolve_retained_build("starship", "custom")
+        .unwrap();
+    assert_eq!(resolved.history.len(), 1);
+    assert_eq!(
+        resolved.history[0].availability,
+        RetainedBuildAvailability::Verified
+    );
+    assert_eq!(resolved.history[0].install.as_ref().unwrap().id, first.id);
+
+    // Recovery is an ordinary rebind: the offered build is promoted, not duplicated.
+    let recovered = bind(&service, "custom", &first);
+    assert_eq!(recovered.build.install_id, first.id);
+    assert_eq!(recovered.history.len(), 1);
+    assert_eq!(recovered.history[0].build.install_id, second.id);
+
+    // Retiring is deliberate, bound to the reviewed revision, and releases only that hold.
+    let retired = retire(&service, "custom", recovered.history[0].revision);
+    assert_eq!(retired.build.install_id, second.id);
+    let after = service
+        .resolve_retained_build("starship", "custom")
+        .unwrap();
+    assert!(after.history.is_empty());
+    require_unreferenced_install(&service.library().connection().unwrap(), &second.id).unwrap();
+    assert!(second.path.exists(), "retirement never deletes build bytes");
+    assert!(
+        service
+            .preview_retained_build_revision_retirement("starship", "custom", retired.revision)
+            .is_err()
+    );
+}
+
+#[test]
+fn offered_history_is_bounded_and_never_dropped_silently() {
+    let (_temporary, service, first) = fixture();
+    bind(&service, "custom", &first);
+    for index in 0..MAX_OFFERED_REVISIONS {
+        let next = install(
+            service.library(),
+            &format!("build-{index}"),
+            format!("runtime {index}").as_bytes(),
+            true,
+        );
+        bind(&service, "custom", &next);
+    }
+    let full = service
+        .resolve_retained_build("starship", "custom")
+        .unwrap();
+    assert_eq!(full.reference.history.len(), MAX_OFFERED_REVISIONS);
+    let extra = install(service.library(), "one-too-many", b"extra runtime", true);
+    let error = service
+        .preview_retained_build_binding("starship", "custom", &extra.id)
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert_eq!(
+        service
+            .resolve_retained_build("starship", "custom")
+            .unwrap()
+            .reference,
+        full.reference
+    );
+}
+
+#[test]
+fn retirement_consent_is_bound_to_the_reviewed_revision() {
+    let (_temporary, service, first) = fixture();
+    let initial = bind(&service, "custom", &first);
+    let second = install(service.library(), "second", b"second runtime", true);
+    bind(&service, "custom", &second);
+    let preview = service
+        .preview_retained_build_revision_retirement("starship", "custom", initial.revision)
+        .unwrap();
+    let authorization = service
+        .authorize_retained_build_revision_retirement(
+            "starship",
+            "custom",
+            initial.revision,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    // Advancing again changes the setup, so the earlier review is stale.
+    let third = install(service.library(), "third", b"third runtime", true);
+    bind(&service, "custom", &third);
+    assert!(
+        service
+            .retire_retained_build_revision(
+                "starship",
+                "custom",
+                initial.revision,
+                &authorization.token
+            )
+            .is_err()
+    );
+    assert_eq!(
+        service
+            .resolve_retained_build("starship", "custom")
+            .unwrap()
+            .history
+            .len(),
+        2
+    );
+}

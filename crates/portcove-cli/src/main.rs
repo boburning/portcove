@@ -601,6 +601,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     command: InstallationCommand::Run { .. }
                         | InstallationCommand::ReferenceBind { .. }
                         | InstallationCommand::ReferenceRemove { .. }
+                        | InstallationCommand::ReferenceRetire { .. }
                 }
                 | Commands::Update(_)
                 | Commands::Ensure(_)
@@ -742,6 +743,65 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     &authorization.token,
                 )?,
                 |value| retained_build_human::removed(value, service.catalog()),
+            )?;
+        }
+        Commands::Installation {
+            command:
+                InstallationCommand::ReferenceRetirePlan {
+                    port_id,
+                    setup_id,
+                    revision,
+                },
+        } => render_read_success(
+            mode,
+            "installation.reference-retire-plan",
+            service.preview_retained_build_revision_retirement(&port_id, &setup_id, revision)?,
+            |value| retained_build_human::retirement_preview(value, service.catalog()),
+        )?,
+        Commands::Installation {
+            command:
+                InstallationCommand::ReferenceRetire {
+                    port_id,
+                    setup_id,
+                    revision,
+                    expected_preview,
+                    yes,
+                },
+        } => {
+            let preview = service
+                .preview_retained_build_revision_retirement(&port_id, &setup_id, revision)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    retained_build_human::retirement_preview(&preview, service.catalog())
+                );
+            }
+            if preview.preview_sha256 != expected_preview {
+                return Err(PortcoveError::conflict(
+                    "retained build history changed; review its retirement again",
+                ));
+            }
+            require_confirmation(
+                "Stop offering this earlier build for recovery? Build files and player data stay in place.",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization = service.authorize_retained_build_revision_retirement(
+                &port_id,
+                &setup_id,
+                revision,
+                &expected_preview,
+            )?;
+            render_read_success(
+                mode,
+                "installation.reference-retire",
+                service.retire_retained_build_revision(
+                    &port_id,
+                    &setup_id,
+                    revision,
+                    &authorization.token,
+                )?,
+                |value| retained_build_human::retired(value, service.catalog()),
             )?;
         }
         Commands::Installation {
@@ -3271,6 +3331,8 @@ fn command_name(command: &Commands) -> &'static str {
                 "installation.reference-removal-plan"
             }
             InstallationCommand::ReferenceRemove { .. } => "installation.reference-remove",
+            InstallationCommand::ReferenceRetirePlan { .. } => "installation.reference-retire-plan",
+            InstallationCommand::ReferenceRetire { .. } => "installation.reference-retire",
             InstallationCommand::Plan { .. } => "installation.plan",
             InstallationCommand::Run { .. } => "installation.run",
             #[cfg(feature = "qualification-fixtures")]

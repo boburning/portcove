@@ -1529,8 +1529,9 @@ fn retain_completed_upstream_setup(
             != std::fs::canonicalize(request.selected_executable)?
         || crate::retained_build::references_from(&connection)?
             .iter()
-            .filter(|reference| reference.build.install_id == install.id)
-            .any(|reference| reference.build != identity)
+            .flat_map(|reference| reference.retained_builds())
+            .filter(|build| build.install_id == install.id)
+            .any(|build| *build != identity)
     {
         return Err(PortcoveError::verification(
             "legacy setup differs from its retained build identity",
@@ -4099,6 +4100,7 @@ mod tests {
             setup_id: "customized".into(),
             revision: 1,
             build: crate::install::retained_build_identity_for_install(&install).unwrap(),
+            history: Vec::new(),
             created_at: 1,
             updated_at: 1,
         };

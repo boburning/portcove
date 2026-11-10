@@ -1554,6 +1554,28 @@ reference. The default installation
 can advance independently while another setup keeps its exact build protected.
 Binding does not activate a build, change source ownership, or copy saved data.
 
+### Earlier builds stay offered for recovery
+
+Rebinding a setup to a different build does not drop the build it used before.
+The superseded build becomes an offered recovery revision in the reference's
+`history`, keeps its runtime bytes protected from cleanup, refresh and port
+removal, and is listed under `offered_by` in `installation.retained`. Binding an
+offered build again promotes it back to current instead of duplicating it. A
+setup offers at most 16 earlier builds; binding another refuses with a conflict
+until one is retired, so retention is never discarded silently.
+
+```text
+portcove --library PATH --json installation reference PORT_ID SETUP_ID
+portcove --library PATH --json installation reference-retire-plan PORT_ID SETUP_ID REVISION
+portcove --library PATH --json installation reference-retire PORT_ID SETUP_ID REVISION --expected-preview SHA256 --yes
+```
+
+`installation.reference` reports each offered revision's current availability
+under `history`. Retirement uses the same review-and-consent model as reference
+removal and is bound to the reviewed revision and the setup's current binding
+revision. It removes only the metadata hold; build files and player data stay in
+place for ordinary cleanup to evaluate.
+
 ### Review and remove a setup reference
 
 ```text
