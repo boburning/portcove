@@ -25,6 +25,7 @@ import { performance } from "node:perf_hooks";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { pagesRecoveryOperationFixture } from "./fixtures/release-pages-recovery-fixture.mts";
+import { isApplicationReviewReleaseTag } from "./release-review-request.mts";
 
 void test("actual catalog receiver comparison refuses grant-only drift before inspection (controlled retained map)", async () => {
   const source = await readFile(
@@ -678,6 +679,30 @@ void test("publication facts refuse missing tags, duplicate versions, changed pr
     /publication time/,
   );
 });
+void test("publication planning excludes metadata and rehearsal releases from the application baseline", () => {
+  const alpha = release("0.1.0-alpha.2", "2026-10-18T00:00:00Z");
+  const tags = [ref(alpha.tag_name, "a".repeat(40))];
+  const rows = [
+    alpha,
+    { ...alpha, id: 2, tag_name: `portcove-production-candidate-${"b".repeat(64)}` },
+    { ...alpha, id: 3, tag_name: "v0.0.0-rehearsal.123.1" },
+  ];
+  const now = "2026-10-20T00:00:00.000Z";
+  assert.deepEqual(
+    deriveCoordinatorPublication(tags, rows, [], now),
+    deriveCoordinatorPublication(tags, [alpha], [], now),
+  );
+  assert.throws(
+    () =>
+      deriveCoordinatorPublication(
+        tags,
+        [...rows, { ...alpha, id: 4, tag_name: "unknown" }],
+        [],
+        now,
+      ),
+    /unsupported tag scope/,
+  );
+});
 void test("late publication bracket permits only the exact two own immutable preparation receipts", () => {
   const candidate = {
     version: "0.1.0-alpha.3",
@@ -1211,7 +1236,7 @@ void test("actual neutral review entry awaits fixed SDK source and complete inve
     },
   );
   const tags = [{ name: "v1.2.3" }];
-  const releases = [{ id: 7 }];
+  const releases = [{ id: 7, tag_name: "v1.2.3" }];
   const deadline = performance.now() + 15000;
   const { createGitHubClient } = await import("./github-client.mts");
   const run = runInNewContext(
@@ -1268,6 +1293,7 @@ void test("actual neutral review entry awaits fixed SDK source and complete inve
         };
       },
       deriveCoordinatorPublication: () => ({ published_versions: ["1.2.3"] }),
+      isApplicationReviewReleaseTag,
       selectCoordinatorPublicationBaseline: () => ({ release: releases[0], version: "1.2.3" }),
       peelReleaseReference: () => commit,
       inspectPublishedApplicationSourceWithSdk: async (

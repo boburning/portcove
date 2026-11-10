@@ -177,7 +177,8 @@ export function matchesRetainedCatalogForwardAdoptionHandoff(
   const claim = retainedCatalogForwardAdoptionClaim;
   return (
     (purpose === "application" || purpose === "catalog-publication") &&
-    source.execution_ref === "refs/tags/portcove-production-controller-20261110r67" &&
+    (source.execution_ref === "refs/tags/portcove-production-controller-20261110r67" ||
+      source.execution_ref === "refs/tags/portcove-production-controller-20261110r68") &&
     checkpoint.checkpoint === claim.child &&
     checkpoint.previous === claim.previous &&
     producer.controller_revision === "d6918c546f8080bf3cb033ddb065ce9a65a4d7f2" &&
