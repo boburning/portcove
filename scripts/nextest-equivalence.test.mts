@@ -249,6 +249,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       "package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)",
       180,
     ],
+    [
+      "x86_64-pc-windows-msvc",
+      "package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_/)",
+      240,
+    ],
   ] as const;
   const timed = overrides.filter((value) => value["slow-timeout"] !== undefined);
   assert.deepEqual(

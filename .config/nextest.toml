@@ -216,6 +216,20 @@ filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_rest
 slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
+# Each generated managed native-route lifecycle (backup, restore, update, staged
+# activation, rollback, restart) now takes an automatic saved-data snapshot before
+# every version change (#4879). Hosted Windows run 42840655073 shard 4 timed
+# out managed_native_declared_toy_story_2_* on both attempts at the 120s default
+# after reaching staged activation at 111s, while its sibling doom_3 passed at
+# 82s. Give these independent per-port lifecycles one finite 240s allowance;
+# every phase, assertion and snapshot stays in the test. Harness calibration,
+# not a speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_/)'
+slow-timeout = { period = "5s", terminate-after = 48, grace-period = "0s" }
+success-output = "immediate"
+
 # Resource scheduling. Exclusive `threads-required` is reserved for exact cases
 # that genuinely conflict with any concurrent disk or process work. Families
 # whose members contend with each other run one at a time through a serial test
