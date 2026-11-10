@@ -66,15 +66,15 @@ it("shows the explanation and raw code, offering rollback only with a retained v
   await show(load, { active: { id: "i1" }, previous: null } as unknown as PortStatus);
   expect(document.body.textContent).toContain("most likely missing");
   expect(document.body.textContent).toContain("0xC0000135");
-  expect(buttons()).toEqual(["Copy exit code"]);
+  expect(buttons()).toEqual(["Copy exit code", "Report a problem"]);
   await show(load, withRollback("allowed", "available"));
-  expect(buttons()).toEqual(["Copy exit code", "Restore previous version"]);
+  expect(buttons()).toEqual(["Copy exit code", "Report a problem", "Restore previous version"]);
 });
 
 it("withholds rollback while Core reports it unavailable", async () => {
   const load = vi.fn().mockResolvedValue(failure(true));
   await show(load, withRollback("not_offered", "not_installed"));
-  expect(buttons()).toEqual(["Copy exit code"]);
+  expect(buttons()).toEqual(["Copy exit code", "Report a problem"]);
 });
 
 it.each([
