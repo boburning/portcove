@@ -3222,6 +3222,9 @@ mod tests {
                 .unwrap();
             assert!(legacy.game_settings.is_none());
             port.game_settings = None;
+            // Archive file links are a later additive release declaration.
+            assert!(!legacy.release.archive_file_links);
+            port.release.archive_file_links = false;
             port.presentation = None;
             port.summary = expected_ports
                 .iter()
