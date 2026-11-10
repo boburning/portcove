@@ -427,7 +427,7 @@ async function acquireSemanticSource(
         typeof raw.size !== "number" ||
         !Number.isSafeInteger(raw.size) ||
         raw.size < 0 ||
-        !semanticSourceBlobFits(entry.oid, raw.size, applicationComparison)
+        !semanticSourceBlobFits(entry.oid, raw.size, applicationComparison || catalogComparison)
       )
         throw new Error("semantic source snapshot contains unsupported or oversized object");
       const prior = blobs.get(entry.oid);
