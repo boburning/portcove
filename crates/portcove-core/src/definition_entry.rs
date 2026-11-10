@@ -198,11 +198,11 @@ impl DefinitionContentIndex {
         }
         if port.release.archive_file_links
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable" && requirement.minimum_version >= 13
+                requirement.template == "native-portable" && requirement.minimum_version >= 14
             })
         {
             return Err(PortcoveError::verification(
-                "packages relying on archive file links require native capability version 13",
+                "packages relying on archive file links require native capability version 14",
             ));
         }
         if port.n64_runtime_at_executable_parent

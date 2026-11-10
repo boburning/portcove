@@ -12,8 +12,11 @@ use crate::{
     PortcoveError, ReleaseSource, Result,
 };
 
+pub(crate) mod openmohaa;
+
 pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
     match policy {
+        ExternalProfilePolicy::OpenmohaaUnixV1 => 13,
         ExternalProfilePolicy::RecompAppimageV1 => 12,
         ExternalProfilePolicy::Openrct2MacV1 => 11,
         ExternalProfilePolicy::DuneDynastyAllegroV1 | ExternalProfilePolicy::Fheroes2V1 => 9,
@@ -26,6 +29,7 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
             matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
         }
         ExternalProfilePolicy::RecompAppimageV1 => platform == Platform::LinuxX86_64,
+        ExternalProfilePolicy::OpenmohaaUnixV1 => openmohaa::applies_to(platform),
         _ => true,
     }
 }
@@ -63,6 +67,15 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
         ExternalProfilePolicy::RecompAppimageV1 => {
             (None, &[Platform::WindowsX86_64, Platform::LinuxX86_64])
         }
+        ExternalProfilePolicy::OpenmohaaUnixV1 => (
+            None,
+            &[
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosX86_64,
+                Platform::MacosAarch64,
+            ],
+        ),
     };
     if identity.is_some_and(|(id, repo)| {
         port.id != id || !port.release.repository.eq_ignore_ascii_case(repo)
@@ -76,7 +89,10 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
         || !port.launch_environment.is_empty()
         || port.user_data_environment.is_some()
         || port.source_environment.is_some()
-        || (policy != ExternalProfilePolicy::RecompAppimageV1 && !port.persistent_paths.is_empty())
+        || (!matches!(
+            policy,
+            ExternalProfilePolicy::RecompAppimageV1 | ExternalProfilePolicy::OpenmohaaUnixV1
+        ) && !port.persistent_paths.is_empty())
         || !port.persistent_file_patterns.is_empty()
         || !port.runtime_mutable_paths.is_empty()
         || !port.runtime_mutable_file_patterns.is_empty()
@@ -91,6 +107,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
     }
     if policy == ExternalProfilePolicy::RecompAppimageV1 {
         validate_recomp_appimage_layout(port)?;
+    }
+    if policy == ExternalProfilePolicy::OpenmohaaUnixV1 {
+        openmohaa::validate(port)?;
     }
     if policy == ExternalProfilePolicy::Openrct2MacV1 {
         let mut mac_routes = port
@@ -221,7 +240,9 @@ fn linux_root(
     root.push(match policy {
         ExternalProfilePolicy::DuneDynastyAllegroV1 => "dunedynasty",
         ExternalProfilePolicy::Fheroes2V1 => "fheroes2",
-        ExternalProfilePolicy::Openrct2MacV1 | ExternalProfilePolicy::RecompAppimageV1 => {
+        ExternalProfilePolicy::Openrct2MacV1
+        | ExternalProfilePolicy::RecompAppimageV1
+        | ExternalProfilePolicy::OpenmohaaUnixV1 => {
             return Err(PortcoveError::unsupported(
                 "this profile uses a different upstream layout",
             ));
@@ -288,6 +309,9 @@ fn roots(
     command: &Command,
 ) -> Result<Vec<PathBuf>> {
     match (policy, platform) {
+        (ExternalProfilePolicy::OpenmohaaUnixV1, platform) if openmohaa::applies_to(platform) => {
+            Ok(vec![openmohaa::profile_root(platform, command)?])
+        }
         #[cfg(any(target_os = "macos", all(test, unix)))]
         (ExternalProfilePolicy::Openrct2MacV1, Platform::MacosX86_64 | Platform::MacosAarch64) => {
             Ok(vec![openrct2_mac_root(macos_account_home()?.as_deref())?])
@@ -552,14 +576,20 @@ pub(crate) fn require_external_roots(
             Err(error) => return Err(error.into()),
         }
     }
+    if policy == ExternalProfilePolicy::OpenmohaaUnixV1 {
+        openmohaa::require_launch_paths(spec)?;
+    }
     let owned = library
         .output_roots()?
         .into_iter()
         .map(|record| record.path)
         .chain([library.versions_dir(), spec.install_root.clone()])
         .chain(
-            (policy == ExternalProfilePolicy::RecompAppimageV1)
-                .then(|| library.root().to_path_buf()),
+            matches!(
+                policy,
+                ExternalProfilePolicy::RecompAppimageV1 | ExternalProfilePolicy::OpenmohaaUnixV1
+            )
+            .then(|| library.root().to_path_buf()),
         )
         .map(|path| crate::path::resolve_existing_ancestor(&path))
         .collect::<Result<Vec<_>>>()?;
@@ -632,6 +662,7 @@ pub(crate) fn require_external_roots(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{ChildProcessClass, ChildProcessPolicy};
 
     #[test]
     fn openrct2_mac_requires_an_absolute_account_home_for_the_profile_and_steam_probe() {
@@ -650,7 +681,8 @@ mod tests {
     #[test]
     fn openrct2_mac_account_lookup_does_not_substitute_inherited_home() {
         let temporary = tempfile::tempdir().unwrap();
-        let mut command = Command::new("openrct2");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "openrct2").unwrap();
         command.env("HOME", temporary.path());
         let observed = roots(
             ExternalProfilePolicy::Openrct2MacV1,
@@ -745,7 +777,7 @@ mod tests {
             launch_kind: crate::LaunchKind::Native,
         };
         let home = temporary.path().join("home");
-        let mut command = Command::new(&spec.executable);
+        let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
         command.env_clear().env("HOME", &home);
         let check = |command: &Command| {
             require_external_roots(
@@ -868,7 +900,8 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let home = temporary.path().join("home");
         let data = temporary.path().join("data");
-        let mut command = Command::new("inert-player");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "inert-player").unwrap();
         command
             .env_clear()
             .env("HOME", &home)
@@ -935,7 +968,8 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let home = temporary.path().join("home");
         let appdata = temporary.path().join("roaming");
-        let mut command = Command::new("inert-player");
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::Game, "inert-player").unwrap();
         command
             .env_clear()
             .env("home", "relative-home")
@@ -981,7 +1015,7 @@ mod tests {
             .unwrap();
         assert!(dune.external_profile_policy.is_some());
         assert!(fheroes.external_profile_policy.is_some());
-        let mut command = Command::new(&spec.executable);
+        let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
         command.env_clear().env("HOME", &home);
         let dune = dune.external_profile_policy.unwrap();
         let fheroes = fheroes.external_profile_policy.unwrap();

@@ -299,6 +299,21 @@ reserves the launcher’s predictable log fallback under sticky system `/tmp`
 and preserves safe existing user-owned contents. The original ROM and the
 Linux profile remain the player’s files.
 
+Native portable capability 13 covers the official OpenMoHAA Linux x86-64
+and universal Mac ZIPs. The three titles retain separate launcher and
+original-data mappings. Core verifies the exact root launcher, engine and
+companions, then enables execution for the selected launcher and its engine
+before recording the installed package. The upstream launcher replaces its
+own process with the engine. Existing Windows and external registrations keep
+their respective runtime and data owners.
+
+The Unix managed launch uses the archive root and checks the upstream-selected
+profile before starting the launcher. Linux uses HOME, or the effective
+XDG_DATA_HOME under a nonempty FLATPAK_ID. Mac uses inherited HOME. Relative
+or overlapping profiles require a separate player-managed copy. Portcove
+preserves the declared original-data directories and leaves the shared
+external profile with the player.
+
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment
@@ -2095,7 +2110,7 @@ archive and through at most eight links, to a regular file; absolute, escaping,
 missing, directory, cyclic, overlong-chain and malformed targets refuse before any
 write, and the copied bytes count toward the same size and compression-ratio limits.
 A definition whose package relies on this declares `release.archive_file_links`,
-which older readers refuse through [native capability 13](DEFINITION-DELIVERY.md). The six macOS N64 recomp routes that predate the declaration are not yet gated this way. This covers the dylib version aliases
+which older readers refuse through [native capability 14](DEFINITION-DELIVERY.md). The six macOS N64 recomp routes that predate the declaration are not yet gated this way. This covers the dylib version aliases
 in macOS app bundles. A package whose whole payload is one ZIP file is unwrapped one
 level through the same extractor. The exact upstream asset keeps its own identity,
 and any other payload shape is unchanged. These are extraction facts, not native
