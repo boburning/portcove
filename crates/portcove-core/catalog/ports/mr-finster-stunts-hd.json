@@ -21,7 +21,7 @@
         },
         {
           "title": "Set up the upstream Mac app",
-          "instruction": "Expand the universal Mac ZIP with macOS Archive Utility and keep the complete Stunts HD.app. The inspected app needs macOS 11 on Intel or Apple silicon. Start the app and choose your own Stunts 1.1 folder or ZIP. Follow macOS security prompts for a copy you trust."
+          "instruction": "If you download the universal Mac ZIP in Portcove, clear Extract the archive after downloading. Expand it with macOS Archive Utility and keep the complete Stunts HD.app. The inspected app needs macOS 11 on Intel or Apple silicon. Start the app and choose your own Stunts 1.1 folder or ZIP. Follow macOS security prompts for a copy you trust."
         }
       ],
       "warnings": [

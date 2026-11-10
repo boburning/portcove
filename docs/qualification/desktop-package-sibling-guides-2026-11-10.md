@@ -25,7 +25,9 @@ for Linux and `95621d0249fee078d7367d1ed21ad02574dcc5dc59de89a88a3843408d7eea63`
 for Mac. Both Mac players have an absolute runner build directory in
 LC_RPATH and expect SDL2 under /usr/local/opt/sdl2. The guide keeps that
 package separate from the Linux route and leaves Mac discovery eligibility
-for a compatible package.
+for a compatible package. Both Linux players and the engine libraries require
+glibc 2.34. The standalone launch uses the encounter's Bin directory, system
+SDL2 and zlib, and the local library path from upstream's launch script.
 
 The JGR Linux player can share configuration and content with other OpenTTD
 copies. Its `-c` option can place write paths beside packaged assets. Keep the

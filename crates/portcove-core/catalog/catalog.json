@@ -46174,7 +46174,7 @@
             },
             {
               "title": "Set up the upstream Mac app",
-              "instruction": "Expand the universal Mac ZIP with macOS Archive Utility and keep the complete Stunts HD.app. The inspected app needs macOS 11 on Intel or Apple silicon. Start the app and choose your own Stunts 1.1 folder or ZIP. Follow macOS security prompts for a copy you trust."
+              "instruction": "If you download the universal Mac ZIP in Portcove, clear Extract the archive after downloading. Expand it with macOS Archive Utility and keep the complete Stunts HD.app. The inspected app needs macOS 11 on Intel or Apple silicon. Start the app and choose your own Stunts 1.1 folder or ZIP. Follow macOS security prompts for a copy you trust."
             }
           ],
           "warnings": [
@@ -50007,12 +50007,12 @@
               "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
             },
             {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
+              "title": "Add the prepared Windows game",
+              "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
             },
             {
               "title": "Prepare the upstream Linux player",
-              "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together and copy your own matching classic .gro files and the Help and Levels folders into that encounter folder. The player is x64/SamTFE/Bin/SeriousSam. Start it from that Bin directory with the local library search path used in the upstream launch instructions. Install system SDL2 and keep your effective user profile."
+              "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together and copy your own matching classic .gro files and the Help and Levels folders into that encounter folder. The player is x64/SamTFE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
             }
           ],
           "warnings": [
@@ -50085,12 +50085,12 @@
               "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
             },
             {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
+              "title": "Add the prepared Windows game",
+              "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
             },
             {
               "title": "Prepare the upstream Linux player",
-              "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTSE together and copy your own matching classic .gro files and the Help folder into that encounter folder. The player is x64/SamTSE/Bin/SeriousSam. Start it from that Bin directory with the local library search path used in the upstream launch instructions. Install system SDL2 and keep your effective user profile."
+              "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTSE together and copy your own matching classic .gro files and the Help folder into that encounter folder. The player is x64/SamTSE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
             }
           ],
           "warnings": [
