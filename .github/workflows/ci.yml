@@ -393,6 +393,14 @@ jobs:
         shell: pwsh
         run: |
           node scripts/ci-metrics.mts summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Flag Rust tests near their harness timeout
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (Test-Path target/nextest/hosted-windows/junit.xml) {
+            node scripts/rust-timing-hints.mts summary --timeout 120 target/nextest/hosted-windows/junit.xml
+          }
       - name: Retain diagnostic timings
         if: always()
         continue-on-error: true
