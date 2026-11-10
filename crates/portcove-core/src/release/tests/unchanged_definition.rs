@@ -276,6 +276,71 @@ async fn profile_siblings_select_official_archives_and_compatible_successors() {
 }
 
 #[tokio::test]
+async fn archive_siblings_select_two_compatible_publisher_releases() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, platform, releases_to_check) in [
+        (
+            "jgrennison-openttd-patches",
+            Platform::LinuxX86_64,
+            [
+                (
+                    "jgrpp-0.73.4",
+                    "openttd-jgrpp-0.73.4-linux-generic-amd64.tar.xz",
+                    "9df78eaa8157fff3c310345554b34dbd3ecc6d14e3988f91e3c25b5330940511",
+                ),
+                (
+                    "jgrpp-0.73.5",
+                    "openttd-jgrpp-0.73.5-linux-generic-amd64.tar.xz",
+                    "2de4dc6fa93115ddc4c2ff58f6a70e78056e726a182d2f986a06c0f07227097d",
+                ),
+            ],
+        ),
+        (
+            "gladiator-openglad",
+            Platform::MacosAarch64,
+            [
+                (
+                    "v2.1097",
+                    "openglad-macos-arm64.zip",
+                    "09ada009f20138f1c592a4edb93809aafcc7058290034ce462e2e71b4028ed89",
+                ),
+                (
+                    "v2.1098",
+                    "openglad-macos-arm64.zip",
+                    "037fbef7fac1460235b39fb923515b72ef7f784967a2f6b6f62194a7b5353a71",
+                ),
+            ],
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut broad = port.clone();
+        broad.external_profile_policy = None;
+        let key = |port| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+        assert_ne!(key(port), key(&broad));
+        for (tag, name, digest) in releases_to_check {
+            let mut published = asset(name, None);
+            published["digest"] = serde_json::json!(format!("sha256:{digest}"));
+            let (root, requests, server) = serve_http(vec![
+                metadata(),
+                releases(&[release(
+                    tag,
+                    vec![asset(&format!("mirror-{name}"), Some('b')), published],
+                )]),
+            ]);
+            let resolved = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap();
+            assert_eq!(resolved.asset.name, name);
+            assert_eq!(resolved.asset.sha256, digest);
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2);
+        }
+    }
+}
+
+#[tokio::test]
 async fn recomp_appimages_select_the_direct_linux_asset_and_compatible_successor() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, name, tag, size, sha256) in [

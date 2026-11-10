@@ -206,6 +206,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: 16,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 17,
+        });
         supported
     }
 }

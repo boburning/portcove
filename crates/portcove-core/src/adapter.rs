@@ -361,6 +361,12 @@ impl Adapter for StandardAdapter {
             // Keep the same managed data root if a compatible package enables DO_USERDIRS.
             arguments.extend(["-userdir".into(), ".".into()]);
         }
+        if platform == Platform::LinuxX86_64
+            && port.external_profile_policy == Some(crate::ExternalProfilePolicy::JgrppLinuxV1)
+        {
+            // Use the default XDG profile and the reviewed package search roots.
+            arguments.push("-X".into());
+        }
         for recipe in port.release.managed_build.values() {
             recipe.require_runtime_environment()?;
         }
