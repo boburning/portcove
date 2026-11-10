@@ -38,6 +38,10 @@ development-tools:
 local-check *args:
     {{storage}} node scripts/local-validation.mts check {{args}}
 
+# Quick pre-push check: the area-selected cheap stages of local-check without the heavy Rust and browser runs
+push-check *args:
+    {{storage}} node scripts/local-validation.mts check --fast {{args}}
+
 test-rust *args:
     {{storage}} node scripts/local-validation.mts test-rust {{args}}
 

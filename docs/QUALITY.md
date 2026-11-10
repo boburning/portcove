@@ -10,8 +10,14 @@ remote readback succeed. The contexts remain `catalog`, `dependency-review`,
 the delivery operations. Supplementary runs, diagnostics and personal preferences
 do not become merge prerequisites merely because somebody invoked them.
 
-Local commands are optional feedback. Bare `just`, `just local-check`, focused
-tests and analyzers may help development; omitted local checks need no explanation.
+One local step is expected before pushing a candidate: `just push-check` runs the
+cheap, area-selected stages of `just local-check` (formatting, lint and type checks,
+selected contract tests, related UI tests) without the heavy Rust workspace tests,
+production build or complete browser suite. It exists so a failure visible in under
+two minutes does not cost a 15 to 25 minute hosted cycle; it is not a merge
+prerequisite and needs no omission narrative. Bare `just`, `just local-check`,
+focused tests and analyzers remain optional feedback; omitted local checks need no
+explanation.
 Native, installed-app, physical-device or human observations are required only by
 explicit owning-issue acceptance or a release contract. Fixtures establish their
 tested contracts and cannot establish those observations.
@@ -432,6 +438,10 @@ tested-tree equality and existing workflow provenance. Executable frontend sourc
 workflow and uncertain inputs retain fresh work in this bounded implementation.
 Proven equivalent postmerge work must report original evidence separately from freshly executed obligations;
 release/stateful requirements stay fresh. Guard the merge by exact source SHA.
+Pull request CI already validates the pull request merged with the target tip at run
+start, so merging `main` into a candidate only because `main` advanced adds a full
+hosted run on a new head without new evidence. Merge `main` for a conflict, a relevant
+interaction or changed composition.
 
 ## Formatting contract
 
