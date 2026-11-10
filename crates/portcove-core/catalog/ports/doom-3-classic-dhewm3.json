@@ -84,7 +84,13 @@
       "base/pak007.pk4",
       "base/pak008.pk4"
     ],
-    "windows_runtime_path_policy": "printable-ascii-max-path"
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["base", "d3xp"],
+        "executables": ["dhewm3.exe", "dhewm3_notools.exe", "dhewm3ded.exe"]
+      }
+    }
   },
   "route_facts_v1": {
     "format_version": 1,

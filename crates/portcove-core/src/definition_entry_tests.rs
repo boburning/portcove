@@ -198,9 +198,10 @@ fn archive_siblings_require_native17_for_fresh_and_retained_reads() {
 #[test]
 fn managed_external_profiles_require_version_9_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("dune-ii-dune-dynasty").unwrap();
+    let mut port = catalog.port("dune-ii-dune-dynasty").unwrap().clone();
     assert!(port.external_profile_policy.is_some());
-    let mut entry = entry_for_port(port);
+    port.reviewed_package_layouts.clear();
+    let mut entry = entry_for_port(&port);
     entry["required_capabilities"][0]["minimum_version"] = json!(8);
     entry["required_capabilities"][0]["maximum_version"] = json!(9);
     let bytes = serde_json::to_vec(&entry).unwrap();
