@@ -83,7 +83,7 @@ use portcove_core::{
     ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, GithubAuthStatus,
     GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider, HostPreferenceStore,
     HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan, InstallRecord,
-    LaunchStdio, Library, LibraryChangeObserver, LibraryMetadataFile, LibrarySelection,
+    LaunchSessionView, LaunchStdio, Library, LibraryChangeObserver, LibraryMetadataFile, LibrarySelection,
     LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
     PortcoveError, PortcoveService, ReleaseChannel, ReleaseProvider, SourceDiscoveryLimits,
     SourceImportMode, SourceImportPlan, SourceImportResult, SourceInboxPaths,
@@ -1510,6 +1510,27 @@ async fn launch_port(
     Ok(result)
 }
 
+/// The explained failure of a port's latest finished launch, or `None` when the
+/// latest launch succeeded, was cancelled, or has nothing worth explaining.
+#[tauri::command]
+async fn get_launch_failure(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    generation: u64,
+) -> DesktopResult<Option<LaunchSessionView>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let library = library_at_generation(&state, generation)?;
+        let view = library
+            .latest_finished_launch_session(&port_id)?
+            .map(LaunchSessionView::new)
+            .filter(|view| view.exit_explanation.is_some());
+        require_library_generation(state_generation(&state), generation)?;
+        Ok(view)
+    })
+    .await
+}
+
 /// Launch failures surface within seconds, so observe quickly at first and then
 /// back off while a game keeps running instead of reading SQLite four times a
 /// second for the whole play session.
@@ -2881,6 +2902,7 @@ pub fn run() -> std::process::ExitCode {
             preparation::preview_preparation_cleanup,
             preparation::cleanup_preparation,
             launch_port,
+            get_launch_failure,
             get_doctor_report,
             get_host_tools,
             set_host_tool_path,

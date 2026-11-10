@@ -1730,6 +1730,27 @@ impl Library {
         row.map(parse_launch_session).transpose()
     }
 
+    /// The most recently finished launch session for a port, if any. Callers
+    /// decide whether its outcome is worth showing.
+    pub fn latest_finished_launch_session(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<LaunchSessionRecord>> {
+        let row = self
+            .connection()?
+            .query_row(
+                "SELECT id, port_id, install_id, install_root, supervisor_pid,
+                        supervisor_identity, child_pid, child_identity, phase, outcome,
+                        exit_code, message, started_at, updated_at, finished_at, owner_kind
+                 FROM launch_sessions WHERE port_id=?1 AND outcome IS NOT NULL
+                 ORDER BY finished_at DESC, started_at DESC, id DESC LIMIT 1",
+                [port_id],
+                launch_session_row,
+            )
+            .optional()?;
+        row.map(parse_launch_session).transpose()
+    }
+
     pub(crate) fn active_launch_session(&self, id: &str) -> Result<Option<LaunchSessionRecord>> {
         Ok(self
             .launch_request(id)?
