@@ -38320,7 +38320,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -38332,12 +38333,21 @@
           "windows-x86-64": [
             "reflectionhle-win64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "reflectionhle-linux-x86_64-",
+            ".tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "reflectionhle.exe"
+        ],
+        "linux-x86-64": [
+          "reflectionhle"
         ]
       },
       "launch_arguments": [
@@ -38472,7 +38482,7 @@
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
-              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
             },
             {
               "title": "Preserve the shared profile and each game version",
@@ -39550,7 +39560,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -39562,12 +39573,21 @@
           "windows-x86-64": [
             "reflectionhle-win64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "reflectionhle-linux-x86_64-",
+            ".tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "reflectionhle.exe"
+        ],
+        "linux-x86-64": [
+          "reflectionhle"
         ]
       },
       "launch_arguments": [
@@ -39702,7 +39722,7 @@
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
-              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
             },
             {
               "title": "Preserve the shared profile and each game version",
@@ -44627,7 +44647,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -44639,12 +44660,21 @@
           "windows-x86-64": [
             "reflectionhle-win64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "reflectionhle-linux-x86_64-",
+            ".tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "reflectionhle.exe"
+        ],
+        "linux-x86-64": [
+          "reflectionhle"
         ]
       },
       "launch_arguments": [
@@ -50295,7 +50325,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -50307,12 +50338,21 @@
           "windows-x86-64": [
             "reflectionhle-win64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "reflectionhle-linux-x86_64-",
+            ".tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "reflectionhle.exe"
+        ],
+        "linux-x86-64": [
+          "reflectionhle"
         ]
       },
       "launch_arguments": [
@@ -50447,7 +50487,7 @@
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
-              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
             },
             {
               "title": "Preserve the shared profile and each game version",
@@ -51293,7 +51333,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -51305,12 +51346,21 @@
           "windows-x86-64": [
             "reflectionhle-win64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "reflectionhle-linux-x86_64-",
+            ".tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "reflectionhle.exe"
+        ],
+        "linux-x86-64": [
+          "reflectionhle"
         ]
       },
       "launch_arguments": [
@@ -51445,7 +51495,7 @@
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
-              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
             },
             {
               "title": "Preserve the shared profile and each game version",
@@ -51819,7 +51869,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -51831,12 +51882,21 @@
           "windows-x86-64": [
             "reflectionhle-win64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "reflectionhle-linux-x86_64-",
+            ".tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "reflectionhle.exe"
+        ],
+        "linux-x86-64": [
+          "reflectionhle"
         ]
       },
       "launch_arguments": [
@@ -51971,7 +52031,7 @@
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
-              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
             },
             {
               "title": "Preserve the shared profile and each game version",
@@ -52091,7 +52151,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -52103,12 +52164,21 @@
           "windows-x86-64": [
             "reflectionhle-win64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "reflectionhle-linux-x86_64-",
+            ".tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "reflectionhle.exe"
+        ],
+        "linux-x86-64": [
+          "reflectionhle"
         ]
       },
       "launch_arguments": [
@@ -52243,7 +52313,7 @@
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
-              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
             },
             {
               "title": "Preserve the shared profile and each game version",
@@ -52355,7 +52425,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -52367,12 +52438,21 @@
           "windows-x86-64": [
             "reflectionhle-win64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "reflectionhle-linux-x86_64-",
+            ".tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "reflectionhle.exe"
+        ],
+        "linux-x86-64": [
+          "reflectionhle"
         ]
       },
       "launch_arguments": [
@@ -52507,7 +52587,7 @@
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
-              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
             },
             {
               "title": "Preserve the shared profile and each game version",
@@ -53328,7 +53408,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -53340,12 +53421,21 @@
           "windows-x86-64": [
             "reflectionhle-win64-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "reflectionhle-linux-x86_64-",
+            ".tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "reflectionhle.exe"
+        ],
+        "linux-x86-64": [
+          "reflectionhle"
         ]
       },
       "launch_arguments": [
@@ -53480,7 +53570,7 @@
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
-              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+              "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual player's parent folder as working directory (reflectionhle.exe on Windows, reflectionhle on Linux). Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
             },
             {
               "title": "Preserve the shared profile and each game version",

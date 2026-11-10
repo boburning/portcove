@@ -2089,11 +2089,13 @@ extraction, symlink refusal, persistent-data ownership, per-port locking,
 atomic activation, rollback, credential boundaries, and executable trust. See
 [ARCHITECTURE.md](ARCHITECTURE.md) and [PROJECT-GOVERNANCE.md](PROJECT-GOVERNANCE.md).
 
-Managed ZIP extraction never creates a link. A ZIP symlink entry is written as a
+Managed ZIP and TAR extraction never creates a link. A symlink entry is written as a
 regular copy of its target only when its relative target resolves, inside the same
-archive, to another regular file; absolute, escaping, missing, directory, chained
-and malformed targets refuse before any write, and the copied bytes count toward
-the same size and compression-ratio limits. This covers the dylib version aliases
+archive and through at most eight links, to a regular file; absolute, escaping,
+missing, directory, cyclic, overlong-chain and malformed targets refuse before any
+write, and the copied bytes count toward the same size and compression-ratio limits.
+A definition whose package relies on this declares `release.archive_file_links`,
+which older readers refuse through [native capability 13](DEFINITION-DELIVERY.md). The six macOS N64 recomp routes that predate the declaration are not yet gated this way. This covers the dylib version aliases
 in macOS app bundles. A package whose whole payload is one ZIP file is unwrapped one
 level through the same extractor. The exact upstream asset keeps its own identity,
 and any other payload shape is unchanged. These are extraction facts, not native

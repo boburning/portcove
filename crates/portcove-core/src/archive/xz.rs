@@ -296,7 +296,11 @@ pub(crate) mod tests {
         header.set_size(0);
         tar.append_link(&mut header, "link", "player").unwrap();
         let error = extract(&encode(&tar.into_inner().unwrap()), &output, &|| Ok(())).unwrap_err();
-        assert!(error.message.contains("links and special files"));
+        assert!(
+            error.message.contains("links and special files"),
+            "{}",
+            error.message
+        );
         assert!(!output.exists());
     }
 }

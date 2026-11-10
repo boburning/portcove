@@ -2044,6 +2044,11 @@ export interface SourceEdition {
   title: string;
 }
 export interface ReleaseSpec {
+  /**
+   * Native13: the package relies on in-archive file links, which extraction writes as
+   * regular copies of the files they name.
+   */
+  archive_file_links?: boolean;
   asset_hints: {
     "linux-x86-64"?: string[];
     "macos-aarch64"?: string[];

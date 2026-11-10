@@ -99,7 +99,9 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     let port = &document["catalog"]["ports"][port_index];
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if crate::native_temp::has_sibling_platforms(&typed) {
+    let version = if typed.release.archive_file_links {
+        13
+    } else if crate::native_temp::has_sibling_platforms(&typed) {
         10
     } else if let Some(policy) = typed.external_profile_policy {
         crate::native_external_profile::minimum_capability(policy)

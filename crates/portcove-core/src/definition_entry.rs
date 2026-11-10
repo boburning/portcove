@@ -196,6 +196,15 @@ impl DefinitionContentIndex {
                 "managed Linux TAR.XZ requires native capability version 8",
             ));
         }
+        if port.release.archive_file_links
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 13
+            })
+        {
+            return Err(PortcoveError::verification(
+                "packages relying on archive file links require native capability version 13",
+            ));
+        }
         if port.n64_runtime_at_executable_parent
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "n64-recomp-portable" && requirement.minimum_version >= 4
