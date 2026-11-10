@@ -453,6 +453,23 @@ export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeA
     successfulReruns: distribution(
       successful.filter((attempt) => attempt.attempt > 1).map((attempt) => attempt.seconds),
     ),
+    firstAttemptPass: (() => {
+      // Cancelled attempts are superseded work, not evidence about correctness.
+      const decided = attempts.filter(
+        (attempt) =>
+          attempt.attempt === 1 &&
+          attempt.status === "completed" &&
+          (attempt.conclusion === "success" ||
+            attempt.conclusion === "failure" ||
+            attempt.conclusion === "timed_out"),
+      );
+      const passed = decided.filter((attempt) => attempt.conclusion === "success").length;
+      return {
+        decided: decided.length,
+        passed,
+        rate: decided.length ? Math.round((passed / decided.length) * 1000) / 1000 : null,
+      };
+    })(),
     missingCompletedTimings: attempts.filter(
       (attempt) => attempt.status === "completed" && attempt.seconds === null,
     ).length,
@@ -684,6 +701,11 @@ export function renderReport(
       Object.entries(summary.outcomes)
         .map(([name, count]) => `${name}=${count}`)
         .join(", ") || "none"
+    }.`,
+    `First-attempt pass rate: ${
+      summary.firstAttemptPass.rate === null
+        ? "unknown (no decided first attempts)"
+        : `${Math.round(summary.firstAttemptPass.rate * 100)}% (${summary.firstAttemptPass.passed} of ${summary.firstAttemptPass.decided}; cancelled attempts excluded)`
     }.`,
     `Completed attempts with missing timing: ${summary.missingCompletedTimings}. Cancelled, failed and incomplete attempts are not included in successful-duration percentiles.`,
     `Cancelled work: ${summary.canceledWork.attempts} attempts; ${summary.canceledWork.observedRunnerSeconds}s observed summed runner execution (not billing), ${summary.canceledWork.missingRunnerTimings} attempts without runner timing and ${summary.canceledWork.unmeasuredJobs} unmeasured non-skipped jobs, ${summary.canceledWork.failedJobAttempts} containing failed jobs. Cancellation cause is unclassified; workflow p50 ${duration(summary.canceledWork.workflow.p50Seconds)}.`,

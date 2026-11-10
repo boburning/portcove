@@ -9,6 +9,7 @@ import {
   selectCoordinatorPublicationBaseline,
   selectCoordinatorMetadataRenewal,
   metadataRenewalInputIdentity,
+  matchesRetainedRenewalCapacityRebind,
   requireActualCoordinatorMetadataPreparation,
   coordinatorMaintenanceIdentity,
   coordinatorContinuationDeadline,
@@ -257,7 +258,7 @@ import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import os from "node:os";
-import { capacityDigest } from "./release-capacity.mts";
+import { capacityDigest, slice4CapacityResourceDigest } from "./release-capacity.mts";
 import { requirePublishedCompleteSite } from "./release-site-readback.mts";
 
 void test("actual fixed initial helper awaits ordinal0 observation before authenticating continuation source (inert dependencies)", async (t) => {
@@ -1847,4 +1848,75 @@ void test("authenticated renewal reuse ignores only the journal observation cloc
   ])
     assert.notEqual(metadataRenewalInputIdentity(saved), metadataRenewalInputIdentity(changed));
   assert.equal(saved.now, "2026-11-10T09:06:43.487Z");
+});
+
+void test("retained renewal admits only the exact live resource policy rebind", () => {
+  const originalPolicy = "b553063de9c8d9c6c6412fbed7b607bdc5a1bb509a06b38e4f25e2c68c0f7b38";
+  const boundary = { budget_usd: 0, stop_usage: true, resource_policy_sha256: originalPolicy };
+  const retained = {
+    now: "2026-11-10T09:06:43.487Z",
+    publication: { observed_at: "2026-11-10T09:06:43.487Z", complete: true },
+    metadata_renewal: { generated_at: "2026-11-10T09:06:10Z" },
+    controller: {
+      publication_paused: false,
+      capacity_attempt: {
+        schema_version: 2,
+        boundary,
+        ratification: {
+          active: true,
+          resource_policy_sha256: originalPolicy,
+          boundary_sha256: capacityDigest(boundary),
+        },
+        operation: null as string | null,
+        prior_operations: [] as string[],
+      },
+    },
+  };
+  const current = structuredClone(retained);
+  current.now = current.publication.observed_at = "2026-11-10T21:05:20.144Z";
+  const capacity = current.controller.capacity_attempt;
+  capacity.boundary.resource_policy_sha256 = slice4CapacityResourceDigest;
+  capacity.ratification.resource_policy_sha256 = slice4CapacityResourceDigest;
+  capacity.ratification.boundary_sha256 = capacityDigest(capacity.boundary);
+  assert.notEqual(metadataRenewalInputIdentity(retained), metadataRenewalInputIdentity(current));
+  assert.equal(matchesRetainedRenewalCapacityRebind(retained, current), true);
+  assert.equal(matchesRetainedRenewalCapacityRebind(retained, retained), false);
+  for (const change of [
+    (input: typeof current) => {
+      input.controller.capacity_attempt.boundary.stop_usage = false;
+    },
+    (input: typeof current) => {
+      input.controller.capacity_attempt.ratification.active = false;
+    },
+    (input: typeof current) => {
+      input.controller.capacity_attempt.ratification.boundary_sha256 = "a".repeat(64);
+    },
+    (input: typeof current) => {
+      input.controller.capacity_attempt.operation = "pending";
+    },
+    (input: typeof current) => {
+      input.controller.capacity_attempt.prior_operations.push("changed");
+    },
+    (input: typeof current) => {
+      input.controller.publication_paused = true;
+    },
+    (input: typeof current) => {
+      input.metadata_renewal.generated_at = input.now;
+    },
+    (input: typeof current) => {
+      input.publication.complete = false;
+    },
+  ]) {
+    const changed = structuredClone(current);
+    change(changed);
+    assert.equal(matchesRetainedRenewalCapacityRebind(retained, changed), false);
+  }
+  assert.equal(
+    current.controller.capacity_attempt.boundary.resource_policy_sha256,
+    slice4CapacityResourceDigest,
+  );
+  assert.equal(
+    retained.controller.capacity_attempt.boundary.resource_policy_sha256,
+    originalPolicy,
+  );
 });

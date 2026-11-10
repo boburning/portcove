@@ -19,7 +19,12 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { configureHooks } from "./hooks-install.mts";
-import { stagedFileBatches, stagedVitePlusChecks, vitePlusCommand } from "./viteplus-cli.mts";
+import {
+  checkStagedFiles,
+  stagedFileBatches,
+  stagedVitePlusChecks,
+  vitePlusCommand,
+} from "./viteplus-cli.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -42,6 +47,56 @@ void test("staged checks preserve declared exact-byte inputs while retaining lin
       ["check", "--fix", "--no-fmt", "--", file],
     ]);
 });
+function fakeStagedSpawn(cargo: "missing" | "formatted" | "unformatted") {
+  const calls: string[][] = [];
+  const spawn = ((command: string, args: readonly string[]) => {
+    calls.push([command, ...args]);
+    if (command === "cargo")
+      return cargo === "missing" ? { error: new Error("spawn cargo ENOENT") } : { status: 0 };
+    if (args.includes("fmt")) return { status: cargo === "formatted" ? 0 : 1 };
+    return { status: 0 };
+  }) as unknown as typeof spawnSync;
+  const fmtRuns = () => calls.filter((call) => call.includes("fmt"));
+  return { spawn, calls, fmtRuns };
+}
+
+void test("staged Rust files trigger exactly one read-only cargo fmt check", () => {
+  const fake = fakeStagedSpawn("formatted");
+  const files = Array.from({ length: 300 }, (_, i) => `crates/x/${i}-${"y".repeat(60)}.rs`);
+  checkStagedFiles(files, root, fake.spawn);
+  assert.ok(stagedFileBatches(files).length > 1);
+  assert.equal(fake.fmtRuns().length, 1);
+  assert.deepEqual(
+    fake.fmtRuns()[0]?.slice(-6),
+    ["run", "--", "cargo", "fmt", "--all", "--"].concat("--check").slice(-6),
+  );
+});
+
+void test("staged checks without Rust files never run cargo fmt", () => {
+  const fake = fakeStagedSpawn("unformatted");
+  checkStagedFiles(["scripts/a.mts", "docs/rs.md", "src/notrs"], root, fake.spawn);
+  assert.equal(fake.fmtRuns().length, 0);
+  assert.equal(fake.calls.filter(([command]) => command === "cargo").length, 0);
+});
+
+void test("a failing staged cargo fmt check names the repair command", () => {
+  const fake = fakeStagedSpawn("unformatted");
+  assert.throws(
+    () => checkStagedFiles(["crates/a/src/lib.rs"], root, fake.spawn),
+    /run `cargo fmt --all`.*stage it and commit again/,
+  );
+  assert.equal(fake.fmtRuns().length, 1);
+});
+
+void test("a missing cargo gives an actionable staged Rust format error", () => {
+  const fake = fakeStagedSpawn("missing");
+  assert.throws(
+    () => checkStagedFiles(["crates/a/src/lib.rs"], root, fake.spawn),
+    /needs cargo on PATH\. Install the Rust toolchain/,
+  );
+  assert.equal(fake.fmtRuns().length, 0);
+});
+
 void test("staged batches preserve literal paths beyond Windows shell limits", () => {
   const files = Array.from(
     { length: 180 },

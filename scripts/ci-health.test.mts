@@ -99,6 +99,18 @@ void test("cancelled, failed and running attempts remain visible outside success
   });
 });
 
+void test("first-attempt pass rate excludes cancelled, running and rerun attempts", () => {
+  const summary = summarizeHistory([
+    attempt(),
+    attempt({ id: 2, conclusion: "failure" }),
+    attempt({ id: 3, conclusion: "cancelled" }),
+    attempt({ id: 4, status: "in_progress", conclusion: null }),
+    attempt({ id: 5, run_attempt: 2 }),
+  ]);
+  assert.deepEqual(summary.firstAttemptPass, { decided: 2, passed: 1, rate: 0.5 });
+  assert.equal(summarizeHistory([]).firstAttemptPass.rate, null);
+});
+
 void test("cancelled work retains executed cost and job failures without inferring supersession", () => {
   const canceled = summarizeAttempt(run({ conclusion: "cancelled" }), [
     job({ name: "failed producer", conclusion: "failure", completed_at: stamp(40) }),
