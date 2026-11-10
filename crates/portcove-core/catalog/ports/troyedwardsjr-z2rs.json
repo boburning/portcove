@@ -7,7 +7,7 @@
     "summary": "Play Zelda II with the z2rs native reconstruction and your own supported USA NES ROM. Optional enhancements, randomization and co-op have separate compatibility requirements.",
     "project_url": "https://github.com/troyedwardsjr/z2rs",
     "issue_number": 1911,
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/troyedwardsjr/z2rs",
     "artwork": {
@@ -42,30 +42,59 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "reviewed_package_layouts": {
       "windows-x86-64": {
         "directories": [],
         "executables": ["z2-signal.exe", "z2rs-launcher.exe", "z2rs.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["z2-signal", "z2rs", "z2rs-launcher"]
+      },
+      "macos-x86-64": {
+        "directories": ["z2rs.app"],
+        "executables": [
+          "z2rs",
+          "z2rs.app/contents/macos/z2-signal",
+          "z2rs.app/contents/macos/z2rs",
+          "z2rs.app/contents/macos/z2rs-launcher"
+        ]
+      },
+      "macos-aarch64": {
+        "directories": ["z2rs.app"],
+        "executables": [
+          "z2rs",
+          "z2rs.app/contents/macos/z2-signal",
+          "z2rs.app/contents/macos/z2rs",
+          "z2rs.app/contents/macos/z2rs-launcher"
+        ]
       }
     },
     "release": {
       "provider": "github",
       "repository": "troyedwardsjr/z2rs",
       "asset_hints": {
-        "windows-x86-64": ["z2rs-", "-x86_64-pc-windows-msvc.zip"]
+        "windows-x86-64": ["z2rs-", "-x86_64-pc-windows-msvc.zip"],
+        "linux-x86-64": ["z2rs-", "-x86_64-unknown-linux-gnu.tar.gz"],
+        "macos-x86-64": ["z2rs-", "-x86_64-apple-darwin.zip"],
+        "macos-aarch64": ["z2rs-", "-aarch64-apple-darwin.zip"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["z2rs.exe"]
+      "windows-x86-64": ["z2rs.exe"],
+      "linux-x86-64": ["z2rs"],
+      "macos-x86-64": ["z2rs.app/Contents/MacOS/z2rs"],
+      "macos-aarch64": ["z2rs.app/Contents/MacOS/z2rs"]
     },
     "persistent_paths": [".z2rs-data"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned"
-    }
+    },
+    "external_profile_policy": "z2rs-desktop-v1"
   },
   "route_facts_v1": {
     "format_version": 1,
@@ -79,10 +108,11 @@
     "managed_native": {
       "preparation": {
         "title": "Drop your own Zelda II USA ROM into the game window",
-        "instruction": "Choose Play to start z2rs.exe directly. Drag your own supported USA NES ROM onto the window. The game reads it in place and remembers its path. Keep the ROM outside the managed runtime."
+        "instruction": "Choose Play to start the direct z2rs player. Drag your own supported USA NES ROM onto the game window. The player reads it in place and remembers its path. Keep the ROM outside the managed runtime. Use upstream setup for the separate launcher and Android."
       },
       "warnings": [
-        "Back up your external z2rs profile before changing versions. Upstream checks XDG_DATA_HOME, APPDATA, then HOME. For the managed player, any of those roots that you set must be absolute. Use a separately prepared copy for relative roots, a custom data_dir_override, or launcher-only options. Portcove preserves the fixed .z2rs-data fallback. Runtime rollback does not establish save-state compatibility."
+        "Back up your external z2rs profile before changing versions. Use an absolute personal profile and the default data directory. Use a separately prepared copy for relative paths, a custom data_dir_override or launcher-only options. Windows and Linux can use the fixed .z2rs-data fallback when the upstream environment supplies no profile root. On Mac, use an absolute XDG_DATA_HOME or HOME outside the managed library. Runtime rollback does not establish save-state compatibility.",
+        "The inspected Linux packages require glibc 2.39, libudev.so.1, libasound.so.2 and libgcc_s.so.1."
       ]
     }
   }

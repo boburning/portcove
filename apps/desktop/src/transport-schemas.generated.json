@@ -4580,7 +4580,8 @@
           "corsixth-linux-v1",
           "openloco-unix-v1",
           "jgrpp-linux-v1",
-          "openglad-mac-v1"
+          "openglad-mac-v1",
+          "z2rs-desktop-v1"
         ],
         "type": "string"
       },
@@ -27425,7 +27426,8 @@
           "corsixth-linux-v1",
           "openloco-unix-v1",
           "jgrpp-linux-v1",
-          "openglad-mac-v1"
+          "openglad-mac-v1",
+          "z2rs-desktop-v1"
         ],
         "type": "string"
       },
@@ -37263,7 +37265,8 @@
           "corsixth-linux-v1",
           "openloco-unix-v1",
           "jgrpp-linux-v1",
-          "openglad-mac-v1"
+          "openglad-mac-v1",
+          "z2rs-desktop-v1"
         ],
         "type": "string"
       },

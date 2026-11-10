@@ -3134,6 +3134,58 @@ fn staged_activation_takes_one_snapshot_labelled_activation() {
     );
 }
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[test]
+fn z2rs_automatic_snapshot_preserves_the_owned_fallback_only() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let port = service.catalog().port("troyedwardsjr-z2rs").unwrap();
+    let artifact = ArtifactIdentity {
+        asset_name: "z2rs-0.5.2-x86_64-unknown-linux-gnu.tar.gz".into(),
+        sha256: hex::encode(Sha256::digest(b"inert z2rs runtime")),
+        size: 20,
+    };
+    let runtime = library.versions_dir().join(&port.id).join(&artifact.sha256);
+    fs::create_dir_all(&runtime).unwrap();
+    let player = runtime.join("z2rs");
+    let mut header = [0_u8; 20];
+    header[..6].copy_from_slice(b"\x7fELF\x02\x01");
+    header[16..20].copy_from_slice(&[3, 0, 0x3e, 0]);
+    fs::write(&player, header).unwrap();
+    crate::permissions::normalize_archive_entry(&player, false, true).unwrap();
+    let installed = register_existing_test_artifact_with_port(
+        &library, port, "v0.5.2", &runtime, artifact, true,
+    );
+    let fallback = library.user_dir(&port.id).join(".z2rs-data");
+    fs::create_dir_all(&fallback).unwrap();
+    fs::write(fallback.join("savestate1.z2snap"), b"owned fallback").unwrap();
+    let external = temporary.path().join("external-profile.z2snap");
+    fs::write(&external, b"external data").unwrap();
+
+    let _lock = library.try_lock_port(&port.id, "snapshot-test").unwrap();
+    service
+        .snapshot_before_version_change(
+            &port.id,
+            VersionChangeKind::Update,
+            &installed,
+            Some("v0.5.2"),
+            "v0.6.0",
+            false,
+        )
+        .unwrap();
+    let snapshots = service.list_backups(&port.id).unwrap().backups;
+    assert_eq!(snapshots.len(), 1);
+    assert!(snapshots[0].automatic.is_some());
+    let backup = snapshots[0].path.join("data");
+    assert_eq!(fs::read_dir(&backup).unwrap().count(), 1);
+    assert_eq!(
+        fs::read(backup.join(".z2rs-data/savestate1.z2snap")).unwrap(),
+        b"owned fallback"
+    );
+    assert_eq!(fs::read(external).unwrap(), b"external data");
+}
+
 #[tokio::test]
 async fn update_snapshots_once_per_version_change_and_not_when_only_staging() {
     let temporary = tempfile::tempdir().unwrap();
