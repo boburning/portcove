@@ -546,6 +546,29 @@ pub(crate) fn backup_list(
     )
 }
 
+/// Manual snapshots carry no label; Portcove labels the ones it takes itself.
+fn backup_kind(backup: &portcove_core::BackupRecord) -> String {
+    let Some(label) = &backup.automatic else {
+        return "Manual".to_owned();
+    };
+    let change = match label.operation {
+        portcove_core::VersionChangeKind::Update => "update",
+        portcove_core::VersionChangeKind::Activation => "activation",
+        portcove_core::VersionChangeKind::Rollback => "rollback",
+    };
+    match &label.from_version {
+        Some(from) => format!(
+            "Automatic, before {change} ({} to {})",
+            clean(from),
+            clean(&label.to_version)
+        ),
+        None => format!(
+            "Automatic, before {change} (to {})",
+            clean(&label.to_version)
+        ),
+    }
+}
+
 fn backup_history(port_id: &str, inventory: &BackupInventory) -> String {
     if inventory.backups.is_empty() && inventory.problems.is_empty() {
         return format!("No backups for {}.", clean(port_id));
@@ -559,6 +582,7 @@ fn backup_history(port_id: &str, inventory: &BackupInventory) -> String {
                 utc_time(backup.created_at),
                 backup.file_count.to_string(),
                 format_bytes(backup.size),
+                backup_kind(backup),
                 backup.path.display().to_string(),
             ]
         })
@@ -570,7 +594,10 @@ fn backup_history(port_id: &str, inventory: &BackupInventory) -> String {
             "Backups for {} ({})\n{}",
             clean(port_id),
             inventory.backups.len(),
-            table(&["ID", "CREATED (UTC)", "FILES", "SIZE", "PATH"], rows)
+            table(
+                &["ID", "CREATED (UTC)", "FILES", "SIZE", "KIND", "PATH"],
+                rows
+            )
         )
     };
     if inventory.problems.is_empty() {
@@ -3414,6 +3441,7 @@ mod tests {
         portcove_core::BackupActionPreview {
             action: portcove_core::BackupAction::Restore,
             backup: BackupRecord {
+                automatic: None,
                 id: "backup-1".into(),
                 port_id: "zelda64-recomp".into(),
                 path: PathBuf::from("owned/backups/backup-1"),
@@ -3561,6 +3589,7 @@ mod tests {
                     restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: vec![BackupRecord {
+                        automatic: None,
                         id: "backup-1".into(),
                         port_id: "sample".into(),
                         path: PathBuf::from("C:/Portcove/backups/backup-1"),
@@ -3572,7 +3601,7 @@ mod tests {
                     problems: Vec::new(),
                 },
             ),
-            "Backups for sample (1)\nID        CREATED (UTC)         FILES  SIZE     PATH\n--------  --------------------  -----  -------  ----------------------------\nbackup-1  1970-01-01T00:00:42Z  3      2.0 KiB  C:/Portcove/backups/backup-1",
+            "Backups for sample (1)\nID        CREATED (UTC)         FILES  SIZE     KIND    PATH\n--------  --------------------  -----  -------  ------  ----------------------------\nbackup-1  1970-01-01T00:00:42Z  3      2.0 KiB  Manual  C:/Portcove/backups/backup-1",
         );
         let degraded = backup_list(
             "sample",

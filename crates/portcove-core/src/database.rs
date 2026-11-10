@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 44;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 45;
 
 struct Migration {
     version: i64,
@@ -288,7 +288,26 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_44,
         verify: verify_migration_44,
     },
+    Migration {
+        version: 45,
+        name: "per-library automatic saved-data snapshots setting",
+        apply: migration_45,
+        verify: verify_migration_45,
+    },
 ];
+
+fn migration_45(transaction: &Transaction<'_>) -> Result<()> {
+    // On by default: existing libraries gain the protection without a decision.
+    transaction.execute_batch(
+        "ALTER TABLE library_identity ADD COLUMN automatic_snapshots INTEGER NOT NULL DEFAULT 1
+         CHECK(automatic_snapshots IN (0, 1));",
+    )?;
+    verify_migration_45(transaction)
+}
+
+fn verify_migration_45(connection: &Connection) -> Result<()> {
+    require_columns(connection, "library_identity", &["automatic_snapshots"])
+}
 
 fn migration_44(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -991,6 +1010,8 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
             let condition = match (table.as_str(), column.as_str()) {
                 // Schema 33 had no evidence of earlier authorization continuity.
                 ("definition_publisher_admission", "retained_launch_revision_floor") => continue,
+                // Schema 33 had no snapshot setting; the default (on) carries no state.
+                ("library_identity", "automatic_snapshots") => format!("{quoted_column}!=1"),
                 ("definition_publisher_admission", "launch_assessment_revision") => {
                     format!("{quoted_column}!=0")
                 }
@@ -2784,6 +2805,35 @@ mod tests {
         assert_eq!(snapshot(&connection), after);
     }
 
+    #[test]
+    fn snapshot_setting_migration_keeps_identity_and_defaults_existing_libraries_on() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 44).unwrap();
+        let connection = connect(root).unwrap();
+        let identity: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        drop(connection);
+        migrate_to(root, 45).unwrap();
+        let connection = connect(root).unwrap();
+        let (after, enabled): (String, i64) = connection
+            .query_row(
+                "SELECT id, automatic_snapshots FROM library_identity",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(after, identity);
+        assert_eq!(enabled, 1);
+        assert!(
+            connection
+                .execute("UPDATE library_identity SET automatic_snapshots=2", [])
+                .is_err()
+        );
+    }
+
     macro_rules! historical_schema_tests {
         ($($name:ident: $version:literal),+ $(,)?) => {
             #[test]
@@ -2840,6 +2890,7 @@ mod tests {
         schema_41: 41,
         schema_42: 42,
         schema_43: 43,
+        schema_44: 44,
     }
 
     #[test]

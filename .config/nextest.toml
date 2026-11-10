@@ -47,11 +47,14 @@ success-output = "immediate"
 
 # This exact populated Sonic fixture hit 300.825s in 42554188709/1
 # and 300.903s in 42560483784/1. The selective retry of the former
-# passed at 149.159s. Preserve its finite limit and original assertions.
+# passed at 149.159s. It then took an automatic snapshot before each version
+# change (#4879) and reached its 360s cutoff in 42840655073/1 shard 7 (a
+# 862s partition), while the MMX2 and Super Metroid siblings passed under 420s.
+# Give it the finite 600s its family already has; preserve every assertion.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_sonic_populated_install$/)'
-slow-timeout = { period = "5s", terminate-after = 72, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 120, grace-period = "0s" }
 # A retry would double this long budget; hangs here fail on the first attempt.
 retries = 0
 success-output = "immediate"
@@ -214,6 +217,20 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)'
 slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
+# Each generated managed native-route lifecycle (backup, restore, update, staged
+# activation, rollback, restart) now takes an automatic saved-data snapshot before
+# every version change (#4879). Hosted Windows run 42840655073 shard 4 timed
+# out managed_native_declared_toy_story_2_* on both attempts at the 120s default
+# after reaching staged activation at 111s, while its sibling doom_3 passed at
+# 82s. Give these independent per-port lifecycles one finite 240s allowance;
+# every phase, assertion and snapshot stays in the test. Harness calibration,
+# not a speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::managed_native_declared_/)'
+slow-timeout = { period = "5s", terminate-after = 48, grace-period = "0s" }
 success-output = "immediate"
 
 # Resource scheduling. Exclusive `threads-required` is reserved for exact cases

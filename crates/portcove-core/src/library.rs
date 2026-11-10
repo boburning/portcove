@@ -1996,6 +1996,28 @@ impl Library {
             .map_err(Into::into)
     }
 
+    /// Whether Portcove snapshots managed saved data before a version change.
+    /// Per library, on by default, and it travels with the library.
+    pub fn automatic_snapshots_enabled(&self) -> Result<bool> {
+        let enabled: i64 = self.connection()?.query_row(
+            "SELECT automatic_snapshots FROM library_identity WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(enabled != 0)
+    }
+
+    pub fn set_automatic_snapshots(&self, enabled: bool) -> Result<()> {
+        let changed = self.connection()?.execute(
+            "UPDATE library_identity SET automatic_snapshots=?1 WHERE singleton=1",
+            [i64::from(enabled)],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::state("library identity is missing"));
+        }
+        Ok(())
+    }
+
     pub(crate) fn output_roots(&self) -> Result<Vec<OutputRootRecord>> {
         let connection = self.connection()?;
         Self::output_roots_from(&connection)
@@ -3902,6 +3924,20 @@ mod tests {
                 .unwrap(),
             1
         );
+    }
+
+    #[test]
+    fn automatic_snapshots_default_on_and_the_choice_survives_reopen() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        assert!(library.automatic_snapshots_enabled().unwrap());
+        library.set_automatic_snapshots(false).unwrap();
+        assert!(!library.automatic_snapshots_enabled().unwrap());
+        drop(library);
+        let reopened = Library::open(temporary.path()).unwrap();
+        assert!(!reopened.automatic_snapshots_enabled().unwrap());
+        reopened.set_automatic_snapshots(true).unwrap();
+        assert!(reopened.automatic_snapshots_enabled().unwrap());
     }
 
     #[test]

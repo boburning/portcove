@@ -3309,7 +3309,11 @@ impl PortcoveService {
             Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
             reporter.operation.begin_publication()?;
             return if activate {
-                self.activate_staged_locked(&port.id, reporter.operation.operation_id())
+                self.activate_staged_locked(
+                    &port.id,
+                    reporter.operation.operation_id(),
+                    crate::VersionChangeKind::Update,
+                )
             } else {
                 Ok(staged.clone())
             };
@@ -3327,6 +3331,19 @@ impl PortcoveService {
             }
             let qualification = self.installed_mutability_qualification(&existing)?;
             Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
+            if activate
+                && let Some(active) = &status.active
+                && active.id != existing.id
+            {
+                self.snapshot_before_version_change(
+                    &port.id,
+                    crate::VersionChangeKind::Update,
+                    active,
+                    Some(&active.version),
+                    &existing.version,
+                    true,
+                )?;
+            }
             reporter.operation.begin_publication()?;
             self.prepare_retained_install_data(&existing)?;
             self.library.register_install(&existing, activate)?;
@@ -3360,6 +3377,21 @@ impl PortcoveService {
         let staged_activation = port.adapter == AdapterKind::NativePortable
             || crate::persistence::requires_restore_receipt(port)
             || crate::installed_mutability::declared_shipwright_persistence(port, platform);
+        if activate
+            && !staged_activation
+            && let Some(active) = &status.active
+        {
+            // A staged route snapshots at its own activation, so each version
+            // change is protected exactly once. Stage-only updates change nothing.
+            self.snapshot_before_version_change(
+                &port.id,
+                crate::VersionChangeKind::Update,
+                active,
+                Some(&active.version),
+                &release.version,
+                false,
+            )?;
+        }
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
             .install_acquired(
                 InstallRequest {
@@ -3382,7 +3414,11 @@ impl PortcoveService {
                 .map_err(|error| error.detail("staged_install_id", &installed.id))?;
         }
         if staged_activation && activate {
-            self.activate_staged_locked(&port.id, &Uuid::new_v4().to_string())
+            self.activate_staged_locked(
+                &port.id,
+                &Uuid::new_v4().to_string(),
+                crate::VersionChangeKind::Update,
+            )
         } else {
             Ok(installed)
         }
@@ -3768,6 +3804,15 @@ impl PortcoveService {
             self.collect_active_user_data_if_launched(port_id)?;
             if let Some(active) = &status.active {
                 self.require_portable_rollback_transition(active, &previous)?;
+                // Before any data or version change; a failure stops the rollback.
+                self.snapshot_before_version_change(
+                    port_id,
+                    crate::VersionChangeKind::Rollback,
+                    active,
+                    Some(&active.version),
+                    &previous.version,
+                    false,
+                )?;
             }
             self.restore_user_data_to(&port, &previous.path)?;
             Installer::new(self.library.clone())?.verify_critical(&previous, &qualification)?;
@@ -3902,12 +3947,17 @@ impl PortcoveService {
                     ));
                 }
             }
-            self.activate_staged_locked(port_id, &activity.id)
+            self.activate_staged_locked(port_id, &activity.id, crate::VersionChangeKind::Activation)
         })();
         self.finish_activity(activity, result)
     }
 
-    fn activate_staged_locked(&self, port_id: &str, operation_id: &str) -> Result<InstallRecord> {
+    fn activate_staged_locked(
+        &self,
+        port_id: &str,
+        operation_id: &str,
+        kind: crate::VersionChangeKind,
+    ) -> Result<InstallRecord> {
         let status = self.status_without_rollback_assessment(port_id)?;
         let staged = status
             .staged
@@ -3932,6 +3982,17 @@ impl PortcoveService {
         crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
         self.managed_install_root(port_id, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
+        if let Some(active) = &status.active {
+            // The first mutation follows; a snapshot failure stops the change here.
+            self.snapshot_before_version_change(
+                port_id,
+                kind,
+                active,
+                Some(&active.version),
+                &staged.version,
+                true,
+            )?;
+        }
         let store = OperationStore::new(self.library.clone());
         let mut lifecycle =
             LifecycleOperation::new(operation_id, LifecycleOperationKind::Activate, port_id);

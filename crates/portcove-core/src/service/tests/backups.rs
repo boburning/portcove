@@ -1,5 +1,7 @@
 //! Complete backup lifecycle fixture family; production authority stays in its owner.
+use super::super::backups::{is_no_persistent_data, no_persistent_data};
 use super::*;
+use crate::VersionChangeKind;
 
 fn set_data_time(path: &Path, stamp: std::time::SystemTime) {
     fs::OpenOptions::new()
@@ -3036,4 +3038,321 @@ fn backup_deletion_family_recovers_legacy_partial_cleanup() {
     crate::recovery::recover_backup_deletion(&service, &store, &mut operation).unwrap();
     assert!(!quarantine.exists());
     assert!(store.get(&operation.id).unwrap().is_none());
+}
+
+// Automatic snapshots before a version change (#4879).
+
+const ZELDA: &str = "zelda64-recomp";
+
+/// Saves the active version wrote, which collection copies into the library.
+fn seed_saves(active_dir: &Path, bytes: &[u8]) {
+    fs::write(active_dir.join("general.json"), bytes).unwrap();
+    fs::write(active_dir.join(LAUNCH_MARKER), b"1").unwrap();
+}
+
+fn automatic_snapshots(service: &PortcoveService) -> Vec<BackupRecord> {
+    service
+        .list_backups(ZELDA)
+        .unwrap()
+        .backups
+        .into_iter()
+        .filter(|backup| backup.automatic.is_some())
+        .collect()
+}
+
+fn backup_activities(library: &Library) -> Vec<ActivityRecord> {
+    library
+        .activities(50)
+        .unwrap()
+        .into_iter()
+        .filter(|activity| activity.operation == ActivityOperation::Backup)
+        .collect()
+}
+
+struct FailSnapshotCopy;
+
+impl LifecycleFaultInjector for FailSnapshotCopy {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == LifecycleFaultPoint::BackupDataCopied {
+            return Err(PortcoveError::state("injected snapshot failure"));
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn rollback_takes_one_labelled_snapshot_of_the_latest_saves() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let second = register_zelda_install(&library, "v2", true);
+    seed_saves(&second, b"latest-settings");
+    let service = PortcoveService::new(library.clone()).unwrap();
+
+    service.rollback(ZELDA).unwrap();
+
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1);
+    let label = snapshots[0].automatic.as_ref().unwrap();
+    assert_eq!(label.operation, VersionChangeKind::Rollback);
+    assert_eq!(label.from_version.as_deref(), Some("v2"));
+    assert_eq!(label.to_version, "v1");
+    assert_eq!(
+        fs::read(snapshots[0].path.join("data/general.json")).unwrap(),
+        b"latest-settings",
+        "the snapshot must hold what the game wrote most recently"
+    );
+    assert!(backup_activities(&library).iter().any(|activity| {
+        activity.status == ActivityStatus::Succeeded
+            && activity
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("Automatic snapshot before rollback"))
+    }));
+}
+
+#[test]
+fn staged_activation_takes_one_snapshot_labelled_activation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let first = register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", false);
+    seed_saves(&first, b"before-activation");
+    let service = PortcoveService::new(library).unwrap();
+
+    service.activate_staged(ZELDA).unwrap();
+
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1);
+    let label = snapshots[0].automatic.as_ref().unwrap();
+    assert_eq!(label.operation, VersionChangeKind::Activation);
+    assert_eq!(label.from_version.as_deref(), Some("v1"));
+    assert_eq!(label.to_version, "v2");
+    assert_eq!(
+        fs::read(snapshots[0].path.join("data/general.json")).unwrap(),
+        b"before-activation"
+    );
+}
+
+#[tokio::test]
+async fn update_snapshots_once_per_version_change_and_not_when_only_staging() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let first = register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", false);
+    seed_saves(&first, b"before-update");
+    let service = service_with_release(library, "v2");
+
+    // Staging an already-present version changes nothing, so nothing is snapshotted.
+    service
+        .update(ZELDA, None, None, false, |_| {})
+        .await
+        .unwrap();
+    assert!(automatic_snapshots(&service).is_empty());
+
+    service
+        .update(ZELDA, None, None, true, |_| {})
+        .await
+        .unwrap();
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1, "one version change, one snapshot");
+    let label = snapshots[0].automatic.as_ref().unwrap();
+    assert_eq!(label.operation, VersionChangeKind::Update);
+    assert_eq!(label.from_version.as_deref(), Some("v1"));
+    assert_eq!(label.to_version, "v2");
+}
+
+#[tokio::test]
+async fn update_that_reuses_a_retained_version_snapshots_before_activating_it() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", true);
+    library.rollback(ZELDA).unwrap();
+    let active = library
+        .status(ZELDA, ReleaseChannel::Stable)
+        .unwrap()
+        .active
+        .unwrap();
+    seed_saves(&active.path, b"saves-on-v1");
+    let service = service_with_release(library, "v2");
+
+    service
+        .update(ZELDA, None, None, true, |_| {})
+        .await
+        .unwrap();
+
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1);
+    let label = snapshots[0].automatic.as_ref().unwrap();
+    assert_eq!(label.operation, VersionChangeKind::Update);
+    assert_eq!(label.from_version.as_deref(), Some("v1"));
+    assert_eq!(label.to_version, "v2");
+}
+
+#[test]
+fn no_managed_data_skips_the_snapshot_and_records_why() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", true);
+    let service = PortcoveService::new(library.clone()).unwrap();
+
+    service.rollback(ZELDA).unwrap();
+
+    assert!(automatic_snapshots(&service).is_empty());
+    assert!(backup_activities(&library).iter().any(|activity| {
+        activity.status == ActivityStatus::Succeeded
+            && activity
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("no saved data yet"))
+    }));
+}
+
+#[test]
+fn the_library_setting_turns_automatic_snapshots_off() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let second = register_zelda_install(&library, "v2", true);
+    seed_saves(&second, b"saves");
+    library.set_automatic_snapshots(false).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+
+    service.rollback(ZELDA).unwrap();
+
+    assert!(automatic_snapshots(&service).is_empty());
+    assert!(backup_activities(&library).is_empty());
+}
+
+#[test]
+fn a_failed_snapshot_stops_the_version_change_before_any_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let second = register_zelda_install(&library, "v2", true);
+    seed_saves(&second, b"saves");
+    let service = PortcoveService::with_provider_and_faults(
+        library.clone(),
+        Arc::new(StaticReleaseProvider {
+            version: "v1".into(),
+        }),
+        Arc::new(FailSnapshotCopy),
+    )
+    .unwrap();
+
+    let error = service.rollback(ZELDA).unwrap_err();
+
+    assert!(
+        error.message.contains("injected snapshot failure"),
+        "{error:?}"
+    );
+    let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
+    assert_eq!(
+        status.active.unwrap().version,
+        "v2",
+        "the version must not change"
+    );
+    assert_eq!(status.previous.unwrap().version, "v1");
+    assert!(
+        backup_activities(&library)
+            .iter()
+            .any(|activity| activity.status == ActivityStatus::Failed)
+    );
+    assert!(automatic_snapshots(&service).is_empty());
+}
+
+#[test]
+fn retention_keeps_the_newest_automatic_snapshots_and_never_removes_a_manual_one() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let user = library.user_dir(ZELDA);
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("general.json"), b"saves").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let active = service.status(ZELDA).unwrap().active.unwrap();
+    let manual = service.create_backup(ZELDA).unwrap();
+
+    for step in 2..=8 {
+        service
+            .snapshot_before_version_change(
+                ZELDA,
+                VersionChangeKind::Update,
+                &active,
+                Some("v1"),
+                &format!("v{step}"),
+                false,
+            )
+            .unwrap();
+    }
+
+    let inventory = service.list_backups(ZELDA).unwrap().backups;
+    let kept: Vec<_> = inventory
+        .iter()
+        .filter_map(|backup| backup.automatic.as_ref())
+        .map(|label| label.to_version.as_str())
+        .collect();
+    assert_eq!(
+        kept,
+        ["v8", "v7", "v6", "v5", "v4"],
+        "newest five, newest first"
+    );
+    assert!(
+        inventory
+            .iter()
+            .any(|backup| backup.id == manual.id && backup.automatic.is_none()),
+        "a manual snapshot is never pruned"
+    );
+    let refusal = service
+        .delete_automatic_backup_locked(ZELDA, &manual.id)
+        .unwrap_err();
+    assert!(refusal.message.contains("only an automatic snapshot"));
+}
+
+#[test]
+fn a_failed_snapshot_also_stops_staged_activation_before_any_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let first = register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", false);
+    seed_saves(&first, b"saves");
+    let service = PortcoveService::with_provider_and_faults(
+        library.clone(),
+        Arc::new(StaticReleaseProvider {
+            version: "v1".into(),
+        }),
+        Arc::new(FailSnapshotCopy),
+    )
+    .unwrap();
+
+    let error = service.activate_staged(ZELDA).unwrap_err();
+
+    assert!(
+        error.message.contains("injected snapshot failure"),
+        "{error:?}"
+    );
+    let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
+    assert_eq!(
+        status.active.unwrap().version,
+        "v1",
+        "activation must not happen"
+    );
+    assert_eq!(
+        status.staged.unwrap().version,
+        "v2",
+        "the staged version stays staged"
+    );
+    assert!(automatic_snapshots(&service).is_empty());
+}
+
+#[test]
+fn only_the_nothing_to_back_up_error_is_a_recorded_skip() {
+    let marked = no_persistent_data(ZELDA);
+    assert!(is_no_persistent_data(&marked));
+    // An unrelated not_found (catalog entry, install, directory) must still fail the change.
+    assert!(!is_no_persistent_data(&PortcoveError::not_found(
+        "no such port"
+    )));
 }

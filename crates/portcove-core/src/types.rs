@@ -1705,8 +1705,29 @@ pub enum JournalValidationStage {
     AcquisitionInventory,
 }
 
+/// The version change an automatic snapshot protects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VersionChangeKind {
+    Update,
+    Activation,
+    Rollback,
+}
+
+/// Marks a snapshot Portcove took itself before a version change. Manual
+/// snapshots carry none, and retention never removes a snapshot without one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct AutomaticSnapshotLabel {
+    pub operation: VersionChangeKind,
+    pub from_version: Option<String>,
+    pub to_version: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BackupRecord {
+    /// Present only for snapshots Portcove took automatically.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub automatic: Option<AutomaticSnapshotLabel>,
     pub id: String,
     pub port_id: String,
     pub path: PathBuf,

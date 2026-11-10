@@ -344,6 +344,21 @@ limit; the 15 exact overrides above 120 seconds keep their budgets and order.
 Product deadlines, assertions and cleanup are unchanged; a pass under the
 larger budget proves completion under that budget.
 
+Automatic saved-data snapshots before update, activation and rollback (#4879)
+added one verified snapshot to each version change in the generated managed
+native-route lifecycles. Hosted Windows run 42840655073 timed out
+`managed_native_declared_toy_story_2_*` on both attempts at the 120-second
+default after reaching staged activation at 111 seconds, while its sibling
+`doom_3` passed at 82 seconds. The family
+`service::native_portable::tests::managed_native_declared_` therefore has one
+exact Windows override of 240 seconds (5s × 48, below the 300-second no-retry
+line). Every phase, assertion and snapshot is unchanged; a pass under the larger
+budget proves completion under that budget.
+The same run timed out `reviewed_archive_transition_sonic_populated_install` at its
+360-second exact budget in a 862-second partition. That case has taken from
+149 to 300+ seconds on hosted Windows runners, so its exact override is now the
+600 seconds its family already has; its MMX2 and Super Metroid siblings stay at 420.
+
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to
 60 seconds. Their child limits remain 30 seconds. The dynamic ordinary and
