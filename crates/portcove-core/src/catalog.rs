@@ -3020,6 +3020,31 @@ mod tests {
             tomba.executable_hints.remove(&platform);
             tomba.release.asset_hints.remove(&platform);
         }
+        // Thirteen managed PSX Linux packages bundle a Python terminfo tree whose paths
+        // collide by letter case, which extraction refuses. Fresh creation stops offering
+        // Linux for them while the frozen reader keeps the old claim.
+        for id in [
+            "bomberman-fantasy-race-recompiled",
+            "bomberman-party-edition-recompiled",
+            "bomberman-world-recompiled",
+            "final-fantasy-vii-recompiled",
+            "jedi-power-battles-recompiled",
+            "klonoa-door-to-phantomile-recompiled",
+            "legend-of-mana-recompiled",
+            "marvel-vs-capcom-recompiled",
+            "masters-of-teras-kasi-recompiled",
+            "metal-slug-x-recompiled",
+            "rampage-through-time-recompiled",
+            "street-fighter-alpha-3-recompiled",
+            "twisted-metal-4-recompiled",
+        ] {
+            if let Some(port) = expected_ports.iter_mut().find(|port| port.id == id) {
+                port.platforms
+                    .retain(|platform| *platform != Platform::LinuxX86_64);
+                port.executable_hints.remove(&Platform::LinuxX86_64);
+                port.release.asset_hints.remove(&Platform::LinuxX86_64);
+            }
+        }
         for (id, platform, hints) in [
             (
                 "2ship2harkinian",
