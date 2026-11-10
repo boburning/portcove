@@ -354,6 +354,10 @@ default after reaching staged activation at 111 seconds, while its sibling
 exact Windows override of 240 seconds (5s × 48, below the 300-second no-retry
 line). Every phase, assertion and snapshot is unchanged; a pass under the larger
 budget proves completion under that budget.
+The same run timed out `reviewed_archive_transition_sonic_populated_install` at its
+360-second exact budget in a 862-second partition. That case has taken from
+149 to 300+ seconds on hosted Windows runners, so its exact override is now the
+600 seconds its family already has; its MMX2 and Super Metroid siblings stay at 420.
 
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to

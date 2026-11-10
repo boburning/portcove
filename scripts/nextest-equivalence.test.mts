@@ -187,7 +187,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     [
       "x86_64-pc-windows-msvc",
       "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_sonic_populated_install$/)",
-      360,
+      600,
     ],
     [
       "x86_64-pc-windows-msvc",
