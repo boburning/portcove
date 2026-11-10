@@ -11,7 +11,9 @@ Each package matches its publisher digest. The JGR archives have the same
 226 paths after stripping their versioned roots. Each has fourteen file
 aliases naming regular libraries in the same directory. The Linux player
 is `openttd` with glibc 2.28 and RUNPATH `$ORIGIN/lib`. Native archive
-extraction materializes each alias as a regular copy. The named selector
+extraction materializes each alias as a regular copy. Install and Play
+check the FluidSynth library, base graphics and English language data.
+The named selector
 separates the generic desktop player from dedicated and distribution builds.
 
 The tagged JGR code checks defined XDG_CONFIG_HOME and XDG_DATA_HOME, then
@@ -27,7 +29,8 @@ player-owned. Mac DMG setup and the creating Windows contract are separate.
 Both OpenGlad ZIPs pass CRC inspection. The selected `openglad/openglad`
 is a thin ARM64 Mach-O built for macOS 26. It loads libyaml, physfs,
 libzip and sdl3 from their standard Apple silicon Homebrew locations.
-Portcove keeps the archived game assets and launches from the executable's
+Portcove checks the packaged configuration, core packs and Gladiator
+campaign, then launches from the executable's
 directory, which the tagged player's Mac asset lookup uses. The managed
 Mac route checks the inherited HOME and keeps `.openglad` outside the
 library. The upstream OPENGLAD_CONFIG_DIR override and custom

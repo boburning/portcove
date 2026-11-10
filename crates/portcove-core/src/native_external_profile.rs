@@ -858,6 +858,7 @@ mod tests {
         let library = Library::open(root.join("library")).unwrap();
         let runtime = library.versions_dir().join("jgr");
         fs::create_dir_all(&runtime).unwrap();
+        archive_siblings::write_jgr_fixture(&runtime);
         let data = root.join("data");
         let save = data.join("openttd/save/player.sav");
         fs::create_dir_all(save.parent().unwrap()).unwrap();

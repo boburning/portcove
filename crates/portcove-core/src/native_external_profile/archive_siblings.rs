@@ -166,20 +166,17 @@ pub(super) fn require_launch_layout(
             "The game needs to start in the directory containing its packaged executable.",
         ));
     }
-    let library_path = if policy == ExternalProfilePolicy::JgrppLinuxV1 {
-        "LD_LIBRARY_PATH"
+    let (platform, library_path) = if policy == ExternalProfilePolicy::JgrppLinuxV1 {
+        (Platform::LinuxX86_64, "LD_LIBRARY_PATH")
     } else {
-        "DYLD_LIBRARY_PATH"
+        (Platform::MacosAarch64, "DYLD_LIBRARY_PATH")
     };
     if super::environment(command, library_path).is_some_and(|path| !path.is_empty()) {
         return Err(PortcoveError::launch(format!(
             "{library_path} changes where the game loads libraries. Use the default loader paths or a separately prepared copy."
         )));
     }
-    if policy == ExternalProfilePolicy::JgrppLinuxV1 {
-        require_jgr_runtime(&spec.working_directory, checkpoint)?;
-    }
-    Ok(())
+    require_payload(&spec.executable, platform, checkpoint)
 }
 
 fn require_jgr_runtime(root: &Path, checkpoint: &impl Fn() -> Result<()>) -> Result<()> {
@@ -229,19 +226,54 @@ pub(crate) fn require_payload(
     })?;
     if platform == Platform::LinuxX86_64 {
         super::read_amd64_elf_header(executable)?;
+        let library = super::read_amd64_elf_header(&parent.join("lib/libfluidsynth.so.3"))?;
+        if library[16] != 3 {
+            return Err(PortcoveError::verification(
+                "JGR Patch Pack needs its bundled x86-64 FluidSynth library",
+            ));
+        }
+        require_data(parent, &["baseset/openttd.grf", "lang/english.lng"])?;
         return require_jgr_runtime(parent, checkpoint);
     }
     super::require_arm64_macho(
         executable,
         "the OpenGlad archive no longer contains its expected Mac ARM64 executable",
     )?;
-    crate::external_runtime::open_single_link_file(&parent.join("cfg/openglad.yaml"))?;
+    require_data(parent, &["cfg/openglad.yaml", "builtin/gladiator.glad"])?;
     if !fs::symlink_metadata(parent.join("packs/core"))?.is_dir() {
         return Err(PortcoveError::verification(
             "the OpenGlad archive has no core campaign pack directory",
         ));
     }
     Ok(())
+}
+
+fn require_data(root: &Path, paths: &[&str]) -> Result<()> {
+    for path in paths {
+        let missing = || {
+            PortcoveError::verification(format!("the upstream package needs a regular {path} file"))
+        };
+        let file = crate::external_runtime::open_single_link_file(&root.join(path))
+            .map_err(|_| missing())?;
+        if file.metadata()?.len() == 0 {
+            return Err(missing());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+pub(super) fn write_jgr_fixture(root: &Path) {
+    let mut elf = [0; 20];
+    elf[..6].copy_from_slice(b"\x7fELF\x02\x01");
+    elf[16..].copy_from_slice(&[3, 0, 0x3e, 0]);
+    fs::write(root.join("openttd"), elf).unwrap();
+    fs::create_dir(root.join("lib")).unwrap();
+    fs::write(root.join("lib/libfluidsynth.so.3"), elf).unwrap();
+    for (directory, name) in [("baseset", "openttd.grf"), ("lang", "english.lng")] {
+        fs::create_dir(root.join(directory)).unwrap();
+        fs::write(root.join(directory).join(name), b"fixture data").unwrap();
+    }
 }
 
 #[cfg(test)]
@@ -292,11 +324,19 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path();
         let jgr = root.join("openttd");
-        let mut elf = [0; 20];
-        elf[..6].copy_from_slice(b"\x7fELF\x02\x01");
-        elf[16..].copy_from_slice(&[3, 0, 0x3e, 0]);
-        fs::write(&jgr, elf).unwrap();
+        write_jgr_fixture(root);
         require_payload(&jgr, Platform::LinuxX86_64, &|| Ok(())).unwrap();
+        for missing in [
+            "lib/libfluidsynth.so.3",
+            "baseset/openttd.grf",
+            "lang/english.lng",
+        ] {
+            let path = root.join(missing);
+            let bytes = fs::read(&path).unwrap();
+            fs::remove_file(&path).unwrap();
+            assert!(require_payload(&jgr, Platform::LinuxX86_64, &|| Ok(())).is_err());
+            fs::write(&path, bytes).unwrap();
+        }
         fs::write(root.join("openttd.cfg"), b"preserve portable settings").unwrap();
         assert!(require_payload(&jgr, Platform::LinuxX86_64, &|| Ok(())).is_err());
         fs::remove_file(root.join("openttd.cfg")).unwrap();
@@ -320,8 +360,11 @@ mod tests {
         fs::create_dir(root.join("cfg")).unwrap();
         fs::write(root.join("cfg/openglad.yaml"), b"profile defaults").unwrap();
         fs::create_dir_all(root.join("packs/core")).unwrap();
+        assert!(require_payload(&openglad, Platform::MacosAarch64, &|| Ok(())).is_err());
+        fs::create_dir(root.join("builtin")).unwrap();
+        fs::write(root.join("builtin/gladiator.glad"), b"fixture campaign").unwrap();
         require_payload(&openglad, Platform::MacosAarch64, &|| Ok(())).unwrap();
-        fs::write(&openglad, elf).unwrap();
+        fs::copy(&jgr, &openglad).unwrap();
         assert!(require_payload(&openglad, Platform::MacosAarch64, &|| Ok(())).is_err());
     }
 }
