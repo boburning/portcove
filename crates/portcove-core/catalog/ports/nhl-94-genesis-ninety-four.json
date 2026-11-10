@@ -27,7 +27,7 @@
         },
         {
           "title": "Preserve the actual Linux and Mac data locations",
-          "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion. Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted. On Linux x86-64, the upstream archive needs glibc 2.34 or newer and the system SDL2 runtime. For an existing copy, keep nhl94 and its full archive together and run it from that folder. On macOS 11 or newer, use the upstream universal application for Intel or Apple Silicon. Finder launches keep settings and saves under ~/Library/Application Support/ninety-four. A shell launch can use the working directory instead. Keep the complete application bundle and back up the data location your copy actually uses. Portcove manages the separate Linux runtime, while the Mac application stays with upstream setup."
+          "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion. Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted. On Linux x86-64, the upstream archive needs glibc 2.34 or newer, SDL2 and the GNU C++ and GCC support runtimes. For an existing copy, keep nhl94 and its full archive together and run it from that folder. On macOS 11 or newer, use the upstream universal application for Intel or Apple Silicon. Finder launches keep settings and saves under ~/Library/Application Support/ninety-four. A shell launch can use the working directory instead. Keep the complete application bundle and back up the data location your copy actually uses. Portcove manages the separate Linux runtime, while the Mac application stays with upstream setup."
         },
         {
           "title": "Keep original, roster and component terms separate",
@@ -67,7 +67,7 @@
       },
       "warnings": [
         "Use the default data paths with the managed runtime. Keep an independent copy of your ROM, and use a separately prepared copy for custom data paths. Runtime rollback does not establish save-state compatibility.",
-        "On Linux x86-64, install the system SDL2 runtime and use glibc 2.34 or newer."
+        "On Linux x86-64, use glibc 2.34 or newer with SDL2, libstdc++.so.6 and libgcc_s.so.1."
       ]
     }
   },

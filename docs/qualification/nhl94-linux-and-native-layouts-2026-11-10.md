@@ -7,8 +7,8 @@ picker and remembers the ROM path. Keep that source outside the managed
 runtime. Portcove preserves the six default data paths already declared for
 Windows. Keep custom data paths with a separately prepared copy.
 
-The two inspected Linux executables are AMD64 ELF, with an SDL2 dynamic
-dependency and a glibc 2.34 floor. The release tags share the same
+The two inspected Linux executables are AMD64 ELF. They require SDL2,
+`libstdc++.so.6`, `libgcc_s.so.1` and glibc 2.34 or newer. The release tags share the same
 `native/main.c` and Pulseman gitlink. The upstream profile helper keeps the
 Linux working directory. Under macOS, it changes to Application Support
 only for a bundle started with `/` as the working directory, as in a Finder
