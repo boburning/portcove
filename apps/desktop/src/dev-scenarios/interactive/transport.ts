@@ -170,6 +170,14 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_library_organization", args, { generation });
       return structuredClone(organization);
     },
+    // The details page asks for the last failed launch of an installed game; the
+    // fixtures never run a game, so there is nothing to explain.
+    get_launch_failure: (args) => {
+      if (typeof args?.portId !== "string")
+        return unsupported("get_launch_failure (unexpected arguments)");
+      requireArgs("get_launch_failure", args, { portId: args.portId, generation });
+      return null;
+    },
     get_automatic_snapshots: (args) => {
       requireArgs("get_automatic_snapshots", args, { generation });
       return automaticSnapshots;
