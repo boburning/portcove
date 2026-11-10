@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { applicationReleaseTrust } from "./application-release-policy.mts";
 import {
   prepareAuthenticatedMetadataRenewal,
   inspectPreparedMetadataRenewal,
@@ -99,6 +100,25 @@ void test("unknown Targets mode and online mode without single-owner selection r
       }),
       /Targets|single-owner/,
     );
+  assert.deepEqual(await readdir(f.output), []);
+});
+void test("the appointed application Root does not opt into special renewal policies", async (t) => {
+  const f = await fixture(t);
+  const request = { ...f.request, trusted_root_sha256: applicationReleaseTrust.root.sha256 };
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal({
+      ...request,
+      top_level_targets_profile: "online-unchanged-authority-v1",
+    }),
+    /online Targets requires explicit single-owner profile/,
+  );
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal({
+      ...request,
+      prior_expiration_policy: "historical-online-expired-v1",
+    }),
+    /historical prior requires explicit single-owner offline-pinned profile/,
+  );
   assert.deepEqual(await readdir(f.output), []);
 });
 void test("wrong actual tool or independently ratified root refuses before creating outputs", async (t) => {

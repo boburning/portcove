@@ -1242,6 +1242,26 @@ impl Installer {
                 request.qualification.platform,
                 &payload_root,
             )?;
+            if crate::native_external_profile::archive_siblings::requires_archive(
+                port,
+                request.qualification.platform,
+            ) {
+                if !crate::native_external_profile::archive_siblings::matches_asset(
+                    port,
+                    request.qualification.platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "the archive differs from its retained upstream package selector",
+                    ));
+                }
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::native_external_profile::archive_siblings::require_payload(
+                    &selected,
+                    request.qualification.platform,
+                    &|| operation.checkpoint(),
+                )?;
+            }
             if let Some(
                 policy @ (crate::ExternalProfilePolicy::CorsixthLinuxV1
                 | crate::ExternalProfilePolicy::OpenlocoUnixV1),

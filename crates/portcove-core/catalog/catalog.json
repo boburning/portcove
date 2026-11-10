@@ -43395,7 +43395,8 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -43406,6 +43407,9 @@
           ],
           "linux-x86-64": [
             "openglad-linux-x86_64.tar.gz"
+          ],
+          "macos-aarch64": [
+            "openglad-macos-arm64.zip"
           ]
         }
       },
@@ -43415,9 +43419,13 @@
         ],
         "linux-x86-64": [
           "openglad"
+        ],
+        "macos-aarch64": [
+          "openglad"
         ]
       },
       "persistent_paths": [],
+      "external_profile_policy": "openglad-mac-v1",
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
@@ -43429,10 +43437,16 @@
             {
               "title": "Start the game",
               "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
+            },
+            {
+              "title": "Prepare your Apple silicon Mac",
+              "instruction": "The inspected ARM64 player needs macOS 26 and the Apple silicon Homebrew libraries libyaml, physfs, libzip and sdl3 under /opt/homebrew. Follow the upstream Mac setup for those libraries before Play. The managed player opens from its own folder and keeps your saves, campaigns and settings under ~/.openglad."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md"
+          "warnings": [
+            "Use a separately prepared copy for OPENGLAD_CONFIG_DIR or a custom Mac library search path. Keep the actual OpenGlad profile and its creating runtime before changing versions."
+          ],
+          "help_url": "https://github.com/openglad/openglad/blob/master/docs/INSTALL.md"
         },
         "artwork": {
           "game_id": 100047,
@@ -44697,7 +44711,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -44706,12 +44721,21 @@
           "windows-x86-64": [
             "openttd-jgrpp-",
             "-windows-win64.zip"
+          ],
+          "linux-x86-64": [
+            "openttd-jgrpp-",
+            "-linux-generic-amd64.tar.xz"
           ]
-        }
+        },
+        "linux_tar_xz": true,
+        "archive_file_links": true
       },
       "executable_hints": {
         "windows-x86-64": [
           "openttd.exe"
+        ],
+        "linux-x86-64": [
+          "openttd"
         ]
       },
       "persistent_paths": [
@@ -44731,6 +44755,7 @@
         "screenshot",
         "content_download"
       ],
+      "external_profile_policy": "jgrpp-linux-v1",
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
@@ -44744,15 +44769,17 @@
               "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
             },
             {
-              "title": "Set up the Linux game yourself",
-              "instruction": "Choose the upstream generic Linux AMD64 archive with the -linux-generic-amd64.tar.xz suffix. Extract it into a folder you own and run openttd from the extracted folder. Keep its lib and data folders together. Back up your effective OpenTTD configuration, saves and downloaded content before changing the package."
+              "title": "Use the Linux managed player",
+              "instruction": "Portcove installs the official generic Linux AMD64 archive and starts it with the default XDG profile. The inspected player needs glibc 2.28 or newer. Keep your configuration under XDG_CONFIG_HOME/openttd and your saves and downloaded content under XDG_DATA_HOME/openttd, or the usual home-folder defaults. These folders can be shared with other OpenTTD copies and stay outside Portcove backups."
             },
             {
               "title": "Set up the Mac app yourself",
               "instruction": "Mount the upstream universal Mac DMG and copy OpenTTD.app into your Applications folder. The inspected player needs macOS 10.15 on Intel or macOS 11 on Apple silicon. Keep the JGR Patch Pack app and its effective profile with saves created by that build."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "On Linux, use a separately prepared copy for a portable configuration, native social plugins or a custom library search path. Keep the effective OpenTTD profile and the runtime that created your saves."
+          ],
           "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md"
         },
         "artwork": {

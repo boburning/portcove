@@ -13,6 +13,7 @@ use crate::{
     PortcoveError, ReleaseSource, Result,
 };
 
+pub(crate) mod archive_siblings;
 pub(crate) mod openmohaa;
 pub(crate) mod profile_siblings;
 pub(crate) mod quake_linux;
@@ -39,8 +40,19 @@ fn require_type2_appimage(executable: &Path) -> Result<()> {
     Ok(())
 }
 
+fn require_arm64_macho(executable: &Path, message: &str) -> Result<()> {
+    let mut file = crate::external_runtime::open_single_link_file(executable)?;
+    let mut header = [0; 16];
+    file.read_exact(&mut header)?;
+    if !header.starts_with(&[0xcf, 0xfa, 0xed, 0xfe, 12, 0, 0, 1]) || header[12..] != [2, 0, 0, 0] {
+        return Err(PortcoveError::verification(message));
+    }
+    Ok(())
+}
+
 pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
     match policy {
+        ExternalProfilePolicy::JgrppLinuxV1 | ExternalProfilePolicy::OpengladMacV1 => 17,
         ExternalProfilePolicy::CorsixthLinuxV1 | ExternalProfilePolicy::OpenlocoUnixV1 => 16,
         ExternalProfilePolicy::IronwailLinuxV1 | ExternalProfilePolicy::VkquakeLinuxV1 => 15,
         ExternalProfilePolicy::OpenmohaaUnixV1 => 13,
@@ -63,6 +75,8 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
         ExternalProfilePolicy::CorsixthLinuxV1 | ExternalProfilePolicy::OpenlocoUnixV1 => {
             profile_siblings::applies_to(policy, platform)
         }
+        ExternalProfilePolicy::JgrppLinuxV1 => platform == Platform::LinuxX86_64,
+        ExternalProfilePolicy::OpengladMacV1 => platform == Platform::MacosAarch64,
         _ => true,
     }
 }
@@ -122,6 +136,18 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
                 Platform::MacosAarch64,
             ],
         ),
+        ExternalProfilePolicy::JgrppLinuxV1 => (
+            Some(("jgrennison-openttd-patches", "JGRennison/OpenTTD-patches")),
+            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
+        ),
+        ExternalProfilePolicy::OpengladMacV1 => (
+            Some(("gladiator-openglad", "openglad/openglad")),
+            &[
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosAarch64,
+            ],
+        ),
     };
     if identity.is_some_and(|(id, repo)| {
         port.id != id || !port.release.repository.eq_ignore_ascii_case(repo)
@@ -137,7 +163,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
         || port.source_environment.is_some()
         || (!matches!(
             policy,
-            ExternalProfilePolicy::RecompAppimageV1 | ExternalProfilePolicy::OpenmohaaUnixV1
+            ExternalProfilePolicy::RecompAppimageV1
+                | ExternalProfilePolicy::OpenmohaaUnixV1
+                | ExternalProfilePolicy::JgrppLinuxV1
         ) && !quake_linux::applies(policy)
             && !port.persistent_paths.is_empty())
         || !port.persistent_file_patterns.is_empty()
@@ -163,6 +191,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
     }
     if profile_siblings::applies(policy) {
         profile_siblings::validate(port, policy)?;
+    }
+    if archive_siblings::applies(policy) {
+        archive_siblings::validate(port, policy)?;
     }
     if policy == ExternalProfilePolicy::Openrct2MacV1 {
         let mut mac_routes = port
@@ -299,7 +330,9 @@ fn linux_root(
         | ExternalProfilePolicy::IronwailLinuxV1
         | ExternalProfilePolicy::VkquakeLinuxV1
         | ExternalProfilePolicy::CorsixthLinuxV1
-        | ExternalProfilePolicy::OpenlocoUnixV1 => {
+        | ExternalProfilePolicy::OpenlocoUnixV1
+        | ExternalProfilePolicy::JgrppLinuxV1
+        | ExternalProfilePolicy::OpengladMacV1 => {
             return Err(PortcoveError::unsupported(
                 "this profile uses a different upstream layout",
             ));
@@ -364,6 +397,10 @@ fn roots(
     command: &Command,
 ) -> Result<Vec<PathBuf>> {
     match (policy, platform) {
+        #[cfg(unix)]
+        (policy, platform) if archive_siblings::applies(policy) && applies_to(policy, platform) => {
+            archive_siblings::profile_roots(policy, command)
+        }
         #[cfg(unix)]
         (policy, platform) if profile_siblings::applies_to(policy, platform) => {
             Ok(vec![profile_siblings::profile_root(
@@ -669,6 +706,9 @@ pub(crate) fn require_external_roots(
     if policy == ExternalProfilePolicy::OpenmohaaUnixV1 {
         openmohaa::require_launch_paths(spec)?;
     }
+    if archive_siblings::applies(policy) {
+        archive_siblings::require_launch_layout(policy, spec, command, checkpoint)?;
+    }
     let owned = library
         .output_roots()?
         .into_iter()
@@ -677,6 +717,7 @@ pub(crate) fn require_external_roots(
         .chain(
             (quake_linux::applies(policy)
                 || profile_siblings::applies(policy)
+                || archive_siblings::applies(policy)
                 || matches!(
                     policy,
                     ExternalProfilePolicy::RecompAppimageV1
@@ -746,6 +787,9 @@ pub(crate) fn require_external_roots(
                 "game profile",
                 |path, _| {
                     checkpoint()?;
+                    if policy == ExternalProfilePolicy::JgrppLinuxV1 {
+                        archive_siblings::check_jgr_profile_plugin(&root, path)?;
+                    }
                     #[cfg(target_os = "linux")]
                     if policy == ExternalProfilePolicy::RecompAppimageV1
                         || (platform == Platform::LinuxX86_64 && profile_siblings::applies(policy))
@@ -804,6 +848,62 @@ mod tests {
             assert!(require_external_roots(policy, &library, &spec, &command, &|| Ok(())).is_err());
             assert_eq!(fs::read(save).unwrap(), b"external save");
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn archive_siblings_guard_jgr_default_roots_without_touching_player_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let library = Library::open(root.join("library")).unwrap();
+        let runtime = library.versions_dir().join("jgr");
+        fs::create_dir_all(&runtime).unwrap();
+        archive_siblings::write_jgr_fixture(&runtime);
+        let data = root.join("data");
+        let save = data.join("openttd/save/player.sav");
+        fs::create_dir_all(save.parent().unwrap()).unwrap();
+        fs::write(&save, b"external save").unwrap();
+        let spec = LaunchSpec {
+            executable: runtime.join("openttd"),
+            install_root: runtime.clone(),
+            working_directory: runtime,
+            environment: Default::default(),
+            arguments: vec!["-X".into()],
+            fixed_arguments_only: true,
+            launch_kind: crate::LaunchKind::Native,
+        };
+        let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
+        command
+            .env("XDG_CONFIG_HOME", root.join("config"))
+            .env("XDG_DATA_HOME", &data)
+            .env_remove("LD_LIBRARY_PATH");
+        let policy = ExternalProfilePolicy::JgrppLinuxV1;
+        let check = |command: &Command| {
+            require_external_roots(policy, &library, &spec, command, &|| Ok(()))
+        };
+        check(&command).unwrap();
+        command.env("LD_LIBRARY_PATH", "/custom/libs");
+        assert!(
+            check(&command)
+                .unwrap_err()
+                .message
+                .contains("LD_LIBRARY_PATH")
+        );
+        command.env_remove("LD_LIBRARY_PATH");
+
+        let plugin = data.join("openttd/content_download/social_integration/user-social.so");
+        fs::create_dir_all(plugin.parent().unwrap()).unwrap();
+        fs::write(&plugin, b"external plugin").unwrap();
+        assert!(
+            check(&command)
+                .unwrap_err()
+                .message
+                .contains("native social plugin")
+        );
+        assert_eq!(fs::read(&plugin).unwrap(), b"external plugin");
+        command.env("XDG_DATA_HOME", library.root());
+        assert!(check(&command).unwrap_err().message.contains("overlaps"));
+        assert_eq!(fs::read(save).unwrap(), b"external save");
     }
 
     #[cfg(target_os = "linux")]

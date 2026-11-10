@@ -674,6 +674,8 @@ pub enum ExternalProfilePolicy {
     VkquakeLinuxV1,
     CorsixthLinuxV1,
     OpenlocoUnixV1,
+    JgrppLinuxV1,
+    OpengladMacV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.

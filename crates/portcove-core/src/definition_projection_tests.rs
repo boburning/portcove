@@ -100,11 +100,7 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
     let version = if typed.release.archive_file_links {
-        if typed.adapter == crate::AdapterKind::N64RecompPortable {
-            5
-        } else {
-            14
-        }
+        crate::test_fixture::archive_file_links_capability(&typed)
     } else if crate::native_temp::has_sibling_platforms(&typed) {
         10
     } else if let Some(policy) = typed.external_profile_policy {
