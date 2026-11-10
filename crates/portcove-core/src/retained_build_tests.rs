@@ -756,33 +756,32 @@ fn advancing_a_binding_keeps_the_offered_older_build_until_it_is_retired() {
 
 #[test]
 fn offered_history_is_bounded_and_never_dropped_silently() {
+    // Synthetic identities: the bound is a pure history rule, so it needs no installs.
     let (_temporary, service, first) = fixture();
-    bind(&service, "custom", &first);
-    for index in 0..MAX_OFFERED_REVISIONS {
-        let next = install(
-            service.library(),
-            &format!("build-{index}"),
-            format!("runtime {index}").as_bytes(),
-            true,
-        );
-        bind(&service, "custom", &next);
-    }
-    let full = service
-        .resolve_retained_build("starship", "custom")
-        .unwrap();
-    assert_eq!(full.reference.history.len(), MAX_OFFERED_REVISIONS);
-    let extra = install(service.library(), "one-too-many", b"extra runtime", true);
-    let error = service
-        .preview_retained_build_binding("starship", "custom", &extra.id)
-        .unwrap_err();
+    let mut reference = bind(&service, "custom", &first);
+    let identity = |name: &str| RetainedBuildIdentity {
+        install_id: name.into(),
+        ..reference.build.clone()
+    };
+    reference.revision = 100;
+    reference.history = (0..MAX_OFFERED_REVISIONS)
+        .map(|index| RetainedBuildRevision {
+            revision: index as u64 + 1,
+            build: identity(&format!("old-{index}")),
+            superseded_at: 1,
+        })
+        .collect();
+    let error = successor_history(Some(&reference), &identity("one-too-many"), 2).unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
-    assert_eq!(
-        service
-            .resolve_retained_build("starship", "custom")
-            .unwrap()
-            .reference,
-        full.reference
+    // Promoting an offered build swaps rather than grows, so recovery still works when full.
+    let promoted = successor_history(Some(&reference), &identity("old-3"), 2).unwrap();
+    assert_eq!(promoted.len(), MAX_OFFERED_REVISIONS);
+    assert!(
+        promoted
+            .iter()
+            .all(|entry| entry.build.install_id != "old-3")
     );
+    assert_eq!(promoted.last().unwrap().build.install_id, first.id);
 }
 
 #[test]
