@@ -16,6 +16,7 @@ import { isRecord } from "./runtime-values.mts";
 export const observerWorkflowId = 354075266;
 export const pushCooldownMs = 55 * 60000;
 const observeJob = "observe";
+const pageSize = 10;
 
 export interface AdmissionRead {
   (route: string): Promise<unknown>;
@@ -51,11 +52,22 @@ export async function admitObservation(options: {
   read: AdmissionRead;
 }): Promise<Admission> {
   if (options.event !== "push") return { observe: true, reason: "not-push" };
-  const base = `repos/boburning/portcove/actions/workflows/${observerWorkflowId}/runs?branch=main&per_page=10`;
-  const recent = [
-    ...runs(await options.read(`${base}&event=schedule`), "schedule"),
-    ...runs(await options.read(`${base}&event=push`), "push"),
-  ].filter(
+  const base = `repos/boburning/portcove/actions/workflows/${observerWorkflowId}/runs?branch=main&per_page=${pageSize}`;
+  const listed = [];
+  for (const event of ["schedule", "push"] as const) {
+    const page = runs(await options.read(`${base}&event=${event}`), event);
+    // A full page whose oldest row is still inside the cooldown may omit an
+    // observing run; unknown coverage declines rather than admitting.
+    const oldest = page.at(-1);
+    if (
+      page.length >= pageSize &&
+      oldest &&
+      options.now - Date.parse(String(oldest.created_at)) <= pushCooldownMs
+    )
+      return { observe: false, reason: `${event} runs exceed one page within the cooldown` };
+    listed.push(...page);
+  }
+  const recent = listed.filter(
     (run) =>
       run.id !== options.currentRun &&
       options.now - Date.parse(String(run.created_at)) <= pushCooldownMs &&

@@ -444,8 +444,9 @@ Only observing jobs share the per-ref concurrency slot, with one active and at
 most one pending. Hourly schedules and manual runs always observe. A merge to
 main starts an admission job that lets its run observe only to fill a schedule
 gap: when no schedule or push run of the observer observed, or is observing,
-within the last fifty-five minutes. Admission reads at most two run pages and
-the jobs of recent runs, and any read failure declines. A declined push run
+within the last fifty-five minutes. Admission reads one ten-run page per trigger and the jobs of recent runs; a
+full page still inside the cooldown is incomplete coverage, and that or any
+read failure declines. A declined push run
 finishes without observing, so it neither consumes the slot nor displaces a
 pending scheduled observation. Actual usage is lower with a warm build cache.
 There are no agent/model calls.
@@ -462,9 +463,10 @@ provider-filtered inventory per trigger and merges them newest-first, so manual
 dispatches, fork pull requests and other triggers never enter it, consume its
 window or set its age boundary; a listed run whose trigger differs from its
 filter refuses. Each trigger's window must be complete or reach its own age
-boundary; one cannot certify the other. A push run without a snapshot is passed
-over, because declined push runs never observe; only natural schedules count as
-evidence of missing history. The producer's trigger is re-read after collection.
+boundary; one cannot certify the other. A push run within the
+recovery age without a snapshot is passed over, because declined push runs never
+observe; at the age boundary it reaches the same cutover check as a schedule, so
+missing history still requires explicit recovery. The producer's trigger is re-read after collection.
 Provider run/artifact identity, main ancestry, the exact configuration digest,
 artifact digest, archive structure and the complete checkpoint graph are checked
 before an absent checkpoint tree is published atomically. A partial or foreign

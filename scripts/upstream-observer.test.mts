@@ -1958,6 +1958,18 @@ void test("push runs observe only to fill schedule gaps and use a reduced reques
   const active = fixture({ schedule: [run(15, "schedule", 3, { status: "in_progress" })] }, {});
   assert.equal((await admit("push", active)).observe, false);
   assert.ok(active.routes.every((route) => !route.includes("/jobs")));
+  // A full page still inside the cooldown is incomplete coverage and declines,
+  // even when every listed run skipped observing.
+  const crowded = Array.from({ length: 10 }, (_, i) => run(30 + i, "push", 2 + i * 4));
+  const full = fixture({ push: crowded }, {});
+  assert.deepEqual(await admit("push", full), {
+    observe: false,
+    reason: "push runs exceed one page within the cooldown",
+  });
+  assert.ok(full.routes.every((route) => !route.includes("/jobs")));
+  // A full page reaching past the cooldown is complete for it.
+  const spread = Array.from({ length: 10 }, (_, i) => run(50 + i, "push", 2 + i * 7));
+  assert.equal((await admit("push", fixture({ push: spread }, {}))).observe, true);
   // Inconsistent records refuse rather than admit.
   await assert.rejects(admit("push", fixture({ push: [run(16, "schedule", 1)] }, {})));
   await assert.rejects(

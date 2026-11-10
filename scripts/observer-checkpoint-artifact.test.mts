@@ -1716,3 +1716,26 @@ void test("gated push runs are not history loss and each trigger window must cov
     { code: "ENOENT" },
   );
 });
+
+void test("a push run at the age boundary keeps missing-history detection (#4779 review)", async (t) => {
+  for (const event of ["push", "schedule"]) {
+    const f = transport();
+    f.missing();
+    f.publisher();
+    f.run.event = event;
+    f.run.created_at = new Date(Date.now() - 25 * 3600000).toISOString();
+    const root = await directory(t);
+    await assert.rejects(
+      recoverObserverCheckpoint({
+        root,
+        config,
+        current,
+        deadline: Date.now() + 60000,
+        api: f.api,
+        download: f.download,
+      }),
+      /history missing after cutover/u,
+      event,
+    );
+  }
+});

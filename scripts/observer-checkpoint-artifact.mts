@@ -1123,14 +1123,11 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     const name = snapshotName(config, source),
       matches = artifacts.artifacts.filter((row) => row.name === name);
     requireValue(matches.length <= 1, "duplicate checkpoint artifact");
-    if (!matches.length && raw.event === "push") {
-      // Gated push runs finish without observing, so a push run without its
-      // snapshot is never evidence of lost history (#4779). Natural schedules
-      // keep the cutover and missing-history checks below.
-      if (tooOld) {
-        reachedAgeBoundary = true;
-        break;
-      }
+    if (!matches.length && raw.event === "push" && !tooOld) {
+      // Gated push runs finish without observing, so a recent push run without
+      // its snapshot is never evidence of lost history (#4779). At the age
+      // boundary it falls through to the cutover check below, like a schedule,
+      // so missing history still requires explicit recovery.
       continue;
     }
     if (!matches.length) {
