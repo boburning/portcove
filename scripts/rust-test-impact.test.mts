@@ -3,6 +3,7 @@ import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import {
   annotateCatalogAuthoring,
   annotateCatalogGuideCopy,
+  annotateDiscoveryPlatforms,
 } from "./catalog-guide-copy-impact.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -1725,6 +1726,93 @@ void test("unrelated CLI fixtures cannot suppress artwork or advertised capabili
       workspacePlan([artwork, "crates/portcove-core/src/unknown.rs"]),
       map,
     ).some((entry) => entry.filter === "package(=portcove-cli)"),
+  );
+});
+
+void test("discovery platforms narrow only complete upstream-only directory additions", () => {
+  const root = "crates/portcove-core/catalog/";
+  const generated = `${root}listings.json`;
+  const operational = `${root}catalog.json`;
+  const titles = ["sample-a", "sample-b"];
+  const files = [generated, ...titles.map((id) => `${root}ports/${id}.json`)];
+  const plan = workspacePlan(files);
+  const changes = plan.changes.map((change) => ({
+    ...change,
+    oldMode: "100644",
+    newMode: "100644",
+  }));
+  const listing = (id: string, added: boolean) => ({
+    id,
+    name: id,
+    summary: "Sample upstream setup.",
+    project_url: "https://github.com/example/sample",
+    availability: "packages",
+    platforms: added ? ["windows-x86-64", "macos-aarch64"] : ["windows-x86-64"],
+    download_asset_hints: {
+      "windows-x86-64": ["windows.zip"],
+      ...(added ? { "macos-aarch64": ["macos.zip"] } : {}),
+    },
+  });
+  const blobs = (added: boolean) => (file: string) => {
+    if (file === operational) return "{}";
+    if (file === generated)
+      return JSON.stringify({ listings: titles.map((id) => listing(id, added)) });
+    const id = path.basename(file, ".json");
+    return JSON.stringify({ format_version: 1, listing: listing(id, added) });
+  };
+  const before = blobs(false);
+  const after = blobs(true);
+  const select = (entries: ReturnType<typeof annotateDiscoveryPlatforms>, checkout = after) =>
+    selectWorkspaceRustImpact(
+      buildValidationPlan({
+        ...plan.identities,
+        mergeBase: plan.identities.merge_base,
+        eventName: "pull_request",
+        changes: entries,
+      }),
+      undefined,
+      checkout,
+    );
+  const annotated = annotateDiscoveryPlatforms(changes, before, after);
+  assert.equal(annotated.filter((change) => change.discovery_platforms).length, 3);
+  assert.deepEqual(
+    select(annotated).map((group) => group.id),
+    [
+      "portcove-core:catalog-discovery-platforms",
+      "portcove-cli:catalog-discovery-platforms",
+      "portcove-desktop:catalog-discovery-platforms",
+    ],
+  );
+  const broad = (selection: ReturnType<typeof select>) =>
+    selection.some(
+      (group) => group.filter === "package(=portcove-core)" || group.filter === "all()",
+    );
+  assert.ok(broad(select(annotated, before)));
+  for (const postimage of [
+    (file: string) => (file === generated ? before(file) : after(file)),
+    (file: string) => (file === operational ? "[]" : after(file)),
+    (file: string) =>
+      file === generated ? after(file).replace("macos.zip", "wrong.zip") : after(file),
+    (file: string) =>
+      file === generated ? after(file) : after(file).replace('"name":', '"extra":true,"name":'),
+    (file: string) =>
+      after(file).replace(
+        '["windows-x86-64","macos-aarch64"]',
+        '["macos-aarch64","windows-x86-64"]',
+      ),
+  ]) {
+    assert.ok(broad(select(annotateDiscoveryPlatforms(changes, before, postimage), postimage)));
+  }
+  assert.ok(
+    broad(
+      select(
+        annotateDiscoveryPlatforms(
+          changes.map((change) => ({ ...change, newMode: "100755" })),
+          before,
+          after,
+        ),
+      ),
+    ),
   );
 });
 

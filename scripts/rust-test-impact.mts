@@ -1,6 +1,8 @@
 import {
   hasCatalogAuthoringEquivalence,
   hasCatalogGuideCopy,
+  hasDiscoveryPlatformProof,
+  isDiscoveryEvidencePath,
   readGuideCopyBlob,
 } from "./catalog-guide-copy-impact.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
@@ -489,6 +491,37 @@ export function selectWorkspaceRustImpact(
           "package(=portcove-core) & test(/^catalog::tests::embedded_catalog_is_valid_and_contains_lighthouse$/)",
         reason:
           "Authoring layout conversion preserves generated definitions; catalog generation and embedded validation remain required",
+      },
+    ];
+  if (
+    map &&
+    plan.mode === "fast" &&
+    plan.groups.includes("catalog") &&
+    plan.paths.every(
+      (entry) =>
+        !entry.unknown && (!isDiscoveryEvidencePath(entry.path) || !entry.groups.includes("rust")),
+    ) &&
+    hasDiscoveryPlatformProof(plan.changes, readCheckout)
+  )
+    return [
+      {
+        id: "portcove-core:catalog-discovery-platforms",
+        packageName: "portcove-core",
+        filter:
+          "package(=portcove-core) & test(/^(catalog(::|_)|artwork|definition_|game_file_query|game_recommendations|library|listing_delivery|official_catalog_setup|port_recommendation|release::tests::unchanged_definition|service::(capabilities|catalog_download|listings|native_portable|package_selection|tests::channel_recommendations|user_selected)|signed_catalog)/)",
+        reason: "Additive discovery platform facts retain Core directory and package consumers",
+      },
+      {
+        id: "portcove-cli:catalog-discovery-platforms",
+        packageName: "portcove-cli",
+        filter: "package(=portcove-cli)",
+        reason: "Discovery platform facts feed CLI machine and human output",
+      },
+      {
+        id: "portcove-desktop:catalog-discovery-platforms",
+        packageName: "portcove-desktop",
+        filter: "package(=portcove-desktop)",
+        reason: "Discovery platform facts feed desktop catalog projections",
       },
     ];
   if (map && plan.mode === "fast" && hasCatalogGuideCopy(plan.changes, readCheckout))
