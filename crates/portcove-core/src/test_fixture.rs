@@ -431,7 +431,10 @@ fn indexed_policy_fixtures_keep_delivered_reader_floors() {
         ("resident-evil-gaiden-recomp", 21),
         ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
-        ("star-wars-x-wing-openxw", 8),
+        (
+            "star-wars-x-wing-openxw",
+            crate::package_layout::NATIVE_CAPABILITY,
+        ),
     ] {
         let bundle = IndexedCatalogFixture::new(&catalog, id).at_revision(7);
         let entry: serde_json::Value = serde_json::from_slice(&bundle.contents[0].1).unwrap();

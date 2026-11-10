@@ -51035,6 +51035,34 @@
         "linux-x86-64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "resources",
+            "shaders"
+          ],
+          "executables": [
+            "openxwa.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "lib",
+            "licenses",
+            "resources",
+            "shaders"
+          ],
+          "executables": [
+            "lib/libavcodec.so.62",
+            "lib/libavformat.so.62",
+            "lib/libavutil.so.60",
+            "lib/libswresample.so.6",
+            "lib/libswscale.so.9",
+            "openxwa"
+          ]
+        }
+      },
       "release": {
         "repository": "elyosh/OpenXWA",
         "asset_hints": {
@@ -51115,6 +51143,36 @@
         "linux-x86-64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "resources",
+            "shaders",
+            "share"
+          ],
+          "executables": [
+            "openxw.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "lib",
+            "licenses",
+            "resources",
+            "shaders",
+            "share"
+          ],
+          "executables": [
+            "lib/libavcodec.so.62",
+            "lib/libavformat.so.62",
+            "lib/libavutil.so.60",
+            "lib/libspeexdsp.so.1",
+            "lib/libswresample.so.6",
+            "openxw"
+          ]
+        }
+      },
       "release": {
         "repository": "elyosh/OpenXW",
         "asset_hints": {
@@ -51198,6 +51256,34 @@
         "linux-x86-64"
       ],
       "adapter": "native-portable",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "resources",
+            "shaders"
+          ],
+          "executables": [
+            "openxvt.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "lib",
+            "licenses",
+            "resources",
+            "shaders"
+          ],
+          "executables": [
+            "lib/libavcodec.so.62",
+            "lib/libavformat.so.62",
+            "lib/libavutil.so.60",
+            "lib/libswresample.so.6",
+            "lib/libswscale.so.9",
+            "openxvt"
+          ]
+        }
+      },
       "release": {
         "repository": "elyosh/OpenXvT",
         "asset_hints": {

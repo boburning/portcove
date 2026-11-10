@@ -246,6 +246,7 @@ pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
 };
+pub use package_layout::inspect_package_archive;
 pub use port_recommendation::{
     PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,
     PortRecommendationStatus, RecommendationCandidate, RecommendationCandidateAssessment,

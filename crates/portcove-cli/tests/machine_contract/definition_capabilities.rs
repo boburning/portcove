@@ -2,6 +2,37 @@ use super::{json_stdout, portcove};
 use serde_json::json;
 
 #[test]
+fn package_layout_inspection_refuses_wrong_digest_without_opening_a_library() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("unopened");
+    let archive = temporary.path().join("package.zip");
+    std::fs::write(&archive, b"x").unwrap();
+    let result = portcove(
+        &library,
+        &[
+            "--json",
+            "catalog",
+            "inspect-package-layout",
+            archive.to_str().unwrap(),
+            "--platform",
+            "windows-x86-64",
+            "--size",
+            "1",
+            "--sha256",
+            &"0".repeat(64),
+        ],
+    );
+    assert!(!result.status.success());
+    let response = json_stdout(&result);
+    assert_eq!(response["command"], "catalog.inspect-package-layout");
+    assert_eq!(
+        response["error"]["message"],
+        "package archive SHA-256 differs"
+    );
+    assert!(!library.exists());
+}
+
+#[test]
 fn definition_publication_inspection_is_offline_and_never_opens_a_library() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("unopened");
