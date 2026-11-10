@@ -7,15 +7,21 @@ import {
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
   standaloneBootstrapAdoption,
+  standaloneBootstrapForwardAdoption,
   standaloneBootstrapRenewalAdoption,
   validatePublishedMetadataTransition,
 } from "./release-metadata-contract.mts";
 import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
 import {
+  assertRetainedBootstrapForwardRenewal,
   assertRetainedBootstrapRenewal,
   assertStandaloneBootstrapAdoptionCapacity,
 } from "./release-catalog-bootstrap-adoption.mts";
-import { retainedServedRenewal } from "./application-release-run.mts";
+import {
+  retainedR55Renewal,
+  retainedR56FeedRecovery,
+  retainedServedRenewal,
+} from "./application-release-run.mts";
 import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -209,6 +215,124 @@ void test("one settled standalone bootstrap can seed the app-only cursor without
     },
   };
   validatePublishedMetadataTransition(before, renewal, null);
+  const pin = standaloneBootstrapForwardAdoption;
+  const predecessor = {
+    ...renewal,
+    published_metadata: {
+      ...renewal.published_metadata,
+      standalone_bootstrap_run: pin.prior_run_id,
+      publication: {
+        ...renewal.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${pin.prior_run_id}/job/${pin.prior_job_id}`,
+      },
+    },
+  };
+  const forwardFacts = {
+    ...after.published_metadata,
+    repository_sha256: "c60ac310b3f6a7ccd118dce45314fa40e09b5db9c397fde469d546541b80c014",
+    timestamp_sha256: "ec9e767be018497ebb6a6b33b2bbe5857d71f33e730155a26aaa57fb410e2bcd",
+    snapshot_sha256: "57fe74fc121326f45788c5ca36bf1dba128e0f65686b46cb9e18456de4e5fe06",
+    versions: {
+      targets: "1",
+      releases: "7",
+      preview: "7",
+      stable: "7",
+      snapshot: "7",
+      timestamp: "7",
+    },
+    expires: {
+      targets: offlineExpiry,
+      releases: "2027-02-07T07:10:19.735Z",
+      preview: "2026-11-16T07:10:19.735Z",
+      stable: "2026-11-16T07:10:19.735Z",
+      snapshot: "2026-11-16T07:10:19.735Z",
+      timestamp: "2026-11-11T07:10:19.735Z",
+    },
+  };
+  const forward = {
+    ...predecessor,
+    now: "2026-11-10T08:00:00.000Z",
+    published_metadata: {
+      ...forwardFacts,
+      standalone_bootstrap_run: pin.run_id,
+      publication: {
+        ...predecessor.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${pin.run_id}/job/${pin.feed_job_id}`,
+        site_generation_sha256: pin.generation,
+      },
+    },
+  };
+  validatePublishedMetadataTransition(predecessor, forward, null);
+  assert.equal(currentPublishedSite(forward)?.generation_sha256, pin.generation);
+  for (const prior of [
+    before,
+    renewal,
+    { ...predecessor, review_request: {} },
+    { ...predecessor, published_site: null },
+  ])
+    assert.throws(
+      () => validatePublishedMetadataTransition(prior, forward, null),
+      /exact predecessor/u,
+    );
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        predecessor,
+        { ...forward, now: "2026-11-11T08:00:00.000Z" },
+        null,
+      ),
+    /expired standalone bootstrap/u,
+  );
+  const {
+    publication: _forwardPublication,
+    operation_id: _forwardOperation,
+    standalone_bootstrap_run: _forwardRun,
+    ...forwardTuf
+  } = forward.published_metadata;
+  const assembly = retainedR56FeedRecovery;
+  const forwardSelection = {
+    discovered: {
+      release_id: retainedR55Renewal.release_id,
+      custody: { opportunity: retainedR55Renewal.opportunity, preparation: null },
+      execution: {
+        run: { id: pin.run_id, control_commit: pin.revision, control_ref: assembly.next_ref },
+        attempt: 1,
+        conclusion: "success",
+        job_id: Number(pin.feed_job_id),
+      },
+      state: { log_url: forward.published_metadata.publication.remote_identity },
+    },
+    prior: {
+      receipt: {
+        producer: {
+          id: assembly.run_id,
+          control_commit: assembly.control_commit,
+          control_ref: retainedR55Renewal.next_ref,
+        },
+        producer_attempt: 1,
+        site: {
+          previous_generation: standaloneBootstrapRenewalAdoption.generation,
+          generation: pin.generation,
+        },
+        publication: forwardTuf,
+      },
+      metadata: {
+        purpose: "metadata-renewal",
+        prior_generation: standaloneBootstrapRenewalAdoption.generation,
+        prior_repository_sha256: pin.prior_repository_sha256,
+        context_sha256: assembly.context_sha256,
+      },
+      assets: Object.entries(assembly.assets).map(([name, asset]) => ({ name, ...asset })),
+    },
+  } as unknown as Parameters<typeof assertRetainedBootstrapForwardRenewal>[0];
+  assertRetainedBootstrapForwardRenewal(forwardSelection);
+  const wrongServingJob = structuredClone(forwardSelection);
+  wrongServingJob.discovered.execution.job_id++;
+  assert.throws(() => assertRetainedBootstrapForwardRenewal(wrongServingJob));
+  const wrongPrior = structuredClone(forwardSelection);
+  assert.ok(isRecord(wrongPrior.prior.metadata));
+  wrongPrior.prior.metadata.prior_repository_sha256 = "0".repeat(64);
+  assert.throws(() => assertRetainedBootstrapForwardRenewal(wrongPrior));
   const {
     publication: _publication,
     operation_id: _operation,
