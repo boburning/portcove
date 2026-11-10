@@ -608,8 +608,23 @@ fn extract_tar<R: Read>(
         let name = path
             .to_str()
             .ok_or_else(|| PortcoveError::verification("TAR contains a non-Unicode path"))?;
-        let (relative, key) = validate_relative_path(name, directory)?;
-        collisions.insert(key.clone(), directory)?;
+        // A leading "./" only spells the archive root and is harmless. Archives written
+        // as `./path` are accepted; every other path rule, including "..", is unchanged.
+        let name = strip_leading_current_directory(name);
+        let root_directory = name.is_empty();
+        if root_directory && !directory {
+            return Err(PortcoveError::verification(
+                "archive contains an unsafe path component: .",
+            ));
+        }
+        let (relative, key) = if root_directory {
+            (PathBuf::new(), String::new())
+        } else {
+            validate_relative_path(name, directory)?
+        };
+        if !root_directory {
+            collisions.insert(key.clone(), directory)?;
+        }
         let size = entry.size();
         if alias {
             let target = entry
@@ -656,6 +671,19 @@ fn extract_tar<R: Read>(
     write_tar_entries(open_checked()?, destination, &plans, &alias_of, checkpoint)
 }
 
+/// Remove leading `./` segments, so a root entry spelled `.` or `./` becomes empty.
+fn strip_leading_current_directory(mut name: &str) -> &str {
+    loop {
+        if name == "." {
+            return "";
+        }
+        match name.strip_prefix("./") {
+            Some(rest) => name = rest,
+            None => return name,
+        }
+    }
+}
+
 fn write_tar_entries(
     reader: impl Read,
     destination: &Path,
@@ -673,7 +701,7 @@ fn write_tar_entries(
             .next()
             .ok_or_else(|| PortcoveError::verification("TAR has fewer entries than planned"))?
             .map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
-        if alias_of[index].is_none() {
+        if alias_of[index].is_none() && !plan.relative.as_os_str().is_empty() {
             write_entry(destination, plan, &mut entry, checkpoint)?;
         }
     }
@@ -1734,6 +1762,93 @@ mod tests {
         assert_eq!(fs::read(&docs).unwrap(), b"readme");
         #[cfg(unix)]
         assert_eq!(mode(&docs), 0o644);
+    }
+
+    fn write_tar_gz_raw_paths(path: &Path, entries: &[(&str, tar::EntryType, &[u8], u32)]) {
+        let encoder = flate2::write::GzEncoder::new(
+            File::create(path).unwrap(),
+            flate2::Compression::default(),
+        );
+        let mut builder = tar::Builder::new(encoder);
+        for (name, kind, bytes, mode) in entries {
+            let mut header = tar::Header::new_gnu();
+            header.set_entry_type(*kind);
+            header.set_size(bytes.len() as u64);
+            header.set_mode(*mode);
+            // Write the name bytes directly so a leading "./" survives exactly as written.
+            let field = &mut header.as_old_mut().name;
+            field.fill(0);
+            field[..name.len()].copy_from_slice(name.as_bytes());
+            header.set_cksum();
+            builder.append(&header, *bytes).unwrap();
+        }
+        builder.into_inner().unwrap().finish().unwrap();
+    }
+
+    #[test]
+    fn tar_entries_written_with_a_leading_current_directory_extract_normally() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("dotted.tar.gz");
+        let destination = temporary.path().join("out");
+        fs::create_dir_all(&destination).unwrap();
+        write_tar_gz_raw_paths(
+            &source,
+            &[
+                ("./", tar::EntryType::Directory, b"", 0o755),
+                ("./lib/", tar::EntryType::Directory, b"", 0o755),
+                ("./launch", tar::EntryType::Regular, b"run", 0o755),
+                ("././lib/data.bin", tar::EntryType::Regular, b"data", 0o644),
+            ],
+        );
+        extract_archive(
+            &source,
+            &destination,
+            "dotted.tar.gz",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap();
+        assert_eq!(fs::read(destination.join("launch")).unwrap(), b"run");
+        assert_eq!(fs::read(destination.join("lib/data.bin")).unwrap(), b"data");
+        #[cfg(unix)]
+        assert_eq!(mode(&destination.join("launch")), 0o755);
+        assert_eq!(
+            fs::read_dir(&destination).unwrap().count(),
+            2,
+            "the root entry must not create anything"
+        );
+    }
+
+    #[test]
+    fn only_a_leading_current_directory_is_normalized_in_tar_paths() {
+        let temporary = tempdir().unwrap();
+        for (name, entries) in [
+            ("parent", vec![("./../escape", tar::EntryType::Regular)]),
+            ("inner-dot", vec![("./a/./b", tar::EntryType::Regular)]),
+            ("dot-file", vec![(".", tar::EntryType::Regular)]),
+            ("dot-slash-file", vec![("./", tar::EntryType::Regular)]),
+            ("double-slash", vec![(".//file", tar::EntryType::Regular)]),
+            ("dot-dot-only", vec![("./..", tar::EntryType::Directory)]),
+        ] {
+            let source = temporary.path().join(format!("{name}.tar.gz"));
+            let destination = temporary.path().join(format!("out-{name}"));
+            fs::create_dir_all(&destination).unwrap();
+            let raw = entries
+                .iter()
+                .map(|(entry, kind)| (*entry, *kind, &b"x"[..], 0o644_u32))
+                .collect::<Vec<_>>();
+            write_tar_gz_raw_paths(&source, &raw);
+            assert!(
+                extract_archive(
+                    &source,
+                    &destination,
+                    "refused.tar.gz",
+                    fs::metadata(&source).unwrap().len(),
+                )
+                .is_err(),
+                "{name}"
+            );
+            assert_eq!(fs::read_dir(&destination).unwrap().count(), 0, "{name}");
+        }
     }
 
     #[test]
