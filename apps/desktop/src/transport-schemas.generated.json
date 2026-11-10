@@ -5222,6 +5222,13 @@
             "default": false,
             "type": "boolean"
           },
+          "portable_marker_file": {
+            "description": "Native19: create this empty file beside the launch working directory only when it\nis missing. For engines whose portable mode is keyed on a named file that is also\ntheir configuration, so it must be a declared persistent path and is never reset.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "presentation": {
             "anyOf": [
               {
@@ -28516,6 +28523,13 @@
         "default": false,
         "type": "boolean"
       },
+      "portable_marker_file": {
+        "description": "Native19: create this empty file beside the launch working directory only when it\nis missing. For engines whose portable mode is keyed on a named file that is also\ntheir configuration, so it must be a declared persistent path and is never reset.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "presentation": {
         "anyOf": [
           {
@@ -37675,6 +37689,13 @@
           "portable_marker": {
             "default": false,
             "type": "boolean"
+          },
+          "portable_marker_file": {
+            "description": "Native19: create this empty file beside the launch working directory only when it\nis missing. For engines whose portable mode is keyed on a named file that is also\ntheir configuration, so it must be a declared persistent path and is never reset.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "presentation": {
             "anyOf": [

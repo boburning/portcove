@@ -102,6 +102,16 @@ the archive file links it needs. These guarded routes check default
 external profiles and use the executable's directory for packaged assets.
 The previously managed platform contracts retain their creating rules.
 
+Native portable version 19 consumes `portable_marker_file` for an engine whose portable
+mode is keyed on a named file that is also its own configuration (for example Raze's
+`raze_portable.ini`). Core creates that empty file beside the launch working directory
+only when it is missing, never truncates an existing regular file, and refuses a
+directory or link. The definition must also declare the same name as a persistent path,
+may not combine it with `portable_marker`, and is accepted only for native-portable.
+Indexed entries with the declaration require a Native19 lower bound for fresh and
+retained reads. The retained operational identity gains the name only when it is
+declared, so existing retained contracts keep theirs.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

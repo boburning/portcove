@@ -1826,6 +1826,12 @@ export interface PortDefinition {
   persistent_paths: string[];
   platforms: Platform[];
   portable_marker: boolean;
+  /**
+   * Native19: create this empty file beside the launch working directory only when it
+   * is missing. For engines whose portable mode is keyed on a named file that is also
+   * their configuration, so it must be a declared persistent path and is never reset.
+   */
+  portable_marker_file?: string | null;
   presentation?: PortPresentation | null;
   project_url: string;
   release: ReleaseSpec;

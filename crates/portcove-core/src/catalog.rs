@@ -584,6 +584,7 @@ impl Catalog {
         for port in &self.document.ports {
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
+            validate_portable_marker_file(port)?;
             if let Some(settings) = &port.game_settings {
                 settings.validate(&port.persistent_paths)?;
                 if !port.platforms.contains(&crate::Platform::WindowsX86_64) {
@@ -1762,6 +1763,30 @@ fn is_safe_basename(value: &str) -> bool {
             .all(|component| matches!(component, Component::Normal(_)))
 }
 
+/// A named portable marker is one plain file name that the port also declares persistent,
+/// because the engine keeps its own configuration in it.
+fn validate_portable_marker_file(port: &PortDefinition) -> Result<()> {
+    let Some(name) = &port.portable_marker_file else {
+        return Ok(());
+    };
+    let plain = !name.is_empty()
+        && name.len() <= 64
+        && name.is_ascii()
+        && !name.contains(['/', '\\'])
+        && crate::archive::validate_relative_path(name, false).is_ok();
+    if port.adapter != AdapterKind::NativePortable
+        || port.portable_marker
+        || !plain
+        || !port.persistent_paths.iter().any(|path| path == name)
+    {
+        return Err(PortcoveError::usage(format!(
+            "{} declares an invalid portable marker file",
+            port.id
+        )));
+    }
+    Ok(())
+}
+
 fn is_safe_executable_hint(value: &str, platform: crate::Platform) -> bool {
     crate::archive::validate_relative_path(value, false).is_ok()
         && !(matches!(
@@ -1784,6 +1809,55 @@ fn is_crc32(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn named_portable_marker_files_must_be_one_plain_persistent_native_name() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut base = catalog
+            .ports()
+            .iter()
+            .find(|port| port.adapter == AdapterKind::NativePortable)
+            .unwrap()
+            .clone();
+        base.portable_marker = false;
+        base.portable_marker_file = Some("engine_portable.ini".into());
+        base.persistent_paths.push("engine_portable.ini".into());
+        assert!(validate_portable_marker_file(&base).is_ok());
+        let refused = |change: &dyn Fn(&mut PortDefinition)| {
+            let mut port = base.clone();
+            change(&mut port);
+            validate_portable_marker_file(&port).is_err()
+        };
+        assert!(refused(&|port| port
+            .persistent_paths
+            .retain(|path| path != "engine_portable.ini")));
+        assert!(refused(&|port| port.portable_marker = true));
+        assert!(refused(
+            &|port| port.adapter = AdapterKind::N64RecompPortable
+        ));
+        for name in [
+            "",
+            "dir/marker.ini",
+            "dir\\marker.ini",
+            "..",
+            ".",
+            "a:b",
+            "caf\u{e9}.ini",
+        ] {
+            assert!(
+                refused(&|port| {
+                    port.portable_marker_file = Some(name.into());
+                    port.persistent_paths.push(name.into());
+                }),
+                "{name:?}"
+            );
+        }
+        assert!(refused(&|port| {
+            let long = "x".repeat(65);
+            port.portable_marker_file = Some(long.clone());
+            port.persistent_paths.push(long);
+        }));
+    }
+
     use super::*;
 
     #[test]
