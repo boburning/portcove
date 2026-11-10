@@ -19,6 +19,7 @@ type ProtectionReader = (
 ) => { status?: number; body: unknown } | Promise<{ status?: number; body: unknown }>;
 type ProtectionObservationOptions = {
   releasePublication?: boolean;
+  applicationCoordinator?: true;
   journalNamespace?: string | undefined;
   onRefusal?: (evidence: {
     snapshot: number;
@@ -217,7 +218,10 @@ async function observeProtections(
   const read = async () => {
     const rulesets: Record<string, unknown>[] = [];
     const seen = new Set<number>();
-    const detailBatch = 4;
+    // The fixed application coordinator shares its original phase deadline
+    // with multiple complete observations. Keep both snapshots, but allow
+    // eight in-flight detail reads there while retaining the other profiles.
+    const detailBatch = purpose === "application" && options.applicationCoordinator ? 8 : 4;
     let complete = false;
     for (let page = 1; page <= 8; page++) {
       stage = "ruleset-inventory";

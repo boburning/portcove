@@ -566,6 +566,9 @@ async function runOperation(
         : await observeReleaseInputProtections(readProtection, {
             ...observationOptions,
             releasePublication: phase === "release-publication",
+            ...(productionObservation && phase === "coordinator"
+              ? { applicationCoordinator: true }
+              : {}),
           });
       requireObserver();
       if (productionObservation)

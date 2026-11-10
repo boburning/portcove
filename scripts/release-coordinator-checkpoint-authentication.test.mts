@@ -1260,30 +1260,32 @@ void test("the repaired application controller accepts only the settled renewal 
     job_id: "129885597891",
     check_run_id: "129885597891",
   };
-  const source = { execution_ref: pin.settled_successor_ref };
-  assert.equal(
-    matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
-    true,
-  );
-  assert.equal(
-    matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
-    false,
-  );
-  assert.equal(
-    matchesRetainedApplicationRenewalHandoff(
-      { ...checkpoint, checkpoint: pin.previous },
-      producer,
-      source,
-      "application",
-    ),
-    false,
-  );
-  for (const [key, value] of Object.entries(producer)) {
-    const changed = { ...producer, [key]: typeof value === "number" ? 2 : value + "0" };
+  for (const execution_ref of [pin.settled_successor_ref, pin.latency_successor_ref]) {
+    const source = { execution_ref };
     assert.equal(
-      matchesRetainedApplicationRenewalHandoff(checkpoint, changed, source, "application"),
-      false,
-      key,
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
+      true,
     );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
+      false,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        { ...checkpoint, checkpoint: pin.previous },
+        producer,
+        source,
+        "application",
+      ),
+      false,
+    );
+    for (const [key, value] of Object.entries(producer)) {
+      const changed = { ...producer, [key]: typeof value === "number" ? 2 : value + "0" };
+      assert.equal(
+        matchesRetainedApplicationRenewalHandoff(checkpoint, changed, source, "application"),
+        false,
+        key,
+      );
+    }
   }
 });
