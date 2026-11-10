@@ -3364,6 +3364,17 @@ mod tests {
                 .asset_hints
                 .insert(Platform::LinuxX86_64, vec![hint.into()]);
         }
+        // Three Linux packages store their program without an executable bit, which Core
+        // refuses by design. Fresh creation stops offering Linux while the frozen reader
+        // keeps the old claim.
+        for id in ["alistert-openjazz", "paperboat", "perfect-dark"] {
+            if let Some(port) = expected_ports.iter_mut().find(|port| port.id == id) {
+                port.platforms
+                    .retain(|platform| *platform != Platform::LinuxX86_64);
+                port.executable_hints.remove(&Platform::LinuxX86_64);
+                port.release.asset_hints.remove(&Platform::LinuxX86_64);
+            }
+        }
         // Reviewed macOS additions after the frozen input: universal app bundles for
         // three ports and an Apple Silicon bundle for Donkey Kong 64.
         for (id, platforms, hint, executable) in [
