@@ -801,6 +801,9 @@ project-owned `.vite-hooks/pre-commit` checks staged whitespace, Node test
 registration and affected indexed catalog coherence, then runs
 `vp staged`. Its standard `vp check --fix` workflow formats, lints and stages
 safe fixes while lint-staged's backup and partial-staging isolation remain on.
+When any staged path ends in `.rs`, it also runs one read-only
+`cargo fmt --all -- --check` through the storage wrapper and refuses the commit,
+without rewriting files, until `cargo fmt --all` is run.
 Review the resulting diff before committing. Required CI and separate review
 remain independent gates.
 
