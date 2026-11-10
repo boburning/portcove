@@ -17148,6 +17148,10 @@
       },
       "ReleaseSpec": {
         "properties": {
+          "archive_file_links": {
+            "description": "Native13: the package relies on in-archive file links, which extraction writes as\nregular copies of the files they name.",
+            "type": "boolean"
+          },
           "asset_hints": {
             "additionalProperties": false,
             "default": {},

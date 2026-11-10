@@ -159,6 +159,40 @@ fn native_linux_tar_xz_requires_version_8_in_fresh_and_retained_readers() {
 }
 
 #[test]
+fn native_archive_file_links_require_version_14_in_fresh_and_retained_readers() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.release.linux_tar_xz = true;
+    port.release.archive_file_links = true;
+    port.release.asset_hints.insert(
+        crate::Platform::LinuxX86_64,
+        vec!["-linux-x86_64.tar.xz".into()],
+    );
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(13);
+    entry["required_capabilities"][0]["maximum_version"] = json!(14);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap_err().message.contains("version 14"));
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 14")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(14);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+}
+
+#[test]
 fn libultraship_windows_paths_require_the_owning_v2_template() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("2ship2harkinian").unwrap().clone();
@@ -780,7 +814,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if crate::native_temp::has_sibling_platforms(port) {
+        let version = if port.release.archive_file_links {
+            14
+        } else if crate::native_temp::has_sibling_platforms(port) {
             10
         } else if let Some(policy) = port.external_profile_policy {
             crate::native_external_profile::minimum_capability(policy)

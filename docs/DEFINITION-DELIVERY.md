@@ -88,6 +88,14 @@ require version 10. The Windows launch environment and creating Windows
 contracts retain their prior semantics. The Linux sibling may use a single
 exact AppImage asset with the existing standalone installer.
 
+Native portable version 14 consumes `release.archive_file_links` for a package
+whose archive relies on file links, such as versioned shared-library names. Core
+extracts each link as a regular copy of the file it names, following at most eight
+links inside the same archive, and refuses every other link shape. Indexed entries
+with the declaration require a Native14 lower bound for fresh and retained reads.
+Older readers refuse such an entry; other definitions keep their existing package
+contracts.
+
 Native portable version 9 consumes `external_profile_policy` for the reviewed
 Dune Dynasty and fheroes2 external profile checks. Both fresh and retained
 indexed entries must declare capability 9 when they use this field.

@@ -83,6 +83,10 @@ impl EngineTemplateCapability {
             contract_version: 13,
         });
         supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 14,
+        });
+        supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: 2,
         });
@@ -365,6 +369,31 @@ mod tests {
         );
         assert!(
             check_definition_capabilities(&request("native-portable", 7, 7))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn native14_archive_file_links_exclude_older_readers_without_retiring_native13() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 14
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 14, 14), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 14, 14))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 13, 13))
                 .unwrap()
                 .compatible
         );
