@@ -2111,6 +2111,12 @@ export interface ReleaseSpec {
     "windows-x86-64"?: DirectReleaseSpec;
   };
   /**
+   * Native22 (native definitions only): after extraction on a Unix platform, grant
+   * execute permission to the declared executable only when it verifies as a binary for
+   * that platform. The publisher's own executable bit, when present, is never changed.
+   */
+  grant_declared_executable?: boolean;
+  /**
    * Native8: select the checked TAR.XZ player archive on Linux x86-64.
    */
   linux_tar_xz?: boolean;
