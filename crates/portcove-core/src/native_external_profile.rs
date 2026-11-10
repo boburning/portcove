@@ -3,6 +3,7 @@
 use std::{
     ffi::{OsStr, OsString},
     fs,
+    io::Read,
     path::{Component, Path, PathBuf},
     process::Command,
 };
@@ -13,10 +14,34 @@ use crate::{
 };
 
 pub(crate) mod openmohaa;
+pub(crate) mod profile_siblings;
 pub(crate) mod quake_linux;
+
+fn read_amd64_elf_header(executable: &Path) -> Result<[u8; 20]> {
+    let mut file = crate::external_runtime::open_single_link_file(executable)?;
+    let mut header = [0; 20];
+    file.read_exact(&mut header)?;
+    if !header.starts_with(b"\x7fELF\x02\x01") || !matches!(&header[16..20], [2 | 3, 0, 0x3e, 0]) {
+        return Err(PortcoveError::verification(
+            "the package no longer contains the expected Linux x86-64 executable",
+        ));
+    }
+    Ok(header)
+}
+
+fn require_type2_appimage(executable: &Path) -> Result<()> {
+    let header = read_amd64_elf_header(executable)?;
+    if &header[8..11] != b"AI\x02" {
+        return Err(PortcoveError::verification(
+            "the package is not a type-2 AppImage",
+        ));
+    }
+    Ok(())
+}
 
 pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
     match policy {
+        ExternalProfilePolicy::CorsixthLinuxV1 | ExternalProfilePolicy::OpenlocoUnixV1 => 16,
         ExternalProfilePolicy::IronwailLinuxV1 | ExternalProfilePolicy::VkquakeLinuxV1 => 15,
         ExternalProfilePolicy::OpenmohaaUnixV1 => 13,
         ExternalProfilePolicy::RecompAppimageV1 => 12,
@@ -34,6 +59,9 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
         ExternalProfilePolicy::OpenmohaaUnixV1 => openmohaa::applies_to(platform),
         ExternalProfilePolicy::IronwailLinuxV1 | ExternalProfilePolicy::VkquakeLinuxV1 => {
             platform == Platform::LinuxX86_64
+        }
+        ExternalProfilePolicy::CorsixthLinuxV1 | ExternalProfilePolicy::OpenlocoUnixV1 => {
+            profile_siblings::applies_to(policy, platform)
         }
         _ => true,
     }
@@ -81,9 +109,19 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
                 Platform::MacosAarch64,
             ],
         ),
-        ExternalProfilePolicy::IronwailLinuxV1 | ExternalProfilePolicy::VkquakeLinuxV1 => {
+        ExternalProfilePolicy::IronwailLinuxV1
+        | ExternalProfilePolicy::VkquakeLinuxV1
+        | ExternalProfilePolicy::CorsixthLinuxV1 => {
             (None, &[Platform::WindowsX86_64, Platform::LinuxX86_64])
         }
+        ExternalProfilePolicy::OpenlocoUnixV1 => (
+            None,
+            &[
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosAarch64,
+            ],
+        ),
     };
     if identity.is_some_and(|(id, repo)| {
         port.id != id || !port.release.repository.eq_ignore_ascii_case(repo)
@@ -122,6 +160,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
     }
     if quake_linux::applies(policy) {
         quake_linux::validate(port, policy)?;
+    }
+    if profile_siblings::applies(policy) {
+        profile_siblings::validate(port, policy)?;
     }
     if policy == ExternalProfilePolicy::Openrct2MacV1 {
         let mut mac_routes = port
@@ -256,7 +297,9 @@ fn linux_root(
         | ExternalProfilePolicy::RecompAppimageV1
         | ExternalProfilePolicy::OpenmohaaUnixV1
         | ExternalProfilePolicy::IronwailLinuxV1
-        | ExternalProfilePolicy::VkquakeLinuxV1 => {
+        | ExternalProfilePolicy::VkquakeLinuxV1
+        | ExternalProfilePolicy::CorsixthLinuxV1
+        | ExternalProfilePolicy::OpenlocoUnixV1 => {
             return Err(PortcoveError::unsupported(
                 "this profile uses a different upstream layout",
             ));
@@ -321,6 +364,12 @@ fn roots(
     command: &Command,
 ) -> Result<Vec<PathBuf>> {
     match (policy, platform) {
+        #[cfg(unix)]
+        (policy, platform) if profile_siblings::applies_to(policy, platform) => {
+            Ok(vec![profile_siblings::profile_root(
+                policy, platform, command,
+            )?])
+        }
         #[cfg(target_os = "linux")]
         (ExternalProfilePolicy::IronwailLinuxV1, Platform::LinuxX86_64) => {
             Ok(vec![quake_linux::ironwail_profile_root(
@@ -627,6 +676,7 @@ pub(crate) fn require_external_roots(
         .chain([library.versions_dir(), spec.install_root.clone()])
         .chain(
             (quake_linux::applies(policy)
+                || profile_siblings::applies(policy)
                 || matches!(
                     policy,
                     ExternalProfilePolicy::RecompAppimageV1
@@ -654,13 +704,22 @@ pub(crate) fn require_external_roots(
         ));
     } else {
         #[cfg(target_os = "linux")]
-        if policy == ExternalProfilePolicy::VkquakeLinuxV1 {
+        if policy == ExternalProfilePolicy::VkquakeLinuxV1
+            || (platform == Platform::LinuxX86_64 && profile_siblings::applies(policy))
+        {
             require_appimage_layout(spec)?;
             checkpoint()?;
             check_appimage_mount_root(&appimage_mount_root(command)?, uid, &owned)?;
         }
         roots(policy, platform, command)?
     };
+    #[cfg(target_os = "linux")]
+    if profile_siblings::applies(policy) && platform == Platform::LinuxX86_64 {
+        for root in &profile_roots {
+            checkpoint()?;
+            check_appimage_directory(root, uid, false)?;
+        }
+    }
     let mut checked = Vec::new();
     for root in profile_roots {
         checkpoint()?;
@@ -688,7 +747,9 @@ pub(crate) fn require_external_roots(
                 |path, _| {
                     checkpoint()?;
                     #[cfg(target_os = "linux")]
-                    if policy == ExternalProfilePolicy::RecompAppimageV1 {
+                    if policy == ExternalProfilePolicy::RecompAppimageV1
+                        || (platform == Platform::LinuxX86_64 && profile_siblings::applies(policy))
+                    {
                         check_appimage_profile_entry(path, uid)?;
                     }
                     #[cfg(not(target_os = "linux"))]
@@ -706,6 +767,44 @@ pub(crate) fn require_external_roots(
 mod tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn profile_siblings_hold_library_overlap_and_preserve_external_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let library = Library::open(root.join("library")).unwrap();
+        let runtime = library.versions_dir().join("engine");
+        fs::create_dir_all(&runtime).unwrap();
+        let outside = root.join("settings");
+        fs::create_dir(&outside).unwrap();
+        for (policy, leaf) in [
+            (ExternalProfilePolicy::CorsixthLinuxV1, "CorsixTH"),
+            (ExternalProfilePolicy::OpenlocoUnixV1, "OpenLoco"),
+        ] {
+            let external = outside.join(leaf);
+            fs::create_dir(&external).unwrap();
+            let save = external.join("save");
+            fs::write(&save, b"external save").unwrap();
+            let spec = LaunchSpec {
+                executable: runtime.join(format!("{leaf}.AppImage")),
+                install_root: runtime.clone(),
+                working_directory: runtime.clone(),
+                environment: Default::default(),
+                arguments: Vec::new(),
+                fixed_arguments_only: true,
+                launch_kind: crate::LaunchKind::Native,
+            };
+            let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
+            command
+                .env("XDG_CONFIG_HOME", &outside)
+                .env("TMPDIR", &root);
+            require_external_roots(policy, &library, &spec, &command, &|| Ok(())).unwrap();
+            command.env("XDG_CONFIG_HOME", library.root());
+            assert!(require_external_roots(policy, &library, &spec, &command, &|| Ok(())).is_err());
+            assert_eq!(fs::read(save).unwrap(), b"external save");
+        }
+    }
 
     #[cfg(target_os = "linux")]
     #[test]

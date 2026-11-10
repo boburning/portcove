@@ -40110,7 +40110,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -40120,12 +40121,19 @@
             "windows",
             "x64",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "corsixth-",
+            "-x86_64.appimage"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "CorsixTH.exe"
+        ],
+        "linux-x86-64": [
+          "corsix-th.AppImage"
         ]
       },
       "persistent_paths": [],
@@ -40133,7 +40141,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first launch, CorsixTH asks you to locate your original Theme Hospital data. Keep those files outside the managed runtime. CorsixTH normally stores configuration and saves in its own AppData folder, which remains available to replacement versions and is outside Portcove backups. Portcove updates the portable runtime only. Runtime rollback does not restore older saves or guarantee their compatibility. Use an external registration for customized or self-updating installations.",
+        "manual_preparation": "On first Play, CorsixTH asks for your original Theme Hospital data. Keep that folder outside the managed runtime. The Windows player uses its own AppData profile. The Linux AppImage needs FUSE, glibc 2.34 or newer and libstdc++ with GLIBCXX_3.4.30. The Linux player uses CorsixTH under XDG_CONFIG_HOME when it is set, or ~/.config/CorsixTH. Back up that profile separately. If CorsixTH reports a temporary copy after a write error, preserve that copy before restarting. Portcove replaces its portable engine and leaves the external profile in place. Use a separately prepared copy for custom or relative save, campaign, level, log or screenshot locations, portable overrides or custom launch arguments. Keep those folders outside the library.",
         "original_game_title": "Theme Hospital",
         "manual_setup": {
           "steps": [
@@ -40149,7 +40157,7 @@
           "references": [
             {
               "title": "Set up CorsixTH on Linux",
-              "instruction": "Use the official x86-64 AppImage. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
+              "instruction": "For a separately prepared copy, use the official x86-64 AppImage with FUSE support. Keep it in a writable folder, make it executable and open it yourself. The inspected build needs glibc 2.34 and libstdc++ with GLIBCXX_3.4.30. CorsixTH also documents the Flathub package com.corsixth.corsixth for x86-64 and ARM64. Open the installed app and select the folder with your Theme Hospital data. The Flatpak uses its own profile."
             },
             {
               "title": "Set up CorsixTH on Mac",
@@ -40169,7 +40177,8 @@
           "game_slug": "corsixth",
           "match_kind": "port"
         }
-      }
+      },
+      "external_profile_policy": "corsixth-linux-v1"
     },
     {
       "id": "cps2recomp-alien-vs-predator",
@@ -47065,14 +47074,16 @@
     {
       "id": "openloco-openloco",
       "name": "Chris Sawyer's Locomotion / OpenLoco (OpenLoco)",
-      "summary": "Explore Chris Sawyer's Locomotion / OpenLoco (OpenLoco) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Chris Sawyer’s Locomotion with OpenLoco on Windows x64, Linux x64 or Apple Silicon Mac. Bring your own Locomotion data.",
       "project_url": "https://github.com/OpenLoco/OpenLoco",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -47081,12 +47092,26 @@
           "windows-x86-64": [
             "openloco-",
             "-windows-portable-x64.zip"
+          ],
+          "linux-x86-64": [
+            "openloco-",
+            "-linux-x64.appimage"
+          ],
+          "macos-aarch64": [
+            "openloco-",
+            "-macos-arm64.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "OpenLoco.exe"
+        ],
+        "linux-x86-64": [
+          "OpenLoco.AppImage"
+        ],
+        "macos-aarch64": [
+          "OpenLoco.app/Contents/MacOS/OpenLoco"
         ]
       },
       "persistent_paths": [],
@@ -47094,7 +47119,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, OpenLoco detects your installed Chris Sawyer’s Locomotion files or asks you to select the original folder containing Data/g1.DAT. The official portable engine needs no separate build or installer. OpenLoco normally keeps settings, saves, autosaves, custom objects, landscapes, screenshots and crashes under AppData/OpenLoco, outside Portcove backups. Its original Locomotion folder stays external. The runtime’s data folder contains version-owned engine assets, not a generic player-data folder; no in-folder persistence is declared. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "On first Play, select your original Locomotion installation containing Data/g1.DAT. Keep it outside the managed runtime. Linux x64 uses the official AppImage with FUSE support and glibc 2.28 or newer. The Apple Silicon bundle requires macOS 15 or newer. Keep the full engine package together. Back up your external OpenLoco profile separately. On Windows it normally lives under AppData. On Linux it lives under XDG_CONFIG_HOME or the account home’s .config directory. On Mac it lives under Library/Application Support in the account home. Use a separately prepared copy for custom or relative save and landscape locations. Keep your player files and originals outside the library. Portcove replaces its engine and leaves those player files in place.",
         "original_game_title": "Chris Sawyer's Locomotion",
         "manual_setup": {
           "steps": [
@@ -47108,11 +47133,11 @@
           "references": [
             {
               "title": "Set up OpenLoco on Linux",
-              "instruction": "Use the official x86-64 AppImage. The reviewed player needs glibc 2.28 or newer. Make it executable and run it directly to select your installed Locomotion directory containing Data/g1.DAT. Preserve the whole profile under ~/.config/OpenLoco or the actual XDG_CONFIG_HOME location. Keep separately selected saves, landscapes, custom objects and original-game folders."
+              "instruction": "For a separately prepared copy, use the official x86-64 AppImage with FUSE support. The reviewed player needs glibc 2.28 or newer. Make it executable and run it directly to select your installed Locomotion directory containing Data/g1.DAT. Preserve the whole profile under ~/.config/OpenLoco or the actual XDG_CONFIG_HOME location. Keep separately selected saves, landscapes, custom objects and original-game folders."
             },
             {
               "title": "Set up OpenLoco on Apple Silicon",
-              "instruction": "Use the upstream macos-arm64 ZIP. If downloading through Portcove, clear “Extract the archive after downloading”. Extract it with the system archive tool and keep the entire OpenLoco.app bundle. Upstream describes this build as unsigned and unnotarized. Follow its Mac instructions if Gatekeeper blocks it. Start it directly, select the Locomotion directory containing Data/g1.DAT and preserve ~/Library/Application Support/OpenLoco and custom locations. You manage this external copy and its updates."
+              "instruction": "For a separately prepared copy, use the upstream macos-arm64 ZIP on macOS 15 or newer. If downloading through Portcove, clear “Extract the archive after downloading”. Extract it with the system archive tool and keep the entire OpenLoco.app bundle. Upstream describes this build as unsigned and unnotarized. Follow its Mac instructions if Gatekeeper blocks it. Start it directly, select the Locomotion directory containing Data/g1.DAT and preserve ~/Library/Application Support/OpenLoco and custom locations. You manage this external copy and its updates."
             }
           ]
         },
@@ -47124,7 +47149,8 @@
           "game_slug": "chris-sawyers-locomotion",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "external_profile_policy": "openloco-unix-v1"
     },
     {
       "id": "openrct2-openrct2",

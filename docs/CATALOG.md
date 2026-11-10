@@ -328,6 +328,20 @@ folder for saves and settings. The fixed data path avoids the upstream
 store picker, and `-userdir .` keeps the same directory when a compatible
 build enables account-based user directories.
 
+Native portable capability 16 covers the official CorsixTH and OpenLoco
+Linux x86-64 AppImages and the OpenLoco Apple Silicon ZIP. The Linux routes
+check the AppImage mount and adjacent portable profile locations. The
+OpenLoco Mac route keeps the whole bundle and checks its account profile.
+The guarded profiles stay outside the managed library. CorsixTH uses
+its defined XDG_CONFIG_HOME or inherited HOME. OpenLoco uses a nonempty
+XDG_CONFIG_HOME on Linux, with the account home as the ordinary fallback.
+
+The managed offer covers the normal external profiles. Custom save,
+landscape, campaign and other locations stay with separately prepared
+copies. Keep those locations outside the library. The managed runtime
+inventory holds updates, switches and removal if unrecognized files appear.
+Windows creating contracts retain their previous rules.
+
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment

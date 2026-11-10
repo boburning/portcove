@@ -35,7 +35,7 @@ pub(crate) fn requires_zip(port: &PortDefinition, platform: Platform) -> bool {
 
 pub(crate) fn matches_asset(port: &PortDefinition, platform: Platform, asset_name: &str) -> bool {
     !requires_zip(port, platform)
-        || crate::release::versioned_asset_name_matches(asset_name, PREFIX, suffix(platform))
+        || crate::release::versioned_asset_name_matches(asset_name, PREFIX, suffix(platform), false)
 }
 
 fn title(port: &PortDefinition) -> Option<(&'static str, &'static [&'static str])> {

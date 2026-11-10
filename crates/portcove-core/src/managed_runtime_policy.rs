@@ -76,6 +76,8 @@ pub(crate) fn require_native_appimage_artifact(
             Some(
                 crate::ExternalProfilePolicy::RecompAppimageV1
                     | crate::ExternalProfilePolicy::VkquakeLinuxV1
+                    | crate::ExternalProfilePolicy::CorsixthLinuxV1
+                    | crate::ExternalProfilePolicy::OpenlocoUnixV1
             )
         )
     {

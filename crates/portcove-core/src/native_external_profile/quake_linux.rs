@@ -1,5 +1,5 @@
 //! The reviewed Ironwail and vkQuake Linux package and data layouts.
-use std::{fs, io::Read, path::Path};
+use std::{fs, path::Path};
 
 use crate::{ExternalProfilePolicy, Platform, PortDefinition, PortcoveError, Result};
 
@@ -19,7 +19,12 @@ pub(crate) fn requires_ironwail_tar(port: &PortDefinition, platform: Platform) -
 
 pub(crate) fn matches_ironwail_tar(port: &PortDefinition, platform: Platform, name: &str) -> bool {
     !requires_ironwail_tar(port, platform)
-        || crate::release::versioned_asset_name_matches(name, IRONWAIL_TAR[0], IRONWAIL_TAR[1])
+        || crate::release::versioned_asset_name_matches(
+            name,
+            IRONWAIL_TAR[0],
+            IRONWAIL_TAR[1],
+            false,
+        )
 }
 
 pub(super) fn validate(port: &PortDefinition, policy: ExternalProfilePolicy) -> Result<()> {
@@ -69,22 +74,10 @@ pub(super) fn validate(port: &PortDefinition, policy: ExternalProfilePolicy) -> 
 }
 
 pub(crate) fn require_payload(executable: &Path, policy: ExternalProfilePolicy) -> Result<()> {
-    let mut file = crate::external_runtime::open_single_link_file(executable)?;
-    let mut header = [0; 20];
-    file.read_exact(&mut header)?;
-    if !header.starts_with(b"\x7fELF\x02\x01") || !matches!(&header[16..20], [2 | 3, 0, 0x3e, 0]) {
-        return Err(PortcoveError::verification(
-            "the Quake package no longer contains the expected Linux x86-64 executable",
-        ));
-    }
     if policy == ExternalProfilePolicy::VkquakeLinuxV1 {
-        if &header[8..11] != b"AI\x02" {
-            return Err(PortcoveError::verification(
-                "the vkQuake package is not a type-2 AppImage",
-            ));
-        }
-        return Ok(());
+        return super::require_type2_appimage(executable);
     }
+    super::read_amd64_elf_header(executable)?;
     let root = executable.parent().ok_or_else(|| {
         PortcoveError::verification("the Ironwail executable has no package folder")
     })?;

@@ -105,6 +105,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     partitioned_archive: bool,
     requires_tar_xz: bool,
     native_appimage: bool,
+    native_appimage_two_part: bool,
     versioned_native_archive: bool,
     repository: String,
     channel: ReleaseChannel,
@@ -116,16 +117,27 @@ pub(crate) struct ReleaseSelectionCacheKey {
 
 impl ReleaseSelectionCacheKey {
     pub(crate) fn new(port: &PortDefinition, channel: ReleaseChannel, platform: Platform) -> Self {
+        let appimage = native_appimage(port, platform);
         Self {
             adapter: port.adapter,
             n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent,
             partitioned_archive: port.archive_data_compatibility_v1.is_some(),
             requires_tar_xz: port.release.requires_tar_xz(platform),
-            native_appimage: native_appimage(port, platform).is_some(),
+            native_appimage: appimage.is_some(),
+            native_appimage_two_part: matches!(
+                appimage,
+                Some(NativeAppImage::Versioned {
+                    allow_two_part: true,
+                    ..
+                })
+            ),
             versioned_native_archive: crate::native_external_profile::openmohaa::requires_zip(
                 port, platform,
             )
                 || crate::native_external_profile::quake_linux::requires_ironwail_tar(
+                    port, platform,
+                )
+                || crate::native_external_profile::profile_siblings::requires_openloco_zip(
                     port, platform,
                 ),
             scope_binding: None,
@@ -1681,21 +1693,32 @@ struct GithubAsset {
 
 pub(crate) enum NativeAppImage<'a> {
     Exact(&'a str),
-    Versioned { prefix: &'a str, suffix: &'a str },
+    Versioned {
+        prefix: &'a str,
+        suffix: &'a str,
+        allow_two_part: bool,
+    },
 }
 
 impl NativeAppImage<'_> {
     pub(crate) fn matches(&self, name: &str) -> bool {
         match self {
             Self::Exact(expected) => name.eq_ignore_ascii_case(expected),
-            Self::Versioned { prefix, suffix } => {
-                versioned_asset_name_matches(name, prefix, suffix)
-            }
+            Self::Versioned {
+                prefix,
+                suffix,
+                allow_two_part,
+            } => versioned_asset_name_matches(name, prefix, suffix, *allow_two_part),
         }
     }
 }
 
-pub(crate) fn versioned_asset_name_matches(name: &str, prefix: &str, suffix: &str) -> bool {
+pub(crate) fn versioned_asset_name_matches(
+    name: &str,
+    prefix: &str,
+    suffix: &str,
+    allow_two_part: bool,
+) -> bool {
     let name = name.to_ascii_lowercase();
     let Some(version) = name
         .strip_prefix(prefix)
@@ -1704,11 +1727,9 @@ pub(crate) fn versioned_asset_name_matches(name: &str, prefix: &str, suffix: &st
         return false;
     };
     let mut parts = version.strip_prefix('v').unwrap_or(version).split('.');
-    (0..3).all(|_| {
-        parts
-            .next()
-            .is_some_and(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
-    }) && parts.next().is_none()
+    let count = parts.clone().count();
+    (count == 3 || (allow_two_part && count == 2))
+        && parts.all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
 }
 
 pub(crate) fn native_appimage(
@@ -1726,12 +1747,19 @@ pub(crate) fn native_appimage(
         Some(
             crate::ExternalProfilePolicy::RecompAppimageV1
                 | crate::ExternalProfilePolicy::VkquakeLinuxV1
+                | crate::ExternalProfilePolicy::CorsixthLinuxV1
+                | crate::ExternalProfilePolicy::OpenlocoUnixV1
         )
     ) {
         let [prefix, suffix] = port.release.asset_hints.get(&platform)?.as_slice() else {
             return None;
         };
-        return Some(NativeAppImage::Versioned { prefix, suffix });
+        return Some(NativeAppImage::Versioned {
+            prefix,
+            suffix,
+            allow_two_part: port.external_profile_policy
+                == Some(crate::ExternalProfilePolicy::OpenlocoUnixV1),
+        });
     }
     if !crate::native_temp::has_sibling_platforms(port) {
         return None;
@@ -1767,6 +1795,9 @@ fn choose_asset<'a>(
             let name = asset.name.to_ascii_lowercase();
             if !crate::native_external_profile::openmohaa::matches_asset(port, platform, &name)
                 || !crate::native_external_profile::quake_linux::matches_ironwail_tar(
+                    port, platform, &name,
+                )
+                || !crate::native_external_profile::profile_siblings::matches_openloco_zip(
                     port, platform, &name,
                 )
             {
@@ -2629,6 +2660,7 @@ mod tests {
             partitioned_archive: false,
             requires_tar_xz: false,
             native_appimage: false,
+            native_appimage_two_part: false,
             versioned_native_archive: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
@@ -2656,6 +2688,7 @@ mod tests {
                         partitioned_archive: false,
                         requires_tar_xz: false,
                         native_appimage: false,
+                        native_appimage_two_part: false,
                         versioned_native_archive: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
