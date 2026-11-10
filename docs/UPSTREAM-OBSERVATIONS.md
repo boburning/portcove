@@ -628,6 +628,15 @@ repository/platform declaration. Historical projection coverage does not claim
 that an old URL is currently monitored or that a new URL has reviewed numeric IDs. Missing, duplicate or unused projections fail. All reviewed policy
 facts and endpoint/source-archive checks remain in place.
 
+After a reviewed same-identity relocation (an accepted `upstream_lineage`
+relocation with an unchanged numeric repository ID), a rebound pin names the
+current repository and download URL. Its retained historical projection keeps
+the former path, because that projection is frozen with its source hash. The two
+then match by numeric repository identity, not by name. Rebinding requires
+read-only evidence that the reviewed repository, release and asset IDs, release
+facts, size and SHA-256 are unchanged at the new name; only the URL-bearing
+asset facts hash is recorded anew.
+
 The retained Star Fox `kandowontu/starfox-enhanced` 404 is an acquisition-endpoint
 condition. Its separately reviewed successor decision and current project
 location are reported from the authoring lineage records. The old endpoint stays

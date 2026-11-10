@@ -378,7 +378,7 @@
         "reviewed_at": "2026-10-04",
         "claim": "v1.8.3 desktop host requires matching F-Zero USA 524288-byte content after optional 512-byte header stripping and accepts an original path as a positional argument without copying or launcher selection. This Portcove route accepts only the exact headerless .sfc original.",
         "immutable_url": "https://github.com/mstan/FZeroSNESRecomp/blob/1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562/src/sdl_main.c",
-        "live_url": "https://github.com/mstan/FZeroSNESRecomp/blob/main/src/sdl_main.c"
+        "live_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/blob/main/src/sdl_main.c"
       },
       {
         "id": "road-rash-64-v1-4-3-source-sha1",
@@ -13759,7 +13759,7 @@
         "authority_ref": "1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562",
         "reviewed_at": "2026-10-04",
         "immutable_review_url": "https://github.com/mstan/FZeroSNESRecomp/blob/1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562/src/sdl_main.c",
-        "live_review_url": "https://github.com/mstan/FZeroSNESRecomp/blob/main/src/sdl_main.c",
+        "live_review_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/blob/main/src/sdl_main.c",
         "evidence_gap": null,
         "applicability": [
           {
