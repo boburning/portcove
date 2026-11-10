@@ -25252,7 +25252,9 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -25265,6 +25267,12 @@
           ],
           "linux-x86-64": [
             "linux-x86_64.tar.gz"
+          ],
+          "macos-x86-64": [
+            "macos-universal.zip"
+          ],
+          "macos-aarch64": [
+            "macos-universal.zip"
           ]
         }
       },
@@ -25274,6 +25282,12 @@
           "Snap64Recomp.exe"
         ],
         "linux-x86-64": [
+          "Snap64Recomp"
+        ],
+        "macos-x86-64": [
+          "Snap64Recomp"
+        ],
+        "macos-aarch64": [
           "Snap64Recomp"
         ]
       },
@@ -25308,12 +25322,8 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Choose the Linux package",
-              "instruction": "Use the official x86-64 or ARM64 tarball for your machine and open Snap64Recomp from the extracted folder. It needs SDL2, GTK 3 and a Vulkan 1.2 driver. Both current tarballs need glibc 2.38 or newer. On x86-64 you can instead install the official .flatpak bundle and start io.github.jackandbeans.Snap64Recomp."
-            },
-            {
-              "title": "Open the Mac app",
-              "instruction": "Choose the official universal ZIP and open Snap64Recomp.app from its permanent folder on Intel or Apple Silicon with macOS 14 or newer. Follow the project’s instructions for the first launch of its unsigned app."
+              "title": "Choose another Linux package",
+              "instruction": "Portcove manages the official x86-64 tarball. For Linux ARM64, use the official ARM64 tarball and open Snap64Recomp from the extracted folder. On x86-64 you can instead install the official .flatpak bundle and start io.github.jackandbeans.Snap64Recomp. Both tarballs need glibc 2.38 or newer, SDL2, GTK 3 and a Vulkan 1.2 driver."
             },
             {
               "title": "Set up the Android beta",
@@ -25325,13 +25335,15 @@
             }
           ],
           "warnings": [
-            "These packages use upstream or player-managed setup, replacement and data backups. Portcove has no native execution or populated-save result for these sibling packages."
+            "Portcove manages the official Windows, Linux x86-64 and universal Mac packages. The Linux ARM64 and Flatpak packages and the Android APK use upstream or player-managed setup, replacement and data backups.",
+            "The Mac app needs macOS 14 or newer and is unsigned. If macOS refuses its first launch, follow the upstream instructions in its START HERE.txt (Open Anyway in Privacy & Security).",
+            "Upstream reports that its Mac app has run on GitHub-hosted Macs but not yet on physical ones; Portcove has no native Mac execution result for it."
           ],
           "help_url": "https://github.com/JackandBeans/Snap64Recomp#readme",
           "references": [
             {
-              "title": "Keep each upstream profile",
-              "instruction": "Back up your actual Linux game folder or ~/.config/Snap64Recomp. Flatpak uses ~/.var/app/io.github.jackandbeans.Snap64Recomp, and Mac uses ~/Library/Application Support/Snap64 Recomp. Preserve photos, saves, mods and settings before replacement."
+              "title": "Keep an upstream-managed profile",
+              "instruction": "If you already use an upstream-managed copy, back up your actual Linux game folder or ~/.config/Snap64Recomp, the Flatpak folder ~/.var/app/io.github.jackandbeans.Snap64Recomp, or the Mac folder ~/Library/Application Support/Snap64 Recomp before replacement. Portcove-managed installs keep their data in the Portcove-managed profile and do not adopt these folders."
             },
             {
               "title": "Keep the Android game folder",

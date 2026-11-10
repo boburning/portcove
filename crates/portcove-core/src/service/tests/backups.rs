@@ -711,7 +711,7 @@ fn backup_create_assessment_preserves_direct_owned_root_without_runtime_substitu
     let library = Library::open(temporary.path().join("library")).unwrap();
     let mut service = PortcoveService::new(library.clone()).unwrap();
     // Exercise direct owned-data binding on every maintained host using an inert
-    // definition fixture. Snap64 has no macOS definition; this grants it no support.
+    // definition fixture. This fixture grants no port support.
     let port_id = "zelda64-recomp";
     let mut document = service.catalog().authoritative_document();
     document
