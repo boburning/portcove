@@ -2324,6 +2324,28 @@ async fn create_support_bundle(
     .await
 }
 
+/// Opens the host-chosen diagnostics directory that support reports are written
+/// to. The webview supplies no path, so this adds no new filesystem authority:
+/// it reuses the fixed-program directory opener on a directory the host already
+/// validated for export.
+#[tauri::command]
+async fn open_support_report_folder(
+    diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
+) -> DesktopResult<()> {
+    let directory = diagnostics.directory.clone();
+    blocking_worker(move || open_support_report_directory(&directory?)).await
+}
+
+fn open_support_report_directory(directory: &Path) -> DesktopResult<()> {
+    if !directory.is_dir() {
+        return Err(PortcoveError::state(
+            "the support report folder is not available; create a new support report",
+        )
+        .into());
+    }
+    open_directory(directory)
+}
+
 fn support_bundle_for_state(
     state: &DesktopState,
     directory: &Path,
@@ -2892,6 +2914,7 @@ pub fn run() -> std::process::ExitCode {
             open_external_url,
             open_source_evidence,
             create_support_bundle,
+            open_support_report_folder,
             export_library_metadata,
             library_transfer::plan_library_move,
             library_transfer::plan_library_import,
@@ -3805,6 +3828,25 @@ mod tests {
         assert_eq!(full_value["sources"], known_value["sources"]);
         assert!(known_value.get("catalog").is_none());
         assert_eq!(known_value["catalog_unchanged"], true);
+    }
+
+    #[test]
+    fn support_report_folder_is_not_opened_when_the_directory_is_unavailable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let missing = temporary.path().join("diagnostics");
+        let file = temporary.path().join("not-a-directory");
+        fs::write(&file, b"file").unwrap();
+
+        for path in [&missing, &file] {
+            let error = open_support_report_directory(path).unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("support report folder is not available"),
+                "{}",
+                error.message
+            );
+        }
     }
 
     #[test]
