@@ -33,6 +33,8 @@ import {
   retainedCatalogBootstrapClaim,
   retainedApplicationReviewClaim,
   isRetainedApplicationReviewClaimScope,
+  isRetainedApplicationRenewalClaimScope,
+  retainedApplicationRenewalClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
@@ -1225,6 +1227,23 @@ void test("r69 can resume only the signed r68 application renewal descriptor", (
       source,
       "application",
     ),
+    false,
+  );
+});
+
+void test("only the exact r70 attempt may resume the retained r69 renewal claim", () => {
+  const pin = retainedApplicationRenewalClaim;
+  assert.ok(isRetainedApplicationRenewalClaimScope(pin.previous, pin.child, pin.successor_ref, 1));
+  assert.equal(
+    isRetainedApplicationRenewalClaimScope(pin.previous, pin.child, pin.original_ref, 1),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationRenewalClaimScope(pin.previous, pin.child, pin.successor_ref, 2),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationRenewalClaimScope(pin.previous, pin.previous, pin.successor_ref, 1),
     false,
   );
 });

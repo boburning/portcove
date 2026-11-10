@@ -192,6 +192,33 @@ export function matchesRetainedCatalogForwardAdoptionHandoff(
   );
 }
 
+export const retainedApplicationRenewalClaim = Object.freeze({
+  previous: "86407ae8bca924200aba304340f33076e635b6e7",
+  child: "ef9b0664069a9c2dff4a9cf18ce86b3d964a4ac8",
+  tree: "6824a452be1e2123d9f1a1de2a692bb209e044e8",
+  state_sha256: "262870e5dc1d19c79bb88a7e746b51914f06b48c8fa29eaefba2ca7522831c68",
+  original_source: "0315e250604a993a381dd0b088c1239ff96bbcc1",
+  original_ref: "refs/tags/portcove-production-controller-20261110r69",
+  original_run: "42816631314",
+  original_job: 129835641718,
+  successor_ref: "refs/tags/portcove-production-controller-20261110r70",
+});
+
+export function isRetainedApplicationRenewalClaimScope(
+  previous: string,
+  child: string,
+  executionRef: string,
+  runAttempt: number,
+) {
+  const pin = retainedApplicationRenewalClaim;
+  return (
+    previous === pin.previous &&
+    child === pin.child &&
+    executionRef === pin.successor_ref &&
+    runAttempt === 1
+  );
+}
+
 /** Resume the signed r68 descriptor before any context upload or feed write. */
 export function matchesRetainedApplicationRenewalHandoff(
   checkpoint: { checkpoint: string; previous: string | null },
@@ -201,8 +228,9 @@ export function matchesRetainedApplicationRenewalHandoff(
 ) {
   return (
     purpose === "application" &&
-    source.execution_ref === "refs/tags/portcove-production-controller-20261110r69" &&
-    checkpoint.checkpoint === "86407ae8bca924200aba304340f33076e635b6e7" &&
+    (source.execution_ref === retainedApplicationRenewalClaim.original_ref ||
+      source.execution_ref === retainedApplicationRenewalClaim.successor_ref) &&
+    checkpoint.checkpoint === retainedApplicationRenewalClaim.previous &&
     checkpoint.previous === retainedCatalogForwardAdoptionClaim.child &&
     producer.controller_revision === "9c5e7f0e33282115235fffa19d073e5cb084ffa0" &&
     producer.controller_ref === "refs/tags/portcove-production-controller-20261110r68" &&
