@@ -20,20 +20,25 @@
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "n64-recomp-portable",
     "release": {
       "repository": "RevoSucks/BM64Recomp",
       "asset_hints": {
-        "linux-x86-64": ["Linux-X64-Release"]
-      }
+        "linux-x86-64": ["Linux-X64-Release"],
+        "macos-x86-64": ["macOS-Release.zip"],
+        "macos-aarch64": ["macOS-Release.zip"]
+      },
+      "archive_file_links": true
     },
     "source_profile": "bomberman-64",
     "executable_hints": {
       "windows-x86-64": ["BM64Recompiled.exe"],
-      "linux-x86-64": ["BM64Recompiled"]
+      "linux-x86-64": ["BM64Recompiled"],
+      "macos-x86-64": ["BM64Recompiled"],
+      "macos-aarch64": ["BM64Recompiled"]
     },
     "persistent_paths": [
       "mods",

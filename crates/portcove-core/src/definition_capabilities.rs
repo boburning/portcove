@@ -99,6 +99,10 @@ impl EngineTemplateCapability {
             contract_version: 4,
         });
         supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: 5,
+        });
+        supported.push(Self {
             template: AdapterKind::PsxRecompManaged,
             contract_version: 2,
         });
@@ -394,6 +398,31 @@ mod tests {
         );
         assert!(
             check_definition_capabilities(&request("native-portable", 13, 13))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn n64_5_archive_file_links_exclude_older_readers_without_retiring_n64_4() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::N64RecompPortable || entry.contract_version < 5
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("n64-recomp-portable", 5, 5), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("n64-recomp-portable", 5, 5))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("n64-recomp-portable", 4, 4))
                 .unwrap()
                 .compatible
         );

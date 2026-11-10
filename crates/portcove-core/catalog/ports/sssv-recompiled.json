@@ -31,7 +31,8 @@
         "linux-x86-64": ["Linux.tar.gz"],
         "macos-x86-64": ["macOS.zip"],
         "macos-aarch64": ["macOS.zip"]
-      }
+      },
+      "archive_file_links": true
     },
     "source_profile": "space-station-silicon-valley",
     "runtime_source_filename": "sssv.n64.us.1.0.z64",

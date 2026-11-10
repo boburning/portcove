@@ -196,14 +196,23 @@ impl DefinitionContentIndex {
                 "managed Linux TAR.XZ requires native capability version 8",
             ));
         }
-        if port.release.archive_file_links
-            && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable" && requirement.minimum_version >= 14
-            })
-        {
-            return Err(PortcoveError::verification(
-                "packages relying on archive file links require native capability version 14",
-            ));
+        if port.release.archive_file_links {
+            let (template, minimum) = match port.adapter {
+                crate::AdapterKind::NativePortable => ("native-portable", 14),
+                crate::AdapterKind::N64RecompPortable => ("n64-recomp-portable", 5),
+                _ => {
+                    return Err(PortcoveError::verification(
+                        "archive file links are supported only by native and N64 recomp definitions",
+                    ));
+                }
+            };
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == template && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "packages relying on archive file links require {template} capability version {minimum}"
+                )));
+            }
         }
         if port.n64_runtime_at_executable_parent
             && !document.required_capabilities.iter().any(|requirement| {
