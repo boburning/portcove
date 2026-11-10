@@ -1,7 +1,7 @@
 name: Cancel superseded CI runs
 
 # CI gives each pull request run its own concurrency group so a replacement starts at once.
-# This workflow cancels the older runs of the same pull request. It is separate from ci.yml
+# This workflow cancels the runs of the same pull request that are older than the run for this head. It is separate from ci.yml
 # because ci.yml is also a reusable workflow whose callers grant only actions: read.
 on:
   pull_request:
@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel CI runs of this pull request for other heads
+      - name: Cancel CI runs of this pull request older than this head's run
         # Best effort: fork tokens are read-only, and a failed cancel only costs runner time.
         continue-on-error: true
         env:
@@ -33,9 +33,20 @@ jobs:
           set -euo pipefail
           case "$PR_NUMBER" in ''|*[!0-9]*) echo "Unexpected pull request number" >&2; exit 1 ;; esac
           case "$HEAD_SHA" in *[!0-9a-f]*|'') echo "Unexpected head SHA" >&2; exit 1 ;; esac
+          # Run IDs only increase, so cancelling runs older than this head's own run can never
+          # touch a newer run, whatever order close pushes or late events are processed in.
+          own=""
+          for _ in 1 2 3 4 5 6; do
+            own=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$HEAD_SHA&per_page=100" \
+              --jq "[.workflow_runs[] | select(any(.pull_requests[]?; .number == $PR_NUMBER)) | .id] | max // empty")
+            [ -n "$own" ] && break
+            sleep 5
+          done
+          if [ -z "$own" ]; then echo "No CI run for $HEAD_SHA yet; nothing to supersede"; exit 0; fi
+          case "$own" in *[!0-9]*) echo "Unexpected run identity" >&2; exit 1 ;; esac
           for status in queued in_progress waiting; do
             gh api --paginate "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&status=$status&per_page=100" \
-              --jq ".workflow_runs[] | select(.head_sha != \"$HEAD_SHA\") | select(any(.pull_requests[]?; .number == $PR_NUMBER)) | .id"
+              --jq ".workflow_runs[] | select(.id < $own) | select(any(.pull_requests[]?; .number == $PR_NUMBER)) | .id"
           done | sort -u | while read -r run; do
             echo "Cancelling superseded run $run"
             gh api -X POST "repos/$REPO/actions/runs/$run/cancel" || true
