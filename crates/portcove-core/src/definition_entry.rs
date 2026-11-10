@@ -209,6 +209,15 @@ impl DefinitionContentIndex {
                 "managed Linux TAR.XZ requires native capability version 8",
             ));
         }
+        if port.portable_marker_file.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 19
+            })
+        {
+            return Err(PortcoveError::verification(
+                "named portable marker files require native capability version 19",
+            ));
+        }
         if port.release.archive_file_links {
             let (template, minimum) = match port.adapter {
                 crate::AdapterKind::NativePortable => ("native-portable", 14),

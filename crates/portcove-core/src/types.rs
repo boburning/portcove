@@ -750,6 +750,11 @@ pub struct PortDefinition {
     pub windows_temp_directory: Option<String>,
     #[serde(default)]
     pub portable_marker: bool,
+    /// Native19: create this empty file beside the launch working directory only when it
+    /// is missing. For engines whose portable mode is keyed on a named file that is also
+    /// their configuration, so it must be a declared persistent path and is never reset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub portable_marker_file: Option<String>,
     /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub n64_windows_initial_d3d12: bool,
