@@ -24466,7 +24466,7 @@
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/JRickey/BattleShip/releases/tag/v1.6"
+          "help_url": "https://github.com/JRickey/BattleShip/releases"
         },
         "artwork": {
           "game_id": 1626,
@@ -53387,14 +53387,14 @@
           "steps": [
             {
               "title": "Use the upstream-owned player",
-              "instruction": "Extract the complete official Windows x64 archive into a separate folder. Choose uzdoom.exe with that folder as its working directory and save launch details, then choose Play deliberately. updater.exe is the upstream runtime replacement helper, not the player to register. Other upstream platforms use their own AppImage or Mac disk-image setup; this Windows package does not establish their operation."
+              "instruction": "On Windows, extract the complete official x64 archive into a separate folder. Choose uzdoom.exe with that folder as its working directory and save launch details, then choose Play deliberately. updater.exe is the upstream runtime replacement helper, not the player to register."
             },
             {
               "title": "Choose your game data",
               "instruction": "Use the launcher to select your own supported IWAD or compatible free game data. Keep mods and game data under the upstream documented setup. Adding launch details does not start a game; choose Play separately."
             },
             {
-              "title": "Register your prepared player",
+              "title": "Register your prepared Windows player",
               "instruction": "Complete the upstream setup in your permitted working copy first. Select the actual uzdoom.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready."
             }
           ],
@@ -53412,8 +53412,8 @@
               "instruction": "UZDoom’s launcher checks for updates and can use updater.exe to replace package files. Keep that runtime ownership with upstream. Portcove leaves these external files untouched and offers no managed Update, Backup or Rollback promise for them. Before changing versions, close the game and back up your actual IWADs, mods and configured save paths. Windows normally stores uzdoom.ini under Documents/My Games/UZDoom and saves under the Windows Saved Games/UZDoom folder. Portable mode uses uzdoom_portable.ini and the local Save and Screenshots folders. Custom config/save overrides and relocated Windows user folders need their own backup. Keep the working copy recoverable; upstream update_backup is not a Portcove-verified player-data backup."
             },
             {
-              "title": "Keep your runtime and data recoverable",
-              "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
+              "title": "Use the Linux or Apple Silicon package yourself",
+              "instruction": "On Linux x86-64, make the official AppImage executable and open it with AppImage support. The inspected player needs glibc 2.34 or newer. On Apple Silicon, open the ARM64 DMG, copy the complete UZDoom.app to Applications and open it through macOS. The inspected Mac executable targets macOS 12 or later. These packages use upstream setup outside Portcove registration. On Linux, keep configuration in $XDG_CONFIG_HOME/uzdoom (default ~/.config/uzdoom) and saves under $XDG_DATA_HOME/games/uzdoom/savegames (default ~/.local/share/games/uzdoom/savegames). Screenshots have a separate Pictures location. On Mac, preserve ~/Library/Preferences/uzdoom.ini and ~/Documents/UZDoom."
             }
           ]
         }

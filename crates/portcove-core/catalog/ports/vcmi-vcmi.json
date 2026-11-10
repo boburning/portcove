@@ -51,7 +51,7 @@
         },
         {
           "title": "Upstream iPhone and iPad setup",
-          "instruction": "On iOS or iPadOS 12 or later, use VCMI’s upstream TestFlight route when available, or provision the official 1.7.5 IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
+          "instruction": "Check the upstream iOS guide for the current system requirements. Use VCMI’s upstream TestFlight route when available, or provision the official IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
         }
       ]
     },
