@@ -175,6 +175,7 @@ pub(crate) fn legacy_opentyrian_indexed_port(
     port: &crate::PortDefinition,
 ) -> crate::PortDefinition {
     let mut port = port.clone();
+    port.reviewed_package_layouts.clear();
     for pattern in &mut port.persistent_file_patterns {
         pattern.allow_empty_middle = false;
     }

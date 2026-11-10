@@ -123,7 +123,9 @@ fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
 fn profile_siblings_require_native16_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     for id in ["corsixth-corsixth", "openloco-openloco"] {
-        let mut entry = entry_for_port(catalog.port(id).unwrap());
+        let mut creating_port = catalog.port(id).unwrap().clone();
+        creating_port.reviewed_package_layouts.clear();
+        let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(16);
         for minimum in [15, 16] {
             entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
@@ -1139,6 +1141,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             value["port"] =
                 serde_json::to_value(crate::test_fixture::legacy_opentyrian_indexed_port(port))
                     .unwrap();
+            value["required_capabilities"] =
+                json!(crate::test_fixture::definition_requirements(port, 1));
         }
         let entry = inspect(&value).unwrap();
         assert_eq!(serde_json::to_value(entry.port()).unwrap(), value["port"]);
@@ -1693,9 +1697,10 @@ fn native_original_siblings_require_native10_in_fresh_and_retained_readers() {
         "diablo-devilutionx",
         "diablo-hellfire-devilutionx",
     ] {
-        let port = catalog.port(id).unwrap();
-        assert!(crate::native_temp::has_sibling_platforms(port));
-        let mut entry = entry_for_port(port);
+        let mut creating_port = catalog.port(id).unwrap().clone();
+        creating_port.reviewed_package_layouts.clear();
+        assert!(crate::native_temp::has_sibling_platforms(&creating_port));
+        let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(10);
         for minimum in [9, 10] {
             entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
