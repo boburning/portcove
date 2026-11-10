@@ -196,7 +196,7 @@ describe("desktop components", () => {
       ["updates", "integrations", 3],
       ["integrations", "controls", 2],
       ["controls", "advanced", 2],
-      ["advanced", "about", 3],
+      ["advanced", "about", 4],
       ["about", null, 2],
     ] as const;
     for (const [id, next, rowCount] of groups) {
@@ -226,6 +226,7 @@ describe("desktop components", () => {
       advanced.indexOf(">Create a support report</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
+    expect(advanced).toContain("Report a problem");
     const about = html.slice(html.indexOf('data-settings-group="about"'));
     expect(about).toContain("Open project repository");
     expect(about).toContain("Licensed under MIT or Apache-2.0.");
