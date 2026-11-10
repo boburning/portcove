@@ -3003,6 +3003,23 @@ mod tests {
                 port.release.asset_hints.remove(&platform);
             }
         }
+        // Tomba Recompiled's upstream publishes no current Linux or macOS package, so
+        // fresh creation offers Windows only while the frozen reader keeps the old claim.
+        let tomba = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "tomba-recompiled")
+            .unwrap();
+        tomba
+            .platforms
+            .retain(|platform| *platform == Platform::WindowsX86_64);
+        for platform in [
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+            Platform::MacosAarch64,
+        ] {
+            tomba.executable_hints.remove(&platform);
+            tomba.release.asset_hints.remove(&platform);
+        }
         for (id, platform, hints) in [
             (
                 "2ship2harkinian",
