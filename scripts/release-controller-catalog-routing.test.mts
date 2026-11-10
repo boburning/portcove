@@ -506,36 +506,46 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     /outside retained appointments/u,
   );
   environments[1]!.policies.pop();
-  const heldTag = "portcove-production-controller-windows-20261105r30";
-  const heldRule = {
-    ...retainedRule,
-    id: 91,
-    conditions: { ref_name: { include: [`refs/tags/${heldTag}`], exclude: [] } },
-  };
-  const heldSelector = { id: 89, name: heldTag, type: "tag" };
-  const protection = environments.find(
-    (row) => row.name === "production-release-protection-observer",
-  )!;
-  const coordinator = environments.find((row) => row.name === "production-release-coordinator")!;
-  environments[0]!.policies.push(applicationSelector, heldSelector);
-  protection.policies.push(heldSelector);
-  rules.push(heldRule);
-  requireCatalogMaintenancePolicy(await observeCatalogMaintenanceProtections(read), controllerRef);
-  coordinator.policies.push(heldSelector);
-  const coordinatorExtra = await observeCatalogMaintenanceProtections(read);
-  assert.throws(
-    () => requireCatalogMaintenancePolicy(coordinatorExtra, controllerRef),
-    /outside retained appointments/u,
-  );
-  coordinator.policies.pop();
-  rules.pop();
-  const unprotectedHeldTag = await observeCatalogMaintenanceProtections(read);
-  assert.throws(
-    () => requireCatalogMaintenancePolicy(unprotectedHeldTag, controllerRef),
-    /additional tag lacks exact immutable protection/u,
-  );
-  protection.policies.pop();
-  environments[0]!.policies.splice(-2);
+  for (const heldTag of [
+    "portcove-production-controller-windows-20261105r30",
+    "portcove-production-controller-windows-20261108r55",
+    "portcove-production-controller-windows-20261109r56",
+    "portcove-production-controller-windows-20261109r57",
+    "portcove-production-controller-windows-20261109r58",
+  ]) {
+    const heldRule = {
+      ...retainedRule,
+      id: 91,
+      conditions: { ref_name: { include: [`refs/tags/${heldTag}`], exclude: [] } },
+    };
+    const heldSelector = { id: 89, name: heldTag, type: "tag" };
+    const protection = environments.find(
+      (row) => row.name === "production-release-protection-observer",
+    )!;
+    const coordinator = environments.find((row) => row.name === "production-release-coordinator")!;
+    environments[0]!.policies.push(applicationSelector, heldSelector);
+    protection.policies.push(heldSelector);
+    rules.push(heldRule);
+    requireCatalogMaintenancePolicy(
+      await observeCatalogMaintenanceProtections(read),
+      controllerRef,
+    );
+    coordinator.policies.push(heldSelector);
+    const coordinatorExtra = await observeCatalogMaintenanceProtections(read);
+    assert.throws(
+      () => requireCatalogMaintenancePolicy(coordinatorExtra, controllerRef),
+      /outside retained appointments/u,
+    );
+    coordinator.policies.pop();
+    rules.pop();
+    const unprotectedHeldTag = await observeCatalogMaintenanceProtections(read);
+    assert.throws(
+      () => requireCatalogMaintenancePolicy(unprotectedHeldTag, controllerRef),
+      /additional tag lacks exact immutable protection/u,
+    );
+    protection.policies.pop();
+    environments[0]!.policies.splice(-2);
+  }
   rules.pop();
   for (const mutate of [
     (row: (typeof environments)[number]) => {

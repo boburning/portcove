@@ -555,7 +555,13 @@ export function requireCatalogMaintenancePolicy(
               "production-release-coordinator",
               "production-release-protection-observer",
             ].includes(name)) ||
-          (selector.name === "portcove-production-controller-windows-20261105r30" &&
+          ([
+            "portcove-production-controller-windows-20261105r30",
+            "portcove-production-controller-windows-20261108r55",
+            "portcove-production-controller-windows-20261109r56",
+            "portcove-production-controller-windows-20261109r57",
+            "portcove-production-controller-windows-20261109r58",
+          ].includes(selector.name) &&
             (name === "github-pages" || name === "production-release-protection-observer")) ||
           (selector.name === "portcove-upstream-rehearsal-20261104r3" && name === "github-pages");
         if (!retained)
