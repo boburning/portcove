@@ -3,10 +3,10 @@
   "listing": {
     "id": "r-e-l-i-v-e-oddworld-abe-s-oddysee",
     "name": "R.E.L.I.V.E. / Oddworld: Abe's Oddysee",
-    "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Oddysee; fresh package acquisition awaits upstream license and integrity evidence.",
+    "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Oddysee. Fresh downloads require distribution permission and a supported release package.",
     "project_url": "https://github.com/AliveTeam/alive_reversing",
     "issue_number": 133,
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",
     "artwork": {
@@ -21,17 +21,23 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Keep your permitted working copy",
-          "instruction": "If you already have a permitted working R.E.L.I.V.E. installation for Oddworld: Abe’s Oddysee, keep its corresponding original game files and any progress and settings with that copy."
+          "title": "Keep this game’s permitted working copy",
+          "instruction": "Keep a separate working folder for Abe’s Oddysee, with your own complete original game files including s1.lvl and r1.lvl. The player uses these files to choose the game. Keep the other Oddworld game in a separate folder."
         },
         {
-          "title": "Select that game’s player",
-          "instruction": "Choose the native game player and working folder from that completed installation. Upstream setup and runtime updates remain with that copy. The two Oddworld games retain separate registrations and original-data identities."
+          "title": "Select the Windows player",
+          "instruction": "Select relive.exe from your permitted working copy and use the folder with your original game files as the start folder. Keep SDL3.dll beside relive.exe. Enter AO on a single argument line to select Oddysee. Save the details, then choose Play."
+        },
+        {
+          "title": "Use an already prepared Linux x64 copy",
+          "instruction": "For an existing permitted Debian-style installation, use the relive player with the folder containing your original game files as the start folder. The packaged player needs SDL3. Upstream’s relive-ao shortcut uses Zenity to pick a folder when needed. For direct Portcove registration, select relive and the actual original-game folder. Enter AO on a single argument line to select Oddysee."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Keep the complete original game files, working folder and existing saves backed up. Runtime replacement and backups belong to you or your upstream package manager."
+      ],
       "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
     },
-    "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements."
+    "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use."
   }
 }
