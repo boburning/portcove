@@ -21063,7 +21063,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21080,9 +21079,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21095,9 +21091,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Bomberman_Fantasy_Race__Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Bomberman_Fantasy_Race__Recompiled"
         ],
         "macos-x86-64": [
           "Bomberman_Fantasy_Race__Recompiled"
@@ -21150,7 +21143,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21167,9 +21159,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21182,9 +21171,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Bomberman_Party_Edition_Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Bomberman_Party_Edition_Recompiled"
         ],
         "macos-x86-64": [
           "Bomberman_Party_Edition_Recompiled"
@@ -21245,7 +21231,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21262,9 +21247,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21277,9 +21259,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Bomberman_World__Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Bomberman_World__Recompiled"
         ],
         "macos-x86-64": [
           "Bomberman_World__Recompiled"
@@ -21332,7 +21311,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21349,9 +21327,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21364,9 +21339,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Final_Fantasy_7.exe"
-        ],
-        "linux-x86-64": [
-          "Final_Fantasy_7"
         ],
         "macos-x86-64": [
           "Final_Fantasy_7"
@@ -21433,7 +21405,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21450,9 +21421,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21465,9 +21433,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Klonoa___Door_to_Phantomile.exe"
-        ],
-        "linux-x86-64": [
-          "Klonoa___Door_to_Phantomile"
         ],
         "macos-x86-64": [
           "Klonoa___Door_to_Phantomile"
@@ -21520,7 +21485,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21537,9 +21501,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21552,9 +21513,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Legend_of_Mana__Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Legend_of_Mana__Recompiled"
         ],
         "macos-x86-64": [
           "Legend_of_Mana__Recompiled"
@@ -21607,7 +21565,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21624,9 +21581,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21639,9 +21593,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Marvel_vs__Capcom__Clash_of_Super_Heroes__Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Marvel_vs__Capcom__Clash_of_Super_Heroes__Recompiled"
         ],
         "macos-x86-64": [
           "Marvel_vs__Capcom__Clash_of_Super_Heroes__Recompiled"
@@ -21694,7 +21645,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21711,9 +21661,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21726,9 +21673,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Masters_of_Teras_Kasi_Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Masters_of_Teras_Kasi_Recompiled"
         ],
         "macos-x86-64": [
           "Masters_of_Teras_Kasi_Recompiled"
@@ -21781,7 +21725,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21798,9 +21741,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21813,9 +21753,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Metal_Slug_X__Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Metal_Slug_X__Recompiled"
         ],
         "macos-x86-64": [
           "Metal_Slug_X__Recompiled"
@@ -21963,7 +21900,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -21980,9 +21916,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -21995,9 +21928,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Rampage___Through_Time__Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Rampage___Through_Time__Recompiled"
         ],
         "macos-x86-64": [
           "Rampage___Through_Time__Recompiled"
@@ -22050,7 +21980,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -22067,9 +21996,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -22082,9 +22008,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Star_wars___Episode_I___Jedi_Power_Battles__Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"
         ],
         "macos-x86-64": [
           "Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"
@@ -22138,7 +22061,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -22155,9 +22077,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -22170,9 +22089,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "Street_Fighter_Alpha_3__Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "Street_Fighter_Alpha_3__Recompiled"
         ],
         "macos-x86-64": [
           "Street_Fighter_Alpha_3__Recompiled"
@@ -22292,7 +22208,6 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -22309,9 +22224,6 @@
           "windows-x86-64": [
             "windows-x64"
           ],
-          "linux-x86-64": [
-            "linux-x64"
-          ],
           "macos-x86-64": [
             "macos-x64"
           ],
@@ -22324,9 +22236,6 @@
       "executable_hints": {
         "windows-x86-64": [
           "TwistedMetal4_Recompiled.exe"
-        ],
-        "linux-x86-64": [
-          "TwistedMetal4_Recompiled"
         ],
         "macos-x86-64": [
           "TwistedMetal4_Recompiled"

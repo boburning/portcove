@@ -770,7 +770,6 @@
       "issue_number": 73,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -793,7 +792,6 @@
       "issue_number": 74,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -816,7 +814,6 @@
       "issue_number": 75,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -840,7 +837,6 @@
       "issue_number": 76,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -863,7 +859,6 @@
       "issue_number": 77,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -886,7 +881,6 @@
       "issue_number": 78,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -909,7 +903,6 @@
       "issue_number": 79,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -932,7 +925,6 @@
       "issue_number": 80,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -955,7 +947,6 @@
       "issue_number": 81,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -1002,7 +993,6 @@
       "issue_number": 83,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -1026,7 +1016,6 @@
       "issue_number": 84,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -1050,7 +1039,6 @@
       "issue_number": 85,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -1093,7 +1081,6 @@
       "issue_number": 87,
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
