@@ -1141,8 +1141,10 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             value["port"] =
                 serde_json::to_value(crate::test_fixture::legacy_opentyrian_indexed_port(port))
                     .unwrap();
-            value["required_capabilities"] =
-                json!(crate::test_fixture::definition_requirements(port, 1));
+            value["required_capabilities"] = json!(crate::test_fixture::definition_requirements(
+                port,
+                crate::runtime_path_policy::minimum_capability(port)
+            ));
         }
         let entry = inspect(&value).unwrap();
         assert_eq!(serde_json::to_value(entry.port()).unwrap(), value["port"]);

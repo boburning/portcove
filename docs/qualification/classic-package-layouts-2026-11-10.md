@@ -32,9 +32,9 @@ and [CorsixTH v0.70.1](https://github.com/CorsixTH/CorsixTH/releases/tag/v0.70.1
 Both Blake Stone titles share the BStone package observations and keep their
 own original-data contracts. The Darwin binaries are Intel. Ultimate Doom,
 Doom II and Final Doom share the Crispy Doom package observations. Crispy
-Heretic, Hexen and Strife use their own assets. Launch selects the existing
-main program for each title. OpenTyrian's program paths include twelve
-bundled DOS executables under `data`.
+Heretic, Hexen and Strife use their own assets. Each Crispy route still
+selects its setup executable, whose menu starts the game. OpenTyrian's
+program paths include twelve bundled DOS executables under `data`.
 
 Both OpenTyrian macOS assets (560376490 and 562160158) contain SDL2 framework
 directory links and were rejected by the managed archive observer. macOS
