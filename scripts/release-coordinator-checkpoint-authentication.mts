@@ -202,6 +202,7 @@ export const retainedApplicationRenewalClaim = Object.freeze({
   original_run: "42816631314",
   original_job: 129835641718,
   successor_ref: "refs/tags/portcove-production-controller-20261110r70",
+  settled_successor_ref: "refs/tags/portcove-production-controller-20261110r71",
 });
 
 export function isRetainedApplicationRenewalClaimScope(
@@ -226,11 +227,25 @@ export function matchesRetainedApplicationRenewalHandoff(
   source: { execution_ref: string },
   purpose: "application" | "catalog-publication" | undefined,
 ) {
+  const pin = retainedApplicationRenewalClaim;
+  if (purpose !== "application") return false;
+  if (source.execution_ref === pin.settled_successor_ref) {
+    return (
+      checkpoint.checkpoint === pin.child &&
+      checkpoint.previous === pin.previous &&
+      producer.controller_revision === "b03b3ed7e9e661a57328489583cedcafef4c7004" &&
+      producer.controller_ref === pin.successor_ref &&
+      producer.workflow_sha256 ===
+        "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136" &&
+      producer.run_id === "42827180124" &&
+      producer.run_attempt === 1 &&
+      producer.job_id === "129885597891" &&
+      producer.check_run_id === "129885597891"
+    );
+  }
   return (
-    purpose === "application" &&
-    (source.execution_ref === retainedApplicationRenewalClaim.original_ref ||
-      source.execution_ref === retainedApplicationRenewalClaim.successor_ref) &&
-    checkpoint.checkpoint === retainedApplicationRenewalClaim.previous &&
+    (source.execution_ref === pin.original_ref || source.execution_ref === pin.successor_ref) &&
+    checkpoint.checkpoint === pin.previous &&
     checkpoint.previous === retainedCatalogForwardAdoptionClaim.child &&
     producer.controller_revision === "9c5e7f0e33282115235fffa19d073e5cb084ffa0" &&
     producer.controller_ref === "refs/tags/portcove-production-controller-20261110r68" &&
