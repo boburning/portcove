@@ -28,6 +28,7 @@ const rollback = vi.fn();
 // Core's rollback assessment gates the action exactly as the maintenance control does.
 function withRollback(availability: string, reason: string): PortStatus {
   return {
+    active: { id: "i1" },
     previous: { id: "old" },
     port_actions: [{ action: "rollback", availability, reason }],
   } as unknown as PortStatus;
@@ -62,7 +63,7 @@ const buttons = () => [...document.body.querySelectorAll("button")].map((b) => b
 
 it("shows the explanation and raw code, offering rollback only with a retained version", async () => {
   const load = vi.fn().mockResolvedValue(failure(true));
-  await show(load, { previous: null } as PortStatus);
+  await show(load, { active: { id: "i1" }, previous: null } as unknown as PortStatus);
   expect(document.body.textContent).toContain("most likely missing");
   expect(document.body.textContent).toContain("0xC0000135");
   expect(buttons()).toEqual(["Copy exit code"]);
@@ -91,4 +92,14 @@ it("hides a failure that belongs to an installation that is no longer active", a
   expect(document.body.querySelector("[data-launch-failure]")).toBeNull();
   await show(load, { active: { id: "i1" }, previous: null } as unknown as PortStatus);
   expect(document.body.querySelector("[data-launch-failure]")).not.toBeNull();
+});
+
+it("follows an external registration and hides the failure once nothing is installed", async () => {
+  const load = vi.fn().mockResolvedValue(failure(true));
+  await show(load, { external_runtime: { id: "i1" } } as unknown as PortStatus);
+  expect(document.body.querySelector("[data-launch-failure]")).not.toBeNull();
+  await show(load, { active: null, previous: null } as unknown as PortStatus);
+  expect(document.body.querySelector("[data-launch-failure]")).toBeNull();
+  await show(load, undefined);
+  expect(document.body.querySelector("[data-launch-failure]")).toBeNull();
 });

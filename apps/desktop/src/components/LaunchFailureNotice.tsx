@@ -49,11 +49,12 @@ export function LaunchFailureNotice({
     };
   }, [portId, generation, requestKey, status, load]);
   const loadedView = loaded?.key === requestKey ? loaded.view : null;
-  // A failure belongs to the installation that ran. After a rollback, update or
-  // reinstall it describes software that is no longer active, so it is not shown.
-  const activeInstall = status?.active?.id;
+  // A failure belongs to the installation that ran: the managed install, or the
+  // external registration. After a rollback, update, reinstall or removal it
+  // describes software that is no longer active, so it is not shown.
+  const currentInstall = status?.active?.id ?? status?.external_runtime?.id;
   const failure =
-    loadedView && (activeInstall === undefined || loadedView.install_id === activeInstall)
+    loadedView && currentInstall !== undefined && loadedView.install_id === currentInstall
       ? loadedView
       : null;
   const copied = failure !== null && copiedFor === failure.id;
