@@ -46,13 +46,13 @@ const ENTRIES: &[Entry] = &[
         status: 0xC000_0005,
         key: "access_violation",
         explanation: "The game most likely crashed.",
-        next_action: "Update your graphics drivers, or try the previous version.",
+        next_action: "Update your graphics drivers, then try again.",
     },
     Entry {
         status: 0xC000_0409,
         key: "fail_fast",
         explanation: "The game most likely stopped itself after an internal error.",
-        next_action: "Open the logs, or try the previous version.",
+        next_action: "Check the game's own log files if it writes any, then try again.",
     },
     Entry {
         status: 0xC000_0142,
@@ -64,7 +64,7 @@ const ENTRIES: &[Entry] = &[
 
 const GENERIC_KEY: &str = "unexplained_exit";
 const GENERIC_EXPLANATION: &str = "The game closed with an error.";
-const GENERIC_ACTION: &str = "Open the logs for details.";
+const GENERIC_ACTION: &str = "Try launching again.";
 
 /// Explains an unsuccessful exit. Returns `None` for success (`0`) and for a
 /// missing status, so user-initiated stops and clean exits show nothing.

@@ -7,6 +7,7 @@ import { LaunchFailureNotice } from "./LaunchFailureNotice";
 function failure(explained: boolean): LaunchSessionView {
   return {
     id: "r",
+    install_id: "i1",
     exit_code: -1073741515,
     outcome: "failed",
     ...(explained
@@ -69,4 +70,12 @@ it.each([
 ])("shows nothing for %s", async (_name, load) => {
   await show(load);
   expect(document.body.querySelector("[data-launch-failure]")).toBeNull();
+});
+
+it("hides a failure that belongs to an installation that is no longer active", async () => {
+  const load = vi.fn().mockResolvedValue(failure(true));
+  await show(load, { active: { id: "i2" }, previous: { id: "i1" } } as unknown as PortStatus);
+  expect(document.body.querySelector("[data-launch-failure]")).toBeNull();
+  await show(load, { active: { id: "i1" }, previous: null } as unknown as PortStatus);
+  expect(document.body.querySelector("[data-launch-failure]")).not.toBeNull();
 });

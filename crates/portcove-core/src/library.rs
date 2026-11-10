@@ -3905,6 +3905,72 @@ mod tests {
     }
 
     #[test]
+    fn latest_finished_launch_session_is_per_port_newest_and_ignores_unfinished() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let session = |id: &str, port: &str, started: i64| -> LaunchSessionRecord {
+            serde_json::from_value(serde_json::json!({
+                "id": id, "port_id": port, "install_id": "install",
+                "install_root": temporary.path().join("install"),
+                "supervisor_pid": 1, "phase": "running",
+                "started_at": started, "updated_at": started,
+            }))
+            .unwrap()
+        };
+        let finish = |id: &str, outcome: &str, code: i32, at: i64| {
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE launch_sessions SET outcome=?2, exit_code=?3, finished_at=?4 WHERE id=?1",
+                    params![id, outcome, code, at],
+                )
+                .unwrap();
+        };
+        assert!(
+            library
+                .latest_finished_launch_session("alpha")
+                .unwrap()
+                .is_none()
+        );
+        library
+            .create_launch_session(&session("old", "alpha", 1))
+            .unwrap();
+        finish("old", "failed", 3, 11);
+        library
+            .create_launch_session(&session("other", "beta", 5))
+            .unwrap();
+        finish("other", "failed", 9, 12);
+        assert_eq!(
+            library
+                .latest_finished_launch_session("alpha")
+                .unwrap()
+                .unwrap()
+                .id,
+            "old"
+        );
+        library
+            .create_launch_session(&session("running", "alpha", 6))
+            .unwrap();
+        assert_eq!(
+            library
+                .latest_finished_launch_session("alpha")
+                .unwrap()
+                .unwrap()
+                .id,
+            "old",
+            "an unfinished session must not hide the last finished one"
+        );
+        finish("running", "succeeded", 0, 13);
+        let latest = library
+            .latest_finished_launch_session("alpha")
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.id, "running");
+        assert_eq!(latest.outcome, Some(LaunchSessionOutcome::Succeeded));
+    }
+
+    #[test]
     fn structured_failure_survives_restart_and_corrupt_details_do_not_hide_activity() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path()).unwrap();

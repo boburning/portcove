@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { LaunchSessionView, PortStatus } from "../types";
+import { portActionPresentation } from "../features/port-actions/port-action-presentation";
 import { Button } from "./ui/button";
 
 /**
@@ -47,7 +48,14 @@ export function LaunchFailureNotice({
       current = false;
     };
   }, [portId, generation, requestKey, status, load]);
-  const failure = loaded?.key === requestKey ? loaded.view : null;
+  const loadedView = loaded?.key === requestKey ? loaded.view : null;
+  // A failure belongs to the installation that ran. After a rollback, update or
+  // reinstall it describes software that is no longer active, so it is not shown.
+  const activeInstall = status?.active?.id;
+  const failure =
+    loadedView && (activeInstall === undefined || loadedView.install_id === activeInstall)
+      ? loadedView
+      : null;
   const copied = failure !== null && copiedFor === failure.id;
   const explanation = failure?.exit_explanation;
   if (!failure || !explanation) return null;
@@ -72,7 +80,7 @@ export function LaunchFailureNotice({
         >
           {copied ? "Copied" : "Copy exit code"}
         </Button>
-        {status?.previous && (
+        {status?.previous && !portActionPresentation(status, "rollback").blocked && (
           <Button
             variant="outline"
             disabled={Boolean(busy)}
