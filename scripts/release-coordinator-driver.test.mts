@@ -8,6 +8,7 @@ import {
   inspectPreparedReceiptInventoryAdvance,
   selectCoordinatorPublicationBaseline,
   selectCoordinatorMetadataRenewal,
+  metadataRenewalInputIdentity,
   requireActualCoordinatorMetadataPreparation,
   coordinatorMaintenanceIdentity,
   coordinatorContinuationDeadline,
@@ -1827,4 +1828,23 @@ void test("paused withdrawal rechecks the same controls and refreshes aging obse
   changeOnRefresh = true;
   await assert.rejects(invoke(), /controls changed before journal mutation/);
   assert.equal(published, false);
+});
+
+void test("authenticated renewal reuse ignores only the journal observation clocks", () => {
+  const saved = {
+    now: "2026-11-10T09:06:43.487Z",
+    publication: { observed_at: "2026-11-10T09:06:43.487Z", complete: true },
+    metadata_renewal: { generated_at: "2026-11-10T09:06:10Z" },
+    controller: { capacity_attempt: { operation: null } },
+  };
+  const observed = structuredClone(saved);
+  observed.now = observed.publication.observed_at = "2026-11-10T12:43:45.742Z";
+  assert.equal(metadataRenewalInputIdentity(saved), metadataRenewalInputIdentity(observed));
+  for (const changed of [
+    { ...observed, publication: { ...observed.publication, complete: false } },
+    { ...observed, metadata_renewal: { generated_at: observed.now } },
+    { ...observed, controller: { capacity_attempt: { operation: "pending" } } },
+  ])
+    assert.notEqual(metadataRenewalInputIdentity(saved), metadataRenewalInputIdentity(changed));
+  assert.equal(saved.now, "2026-11-10T09:06:43.487Z");
 });
