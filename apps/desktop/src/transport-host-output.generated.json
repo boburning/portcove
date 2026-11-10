@@ -736,6 +736,11 @@
     "title": "ApplicationUpdateStatus",
     "type": "object"
   },
+  "automatic_snapshots_enabled": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "boolean",
+    "type": "boolean"
+  },
   "backup_review": {
     "$defs": {
       "AutomaticSnapshotLabel": {
