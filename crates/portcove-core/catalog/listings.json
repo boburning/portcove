@@ -32526,12 +32526,16 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Windows setup",
-            "instruction": "Run the upstream Windows Installer EXE yourself. Choose a separate TRX folder and the packs you want. Point the installer to supported Steam, GOG or disc installations for the corresponding games. After setup, register the installed TRX.exe and its containing folder."
+            "title": "Windows installer setup",
+            "instruction": "Run the upstream Windows Installer EXE. Choose a separate TRX folder and the packs you want. Point it to your supported Steam, GOG or disc installation for each game. In Portcove, select the installed TRX.exe and use its containing folder as the start folder."
+          },
+          {
+            "title": "Windows portable ZIP setup",
+            "instruction": "For manual setup, open the upstream release page and choose the combined Windows ZIP. Extract it into a new writable folder. Follow the upstream file map to copy your own original files into the correct games/<game-id>/ folders. Select TRX.exe and its containing folder. Keep the complete extracted package with the player."
           },
           {
             "title": "Linux x86-64 setup",
-            "instruction": "Extract the complete Linux ZIP into a writable folder. Use the upstream manual setup guide to place your original files under the matching games/<game-id>/ folders. Start TRX with its containing folder as the working directory. After setup, use that same native executable and folder for Portcove registration."
+            "instruction": "Extract the complete Linux x64 ZIP into a new writable folder. Follow the same upstream file map for your own originals. Select the TRX executable in the extracted folder and use that folder as the start folder."
           },
           {
             "title": "Intel and Apple Silicon Mac setup",
@@ -32547,6 +32551,10 @@
           {
             "title": "Preserve the TRX game data and profiles",
             "instruction": "Keep a backup of your original game files, cfg, saves, screenshots and any custom profile directories before replacing the runtime. On Mac, preserve any original game files or player data stored inside the bundle before replacing TRX.app. The upstream guide explains migration from the older combined layout."
+          },
+          {
+            "title": "Keep a working copy before updating",
+            "instruction": "Extract each new ZIP into a separate folder. Follow the upstream file map for the originals you supply and keep the build-provided files with their version. Preserve saves, screenshots, configuration and any paths selected through TRX_DIR or the documented TRX path overrides before switching your registration."
           }
         ]
       },
@@ -43814,11 +43822,12 @@
     {
       "id": "r-e-l-i-v-e-oddworld-abe-s-exoddus",
       "name": "R.E.L.I.V.E. / Oddworld: Abe's Exoddus",
-      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Exoddus; fresh package acquisition awaits upstream license and integrity evidence.",
+      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Exoddus. Fresh downloads require distribution permission and a supported release package.",
       "project_url": "https://github.com/AliveTeam/alive_reversing",
       "issue_number": 122,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",
@@ -43834,27 +43843,34 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep your permitted working copy",
-            "instruction": "If you already have a permitted working R.E.L.I.V.E. installation for Oddworld: Abe’s Exoddus, keep its corresponding original game files and any progress and settings with that copy."
+            "title": "Keep this game’s permitted working copy",
+            "instruction": "Keep a separate working folder for Abe’s Exoddus, with your own complete original game files including st.lvl and mi.lvl. The player uses these files to choose the game. Keep the other Oddworld game in a separate folder."
           },
           {
-            "title": "Select that game’s player",
-            "instruction": "Choose the native game player and working folder from that completed installation. Upstream setup and runtime updates remain with that copy. The two Oddworld games retain separate registrations and original-data identities."
+            "title": "Select the Windows player",
+            "instruction": "Select relive.exe from your permitted working copy and use the folder with your original game files as the start folder. Keep SDL3.dll beside relive.exe. Leave arguments empty to select Exoddus. Save the details, then choose Play."
+          },
+          {
+            "title": "Use an already prepared Linux x64 copy",
+            "instruction": "For an existing permitted Debian-style installation, use the relive player with the folder containing your original game files as the start folder. The packaged player needs SDL3. Upstream’s relive-ae shortcut uses Zenity to pick a folder when needed. For direct Portcove registration, select relive and the actual original-game folder. Leave arguments empty to select Exoddus."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Keep the complete original game files, working folder and existing saves backed up. Runtime replacement and backups belong to you or your upstream package manager."
+        ],
         "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
       },
-      "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements."
+      "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use."
     },
     {
       "id": "r-e-l-i-v-e-oddworld-abe-s-oddysee",
       "name": "R.E.L.I.V.E. / Oddworld: Abe's Oddysee",
-      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Oddysee; fresh package acquisition awaits upstream license and integrity evidence.",
+      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Oddysee. Fresh downloads require distribution permission and a supported release package.",
       "project_url": "https://github.com/AliveTeam/alive_reversing",
       "issue_number": 133,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",
@@ -43870,18 +43886,24 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep your permitted working copy",
-            "instruction": "If you already have a permitted working R.E.L.I.V.E. installation for Oddworld: Abe’s Oddysee, keep its corresponding original game files and any progress and settings with that copy."
+            "title": "Keep this game’s permitted working copy",
+            "instruction": "Keep a separate working folder for Abe’s Oddysee, with your own complete original game files including s1.lvl and r1.lvl. The player uses these files to choose the game. Keep the other Oddworld game in a separate folder."
           },
           {
-            "title": "Select that game’s player",
-            "instruction": "Choose the native game player and working folder from that completed installation. Upstream setup and runtime updates remain with that copy. The two Oddworld games retain separate registrations and original-data identities."
+            "title": "Select the Windows player",
+            "instruction": "Select relive.exe from your permitted working copy and use the folder with your original game files as the start folder. Keep SDL3.dll beside relive.exe. Enter AO on a single argument line to select Oddysee. Save the details, then choose Play."
+          },
+          {
+            "title": "Use an already prepared Linux x64 copy",
+            "instruction": "For an existing permitted Debian-style installation, use the relive player with the folder containing your original game files as the start folder. The packaged player needs SDL3. Upstream’s relive-ao shortcut uses Zenity to pick a folder when needed. For direct Portcove registration, select relive and the actual original-game folder. Enter AO on a single argument line to select Oddysee."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Keep the complete original game files, working folder and existing saves backed up. Runtime replacement and backups belong to you or your upstream package manager."
+        ],
         "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
       },
-      "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements."
+      "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use."
     },
     {
       "id": "r4-douglasjv-r4-ridge-racer-type-4",
