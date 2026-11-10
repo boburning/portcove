@@ -1971,6 +1971,26 @@
         "claim": "Redump Wild Arms (USA), SCUS-94608, has 1 track. Track 1 size 637163856, SHA-1 428a3678e42c0660697bf43643db1aa566f4821b, MD5 19f6de83eb8b7525d7bf8eb27566ce30 and CRC32 53a5248c agree with the kit. Core binds the first data track and count.",
         "immutable_url": "https://redump.info/disc/170",
         "live_url": null
+      },
+      {
+        "id": "alexbeav-medievil-recomp-v014-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/medievil-recomp",
+        "authority_ref": "918e3c2db5e0f2fca97cfd2998f607a1822573f2",
+        "reviewed_at": "2026-11-10",
+        "claim": "Official v0.1.4 Windows and Linux setup ZIPs match the publisher SHA-256 and release manifest. Both require the SCUS-94227 two-track disc and retail SCPH-1001 and build MediEvil_Recompiled. Build-provided mods stage in mods/bundled. Offline diagnostics write beside the generated player and under saves/diagnostics, with an external temporary fallback. Native Portcove preparation and gameplay remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/blob/918e3c2db5e0f2fca97cfd2998f607a1822573f2/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-medievil-recomp-redump-3472",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/3472; DAT 2026-11-08 18-37-42",
+        "reviewed_at": "2026-11-10",
+        "claim": "MediEvil (USA), SCUS-94227, has 2 tracks. Track 1 is 528755472 bytes, SHA-1 928257764f5107c9d27aa3e2d469c43aee591abd, MD5 53d908f5bd11d86f3deda75c2da3b750 and CRC32 846f15a7. Core binds the first data track and track count.",
+        "immutable_url": "https://redump.info/disc/3472",
+        "live_url": null
       }
     ],
     "identities": [
@@ -11893,6 +11913,53 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-medievil-recomp-usa-psx",
+        "label": "MediEvil (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "MediEvil (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SCUS-94227"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "928257764f5107c9d27aa3e2d469c43aee591abd",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-medievil-recomp-v014-static-contract",
+                  "alexbeav-medievil-recomp-redump-3472"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-medievil-recomp-v014-static-contract",
+              "alexbeav-medievil-recomp-redump-3472"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -17934,6 +18001,69 @@
           {
             "upstream_ref": "v0.1.0",
             "artifact_sha256": "9dd44a4b9eb19c5a14e0cab44096577f40aa1ccabdec912800e1e0e7a692a3e4"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-medievil-recomp-game-source",
+        "port_id": "alexbeav-medievil-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-medievil-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-medievil-recomp-v014-static-contract",
+          "alexbeav-medievil-recomp-redump-3472"
+        ],
+        "authority_ref": "918e3c2db5e0f2fca97cfd2998f607a1822573f2",
+        "reviewed_at": "2026-11-10",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/blob/918e3c2db5e0f2fca97cfd2998f607a1822573f2/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "9ce3874f2bdd1ee92b6d91defcf86a35eeccebcb15c5b5fa2e121b22942ef4e2"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "26097ec363f6850fbb7575ce2155c7841913f4317b844dca0683ecabc6864d2e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-medievil-recomp-bios-source",
+        "port_id": "alexbeav-medievil-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-medievil-recomp-v014-static-contract"
+        ],
+        "authority_ref": "918e3c2db5e0f2fca97cfd2998f607a1822573f2",
+        "reviewed_at": "2026-11-10",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/blob/918e3c2db5e0f2fca97cfd2998f607a1822573f2/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "9ce3874f2bdd1ee92b6d91defcf86a35eeccebcb15c5b5fa2e121b22942ef4e2"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "26097ec363f6850fbb7575ce2155c7841913f4317b844dca0683ecabc6864d2e"
           }
         ],
         "aliases": [],
