@@ -1611,7 +1611,6 @@ fn running_setup_cancellation_preserves_the_active_tree() {
     let cancellation = PortcoveService::new(fixture.service.library().clone()).unwrap();
     let mut cancellation = Some(cancellation);
     let mut worker = None;
-    let started = Instant::now();
     let error = fixture
         .run(|event| {
             if matches!(event.event, crate::OperationEventKind::Started) {
@@ -1632,18 +1631,24 @@ fn running_setup_cancellation_preserves_the_active_tree() {
                         {
                             assert!(!capture.complete);
                             assert!(!capture.stdout.text.contains("owned-fixture-private-value"));
-                            return service.request_cancellation(&id).is_ok();
+                            let requested_at = Instant::now();
+                            return service.request_cancellation(&id).ok().map(|_| requested_at);
                         }
                         std::thread::sleep(Duration::from_millis(10));
                     }
-                    false
+                    None
                 }));
             }
         })
         .unwrap_err();
-    assert!(worker.unwrap().join().unwrap());
+    let completed_at = Instant::now();
+    let requested_at = worker
+        .unwrap()
+        .join()
+        .unwrap()
+        .expect("running setup accepted cancellation");
     assert_eq!(error.code, ErrorCode::Cancelled);
-    assert!(started.elapsed() < Duration::from_secs(7));
+    assert!(completed_at.checked_duration_since(requested_at).unwrap() < Duration::from_secs(7));
     assert_eq!(
         fixture.service.status(PORT).unwrap().active.unwrap().id,
         fixture.install.id

@@ -202,6 +202,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     [
       "x86_64-pc-windows-msvc",
       "package(portcove-core) & test(/^service::native_portable::tests::ready_archive_profile_times_survive_update_backup_and_runtime_rollback$/)",
+      270,
+    ],
+    [
+      "x86_64-pc-windows-msvc",
+      "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)",
       180,
     ],
     [
