@@ -337,7 +337,8 @@ export type ExternalProfilePolicy =
   | "jgrpp-linux-v1"
   | "openglad-mac-v1"
   | "z2rs-desktop-v1"
-  | "recomp-direct-v1";
+  | "recomp-direct-v1"
+  | "doom3-linux-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
@@ -2110,6 +2111,12 @@ export interface ReleaseSpec {
     "macos-x86-64"?: DirectReleaseSpec;
     "windows-x86-64"?: DirectReleaseSpec;
   };
+  /**
+   * Native22 (native definitions only): after extraction on a Unix platform, grant
+   * execute permission to the declared executable only when it verifies as a binary for
+   * that platform. The publisher's own executable bit, when present, is never changed.
+   */
+  grant_declared_executable?: boolean;
   /**
    * Native8: select the checked TAR.XZ player archive on Linux x86-64.
    */

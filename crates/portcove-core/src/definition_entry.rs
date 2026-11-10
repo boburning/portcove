@@ -218,6 +218,20 @@ impl DefinitionContentIndex {
                 "named portable marker files require native capability version 19",
             ));
         }
+        if port.release.grant_declared_executable {
+            if port.adapter != crate::AdapterKind::NativePortable {
+                return Err(PortcoveError::verification(
+                    "granting a declared executable is supported only by native definitions",
+                ));
+            }
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 22
+            }) {
+                return Err(PortcoveError::verification(
+                    "granting a declared executable requires native capability version 22",
+                ));
+            }
+        }
         if port.release.archive_file_links {
             let (template, minimum) = match port.adapter {
                 crate::AdapterKind::NativePortable => ("native-portable", 14),

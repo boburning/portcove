@@ -15,6 +15,7 @@ const applicationCheckpointStages: readonly string[] = [
   "retained-application-review-claim",
   "withdrawal-signed-checkpoint",
   "durable-maintenance-descriptor",
+  "retained-renewal-descriptor-identity",
 ];
 
 const applicationRefusalStages: readonly string[] = [

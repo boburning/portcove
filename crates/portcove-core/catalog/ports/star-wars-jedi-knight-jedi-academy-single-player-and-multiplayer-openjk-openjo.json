@@ -102,6 +102,12 @@
       "base/assets2.pk3",
       "base/assets3.pk3"
     ],
-    "windows_runtime_path_policy": "printable-ascii-max-path"
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["base", "openjk"],
+        "executables": ["openjk.x86_64.exe", "openjk_sp.x86_64.exe", "openjkded.x86_64.exe"]
+      }
+    }
   }
 }

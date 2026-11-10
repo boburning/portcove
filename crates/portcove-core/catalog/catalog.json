@@ -37875,20 +37875,28 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
         "repository": "AlisterT/openjazz",
+        "grant_declared_executable": true,
         "asset_hints": {
           "windows-x86-64": [
             "openjazz-windows-mingw-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openjazz-linux-glibc2.35-x86_64.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "OpenJazz.exe"
+        ],
+        "linux-x86-64": [
+          "OpenJazz"
         ]
       },
       "persistent_paths": [
@@ -39317,6 +39325,14 @@
           ],
           "executables": [
             "bodyharvestrecompiled"
+          ]
+        },
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "bodyharvestrecompiled.exe"
           ]
         }
       }
@@ -41986,7 +42002,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -41998,6 +42015,10 @@
           "windows-x86-64": [
             "dhewm3-1.",
             "_win32.zip"
+          ],
+          "linux-x86-64": [
+            "dhewm3-1.",
+            "_Linux_amd64.tar.gz"
           ]
         }
       },
@@ -42005,13 +42026,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: base/pak000.pk4, base/pak001.pk4, base/pak002.pk4, base/pak003.pk4, base/pak004.pk4, base/pak005.pk4, base/pak006.pk4, base/pak007.pk4, base/pak008.pk4. Its backup does not include external profiles. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow.",
+        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. On managed Linux x86-64, keep the packaged modules together and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Back up the actual external dhewm3 config and save folders separately. Use a separately prepared copy for custom paths or native mods. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: base/pak000.pk4, base/pak001.pk4, base/pak002.pk4, base/pak003.pk4, base/pak004.pk4, base/pak005.pk4, base/pak006.pk4, base/pak007.pk4, base/pak008.pk4. Its backup does not include external profiles. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow.",
         "original_game_title": "Doom 3 (classic)",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
+              "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. On managed Linux x86-64, keep the packaged modules together and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Back up the actual external dhewm3 config and save folders separately. Use a separately prepared copy for custom paths or native mods."
             },
             {
               "title": "Keep an existing prepared copy",
@@ -42030,8 +42051,8 @@
           "help_url": "https://dhewm3.org/#how-to-install",
           "references": [
             {
-              "title": "Prepare the upstream Linux player",
-              "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dhewm3 from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL and libcurl through your distribution. The inspected ARM64 executable needs glibc 2.38."
+              "title": "Choose your Linux setup",
+              "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dhewm3 from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries through your distribution. The inspected ARM64 executable needs glibc 2.38. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path."
             },
             {
               "title": "Set up dhewm3 on Mac",
@@ -42055,6 +42076,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "dhewm3.exe"
+        ],
+        "linux-x86-64": [
+          "dhewm3"
         ]
       },
       "persistent_paths": [
@@ -42068,7 +42092,34 @@
         "base/pak007.pk4",
         "base/pak008.pk4"
       ],
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "d3xp"
+          ],
+          "executables": [
+            "dhewm3.exe",
+            "dhewm3_notools.exe",
+            "dhewm3ded.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "base",
+            "d3xp",
+            "libs"
+          ],
+          "executables": [
+            "base.so",
+            "d3xp.so",
+            "dhewm3",
+            "dhewm3ded"
+          ]
+        }
+      },
+      "external_profile_policy": "doom3-linux-v1"
     },
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
@@ -42080,7 +42131,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -42092,6 +42144,10 @@
           "windows-x86-64": [
             "dude-0.9.",
             "-win64.zip"
+          ],
+          "linux-x86-64": [
+            "dude-0.9.",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
@@ -42099,17 +42155,17 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified.",
+        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official player package with its own libraries and resources; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified. On managed Linux x86-64, keep the packaged modules together and install glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Back up the actual external dude config and save folders separately. Use a separately prepared copy for custom paths or native mods. If the Linux first launch would copy a legacy dhewm3 profile, complete that setup with an upstream copy and preserve both profiles.",
         "original_game_title": "Doom 3 (classic)",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
+              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
             },
             {
               "title": "Review first-launch profile copying",
-              "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
+              "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
             },
             {
               "title": "Keep an existing prepared copy",
@@ -42122,8 +42178,8 @@
           "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
           "references": [
             {
-              "title": "Prepare the upstream Linux player",
-              "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dude from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE."
+              "title": "Choose your Linux setup",
+              "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dude from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path. If a managed first launch would copy a legacy profile, complete that setup in an upstream copy first."
             }
           ]
         }
@@ -42131,6 +42187,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "dude.exe"
+        ],
+        "linux-x86-64": [
+          "dude"
         ]
       },
       "persistent_paths": [
@@ -42144,7 +42203,37 @@
         "base/pak007.pk4",
         "base/pak008.pk4"
       ],
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "d3le",
+            "d3xp"
+          ],
+          "executables": [
+            "dude.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "base",
+            "d3le",
+            "d3xp",
+            "lib"
+          ],
+          "executables": [
+            "base.so",
+            "base/gamepad-d3xp.cfg",
+            "base/gamepad.cfg",
+            "d3le.so",
+            "d3xp.so",
+            "dude",
+            "lib/libvulkan.so.1"
+          ]
+        }
+      },
+      "external_profile_policy": "doom3-linux-v1"
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dhewm3",
@@ -42156,7 +42245,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -42168,6 +42258,10 @@
           "windows-x86-64": [
             "dhewm3-1.",
             "_win32.zip"
+          ],
+          "linux-x86-64": [
+            "dhewm3-1.",
+            "_Linux_amd64.tar.gz"
           ]
         }
       },
@@ -42175,13 +42269,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove replaces its separate official managed runtime and preserves only the named local PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover the external Documents/My Games/dhewm3 profile. Runtime rollback carries current declared inputs; it does not rewind saves or promise older-runtime, recorded-demo or mod compatibility. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow. Existing external registrations retain every file and their user/upstream runtime owner; a catalog change never adopts them. Gameplay and populated-save compatibility remain unqualified.",
+        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove replaces its separate official managed runtime and preserves only the named local PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover the external Documents/My Games/dhewm3 profile. Runtime rollback carries current declared inputs; it does not rewind saves or promise older-runtime, recorded-demo or mod compatibility. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow. Existing external registrations retain every file and their user/upstream runtime owner; a catalog change never adopts them. Gameplay and populated-save compatibility remain unqualified. On managed Linux x86-64, keep the packaged modules together and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Back up the actual external dhewm3 config and save folders separately. Use a separately prepared copy for custom paths or native mods.",
         "original_game_title": "Doom 3: Resurrection of Evil (classic)",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
+              "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
             },
             {
               "title": "Keep an existing prepared copy",
@@ -42198,8 +42292,8 @@
               "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
             },
             {
-              "title": "Prepare the upstream Linux player",
-              "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dhewm3 with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL and libcurl through your distribution. The inspected ARM64 executable needs glibc 2.38."
+              "title": "Choose your Linux setup",
+              "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dhewm3 with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries through your distribution. The inspected ARM64 executable needs glibc 2.38. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path."
             },
             {
               "title": "Set up dhewm3 on Mac",
@@ -42211,6 +42305,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "dhewm3.exe"
+        ],
+        "linux-x86-64": [
+          "dhewm3"
         ]
       },
       "persistent_paths": [
@@ -42231,7 +42328,34 @@
         "+set",
         "fs_game",
         "d3xp"
-      ]
+      ],
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "d3xp"
+          ],
+          "executables": [
+            "dhewm3.exe",
+            "dhewm3_notools.exe",
+            "dhewm3ded.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "base",
+            "d3xp",
+            "libs"
+          ],
+          "executables": [
+            "base.so",
+            "d3xp.so",
+            "dhewm3",
+            "dhewm3ded"
+          ]
+        }
+      },
+      "external_profile_policy": "doom3-linux-v1"
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
@@ -42243,7 +42367,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "automated_tested_platforms": [],
@@ -42255,6 +42380,10 @@
           "windows-x86-64": [
             "dude-0.9.",
             "-win64.zip"
+          ],
+          "linux-x86-64": [
+            "dude-0.9.",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
@@ -42262,17 +42391,17 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified.",
+        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official player package with its own libraries and resources; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified. On managed Linux x86-64, keep the packaged modules together and install glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Back up the actual external dude config and save folders separately. Use a separately prepared copy for custom paths or native mods. If the Linux first launch would copy a legacy dhewm3 profile, complete that setup with an upstream copy and preserve both profiles.",
         "original_game_title": "Doom 3: Resurrection of Evil (classic)",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
+              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
             },
             {
               "title": "Review first-launch profile copying",
-              "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
+              "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
             },
             {
               "title": "Keep an existing prepared copy",
@@ -42285,8 +42414,8 @@
           "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
           "references": [
             {
-              "title": "Prepare the upstream Linux player",
-              "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dude with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE."
+              "title": "Choose your Linux setup",
+              "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dude with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path. If a managed first launch would copy a legacy profile, complete that setup in an upstream copy first."
             }
           ]
         }
@@ -42294,6 +42423,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "dude.exe"
+        ],
+        "linux-x86-64": [
+          "dude"
         ]
       },
       "persistent_paths": [
@@ -42314,7 +42446,37 @@
         "+set",
         "fs_game",
         "d3xp"
-      ]
+      ],
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "d3le",
+            "d3xp"
+          ],
+          "executables": [
+            "dude.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "base",
+            "d3le",
+            "d3xp",
+            "lib"
+          ],
+          "executables": [
+            "base.so",
+            "base/gamepad-d3xp.cfg",
+            "base/gamepad.cfg",
+            "d3le.so",
+            "d3xp.so",
+            "dude",
+            "lib/libvulkan.so.1"
+          ]
+        }
+      },
+      "external_profile_policy": "doom3-linux-v1"
     },
     {
       "id": "doom-ii-crispy-doom-family",
@@ -42993,6 +43155,33 @@
           "game_slug": "dune-ii-the-building-of-a-dynasty",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "campaign",
+            "data",
+            "gfx",
+            "licences",
+            "music"
+          ],
+          "executables": [
+            "dunedynasty.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "campaign",
+            "data",
+            "gfx",
+            "libs",
+            "licences",
+            "music"
+          ],
+          "executables": [
+            "dunedynasty"
+          ]
+        }
       }
     },
     {
@@ -43076,6 +43265,17 @@
           "image_sha256": "121ef536a98931c57917b7d97cf78f5679d55d5a714879ac2a43feb22df2082a",
           "game_slug": "glider-pro",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "documentation",
+            "packaged"
+          ],
+          "executables": [
+            "aerofoil.exe"
+          ]
         }
       }
     },
@@ -50444,6 +50644,14 @@
           "game_slug": "muppet-racemania",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "rustmania-racing.exe"
+          ]
+        }
       }
     },
     {
@@ -50710,6 +50918,14 @@
           "image_sha256": "1f39fdcee8bb8f823cfca576fb2f91508d582f5b7cf42f5239e360632105340d",
           "game_slug": "the-legend-of-sword-and-fairy",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "sdlpal.exe"
+          ]
         }
       }
     },
@@ -51685,7 +51901,17 @@
       "persistent_paths": [
         "base"
       ],
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "openjk"
+          ],
+          "executables": [
+            "openjo_sp.x86_64.exe"
+          ]
+        }
+      }
     },
     {
       "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
@@ -51772,7 +51998,20 @@
         "base/assets2.pk3",
         "base/assets3.pk3"
       ],
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "base",
+            "openjk"
+          ],
+          "executables": [
+            "openjk.x86_64.exe",
+            "openjk_sp.x86_64.exe",
+            "openjkded.x86_64.exe"
+          ]
+        }
+      }
     },
     {
       "id": "star-wars-x-wing-alliance-openxwa",
@@ -53953,6 +54192,16 @@
               "title": "Managed runtime ownership",
               "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: spaceranger-config. Its backup does not include external profiles."
             }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "spaceranger.exe"
           ]
         }
       }

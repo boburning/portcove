@@ -130,6 +130,14 @@ The exact retained Windows layout can apply this guard without recapturing its
 creating contract. Fresh and retained independent entries declaring the policy
 require version 21.
 
+Native portable version 23 consumes `doom3-linux-v1` for the reviewed
+direct dhewm3 and DUDE Linux x86-64 packages. It checks the packaged
+executable and native modules, starts with the managed base and module
+paths, and checks the effective external config and save directories.
+It holds a DUDE first launch that would copy a legacy profile. Earlier
+creating definitions keep their Windows launch and ownership contracts.
+Fresh and retained indexed entries declaring the policy require version 23.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted
@@ -155,6 +163,12 @@ links inside the same archive, and refuses every other link shape. Indexed entri
 with the declaration require a Native14 lower bound for fresh and retained reads.
 Older readers refuse such an entry; other definitions keep their existing package
 contracts.
+
+Native portable version 22 consumes `release.grant_declared_executable`, which lets Core
+grant execution to the declared program of a package whose archive stores it without an
+executable bit, after verifying the file as a binary for the platform. Indexed entries
+with the declaration require a Native22 lower bound for fresh and retained reads; older
+readers refuse the whole definition, and no other adapter accepts the declaration.
 
 Native portable version 9 consumes `external_profile_policy` for the reviewed
 Dune Dynasty and fheroes2 external profile checks. Both fresh and retained
