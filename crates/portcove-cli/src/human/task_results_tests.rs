@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 fn backup() -> BackupRecord {
     BackupRecord {
+        automatic: None,
         id: "backup-1".into(),
         port_id: "starship".into(),
         path: PathBuf::from("/library/备份/backup-1"),
@@ -194,6 +195,7 @@ fn backup_completion_keeps_restore_and_safety_copy_distinct() {
     assert!(text.contains(&"f".repeat(64)));
     assert_eq!(serde_json::to_value(&result).unwrap(), before);
     result.safety_backup = Some(BackupRecord {
+        automatic: None,
         id: "safety-2".into(),
         ..backup()
     });

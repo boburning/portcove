@@ -173,6 +173,7 @@ mod tests {
             preview: BackupActionPreview {
                 action,
                 backup: BackupRecord {
+automatic: None,
                     id: "selected".to_owned(),
                     port_id: "sample-port".to_owned(),
                     path: PathBuf::from("backups/sample-port/selected"),

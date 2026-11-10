@@ -16,9 +16,10 @@ use super::{
     validate_reviewed_fingerprint,
 };
 use crate::{
-    ActivityOperation, ActivityTargetKind, BackupInventory, BackupInventoryState, BackupProblem,
-    BackupProblemKind, BackupRecord, InstallRecord, Library, PortAction, PortActionAssessment,
-    PortActionReason, PortcoveError, RestoreResult, Result,
+    ActivityOperation, ActivityStatus, ActivityTargetKind, AutomaticSnapshotLabel, BackupInventory,
+    BackupInventoryState, BackupProblem, BackupProblemKind, BackupRecord, InstallRecord, Library,
+    PortAction, PortActionAssessment, PortActionReason, PortcoveError, RestoreResult, Result,
+    SavesAndSettingsBehavior, VersionChangeKind,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind, LifecyclePhase,
@@ -28,6 +29,55 @@ use crate::{
 };
 
 mod guarded_archive;
+
+/// The newest this many automatic snapshots per game are kept.
+pub(super) const AUTOMATIC_SNAPSHOT_RETENTION: usize = 5;
+
+/// What an automatic snapshot request did.
+#[derive(Debug)]
+pub(crate) enum SnapshotOutcome {
+    Created {
+        record: BackupRecord,
+        pruned: usize,
+    },
+    /// The library setting is off.
+    Disabled,
+    /// The game's saves are handled outside Portcove.
+    ExternalData,
+    /// There was no managed saved data yet.
+    NoData,
+}
+
+impl SnapshotOutcome {
+    fn activity_message(
+        &self,
+        kind: VersionChangeKind,
+        from_version: Option<&str>,
+        to_version: &str,
+    ) -> String {
+        let change = match kind {
+            VersionChangeKind::Update => "update",
+            VersionChangeKind::Activation => "activating a staged version",
+            VersionChangeKind::Rollback => "rollback",
+        };
+        let versions = match from_version {
+            Some(from) => format!("{from} to {to_version}"),
+            None => format!("to {to_version}"),
+        };
+        match self {
+            Self::Created { pruned: 0, .. } => {
+                format!("Automatic snapshot before {change} ({versions}).")
+            }
+            Self::Created { pruned, .. } => format!(
+                "Automatic snapshot before {change} ({versions}). Removed {pruned} older automatic snapshot(s)."
+            ),
+            Self::NoData => format!(
+                "No automatic snapshot before {change} ({versions}): there was no saved data yet."
+            ),
+            Self::Disabled | Self::ExternalData => String::new(),
+        }
+    }
+}
 
 /// Doctor consumes history diagnostics without probing live save trees.
 pub(super) struct BackupHistory {
@@ -406,6 +456,11 @@ struct BackupManifest {
     /// Included in content framing so earlier unpartitioned readers refuse it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     partitioned_data_v1: Option<String>,
+    /// Advisory label for a snapshot Portcove took before a version change. It is
+    /// not part of content integrity: an older reader ignores it and lists the
+    /// snapshot as a manual one, which is only ever the safe direction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    automatic_v1: Option<crate::AutomaticSnapshotLabel>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -550,6 +605,14 @@ impl PortcoveService {
     }
 
     pub(super) fn create_backup_locked(&self, port_id: &str) -> Result<BackupRecord> {
+        self.create_backup_locked_labeled(port_id, None)
+    }
+
+    fn create_backup_locked_labeled(
+        &self,
+        port_id: &str,
+        label: Option<crate::AutomaticSnapshotLabel>,
+    ) -> Result<BackupRecord> {
         self.require_generated_cache_outputs_unchanged(port_id)?;
         let source = self.library.user_dir(port_id);
         if !source.is_dir() {
@@ -642,6 +705,7 @@ impl PortcoveService {
                 )?,
                 metadata_sha256: Some(hex::encode(metadata_hasher.finalize())),
                 partitioned_data_v1: partitioned_policy.clone(),
+                automatic_v1: label,
                 guarded_archive_v1: producer.map(|p| p.archive_sha256),
             };
             let final_path = parent.join(&manifest.id);
@@ -1489,6 +1553,26 @@ impl PortcoveService {
         backup_id: &str,
         authorization_token: &str,
     ) -> Result<BackupRecord> {
+        self.delete_backup_inner(port_id, backup_id, Some(authorization_token))
+    }
+
+    /// Retention only. The caller holds the port lock, and only a snapshot that
+    /// carries the automatic label can be removed this way, so a manual one is
+    /// never pruned even if its identifier is supplied by mistake.
+    pub(super) fn delete_automatic_backup_locked(
+        &self,
+        port_id: &str,
+        backup_id: &str,
+    ) -> Result<BackupRecord> {
+        self.delete_backup_inner(port_id, backup_id, None)
+    }
+
+    fn delete_backup_inner(
+        &self,
+        port_id: &str,
+        backup_id: &str,
+        authorization_token: Option<&str>,
+    ) -> Result<BackupRecord> {
         let activity = self.library.begin_activity(
             ActivityOperation::DeleteBackup,
             ActivityTargetKind::Port,
@@ -1499,18 +1583,29 @@ impl PortcoveService {
             LifecycleOperation::new(&activity.id, LifecycleOperationKind::DeleteBackup, port_id);
         let mut result: Result<BackupRecord> = (|| {
             self.catalog.port(port_id)?;
-            let _operation = self.library.try_lock_port(port_id, "delete-backup")?;
+            // Retention runs under the version change's own port lock.
+            let _operation = match authorization_token {
+                Some(_) => Some(self.library.try_lock_port(port_id, "delete-backup")?),
+                None => None,
+            };
             self.require_completed_backup_deletion(port_id)?;
-            let deletion_binding =
-                self.runtime_safety_binding(&self.load_backup(port_id, backup_id)?)?;
-            let locked_preview =
-                self.preview_backup_action(port_id, backup_id, BackupAction::Delete)?;
-            self.library.consume_authorization(
-                authorization_token,
-                BackupAction::Delete.authorization_action(),
-                &backup_authorization_target(port_id, backup_id),
-                &locked_preview.preview_sha256,
-            )?;
+            let candidate = self.load_backup(port_id, backup_id)?;
+            if authorization_token.is_none() && candidate.automatic.is_none() {
+                return Err(PortcoveError::state(
+                    "only an automatic snapshot can be removed by retention",
+                ));
+            }
+            let deletion_binding = self.runtime_safety_binding(&candidate)?;
+            if let Some(token) = authorization_token {
+                let locked_preview =
+                    self.preview_backup_action(port_id, backup_id, BackupAction::Delete)?;
+                self.library.consume_authorization(
+                    token,
+                    BackupAction::Delete.authorization_action(),
+                    &backup_authorization_target(port_id, backup_id),
+                    &locked_preview.preview_sha256,
+                )?;
+            }
             let backup = self.load_backup(port_id, backup_id)?;
             let parent = backup.path.parent().ok_or_else(|| {
                 PortcoveError::state(format!(
@@ -1585,6 +1680,95 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
+    /// Takes the automatic snapshot a version change promises, or explains why none
+    /// is needed. The caller holds the port lock; `collect_first` gathers the
+    /// active version's latest saves when the caller has not already. A snapshot failure returns an error, so the caller
+    /// stops before it mutates anything.
+    pub(super) fn snapshot_before_version_change(
+        &self,
+        port_id: &str,
+        kind: VersionChangeKind,
+        contract_install: &InstallRecord,
+        from_version: Option<&str>,
+        to_version: &str,
+        collect_first: bool,
+    ) -> Result<SnapshotOutcome> {
+        if !self.library.automatic_snapshots_enabled()? {
+            return Ok(SnapshotOutcome::Disabled);
+        }
+        // The retained contract decides ownership, not today's catalog.
+        let contract = self.persistence_contract_for_install(contract_install)?;
+        if contract
+            .port
+            .presentation
+            .as_ref()
+            .is_some_and(|p| p.saves_and_settings == SavesAndSettingsBehavior::ExternalUserOwned)
+        {
+            return Ok(SnapshotOutcome::ExternalData);
+        }
+        let activity = self.library.begin_activity(
+            ActivityOperation::Backup,
+            ActivityTargetKind::Port,
+            Some(port_id),
+        )?;
+        let result = (|| {
+            self.require_completed_backup_deletion(port_id)?;
+            if collect_first {
+                // The snapshot must include what the game wrote most recently.
+                self.collect_active_user_data_if_launched(port_id)?;
+            }
+            let label = AutomaticSnapshotLabel {
+                operation: kind,
+                from_version: from_version.map(str::to_owned),
+                to_version: to_version.to_owned(),
+            };
+            match self.create_backup_locked_labeled(port_id, Some(label)) {
+                Ok(record) => {
+                    let pruned = self.prune_automatic_snapshots(port_id);
+                    Ok(SnapshotOutcome::Created { record, pruned })
+                }
+                // Nothing to protect yet; this is a recorded skip, not a failure.
+                Err(error) if error.code == crate::ErrorCode::NotFound => {
+                    Ok(SnapshotOutcome::NoData)
+                }
+                Err(error) => Err(error),
+            }
+        })();
+        match result {
+            Ok(outcome) => {
+                self.library.finish_activity_report(
+                    &activity.id,
+                    ActivityStatus::Succeeded,
+                    Some(&outcome.activity_message(kind, from_version, to_version)),
+                    None,
+                )?;
+                Ok(outcome)
+            }
+            Err(error) => self.finish_activity(activity, Err(error)),
+        }
+    }
+
+    /// Keeps the newest automatic snapshots and removes older automatic ones.
+    /// Manual snapshots are never candidates. Best effort: the version change
+    /// must not fail because an old snapshot could not be removed. Returns how
+    /// many were removed.
+    fn prune_automatic_snapshots(&self, port_id: &str) -> usize {
+        let Ok(inventory) = self.list_backups(port_id) else {
+            return 0;
+        };
+        // `list_backups` is newest first.
+        inventory
+            .backups
+            .iter()
+            .filter(|backup| backup.automatic.is_some())
+            .skip(AUTOMATIC_SNAPSHOT_RETENTION)
+            .filter(|backup| {
+                self.delete_automatic_backup_locked(port_id, &backup.id)
+                    .is_ok()
+            })
+            .count()
+    }
+
     pub(super) fn load_backup(&self, port_id: &str, backup_id: &str) -> Result<BackupRecord> {
         let parsed = Uuid::parse_str(backup_id).map_err(|_| {
             PortcoveError::not_found(format!("backup {backup_id} was not found for {port_id}"))
@@ -1632,6 +1816,7 @@ impl PortcoveService {
 
 fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
     BackupRecord {
+        automatic: manifest.automatic_v1,
         id: manifest.id,
         port_id: manifest.port_id,
         path,

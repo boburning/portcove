@@ -3414,6 +3414,7 @@ mod tests {
         portcove_core::BackupActionPreview {
             action: portcove_core::BackupAction::Restore,
             backup: BackupRecord {
+                automatic: None,
                 id: "backup-1".into(),
                 port_id: "zelda64-recomp".into(),
                 path: PathBuf::from("owned/backups/backup-1"),
@@ -3561,6 +3562,7 @@ mod tests {
                     restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: vec![BackupRecord {
+                        automatic: None,
                         id: "backup-1".into(),
                         port_id: "sample".into(),
                         path: PathBuf::from("C:/Portcove/backups/backup-1"),

@@ -1143,6 +1143,7 @@ mod tests {
             .status("ghostship", crate::ReleaseChannel::Stable)
             .unwrap();
         let backup = crate::BackupRecord {
+            automatic: None,
             id: uuid::Uuid::new_v4().to_string(),
             port_id: "ghostship".into(),
             path: library.backups_dir().join("ghostship/inert"),
