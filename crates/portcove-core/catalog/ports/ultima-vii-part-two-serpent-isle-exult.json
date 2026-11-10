@@ -17,7 +17,7 @@
         },
         {
           "title": "Prepare upstream and select the real player",
-          "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
+          "instruction": "Choose the official Windows installer from Exult’s download page, or keep a complete upstream-prepared player with its runtime data. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
         },
         {
           "title": "Set up the upstream Linux package",
@@ -29,7 +29,7 @@
         },
         {
           "title": "Import this edition in the Android launcher",
-          "instruction": "Install the official Exult 1.12.1 APK from Exult’s download page on Android 9 or later. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
+          "instruction": "Choose the official Android APK under the stable release on Exult’s download page and check its Android version requirement. Zip your own Serpent Isle STATIC folder and its contents, then choose the matching game in the upstream launcher and select that ZIP. Exult installs the files in its app-private serpentisle/static directory. Keep your original ZIP separately. It does not contain Exult’s settings or saves. Use an in-place update from the same signer and keep the app data intact unless you have a verified backup of the actual profile."
         },
         {
           "title": "Add the game and manage your files",
@@ -53,7 +53,8 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "release_url": "https://exult.info/download.html"
   },
   "upstream_lineage": {
     "format_version": 1,
