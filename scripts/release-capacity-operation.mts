@@ -25,6 +25,8 @@ import {
 } from "./release-coordinator-state.mts";
 import {
   assessBoundedCapacity,
+  retainedRenewalCapacityBinding,
+  retainedRenewalCapacityRebind,
   capacityDigest,
   inspectCapacityOperation,
   inspectPriorCapacityOperations,
@@ -277,7 +279,24 @@ async function runOperation(
     throw new Error(
       "metadata effects require capacity schema2 and explicit authenticated published seed",
     );
-  capacity.boundary = structuredClone(await readBoundary());
+  const rebind =
+    metadata !== null &&
+    expected === retainedRenewalCapacityRebind.checkpoint &&
+    executor?.execution_ref === retainedRenewalCapacityRebind.execution_ref &&
+    executor.role === "coordinator" &&
+    executor.run_attempt === 1 &&
+    executor.workflow === ".github/workflows/application-update-production.yml" &&
+    request.kind === "upload" &&
+    request.destination === "github-actions:boburning/portcove:metadata-renewal-context";
+  const originalCapacity = rebind ? structuredClone(capacity) : null;
+  const readCapacityBinding = async (pending?: Readonly<PendingEffect>) => {
+    const live = structuredClone(await readBoundary(pending));
+    if (!originalCapacity) return { boundary: live };
+    const binding = retainedRenewalCapacityBinding(originalCapacity, live);
+    if (!binding) throw new Error("retained renewal live capacity binding differs");
+    return binding;
+  };
+  Object.assign(capacity, await readCapacityBinding());
   const ready = assessBoundedCapacity(capacity);
   if (
     ready.eligibility !== "eligible" ||
@@ -521,12 +540,10 @@ async function runOperation(
     await publish();
     const fresh = assessBoundedCapacity({
       ...capacity,
-      boundary: structuredClone(
-        await readBoundary({
-          checkpoint: current,
-          operation: structuredClone(inspectCapacityOperation(operation)!),
-        }),
-      ),
+      ...(await readCapacityBinding({
+        checkpoint: current,
+        operation: structuredClone(inspectCapacityOperation(operation)!),
+      })),
       operation: ready.operation,
     });
     if (fresh.eligibility !== "eligible")

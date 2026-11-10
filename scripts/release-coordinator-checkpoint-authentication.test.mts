@@ -1267,6 +1267,10 @@ void test("the repaired application controller accepts only the settled renewal 
       execution_ref: pin.native_split_successor_ref,
       workflow_sha256: pin.native_split_workflow_sha256,
     },
+    {
+      execution_ref: pin.capacity_rebind_successor_ref,
+      workflow_sha256: pin.native_split_workflow_sha256,
+    },
   ]) {
     assert.equal(
       matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
@@ -1297,6 +1301,8 @@ void test("the repaired application controller accepts only the settled renewal 
   for (const source of [
     { execution_ref: pin.native_split_successor_ref },
     { execution_ref: pin.native_split_successor_ref, workflow_sha256: producer.workflow_sha256 },
+    { execution_ref: pin.capacity_rebind_successor_ref },
+    { execution_ref: pin.capacity_rebind_successor_ref, workflow_sha256: producer.workflow_sha256 },
   ]) {
     assert.equal(
       matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),

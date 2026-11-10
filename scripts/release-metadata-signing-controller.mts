@@ -25,6 +25,7 @@ import { requireControllerApplicationJobPublicationAuthorities } from "./release
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { reconcileCoordinatorSigningContext } from "./release-metadata-context-recovery.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import { retainedRenewalCapacityRebind } from "./release-capacity.mts";
 
 export async function completeCoordinatorSigningContext(
   actualPreparation: object,
@@ -112,8 +113,15 @@ export async function completeCoordinatorSigningContext(
         },
         async (pending) => {
           if (pending) await bindCoordinatorSigningContextBoundary(receipt, executor, pending);
-          return (await requireCoordinatorSigningContext(receipt, deadline)).capacity_source
-            .capacity.boundary;
+          const fresh = (await requireCoordinatorSigningContext(receipt, deadline)).capacity_source
+            .capacity;
+          if (
+            current.mode === "renewal" &&
+            current.checkpoint === retainedRenewalCapacityRebind.checkpoint &&
+            identity.controller_ref === retainedRenewalCapacityRebind.execution_ref
+          )
+            return { boundary: fresh.boundary, ratification: fresh.ratification };
+          return fresh.boundary;
         },
         async (pending) => {
           await bindCoordinatorSigningContextPending(receipt, executor, pending);
