@@ -502,7 +502,6 @@ async function verifyJobIdentity(
       (value.path !== profile.workflow &&
         value.path !== `${profile.workflow}@${expected.controller_ref}`) ||
       value.event !== "workflow_dispatch" ||
-      value.status !== "in_progress" ||
       !isRecord(value.repository) ||
       value.repository.id !== repositoryId ||
       value.repository.full_name !== repository ||
@@ -510,13 +509,16 @@ async function verifyJobIdentity(
       value.head_repository.id !== repositoryId
     )
       throw jobIdentityRefusal("provider-run", "assembler run identity differs");
+    // The aggregate run state does not identify a particular job. Require
+    // the signed Check's exact job to be in progress in both provider reads.
+    if ((value.status !== "queued" && value.status !== "in_progress") || value.conclusion != null)
+      throw jobIdentityRefusal("provider-run", "assembler attempt is not active");
     return {
       id: value.id,
       attempt: value.run_attempt,
       sha: value.head_sha,
       path: value.path,
       event: value.event,
-      status: value.status,
     };
   };
   const before = runIdentity(await get(runPath));
@@ -580,6 +582,7 @@ async function verifyJobIdentity(
     !job ||
     typeof job.id !== "number" ||
     job.status !== "in_progress" ||
+    job.conclusion != null ||
     job.name !== profile.job ||
     !labelsMatch(job)
   )
@@ -597,6 +600,7 @@ async function verifyJobIdentity(
     refreshed.check_run_url !== job.check_run_url ||
     refreshed.name !== job.name ||
     refreshed.status !== "in_progress" ||
+    refreshed.conclusion != null ||
     !labelsMatch(refreshed)
   )
     throw jobIdentityRefusal(
