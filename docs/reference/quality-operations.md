@@ -681,7 +681,7 @@ PSScriptAnalyzer resource through PSResourceGet. The local bootstrap scripts use
 cargo-binstall when available and exact, locked Cargo installs otherwise;
 optional deep tools remain outside required PR CI.
 
-Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
+Required CI cancels an older in-progress run when a newer commit reaches the same branch. A pull request run has its own concurrency group so a replacement starts at once instead of waiting for the superseded run's gate jobs to drain; the separate `Cancel superseded CI runs` workflow cancels the older runs of that pull request by head SHA. That cancellation is best effort: a fork pull request's read-only token cannot cancel, so its superseded runs finish. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
 
 Routine Renovate traffic is bounded to six concurrent branches and pull requests.
 This provides proposal headroom for blocked updates while the maintenance route
@@ -1138,8 +1138,9 @@ and explicit readback remain authoritative after every event.
 
 The `intel-rust-tests-<attempt>` archive transfers compiled tests from the Apple
 Silicon producer to both Intel test partitions. It is not a release artifact.
-`Cleanup consumed Intel transfers` runs trusted default-branch code after CI,
-qualification or release completion and hourly. Completion events inspect the
+`Cleanup consumed Intel transfers` runs trusted default-branch code after
+qualification or release completion and hourly. Direct pull request and push CI runs
+execute fast mode and produce no Intel transfers, so they do not trigger it. Completion events inspect the
 triggering run's artifacts only; hourly cleanup and manual dispatch without a run
 ID sweep exact names `intel-rust-tests-1` through `intel-rust-tests-4`. That is
 bounded recovery, not an exhaustive repository artifact inventory. A later
