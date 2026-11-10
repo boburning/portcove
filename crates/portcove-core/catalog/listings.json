@@ -13869,7 +13869,7 @@
         "steps": [
           {
             "title": "Use your recognized original game files",
-            "instruction": "Use your own original PC Blood data folder, including BLOOD.RFF, SOUNDS.RFF, BLOOD.INI and its accompanying art/data. Raze recognizes specific Blood 1.0, 1.1 and One Unit Whole Blood identities. Keep optional Cryptic Passage files with their required base data. A remaster player executable is not the original data archive. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+            "instruction": "Use your own original PC Blood data folder, including BLOOD.RFF, SOUNDS.RFF, BLOOD.INI and its accompanying art/data. Raze recognizes specific Blood 1.0, 1.1 and One Unit Whole Blood identities. Keep optional Cryptic Passage files with their required base data. A remaster player executable is not the original data archive. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, add its real location to GameSearch.Directories in raze.ini, or in raze_portable.ini for the Portcove-managed Windows player; do not copy game files into the managed player folder, because Portcove verifies that folder. Elsewhere, you may instead place a copy of its complete data folder beside Raze. Keep your own originals; no original game files are included."
           },
           {
             "title": "Choose Play in the upstream player",
@@ -22208,7 +22208,7 @@
         "steps": [
           {
             "title": "Use your recognized original game files",
-            "instruction": "Use your own original PC Duke Nukem 3D data folder, anchored by DUKE3D.GRP. Raze recognizes retail 1.3/Atomic and specific World Tour data variants; the actual group-file identity selects the edition. Keep the accompanying original files. Console, mobile and other Raze games are not substitutes. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+            "instruction": "Use your own original PC Duke Nukem 3D data folder, anchored by DUKE3D.GRP. Raze recognizes retail 1.3/Atomic and specific World Tour data variants; the actual group-file identity selects the edition. Keep the accompanying original files. Console, mobile and other Raze games are not substitutes. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, add its real location to GameSearch.Directories in raze.ini, or in raze_portable.ini for the Portcove-managed Windows player; do not copy game files into the managed player folder, because Portcove verifies that folder. Elsewhere, you may instead place a copy of its complete data folder beside Raze. Keep your own originals; no original game files are included."
           },
           {
             "title": "Choose Play in the upstream player",
@@ -36978,7 +36978,7 @@
         "steps": [
           {
             "title": "Use your recognized original game files",
-            "instruction": "Use your own original PC NAM data folder, anchored by NAM.GRP. Keep its accompanying original files. Upstream also recognizes the distinct NAPALM.GRP edition; select the actual owned edition in Raze rather than renaming or substituting another game’s data. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+            "instruction": "Use your own original PC NAM data folder, anchored by NAM.GRP. Keep its accompanying original files. Upstream also recognizes the distinct NAPALM.GRP edition; select the actual owned edition in Raze rather than renaming or substituting another game’s data. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, add its real location to GameSearch.Directories in raze.ini, or in raze_portable.ini for the Portcove-managed Windows player; do not copy game files into the managed player folder, because Portcove verifies that folder. Elsewhere, you may instead place a copy of its complete data folder beside Raze. Keep your own originals; no original game files are included."
           },
           {
             "title": "Choose Play in the upstream player",
@@ -42548,7 +42548,7 @@
         "steps": [
           {
             "title": "Use your recognized original game files",
-            "instruction": "Use your own DOS PowerSlave or Exhumed data folder, anchored by STUFF.DAT. Raze recognizes the distinct supported PowerSlave and Exhumed data identities. Keep the complete accompanying original data. The Saturn/PlayStation games and the 2022 Exhumed remaster are different implementations/data contracts. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+            "instruction": "Use your own DOS PowerSlave or Exhumed data folder, anchored by STUFF.DAT. Raze recognizes the distinct supported PowerSlave and Exhumed data identities. Keep the complete accompanying original data. The Saturn/PlayStation games and the 2022 Exhumed remaster are different implementations/data contracts. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, add its real location to GameSearch.Directories in raze.ini, or in raze_portable.ini for the Portcove-managed Windows player; do not copy game files into the managed player folder, because Portcove verifies that folder. Elsewhere, you may instead place a copy of its complete data folder beside Raze. Keep your own originals; no original game files are included."
           },
           {
             "title": "Choose Play in the upstream player",
@@ -44875,7 +44875,7 @@
         "steps": [
           {
             "title": "Use your recognized original game files",
-            "instruction": "Use your own original PC Redneck Rampage data folder, anchored by REDNECK.GRP. Keep its companion files. Rides Again is a separate standalone title and Route 66 is an add-on with its own dependencies. This base-game entry does not acquire either or merge their requirements. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+            "instruction": "Use your own original PC Redneck Rampage data folder, anchored by REDNECK.GRP. Keep its companion files. Rides Again is a separate standalone title and Route 66 is an add-on with its own dependencies. This base-game entry does not acquire either or merge their requirements. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, add its real location to GameSearch.Directories in raze.ini, or in raze_portable.ini for the Portcove-managed Windows player; do not copy game files into the managed player folder, because Portcove verifies that folder. Elsewhere, you may instead place a copy of its complete data folder beside Raze. Keep your own originals; no original game files are included."
           },
           {
             "title": "Choose Play in the upstream player",
@@ -47009,7 +47009,7 @@
         "steps": [
           {
             "title": "Use your recognized original game files",
-            "instruction": "Use your own 1997 PC Shadow Warrior data folder, anchored by SW.GRP. Keep its accompanying files and any separately owned expansion data. The 2013 reboot is a different game. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+            "instruction": "Use your own 1997 PC Shadow Warrior data folder, anchored by SW.GRP. Keep its accompanying files and any separately owned expansion data. The 2013 reboot is a different game. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, add its real location to GameSearch.Directories in raze.ini, or in raze_portable.ini for the Portcove-managed Windows player; do not copy game files into the managed player folder, because Portcove verifies that folder. Elsewhere, you may instead place a copy of its complete data folder beside Raze. Keep your own originals; no original game files are included."
           },
           {
             "title": "Choose Play in the upstream player",
@@ -59946,7 +59946,7 @@
         "steps": [
           {
             "title": "Use your recognized original game files",
-            "instruction": "Use your own original PC WWII GI data folder, anchored by WW2GI.GRP. Keep its accompanying files. Platoon Leader is an optional separately owned expansion that depends on the base game; it is not required for this base-game entry. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+            "instruction": "Use your own original PC WWII GI data folder, anchored by WW2GI.GRP. Keep its accompanying files. Platoon Leader is an optional separately owned expansion that depends on the base game; it is not required for this base-game entry. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, add its real location to GameSearch.Directories in raze.ini, or in raze_portable.ini for the Portcove-managed Windows player; do not copy game files into the managed player folder, because Portcove verifies that folder. Elsewhere, you may instead place a copy of its complete data folder beside Raze. Keep your own originals; no original game files are included."
           },
           {
             "title": "Choose Play in the upstream player",

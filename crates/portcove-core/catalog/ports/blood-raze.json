@@ -20,7 +20,7 @@
       "steps": [
         {
           "title": "Use your recognized original game files",
-          "instruction": "Use your own original PC Blood data folder, including BLOOD.RFF, SOUNDS.RFF, BLOOD.INI and its accompanying art/data. Raze recognizes specific Blood 1.0, 1.1 and One Unit Whole Blood identities. Keep optional Cryptic Passage files with their required base data. A remaster player executable is not the original data archive. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          "instruction": "Use your own original PC Blood data folder, including BLOOD.RFF, SOUNDS.RFF, BLOOD.INI and its accompanying art/data. Raze recognizes specific Blood 1.0, 1.1 and One Unit Whole Blood identities. Keep optional Cryptic Passage files with their required base data. A remaster player executable is not the original data archive. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, add its real location to GameSearch.Directories in raze.ini, or in raze_portable.ini for the Portcove-managed Windows player; do not copy game files into the managed player folder, because Portcove verifies that folder. Elsewhere, you may instead place a copy of its complete data folder beside Raze. Keep your own originals; no original game files are included."
         },
         {
           "title": "Choose Play in the upstream player",

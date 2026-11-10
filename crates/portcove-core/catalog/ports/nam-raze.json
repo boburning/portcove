@@ -20,7 +20,7 @@
       "steps": [
         {
           "title": "Use your recognized original game files",
-          "instruction": "Use your own original PC NAM data folder, anchored by NAM.GRP. Keep its accompanying original files. Upstream also recognizes the distinct NAPALM.GRP edition; select the actual owned edition in Raze rather than renaming or substituting another game’s data. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          "instruction": "Use your own original PC NAM data folder, anchored by NAM.GRP. Keep its accompanying original files. Upstream also recognizes the distinct NAPALM.GRP edition; select the actual owned edition in Raze rather than renaming or substituting another game’s data. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, add its real location to GameSearch.Directories in raze.ini, or in raze_portable.ini for the Portcove-managed Windows player; do not copy game files into the managed player folder, because Portcove verifies that folder. Elsewhere, you may instead place a copy of its complete data folder beside Raze. Keep your own originals; no original game files are included."
         },
         {
           "title": "Choose Play in the upstream player",
