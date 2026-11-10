@@ -2903,11 +2903,12 @@ The desktop process shares one release provider across Tauri commands. Successfu
 
 Anonymous update-check request cost (measured November 2026 by
 `release::tests::measure_the_request_cost_of_checking_a_library`, which drives the real
-provider and its persisted ETag cache). One check of one GitHub-hosted game makes two
-requests: one `releases` page and one repository-metadata call. GitHub does not count a 304
-response against the primary rate limit, so only 200 responses count. The test pins the
-10- and 25-game rows; the 50-game row was measured once with the same harness and the cost
-is exactly linear.
+provider and its persisted ETag cache against a fake API). This covers ports resolved on the
+ordinary path, which sends the player's token when signed in and revalidates with
+`If-None-Match`. One check of one such GitHub-hosted game makes two requests: one `releases`
+page and one repository-metadata call. Per GitHub's documented behavior, a 304 response to
+a conditional request does not count against the primary rate limit, so only 200 responses
+count.
 
 | Library  | Cold check (no cached ETags) | Warm check after a restart | One repository changed  |
 | -------- | ---------------------------- | -------------------------- | ----------------------- |
@@ -2915,11 +2916,32 @@ is exactly linear.
 | 25 games | 50 requests, 50 counted      | 50 requests, 0 counted     | 50 requests, 2 counted  |
 | 50 games | 100 requests, 100 counted    | 100 requests, 0 counted    | 100 requests, 2 counted |
 
-An anonymous client is limited to 60 counted requests per hour per IP address, shared with
-anything else on that address. A cold check therefore exhausts a whole hour for a library of
-30 or more GitHub-hosted games and can fail partway through, while a warm check is free.
-Cost is dominated by first checks and by cache loss, not by routine rechecks, which is why
-the useful moment to offer GitHub sign-in is before a cold check that would not fit.
+The test pins the 10- and 25-game rows; the 50-game row was measured once with the same
+harness, and the cost is linear in the number of games. An anonymous client is limited to 60
+counted requests per hour per IP address, shared with anything else on that address (other
+Portcove installations, the free `/rate_limit` probe aside). A cold check therefore uses a
+whole hour for a library of 30 or more such games and can fail partway through, while a warm
+check is free.
+
+What the table does not cover:
+
+- **Managed-definition ports.** A port resolved under an admitted publisher-policy scope
+  deliberately sends no credential and no conditional header and does not read or write the
+  ETag cache, so every check of it counts in full (two requests per game, curated ports
+  add a tag-commit lookup), signed in or not. Signing in does not raise its limit.
+- **Long release histories.** The `releases` list is fetched 100 entries at a time, up to
+  ten pages, so a repository with many releases costs one counted request per page when cold.
+- **Short-lived caches.** A persisted ETag entry lives seven days from its last use and a
+  304 refreshes it, so a library checked at least weekly stays warm; a longer gap makes the
+  next check cold again. The in-memory release selection is reused for five minutes, but the
+  repository-metadata call is still made, so a repeat check inside that window costs one
+  request per game.
+- **Channels.** The `releases` URL does not depend on the channel, so checking a second
+  channel of the same repository reuses the cached response.
+
+Cost is therefore dominated by first checks and by cache loss, not by routine rechecks,
+which is why the useful moment to offer GitHub sign-in is before a cold check that would
+not fit, and only for the ports that sign-in actually helps.
 
 React retains the latest event for each active operation and its available
 ancestor context, plus at most 32 other recent terminal events. Retained

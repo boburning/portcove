@@ -4872,41 +4872,51 @@ mod tests {
             let changed: Arc<Mutex<Option<String>>> = Arc::default();
             let handler_log = Arc::clone(&log);
             let handler_changed = Arc::clone(&changed);
-            let (api_root, _requests, server) = serve_routed_http(100_000, move |request| {
-                let path = request
-                    .lines()
-                    .next()
-                    .and_then(|line| line.split_whitespace().nth(1))
-                    .unwrap_or("")
-                    .to_owned();
-                // The ETag is derived from the resource, plus a revision once a repository changes.
-                let revision = handler_changed
-                    .lock()
-                    .unwrap()
-                    .as_ref()
-                    .filter(|repository| path.contains(repository.as_str()))
-                    .map_or(0, |_| 1);
-                let etag = format!(
-                    "\"etag-{revision}-{}\"",
-                    path.replace(['/', '?', '=', '&'], "_")
-                );
-                let lowered = request.to_ascii_lowercase();
-                let conditional =
-                    lowered.contains(&format!("if-none-match: {}", etag.to_ascii_lowercase()));
-                let status = if conditional { 304 } else { 200 };
-                handler_log.lock().unwrap().push((path.clone(), status));
-                if conditional {
-                    return format!(
-                        "HTTP/1.1 304 Not Modified\r\nETag: {etag}\r\nConnection: close\r\n\r\n"
+            // 150 sequential requests with SQLite writes can outlast the 30s default accept
+            // budget on a slow hosted runner, so allow the finite maximum-friendly 180s.
+            let (api_root, _requests, server) = crate::test_http::serve_routed_http_with_budget(
+                100_000,
+                std::time::Duration::from_secs(180),
+                move |request| {
+                    let path = request
+                        .lines()
+                        .next()
+                        .and_then(|line| line.split_whitespace().nth(1))
+                        .unwrap_or("")
+                        .to_owned();
+                    // The ETag is derived from the resource, plus a revision once a repository changes.
+                    let revision = handler_changed
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .filter(|repository| {
+                            // Exact repository match: `repo-1` must not also match `repo-10`.
+                            path == format!("/repos/{repository}")
+                                || path.starts_with(&format!("/repos/{repository}/"))
+                        })
+                        .map_or(0, |_| 1);
+                    let etag = format!(
+                        "\"etag-{revision}-{}\"",
+                        path.replace(['/', '?', '=', '&'], "_")
                     );
-                }
-                let body = if path.contains("/releases?") {
-                    releases.clone()
-                } else {
-                    r#"{"archived":false}"#.to_owned()
-                };
-                ok_json(&body, &format!("ETag: {etag}\r\n"))
-            });
+                    let lowered = request.to_ascii_lowercase();
+                    let conditional =
+                        lowered.contains(&format!("if-none-match: {}", etag.to_ascii_lowercase()));
+                    let status = if conditional { 304 } else { 200 };
+                    handler_log.lock().unwrap().push((path.clone(), status));
+                    if conditional {
+                        return format!(
+                            "HTTP/1.1 304 Not Modified\r\nETag: {etag}\r\nConnection: close\r\n\r\n"
+                        );
+                    }
+                    let body = if path.contains("/releases?") {
+                        releases.clone()
+                    } else {
+                        r#"{"archived":false}"#.to_owned()
+                    };
+                    ok_json(&body, &format!("ETag: {etag}\r\n"))
+                },
+            );
             let temporary = tempfile::tempdir().unwrap();
             let library = Library::open(temporary.path()).unwrap();
             let catalog = crate::Catalog::embedded().unwrap();
