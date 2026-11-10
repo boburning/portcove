@@ -452,6 +452,7 @@ fn native_ascii_paths_require_version7_instead_of_silently_using_an_older_reader
     let mut port = crate::test_fixture::legacy_opentyrian_indexed_port(
         catalog.port("opentyrian-opentyrian").unwrap(),
     );
+    port.reviewed_package_layouts.clear();
     port.windows_runtime_path_policy = Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
     let mut entry = entry_for_port(&port);
     for version in 1..=6 {
@@ -1141,10 +1142,6 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             value["port"] =
                 serde_json::to_value(crate::test_fixture::legacy_opentyrian_indexed_port(port))
                     .unwrap();
-            value["required_capabilities"] = json!(crate::test_fixture::definition_requirements(
-                port,
-                crate::runtime_path_policy::minimum_capability(port)
-            ));
         }
         let entry = inspect(&value).unwrap();
         assert_eq!(serde_json::to_value(entry.port()).unwrap(), value["port"]);
