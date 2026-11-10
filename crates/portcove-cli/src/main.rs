@@ -518,9 +518,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         } else {
             None
         };
+        let record = record.map(portcove_core::LaunchSessionView::new);
         render_read_success(mode, "launch.show", record, |record| {
             human_adapters::launch_record(
-                record.as_ref(),
+                record.as_ref().map(|view| &view.record),
                 &request_id.to_string(),
                 display_service.as_ref().map(PortcoveService::catalog),
                 cli.technical_details,
@@ -1447,10 +1448,13 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             render_read_success(
                 mode,
                 "launch.recover",
-                service.library().launch_request(&request_id.to_string())?,
+                service
+                    .library()
+                    .launch_request(&request_id.to_string())?
+                    .map(portcove_core::LaunchSessionView::new),
                 |record| {
                     human_adapters::launch_record(
-                        record.as_ref(),
+                        record.as_ref().map(|view| &view.record),
                         &request_id.to_string(),
                         Some(service.catalog()),
                         cli.technical_details,

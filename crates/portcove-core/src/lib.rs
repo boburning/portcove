@@ -190,7 +190,9 @@ pub use definition_repository::{
     },
 };
 pub use error::{ErrorCode, PortcoveError, Result};
-pub use exit_explanation::{EXIT_EXPLANATION_TABLE_VERSION, ExitExplanation, explain_exit_code};
+pub use exit_explanation::{
+    EXIT_EXPLANATION_TABLE_VERSION, ExitExplanation, LaunchSessionView, explain_exit_code,
+};
 pub use external_runtime::{
     ExternalRuntimePreview, ExternalRuntimeRelinkPreview, ExternalRuntimeRemovalPreview,
 };

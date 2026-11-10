@@ -3,12 +3,15 @@
 //! Wording is deliberately "most likely": an explained status is a hint, never
 //! proof of cause. Unmapped statuses get a generic message with no invented cause.
 
-use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
+use serde::Serialize;
+
+use crate::{LaunchSessionOutcome, LaunchSessionRecord};
 
 /// Bumped whenever a key, status or next action changes meaning.
 pub const EXIT_EXPLANATION_TABLE_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct ExitExplanation {
     pub table_version: u32,
     /// Stable machine key, e.g. `dll_not_found`.
@@ -87,6 +90,30 @@ pub fn explain_exit_code(code: Option<i32>) -> Option<ExitExplanation> {
     })
 }
 
+/// A launch-session record plus the explanation for an unsuccessful exit.
+/// The record stays the only durable authority; the explanation is derived.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct LaunchSessionView {
+    #[serde(flatten)]
+    pub record: LaunchSessionRecord,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_explanation: Option<ExitExplanation>,
+}
+
+impl LaunchSessionView {
+    /// Only a failed session is explained; success and user-initiated stops
+    /// (cancelled) and unfinished sessions show nothing.
+    pub fn new(record: LaunchSessionRecord) -> Self {
+        let exit_explanation = (record.outcome == Some(LaunchSessionOutcome::Failed))
+            .then(|| explain_exit_code(record.exit_code))
+            .flatten();
+        Self {
+            record,
+            exit_explanation,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,6 +148,48 @@ mod tests {
             assert_eq!(found.key, GENERIC_KEY);
             assert_eq!(found.raw_code, code.to_string());
             assert_eq!(found.explanation, GENERIC_EXPLANATION);
+        }
+    }
+
+    fn session(
+        outcome: Option<LaunchSessionOutcome>,
+        exit_code: Option<i32>,
+    ) -> LaunchSessionRecord {
+        serde_json::from_value(serde_json::json!({
+            "id": "r", "port_id": "p", "install_id": "i", "install_root": "/i",
+            "supervisor_pid": 1, "phase": "running", "started_at": 0, "updated_at": 1,
+            "outcome": outcome, "exit_code": exit_code,
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn view_explains_only_failed_sessions() {
+        let failed = LaunchSessionView::new(session(
+            Some(LaunchSessionOutcome::Failed),
+            Some(0xC000_0135_u32 as i32),
+        ));
+        assert_eq!(
+            failed.exit_explanation.as_ref().unwrap().key,
+            "dll_not_found"
+        );
+        let json = serde_json::to_value(&failed).unwrap();
+        assert_eq!(json["exit_explanation"]["raw_code"], "0xC0000135");
+        assert_eq!(json["id"], "r");
+
+        for record in [
+            session(Some(LaunchSessionOutcome::Succeeded), Some(0)),
+            session(Some(LaunchSessionOutcome::Cancelled), Some(1)),
+            session(None, None),
+        ] {
+            let view = LaunchSessionView::new(record);
+            assert!(view.exit_explanation.is_none());
+            assert!(
+                serde_json::to_value(&view)
+                    .unwrap()
+                    .get("exit_explanation")
+                    .is_none()
+            );
         }
     }
 }
