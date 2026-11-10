@@ -8,6 +8,7 @@
 use std::{
     collections::BTreeSet,
     fs,
+    io::{self, Read},
     path::{Path, PathBuf},
 };
 
@@ -19,22 +20,102 @@ const MAXIMUM_REVIEWED_PATHS: usize = 4_096;
 const REPORTED_NAMES: usize = 3;
 pub(crate) const NATIVE_CAPABILITY: u32 = 18;
 
+/// Inspect verified local archive bytes with the managed native layout rules.
+/// Unix inspection uses the extraction profile for a declared player executable.
+/// This establishes layout, not release authority.
+pub fn inspect_package_archive(
+    source: &Path,
+    platform: Platform,
+    expected_size: u64,
+    expected_sha256: &str,
+) -> Result<ReviewedPackageLayout> {
+    let name = source
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| PortcoveError::usage("package archive needs a UTF-8 filename"))?;
+    let lower = name.to_ascii_lowercase();
+    let tar_xz = lower.ends_with(".tar.xz") && platform == Platform::LinuxX86_64;
+    if !tar_xz
+        && ![".zip", ".tar.gz", ".tgz"]
+            .iter()
+            .any(|ext| lower.ends_with(ext))
+    {
+        return Err(PortcoveError::usage("choose a supported managed archive"));
+    }
+    if !cfg!(unix) && platform != Platform::WindowsX86_64 {
+        return Err(PortcoveError::usage(
+            "inspect Unix packages on a host that preserves executable modes",
+        ));
+    }
+    if expected_size == 0
+        || expected_sha256.len() != 64
+        || !expected_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err(PortcoveError::usage(
+            "provide the expected archive size and SHA-256",
+        ));
+    }
+    crate::archive::validate_download_progress(0, expected_size)?;
+    let workspace = tempfile::tempdir()?;
+    let root = workspace.path().canonicalize()?;
+    let captured = root.join("artifact");
+    let input = crate::external_runtime::open_single_link_file(source)?;
+    crate::archive::validate_download_size(input.metadata()?.len(), expected_size)?;
+    let mut output = fs::File::create(&captured)?;
+    let copied = io::copy(&mut input.take(expected_size + 1), &mut output)?;
+    drop(output);
+    crate::archive::validate_download_size(copied, expected_size)?;
+    if !crate::service::sha256_file(&captured)?.eq_ignore_ascii_case(expected_sha256) {
+        return Err(PortcoveError::verification(
+            "package archive SHA-256 differs",
+        ));
+    }
+    let payload = root.join("payload");
+    fs::create_dir(&payload)?;
+    if tar_xz {
+        crate::archive::extract_tar_xz_with_checkpoint(
+            &captured,
+            &payload,
+            expected_size,
+            &|| Ok(()),
+        )?;
+    } else {
+        crate::install::extract_asset(
+            &captured,
+            &payload,
+            name,
+            expected_size,
+            platform != Platform::WindowsX86_64,
+            &|| Ok(()),
+        )?;
+    }
+    let layout = observe(&payload, platform)?;
+    if !valid_layout(&layout) {
+        return Err(PortcoveError::verification(
+            "package layout cannot be represented by a bounded reviewed declaration",
+        ));
+    }
+    Ok(layout)
+}
+
+fn valid_layout(layout: &ReviewedPackageLayout) -> bool {
+    let canonical = |paths: &[String]| {
+        paths.windows(2).all(|pair| pair[0] < pair[1])
+            && paths.iter().all(|path| {
+                !path.bytes().any(|byte| byte.is_ascii_uppercase())
+                    && crate::archive::validate_relative_path(path, false).is_ok()
+            })
+    };
+    layout.directories.len() + layout.executables.len() <= MAXIMUM_REVIEWED_PATHS
+        && !layout.executables.is_empty()
+        && !layout.directories.iter().any(|name| name.contains('/'))
+        && canonical(&layout.directories)
+        && canonical(&layout.executables)
+}
+
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     for (platform, layout) in &port.reviewed_package_layouts {
-        let canonical = |paths: &[String]| {
-            paths.windows(2).all(|pair| pair[0] < pair[1])
-                && paths.iter().all(|path| {
-                    !path.bytes().any(|byte| byte.is_ascii_uppercase())
-                        && crate::archive::validate_relative_path(path, false).is_ok()
-                })
-        };
-        if !port.platforms.contains(platform)
-            || layout.directories.len() + layout.executables.len() > MAXIMUM_REVIEWED_PATHS
-            || layout.executables.is_empty()
-            || layout.directories.iter().any(|name| name.contains('/'))
-            || !canonical(&layout.directories)
-            || !canonical(&layout.executables)
-        {
+        if !port.platforms.contains(platform) || !valid_layout(layout) {
             return Err(PortcoveError::verification(format!(
                 "{} has an invalid reviewed package layout for {platform:?}",
                 port.id
@@ -238,6 +319,33 @@ mod tests {
     fn reviewed() -> ReviewedPackageLayout {
         let package = package(Some("game-1.0"), REVIEWED_FILES);
         observe(package.path(), Platform::WindowsX86_64).unwrap()
+    }
+
+    #[test]
+    fn archive_layout_inspection_verifies_bytes_before_staging() {
+        use std::io::Write as _;
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("game.zip");
+        let mut writer = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+        for name in REVIEWED_FILES {
+            writer
+                .start_file(
+                    format!("game-1.0/{name}"),
+                    zip::write::SimpleFileOptions::default(),
+                )
+                .unwrap();
+            writer.write_all(b"x").unwrap();
+        }
+        writer.finish().unwrap();
+        let size = fs::metadata(&path).unwrap().len();
+        let digest = crate::service::sha256_file(&path).unwrap();
+        let platform = Platform::WindowsX86_64;
+        assert_eq!(
+            inspect_package_archive(&path, platform, size, &digest).unwrap(),
+            reviewed()
+        );
+        assert!(inspect_package_archive(&path, platform, size + 1, &digest).is_err());
+        assert!(inspect_package_archive(&path, platform, size, &"0".repeat(64)).is_err());
     }
 
     #[test]

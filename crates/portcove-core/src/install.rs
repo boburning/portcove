@@ -4365,7 +4365,7 @@ fn is_executable_companion_name(path: &Path, platform: Platform) -> bool {
         || (platform == Platform::WindowsX86_64 && extension.as_deref() == Some("exe"))
 }
 
-fn extract_asset(
+pub(crate) fn extract_asset(
     source: &Path,
     destination: &Path,
     asset_name: &str,

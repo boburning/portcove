@@ -321,6 +321,32 @@ async fn execute_with_qualification_environment(
 
 async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     if let Commands::Catalog {
+        command:
+            CatalogCommand::InspectPackageLayout {
+                archive,
+                platform,
+                size,
+                sha256,
+            },
+    } = &cli.command
+    {
+        let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
+            .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        render_read_success(
+            mode,
+            "catalog.inspect-package-layout",
+            portcove_core::inspect_package_archive(archive, platform, *size, sha256)?,
+            |layout| {
+                format!(
+                    "Observed {} directories and {} program paths.",
+                    layout.directories.len(),
+                    layout.executables.len()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
         command: CatalogCommand::InspectListings { path },
     } = &cli.command
     {
