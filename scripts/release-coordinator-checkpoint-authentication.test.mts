@@ -25,6 +25,7 @@ import {
   requireAuthenticatedCheckpointEvidence,
   authenticateFixedJobCoordinatorHistory,
   matchesRetainedCatalogBootstrapHandoff,
+  matchesRetainedCatalogAdoptionWithdrawal,
   matchesRetainedReviewWithdrawalHandoff,
   retainedCatalogBootstrapClaim,
   retainedApplicationReviewClaim,
@@ -1070,4 +1071,42 @@ void test("retained application claim admits only its exact successor and origin
     isRetainedApplicationReviewClaimScope(claim.child, claim.child, claim.successor_ref, 1),
     false,
   );
+});
+
+void test("catalog adoption can authenticate only the exact settled r63 withdrawal predecessor", () => {
+  const checkpoint = {
+    checkpoint: "da80188916dfc40f5d46c1eb4123bc00b9d68a8b",
+    previous: retainedApplicationReviewClaim.child,
+  };
+  const producer = {
+    controller_revision: "5a572c20064f5c7bfc9fadb86996b9f1bef7c812",
+    controller_ref: "refs/tags/portcove-production-controller-20261110r63",
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42755307254",
+    job_id: "129631097635",
+  };
+  assert.equal(
+    matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, "catalog-publication"),
+    true,
+  );
+  for (const purpose of ["application", undefined] as const)
+    assert.equal(matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose), false);
+  for (const field of Object.keys(checkpoint))
+    assert.equal(
+      matchesRetainedCatalogAdoptionWithdrawal(
+        { ...checkpoint, [field]: "0".repeat(40) },
+        producer,
+        "catalog-publication",
+      ),
+      false,
+    );
+  for (const field of Object.keys(producer))
+    assert.equal(
+      matchesRetainedCatalogAdoptionWithdrawal(
+        checkpoint,
+        { ...producer, [field]: "0" },
+        "catalog-publication",
+      ),
+      false,
+    );
 });

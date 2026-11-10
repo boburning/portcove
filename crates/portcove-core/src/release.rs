@@ -105,7 +105,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     partitioned_archive: bool,
     requires_tar_xz: bool,
     native_appimage: bool,
-    openmohaa_zip: bool,
+    versioned_native_archive: bool,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -122,7 +122,12 @@ impl ReleaseSelectionCacheKey {
             partitioned_archive: port.archive_data_compatibility_v1.is_some(),
             requires_tar_xz: port.release.requires_tar_xz(platform),
             native_appimage: native_appimage(port, platform).is_some(),
-            openmohaa_zip: crate::native_external_profile::openmohaa::requires_zip(port, platform),
+            versioned_native_archive: crate::native_external_profile::openmohaa::requires_zip(
+                port, platform,
+            )
+                || crate::native_external_profile::quake_linux::requires_ironwail_tar(
+                    port, platform,
+                ),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1684,22 +1689,26 @@ impl NativeAppImage<'_> {
         match self {
             Self::Exact(expected) => name.eq_ignore_ascii_case(expected),
             Self::Versioned { prefix, suffix } => {
-                let name = name.to_ascii_lowercase();
-                let Some(version) = name
-                    .strip_prefix(*prefix)
-                    .and_then(|name| name.strip_suffix(*suffix))
-                else {
-                    return false;
-                };
-                let mut parts = version.strip_prefix('v').unwrap_or(version).split('.');
-                (0..3).all(|_| {
-                    parts.next().is_some_and(|part| {
-                        !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())
-                    })
-                }) && parts.next().is_none()
+                versioned_asset_name_matches(name, prefix, suffix)
             }
         }
     }
+}
+
+pub(crate) fn versioned_asset_name_matches(name: &str, prefix: &str, suffix: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    let Some(version) = name
+        .strip_prefix(prefix)
+        .and_then(|name| name.strip_suffix(suffix))
+    else {
+        return false;
+    };
+    let mut parts = version.strip_prefix('v').unwrap_or(version).split('.');
+    (0..3).all(|_| {
+        parts
+            .next()
+            .is_some_and(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+    }) && parts.next().is_none()
 }
 
 pub(crate) fn native_appimage(
@@ -1712,7 +1721,13 @@ pub(crate) fn native_appimage(
     {
         return None;
     }
-    if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompAppimageV1) {
+    if matches!(
+        port.external_profile_policy,
+        Some(
+            crate::ExternalProfilePolicy::RecompAppimageV1
+                | crate::ExternalProfilePolicy::VkquakeLinuxV1
+        )
+    ) {
         let [prefix, suffix] = port.release.asset_hints.get(&platform)?.as_slice() else {
             return None;
         };
@@ -1750,7 +1765,11 @@ fn choose_asset<'a>(
         .iter()
         .filter_map(|asset| {
             let name = asset.name.to_ascii_lowercase();
-            if !crate::native_external_profile::openmohaa::matches_asset(port, platform, &name) {
+            if !crate::native_external_profile::openmohaa::matches_asset(port, platform, &name)
+                || !crate::native_external_profile::quake_linux::matches_ironwail_tar(
+                    port, platform, &name,
+                )
+            {
                 return None;
             }
             let supported_package = if let Some(expected) = &standalone {
@@ -2610,7 +2629,7 @@ mod tests {
             partitioned_archive: false,
             requires_tar_xz: false,
             native_appimage: false,
-            openmohaa_zip: false,
+            versioned_native_archive: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2637,7 +2656,7 @@ mod tests {
                         partitioned_archive: false,
                         requires_tar_xz: false,
                         native_appimage: false,
-                        openmohaa_zip: false,
+                        versioned_native_archive: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

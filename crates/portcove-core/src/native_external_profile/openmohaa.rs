@@ -34,18 +34,8 @@ pub(crate) fn requires_zip(port: &PortDefinition, platform: Platform) -> bool {
 }
 
 pub(crate) fn matches_asset(port: &PortDefinition, platform: Platform, asset_name: &str) -> bool {
-    if !requires_zip(port, platform) {
-        return true;
-    }
-    let name = asset_name.to_ascii_lowercase();
-    name.strip_prefix(PREFIX)
-        .and_then(|rest| rest.strip_suffix(suffix(platform)))
-        .is_some_and(|version| {
-            let mut parts = version.strip_prefix('v').unwrap_or(version).split('.');
-            parts.clone().count() == 3
-                && parts
-                    .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
-        })
+    !requires_zip(port, platform)
+        || crate::release::versioned_asset_name_matches(asset_name, PREFIX, suffix(platform))
 }
 
 fn title(port: &PortDefinition) -> Option<(&'static str, &'static [&'static str])> {

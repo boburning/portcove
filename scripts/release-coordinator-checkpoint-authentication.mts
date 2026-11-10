@@ -133,6 +133,26 @@ export function matchesRetainedReviewWithdrawalHandoff(
   );
 }
 
+/** Only catalog-purpose admission can carry the settled fd4 withdrawal into
+ * forward adoption. It still has to verify the original coordinator signature. */
+export function matchesRetainedCatalogAdoptionWithdrawal(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  return (
+    purpose === "catalog-publication" &&
+    checkpoint.checkpoint === "da80188916dfc40f5d46c1eb4123bc00b9d68a8b" &&
+    checkpoint.previous === retainedApplicationReviewClaim.child &&
+    producer.controller_revision === "5a572c20064f5c7bfc9fadb86996b9f1bef7c812" &&
+    producer.controller_ref === "refs/tags/portcove-production-controller-20261110r63" &&
+    producer.workflow_sha256 ===
+      "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136" &&
+    producer.run_id === "42755307254" &&
+    producer.job_id === "129631097635"
+  );
+}
+
 /** Authenticate one independently selected current head, not an ancestry walk.
  * Selected setup pins authorize only the exact empty seed. Every later head
  * must carry the existing signature plus actual fixed historical job binding.
@@ -145,6 +165,7 @@ export async function authenticateFixedJobCoordinatorHistory(
   deadline: number,
   api: CoordinatorCheckpointApi,
   withdrawal?: ReturnType<typeof inspectReleaseReviewWithdrawal>,
+  purpose?: "application" | "catalog-publication",
 ) {
   const checkpoint = structuredClone(rawCheckpoint);
   const authorities = inspectFixedJobJournalAuthorities(rawAuthorities);
@@ -202,7 +223,8 @@ export async function authenticateFixedJobCoordinatorHistory(
   const retainedHandoff =
     producer !== null &&
     (matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source) ||
-      matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal));
+      matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal) ||
+      matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose));
   if (
     !producer ||
     (!retainedHandoff &&
